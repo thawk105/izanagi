@@ -22,6 +22,7 @@
 | `fig7_a2_builtin_backoff_onoff_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | `fig5_` と**同じ attempt `t2022-20260828c`・同じ値・同じ outer `reject`** を、**効いた条件の記述へ訂正**して描いた図。比較したのは CCBench 内蔵の適応 backoff の 有効/無効 (`BACK_OFF` の 0/1) である。`fig5_` の bytes は 1 byte も変えていない。**採用静的 backoff の結論・図としては使わない (D1936項21・D1993決定5、期限なし)** |
 | `fig8_b10_static_tail_not_observed.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` | B-10 静的 backoff 右 tail の **09-15 正式 cohort** (group `b10-backoff-grid-20260915T061814Z-545445`、集団判定 `not-observed-in-any-workload`) の**記述図**。事前登録 §4.1 の 8 点 × 3 workload × 5 反復。`fig2c_` とは別格子・別 cohort であり、その続きではない。言い方は事前登録 §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637) |
 | `fig9_a1_balanced5_sized_attempt1.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` | A-1 balanced5 sized 本走 **attempt-0001** (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`) の**記述図**。3 workload の 30 対の差 (variant − baseline) と、その対差平均 ± 登録済み区間 h を床 ±B と並べる。**非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)** のdescriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再認可は判定しない。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
+| `fig10_b7_fixed5_three_workload_regression.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b7_fixed5_regression.py` | 採用候補 **fixed 5 µs** を 3 workload で同一 attempt `b7f5-20260919a` (study `paper-story-b7-fixed5-regression`、request `10807` / `10808` / `10809`) に測った 6 cell × 5 標本と、各 workload の median 効果を D1639 の between-run 床値と比べた**記述図** (B-7 の材料)。稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の床値判定 (write-heavy / balanced 退行なし、**read-heavy は床値超の退行**) を写し、生成器は判定を作らず記録判定と述語の整合だけを検査する。**B-7 の要件充足・反復 attempt・certification 昇格・有意差は判定しない (D2044 項 3、D2162)。** 既存図の後継ではなく独立した新図。既存材料 (10 / 5 / 2 µs) とプール・比較しない (D1993 項 6)。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -929,4 +930,130 @@ provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を
 - `fig9_a1_balanced5_sized_attempt1.provenance.json` SHA-256: `6e386d42457b154c9c58910bc1905df0947e7988f980237381cb6116e5ebf5ac`
 
 provenance が `caption_source` として束縛する results 稿の SHA-256 は `67e8c53cbfe27a33fa51d55744364050cadbd1e83e605c0f9c06477f882d8e2e`
+(稿は凍結物で、着地後に変わらない)。
+
+---
+
+# `fig10_b7_fixed5_three_workload_regression` — 採用候補 fixed 5 µs の 3 workload 同時期測定と床値判定 (B-7 の材料図)
+
+## 何を示す図か
+
+study `paper-story-b7-fixed5-regression` の attempt `b7f5-20260919a` (2026-09-19、request `10807.nqsv` / `10808.nqsv` / `10809.nqsv`、
+3 workload × 2 cell × 5 標本) について、稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の主表 (§2.1) と床値判定 (§1.4) を
+そのまま図にした**記述図**である。
+
+- 上段 3 panel (write-heavy rr5 / balanced rr50 / read-heavy rr95): cell ごとの trace-disabled 性能標本 5 点、短い横棒が median、ひし形と誤差棒が
+  標本平均と t 分布 95% 信頼区間 (df 4)、灰色の破線が同 workload の stock (無 backoff) median = 効果の分母。y は workload ごとの尺度で、panel 間で高さを比べない。
+- 下段 1 panel: workload ごとの median 効果 (`effects[w]` = adopted median / stock median − 1、certification.json の値を写す) を marker で、
+  0 線と、各 workload の `−floor_w` (D1639 の between-run 床値 = 床値 JSON `between_run.cv` の全桁) を短い破線で置く。
+  結果を見る前に固定した規則 (`effect_w < −floor_w`、strict) の判定を label で示す — write-heavy 退行なし、balanced 退行なし、**read-heavy は床値超の退行**。
+
+**この図が言えるのは稿の床値判定まで**である。「退行なし」は優越でも差が無いことの証明でもなく、床は旧 stock の session-median の変動係数であって
+効果の標準誤差ではない。有意差判定・区間推定・B-7 (全 workload の退行込み報告) の要件充足の判定・certification の昇格・反復 attempt の安定性は
+含めない (D2044 項 3、D2162)。機構の outer status `reject` は 3 workload の論理積の出力で read-heavy の負の効果の帰結であり、研究の失敗宣告ではない
+(D12)。図を variant 採用の根拠にしない (絶対規律 2)。
+
+## 既存図との関係
+
+- 既存図 (fig1〜fig9) のいずれの後継でもない独立した新図。fig5〜fig7 は A-2 の 4 cell (workload 別の採用値 10 / 5 µs、または内蔵 backoff の有効/無効)、
+  本図は**同一候補 fixed 5 µs** を 3 workload で同一 attempt に測った別 study instance の 6 cell で、値も条件も別である。前後比較として読まない (絶対規律 7)。
+- 既存材料 (2026-09-16 稿の 10 / 5 / 2 µs) は描かない。併記もプールも比較もしない (D1993 項 6)。
+- **2 本目の論文 (`docs/paper-story-backoff/`) と共用しない** (D1637)。
+
+## 入力
+
+- 権威 bytes (repo 内、tracked): `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json`
+  (`paper-story-a2-certification-result/v4`、6 cell の median・`effects`・`status`・`a4_noise_floor_status`・correctness・`src_token`・binary digest) と
+  同 dir の `raw-manifest.json` (`paper-story-a2-full-raw-manifest/v4`、durable raw の SHA-256)。
+- 床値 (repo 内、tracked、D1639): `output/env/pegasus/calibration/between_run_noise_t48_skew0p9_{rr5,rr50,rr95}_rmw0.json` の `between_run.cv`。
+- policy (repo 内、tracked): `orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json` (測定条件の出所。certification の `policy_sha256` と一致を要求)。
+- 生成器は repo 所有の pin 表で上の 6 file の SHA-256 を照合する。**pin は CLI から渡せない。** SHA-256 の値は稿 §5.1 (certification / raw-manifest) と同じで、
+  `orchestrator/tests/test_plot_b7_fixed5_regression.py` が稿の表・§1.4 の床値 3 値・§2.1 の `effect_w` と判定との一致を検査する。
+- 外部入力 (repo 外、durable authority): attempt の raw cell JSON 6 本
+  (`/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/<w>/raw/<cell>.json`)。
+  root 相対 path と SHA-256 を provenance の `external_inputs` に記録し、tracked `raw-manifest.json` の `files` と一致を要求する。
+  5 標本 (`performance.samples_tps`) の出所はここだけで、certification.json は median しか持たない。
+- 再計算と照合: 各 cell の median は 5 標本から再計算して certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、
+  median の比からの再計算と `abs_tol = 1e-12` で照合する (`effect_crosschecks`)。判定は**生成器が作らない** — 稿 §2.1 の判定を定数 (`RECORDED_JUDGMENT`) として
+  写し、述語 `effect_w < −cv_w` との一致だけを fail-closed で検査する (fig9 の classification と同型)。
+- 拒否条件: SHA-256 不一致 (tracked 6 file、raw 6 file)、schema / study / attempt / cell 順序の不一致、`source_binding_status` ≠ bound、adopted の `src_token` が
+  `stock` または 3 workload で不一致、`correctness.status` ≠ certified、raw の verify 記録 (legacy 1 + performance 5) に `serializable` / `certified` でないものがある、
+  raw の性能標本が trace-enabled、`unstable`、標本数 ≠ 5、median / effect の不一致、判定の不一致、床値 JSON の genome / 条件の不一致、caption_source の不在。
+  いずれでも成果物を出さない。
+- **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿
+  `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` の path と SHA-256 を記録する
+  (`authority_scope` = 限定と条件の言い方の出所であって、数値・効果・判定の出所ではない)。稿は provenance の SHA-256 を持たない (F36 の自己参照回避)。
+  稿は凍結物なので着地後に変わらない。
+
+## 再現
+
+```bash
+python3 tools/plotting/plot_b7_fixed5_regression.py \
+  --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a \
+  docs/paper-story/figures/fig10_b7_fixed5_three_workload_regression
+```
+
+`--repo-root` は省略時に生成器の位置から repo root を決める。repo 内入力は repo 相対で固定 (CLI から別の leaf を渡せない)。
+`--measurement-root` は省略時に上の durable path を使う。図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。
+生成は login node で行う (計測機の外、FIGURE_CONVENTIONS §7)。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。
+着地したバイト列の同一性は provenance JSON が記録した `outputs[].sha256` と
+`test_landed_fig10_repo_closure_and_caption_when_present` が守る。着地後の closure 検査は repo 内の tracked 入力と出力の SHA-256、
+`external_inputs` と raw-manifest の一致、provenance の cells から作り直した artist / caption との一致を見る (durable root を読まない。
+durable root が読めるときは `validate_external_sources` が raw 6 本の SHA-256 も照合する)。生成器の `generator.sha256` は生成時点の記録であり、
+現行 source を縛る pin ではない (規律 7)。
+
+## 作図規約への適合
+
+- §1: 数値は raw cell JSON の 5 標本と certification.json の `effects`・床値 JSON の `cv` からその場で読み、median と効果を再計算して記録値と fail-closed で照合する。
+- §2: 5 標本の生値と、標本平均 ± t 分布 95% CI (df 4) を描く。CI は標本の記述であって、効果・median・判定の区間ではないと caption に明記する。
+- §3: 比較対象 (stock median、0、−floor) を水平の破線・実線で描き、標本・効果と目で比べられる。
+- §5: 図中ラベルは `stock` / `fixed 5 us` / `median` / `mean ± t95 CI` / `stock median` / `effect` / `-floor` と workload 名 (rr) だけ。内部識別子は出さない。
+- §6: provenance に tracked 入力 6 file + caption_source の path と SHA-256、外部入力 6 file、study / attempt / source commit / pin / request、測定条件、
+  6 cell (標本・median・平均・CI・correctness 要約・digest)、`effects` と `effect_crosschecks`、`floors`、`judgments`、`artist_series`、caption、展開済み再現 argv を記録する。
+- §9: 保存前に renderer-backed layout check を走らせ、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- §10: 単体テストの fixture は実寸 (3 workload × 2 cell × 5 標本、床値 3 本、raw 6 本) で、本物の matplotlib Figure を layout check へ通す。
+  実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、
+`orchestrator/tests/test_plot_b7_fixed5_regression.py` が本 README への収録と生成器の決定的な組み立てとの一致を検査する。
+英文で書く。値 (効果 % / −floor % / 判定 / request / pin / source commit / 条件) は生成器が certification.json・床値 JSON・policy から書式化し、
+限定の固定文 9 つ (B-7 の充足判定ではない / 規則と床の出自 / 退行なしは優越でも差の不在の証明でもない / outer status は論理積の出力 /
+単一 attempt・昇格しない / 正しさは別走行で性能の認証ではない / CI は標本の記述 / 上段 y は workload 別 / 既存材料とプール・比較しない) を逐語で含む。
+
+> Figure 10. B-7 material: static backoff fixed 5 us versus stock (no backoff) in three workloads, attempt b7f5-20260919a (study paper-story-b7-fixed5-regression; outer status reject; a4_noise_floor_status open). Columns: write-heavy (rr5, request 10807.nqsv), balanced (rr50, request 10808.nqsv), read-heavy (rr95, request 10809.nqsv), each an independent campaign in its own request, with the stock control measured in the same campaign immediately before the adopted cell. Top row: all five trace-disabled performance samples per cell; short bars are medians; diamonds with error bars are sample means with t-distribution 95% confidence intervals (df 4); the gray dashed line is the workload's stock median and the effect denominator. Bottom row: median effects copied from certification (adopted median / stock median - 1): write-heavy +67.8968%, balanced +12.6717%, read-heavy -11.3787%; dashed ticks mark -floor per workload: write-heavy -0.9536%, balanced -0.7250%, read-heavy -0.2228%. The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor (coefficient of variation of the stock genome across 8 sessions of 5 repetitions, measured earlier under the same settings). Result of that rule: write-heavy no regression, balanced no regression, read-heavy regression (below -floor). No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made. The outer status is the protocol's conjunction over the three workloads and follows from the negative read-heavy effect; it is not a research verdict. This is B-7 material, not a B-7 satisfaction decision (D2044 item 3). This figure reports a single attempt of five samples per cell; it does not promote the certification and does not speak to repeated attempts. Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, and this is not a performance certification. Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s per repetition, 5 repetitions, silo, CCBench pin 511c953, source commit c18a80967, no perf, trace-disabled performance; the adopted cells share one source bytes digest across workloads but each workload is a separate build (binaries differ). M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment. Top-row y axes are workload-local and must not be compared across panels. Existing materials with other adopted values are neither pooled nor compared.
+
+## proof chain
+
+- 図に描いた標本・median・平均・CI・stock median・効果・−floor・判定 → provenance JSON の `artist_series` と `cells` / `effects` / `floors` / `judgments`
+- 効果と outer status → `certification.json` の `effects` / `status` / `a4_noise_floor_status`。生成器は再計算せず、`effect_crosschecks` に raw median の比との一致を記録する
+  (3 workload とも `authority_matches` が真)
+- 判定 → 稿 §2.1 の判定を生成器の定数 `RECORDED_JUDGMENT` として写し、`judgments[w].computed_matches_recorded` に述語 `effect < −floor (strict)` との一致を記録する
+  (床 = 床値 JSON `between_run.cv` の全桁、`floors[w]`)。生成器は判定を作らない
+- 標本の由来 → durable authority の raw cell JSON 6 本 (provenance の `external_inputs` に root 相対 path と SHA-256)、その先は campaign WAL (稿 §5.2)
+- 入力の束縛 → tracked `raw-manifest.json` の `files` と生成器の pin 表 (`tracked_inputs`)、稿 §5.1 の表
+- 正しさの記録 → raw cell JSON の `correctness.legacy` (1 記録) と `correctness.performance` (5 記録) が 6 cell とも `verdict = serializable`・`certified = true`
+  (`cells[].correctness`)。性能の認証ではない
+- 限定と条件の言い方 → 稿 (provenance の `caption_source`、SHA-256 束縛)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_b7_fixed5_regression.py`。着地後の closure 検査 (`validate_repo_closure`) が見るのは、着地 PNG / PDF の
+  SHA-256・pin 表・`external_inputs` と raw-manifest の一致・provenance の cells から作り直した artist / caption との一致・caption_source の現 SHA-256 である
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md`
+- 判定規則と床の裁定 → D2162 (判定規則 v2、B-7 充足判定なし)、D1639 (床値 = between-run noise floor)、D2044 項 3
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+## 着地 bytes の SHA-256
+
+次の 3 行が着地 bytes の正本である。`orchestrator/tests/test_plot_b7_fixed5_regression.py` の着地 test が、この 3 行の値と
+着地 file の現物 SHA-256 の一致を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
+
+- `fig10_b7_fixed5_three_workload_regression.png` SHA-256: `583e94f642a9892a66791b9e0dff5ed37bd7babedf3f4da644b1245af15d1d5d`
+- `fig10_b7_fixed5_three_workload_regression.pdf` SHA-256: `3fb9d1cab495c717a32fb13bb1061ea77e4c619cb56f9d6738d00908a471b764`
+- `fig10_b7_fixed5_three_workload_regression.provenance.json` SHA-256: `1a945474ad64ffed9f44f93d086966ecb19969ba75bf6945a3a96c0834b88480`
+
+provenance が `caption_source` として束縛する稿の SHA-256 は `6585d446a07d798d87c352a1b41eb5b195ee70ba453976aa5ec0f46daef4b6f9`
 (稿は凍結物で、着地後に変わらない)。
