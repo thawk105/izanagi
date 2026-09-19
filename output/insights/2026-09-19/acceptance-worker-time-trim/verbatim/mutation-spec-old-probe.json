@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "M1-frozen-head",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if parents[0] != frozen:\n",
+          "new": "    if False:  # MUTATION M1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-closure-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if _sha256_hex(g_blob) != sha:\n",
+          "new": "        if False:  # MUTATION M2\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-argv-root-leak",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            token = _replace_root_component(token, root, placeholder)\n",
+          "new": "            token = token  # MUTATION M3\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-launch-start-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                    \"event\": \"launch-start\", \"schema\": JOURNAL_SCHEMA,\n                    \"launch_certificate_sha256\": launch_certificate_sha256,\n",
+          "new": "                    \"event\": \"launch-start\", \"schema\": JOURNAL_SCHEMA,\n                    \"launch_certificate_sha256\": \"0\" * 64,  # MUTATION M4\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-child-rc",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "                return scope_result.child_rc\n",
+          "new": "                return 0  # MUTATION M5\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-fingerprint-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "                or tree_before != tree_after\n",
+          "new": "                or False  # MUTATION M6\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P0-equivalent",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(parents) != 1:\n",
+          "new": "    if 1 != len(parents):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

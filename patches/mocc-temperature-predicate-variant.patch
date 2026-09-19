@@ -1,0 +1,96 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -21,6 +21,7 @@
+ set(CCBENCH_KEY_SIZE      8 CACHE STRING "key size in bytes (YCSB)")
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
++set(CCBENCH_MOCC_TEMP_PREDICATE 0 CACHE STRING "mocc temperature predicate template (0=stock, 1=enabled)")
+ 
+ # ----- multi-protocol (used by 2+ protocols) -----
+ set(CCBENCH_KEY_SORT                       0 CACHE STRING "")
+@@ -65,6 +66,7 @@
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+     TRACE=${CCBENCH_TRACE}
++    MOCC_TEMP_PREDICATE=${CCBENCH_MOCC_TEMP_PREDICATE}
+     PARENT_SCOPE)
+ endfunction()
+ 
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -9,6 +9,25 @@
+ #include "include/scan_callback.hh"
+ #include "include/transaction.hh"
+ #include "include/tuple.hh"
++
++#ifndef MOCC_TEMP_PREDICATE
++#error "MOCC_TEMP_PREDICATE must be defined (0=stock; CMake supplies the default)"
++#endif
++
++#if MOCC_TEMP_PREDICATE // file-scope helper
++namespace {
++inline bool mocc_is_hot(std::uint64_t temp, std::uint64_t threshold) {
++  // EVOLVE-BLOCK-BEGIN mocc-temperature-predicate
++  // Pure comparison of temp, threshold and constants only; no calls or state.
++#if MOCC_TEMP_PREDICATE
++  return temp >= threshold;
++#else
++  return temp >= threshold;
++#endif
++  // EVOLVE-BLOCK-END mocc-temperature-predicate
++}
++} // namespace
++#endif
+ 
+ #if TRACE
+ // izanagi: #if TRACE-guarded correctness trace
+@@ -293,7 +312,11 @@
+        * Because it could acquire lock.
+        */
+     }
++#if MOCC_TEMP_PREDICATE
++  } else if (mocc_is_hot(loadepot.temp, FLAGS_temp_threshold)) {
++#else
+   } else if (loadepot.temp >= FLAGS_temp_threshold) {
++#endif
+     /**
+      * This transaction is not after abort, 
+      * however, it accesses high temperature record.
+@@ -456,7 +479,11 @@
+   /**
+    * If this record has high temperature, use lock.
+    */
++#if MOCC_TEMP_PREDICATE
++  if (mocc_is_hot(loadepot.temp, FLAGS_temp_threshold)) lock(tuple, true);
++#else
+   if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);
++#endif
+   /**
+    * If it failed locking, it aborts.
+    */
+@@ -563,7 +590,11 @@
+   /**
+    * If this record has high temperature, use lock.
+    */
++#if MOCC_TEMP_PREDICATE
++  if (mocc_is_hot(loadepot.temp, FLAGS_temp_threshold)) lock(tuple, true);
++#else
+   if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);
++#endif
+   /**
+    * If it failed locking, it aborts.
+    */
+@@ -967,7 +998,11 @@
+     //  || r failed verification
+     Epotemp loadepot;
+     loadepot.obj_ = loadAcquire((*itr).rcdptr_->epotemp_.obj_);
++#if MOCC_TEMP_PREDICATE
++    if (mocc_is_hot(loadepot.temp, FLAGS_temp_threshold) || (*itr).failed_verification_) {
++#else
+     if (loadepot.temp >= FLAGS_temp_threshold || (*itr).failed_verification_) {
++#endif
+ #ifdef RWLOCK
+       RLL_.emplace_back((*itr).rcdptr_, &((*itr).rcdptr_->rwlock_), false);
+ #endif // RWLOCK
