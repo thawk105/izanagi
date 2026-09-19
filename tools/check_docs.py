@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dev_waves.launch_authority import (
+    _mask_html_comments,
     AuthorityError,
     visible_top_level_matches,
     visible_top_level_lines,
@@ -627,10 +628,11 @@ test file を足す走は file 集合列挙のメタテストも焦点走に含�
 """
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
-`landed`/`already-landed` 後、段 9 に main worktree から計算ノード job 終端後に `python3 tools/dev_wave_cleanup.py` で撤去(path は絶対、`--main-worktree <MAIN>` は両方に付ける)。
-先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave 本体を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
-tool は非占有・main 祖先性(子木は所有 path の tree entry 一致でも可)・dirty の退避可能性・manifest 束縛を検査、不成立・判定不能は fail-closed。子 branch は残す。
-F26: `git worktree remove`/`git submodule deinit` 不可。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない子木は親が unlock し理由を次 wave の worklog へ記録。
+親は `landed` / `already-landed` 確認後、同じ段 9 で先に main worktree へ移り、計算ノード job 終端後に次を実行する（path は絶対）。
+`python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
+tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を要求し、不成立・判定不能なら fail-closed で停止する。
+wave の worktree・branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。`DW-O20` で lock した子 worktree は同段で unlock する（撤去は D703 の例外外）。
+F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
@@ -1467,35 +1469,6 @@ def _extract_next_action(
         return None
     section = sections[0]
     return section.group("body"), body_offset + section.start("body")
-
-
-def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
-    """HTML comment を同じ長さの空白へ置換し、行をまたぐ状態を返す。"""
-
-    visible: list[str] = []
-    cursor = 0
-    while cursor < len(line):
-        if in_comment:
-            end = line.find("-->", cursor)
-            if end < 0:
-                visible.append(" " * (len(line) - cursor))
-                cursor = len(line)
-            else:
-                end += len("-->")
-                visible.append(" " * (end - cursor))
-                cursor = end
-                in_comment = False
-            continue
-
-        start = line.find("<!--", cursor)
-        if start < 0:
-            visible.append(line[cursor:])
-            cursor = len(line)
-        else:
-            visible.append(line[cursor:start])
-            cursor = start
-            in_comment = True
-    return "".join(visible), in_comment
 
 
 def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:

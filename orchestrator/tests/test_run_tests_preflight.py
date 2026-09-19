@@ -90,6 +90,27 @@ def _tracked_repo(tmp_path: Path) -> Path:
     return repo
 
 
+@pytest.fixture
+def _small_login_repo(tmp_path, monkeypatch, _clean_runner_env):
+    """Keep routing tests' real fingerprints local to a tiny, isolated repo."""
+    repo = _tracked_repo(tmp_path)
+    monkeypatch.setattr(RT, "_REPO", str(repo))
+    return repo
+
+
+def test_small_login_repo_fixture_yields_real_fingerprint(_small_login_repo):
+    before = RT._tree_and_submodules_fingerprint(Path(RT._REPO))
+    assert before is not None
+    assert len(before.digest) == 64
+    assert all(char in "0123456789abcdef" for char in before.digest)
+    assert len(before.summary) == 5
+
+    (_small_login_repo / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    after = RT._tree_and_submodules_fingerprint(Path(RT._REPO))
+    assert after is not None
+    assert after.digest != before.digest
+
+
 class _LookupRecordingEnvironment(dict[str, str]):
     """Record key-specific lookups while leaving generic ``items()`` copies alone."""
 
@@ -1302,7 +1323,7 @@ def test_force_dispatch_login_bypasses_headroom_and_queue_after_preflights(
 
 
 def test_without_force_dispatch_login_with_headroom_still_runs_local(
-    monkeypatch,
+    monkeypatch, _small_login_repo,
 ):
     """通る正例: 無指定の LOGIN は余裕があれば local 実行を保つ。"""
 
@@ -1381,6 +1402,7 @@ def test_invalid_granted_budget_falls_back_to_dispatch(monkeypatch):
 )
 def test_login_headroom_and_queue_four_quadrants(
     monkeypatch,
+    _small_login_repo,
     headroom_available,
     queue_available,
     expected,
@@ -1536,7 +1558,7 @@ def test_queue_state_import_failure_is_treated_as_dispatch_available(
     dispatch.assert_called_once()
 
 
-def test_m7_local_enters_scope_before_parent_preflights(monkeypatch):
+def test_m7_local_enters_scope_before_parent_preflights(monkeypatch, _small_login_repo):
     events = []
     monkeypatch.setattr(
         RT, "_preflight_unstaged_deletions",
@@ -1834,7 +1856,7 @@ def test_failed_scope_oom_attestation_refuses_child_with_infra_rc(
     assert "memory.oom.group" in capsys.readouterr().err
 
 
-def test_local_child_test_failure_never_falls_back(monkeypatch):
+def test_local_child_test_failure_never_falls_back(monkeypatch, _small_login_repo):
     dispatch = mock.Mock(side_effect=AssertionError("test red must not fallback"))
     monkeypatch.setattr(
         RT,
@@ -2202,7 +2224,7 @@ def test_login_dispatch_exemption_is_exact_closed_set(monkeypatch, flag):
     sorted(_EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS - {"--help", "--version"}),
 )
 def test_login_non_immediate_dispatch_exempt_flags_enter_bounded_scope(
-    monkeypatch, flag,
+    monkeypatch, _small_login_repo, flag,
 ):
     scope = mock.Mock(
         return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
@@ -2223,7 +2245,7 @@ def test_login_non_immediate_dispatch_exempt_flags_enter_bounded_scope(
 
 
 def test_login_collect_only_from_pytest_addopts_enters_bounded_scope(
-    monkeypatch,
+    monkeypatch, _small_login_repo,
 ):
     scope = mock.Mock(
         return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
@@ -2366,7 +2388,7 @@ def test_previous_full_cap_estimate_dispatches_after_preflights(monkeypatch):
     ]
 
 
-def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
+def test_small_partial_estimate_still_tries_local_scope(monkeypatch, _small_login_repo):
     grants = []
     scope = mock.Mock(
         return_value=RT._ScopeResult(RT._ScopeOutcome.CHILD_RC, 0),
@@ -2390,7 +2412,7 @@ def test_small_partial_estimate_still_tries_local_scope(monkeypatch):
     )
 
 
-def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch):
+def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch, _small_login_repo):
     lease = mock.Mock()
     grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "test", lease)
     monkeypatch.setattr(LH, "grant_budget", lambda **kwargs: grant)
@@ -2410,7 +2432,7 @@ def test_login_local_scope_releases_budget_lease_on_infra(monkeypatch):
     lease.release.assert_called_once_with()
 
 
-def test_login_local_scope_releases_budget_lease_on_interrupt(monkeypatch):
+def test_login_local_scope_releases_budget_lease_on_interrupt(monkeypatch, _small_login_repo):
     lease = mock.Mock()
     grant = LH.BudgetGrant(LH.Admission.LOCAL, 1234, "test", lease)
     monkeypatch.setattr(LH, "grant_budget", lambda **kwargs: grant)

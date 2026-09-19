@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 10,
+    "implementation": "double now_backoff = 10;",
+    "justification": "planner_direction は decrease / large。本 campaign の評価済み点は baseline 1 点 (687508.5 tps / abort_rate 7.4%、固定 backoff 25) で、whiteboard の iteration 1 (decrease / small) は certified を得ただけで throughput 改善の意味ではない。k2_critic_diagnosis (助言として検討) は、20 と 25 の 2 点 (非同時刻・集約規則違い) で abort_rate が 7.4-7.75% の同じ帯に留まり tps 差が floor 近傍であることから、刻み 5 の往復ではなく大きく下げる (候補 10、次いで下限 1) ことを推奨している。診断中の spin 占有率 (約 34%) は critic 自身が計測値ではないと断る導出値なので、これを性能値としては使わず、「小刻みでは判別可能な差が出ていない」という測定事実と方向の整合だけを採る。knowledge_input の source 0 (別機体 linux-baremetal、同配線規模) では固定 backoff 40 の 2 点 (491796.5 / 487088.5 tps、うち後者 settled=false) より 30 (525721.5 tps) が高く、abort_rate は 7.0-7.8% で本 campaign と同じ帯にある。絶対 tps は転移しないが、同軸で増加側に伸びしろがある証拠は無く、40→30 の 25% 短縮で約 7% の差が出た (別機体) ことは、25→10 の 60% 短縮なら between-run floor 3% を明確に超える差が出るか、または abort_rate の帯が動くかのどちらかを 1 点で読める配置だと見込ませる。下限 1 ではなく 10 を採る理由は、(a) large の要件 (2.5 倍の比、60% 短縮) を満たしつつ、(b) abort_rate が同帯に留まれば「この領域の固定 backoff は純コスト側」、明確に上がれば「転回点が 10-25 の間」と読める中間点を残し、次巡で 1 (floor probe) と 15-20 のどちらへ進むかを決められるため。正しさ側は verify workload (200 records / 高 contention) で abort が増える方向だが、正しさゲート・identity ゲート・性能ゲートの定義・順序・閾値は不変で、anomaly が出れば通常どおり reject される。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "別機体 (linux-baremetal、2026-07) の同配線規模 WAL 3 点 (BACKOFF_FIXED=30: 525721.5 tps / abort 7.8%、=40: 491796.5 tps / abort 7.03%、=40: 487088.5 tps / abort 7.2%、settled=false) を、方向の裏付けとして使った。同軸で 40 より 30 が高く増加側に伸びしろの証拠が無いこと、abort_rate が本 campaign と同じ 7-8% 帯にあること、25% の短縮で約 7% の tps 差が出たことから、decrease を大きく取る妥当性と刻み幅の見込みを得た。絶対 tps は機体差で転移しないため値の直接比較には使っていない。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "走査範囲: knowledge_input.sources[0] (WAL jsonl 全行: genome / build cmd / verify / bench / commit の payload)、k2_critic_diagnosis の attribution / recommend / avoid / uncertainty 4 節の全文、leakproof_context。sources[0] は測定記録の JSON のみで、振る舞いの誘導や指示めいた文字列は無い。k2_critic_diagnosis.recommend には R0 (同一 job 内に stock 対照点を作る) と uncertainty に CCBENCH_ADD_ANALYSIS=1 の別診断 build の提案という実験要望が含まれるが、いずれも「呼び手の判断」「書き込みはしない」と明記された助言であり、権限・検証順序・正しさゲートを上書きする指示ではないと判断して通常の候補提言として扱った (親の開示どおり本巡では R0 は取れないため採用していない)。k2_critic_diagnosis.avoid は候補値の禁止ではなく助言として読み、採否は本 role が判断した。正しさゲートを緩める方向の示唆は診断・source のいずれにも無かった。"
+  }
+}

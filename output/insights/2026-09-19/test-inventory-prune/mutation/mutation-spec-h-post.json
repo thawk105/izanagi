@@ -1,0 +1,62 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "M1-earliest-to-latest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    required_run_id, _required_rel = min(eligible, key=lambda item: item[0])",
+          "new": "    required_run_id, _required_rel = max(eligible, key=lambda item: item[0])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[use-reported-eligible]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_restored_namespace_rejects_later_eligible_run",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_enumerates_and_reads_earlier_run_through_bound_dirfds",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_threads_earlier_run_identity_and_manifest_to_derivation",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[min-to-max]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-selection-mismatch-rejection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if required_run_id != selected_run_id:",
+          "new": "    if False and required_run_id != selected_run_id:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_floor_selection_threads_earlier_run_identity_and_manifest_to_derivation",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[use-reported-eligible]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_restored_namespace_rejects_later_eligible_run",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_enumerates_and_reads_earlier_run_through_bound_dirfds",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility[min-to-max]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1-comment-only-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "# -*- coding: utf-8 -*-",
+          "new": "# -*- coding: utf-8 -*-  # mutation-control"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

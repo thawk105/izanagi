@@ -631,8 +631,8 @@ def _patch_added_define_interfaces(
     Cache-option interfaces are discovered from the CMake cache-to-TU
     assignment shape.  Bare conditional interfaces are discovered from new
     preprocessor conditions; patch-internal target definitions and CMake
-    marker values are removed structurally.  No DEFINE_SPECS key participates
-    in candidate discovery.
+    marker values and new-file include guards are removed structurally.
+    No DEFINE_SPECS key participates in candidate discovery.
     """
 
     patch_paths = sorted(patch_dir.glob("*.patch"))
@@ -653,11 +653,31 @@ def _patch_added_define_interfaces(
     non_tu_interfaces: set[str] = set()
     for path in patch_paths:
         added: list[str] = []
-        for raw_line in path.read_text(encoding="utf-8").splitlines():
-            if raw_line.startswith("+") and not raw_line.startswith("+++"):
-                added.append(raw_line[1:])
+        include_guards: dict[int, str] = {}
+        for block in re.split(r"(?m)^diff --git ", path.read_text(encoding="utf-8")):
+            lines = block.splitlines()
+            file_added = [line[1:] for line in lines
+                          if line.startswith("+") and not line.startswith("+++")]
+            start = len(added)
+            added.extend(file_added)
+            if not any(line.startswith("new file mode ") for line in lines):
+                continue
+            first = next((i for i, line in enumerate(file_added)
+                          if re.match(r"\s*#", line)), None)
+            if first is None or first + 1 >= len(file_added):
+                continue
+            guard = re.fullmatch(r"\s*#\s*ifndef\s+([A-Z][A-Z0-9_]*)\s*",
+                                 file_added[first])
+            last = next((line for line in reversed(file_added) if line.strip()), "")
+            if (guard is not None
+                    and re.fullmatch(r"\s*#\s*define\s+" + guard[1] + r"\s*",
+                                     file_added[first + 1])
+                    and re.fullmatch(r"\s*#\s*endif\s*(?://.*|/\*.*\*/\s*)?", last)):
+                include_guards[start + first] = guard[1]
 
-        patch_rel = path.relative_to(_ROOT).as_posix()
+        patch_rel = (
+            path.relative_to(_ROOT) if path.is_relative_to(_ROOT) else path
+        ).as_posix()
         added_text = "\n".join(added)
         mapped: dict[str, str] = {
             macro: cache_name
@@ -672,7 +692,7 @@ def _patch_added_define_interfaces(
         cmake_marker_values = set(
             _CMAKE_LITERAL_VALUE_RE.findall(added_text)
         )
-        for line in added:
+        for i, line in enumerate(added):
             match = _PREPROCESSOR_CONDITION_RE.match(line)
             if match is None:
                 continue
@@ -681,6 +701,7 @@ def _patch_added_define_interfaces(
                     macro not in global_prior_tokens
                     and macro not in internal_defines
                     and macro not in cmake_marker_values
+                    and macro != include_guards.get(i)
                 ):
                     sources.setdefault(macro, set()).add(patch_rel)
 
@@ -2826,6 +2847,41 @@ def test_reviewed_process_launch_inventory_is_recursive_and_exact():
     assert _process_launch_sites() == expected
 
 
+def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):
+    patch = tmp_path / "interfaces.patch"
+    patch.write_text(
+        "diff --git a/guard.hh b/guard.hh\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n+++ b/guard.hh\n@@ -0,0 +1,4 @@\n"
+        "+// Header guard.\n+#ifndef NEW_HEADER_HH\n"
+        "+#define NEW_HEADER_HH\n+#endif // NEW_HEADER_HH\n"
+        "diff --git a/default.hh b/default.hh\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n+++ b/default.hh\n@@ -0,0 +1,3 @@\n"
+        "+#ifndef DEFAULT_SWITCH\n+#define DEFAULT_SWITCH 0\n+#endif\n"
+        "diff --git a/changed.hh b/changed.hh\n"
+        "--- a/changed.hh\n+++ b/changed.hh\n@@ -1 +1,4 @@\n"
+        " // Existing header.\n"
+        "+#ifndef CHANGED_HEADER_HH\n+#define CHANGED_HEADER_HH\n+#endif\n",
+        encoding="utf-8",
+    )
+    patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)
+    assert "NEW_HEADER_HH" not in patch_sources
+    assert frozenset(patch_sources) == {"DEFAULT_SWITCH", "CHANGED_HEADER_HH"}
+    assert non_tu_interfaces == frozenset()
+
+    (tmp_path / "escape.patch").write_text(
+        "diff --git a/escape.hh b/escape.hh\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n+++ b/escape.hh\n@@ -0,0 +1,6 @@\n"
+        "+#ifndef X\n+#define X\n+#endif\n"
+        "+#if X + 0\n+int enabled;\n+#endif\n",
+        encoding="utf-8",
+    )
+    patch_sources, _ = _patch_added_define_interfaces(patch_dir=tmp_path)
+    assert "X" in patch_sources
+
+
 def test_patch_define_inventory_matches_condition_gate_registry():
     patch_sources, non_tu_interfaces = _patch_added_define_interfaces()
     assert frozenset(patch_sources) == frozenset(
@@ -3466,10 +3522,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 35,
+        "proven-unreachable": 36,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 39})
+    assert classifications[s8b_sink] == Counter({"covered": 40})
     assert failures == []
 
 
@@ -3493,7 +3549,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 25})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 26})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3502,7 +3558,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 25,
+        "failure-reachable": 14, "proven-unreachable": 26,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

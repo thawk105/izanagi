@@ -1,0 +1,169 @@
+{
+  "schema_version": "t2774-summary/v1",
+  "arms": {
+    "e9-witlight-wit": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "k_over_decisive_m": 0.0,
+      "decisive_cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "all_submitted_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 0,
+        "identified_g2_runs": 0,
+        "rate": null
+      }
+    },
+    "e9-witlight-nowit": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "k_over_decisive_m": 0.016666666666666666,
+      "decisive_cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "all_submitted_rate_bounds": [
+        0.016666666666666666,
+        0.016666666666666666
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 1,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      }
+    },
+    "e9-witlight-wit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "k_over_decisive_m": 0.0,
+      "decisive_cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "all_submitted_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 0,
+        "identified_g2_runs": 0,
+        "rate": null
+      }
+    },
+    "e9-witlight-nowit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "k_over_decisive_m": 0.016666666666666666,
+      "decisive_cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "all_submitted_rate_bounds": [
+        0.016666666666666666,
+        0.016666666666666666
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 1,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      }
+    }
+  },
+  "denominator": "m counts valid verifier verdicts, including indeterminate; decisive_m excludes zero-cycle indeterminate; neither failure nor indeterminate is no-g2",
+  "interval_assumption": "independent Bernoulli trials; node dependence not modeled",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W1/result.json",
+      "sha256": "ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W2/result.json",
+      "sha256": "473063aa741cc4c349931d987c902facbc5dcf6499b3692ea2cad3a27ac1e584"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W3/result.json",
+      "sha256": "f68876600f1cd5b7300b030fb3cfa75509cc7a687858d6f12985051ce46e3642"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W4/result.json",
+      "sha256": "197a2798de5ef53a7f6a32460f7ecfa5adbba8e853778b315d3b6e1839c36a6c"
+    }
+  ]
+}

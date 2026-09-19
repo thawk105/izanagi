@@ -129,7 +129,7 @@
   "scheduler": {
     "project": "SFC",
     "queue": "gen_S",
-    "nodes": 1,
+    "nodes": 5,
     "walltime": "06:00:00",
     "job_body": "tools/pegasus/paper_story_a2_certification.sh"
   }

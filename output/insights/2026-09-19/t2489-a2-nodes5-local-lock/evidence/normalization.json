@@ -1,0 +1,178 @@
+{
+  "restoration": "Split normalized file into lines, append removed_eof_blank_lines empty lines, append each hex-decoded line_suffix_hex at its 1-based line; join with LF and append a final LF iff original_final_newline. Originals remain in the wave job directory.",
+  "files": [
+    {
+      "path": "evidence/qstat-after-review.txt",
+      "original_sha256": "11fdd166c8390b7fa07ee77ba6fd58addaac868bb7cd397af46ef6c5da5bbed2",
+      "original_bytes": 3874,
+      "normalized_sha256": "c40d3a688f1e6b76e10e8deef7ad6dc8e2fb7a274e62c5720994a109244bb185",
+      "normalized_bytes": 3846,
+      "line_suffix_hex": {
+        "60": "20",
+        "61": "20",
+        "62": "20",
+        "63": "20",
+        "64": "20",
+        "65": "20",
+        "66": "20",
+        "67": "20",
+        "68": "20",
+        "69": "20",
+        "71": "20",
+        "72": "20",
+        "74": "20",
+        "75": "20",
+        "76": "20",
+        "77": "20",
+        "78": "20",
+        "79": "20",
+        "80": "20",
+        "81": "20",
+        "82": "20",
+        "83": "20",
+        "84": "20",
+        "85": "20",
+        "86": "20",
+        "87": "20",
+        "88": "20"
+      },
+      "removed_eof_blank_lines": 1,
+      "original_final_newline": true
+    },
+    {
+      "path": "evidence/qstat-submitted.txt",
+      "original_sha256": "35f53a6224ad11ca775766dde127a62e5f78969127ec17b0007bf2e0bb707d6e",
+      "original_bytes": 3835,
+      "normalized_sha256": "f96bc0a4c9ac9b431f623c9a8ca442d8843265a2b7c767fa934ef45df92e6595",
+      "normalized_bytes": 3807,
+      "line_suffix_hex": {
+        "60": "20",
+        "61": "20",
+        "62": "20",
+        "63": "20",
+        "64": "20",
+        "65": "20",
+        "66": "20",
+        "67": "20",
+        "68": "20",
+        "69": "20",
+        "71": "20",
+        "72": "20",
+        "74": "20",
+        "75": "20",
+        "76": "20",
+        "77": "20",
+        "78": "20",
+        "79": "20",
+        "80": "20",
+        "81": "20",
+        "82": "20",
+        "83": "20",
+        "84": "20",
+        "85": "20",
+        "86": "20",
+        "87": "20",
+        "88": "20"
+      },
+      "removed_eof_blank_lines": 1,
+      "original_final_newline": true
+    },
+    {
+      "path": "verbatim/author.md",
+      "original_sha256": "f456991a2c4b8a1917bef238c1a3a1d560bb4de4d16584c22c8672183b3358b0",
+      "original_bytes": 5363,
+      "normalized_sha256": "21275b29343afaac0ae1c73a779e4daf6ffed289f2fd337322d34dea801cf4cf",
+      "normalized_bytes": 5356,
+      "line_suffix_hex": {
+        "34": "2020",
+        "36": "2020",
+        "38": "2020",
+        "40": "2020"
+      },
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/consult-a.md",
+      "original_sha256": "dbf4da905c94f6bbec44cc69ff3260e15b5f9b017e0dd751b0a4de0f75b8eb4d",
+      "original_bytes": 7407,
+      "normalized_sha256": "88e2323bc409fcba78d027886ee0cfe4a7e7c62309a14242b474cbcf1f786a28",
+      "normalized_bytes": 7392,
+      "line_suffix_hex": {
+        "5": "2020",
+        "16": "2020",
+        "33": "2020",
+        "44": "2020",
+        "53": "2020",
+        "55": "2020",
+        "57": "2020",
+        "59": "2020"
+      },
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/consult-b.md",
+      "original_sha256": "6e1ed88e9702c11b4098bea507720ec62b83eebdc5662f5ae7ad1526dd1d2b84",
+      "original_bytes": 6911,
+      "normalized_sha256": "784b77992dbed214482a1aaea0ff39c85d2aeb5b195e3eca4c62ee948f0a2767",
+      "normalized_bytes": 6894,
+      "line_suffix_hex": {
+        "5": "2020",
+        "17": "2020",
+        "20": "2020",
+        "32": "2020",
+        "37": "2020",
+        "40": "2020",
+        "47": "2020",
+        "50": "2020",
+        "53": "2020"
+      },
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/fix.md",
+      "original_sha256": "dd1803291c6c696defca3bb21272919b23ac1b219edd96eddc9c91f6309f6b84",
+      "original_bytes": 1194,
+      "normalized_sha256": "740b83adfe81a5690a0223d23d3bec430374e1ee36dec178573fc5a663a0c9d4",
+      "normalized_bytes": 1195,
+      "line_suffix_hex": {},
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/plan.md",
+      "original_sha256": "4391ec23817f406ee99cd43b518ba6213a69792b9264fff5f4befb7b757741d0",
+      "original_bytes": 10762,
+      "normalized_sha256": "62425f0917154435b677bbbb901b5b8267509b0ac2afc9e22f170645f69757aa",
+      "normalized_bytes": 10763,
+      "line_suffix_hex": {},
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/review-a.md",
+      "original_sha256": "98d34fa081c50905b8a3ae10191a767f1bb6b1a10187c934d72c67365b83e592",
+      "original_bytes": 2919,
+      "normalized_sha256": "81fb2797d8f76bb2d40d963c6851ed62de8dcf86af63ad5e865fa6b9956786c7",
+      "normalized_bytes": 2920,
+      "line_suffix_hex": {},
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    },
+    {
+      "path": "verbatim/review-b.md",
+      "original_sha256": "15959790b00647d83153d7a82a2b2168664c875cf61c28b2fa6a68b92f689c55",
+      "original_bytes": 2870,
+      "normalized_sha256": "d5b43f43e29a76b031865b4f612c92d0130f9fafff130526e0f8b37bfc458244",
+      "normalized_bytes": 2867,
+      "line_suffix_hex": {
+        "3": "2020",
+        "6": "2020"
+      },
+      "removed_eof_blank_lines": 0,
+      "original_final_newline": false
+    }
+  ]
+}

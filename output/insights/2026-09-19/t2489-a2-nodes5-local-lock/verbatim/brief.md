@@ -1,0 +1,19 @@
+# T-2489 段1 brief
+- 研究前進: A-2認証の5ノード並列検証を恒久policyへ反映し、A-2/A-6の別ノード間lock直列化を局所実測で評価する。
+- 完了: policyとpin閉包を同時整合、同一ノード排他の正負例と別ノード独立を計算ノードで測定、関連検査と正規受入を通してlocal mainへland。
+- D2148項5: scheduler.nodes=5は採用済み。node-local lockは局所変更の実測後に採否を確かめる。同一ノード内排他を維持。
+- 付随性能値は論文採用値へ昇格させない。追加総timeoutは保留。規律2は不変。
+- scope: A-2 policy一キー、literal pin・必要なfixture閉包、A-2/A-6共通job bodyのlock配置、局所挙動の検証と計算ノードprobe。
+- 仮想リスク向けのgate・検査・台帳・一般化・既存別launcherの一括変更はscope外。
+- 実アンカー: orchestrator/campaign/paper_story_a2_certification.v2.json scheduler.nodes、orchestrator/tests/test_paper_story_a2_certification.py policy pin/scheduler fixture、tools/pegasus/paper_story_a2_certification.sh scratch_base設定からrun-workload呼出し。
+- 関連アンカー: orchestrator/campaign/lock.py default_lock_path/bench_lock、orchestrator/campaign/verify_fanout_worker.py task_root/bench.lock、A-6 policyの共通job_body。
+- (P1) 親のprovisional裁定・攻撃対象: job固有TMPDIRはnode-wide排他を満たさない。/scr上の同一user・同一node固定点が最小候補。共有home全clusterロックには戻さない。
+- (P2) 親のprovisional裁定・攻撃対象: まず2ノードの実bench_lockで同一node別process/job-scratch競合と別node非競合を直接測る。必要ならA-2/A-6実launcherのprobeで継承を確認。時短一般値のための大規模再走はしない。
+- producer出力: policy変更は新attemptのpolicy bytes/submission/source bindingを変えるがprotocol preimageを変えない。job body bytesは新submission/reservationのbindingを変える。過去の凍結artifact/attemptは改変・再発行しない。
+- 現行受理/拒否: certified検証とproof条件を維持。変更するのはschedulerノード数とlock配置のみ。anomalyは即reject。
+- pin探索: 旧policy full SHAはtest_paper_story_a2_certification.pyのみ。旧job body full SHAのtracked hitなし。role/key/pathの追加検索はplanで閉じる。
+- 実装子はD95 Codex author一単位。親はdocs・運転・検査・記録・landを担当し実装面を書かない。
+- 独立planと相談2レンズでlockの意味とscopeを攻撃する。段6も2レンズ。正規run_testsと変異は親が実施。
+- 実測はPegasus計算ノード。queue ACTを確認済み。性能値を正式化するcollectはしない。
+- fresh main基点7975385b55a2e3451f6c80d584a9312f44d5199d。worktree専用、handoffはrepo外。
+- 実測値・採否・適用限界を新insightへ記録。改善候補は終端handoffに記録するだけ。
