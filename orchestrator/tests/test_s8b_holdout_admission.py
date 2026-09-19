@@ -2833,8 +2833,206 @@ def test_cut6_completed_session_forbids_reissue_of_same_attempt(
     assert not (shared / "attempt-ledger.jsonl").exists()
 
 
+@pytest.mark.parametrize("position", ["before-hit", "after-hit"])
+@pytest.mark.parametrize("fault,message", [
+    ("extra-key", "floor measurement generation claim exact shape is invalid"),
+    ("missing-key", "floor measurement generation claim exact shape is invalid"),
+    ("identity", "floor measurement generation claim identity is invalid"),
+], ids=["extra-key", "missing-key", "identity"])
+def test_cut6_claim_projection_entry_rejected(tmp_path, monkeypatch, position, fault, message):
+    root, markers = _recovery_marker_set(tmp_path)
+    target = markers[0]
+    invalid = target if position == "before-hit" else markers[-1]
+    assert target["measurement_generation_claim_digest"] != markers[-1][
+        "measurement_generation_claim_digest"
+    ]
+    path = admission._measurement_generation_claim_path(
+        root, invalid["measurement_generation_claim_digest"],
+    )
+    claim = json.loads(path.read_bytes())
+    if fault == "extra-key":
+        claim["extra"] = "forbidden"
+    elif fault == "missing-key":
+        del claim["records"]
+    else:
+        claim["cell_effect_digest"] = "0" * 64
+    path.write_bytes(_canonical(claim) + b"\n")
+    documents, ledgers = [], []
+    read_document, read_ledger = admission._read_canonical_document, admission._read_ledger
+
+    def observe_document(path):
+        documents.append(path)
+        return read_document(path)
+
+    def observe_ledger(path):
+        ledgers.append(path)
+        return read_ledger(path)
+
+    monkeypatch.setattr(admission, "_read_canonical_document", observe_document)
+    monkeypatch.setattr(admission, "_read_ledger", observe_ledger)
+    with pytest.raises(admission.HoldoutAdmissionError) as caught:
+        _recovery_candidate(root, target)
+    assert str(caught.value) == message
+    assert documents.count(path) == 1
+    assert ledgers.count(root / "ledger.jsonl") == (position == "after-hit")
+    if position == "after-hit":
+        # Both same-claim markers hit before the next claim's miss fails.
+        # The root stays static throughout the candidate call.
+        target_path = admission._measurement_generation_claim_path(
+            root, target["measurement_generation_claim_digest"],
+        )
+        assert documents.count(target_path) == 1
+        for marker in markers[:2]:
+            assert documents.count(admission._floor_canonical_marker_path(root, marker)) == 1
+
+
+@pytest.mark.parametrize("fault", ["type", "element-type", "duplicate"])
+def test_cut6_claim_attempt_ids_rejected(tmp_path, monkeypatch, fault):
+    root, marker, path = _recovery_schema_case(tmp_path, "generation")
+    claim = json.loads(path.read_bytes())
+    if fault == "type":
+        claim["attempt_ids"] = marker["attempt_id"]
+    elif fault == "element-type":
+        claim["attempt_ids"].append(1)
+    else:
+        claim["attempt_ids"].append(claim["attempt_ids"][0])
+    path.write_bytes(_canonical(claim) + b"\n")
+    reads = []
+    read_ledger = admission._read_ledger
+
+    def observe(path):
+        reads.append(path)
+        return read_ledger(path)
+
+    monkeypatch.setattr(admission, "_read_ledger", observe)
+    with pytest.raises(admission.HoldoutAdmissionError) as caught:
+        _recovery_candidate(root, marker)
+    assert str(caught.value) == "floor measurement generation claim attempt coverage is invalid"
+    assert reads == []
+
+
+@pytest.mark.parametrize("count", [0, 2], ids=["zero", "two"])
+def test_cut6_main_matching_row_count_rejected(tmp_path, count):
+    root, marker, _path = _recovery_schema_case(tmp_path, "generation")
+    path = root / "ledger.jsonl"
+    rows = admission._read_ledger(path)
+    matching = [row for row in rows if row.get("measurement_generation_claim_digest")
+                == marker["measurement_generation_claim_digest"]]
+    assert len(matching) == 1
+    unrelated = [row for row in rows if row not in matching]
+    path.write_bytes(b"".join(_canonical(row) + b"\n" for row in unrelated + matching * count))
+    with pytest.raises(admission.HoldoutAdmissionError) as caught:
+        _recovery_candidate(root, marker)
+    assert str(caught.value) == "floor measurement generation claim requires one ledger row"
+
+
+@pytest.mark.parametrize("tamper", ["claim", "main"])
+def test_cut6_legacy_projection_once_per_claim_per_call(tmp_path, monkeypatch, tamper):
+    """Legacy 読取互換性の unit fixture であり現行 producer の経路ではない。"""
+    protocol, freeze = _fixture_documents()
+    _cells, schedule = _cells_and_schedule(protocol, freeze)
+    _inspection_case(
+        tmp_path, competing=False, session_count=len(schedule),
+        claim_schema="s8b-holdout-cell-claim/v1",
+    )
+    root = tmp_path / "admission"
+    rows = admission._read_ledger(root / "attempt-ledger.jsonl")
+    digests = sorted({row["claim_digest"] for row in rows})[:2]
+    markers = [row for digest in digests
+               for row in [r for r in rows if r["claim_digest"] == digest][:2]]
+    assert len(digests) == 2 and len(markers) == 4
+    for path in (root / "consumed").iterdir():
+        path.unlink()
+    for marker in markers:
+        admission._write_exclusive(admission._floor_canonical_marker_path(root, marker), marker)
+    (root / "attempt-ledger.jsonl").write_bytes(
+        b"".join(_canonical(marker) + b"\n" for marker in markers[:2]),
+    )
+    (root / "ledger.lock").touch(exist_ok=True)
+    target = markers[-1]
+    claim_paths = {admission._claim_path(root, digest) for digest in digests}
+    marker_paths = {admission._floor_canonical_marker_path(root, marker) for marker in markers}
+    documents, ledgers = [], []
+    read_document, read_ledger = admission._read_canonical_document, admission._read_ledger
+
+    def observe_document(path):
+        documents.append(path)
+        return read_document(path)
+
+    def observe_ledger(path):
+        ledgers.append(path)
+        return read_ledger(path)
+
+    monkeypatch.setattr(admission, "_read_canonical_document", observe_document)
+    monkeypatch.setattr(admission, "_read_ledger", observe_ledger)
+    for _ in range(2):
+        documents.clear()
+        ledgers.clear()
+        assert _recovery_candidate(root, target) == target
+        assert {path: documents.count(path) for path in claim_paths | marker_paths} == {
+            path: 1 for path in claim_paths | marker_paths
+        }
+        assert len(documents) == len(claim_paths) + len(marker_paths)
+        assert ledgers == [root / "ledger.jsonl", root / "attempt-ledger.jsonl"]
+    if tamper == "claim":
+        path = admission._claim_path(root, target["claim_digest"])
+        claim = json.loads(path.read_bytes())
+        claim["attempt_ids"].append(target["attempt_id"])
+        path.write_bytes(_canonical(claim) + b"\n")
+        message = "floor consume claim attempt coverage is invalid"
+    else:
+        path = root / "ledger.jsonl"
+        rows = read_ledger(path)
+        for row in rows:
+            if row["cell_id"] == target["cell_id"]:
+                row["records"] += 1
+        path.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
+        message = "floor consume main ledger differs from its claim"
+    documents.clear()
+    ledgers.clear()
+    with pytest.raises(admission.HoldoutAdmissionError) as caught:
+        _recovery_candidate(root, target)
+    assert str(caught.value) == message
+    assert documents == [admission._claim_path(root, target["claim_digest"])]
+    assert ledgers == ([] if tamper == "claim" else [root / "ledger.jsonl"])
+
+
 def test_cut6_multiclaim_consumption_sequence(tmp_path, monkeypatch):
-    root, selected = _issued_cells_for_recovery(tmp_path)
+    repo, protocol, freeze = _init_repo(tmp_path)
+    cells, schedule = _cells_and_schedule(protocol, freeze)
+    run_id = "run-a"
+    run_relpath = f"env/{protocol['env_tag']}/calibration/s8b-floor-pilot/{run_id}"
+    reservation = _reserve(repo, protocol, freeze, run_id=run_id)
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+    root = admission.shared_admission_root(repo)
+    manifest_sha256 = hashlib.sha256(
+        (repo / "out" / run_relpath / "manifest.json").read_bytes(),
+    ).hexdigest()
+    selected = []
+    for cell in cells[:2]:
+        token = admitted[cell["cell_id"]]
+        claim_digest = token.measurement_generation_claim_digest
+        claim = json.loads(
+            (root / "measurement-generation-claims" / f"{claim_digest}.claim").read_bytes(),
+        )
+        for row in [r for r in schedule if r["cell_id"] == cell["cell_id"]][:2]:
+            # Independent oracle: literals, fixture inputs and issued claim only.
+            expected = {
+                "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+                "event": "consume",
+                "cell_effect_digest": claim["cell_effect_digest"],
+                "measurement_generation_digest": reservation.measurement_generation_digest,
+                "measurement_generation_claim_digest": claim_digest,
+                "attempt_id": f"{cell['cell_id']}::seq{row['seq']}",
+                "campaign_run_id": run_id,
+                "manifest_sha256": manifest_sha256,
+                "run_relpath": run_relpath,
+                "cell_id": cell["cell_id"],
+                "freeze_holdout_key": cell["freeze_holdout_key"],
+                "configuration_id": cell["configuration_id"],
+                "observation_role": "floor_campaign",
+            }
+            selected.append((token, row, expected))
     for token, scheduled, expected in selected:
         attempt_id = expected["attempt_id"]
         _append_journal_rows(token, {
@@ -2915,8 +3113,11 @@ def test_cut6_later_attempt_row_rejected(tmp_path, tamper, message):
     assert str(caught.value) == message
 
 
-@pytest.mark.parametrize("schema", ["v1", "v2", "generation"])
-@pytest.mark.parametrize("claim_fault", ["none", "entry", "seams"])
+@pytest.mark.parametrize("claim_fault,schema", [
+    ("none", "v1"), ("none", "v2"), ("none", "generation"),
+    ("entry", "v2"), ("entry", "generation"),
+    ("seams", "v2"), ("seams", "generation"),
+])
 def test_cut6_claim_error_precedes_main_read(tmp_path, monkeypatch, schema, claim_fault):
     root, marker, claim_path = _recovery_schema_case(tmp_path, schema)
     claim = json.loads(claim_path.read_bytes())
