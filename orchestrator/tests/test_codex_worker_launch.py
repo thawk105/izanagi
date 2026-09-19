@@ -4604,7 +4604,15 @@ def _assert_t2620_residual_case(
         diagnostics = None
         if list(paths["artifact"].glob("launcher-diagnostics.*.json")):
             diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
-            observed["residual_observation"] = diagnostics["residual_observation"]
+            # unknown_sources_seen は /proc 全走査で無関係な process の消滅による一時 source を保持する。
+            # 負例の真値は final_count / final_unknown_source で固定し、seen は
+            # proc_stat_read_error 以外を含まないことだけ検査する（受入負荷で実測、2026-09-20）。
+            residual_observation = dict(diagnostics["residual_observation"])
+            seen = residual_observation.pop("unknown_sources_seen")
+            residual_observation["unknown_sources_seen_only_transient_read_error"] = (
+                set(seen) <= {"proc_stat_read_error"}
+            )
+            observed["residual_observation"] = residual_observation
         else:
             observed["sidecar"] = "missing"
         limit = "wall_clock_admission_bound_s" if forced else None
@@ -4620,7 +4628,7 @@ def _assert_t2620_residual_case(
             "residual_observation": {
                 "final_count": residual,
                 "final_unknown_source": None,
-                "unknown_sources_seen": [],
+                "unknown_sources_seen_only_transient_read_error": True,
                 "proc_stat_malformed": False,
             },
         }
