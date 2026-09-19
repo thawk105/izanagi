@@ -28,7 +28,7 @@ median 815,983 tps、停止判定 continue、critic-3 まで 1 巡が閉じた�
 
 ## 診断が届いたか (D2148 項 3 / D2155 の初回実走)
 
-- **入力組立て:** round 2 の critic-2 逐語 (`verbatim/critic-2.md`、sha256 `d2b2ab77…`) から `k2_critic_diagnosis_from_bytes` で exact 6 field
+- **入力組立て:** round 2 の critic-2 逐語 (`output/insights/2026-09-18/t2746-k2-loop-round2/verbatim/critic-2.md`、sha256 `d2b2ab77…`) から `k2_critic_diagnosis_from_bytes` で exact 6 field
   (`data_boundary` / `source_sha256` / attribution 2035 / recommend 1469 / avoid 639 / uncertainty 1802 chars) を作り、`planner_context_payload`
   (K2・非 B-4・reflux on の適用条件検査込み) → `k2_next_generation_inputs` で planner-4 / coder-4 の両入力へ同一診断を組み込んだ
   (`materials/diagnosis-4.json` sha `7b742268…`、`planner-context-4.json` sha `280caa0f…`)。
@@ -71,7 +71,7 @@ campaign ID は identity 5 key が同じなので `409e13f8` のまま (ID の�
 | bench | median **815,983 tps**、2 反復 `[815067, 816899]`、run 内 CV 0.1588%、`settled=true`、`bench_wall_s` 2.09 |
 | abort 率 (perf build) | 9.065% (T-2702 以降の集約: 偶数 reps では中央 2 件の中央値。round 2 と同じ規則) |
 | `llc_miss_rate` / `ipc` | **null (欠測)** — `perf_observation.preflight` `status=unavailable` / `rc=2`。0 でも差なしでもない |
-| 終端 / 停止判定 | `outcome=certified`、`iteration=1`、whiteboard 1 件 (decrease / large / success / delta null)、**`continue`** |
+| 終端 / 停止判定 | `outcome=certified`、`iteration=1`、whiteboard 1 件 (decrease / large / success / delta null; **success は certified の意味で、性能改善ではない**)、**`continue`** |
 | WAL / 防護 file | WAL 5 record sha256 `eb8927b7…`、`campaign.lock` `f1ab4966…`、`loop_state.json` `917ba3d3…`、`s4_loop_digest.txt` `f993251d…`、受領証 `c42dc712…` (critic-3 前後・AO 取込み前後で不変) |
 
 投入前に login で通した production 検査 3 本 (`assert_closed_proposal_schema(..., coder_contract=CODER_CONTRACT_K2)` OK /
@@ -100,7 +100,8 @@ critic-3 (`verbatim/critic-3.md`、sha256 `5cd8f518…`; 入力 `materials/criti
 
 - digest (sha `f993251d…` を再計算し一致) と WAL / loop_state / 受領証 / lock を読み、**指示めいた文字列は無い** (規律 6)。
 - **attribution: 本走単独では帰属不能** (3 巡連続; 1 点・stock 対照なし・自由度は `BACKOFF_FIXED` のみ)。critic-2 が事前に置いた判別規則との照合は
-  **中間** — abort_rate 9.07% (7–8% 帯より上、10% 未満)、tps は非同時刻ながら 2 巡目比 +18.7%。純コスト模型 (tps ∝ 1/(1−spin 占有率)) の
+  **中間** — abort_rate 9.07% (7–8% 帯より上、10% 未満)、tps は非同時刻ながら 2 巡目比 +18.7%。critic-3 原文の「+1.65 pt」は算術誤記で、
+  表示値では 9.07 − 7.40 = 1.67 pt (実測値では 9.065 − 7.400 = 1.665 pt)。逐語は改変せずここで注記する (帰属不能の結論は変わらない)。純コスト模型 (tps ∝ 1/(1−spin 占有率)) の
   25→10 予測比 1.21 に対し観測 1.19。**「当たった」とは言わず、矛盾しなかった、まで**。spin 占有率 (約 20%) は導出であり計測値ではない。
 - **recommend:** R0 = 同 job 内 stock 対照 (3 巡連続で未解消、最優先)、R1 = decrease / large、候補 5、R1' = grammar 下限 1 の floor probe、
   R2 = 固定最良点 vs 適応の同 job 比較、R3 = `CCBENCH_ADD_ANALYSIS=1` は別の診断 build として (perf build に混ぜない)。
@@ -128,7 +129,9 @@ AO は `submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13
 `schema_version` v3、`agent_outputs` 3 件、`mechanism_hypotheses` 1 件 (variant `002642c7ac96`、attribution = critic-3 の逐語、refs 5、digest `f993251d…`)、
 `mechanism_hypotheses_provenance = agent_outputs`、`source_refs` **9 = wal 5 + wb 1 + ao 3** (双射通過)、`admission_status = admitted` /
 `classification = admitted-new-schema`、`certifying_input = false`、`knowledge_level = K2`、`noise_floor` は within/between とも
-`no-matching-env-record` (submit-tree に較正記録が無い)。**材料であって certifying 入力ではない。**
+`no-matching-env-record` — 較正記録は走査されたが本走の条件 (silo / 4 threads / 100,000 records) に適合する採用可能な記録が無い
+(between-run の候補 3 file はいずれも 48 threads / 1,000,000 records で不一致、within-run は登録済み較正 pin の `within_run_exclusion =
+self-inconsistent-calibration` で除外)。**材料であって certifying 入力ではない。**
 
 ## 閉じていないもの
 
