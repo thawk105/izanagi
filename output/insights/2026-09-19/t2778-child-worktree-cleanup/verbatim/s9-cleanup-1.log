@@ -1,0 +1,7 @@
+03:36:37 main=baba46bb7ddeb2a928aa40c07dc351d70998549b land_running=0
+03:36:37 remove-child: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2778-author
+03:36:40 remove-child rc=20 out= err=dev-wave-cleanup: status=rejected phase=backup-precheck reason=tracked file has conversion attributes
+03:36:40 cleanup wave: tested_tip=00e57182705ec14ed7113d70428eae7b78d0bd25 landing=00e57182705ec14ed7113d70428eae7b78d0bd25
+03:37:18 cleanup wave rc=0 out=removed err=dev-wave-cleanup: diagnostic=occupancy phase=preflight cwd_permission=1866 cwd_deleted=1 same_uid_cwd_unreachable=[{"comm": "(sd-pam)", "pid": 255148}, {"comm": "sshd", "pid": 3800996}] retry_count=0
+dev-wave-cleanup: diagnostic=occupancy phase=recheck cwd_permission=1864 cwd_deleted=1 same_uid_cwd_
+1

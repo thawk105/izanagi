@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "w2m1-submodule-conversion-check-readded",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        _assert_child_index(module)\n        _assert_child_submodules(module, common, admin, store / \"modules\")\n",
+     "new": "        _assert_child_index(module)\n        _assert_child_no_conversion(module)\n        _assert_child_submodules(module, common, admin, store / \"modules\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[clean]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

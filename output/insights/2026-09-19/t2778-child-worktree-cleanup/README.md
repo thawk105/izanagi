@@ -102,9 +102,36 @@ queue 混雑 (izdw job 13 本) で m0 に 1150 秒、m5 に 383 秒。wrapper: `
 baseline 186 passed (queue 待ち込み 715 秒)。**m0 SURVIVED (等価)、m1〜m7 KILLED、期待 node 完全一致 8/8、MISMATCH 0**。所要は m1 364 秒、
 他は 27〜60 秒。wrapper: `shared_snapshot_matches=true`、container 撤去済み、child_rc=0 (`mutation/final-v2.wrapper-receipt.json`)。
 
-## 6. 受入と land
+## 6. 受入・land・段 9 の dogfood (wave 1 = entry 1706 / D2163)
 
-(記録 commit 後の最終受入と land の結果は専用 handoff と worklog に記録)
+- 受入 (門番付き chain): attempt final (02:02 開) は main 63638e179 の merge で両親が `tools/check_docs.py` を触り integrator だけの
+  merge message が provenance で赤 (rc=94) → D770 の 2 commit 分割 (M1 `593a72fc9` main 版で確定、M2 `b3aed35a4` Codex author が literal を再適用、
+  index tree = 一発 merge tree ab84145ab で一致、M3 `81ffc26c5` main 側の追記で溢れた L1.5 を −19 bytes で収容)。final2 (03:04) は非帰属の赤 —
+  memo 発行 shard の job 11636 が QUE/PRR に 7 分滞留し他 shard の `memo publication timeout` (INTERNALERROR、差分到達不能)、driver の SIGTERM で
+  orphan hold → job 終端を qstat で確認して hold 2 file を手動解除。final3 (03:17): main e6b38c5ef を merge → tip `00e571827`、
+  **25410 passed / 69 skipped、child-green 03:29:38**。
+- land: 調停役の GO (main = tested_main、merge 不要) → `landed`、新 main `baba46bb7` (fold: D2163、worklog 1706、03:35:22)。全史 provenance は land 内で緑。
+- 段 9 dogfood: wave 本体 = removed (rc=0、branch 削除)。**子木 `remove-child` = rc=20 backup-precheck「tracked file has conversion attributes」** —
+  superproject には変換属性が無く、submodule (ccbench) の `* text=auto eol=lf` を fix1 の再帰 `_assert_child_no_conversion(module)` が拒否。
+  この repo の子木は全て ccbench 初期化済みなので、1706 時点の tool は実子木を 1 本も撤去できない。段 6 の tmp fixture は submodule に属性を持たず
+  回帰を捕まえなかった。DW-STOP「直せる赤で終了しない」に従い同 session で wave-2 (branch `worktree-dev-wave-t2778-child-worktree-cleanup-2`、
+  main baba46bb7 から) を続けた。
+
+### 6.1 wave-2 (fix5): 変換属性の検査を superproject 限定に
+
+裁定: submodule の内容は退避せず pin 一致・clean・reflog 到達・primary store 実在で守るので、submodule 側の属性は内容喪失の経路にならない。
+Codex author (子木 branch `codex-t2778-fix5` @ main tip、同じ author 木を再利用) が再帰呼出しを外し、fixture の submodule 側に
+`* text=auto eol=lf` を足して `[clean]` が回帰を検出する形にした。結果は §6.2 に記録。
+
+### 6.2 wave-2 の結果
+
+- fix5 (`verbatim/s9-fix5.md`、子木 commit 1ad54a50d、03:41→03:42): `_assert_child_submodules` の再帰から `_assert_child_no_conversion(module)` を外し
+  (superproject への検査は不変)、fixture の submodule source に `* text=auto eol=lf` を commit。直接呼出し 6 parameter + clean-filter 2 parameter PASS、
+  反実仮想 (呼出しを戻す) で `[clean]` が rc20 / backup-precheck。焦点走 5 (login): cleanup file 187 passed。実装 commit `951779aa3`。
+- 変異 (spec w2 = 再帰呼出しを戻す 1 件、source clone を 951779aa3 に固定、dispatch、`mutation/final-w2.json`): baseline 186 passed (27 秒)、
+  w2m1 KILLED (killer `test_remove_child_checks_initialized_submodule[clean]` に完全一致)、rc=0、container 撤去済み。
+- 段 6 の敵対レビュー 2 本は wave-2 では起動していない (差分は 1 行の呼出し削除 + fixture 1 属性で、裁定は §6.1 の親判断、実効性は dogfood と変異で確認)。
+- 受入・land・段 9 の撤去結果 (子木 `remove-child` の正例、wave-2 木) は専用 handoff と wave-2 の worklog entry に記録する。
 
 ## 7. scope 外として記録 (起票しない)
 
