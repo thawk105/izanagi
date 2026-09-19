@@ -1,0 +1,29 @@
+{
+  "observations": [
+    {
+      "after_release": "acquired",
+      "case": "candidate-to-candidate",
+      "local": "busy",
+      "remote": "acquired"
+    },
+    {
+      "after_release": "acquired",
+      "case": "default-to-default",
+      "local": "busy",
+      "remote": "busy"
+    },
+    {
+      "after_release": "acquired",
+      "case": "candidate-to-default",
+      "local": "acquired",
+      "remote": null
+    },
+    {
+      "after_release": "acquired",
+      "case": "default-to-candidate",
+      "local": "acquired",
+      "remote": null
+    }
+  ],
+  "status": "complete"
+}

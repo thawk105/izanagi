@@ -1,0 +1,260 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f6c1938429e31595c2fd1d7137732600/izdw-f6c1938429.o9323",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f6c1938429e31595c2fd1d7137732600/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....                                                                    [100%]\n5 passed in 5.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "493660bf9f63d162f5f594bfd543f52695b6c200a67d8a991c3936a8d6ffc2fa"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2488ecf61f9cda134e2a611bfb7c970a2a16e806bd75aa586187d9919b9a9d94",
+    "duration_s": 27.274,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "4a9f26d603ff4820cea4c3b4b357ad478f301ff4005c490933026af10e290c26",
+    "repo_head": "eda92f10774b297c0abe292a3bd757bb3e861802",
+    "runner_sha256": "b49b3b465214463bb011b5cca2aa5c0233f91ff0ac9cc9ecbeb0d5ebfbf31667",
+    "spec_sha256": "db91247a396515d91dbc4d7514f367ff3b96c87fe0359020bd7b98ec9dddff59",
+    "status": "PASSED",
+    "test_output_sha256": "493660bf9f63d162f5f594bfd543f52695b6c200a67d8a991c3936a8d6ffc2fa",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "4baabf8c471aa3a0c6d0cd2c114b3c4652d9bf49bf0f6705fd7f6a6d558571f0"
+  },
+  "date": "2026-09-18T22:57:54.858959+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/89e6f6deb57a022c24751f3ad4655bdb/izdw-89e6f6deb5.o9325",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/89e6f6deb57a022c24751f3ad4655bdb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F                                                                    [100%]\n=================================== FAILURES ===================================\n__________ test_p1_a2_default_policy_bytes_and_protocol_are_unchanged __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():\n        raw = A2.POLICY_PATH.read_bytes()\n        policy = A2.load_policy()\n    \n>       assert hashlib.sha256(raw).hexdigest() == (\n            \"f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c\")\nE       AssertionError: assert 'cacfdd5dd5f5...9405fe86e5e3b' == 'f8a778060076...dbf67f988472c'\nE         \nE         - f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c\nE         + cacfdd5dd5f5841ed300310f73fcf36c0684b401c15cf88a83e9405fe86e5e3b\n\norchestrator/tests/test_paper_story_a2_certification.py:1868: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\n1 failed, 4 passed in 5.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=668 retained_bytes=668 omitted_bytes=0 rendered_excerpt_bytes=697 sha256=c359d648041ebddff9309b92e2a7dd993c22edefd2911a31a804fcaca1b4f299\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():\n>         raw = A2.POLICY_PATH.read_bytes()\n>         policy = A2.load_policy()\n>     \n> >       assert hashlib.sha256(raw).hexdigest() == (\n>             \"f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c\")\n> E       AssertionError: assert 'cacfdd5dd5f5...9405fe86e5e3b' == 'f8a778060076...dbf67f988472c'\n> E         \n> E         - f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c\n> E         + cacfdd5dd5f5841ed300310f73fcf36c0684b401c15cf88a83e9405fe86e5e3b\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:1868: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=668 retained_bytes=668 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1435 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "50cb907a2d4db48f5d9a5504f85ea54938d4a930821b6b75c35b438fdfd915b3"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "2488ecf61f9cda134e2a611bfb7c970a2a16e806bd75aa586187d9919b9a9d94",
+      "duration_s": 27.651,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "hang_risk": false,
+      "id": "M1-a2-nodes-regression",
+      "injection_diff_sha256": "233d3fa69f0f5863518b7548e4cc1005628e11a437223339ed57d4bc4137c335",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1457794be14fad7c6a4f65bc6b400634bf8559a715934d4281b45ce9dced25b1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+          "new": "    \"nodes\": 1,",
+          "old": "    \"nodes\": 5,"
+        }
+      ],
+      "repo_head": "eda92f10774b297c0abe292a3bd757bb3e861802",
+      "runner_sha256": "b49b3b465214463bb011b5cca2aa5c0233f91ff0ac9cc9ecbeb0d5ebfbf31667",
+      "spec_sha256": "db91247a396515d91dbc4d7514f367ff3b96c87fe0359020bd7b98ec9dddff59",
+      "status": "KILLED",
+      "test_output_sha256": "50cb907a2d4db48f5d9a5504f85ea54938d4a930821b6b75c35b438fdfd915b3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4baabf8c471aa3a0c6d0cd2c114b3c4652d9bf49bf0f6705fd7f6a6d558571f0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ba673c27a39a819e015221aac3f9441e/izdw-ba673c27a3.o9328",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ba673c27a39a819e015221aac3f9441e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FFFF                                                                    [100%]\n=================================== FAILURES ===================================\n_________ test_verify_fanout_hosts_reject_invalid_binding[a2-too-few] __________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\npolicy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a2_certification.v2.json')\nhosts = ('bnode002', 'bnode003', 'bnode004'), message = 'count differs'\n\n    @pytest.mark.parametrize(\n        (\"hosts\", \"message\"),\n        (\n            ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n            ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n            ((), \"count differs\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n             \"count differs\"),\n            ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n        ),\n        ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n    )\n    @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n                             ids=(\"a2\", \"a6\"))\n    def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n        policy = A2.load_policy(policy_path)\n    \n>       with pytest.raises(A2.CertificationError, match=message):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n_________ test_verify_fanout_hosts_reject_invalid_binding[a6-too-many] _________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\npolicy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a6_certification.v2.json')\nhosts = ('bnode002', 'bnode003', 'bnode004', 'bnode005', 'bnode006')\nmessage = 'count differs'\n\n    @pytest.mark.parametrize(\n        (\"hosts\", \"message\"),\n        (\n            ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n            ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n            ((), \"count differs\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n             \"count differs\"),\n            ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n        ),\n        ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n    )\n    @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n                             ids=(\"a2\", \"a6\"))\n    def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n        policy = A2.load_policy(policy_path)\n    \n>       with pytest.raises(A2.CertificationError, match=message):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n_________ test_verify_fanout_hosts_reject_invalid_binding[a2-too-many] _________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\npolicy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a2_certification.v2.json')\nhosts = ('bnode002', 'bnode003', 'bnode004', 'bnode005', 'bnode006')\nmessage = 'count differs'\n\n    @pytest.mark.parametrize(\n        (\"hosts\", \"message\"),\n        (\n            ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n            ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n            ((), \"count differs\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n             \"count differs\"),\n            ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n        ),\n        ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n    )\n    @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n                             ids=(\"a2\", \"a6\"))\n    def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n        policy = A2.load_policy(policy_path)\n    \n>       with pytest.raises(A2.CertificationError, match=message):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n_________ test_verify_fanout_hosts_reject_invalid_binding[a6-too-few] __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\npolicy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a6_certification.v2.json')\nhosts = ('bnode002', 'bnode003', 'bnode004'), message = 'count differs'\n\n    @pytest.mark.parametrize(\n        (\"hosts\", \"message\"),\n        (\n            ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n            ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n            ((), \"count differs\"),\n            ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n             \"count differs\"),\n            ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n        ),\n        ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n    )\n    @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n                             ids=(\"a2\", \"a6\"))\n    def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n        policy = A2.load_policy(policy_path)\n    \n>       with pytest.raises(A2.CertificationError, match=message):\nE       Failed: DID NOT RAISE CertificationError\n\norchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]\nFAILED orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]\n4 failed, 1 passed in 5.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1402 retained_bytes=1402 omitted_bytes=0 rendered_excerpt_bytes=1459 sha256=cd057a16749a66204d3a48ab91eb062ce1f31e57e0dff629bb2ba41eac29150e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> policy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a2_certification.v2.json')\n> hosts = ('bnode002', 'bnode003', 'bnode004', 'bnode005', 'bnode006')\n> message = 'count differs'\n> \n>     @pytest.mark.parametrize(\n>         (\"hosts\", \"message\"),\n>         (\n>             ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n>             ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n>             ((), \"count differs\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n>              \"count differs\"),\n>             ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n>         ),\n>         ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n>     )\n>     @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n>                              ids=(\"a2\", \"a6\"))\n>     def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n>         policy = A2.load_policy(policy_path)\n>     \n> >       with pytest.raises(A2.CertificationError, match=message):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1402 retained_bytes=1402 omitted_bytes=0 rendered_excerpt_bytes=1459 sha256=23bfec014bd115451e60e4c2e57b6ffece77b28c226344eb4fae30bec231e31c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> policy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a6_certification.v2.json')\n> hosts = ('bnode002', 'bnode003', 'bnode004', 'bnode005', 'bnode006')\n> message = 'count differs'\n> \n>     @pytest.mark.parametrize(\n>         (\"hosts\", \"message\"),\n>         (\n>             ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n>             ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n>             ((), \"count differs\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n>              \"count differs\"),\n>             ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n>         ),\n>         ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n>     )\n>     @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n>                              ids=(\"a2\", \"a6\"))\n>     def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n>         policy = A2.load_policy(policy_path)\n>     \n> >       with pytest.raises(A2.CertificationError, match=message):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1434 sha256=5a611748be096e4279a0e348514d4352cdc173a6e95644b986ff5aa4f77ccb3a\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> policy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a2_certification.v2.json')\n> hosts = ('bnode002', 'bnode003', 'bnode004'), message = 'count differs'\n> \n>     @pytest.mark.parametrize(\n>         (\"hosts\", \"message\"),\n>         (\n>             ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n>             ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n>             ((), \"count differs\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n>              \"count differs\"),\n>             ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n>         ),\n>         ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n>     )\n>     @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n>                              ids=(\"a2\", \"a6\"))\n>     def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n>         policy = A2.load_policy(policy_path)\n>     \n> >       with pytest.raises(A2.CertificationError, match=message):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1434 sha256=d9e8d6a32e9d5f96e5265bf41ba8b75be005b7ff6ac30432af95e48db7646685\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> policy_path = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/orchestrator/campaign/paper_story_a6_certification.v2.json')\n> hosts = ('bnode002', 'bnode003', 'bnode004'), message = 'count differs'\n> \n>     @pytest.mark.parametrize(\n>         (\"hosts\", \"message\"),\n>         (\n>             ((\"bnode002\", \"bnode002\", \"bnode004\", \"bnode005\"), \"duplicate\"),\n>             ((\"bnode001\", \"bnode003\", \"bnode004\", \"bnode005\"), \"current host\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\"), \"count differs\"),\n>             ((), \"count differs\"),\n>             ((\"bnode002\", \"bnode003\", \"bnode004\", \"bnode005\", \"bnode006\"),\n>              \"count differs\"),\n>             ((\"bnode002\", \"bad_host\", \"bnode004\", \"bnode005\"), \"malformed\"),\n>         ),\n>         ids=(\"duplicate\", \"head\", \"too-few\", \"empty\", \"too-many\", \"malformed\"),\n>     )\n>     @pytest.mark.parametrize(\"policy_path\", (A2.POLICY_PATH, A2.A6_POLICY_PATH),\n>                              ids=(\"a2\", \"a6\"))\n>     def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):\n>         policy = A2.load_policy(policy_path)\n>     \n> >       with pytest.raises(A2.CertificationError, match=message):\n> E       Failed: DID NOT RAISE CertificationError\n> \n> orchestrator/tests/test_paper_story_a2_certification.py:2100: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5562 retained_bytes=5562 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7903 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eff58b35474a4af76d8a6827d993ad2763519dab783dc7430ffd710b6f95baf5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2488ecf61f9cda134e2a611bfb7c970a2a16e806bd75aa586187d9919b9a9d94",
+      "duration_s": 33.256,
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]"
+      ],
+      "hang_risk": false,
+      "id": "M2-count-rejection-disabled",
+      "injection_diff_sha256": "0b48e62ef0979825e234cdae2f13d8d35ea35c668621be489cdf4f7dbe5d4062",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "92d67b06aaf5e28ec870bbc65131b91f1fa482dfc3f56bef8c7ae5ad264eab21",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "new": "    if False:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")",
+          "old": "    if len(hosts) != expected:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")"
+        }
+      ],
+      "repo_head": "eda92f10774b297c0abe292a3bd757bb3e861802",
+      "runner_sha256": "b49b3b465214463bb011b5cca2aa5c0233f91ff0ac9cc9ecbeb0d5ebfbf31667",
+      "spec_sha256": "db91247a396515d91dbc4d7514f367ff3b96c87fe0359020bd7b98ec9dddff59",
+      "status": "KILLED",
+      "test_output_sha256": "eff58b35474a4af76d8a6827d993ad2763519dab783dc7430ffd710b6f95baf5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4baabf8c471aa3a0c6d0cd2c114b3c4652d9bf49bf0f6705fd7f6a6d558571f0"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d5c15853a5901344f2228b56a4c7beea/izdw-d5c15853a5.o9321",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d5c15853a5901344f2228b56a4c7beea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged\norchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]\norchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]\norchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]\norchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]\n\n5 tests collected in 1.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "aa70a59b15dcbe68d2224ab3c52357bbb4eb3daa0ff02eb37b5613937a04cfe1"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]"
+      ],
+      "duration_s": 32.126,
+      "rc": 0,
+      "repo_head": "eda92f10774b297c0abe292a3bd757bb3e861802",
+      "runner_sha256": "b49b3b465214463bb011b5cca2aa5c0233f91ff0ac9cc9ecbeb0d5ebfbf31667",
+      "spec_sha256": "db91247a396515d91dbc4d7514f367ff3b96c87fe0359020bd7b98ec9dddff59",
+      "status": "PASSED",
+      "tool_sha256": "4baabf8c471aa3a0c6d0cd2c114b3c4652d9bf49bf0f6705fd7f6a6d558571f0"
+    },
+    "hang_timeout_seconds": 30.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-a2-nodes-regression": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "233d3fa69f0f5863518b7548e4cc1005628e11a437223339ed57d4bc4137c335",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+            "new": "    \"nodes\": 1,",
+            "old": "    \"nodes\": 5,"
+          }
+        ]
+      },
+      "M2-count-rejection-disabled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+          "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b48e62ef0979825e234cdae2f13d8d35ea35c668621be489cdf4f7dbe5d4062",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/paper_story_a2_certification.py",
+            "new": "    if False:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")",
+            "old": "    if len(hosts) != expected:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "4a9f26d603ff4820cea4c3b4b357ad478f301ff4005c490933026af10e290c26",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "eda92f10774b297c0abe292a3bd757bb3e861802",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+      "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9e92ef6d967ea5673f88d73b61184e631211d6a2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b49b3b465214463bb011b5cca2aa5c0233f91ff0ac9cc9ecbeb0d5ebfbf31667",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "db91247a396515d91dbc4d7514f367ff3b96c87fe0359020bd7b98ec9dddff59",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-nodes5-local-lock/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "4baabf8c471aa3a0c6d0cd2c114b3c4652d9bf49bf0f6705fd7f6a6d558571f0",
+  "updated_at": "2026-09-18T22:59:55.123840+00:00"
+}
