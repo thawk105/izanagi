@@ -10,9 +10,9 @@ The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 40 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eleven
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Thirteen
 registered macros plus five mocc controls additionally have a bounded
-compile-time witness (16 total): it
+compile-time witness (18 total): it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
 guarded branch for value 1 and omits it for value 0.  It
@@ -299,6 +299,13 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
     "MOCC_TEMP_PREDICATE": (
         "cc/mocc/transaction.cc", "#if MOCC_TEMP_PREDICATE // file-scope helper",
+    ),
+    "SORT_VARIANT": (
+        "cc/silo/transaction.cc", "#if SORT_VARIANT",
+    ),
+    "IZANAGI_SILO_LADDER_RUNG1_REPORT": (
+        "cc/silo/ycsb_silo.cc",
+        "#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT",
     ),
 }
 CONDITIONAL_BRANCH_WITNESSES: Mapping[str, tuple[str, str]] = MappingProxyType(

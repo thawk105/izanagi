@@ -671,6 +671,29 @@ def _issued_condition_records(
     return records
 
 
+def test_real_s1_sort_request_establishes_meaning():
+    requests = S._condition_requests_for_flags(
+        {"SORT_VARIANT": 1}, driver_id="test.s1.sort-meaning",
+    )
+    assert len(requests) == 1
+    request = requests[0]
+    assert (request.macro, request.requested_value, request.default_value) == (
+        "SORT_VARIANT", 1, 0,
+    )
+    assert isinstance(
+        condition_meaning_gate.declare_define_runtime_meaning(request),
+        condition_meaning_gate.ConditionalBranchMeaningDeclaration,
+    )
+    supply, meaning = _issued_condition_records(
+        (("SORT_VARIANT", 1),), "test.s1.sort-meaning",
+    )
+    assert len(meaning) == 1
+    assert (meaning[0].macro, meaning[0].terminal_status) == ("SORT_VARIANT", "green")
+    admission = _assert_promotion_admission_contract(supply, meaning)
+    assert admission.admitted
+    assert "SORT_VARIANT" not in admission.unestablished_meaning_macros
+
+
 def _materialize_requested_condition_macros(source_root: Path, requests) -> None:
     """Give the real evaluator a minimal owner-TU witness for S1 fixture macros."""
     options_path = source_root / condition_meaning_gate.OPTIONS_REL

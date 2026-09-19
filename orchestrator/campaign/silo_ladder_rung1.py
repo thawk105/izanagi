@@ -2229,7 +2229,7 @@ def _require_condition_gates(
             condition_meaning_gate.evaluate_define_runtime_meaning(
                 captured,
                 request=request,
-                declaration=None,
+                declaration=condition_meaning_gate.declare_define_runtime_meaning(request),
                 cxx=tools["g++"],
             )
         )

@@ -19,6 +19,7 @@ from orchestrator.campaign import condition_meaning_gate as G
 from orchestrator.campaign import screening_driver
 from orchestrator.campaign.evolve_block import extract_materialized_evolve_block
 from orchestrator.tests.condition_gate_test_support import (
+    SORT_VARIANT_SOURCE,
     install_condition_gate_build_fixture,
 )
 
@@ -46,6 +47,8 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_NOREAD_VALIDATION",
     "IZANAGI_BREAK_HIGHKEY_VALIDATION",
     "MOCC_TEMP_PREDICATE",
+    "SORT_VARIANT",
+    "IZANAGI_SILO_LADDER_RUNG1_REPORT",
 )
 
 
@@ -243,27 +246,41 @@ def _compile_time_source_root(
     owner.parent.mkdir(parents=True)
     if owner_text is None:
         branch = (
-            (directive or ("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}")) + "\n"
+            (directive or _start_directive) + "\n"
             "int izanagi_compile_time_selected = 1;\n"
             + ("#endif\n" if close else "")
         )
         if nested:
             branch = "#if 1\n" + branch + "#endif\n"
         owner_text = prefix + branch + (branch if duplicate else "")
+    if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
+        owner_text = "int izanagi_owner_present = 1;\n" + owner_text
     owner.write_text(owner_text, encoding="utf-8")
-    return install_condition_gate_build_fixture(root, define_spec=spec)
+    install_condition_gate_build_fixture(root, define_spec=spec)
+    if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
+        with (root / "CMakeLists.txt").open("a", encoding="utf-8") as stream:
+            stream.write("target_sources(ycsb_silo.exe PRIVATE cc/silo/ycsb_silo.cc)\n")
+    return root
 
 
 def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
     """Derive the unique owner/directive pair from real patch additions."""
     patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
+    if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
+        expected_directive = (
+            "#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT"
+        )
+    elif macro == "MOCC_TEMP_PREDICATE":
+        expected_directive = "#if MOCC_TEMP_PREDICATE // file-scope helper"
+    else:
+        expected_directive = f"#if {macro}"
     current_target: str | None = None
     matches: list[tuple[str, str]] = []
     for line in patch.read_text(encoding="utf-8").splitlines():
         if line.startswith("+++ b/"):
             current_target = line.removeprefix("+++ b/")
         elif line.startswith("+") and not line.startswith("+++") \
-                and line[1:] == ("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}"):
+                and line[1:] == expected_directive:
             assert current_target is not None
             matches.append((current_target, line[1:]))
     assert len(matches) == 1
@@ -986,10 +1003,109 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
             ).read_text(encoding="utf-8").splitlines()
             if line == patch_declaration[1]
         ]
-        assert fixture_directives == [("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}")]
+        assert fixture_directives == [patch_declaration[1]]
         assert (patch_declaration[0], fixture_directives[0]) \
             == patch_declaration
         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
+
+
+@pytest.mark.parametrize("body_changed", [False, True])
+def test_sort_real_structure_establishes_only_branch_selection(tmp_path, body_changed):
+    source = SORT_VARIANT_SOURCE
+    if body_changed:
+        source = source.replace("sort(write_set_.begin(), write_set_.end());", "(void)0;")
+    root = _compile_time_source_root(tmp_path, "SORT_VARIANT", owner_text=source)
+    request = _compile_time_request("SORT_VARIANT")
+    captured = G.capture_define_inputs(root)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == meaning.terminal_status == "green"
+    admission = G.require_condition_gate_family([supply], [meaning], use_class="certified-selection")
+    assert admission.admitted
+    assert admission.unestablished_meaning_macros == ()
+
+
+def test_sort_undef_rejects_family_with_supply_still_green(tmp_path):
+    source = SORT_VARIANT_SOURCE.replace("#if SORT_VARIANT\n", "#undef SORT_VARIANT\n#if SORT_VARIANT\n")
+    root = _compile_time_source_root(tmp_path, "SORT_VARIANT", owner_text=source)
+    request = _compile_time_request("SORT_VARIANT")
+    captured = G.capture_define_inputs(root)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == "green"
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert not G.require_condition_gate_family(
+        [supply], [meaning], use_class="certified-selection",
+    ).admitted
+
+
+@pytest.mark.parametrize("body_changed", [False, True])
+def test_report_companion_argv_establishes_report_only(tmp_path, body_changed):
+    macro = "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+    root = _compile_time_source_root(tmp_path, macro)
+    owner = root / "cc/silo/ycsb_silo.cc"
+    assert "#define" not in owner.read_text()
+    if body_changed:
+        owner.write_text(owner.read_text().replace("selected = 1", "selected = 42"))
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == meaning.terminal_status == "green"
+    for label, selected in (("requested", 1), ("default", 0)):
+        observation = meaning.evidence[label]
+        assert "-DIZANAGI_SILO_LADDER_RUNG1=1" in observation.preprocess_argv
+        assert (observation.selected_count, observation.completed_count) == (selected, 1)
+    other_request = _request(5)
+    other_supply = G.evaluate_define_supply_effectuation(
+        captured, request=other_request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    other_meaning = G.evaluate_define_runtime_meaning(
+        captured, request=other_request, declaration=None, cxx=_any_cxx(),
+    )
+    assert other_supply.terminal_status == "green"
+    admission = G.require_condition_gate_family(
+        [supply, other_supply], [meaning, other_meaning], use_class="certified-selection",
+    )
+    assert admission.admitted
+    assert admission.unestablished_meaning_macros == ("BACKOFF_FIXED",)
+
+
+def test_report_missing_compile_argv_companion_rejects_meaning(tmp_path):
+    """meaning arm 単体の companion 検査。
+
+    同じ入力は supply も拒否するので family 拒否の meaning 単独帰属には使わない。
+    """
+    macro = "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+    root = _compile_time_source_root(tmp_path, macro)
+    with (root / "CMakeLists.txt").open("a") as stream:
+        stream.write('string(REPLACE "-DIZANAGI_SILO_LADDER_RUNG1=1" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")\n')
+    request = _compile_time_request(macro)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root), request=request,
+        declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "companion-define-mismatch",
+    )
 
 
 def test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one(
@@ -1592,12 +1708,16 @@ def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: P
     ("requested", "default"),
     [(1, None), (1, 1), (0, 0), (0, 1)],
 )
+@pytest.mark.parametrize("macro", [
+    "IZANAGI_BREAK_PERMUTATION", "SORT_VARIANT", "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+])
 def test_compile_time_factory_rejects_nonpaired_values(
+    macro: str,
     requested: int,
     default: int | None,
 ):
     request = _compile_time_request(
-        "IZANAGI_BREAK_PERMUTATION",
+        macro,
         requested=requested,
         default=default,
     )
@@ -2906,7 +3026,7 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
     assert "supply domain contains the 40 patch-derived defines" in G.__doc__
     assert "registered macros plus five mocc controls additionally have a bounded" in G.__doc__
-    assert "compile-time witness (16 total)" in G.__doc__
+    assert "compile-time witness (18 total)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():
