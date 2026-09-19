@@ -1,0 +1,28 @@
+{
+  "run": "03",
+  "condition": "A",
+  "pair_slot": 1,
+  "measurement_tip": "0eabe67bad429403a2eadfddcac4c1252d55dda3",
+  "tip_sha": "0eabe67bad429403a2eadfddcac4c1252d55dda3",
+  "tip_sha_after": "0eabe67bad429403a2eadfddcac4c1252d55dda3",
+  "main_sha_at_launch": "ee09a5cfe2bed789a76898450c619e9d097dadae",
+  "submitted_at": "2026-09-20T03:04:47+0900",
+  "finished_at": "2026-09-20T03:13:10+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/76a850a65ac3e8aa358edd87e19d1654",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 5.41,
+  "rc": 0,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 1,
+    "load1_max_exclusive": 30.0,
+    "leader_query": "ps -eo args | grep '[d]ev_wave_wait.py' | grep ' acceptance' | grep -vc <slug>"
+  }
+}

@@ -1,0 +1,2 @@
+33:| ....................................                                     [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":1,"opted_in":false}
+36:| ================== 971 passed, 1 skipped in 66.51s (0:01:06) ===================

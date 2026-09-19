@@ -1,0 +1,168 @@
+37:| ....................................                                     [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":1,"opted_in":false}
+274:| ============= 3 failed, 968 passed, 1 skipped in 66.15s (0:01:06) ==============
+277:| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive[A]" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=2756 retained_bytes=2756 omitted_bytes=0 rendered_excerpt_bytes=2869 sha256=04807eb74e79c26d1d9b6607fdb561b4875501993140cc48cea8fb8b223f5286
+336:| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive[B]" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=2755 retained_bytes=2755 omitted_bytes=0 rendered_excerpt_bytes=2868 sha256=8f156408c25bc8ae1172a0136297f97e1ccdecedd5b053fe6dc99dc3c99f52c3
+395:| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1919 retained_bytes=1919 omitted_bytes=0 rendered_excerpt_bytes=1996 sha256=6c51f2d0344ccb6d45c6dca36d0c6d3f1f1636face63d8788c061d20028059f1
+| ============= 3 failed, 968 passed, 1 skipped in 66.15s (0:01:06) ==============
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive[A]" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=2756 retained_bytes=2756 omitted_bytes=0 rendered_excerpt_bytes=2869 sha256=04807eb74e79c26d1d9b6607fdb561b4875501993140cc48cea8fb8b223f5286
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw12] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b360c94970>
+| > enabled = False
+| >
+| >     @pytest.mark.parametrize("enabled", (False, True), ids=("A", "B"))
+| >     def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch, enabled):
+| >         if enabled:
+| >             monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+| >         monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
+| >         initial, ledger = _pairing_fixture()
+| >         growth = _item(
+| >             "orchestrator/tests/test_s8c_preregistration_invariant.py::"
+| >             "test_candidate_freeze_matches_contract_and_generation_chain"
+| >         )
+| >         flaky = _item(
+| >             "orchestrator/tests/test_dev_wave_land.py::"
+| >             "test_exploration_external_root_keeps_wave_clean"
+| >         )
+| >         real_base = (
+| >             "orchestrator/tests/test_sort_swo_oracle.py::"
+| >             "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+| >         )
+| >         real = _item(real_base + "@real-repo", markers=(pytest.mark.xdist_group("real-repo").mark,))
+| >         deselected = _item("orchestrator/tests/test_pairing_probe.py::test_deselected")
+| >         for item in (growth, flaky, real, deselected):
+| >             item.name = item.nodeid.split("::")[-1].split("@", 1)[0]
+| >             item.originalname = item.name
+| >         ledger.update({growth.nodeid: .3, flaky.nodeid: .2, real_base: .1})
+| >         items = [*initial, growth, flaky, real, deselected]
+| >         config = _OptionConfig(dist="loadgroup", numprocesses=48)
+| >         config.workerinput = {"workerid": "gw7"}
+| >         setattr(config, CONF._ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, ledger)
+| >         wrapper = CONF.pytest_collection_modifyitems(config, items)
+| > >       assert next(wrapper) is None
+| >
+| > orchestrator/tests/test_acceptance_schedule_order.py:1962:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/tests/conftest.py:2328: in pytest_collection_modifyitems
+| >     if _is_complete_growth_hold_collection(config):
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > config = <test_acceptance_schedule_order._OptionConfig object at 0x14b3600a6020>
+| >
+| >     def _is_complete_growth_hold_collection(config) -> bool:
+| >         numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+| >         if (
+| >             not hasattr(config, "workerinput")
+| >             and numprocesses not in (None, 0, "0")
+| >         ):
+| >             # xdist controller does not own the workers' complete item collection.
+| >             return False
+| > >       if len(config.args) != 1:
+| > E       AttributeError: '_OptionConfig' object has no attribute 'args'
+| >
+| > orchestrator/tests/conftest.py:2068: AttributeError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive[B]" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=2755 retained_bytes=2755 omitted_bytes=0 rendered_excerpt_bytes=2868 sha256=8f156408c25bc8ae1172a0136297f97e1ccdecedd5b053fe6dc99dc3c99f52c3
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > [gw35] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152ab89742b0>
+| > enabled = True
+| >
+| >     @pytest.mark.parametrize("enabled", (False, True), ids=("A", "B"))
+| >     def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch, enabled):
+| >         if enabled:
+| >             monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+| >         monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
+| >         initial, ledger = _pairing_fixture()
+| >         growth = _item(
+| >             "orchestrator/tests/test_s8c_preregistration_invariant.py::"
+| >             "test_candidate_freeze_matches_contract_and_generation_chain"
+| >         )
+| >         flaky = _item(
+| >             "orchestrator/tests/test_dev_wave_land.py::"
+| >             "test_exploration_external_root_keeps_wave_clean"
+| >         )
+| >         real_base = (
+| >             "orchestrator/tests/test_sort_swo_oracle.py::"
+| >             "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+| >         )
+| >         real = _item(real_base + "@real-repo", markers=(pytest.mark.xdist_group("real-repo").mark,))
+| >         deselected = _item("orchestrator/tests/test_pairing_probe.py::test_deselected")
+| >         for item in (growth, flaky, real, deselected):
+| >             item.name = item.nodeid.split("::")[-1].split("@", 1)[0]
+| >             item.originalname = item.name
+| >         ledger.update({growth.nodeid: .3, flaky.nodeid: .2, real_base: .1})
+| >         items = [*initial, growth, flaky, real, deselected]
+| >         config = _OptionConfig(dist="loadgroup", numprocesses=48)
+| >         config.workerinput = {"workerid": "gw7"}
+| >         setattr(config, CONF._ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, ledger)
+| >         wrapper = CONF.pytest_collection_modifyitems(config, items)
+| > >       assert next(wrapper) is None
+| >
+| > orchestrator/tests/test_acceptance_schedule_order.py:1962:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/tests/conftest.py:2328: in pytest_collection_modifyitems
+| >     if _is_complete_growth_hold_collection(config):
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > config = <test_acceptance_schedule_order._OptionConfig object at 0x152ab9317490>
+| >
+| >     def _is_complete_growth_hold_collection(config) -> bool:
+| >         numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+| >         if (
+| >             not hasattr(config, "workerinput")
+| >             and numprocesses not in (None, 0, "0")
+| >         ):
+| >             # xdist controller does not own the workers' complete item collection.
+| >             return False
+| > >       if len(config.args) != 1:
+| > E       AttributeError: '_OptionConfig' object has no attribute 'args'
+| >
+| > orchestrator/tests/conftest.py:2068: AttributeError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1919 retained_bytes=1919 omitted_bytes=0 rendered_excerpt_bytes=1996 sha256=6c51f2d0344ccb6d45c6dca36d0c6d3f1f1636face63d8788c061d20028059f1
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > [gw47] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e350059c90>
+| >
+| >     def test_g12_pairing_queue_and_all_item_witness(monkeypatch):
+| >         monkeypatch.delenv(_PAIRING_ENV, raising=False)
+| >         a_items, ledger = _pairing_fixture()
+| >         a = _run_scheduler_arm(48, a_items, ledger, lambda _n: _TracingWorkQueue())
+| >         monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+| >         monkeypatch.setattr(_OptionConfig, "workerinput", {"workerid": "gw7"}, raising=False)
+| >         b_items, ledger = _pairing_fixture()
+| >         before = _semantic_snapshot(b_items)
+| > >       b = _run_scheduler_arm(48, b_items, ledger, lambda _n: _TracingWorkQueue())
+| >
+| > orchestrator/tests/test_acceptance_schedule_order.py:1810:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/tests/test_acceptance_schedule_order.py:1572: in _run_scheduler_arm
+| >     wrapper_observation = _run_collection_wrapper_arm(
+| > orchestrator/tests/test_acceptance_schedule_order.py:1313: in _run_collection_wrapper_arm
+| >     assert next(wrapper) is None
+| > orchestrator/tests/conftest.py:2328: in pytest_collection_modifyitems
+| >     if _is_complete_growth_hold_collection(config):
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > config = <test_acceptance_schedule_order._OptionConfig object at 0x14e34b33a890>
+| >
+| >     def _is_complete_growth_hold_collection(config) -> bool:
+| >         numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+| >         if (
+| >             not hasattr(config, "workerinput")
+| >             and numprocesses not in (None, 0, "0")
+| >         ):
+| >             # xdist controller does not own the workers' complete item collection.
+| >             return False
+| > >       if len(config.args) != 1:
+| > E       AttributeError: '_OptionConfig' object has no attribute 'args'
+| >
+| > orchestrator/tests/conftest.py:2068: AttributeError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=7430 retained_bytes=7430 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9371 omitted_manifest_sha256=-

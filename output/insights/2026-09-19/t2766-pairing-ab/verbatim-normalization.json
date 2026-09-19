@@ -1,0 +1,19 @@
+{
+ "rule": "行末の空白 (space/tab) を除去し、末尾の連続空行を 1 つの newline に畳む。可視文字は不変。復元は原本 sha256 と bytes を持つ job dir の原本 (focus/focus1-failures.txt + focus1.log 要約、analysis/analysis.md 先頭 75 行) から行う。",
+ "files": {
+  "verbatim/focus1-summary.txt": {
+   "original_sha256": "c6c0892c6972f7bf444778f99c9f000234695a1bb00e63a884e24326244a9a98",
+   "original_bytes": 11162,
+   "normalized_sha256": "2a020143f15dfdc6d66e7ca9504b3aaf7b833e323ecff50270ec60ce05ee10ac",
+   "normalized_bytes": 11135,
+   "lines_with_trailing_ws_removed": 27
+  },
+  "analysis/analysis-tables.md": {
+   "original_sha256": "429cb87b0d1ef2c51f527ce9729d598a96fbbca45cf4fffac73c549c0153aa7d",
+   "original_bytes": 7659,
+   "normalized_sha256": "ca95ee4df9376d2ec52471ca658bd81c0d329c8bf13fde987dda00d3864e2cc7",
+   "normalized_bytes": 7658,
+   "lines_with_trailing_ws_removed": 0
+  }
+ }
+}
