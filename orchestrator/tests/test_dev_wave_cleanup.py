@@ -290,6 +290,33 @@ def test_remove_child_rejects_branch_mismatch(tmp_path, monkeypatch):
     _child_rejected(case, monkeypatch, 'preflight')
 
 
+def test_remove_child_reflog_retained_by_other_branch(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    author_history = (case.head, _sha(case.child, 'HEAD^'))
+    base = _sha(case.repo.main)
+    _git(case.child, 'checkout', '-b', 'other', base)
+    _edit_child_manifest(case, branch='refs/heads/other')
+    reflog = _git(case.child, 'reflog', '--format=%H').stdout.decode().splitlines()
+    for sha in author_history:
+        assert sha in reflog
+        assert _git(case.repo.main, 'branch', '--contains', sha,
+                    '--format=%(refname)').stdout.splitlines() == [b'refs/heads/author']
+
+    result = cleanup.run(_child_argv(case))
+    assert result.outcome == 'removed'
+    assert not case.child.exists() and not case.admin.exists()
+    assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert _sha(case.repo.main, 'refs/heads/other') == base
+    files = {'committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch',
+             'status.txt', 'head-sha.txt', 'branch.txt'}
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert set(receipt['files']) == files
+    assert all((case.evidence / name).is_file() for name in files)
+    assert (case.evidence / 'head-sha.txt').read_text().strip() == base
+    assert (case.evidence / 'branch.txt').read_text().strip() == 'refs/heads/other'
+
+
 def test_remove_child_rejects_unreachable_reflog_history(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     (case.child / 'lost.txt').write_text('unreachable after reset')
