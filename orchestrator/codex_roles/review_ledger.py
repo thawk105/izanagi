@@ -16,7 +16,7 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
     # Reviewed 2026-08-20: T-1356 fix; 型17-21の具体的な境界条件を削除し、verifier_blind_spot への事後報告へ移管。
     # Reviewed 2026-09-02: T-2145; verified sort IR の監査境界と残余リスクを追記。
-    "auditor": "a0912ebbc95e2f3641cfb1cbf0d609cfbe2deb7ba52d1c3057517b1bc69fab35",
+    "auditor": "dc63a3118393503f7eed4952478f0aa34690b344ee1ca98915e455e210165f34",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。

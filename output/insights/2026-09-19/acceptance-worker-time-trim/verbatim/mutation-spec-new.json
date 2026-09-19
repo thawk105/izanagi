@@ -1,0 +1,291 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "M1-frozen-head",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if parents[0] != frozen:\n",
+          "new": "    if False:  # MUTATION M1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_frozen_at_head_not_generation_parent_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-closure-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if _sha256_hex(g_blob) != sha:\n",
+          "new": "        if False:  # MUTATION M2\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_bytes_sha_mismatch_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-argv-root-leak",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            token = _replace_root_component(token, root, placeholder)\n",
+          "new": "            token = token  # MUTATION M3\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_degraded_launch_threads_expected_use_perf_to_every_consumer",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_emitter_memo_copy_matches_fresh_build",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_happy_path_resolves_and_loads",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_journal_manifest_may_precede_generation_and_executable_mode_is_accepted",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_accepts_live_v5_registry_prefix_with_later_append",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_live_v5_registry[missing-attempt-registry-read-unavailable]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_live_v5_registry[shortened-attempt-registry-prefix-too-short]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_live_v5_registry[tampered-attempt-registry-replay-invalid]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[extra-key]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:chain_head_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:freeze_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:protocol_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:registry_schema]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:row_count]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:schedule_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[invalid:schema]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:chain_head_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:freeze_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:protocol_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:registry_schema]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:row_count]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:schedule_sha256]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_invalid_v5_registry_proof[missing:schema]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_unhashable_result_schema_with_controlled_error[list]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_rejects_unhashable_result_schema_with_controlled_error[object]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_token_retains_immutable_scan_and_root",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_loader_rejects_floor_source_projection_mismatch",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_production_emitter_staged_builder_is_git_deterministic_across_roots",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_ratified_journal_rejects_invalid_perf_preflight_event[extra-event-key-schema-keys]",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_ratified_journal_rejects_invalid_perf_preflight_event[missing-receipt-field-perf-preflight-receipt]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_activation_head_moved_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_binary_receipt_is_derived_from_journal_not_result",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_chain_g2_env_tag_unchanged_loads",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_bytes_sha_mismatch_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_entry_absent_from_generation_tree_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_role_collision_with_result_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_declared_closure_hit_absent_from_search_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_design_source_worktree_drift_still_loads",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_eligible_requires_bool_true_not_integer_one",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_enumeration_digest_shift_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_env_tag_unknown_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_extra_closure_in_freeze_namespace_rejected_without_broad_closed_world",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_floor_source_introduction_must_be_exact_generation_commit",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_frozen_at_head_not_generation_parent_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_only_selection_helper_is_noop_for_g2",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_only_selection_helper_skips_earlier_eligible_run_for_g2",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_accepts_genuine_ineligible_earlier_resume",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_accepts_valid_selection",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_foreign_env_namespace",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_genuine_eligible_earlier_official_run",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_protocol_hash_prefix_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_g1_selection_helper_rejects_rule_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_generation_two_rejected_before_artifact_io",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_historical_reverify_does_not_apply_current_floor_selection",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_historical_reverify_rejects_cross_cell_policy_mixture",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_journal_result_equality_rejects_rehashed_coherent_island",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_accepts_genuine_ineligible_earlier_resume",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_preserves_floor_selection_path_failure_reason",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_rejects_floor_selection_rule_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_rejects_genuine_eligible_earlier_official_run",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_manifest_cells_independent_derivation_rejects_ghost_cell",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_manifest_mode_100755_accepted_when_g_h_worktree_match",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_manifest_schedule_independent_derivation_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_namespace_exemption_requires_exact_h_worktree_bytes",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_per_holdout_no_crosstalk",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binaries-cell-set]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binary-cell-binding]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binary-hash]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binding-sha]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_positive_control_not_hit_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_production_shape_run_cmd_calls_exact_portable_matcher",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[calibration-hash-mismatch]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_calibration_refusals_do_not_fallback_to_current[missing-calibration]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[ambiguous]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[cross-env]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[dishonest-resolver]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[malformed]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_resolver_refusals_do_not_fallback_to_current[unknown]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_ratified_journal_required_consumer_passes_contract_mode_and_verified",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_result_excluded_projection_rederived_from_journal",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_result_raw_sha_to_floor_source_wiring_rejects_semantic_island",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_result_run_cmd_projection_is_independently_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_result_unknown_key_strict_schema_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_retry_authorization_outside_frozen_budget_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_round_start_complete_state_machine_rejects_duplicate",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_tamper_rejected_end_to_end[binary]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_tamper_rejected_end_to_end[flag-order]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_tamper_rejected_end_to_end[other-holdout-axis]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_tamper_rejected_end_to_end[prefix]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_run_cmd_projection_uses_passed_contract_as_structural_pin",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_accepts_declared_three_axis_evidence",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_coherent_wrong_raw_sha",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_declared_sha_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_duplicate_key_document",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_executable_h_mode",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_h_worktree_bytes_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_journal_rows_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_nonancestor_pre_oracle_head",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_prediction_source_blob_hash_mismatch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_self_declared_wrong_protocol_sha",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_undeclared_selector_run_hit",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_worktree_symlink",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_launch_projection_ignores_current_choice_semantics",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_launch_rejects_journal_row_decision_drift[claim-decision-method]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_launch_rejects_journal_row_decision_drift[static-choice-id]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_launch_rejects_journal_row_decision_drift[static-decision-method]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_launch_rejects_wrong_journal_schema_value",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_parser_classification_boundary_at_ratified_launch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_payload_is_not_exempt_and_conjunction_is_scanned",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_semantic_happy_path_loads_and_launch_validates",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_session_start_schedule_bijection_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_single_axis_occurrence_in_free_field_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_source_blob_mismatch_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_terminal_unique_final_completed_required[<lambda>0]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_terminal_unique_final_completed_required[<lambda>1]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_terminal_unique_final_completed_required[<lambda>2]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_three_axes_distributed_across_free_fields_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>0]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>1]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>2]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>3]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>4]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_undeclared_hit_outside_closure_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_untracked_symlink_fails_closed_before_scan",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_valid_session_requires_run_cmd_even_when_journal_and_result_agree",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_validation_head_artifact_change_rejected_even_if_worktree_matches_h",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_verified_floor_artifact_and_binary_index_are_deep_frozen",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_worktree_executable_mode_drift_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_worktree_parent_symlink_rejected_component_walk"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-launch-start-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                    \"event\": \"launch-start\", \"schema\": JOURNAL_SCHEMA,\n                    \"launch_certificate_sha256\": launch_certificate_sha256,\n",
+          "new": "                    \"event\": \"launch-start\", \"schema\": JOURNAL_SCHEMA,\n                    \"launch_certificate_sha256\": \"0\" * 64,  # MUTATION M4\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_degraded_launch_threads_expected_use_perf_to_every_consumer",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_happy_path_resolves_and_loads",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_journal_manifest_may_precede_generation_and_executable_mode_is_accepted",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_accepts_live_v5_registry_prefix_with_later_append",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_launch_token_retains_immutable_scan_and_root",
+        "orchestrator/tests/test_s8b_ratified_freeze.py::test_production_emitter_staged_builder_is_git_deterministic_across_roots",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_bytes_sha_mismatch_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_closure_entry_absent_from_generation_tree_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_declared_closure_hit_absent_from_search_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_enumeration_digest_shift_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_env_tag_unknown_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_floor_source_introduction_must_be_exact_generation_commit",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_frozen_at_head_not_generation_parent_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_generation_two_rejected_before_artifact_io",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_historical_reverify_does_not_apply_current_floor_selection",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_launch_validate_accepts_genuine_ineligible_earlier_resume",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_manifest_mode_100755_accepted_when_g_h_worktree_match",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_namespace_exemption_requires_exact_h_worktree_bytes",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_per_holdout_no_crosstalk",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binaries-cell-set]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binary-cell-binding]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binary-hash]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_portable_binary_coherent_island_rejected_by_exact_cause[binding-sha]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_positive_control_not_hit_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_production_shape_run_cmd_calls_exact_portable_matcher",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_accepts_declared_three_axis_evidence",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_exact_exemption_rejects_undeclared_selector_run_hit",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_parser_classification_boundary_at_ratified_launch",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_selector_payload_is_not_exempt_and_conjunction_is_scanned",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_semantic_happy_path_loads_and_launch_validates",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_single_axis_occurrence_in_free_field_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_source_blob_mismatch_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_three_axes_distributed_across_free_fields_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>0]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>1]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>2]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>3]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_transition_out_of_enumeration_diff_rejected[<lambda>4]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_undeclared_hit_outside_closure_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_untracked_symlink_fails_closed_before_scan",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_valid_session_requires_run_cmd_even_when_journal_and_result_agree",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_verified_floor_artifact_and_binary_index_are_deep_frozen"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-child-rc",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "                return scope_result.child_rc\n",
+          "new": "                return 0  # MUTATION M5\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_preflight.py::test_local_child_test_failure_never_falls_back",
+        "orchestrator/tests/test_run_tests_preflight.py::test_nonacceptance_bounded_child_marker_warns_exactly_once_in_parent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-fingerprint-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "                or tree_before != tree_after\n",
+          "new": "                or False  # MUTATION M6\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_preflight.py::test_cap_oom_changed_tree_does_not_dispatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P0-equivalent",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(parents) != 1:\n",
+          "new": "    if 1 != len(parents):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
