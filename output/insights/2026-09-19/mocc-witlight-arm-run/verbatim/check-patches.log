@@ -1,0 +1,62 @@
+start 2026-09-19 22:23:55 JST
+e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/verbatim/instr-mocc-lock-coverage.patch
+4ef9c387068abf9dcdd123ba87691b4d613cdb36fff9c541448c147367095aff  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/W.patch
+0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch
+79982b23dce106766dab9e8d8183154d9de4af94724d1a003a09a79e84155a21  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/verbatim/mocc-transaction-e9e477ca.cc
+series W-only rc=0
+series XP-only rc=0
+series XP-then-witlight rc=0
+series W-then-XP rc=0
+26	6	cc/mocc/transaction.cc
+31	7	cc/mocc/transaction.cc
+65	0	cc/mocc/transaction.cc
+V3 same-content: MATCH
+#line lines in m: 11  in b: 7
+18:#line 17
+115:#line 115
+996:#line 990
+1015:#line 991
+1168:#line 1136
+1209:#line 1158
+1225:#line 1169
+1250:#line 1187
+1266:#line 1195
+1277:#line 1201
+1296:#line 1208
+include lines: IDENTICAL
+--- W.patch +/- lines ---
+-                                     const Tidword& version) {
+-  std::uint64_t stored_producer = 0;
+-  if (!izanagi_mocc_g2_decode(write.rcdptr_->body_, stored_producer))
+-    std::abort();
++                                     const Tidword& version,
++                                     std::uint64_t stored_producer) {
++  std::vector<std::uint64_t>* izanagi_stored_producers = nullptr;
++  if (izanagi_mocc_g2_enabled()) {
++    thread_local std::vector<std::uint64_t> stored_producers;
++    stored_producers.clear();
++    stored_producers.reserve(write_set_.size());
++    izanagi_stored_producers = &stored_producers;
++  }
+-    if (izanagi_mocc_g2_enabled())
+-      izanagi_mocc_g2_emit_post_store(thid_, izanagi_txid, *itr, maxtid);
++    if (izanagi_stored_producers != nullptr) {
++      std::uint64_t stored_producer = 0;
++      if (!izanagi_mocc_g2_decode((*itr).rcdptr_->body_, stored_producer))
++        std::abort();
++      izanagi_stored_producers->push_back(stored_producer);
++    }
++#if TRACE
++  if (izanagi_stored_producers != nullptr) {
++    std::size_t stored_index = 0;
++    for (const auto& we : write_set_) {
++      izanagi_mocc_g2_emit_post_store(
++          thid_, izanagi_txid, we, maxtid,
++          (*izanagi_stored_producers)[stored_index++]);
++    }
++    izanagi_stored_producers->clear();
++  }
++#endif
+V4 apply rc=0
+V4 negative: MISMATCH (expected)
+end 2026-09-19 22:23:55 JST
