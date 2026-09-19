@@ -1,0 +1,8 @@
+files=30 terminal_records=474 bad_lines=0
+outer key sets:
+  EXACT ['env_tag', 'payload', 'stage', 'ts', 'variant'] x474
+ts types: {'float': 474}
+variant types: {'str': 474}
+env_tag types: {'str': 474}
+payload types: {'dict': 474}
+attempts with build_attempt_id: 0; terminal count per attempt histogram: {}

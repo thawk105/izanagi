@@ -1,0 +1,139 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M01-literal-b057-m5",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, _wal_field(terminal, \"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02-gate-off-plus-m5",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, _wal_terminal_shape_valid(wal_records))",
+          "new": "_require(FormalReasonCode.FC07, True)"
+        },
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, terminal.get(\"stage\") == STAGE_ABORT)",
+          "new": "_require(FormalReasonCode.FC07, _wal_field(terminal, \"stage\") == STAGE_ABORT)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03-superset-keys",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "if {\"variant\", \"stage\", \"env_tag\", \"ts\", \"payload\"} != set(terminal):",
+          "new": "if not {\"variant\", \"stage\", \"env_tag\", \"ts\", \"payload\"} <= set(terminal):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04-ts-bool-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "if type(terminal_ts) not in (int, float):",
+          "new": "if type(terminal_ts) not in (int, float, bool):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05-count-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "return terminal_count == 1",
+          "new": "return True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06-gate-off",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "_require(FormalReasonCode.FC07, _wal_terminal_shape_valid(wal_records))",
+          "new": "_require(FormalReasonCode.FC07, True)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07-variant-type-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "if type(terminal[\"variant\"]) is not str:",
+          "new": "if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08-env-tag-type-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "if type(terminal[\"env_tag\"]) is not str:",
+          "new": "if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09-over-reject-ts-int-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_formal_consumer.py",
+          "old": "if type(terminal_ts) not in (int, float):",
+          "new": "if type(terminal_ts) is not int:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
