@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -86,6 +87,398 @@ def _make_repo(
         _git(main, "worktree", "lock", "--reason", "synthetic", os.fspath(wave))
     monkeypatch.setattr(cleanup, "_REPO", main)
     return Repo(main, wave, "wave", base, tip)
+
+
+@dataclass(frozen=True)
+class ChildRepo:
+    repo: Repo
+    child: Path
+    manifest: Path
+    evidence: Path
+    admin: Path
+    head: str
+
+
+def _make_child_repo(tmp_path, monkeypatch):
+    repo = _make_repo(tmp_path, monkeypatch)
+    child = tmp_path / 'child'
+    _git(repo.main, 'worktree', 'add', '-b', 'author', str(child), repo.base)
+    (child / 'tracked.txt').write_text('integrated\n')
+    (child / '.gitignore').write_text('ignored.bin\n')
+    _git(child, 'add', 'tracked.txt', '.gitignore')
+    _git(child, 'commit', '-m', 'author implementation')
+    (child / 'author-result.md').write_text('terminal report\n')
+    _git(child, 'add', 'author-result.md')
+    _git(child, 'commit', '-m', 'author result')
+    head = _sha(child)
+    (repo.main / 'tracked.txt').write_text('integrated\n')
+    _git(repo.main, 'commit', '-am', 'integrate owned file separately')
+    assert _git(repo.main, 'merge-base', '--is-ancestor', head, 'main', check=False).returncode == 1
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text(json.dumps({'schema': 'izanagi-dev-wave-child-worktrees/v1',
+        'wave_worktree': str(repo.wave), 'entries': [{'path': str(child), 'purpose': 'author',
+        'branch': 'refs/heads/author', 'owned_paths': ['tracked.txt']}]}))
+    admin = Path(_git(child, 'rev-parse', '--git-dir').stdout.decode().strip())
+    return ChildRepo(repo, child, manifest, tmp_path / 'evidence', admin, head)
+
+
+def _child_argv(case):
+    return ['remove-child', '--main-worktree', str(case.repo.main), '--manifest', str(case.manifest),
+            '--child-worktree', str(case.child), '--evidence-dir', str(case.evidence)]
+
+
+def _edit_child_manifest(case, **fields):
+    data = json.loads(case.manifest.read_text())
+    data['entries'][0].update(fields)
+    case.manifest.write_text(json.dumps(data))
+
+
+def _file_snapshot(root):
+    if not root.exists():
+        return None
+    return {str(path.relative_to(root)): ('link', os.readlink(path)) if path.is_symlink()
+            else ('file', path.read_bytes(), path.stat().st_mode) for path in root.rglob('*')
+            if path.is_symlink() or path.is_file()}
+
+
+def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):
+    before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),
+              _sha(case.repo.main, 'refs/heads/author'))
+    calls = []
+    original_git, original_remove = cleanup._git, cleanup._remove_verified_tree
+
+    def spy_git(cwd, *args):
+        if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:
+            calls.append(args)
+        return original_git(cwd, *args)
+
+    def spy_remove(*args):
+        calls.append(('rmtree',))
+        return original_remove(*args)
+
+    monkeypatch.setattr(cleanup, '_git', spy_git)
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(argv or _child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (rc, phase), str(caught.value)
+    if reason:
+        assert reason in caught.value.reason
+    assert not calls
+    assert before == (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),
+                      _sha(case.repo.main, 'refs/heads/author'))
+
+
+def test_remove_child_archives_dirty_integrated_author_and_keeps_branch(tmp_path, monkeypatch, capsys):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'tracked.txt').write_text('staged\n')
+    _git(case.child, 'add', 'tracked.txt')
+    (case.child / 'tracked.txt').write_text('unstaged\n')
+    (case.child / 'scratch.txt').write_bytes(b'scratch\x00bytes')
+    (case.child / 'ignored.bin').write_bytes(b'ignored\xff')
+    (case.child / 'scratch-link').symlink_to('scratch.txt')
+    expected = _file_snapshot(case.child)
+    expected.pop('.git')
+    wave_before = _file_snapshot(case.repo.wave)
+    main_head, wave_head = _sha(case.repo.main), _sha(case.repo.wave)
+    main_status = _git(case.repo.main, 'status', '--porcelain').stdout
+    original_git = cleanup._git
+
+    def keep_branch(cwd, *args):
+        assert args[:2] != ('branch', '-d')
+        return original_git(cwd, *args)
+
+    monkeypatch.setattr(cleanup, '_git', keep_branch)
+    original_run = cleanup.run
+    results = []
+
+    def capture_run(argv):
+        result = original_run(argv)
+        results.append(result)
+        return result
+
+    monkeypatch.setattr(cleanup, 'run', capture_run)
+    assert cleanup.main(_child_argv(case)) == 0
+    assert capsys.readouterr().out.splitlines()[0] == 'removed'
+    result, = results
+    assert result.outcome == 'removed'
+    assert len(result.occupancy) == 2
+    assert not case.child.exists() and not case.admin.exists()
+    assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert (_sha(case.repo.main), _sha(case.repo.wave)) == (main_head, wave_head)
+    assert _file_snapshot(case.repo.wave) == wave_before
+    assert (case.repo.main / 'tracked.txt').read_bytes() == b'integrated\n'
+    assert _git(case.repo.main, 'status', '--porcelain').stdout == main_status
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert set(receipt['files']) == {'committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch', 'status.txt', 'head-sha.txt', 'branch.txt'}
+    assert (case.evidence / 'head-sha.txt').read_text().strip() == case.head
+    assert (case.evidence / 'branch.txt').read_text().strip() == 'refs/heads/author'
+    assert b'!! ignored.bin\x00' in (case.evidence / 'status.txt').read_bytes()
+    committed = (case.evidence / 'committed.patch').read_bytes()
+    assert b'diff --git a/author-result.md b/author-result.md\n' in committed
+    assert b'@@ -0,0 +1 @@\n+terminal report\n' in committed
+    restored = tmp_path / 'restored'
+    _git(case.repo.main, 'worktree', 'add', '--detach', str(restored), case.head)
+    _git(restored, 'apply', '--cached', str(case.evidence / 'index.patch'))
+    assert _git(restored, 'show', ':tracked.txt').stdout == b'staged\n'
+    _git(restored, 'apply', str(case.evidence / 'tracked.patch'))
+    with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:
+        archive.extractall(restored, filter='data')
+    actual = _file_snapshot(restored)
+    actual.pop('.git')
+    assert actual == expected
+
+
+def test_remove_child_rejects_unregistered_path(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, path=str(tmp_path / 'different'))
+    _child_rejected(case, monkeypatch, 'manifest')
+
+
+def test_remove_child_rejects_live_process_cwd(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    process = subprocess.Popen(
+        [sys.executable, '-c', 'import sys; sys.stdin.buffer.read(1)'],
+        cwd=case.child, stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        _child_rejected(case, monkeypatch, 'occupancy', 21)
+    finally:
+        assert process.stdin is not None
+        process.stdin.write(b'x')
+        process.stdin.close()
+        assert process.wait(timeout=10) == 0
+
+
+def test_remove_child_rejects_unintegrated_author_commit(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'tracked.txt').write_text('not integrated\n')
+    _git(case.child, 'commit', '-am', 'unintegrated')
+    _child_rejected(case, monkeypatch, 'integration', reason='tracked.txt')
+
+
+def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, owned_paths=[])
+    _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')
+
+
+def test_remove_child_rejects_nonempty_evidence_dir(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    case.evidence.mkdir()
+    (case.evidence / 'sentinel').write_bytes(b'keep')
+    _child_rejected(case, monkeypatch, 'evidence')
+
+
+@pytest.mark.parametrize('target', ['wave', 'primary'])
+def test_remove_child_rejects_wave_root_and_primary(tmp_path, monkeypatch, target):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    path = case.repo.wave if target == 'wave' else case.repo.main
+    branch = 'wave' if target == 'wave' else 'main'
+    _edit_child_manifest(case, path=str(path), branch='refs/heads/' + branch)
+    argv = _child_argv(case)
+    argv[6] = str(path)
+    before = _file_snapshot(path)
+    _child_rejected(case, monkeypatch, 'preflight', argv=argv)
+    assert _file_snapshot(path) == before
+
+
+def test_remove_child_rejects_branch_mismatch(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, branch='refs/heads/different')
+    _child_rejected(case, monkeypatch, 'preflight')
+
+
+def test_remove_child_rejects_unreachable_reflog_history(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'lost.txt').write_text('unreachable after reset')
+    _git(case.child, 'add', 'lost.txt')
+    _git(case.child, 'commit', '-m', 'lost history')
+    _git(case.child, 'reset', '--hard', case.head)
+    _child_rejected(case, monkeypatch, 'integration', reason='unreachable')
+
+
+def test_remove_child_rejects_skip_worktree_flag(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _git(case.child, 'update-index', '--skip-worktree', 'tracked.txt')
+    (case.child / 'tracked.txt').write_text('hidden dirt')
+    _child_rejected(case, monkeypatch, 'backup-precheck')
+
+
+@pytest.mark.parametrize('driver', ['x', 'unspecified'], ids=['named-x', 'named-unspecified'])
+def test_remove_child_rejects_clean_filter(tmp_path, monkeypatch, driver):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / '.gitattributes').write_text(f'* filter={driver}\n')
+    command = 'tr a-z A-Z' if driver == 'unspecified' else 'cat'
+    _git(case.child, 'config', f'filter.{driver}.clean', command)
+    _git(case.child, 'add', '.gitattributes')
+    _git(case.child, 'commit', '-m', 'clean filter')
+    if driver == 'unspecified':
+        # The wildcard filter also applies to the fixture's other tracked files.
+        _git(case.child, 'add', '--renormalize', '.')
+        _git(case.child, 'commit', '-m', 'apply clean filter')
+    expected_blob = b'INTEGRATED\n' if driver == 'unspecified' else b'integrated\n'
+    assert _git(case.child, 'show', 'HEAD:tracked.txt').stdout == expected_blob
+    assert (case.child / 'tracked.txt').read_bytes() == b'integrated\n'
+    assert _git(case.child, 'status', '--porcelain').stdout == b''
+    _child_rejected(case, monkeypatch, 'backup-precheck', reason='conversion attributes')
+
+
+@pytest.mark.parametrize('surface', ['argv', 'manifest'])
+def test_child_modes_reject_noncanonical_path(tmp_path, monkeypatch, surface):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    alias = tmp_path / 'alias'
+    alias.symlink_to(case.child, target_is_directory=True)
+    argv = _child_argv(case)
+    if surface == 'argv':
+        argv[6] = str(alias)
+    else:
+        data = json.loads(case.manifest.read_text())
+        data['wave_worktree'] = str(alias)
+        case.manifest.write_text(json.dumps(data))
+    _child_rejected(case, monkeypatch, surface, 2 if surface == 'argv' else 20, argv=argv)
+
+
+def test_remove_child_admin_binding_change_is_partial(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = cleanup._remove_verified_tree
+
+    def change_binding(verified, common):
+        original(verified, common)
+        binding = case.admin / 'gitdir'
+        backup = case.admin / 'gitdir-old'
+        binding.rename(backup)
+        binding.write_bytes(backup.read_bytes())
+        backup.unlink()
+
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', change_binding)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (30, 'admin-recheck')
+    assert case.admin.exists()
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert (case.evidence / 'dirty.tar.gz').exists()
+    assert not (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_main_advance_during_removal_is_partial(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = cleanup._remove_verified_tree
+
+    def advance_main(verified, common):
+        original(verified, common)
+        _git(case.repo.main, 'commit', '--allow-empty', '-m', 'main advanced')
+
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', advance_main)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (30, 'admin-recheck')
+    assert 'main changed since integration proof' in caught.value.reason
+    assert not case.child.exists()
+    assert case.admin.exists()
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    for name in ('committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch',
+                 'status.txt', 'head-sha.txt', 'branch.txt'):
+        assert (case.evidence / name).exists()
+    assert not (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_already_clean_with_receipt(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    before = _file_snapshot(case.evidence)
+    assert cleanup.run(_child_argv(case)).outcome == 'already-clean'
+    assert _file_snapshot(case.evidence) == before
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+
+
+@pytest.mark.parametrize('defect', [
+    'unknown-key', 'duplicate-key', 'duplicate-path', 'wrong-type', 'relative-path',
+    'absolute-owned', 'dot-dot-owned', 'git-owned', 'glob-owned', 'directory-owned',
+])
+def test_remove_child_manifest_is_closed(tmp_path, monkeypatch, defect):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    data = json.loads(case.manifest.read_text())
+    entry = data['entries'][0]
+    if defect == 'unknown-key':
+        entry['extra'] = True
+    elif defect == 'duplicate-key':
+        case.manifest.write_text(case.manifest.read_text().replace('"purpose":', '"purpose": "first", "purpose":'))
+    elif defect == 'duplicate-path':
+        data['entries'].append(dict(entry))
+    elif defect == 'wrong-type':
+        entry['purpose'] = 3
+    elif defect == 'relative-path':
+        entry['path'] = 'child'
+    else:
+        (case.child / 'directory').mkdir()
+        entry['owned_paths'] = [{'absolute-owned': '/tmp/file', 'dot-dot-owned': '../file',
+            'git-owned': '.git/config', 'glob-owned': '*.txt', 'directory-owned': 'directory'}[defect]]
+    if defect != 'duplicate-key':
+        case.manifest.write_text(json.dumps(data))
+    _child_rejected(case, monkeypatch, 'manifest')
+
+
+@pytest.mark.parametrize('state', ['clean', 'dirty', 'ignored', 'reflog', 'pin-mismatch', 'local-only-pin'])
+def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    # Keep the source tip fixed while main commits its own submodule registration.
+    _git(case.repo.main, 'branch', 'module-source')
+    _git(case.repo.main, '-c', 'protocol.file.allow=always', 'submodule', 'add',
+         '-b', 'module-source', str(case.repo.main), 'module')
+    _git(case.repo.main, 'commit', '-am', 'primary module pin')
+    _git(case.repo.main, '-c', 'protocol.file.allow=always', 'submodule', 'update', '--init')
+    # Clone at the pin directly, without recording main's newer tip in HEAD reflog.
+    _git(case.child, 'clone', '--branch', 'module-source', str(case.repo.main), 'module')
+    _git(case.child, '-c', 'protocol.file.allow=always', 'submodule', 'add',
+         '-b', 'module-source', str(case.repo.main), 'module')
+    _git(case.child, 'submodule', 'absorbgitdirs', 'module')
+    _git(case.child, 'commit', '-am', 'module pin')
+    module = case.child / 'module'
+    pin = _sha(module)
+    assert pin == _sha(case.repo.main / 'module')
+    _git(module, 'config', 'user.name', 'Cleanup Test')
+    _git(module, 'config', 'user.email', 'cleanup@example.invalid')
+    if state == 'dirty':
+        (module / 'scratch').write_text('untracked')
+    elif state == 'ignored':
+        (module / 'ignored').write_text('ignored bytes')
+        gitdir = Path(_git(module, 'rev-parse', '--absolute-git-dir').stdout.decode().strip())
+        (gitdir / 'info' / 'exclude').write_text('ignored\n')
+    elif state in {'reflog', 'pin-mismatch', 'local-only-pin'}:
+        (module / 'tracked.txt').write_text('local history')
+        _git(module, 'commit', '-am', 'local module commit')
+        if state == 'reflog':
+            _git(module, 'reset', '--hard', pin)
+        elif state == 'local-only-pin':
+            _git(case.child, 'add', 'module')
+            _git(case.child, 'commit', '-m', 'local-only module pin')
+    if state == 'clean':
+        head = _sha(case.child)
+        assert cleanup.run(_child_argv(case)).outcome == 'removed'
+        assert not case.child.exists() and not case.admin.exists()
+        assert _sha(case.repo.main, 'refs/heads/author') == head
+    else:
+        _child_rejected(case, monkeypatch, 'backup-precheck')
+
+
+def test_remove_child_detached_ancestry_and_empty_backup(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    # A fresh detached child has only main-reachable HEAD reflog history.
+    detached = tmp_path / 'detached'
+    _git(case.repo.main, 'worktree', 'add', '--detach', str(detached), 'main')
+    data = json.loads(case.manifest.read_text())
+    data['entries'] = [{'path': str(detached), 'purpose': 'container', 'branch': None, 'owned_paths': []}]
+    case.manifest.write_text(json.dumps(data))
+    argv = _child_argv(case)
+    argv[6] = str(detached)
+    assert cleanup.run(argv).outcome == 'removed'
+    assert (case.evidence / 'branch.txt').read_text() == 'detached\n'
+    for name in ('status.txt', 'tracked.patch', 'index.patch', 'committed.patch'):
+        assert (case.evidence / name).read_bytes() == b''
+    with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:
+        assert archive.getnames() == []
 
 
 def _argv(repo: Repo, **overrides: str) -> list[str]:

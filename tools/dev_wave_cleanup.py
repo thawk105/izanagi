@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
-"""land 済み dev-wave の linked worktree と local branch を安全に撤去する。"""
+"""land 済み dev-wave の linked worktree と local branch を安全に撤去する。
+
+子木 manifest は親が repo 外に書く未署名の信頼済み入力:
+{"schema": "izanagi-dev-wave-child-worktrees/v1", "wave_worktree": "/absolute/wave",
+ "entries": [{"path": "/absolute/child", "purpose": "author",
+              "branch": "refs/heads/author", "owned_paths": ["relative/file"]}]}
+path と wave_worktree は絶対・正規 path。purpose は自由文字列、branch は
+refs/heads/... または null (detached)。owned_paths は repo 相対 file の閉集合で、
+rename は旧新両 path を含める。exact path は作成世代を証明しない。
+親は producer の終端と再投入禁止を保証する。
+
+remove-child の argv は次の4組 (path は絶対):
+--main-worktree <MAIN> --manifest <MANIFEST>
+--child-worktree <CHILD> --evidence-dir <EVIDENCE>
+"""
 
 from __future__ import annotations
 
 import json
+import io
+import tarfile
 import secrets
 import hashlib
 import fcntl
@@ -219,6 +235,32 @@ def _validate_git_argv(args: Sequence[str]) -> None:
         ("worktree", "list", "--porcelain"),
         ("checkout", "--detach"),
     }:
+        return
+    if argv in {
+        ("ls-files", "--stage", "-z"), ("ls-files", "-v"),
+        ("ls-files", "-z"),
+        ("check-attr", "--stdin", "-z", "--all", "--"),
+        ("config", "--get", "core.autocrlf"),
+        ("submodule", "status", "--recursive"),
+        ("status", "--porcelain", "--ignored"),
+        ("status", "--porcelain=v1", "-z", "--ignored", "--untracked-files=all"),
+        ("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-renames", "HEAD", "--"),
+        ("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-renames", "--cached", "HEAD", "--"),
+    }:
+        return
+    if (len(argv) == 3 and argv[0] == "merge-base"
+            and all(_SHA_RE.fullmatch(sha) for sha in argv[1:])):
+        return
+    if (len(argv) == 9 and argv[:6] == _CHILD_DIFF
+            and all(_SHA_RE.fullmatch(sha) for sha in argv[6:8]) and argv[8] == "--"):
+        return
+    if (len(argv) == 4 and argv[0].startswith("--git-dir=/")
+            and argv[1:3] == ("cat-file", "-e") and argv[3].endswith("^{commit}")
+            and _SHA_RE.fullmatch(argv[3][:-9])):
+        return
+    if (len(argv) == 5 and argv[:2] == ("ls-tree", "-z")
+            and _SHA_RE.fullmatch(argv[2]) and argv[3] == "--"
+            and argv[4].startswith(":(literal)") and len(argv[4]) > 10):
         return
     if (
         len(argv) == 3
@@ -737,6 +779,7 @@ class AdminBinding:
     bindings: dict
     snapshot: dict
     recovery: dict | None = None
+    child_proof: ChildProof | None = None
 
 
 def _inode(st: os.stat_result) -> tuple[int, int]:
@@ -968,8 +1011,11 @@ def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
         raise ValueError("admin binding changed since preflight")
     if bytes.fromhex(snapshot["HEAD"][2]["raw"]) != (admin.tip + "\n").encode():
         raise ValueError("admin HEAD differs from detached landing tip")
-    _assert_reflog_commits_reachable(args.main_worktree,
-        _parse_head_reflog(bytes.fromhex(snapshot["logs"][2]["HEAD"][2]["raw"])), "worktree HEAD reflog")
+    shas = _parse_head_reflog(bytes.fromhex(snapshot["logs"][2]["HEAD"][2]["raw"]))
+    if admin.child_proof is None:
+        _assert_reflog_commits_reachable(args.main_worktree, shas, "worktree HEAD reflog")
+    else:
+        _assert_child_integration(args.main_worktree, admin.child_proof, shas)
     _assert_admin_binding(common, admin)
     if admin.admin_fd is not None and _admin_snapshot(admin.admin_fd) != current:
         raise ValueError("admin changed during reachability check")
@@ -1359,12 +1405,459 @@ def _assert_already_clean(args: Args, common: Path, ref: str) -> None:
         raise ValueError("wave branch appeared before already-clean result")
 
 
+@dataclass(frozen=True)
+class ChildProof:
+    head: str
+    main_tip: str
+    branch: str | None
+    owned: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ChildArgs:
+    main: Path
+    manifest: Path
+    child: Path
+    evidence: Path
+
+
+def _parse_child_argv(argv: Sequence[str]) -> ChildArgs:
+    names = ("--main-worktree", "--manifest", "--child-worktree", "--evidence-dir")
+    if len(argv) != 8:
+        raise _usage("remove-child requires four option-value pairs")
+    values = {}
+    for option, value in zip(argv[::2], argv[1::2]):
+        if option not in names or option in values or not value or "\x00" in value:
+            raise _usage("invalid or duplicate remove-child option")
+        values[option] = _validate_path_spelling(value, option, must_exist=option == names[0])
+    return ChildArgs(*(values[name] for name in names))
+
+
+def _unique_json(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _manifest_path(raw: object) -> Path:
+    if type(raw) is not str or "\x00" in raw:
+        raise ValueError("manifest path must be a string")
+    try:
+        return _validate_path_spelling(raw, "manifest path", must_exist=False)
+    except CleanupFailure as exc:
+        raise ValueError(exc.reason) from exc
+
+
+def _owned_file(path: object) -> str:
+    if (type(path) is not str or not path or "\x00" in path
+            or path.startswith(("/", ":")) or os.path.normpath(path) != path
+            or any(part in {"..", ".git"} for part in path.split("/"))
+            or any(char in path for char in "*?[]") or path == "."):
+        raise ValueError(f"invalid owned file: {path!r}")
+    return path
+
+
+def _outside_roots(path: Path, roots: Sequence[Path]) -> None:
+    if any(path == root or root in path.parents for root in roots):
+        raise ValueError("storage must be outside repository and registered worktrees")
+
+
+def _child_manifest(args: ChildArgs, records: Sequence[WorktreeRecord], common: Path):
+    """Manifest is trusted, unsigned input written by the same principal (parent).
+
+    Exact paths are not a signed creation-generation or ownership attestation.
+    Producers must have terminated and must not restart during removal.
+    """
+    _outside_roots(args.manifest, [common, _REPO, *(r.path for r in records)])
+    raw = args.manifest.read_bytes()
+    data = json.loads(raw, object_pairs_hook=_unique_json)
+    if (type(data) is not dict or set(data) != {"schema", "wave_worktree", "entries"}
+            or data["schema"] != "izanagi-dev-wave-child-worktrees/v1"
+            or type(data["entries"]) is not list):
+        raise ValueError("invalid manifest schema or fields")
+    wave = _manifest_path(data["wave_worktree"])
+    paths = set()
+    selected = None
+    for entry in data["entries"]:
+        if type(entry) is not dict or set(entry) != {"path", "purpose", "branch", "owned_paths"}:
+            raise ValueError("invalid manifest entry fields")
+        path = _manifest_path(entry["path"])
+        if path in paths:
+            raise ValueError("duplicate manifest path")
+        paths.add(path)
+        if type(entry["purpose"]) is not str or type(entry["owned_paths"]) is not list:
+            raise ValueError("invalid purpose or owned_paths type")
+        branch = entry["branch"]
+        if branch is not None:
+            if type(branch) is not str or not branch.startswith("refs/heads/"):
+                raise ValueError("invalid manifest branch")
+            checked = _must_git(args.main, "check-ref-format", "--branch", branch[11:])
+            if _one_line(checked, "branch") != branch[11:]:
+                raise ValueError("branch normalization changed input")
+        owned = tuple(_owned_file(item) for item in entry["owned_paths"])
+        if len(set(owned)) != len(owned):
+            raise ValueError("duplicate owned file")
+        if any((path / item).is_dir() for item in owned):
+            raise ValueError("owned_paths contains directory")
+        if path == args.child:
+            selected = entry
+        elif path == wave:
+            raise ValueError("manifest entry equals wave_worktree")
+    if selected is None:
+        raise ValueError("child path is not registered in manifest")
+    return wave, selected
+
+
+def _ancestor(repo: Path, sha: str, tip: str) -> bool:
+    result = _git(repo, "merge-base", "--is-ancestor", sha, tip)
+    if result.returncode not in {0, 1}:
+        raise GitFailure(("merge-base", "--is-ancestor", sha, tip), result)
+    return result.returncode == 0
+
+
+def _tree_entry(repo: Path, tip: str, path: str) -> bytes:
+    raw = _must_git(repo, "ls-tree", "-z", tip, "--", ":(literal)" + path).stdout
+    if raw and (raw.count(b"\x00") != 1 or not raw.endswith(b"\x00")):
+        raise ValueError("ambiguous tree entry")
+    if raw.startswith(b"040000 "):
+        raise ValueError(f"owned path is a tree: {path}")
+    return raw
+
+
+def _assert_child_integration(repo: Path, proof: ChildProof, shas: Sequence[str]) -> None:
+    if _resolve_commit(repo, "refs/heads/main^{commit}") != proof.main_tip:
+        raise ValueError("main changed since integration proof")
+    if proof.branch is not None and _resolve_commit(repo, proof.branch + "^{commit}") != proof.head:
+        raise ValueError("child branch changed since integration proof")
+    history = tuple(dict.fromkeys((*shas, proof.head)))
+    ancestry = all(_ancestor(repo, sha, proof.main_tip) for sha in history)
+    mismatches = [path for path in proof.owned
+                  if _tree_entry(repo, proof.head, path) != _tree_entry(repo, proof.main_tip, path)]
+    owned_equal = bool(proof.owned) and not mismatches
+    if not (ancestry or owned_equal):
+        raise ValueError("child is not integrated; mismatched paths: " + ", ".join(mismatches)
+                         + (" (empty owned_paths)" if not proof.owned else ""))
+    _assert_child_history(repo, proof, history)
+
+
+def _assert_child_history(repo: Path, proof: ChildProof, history: Sequence[str]) -> None:
+    for sha in history:
+        if not (_ancestor(repo, sha, proof.main_tip)
+                or (proof.branch is not None and _ancestor(repo, sha, proof.head))):
+            raise ValueError("HEAD reflog history is unreachable from main and retained branch")
+
+
+def _assert_child_index(child: Path) -> None:
+    flags = _must_git(child, "ls-files", "-v").stdout.splitlines()
+    if any(line[:1].islower() or line[:1] == b"S" for line in flags):
+        raise ValueError("assume-unchanged or skip-worktree index flag")
+    for record in _must_git(child, "ls-files", "--stage", "-z").stdout.split(b"\x00"):
+        if record and record.split(b"\t", 1)[0].split()[-1] != b"0":
+            raise ValueError("unresolved index stage")
+
+
+def _assert_child_no_conversion(child: Path) -> None:
+    paths = _must_git(child, "ls-files", "-z").stdout
+    argv = ("check-attr", "--stdin", "-z", "--all", "--")
+    _validate_git_argv(argv)
+    result = subprocess.run(["git", "-C", os.fspath(child), *argv], input=paths,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode:
+        raise GitFailure(argv, result)
+    fields = result.stdout.split(b"\x00")
+    if fields[-1] != b"" or (len(fields) - 1) % 3:
+        raise ValueError("malformed conversion attributes")
+    for attribute, value in zip(fields[1::3], fields[2::3]):
+        if (attribute in {b"filter", b"eol", b"working-tree-encoding"}
+                or (attribute == b"text" and value in {b"set", b"auto"})):
+            raise ValueError("tracked file has conversion attributes")
+    config = _git(child, "config", "--get", "core.autocrlf")
+    if config.returncode not in {0, 1}:
+        raise GitFailure(("config", "--get", "core.autocrlf"), config)
+    if config.stdout.strip().lower() in {b"true", b"input"}:
+        raise ValueError("core.autocrlf enables conversion")
+
+
+def _assert_child_submodules(child: Path, common: Path, admin: Path,
+                             primary_store: Path | None = None) -> None:
+    if primary_store is None:
+        primary_store = common / "modules"
+    status = None
+    # Enumerate pins with NUL-delimited index paths, including nested modules.
+    for record in _must_git(child, "ls-files", "--stage", "-z").stdout.split(b"\x00"):
+        if not record:
+            continue
+        metadata, rawpath = record.split(b"\t", 1)
+        mode, pin, stage = metadata.split()
+        if mode != b"160000":
+            continue
+        module = child / os.fsdecode(rawpath)
+        if not os.path.lexists(module / ".git"):
+            if module.exists() and any(module.iterdir()):
+                raise ValueError("uninitialized submodule contains files")
+            continue
+        if status is None:
+            status = _must_git(child, "submodule", "status", "--recursive").stdout.splitlines()
+        if any(line[:1] not in {b" ", b"-"} for line in status):
+            raise ValueError("submodule does not match gitlink pin")
+        if _resolve_commit(module, "HEAD^{commit}") != pin.decode():
+            raise ValueError("submodule HEAD differs from gitlink pin")
+        if _must_git(module, "status", "--porcelain", "--ignored").stdout:
+            raise ValueError("submodule contains dirty or ignored files")
+        gitdir = _git_path(module, "rev-parse", "--git-dir")
+        store = primary_store / os.fsdecode(rawpath)
+        if gitdir == admin or admin in gitdir.parents:
+            result = _git(child, "--git-dir=" + os.fspath(store), "cat-file", "-e",
+                          pin.decode() + "^{commit}")
+            if result.returncode != 0:
+                raise ValueError("submodule pin is absent from primary module store")
+        for sha in _head_reflog_shas(gitdir):
+            if not _ancestor(module, sha, pin.decode()):
+                raise ValueError("submodule reflog is unreachable from gitlink pin")
+        _assert_child_index(module)
+        _assert_child_no_conversion(module)
+        _assert_child_submodules(module, common, admin, store / "modules")
+
+
+_CHILD_STATUS = ("status", "--porcelain=v1", "-z", "--ignored", "--untracked-files=all")
+_CHILD_DIFF = ("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-renames")
+
+
+def _dirty_paths(raw: bytes) -> tuple[str, ...]:
+    entries = iter(raw.split(b"\x00")[:-1])
+    paths = []
+    for entry in entries:
+        if len(entry) < 4 or entry[2:3] != b" ":
+            raise ValueError("malformed status entry")
+        paths.append(os.fsdecode(entry[3:]))
+        if b"R" in entry[:2] or b"C" in entry[:2]:
+            paths.append(os.fsdecode(next(entries)))
+    return tuple(dict.fromkeys(paths))
+
+
+def _dirty_bytes(child: Path, status: bytes) -> dict[str, tuple[int, bytes]]:
+    saved = {}
+
+    def visit(relative: str):
+        path = child / relative
+        if path == child or child not in path.parents or ".." in path.parts:
+            raise ValueError("unsafe dirty path")
+        # Never traverse symlink parents, even for a path emitted by Git.
+        for parent in path.parents:
+            if parent == child:
+                break
+            if parent.is_symlink():
+                raise ValueError("dirty path has symlink parent")
+        try:
+            st = path.lstat()
+        except FileNotFoundError:
+            return  # Deletions are represented in patches/status.
+        if stat.S_ISDIR(st.st_mode):
+            for item in sorted(path.iterdir()):
+                visit(os.fspath(item.relative_to(child)))
+        elif stat.S_ISLNK(st.st_mode):
+            saved[relative] = (st.st_mode, os.fsencode(os.readlink(path)))
+        elif stat.S_ISREG(st.st_mode):
+            saved[relative] = (st.st_mode, path.read_bytes())
+        else:
+            raise ValueError("dirty path is a special file")
+
+    for path in _dirty_paths(status):
+        visit(path)
+    return saved
+
+
+def _child_payload(child: Path, proof: ChildProof):
+    status = _must_git(child, *_CHILD_STATUS).stdout
+    base = _one_line(_must_git(child, "merge-base", proof.main_tip, proof.head), "merge-base")
+    files = {
+        "committed.patch": _must_git(child, *_CHILD_DIFF, base, proof.head, "--").stdout,
+        "status.txt": status,
+        "tracked.patch": _must_git(child, *_CHILD_DIFF, "HEAD", "--").stdout,
+        "index.patch": _must_git(child, *_CHILD_DIFF, "--cached", "HEAD", "--").stdout,
+        "head-sha.txt": (proof.head + "\n").encode(),
+        "branch.txt": ((proof.branch or "detached") + "\n").encode(),
+    }
+    return files, _dirty_bytes(child, status)
+
+
+def _sync_file(path: Path, raw: bytes) -> None:
+    with path.open("xb") as stream:
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    if path.read_bytes() != raw:
+        raise ValueError("evidence bytes differ after fsync")
+
+
+def _backup_child(args: ChildArgs, proof: ChildProof, payload) -> dict[str, str]:
+    """Save raw dirty bytes without following symlinks; empty directories are omitted."""
+    args.evidence.mkdir(parents=True, exist_ok=True)
+    files, dirty = payload
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz", dereference=False) as archive:
+        for name, (mode, raw) in sorted(dirty.items()):
+            info = tarfile.TarInfo(name)
+            info.mode = stat.S_IMODE(mode)
+            if stat.S_ISLNK(mode):
+                info.type = tarfile.SYMTYPE
+                info.linkname = os.fsdecode(raw)
+                archive.addfile(info)
+            else:
+                info.size = len(raw)
+                archive.addfile(info, io.BytesIO(raw))
+    files = {**files, "dirty.tar.gz": buffer.getvalue()}
+    for name, raw in files.items():
+        _sync_file(args.evidence / name, raw)
+    with ExitStack() as stack:
+        os.fsync(_open_directory(args.evidence, stack))
+    if _child_payload(args.child, proof) != payload:
+        raise ValueError("child content changed during backup")
+    return {name: hashlib.sha256(raw).hexdigest() for name, raw in files.items()}
+
+
+def _child_absent(args: ChildArgs, common: Path) -> None:
+    if (os.path.lexists(args.child)
+            or _record_for(_worktree_records(args.main), args.child) is not None
+            or _administrative_gitdirs_for_wave(common, args.child)):
+        raise ValueError("child path, record or admin remains")
+
+
+def _child_receipt(args: ChildArgs, common: Path, entry: dict) -> bool:
+    receipt = args.evidence / "removed.json"
+    if not os.path.lexists(receipt):
+        return False
+    data = json.loads(receipt.read_bytes(), object_pairs_hook=_unique_json)
+    if (data["path"] != os.fspath(args.child) or data["branch"] != entry["branch"]
+            or not _SHA_RE.fullmatch(data["HEAD"])):
+        raise ValueError("receipt identity mismatch")
+    admin = _manifest_path(data["admin_gitdir"])
+    if admin.parent != common / "worktrees" or os.path.lexists(admin):
+        raise ValueError("receipt admin remains or is invalid")
+    _child_absent(args, common)
+    expected = {"committed.patch", "dirty.tar.gz", "tracked.patch", "index.patch", "status.txt", "head-sha.txt", "branch.txt"}
+    if set(data["files"]) != expected:
+        raise ValueError("receipt evidence set mismatch")
+    for name, digest in data["files"].items():
+        if hashlib.sha256((args.evidence / name).read_bytes()).hexdigest() != digest:
+            raise ValueError("receipt evidence digest mismatch")
+    return True
+
+
+def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
+    args = _parse_child_argv(argv)
+    phase = "manifest"
+    try:
+        common = _git_path(args.main, "rev-parse", "--git-common-dir")
+        records = _worktree_records(args.main)
+        wave, entry = _child_manifest(args, records, common)
+        phase = "evidence"
+        if _child_receipt(args, common, entry):
+            return CleanupResult("already-clean", ())
+        phase = "preflight"
+        if args.child in {args.main, wave}:
+            raise ValueError("target is primary or header wave_worktree")
+        if (_git_path(args.main, "rev-parse", "--git-dir") != common
+                or _git_path(_REPO, "rev-parse", "--git-common-dir") != common
+                or _one_line(_must_git(args.main, "symbolic-ref", "--quiet", "HEAD"), "main") != "refs/heads/main"):
+            raise ValueError("main or tool common gitdir mismatch")
+        record = _record_for(records, args.child)
+        if record is None or record.branch != entry["branch"] or record.detached != (entry["branch"] is None):
+            raise ValueError("child record or branch mismatch")
+        identity = _directory_identity(args.child, common)
+        if _git_path(args.child, "rev-parse", "--git-common-dir") != common:
+            raise ValueError("child common gitdir mismatch")
+        head = _resolve_commit(args.child, "HEAD^{commit}")
+        if head != record.head:
+            raise ValueError("child HEAD record mismatch")
+        adapter = Args(args.main, args.child, entry["branch"] or "detached", head, head)
+        admin = _bind_admin(adapter, common, identity.gitdir, stack)
+        if _administrative_gitdirs_for_wave(common, args.child) != (identity.gitdir,):
+            raise ValueError("child admin is not unique")
+        _assert_cwd_outside(args.child)
+        if any(args.child in r.path.parents for r in records):
+            raise ValueError("child contains another registered worktree")
+        for root in (args.main, args.child):
+            fold = _git_path(root, "rev-parse", "--git-path", "izanagi-spool-fold-state.json", must_exist=False)
+            if os.path.lexists(fold):
+                raise ValueError("active fold state exists")
+        phase = "occupancy"
+        before = _assert_unoccupied(args.child)
+        phase = "backup-precheck"
+        _assert_child_index(args.child)
+        _assert_child_no_conversion(args.child)
+        _assert_child_submodules(args.child, common, identity.gitdir)
+        proof = ChildProof(head, _resolve_commit(args.main, "refs/heads/main^{commit}"), entry["branch"], tuple(entry["owned_paths"]))
+        payload = _child_payload(args.child, proof)
+        phase = "integration"
+        _assert_child_integration(args.main, proof, _head_reflog_shas(identity.gitdir))
+        admin = replace(admin, child_proof=proof)
+        phase = "evidence"
+        _outside_roots(args.evidence, [common, _REPO, *(r.path for r in records)])
+        if os.path.lexists(args.evidence) and (not args.evidence.is_dir() or any(args.evidence.iterdir())):
+            raise ValueError("evidence directory is not empty")
+    except CleanupFailure:
+        raise
+    except Exception as exc:
+        raise _reject(phase, str(exc)) from exc
+    phase = "backup"
+    try:
+        hashes = _backup_child(args, proof, payload)
+        phase = "unlock"
+        if record.locked:
+            _must_git(args.main, "worktree", "unlock", os.fspath(args.child))
+            _verify_record_state(args.main, args.child, locked=False)
+        phase = "detach"
+        if record.branch is not None:
+            _must_git(args.child, "checkout", "--detach")
+        phase = "recheck"
+        current = _verify_record_state(args.main, args.child, detached=True, locked=False)
+        if current.head != head or _resolve_commit(args.child, "HEAD^{commit}") != head:
+            raise ValueError("child HEAD changed")
+        _assert_identity(args.child, common, identity)
+        after = _assert_unoccupied(args.child)
+        _assert_admin_binding(common, admin)
+        _assert_child_index(args.child)
+        if _child_payload(args.child, proof) != payload:
+            raise ValueError("child content changed after backup")
+        _assert_child_no_conversion(args.child)
+        _assert_child_submodules(args.child, common, identity.gitdir)
+        admin = replace(admin, snapshot=_admin_snapshot(admin.admin_fd))
+        phase = "remove-directory"
+        _remove_verified_tree(VerifiedWavePath(args.child, identity), common)
+        phase = "admin-recheck"
+        snapshot = _recheck_admin(adapter, common, admin)
+        phase = "admin-remove"
+        _remove_admin(adapter, common, admin, snapshot)
+        phase = "registry"
+        _verify_record_state(args.main, args.child, absent=True)
+        phase = "postcondition"
+        _child_absent(args, common)
+        if proof.branch and _resolve_commit(args.main, proof.branch + "^{commit}") != head:
+            raise ValueError("retained child branch changed")
+        receipt = {"path": os.fspath(args.child), "branch": proof.branch, "HEAD": head,
+                   "admin_gitdir": os.fspath(identity.gitdir), "files": hashes}
+        temporary = args.evidence / "removed.json.tmp"
+        _sync_file(temporary, json.dumps(receipt, sort_keys=True).encode() + b"\n")
+        os.link(temporary, args.evidence / "removed.json")
+        temporary.unlink()
+        os.fsync(_open_directory(args.evidence, stack))
+    except BaseException as exc:
+        raise _partial(phase, exc) from exc
+    return CleanupResult("removed", (OccupancyObservation("preflight", before), OccupancyObservation("recheck", after)))
+
+
 def run(argv: Sequence[str]) -> CleanupResult:
     with ExitStack() as stack:
         return _run_with_stack(argv, stack)
 
 
 def _run_with_stack(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
+    if argv and argv[0] == "remove-child":
+        return _run_child(argv[1:], stack)
     args = _parse_argv(argv)
     try:
         (
