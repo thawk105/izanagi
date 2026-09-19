@@ -13,12 +13,17 @@
 
 1. **受入の投入・再走の契約は repo に正本がある** — 待ち手 (`tools/dev_wave_wait.py acceptance`、runbook §7.3)、受理 (`child-green` のみ、D690)、
    赤の判定主体と再走制限 (`DW-O18` / `DW-O27`)、取り込み (post-claim merge、`DW-O20`)、待ち行列の不在 (D662)。これらは本 wave で 1 文字も変えていない。
-2. **投入の時刻を選ぶ「門番」と、赤の型で再投入する「loop」は job dir にしか無い。** 2026-09-20 07:2x JST の実測で `run-acceptance-gated.sh` は
-   46 本 (最古 2026-09-17 09:20、最新 2026-09-20 03:15)、条件形は少なくとも 4 種、attempt 上限は 3 / 4 / 5 と分岐している。写しの連鎖で
-   撤回済みの条件 (pigz) が撤回後に作られた写し 11 本に残る。これらは**正本ではなく、operator が投入時刻を選ぶ手段**である。
-3. **inbox 資料 (2026-09-18 11:06〜14:35 JST の調停実測) が直接観測した因果は 2 つ** — (a) 門番の条件 `l1 < l5 ∧ l1 ≤ 30` が閉じていたから
+2. **投入の時刻を選ぶ「門番」と、赤の型で再投入する「loop」は job dir にしか無い。** docs 側は、本 wave が 2026-09-20 07:1x JST に
+   `docs/dev-wave/*.md`・`docs/skill-self-improvement.md`・`docs/pegasus-runbook.md`・`docs/README.md`・`docs/orchestrator-design.md`・
+   `.claude/commands/dev-wave.md` を「門番 / leaders / gated / run-acceptance」で検索して 0 件 (inbox 資料の 2026-09-18 の検索も同旨)。
+   job dir 側は 07:19 JST の実測で `run-acceptance-gated.sh` が 46 本 (最終更新 2026-09-17 09:20〜2026-09-20 03:15)、条件形は少なくとも 4 種、
+   attempt 上限は 3 / 4 / 5 と分岐している。pigz 文字列を含む 12 本のうち 11 本は最終更新時刻が撤回 (2026-09-18 14:35) より後だった
+   (作成時刻・撤回情報の伝達状況・残存理由は未確認)。これらは**正本ではなく、operator が投入時刻を選ぶ手段**である。
+3. **inbox 資料 (2026-09-18 11:06〜14:35 JST の調停実測) が投入・停止として直接観測したもの** — (a) 門番の条件 `l1 < l5 ∧ l1 ≤ 30` が閉じていて
    3 wave が claim 前のまま計約 6 時間投入されなかった (chain log の gate 行が毎周回、条件と値を記録)、(b) `postcheck` rc=70 は取り込み後に
-   main へ遅れが残る fail-closed で、main が進む頻度と取り込み〜投入の所要で決まる (runbook §7.3 既載の残余 race)。
+   main へ遅れが残ることを検出して止める fail-closed で、main が進む頻度と取り込み〜投入の所要で決まる。これとは別に、最終検査後から受入 command
+   起動までの未検出窓 (残余 race) が runbook §7.3 に既載で、`postcheck` が検出するものとは別の窓である。観測者 argv の加算や loop の分岐差による停止も
+   同資料の直接観測 (§5.1)。
    **同時受入本数・load・pigz 本数と F945 型の赤の関係は相関にとどまり、資料自身が「同時本数は主因ではない」「門番の条件でこれ以上できることは無い」
    と結んでいる。**
 4. **資料の実測は 252e24b4f (2026-09-18 23:47 JST) 以前の regime の事実である。** F945 は 2026-09-20 に supersede され、t1259 の module fixture が
@@ -42,8 +47,8 @@
 | 受理の定義と判定器の遮断 | `docs/decisions.md` D662 / D688 / D690 | 同上 |
 | 判定器 | `tools/check_acceptance_reds.py` (argparse: `--log --tested-main --wave-tip --receipt --probe-root`) | 同上 |
 | F945 の現況 | `docs/failures.md` F945 (2026-09-20 supersede)、archive worklog entry 1699 ([T-2790]) | 同上 |
-| 門番 script | `/work/1/SFC/tanab/dev-wave-jobs/*/run-acceptance-gated.sh` 46 本、`*/gate.conf` 12 本 | 2026-09-20 07:2x JST の `ls` / `grep` |
-| 再投入 loop (junit 本文分類型) | `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py` | mtime 2026-09-18 13:15 / 14:18 |
+| 門番 script | `/work/1/SFC/tanab/dev-wave-jobs/*/run-acceptance-gated.sh` 46 本、`*/gate.conf` 12 本 | 2026-09-20 07:19 JST の `ls` / `grep` (集計 script 2 本) |
+| 再投入 loop (署名分類 + 単独再走型) | `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py` (同名 file は 07:19 の集計で 2 dir、07:36 の再確認で 3 dir — t2766 が 05:25、t2711 が 07:23 に写した) | mtime 2026-09-18 13:15 / 14:18 |
 
 集計 script は job dir `dev-wave-t2789-acceptance-ops-docs/count_gate_variants.sh` / `count_gate_variants2.sh` (read-only、repo 外)。
 
@@ -73,30 +78,32 @@
 | 事項 | 所在 (例) | 2026-09-20 07:2x JST の実測 | 正本との関係 |
 |---|---|---|---|
 | 門番 (投入時刻の選択) | `dev-wave-jobs/*/run-acceptance-gated.sh` (46 本)、`gate.conf` (12 本) | 条件: 他 wave の受入 leader 本数 ∧ 1 分 load。条件形は `l1 < l5` を含む 18 本、`l1 ≤ 30` / `< 30` 15 本、`workers` 上限 8 本、`gate.conf` を毎周回読む 23 本 (既定 `maxl=1; maxload=60` 21 本、`maxl=2` 1 本)。周期は固定 120 秒 か 100〜140 秒乱数 (`jitter_period` 14 本)。2 周連続で開いたら投入 (44 本)。乱数 0〜45 秒後の再カウントを script 本体に持つのは `jitter_period` の 14 本で、`gate.conf` 側に sleep と再カウントを足した wave (t2611 型) は別にある (本数は数えていない) | 受入の契約の外。待ち手は claim を待たないので、門番は待ち手の前に operator が置く sleep loop に過ぎない |
-| leader の数え方 | 同上 | `ps -eo args \| grep '[d]ev_wave_wait.py' \| grep ' acceptance' \| grep -vc "$SLUG"` が 37 本、`^python3( -u)? tools/dev_wave_wait.py acceptance` 形 2 本 | 既知の穴 (inbox 11:31): Claude の Bash / Monitor が command を `bash -c '...'` で包むと、その argv が leader 1 本として数えられる。観測者は script file 経由で起動する。数え方自体は正しい (11:04 の `leaders=3` は finished.txt で実在確認) |
-| 撤回済み条件の残存 | 同上 | `pigz` 本数条件 12 本、うち 11 本は撤回 (2026-09-18 14:35 JST、予測力なしと判定) より後に作られた写し (mtime 2026-09-18 15:15〜2026-09-20 03:15) | 写しの連鎖では撤回が伝播しない実例。正本が無いことの帰結であり、各 wave の誤りとは言えない (自分の判断で残した可能性を排除しない) |
+| leader の数え方 | 同上 | `ps -eo args \| grep '[d]ev_wave_wait.py' \| grep ' acceptance' \| grep -vc "$SLUG"` が 37 本、`^python3( -u)? tools/dev_wave_wait.py acceptance` 形 2 本 | 既知の穴 (inbox 11:31): Claude の Bash / Monitor が command を `bash -c '...'` で包むと、その argv が leader 1 本として数えられる。観測者は script file 経由で起動する。資料は 11:04:30 の `leaders=3` を finished.txt で実在確認済み (数え方一般の正しさの証明ではない) |
+| 撤回済み条件の残存 | 同上 | `pigz` 文字列を含む script 12 本、うち 11 本は最終更新時刻 (mtime) が撤回 (2026-09-18 14:35 JST、予測力なしと判定) より後 (2026-09-18 15:15〜2026-09-20 03:15) | 作成時刻・撤回情報の伝達状況・残存理由は未確認で、この集計だけでは各 wave の判断の当否は判定できない。条件の残存という観測にとどまる |
 | 自前の取り込み連結 | 同上 | 窓が開いたら `merge --no-ff` → provenance preflight → commit → submodule 同期 → 待ち手投入 (42 本)。post-claim merge に委ねる形 (paper-story 型) は 4 本。fold dry-run を merge 後に挟む型 9 本 | 待ち手の post-claim merge (`DW-O20`) と二重。自前 merge は「投入時点で behind=0 にして `postcheck` 競走の窓を縮める」意図だが、待ち手はその後もう一度 main を取り直すので、競走の窓 (取り込み〜投入) は消えない |
-| 再投入 loop — 署名分類型 | t2611 型 / t2288 型 (46 本すべて) | 子 log 無し + `terminal-postcheck` → 門番へ戻る。子 log 無し + rc=70 → 門番へ戻る (17 本)。junit の `<error message="failed on setup with &quot;subprocess.TimeoutExpired` / `real-repo lock deadline exceeded` を数え、赤の全件がそれなら門番へ戻る (46 本)。それ以外は停止 | **`DW-O18` の判定 (assertion 本文・差分実体、署名一致禁止) を代替しない。** F945 台帳の回収追補 (2026-09-18) は「赤を署名で分類して自動再投入した chain log は、単独再走による親判定と同等の手順を満たしたとは記録しない。緑を非帰属性や自動再試行の正当性の証拠にせず、回収 wave では同 script を再利用しない」と既に判定している。attempt 上限 (MAXTRY 3 が 12 本 / 4 が 33 本 / 5 が 1 本) は tip を跨ぐ回数であり、`DW-O18` の「同一 tip で各 1 回」の代替ではない |
-| 再投入 loop — junit 本文分類型 | `dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py` (2 dir に存在) | shard の junit.xml を parse し、全赤が「`failed on setup` ∧ `TimeoutExpired` ∧ `'ls-files', '--others'`」なら当該 file を単独再走 (`run-focus.sh`) → 緑なら次 attempt、赤なら停止。postcheck / merge / claim 系は 60 秒後に次 attempt。上限 attempt 数と 4 時間 | 単独再走 → 受入再走の順は `DW-O18` の手順と同形。ただし判定主体は人・AI のままで、[T-2484] は判定記録を fragment に先に書いて commit してから投げた (memory)。差分到達性 (docs-only) の判断は script の外 |
-| 待ち行列の可視化 | inbox §「改善案 A」6、memory | 門番 `ps -eo pid,args \| grep '[r]un-acceptance-gated.sh'`、leader 本数 (上の式)、land 本数 `grep -c '[d]ev_wave_land.py --main-worktree'` の 3 コマンド | docs に無い。復元に 10 コマンド以上を要した (inbox) |
+| 再投入 loop — 署名分類型 | t2611 型 / t2288 型 (46 本すべて) | 子 log 無し + `terminal-postcheck` → 門番へ戻る。子 log 無し + rc=70 → 門番へ戻る (17 本)。junit の `<error message="failed on setup with &quot;subprocess.TimeoutExpired` / `real-repo lock deadline exceeded` を数え、赤の全件がそれなら門番へ戻る (46 本)。それ以外は停止 | **`DW-O18` の判定 (assertion 本文・差分実体、署名一致禁止) を代替しない。** F945 台帳の回収追補 (2026-09-18) は「赤を署名で分類して自動再投入した chain log は、単独再走による親判定と同等の手順を満たしたとは記録しない。緑を非帰属性や自動再試行の正当性の証拠にせず、回収 wave では同 script を再利用しない」と既に判定している。attempt 上限 (MAXTRY 3 が 12 本 / 4 が 33 本 / 5 が 1 本) は script 1 回の起動内の投入回数の上限であり、tip の変化や同一 tip の再走回数を管理しない (merge は behind がある場合だけなので同じ tip でも再投入される)。`DW-O18` の「同一 tip で各 1 回」を保証しない |
+| 再投入 loop — 署名分類 + 単独再走型 | `dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py` (07:19 に 2 dir、07:36 に 3 dir) | shard の junit.xml を parse し、message と本文の 3 文字列 (`failed on setup` ∧ `TimeoutExpired` ∧ `'ls-files', '--others'`) の一致で全赤を分類し、一致なら当該 file を単独再走 (`run-focus.sh`) → 緑なら次 attempt、赤なら停止。postcheck / merge / claim 系は 60 秒後に次 attempt。上限 attempt 数と 4 時間 | 単独再走 → 受入再走という順序は `DW-O18` と一致するが、**分類は文字列一致であり、この script 自体は親の本文・差分実体の判定も同一 tip の回数制限も保証しない**。親に返さず進むので、判定主体を代替する道具として再利用しない |
+| 待ち行列の可視化 | inbox §「改善案 A」6、memory | 門番 `ps -eo pid,args \| grep '[r]un-acceptance-gated.sh'`、leader 本数 (上の式)、land 本数 `grep -c '[d]ev_wave_land.py --main-worktree'` の 3 コマンド | 上記の docs 検索範囲 (§0 項 2) では未検出。復元に 10 コマンド以上を要した (inbox) |
 | 走査 sampler の並走 | `dev-wave-t2790-t1259-scan-timeout/run-acceptance-gated.sh` | 受入中に login で fixture と同じ git 走査を 60 秒おきに測る (T-2790 の計測用) | 計測 wave 固有。運用ではない |
 
 ## 5. inbox 資料の事実 — 相関と因果を分ける
 
 資料の事実 (すべて 2026-09-18 JST、login node の `ps` / job dir の chain log / finished.txt) を、直接観測した因果と相関に分けて写す。数値は資料の値で、本 wave は再測定していない。
 
-### 5.1 直接観測した因果
+### 5.1 投入・停止の直接観測
 
-- **門番の条件が閉じていた → 投入されなかった。** 11:06 時点で受入 leader 0 本、門番待ち 3 本 (t2732 08:08 起動・gate 行 89 本、rulings-all 09:17・54 本、
+- **門番の条件が閉じていて投入されなかった。** 11:06 時点で受入 leader 0 本、門番待ち 3 本 (t2732 08:08 起動・gate 行 89 本、rulings-all 09:17・54 本、
   t2772 09:32・47 本)、全部 claim 前 (chain log に attempt 行なし)。閉じていた条件は `l1 < l5 ∧ l1 ≤ 30` (1 本は `< 30`、2 本は `workers ≤ 16` 付き)。
   各周回の gate 行が条件と値を記録しているので、条件と不投入の関係は観測である。**合計約 6 時間、leader 0〜1 本の窓を使えなかった。**
-  一方、load が 24〜83 で揺れた**原因**は `ps --sort=-pcpu` の内訳 (他ユーザーの `wandb sync` / `chfsd`、並行 21 session の `ugrep` / `git status` /
-  `check_ai_provenance.py`) の観測であり、寄与の分離はしていない。
+  同時間帯の login の 1 分 load は 24〜83 で揺れ、`ps --sort=-pcpu` の CPU 上位には他ユーザーの `wandb sync` / `chfsd` と並行 21 session の `ugrep` /
+  `git status` / `check_ai_provenance.py` が並んだ (寄与の分離はしていない)。
 - **止めて投げ直す間に窓を失う。** 助言で t2732・rulings-all が投げ直した 11:06〜11:13 に、leader 0 本の窓を t2484・t2627・t2632 (門番経由) と t2229
   (門番なし) が取り、leader 4 本になった。先着順の逆転は時刻で観測されている。
-- **`postcheck` rc=70 は main の進行との競走。** t2484 final-1 は `stage=postcheck rc=70`、child log 無し (テスト未走)。11:12〜11:30 の投入 4 本中 2 本
-  (t2229、t2632) が同型。main は 10:40〜11:15 に 8 commit (4〜5 分に 1 回、land 3 本並行)、取り込み監査は 2〜3 分。機構は §3 の `postcheck` 行のとおりで、
-  runbook §7.3 が「閉じない残余 race」と書いている。資料は「門番の load 条件より postcheck 競走が本当の律速」と読んでいるが、これは当該時間帯の観測。
+- **`postcheck` rc=70 は main の進行との競走を検出して止める。** t2484 final-1 は `stage=postcheck rc=70`、child log 無し (テスト未走)。11:12〜11:30 の
+  投入 4 本中 2 本 (t2229、t2632) が同型。main は 10:40〜11:15 に 8 commit (4〜5 分に 1 回、land 3 本並行)、取り込み監査は 2〜3 分。機構は §3 の
+  `postcheck` 行のとおり (取り込み後の遅れを検出して停止)。これとは別に、runbook §7.3 が書く「閉じない残余 race」は最後の `HEAD..main` 検査後から
+  受入 command 起動までに main が進む未検出の窓であり、`postcheck` が検出するものとは別の窓である。資料は「門番の load 条件より postcheck 競走が
+  本当の律速」と読んでいるが、これは当該時間帯の観測。
 - **門番同士の同時投入は ps を数える方式では消えない。** 11:43:53 と 11:44:03 (10 秒差)、12:49:56〜12:50:26 の 30 秒に 4 本、12:50:19 と 12:50:21 (2 秒差)。
   各門番の 2 分周期の位相が揃っていた。12:53〜13:22 に 6 wave が「2 周連続で開いた後に乱数 0〜45 秒 sleep → 再カウント」+「周期 100〜140 秒乱数」へ
   切り替えた後、13:17:40 と 13:18:56 (76 秒差、設計どおり 2 本)。二重確認を持たない t2611 だけが 7 秒差で 3 本目に入った。**同時投入の減少は 1 例の観測**。
@@ -110,8 +117,8 @@
 - **同時受入本数と F945 型の赤。** 資料の表: 10:40〜11:05 (投入時 他 leader 1〜2 / 走行中最大 3) は緑 2/2、11:10〜11:32 (0〜2 / 4) は F945 型 2 + postcheck 2、
   11:28〜11:44 (2 / 4) は緑 1 + F945 型 2。同時 4 本の帯に集中したので資料は上限を 2 → 1 に改訂した。**しかし 14:05 に上限 1 の設計どおり同時 2 本
   (t2772・t2674、13:44 投入) でも両方 F945 型 (11 件 + 3 件)** で、資料自身が「同時本数は主因ではない」と結んでいる。
-- **login の load / PSI / 他ユーザー process と F945 型。** 14:05 の login CPU 上位は他ユーザーの `pigz -1 -p 2` 5 本以上、`/proc/pressure/io` は
-  some avg60=0.48%、同時刻の走査は 3.6 秒。14:13 の「pigz ≥ 3 なら見送り」助言は 14:35 に撤回 — pigz 4〜7 本の帯で t1878・t2632 は 2/2 緑、
+- **login の load / PSI / 他ユーザー process と F945 型。** 14:05 の login CPU 上位は他ユーザーの `pigz -1 -p 2` 5 本以上。14:07 の `/proc/pressure/io` は
+  some avg60=0.48%、同時刻 (14:07) の走査は 3.6 秒 (赤の観測と PSI・走査は同時測定ではない)。14:13 の「pigz ≥ 3 なら見送り」助言は 14:35 に撤回 — pigz 4〜7 本の帯で t1878・t2632 は 2/2 緑、
   同じ帯で t2772・t2674 は 2/2 F945 型。**login 側のどの指標でも予測できない**、が資料の結論。
 - **上限 1 と緑率。** 12:03 以降の投入 5 本は緑 3 (t2777、t2379、t2732)、F945 型 1 (t2627、同時 3〜4 本の帯)、判定待ち 1。t2732 final-4 (上限 1、12:23:29 投入、
   他 leader 1 本) は 12:42:21 に child-green (25,090 passed、19 分)。**n が小さく、資料も「確定は次の 1〜2 時間の記録で」と書いている**。
@@ -146,21 +153,45 @@ D2148 項 12 と本 wave の scope に従い、次は採らない (本 wave で�
 | A. `docs/dev-wave/operations.md` の新 L2 節 (門番条件値・数え方・周期・自動再投入・連結・可視化・門番なし投入の禁止) | inbox 改善案 A | 項 12 が「追加 L2 節を丸ごと採用した裁定でもない」。D271 の 3 条件 (発火実績・機械代替なし・同一発火点の既存正本なし) の独立確認も未実施。dev-wave leaf は check_docs の pin と byte 予算に当たる。本 wave は runbook §7.3 の小節 (正本/非正本の所在だけ) にとどめた |
 | B. 受入 tool 自身の投入 slot (`mkdir` 原子取得、FIFO、死体回収) | inbox 改善案 B | 項 12 が「新しい投入 slot 機構は現時点では採らない」。根拠の一部 (同時投入が F945 型を生む) は §5.2・§6 のとおり相関にとどまり、機序除去後の regime では未観測 |
 | `postcheck` を「claim 時の main でテストを走らせ、land の forward main merge 経路で追いつく」形へ | inbox 11:31 追記の裁定候補 | 項 12 が「投入後の live main 照合条件変更は現時点では採らない」。land 側の forward main merge 経路 (D987、runbook §7.3) は既存 |
-| C. failures への起票 (F945 / F976 への再発追記、または新 F) | inbox 改善案 C | 項 12 は起票先を裁定していない。本 wave は起票しない — 恒久対応として指せる fail-closed の実体 (A または B) が未採用のため、failures fragment の規則「宣言だけの対応は恒真」に当たる。起票するなら A / B の採否と同時に |
+| C. failures への起票 (F945 / F976 への再発追記、または新 F) | inbox 改善案 C | 項 12 は起票先を裁定していない。門番待ち 6 時間という失敗型について、既存正本 (規律・memory・hook・lint・script) への参照だけでは再発を防ぐ具体的対応を本資料から示せない。本 wave では新 F を作らず、起票先と恒久対応を未裁定として残す (機械的な fail-closed 実装が無ければ起票できない、という規則ではない) |
 | F945 恒久対応「timeout 拡大を行わない」の受入経路限定の再考 | inbox 12:52 追記 | [T-2790] で fixture 局所の 120 秒として実施済み (entry 1699) |
 | `test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound[write]` の wall-clock 依存の赤 (3 例目) | inbox 12:52 追記 | 本 wave の主題外。failures 未起票のまま (資料の指摘を写すだけ) |
 | 門番なし直接投入の禁止 (命令化) | inbox 改善案 A の 7 | 採らない。門番は契約でなく operator の手段 (§4)。同時本数が主因でない以上、禁止の根拠は資料から示せない |
 
 ## 8. 本 wave の受入 (自己言及)
 
-本 wave の最終受入も job dir の門番 script (t2288 型を写し、条件値は `gate.conf` の `maxl=1; maxload=60`) で投入する。これは §4 の「job dir にしか無いもの」を
-本 wave も使ったという事実であり、正本化ではない。赤が出た場合の判定は `DW-O18` (親が本文を読む) に従い、script の分岐で再投入した attempt があれば
-その旨を worklog に書く。
+本 wave の最終受入も job dir の門番 script (`dev-wave-t2789-acceptance-ops-docs/run-acceptance-gated.sh`、t2288 型を写して自前の main 取り込みと
+**赤の署名分類による自動再投入を外し**、child log のある非緑は型を問わず停止して親へ返す。自動再投入はテスト未走の rc=70 / `terminal-postcheck` だけ。
+条件値は `gate.conf` の `maxl=1; maxload=60`、pigz 条件なし) で投入する。これは §4 の「job dir にしか無いもの」を本 wave も使ったという事実であり、
+正本化ではない。赤が出た場合の判定は `DW-O18` (親が本文を読む) に従い、script が再投入した attempt があればその旨を worklog に書く。
 
 ## 9. 限界
 
-- job dir の集計は 2026-09-20 07:2x JST の 1 回の `ls` / `grep` であり、以後に作られる写しは含まない。機能の有無は文字列の有無で数えた (例: `pigz`、`jitter_period`) ので、
-  同名の別実装や無効化された分岐 (条件値で実質無効) は区別していない。
+- job dir の集計は 2026-09-20 07:19 JST の 1 回の `ls` / `grep` であり、以後に作られる写しは含まない (例: `classify_reds.py` は 07:19 に 2 dir、07:36 に 3 dir)。
+  機能の有無は文字列の有無で数えた (例: `pigz`、`jitter_period`) ので、同名の別実装や無効化された分岐 (条件値で実質無効) は区別していない。
+  mtime は最終更新時刻であり、作成時刻や複製元は示さない。
 - inbox 資料の数値は再測定していない。資料が「実測」と書く値をそのまま写し、資料自身の訂正 (§5.3) も写した。
-- 「因果」と書いた 2 点 (§5.1 の門番条件・postcheck) は、条件と結果が同じ log に記録されている直接観測であって、統制実験ではない。
+- §5.1 の「直接観測」は、条件と結果が同じ log に記録されている観測であって、統制実験ではない。
+- 「docs に無い」は §0 項 2 の検索範囲・検索語・時点に限定した主張である。
 - 本 wave は docs のみで、受入経路・待ち手・判定器のコードを 1 文字も変えていない。§3 の要点は該当 file の 2026-09-20 時点の記述の写しであり、正本は各 file である。
+
+## 10. 段 6 レビュー (read-only、gpt-6-astra) の所見と対応
+
+レビューは 1 本 (2 レンズ)、must-fix 2 / nit 7 / refuted 1。逐語は job dir `dev-wave-t2789-acceptance-ops-docs/codex/review-out.md`
+(repo 外、job 削除で消える)。対応は親が docs を直接編集した (実装面ゼロ)。
+
+| # | 所見 | 判定 | 対応 |
+|---|---|---|---|
+| 1 | MAXTRY は「tip を跨ぐ回数」ではなく script 1 回の投入回数上限で、同一 tip でも再投入される | real / must-fix | closed — §4 と runbook の文を置換 |
+| 2 | T-2484 型も文字列一致の自動分岐で、親判定の代替に見える書き分け。「fragment に先に記録」は根拠なし | real / must-fix | closed — 「署名分類 + 単独再走型」に改名し保証しない旨を明記、memory 由来の文を削除 |
+| 3 | mtime から作成時刻・複製・伝達失敗を断定 | real / nit | closed — §0・§4・§9 を「最終更新時刻が撤回後」の観測に限定 |
+| 4 | PSI と走査の観測時刻は 14:07 | real / nit | closed — §5.2 を置換 |
+| 5 | 「直接観測した因果は 2 点だけ」と §5.1 の内容が不一致、「load が揺れた原因」 | real / nit | closed — §0 項 3 を書き直し、§5.1 を「投入・停止の直接観測」に改題、load の文を CPU 上位の観測に変更 |
+| 6 | `postcheck` が検出する競走と runbook の残余 race は別の窓 | real / nit | closed — §0 項 3 と §5.1 で 2 つの窓を分けた |
+| 7 | 不在・本数の主張に検索範囲と時点の限定が無い、`classify_reds.py` は 3 本 | real / nit | closed — §0 項 2 に検索範囲・語・時点を明記、§2・§4・§9 に本数の時点差を記載、「数え方自体は正しい」を実在確認の記述に限定 |
+| 8 | runbook 小節は所在表としてさらに削れる (規律再掲・集計数・長い引用・時刻付き件数は insight へ) | real / nit | closed — runbook 小節を所在表 + 注意 3 点に縮約 (再掲を削除し insight へ委ねた) |
+| 9 | failures 規則を「fail-closed 実装が必須」と狭く読んだ | real / nit | closed — §7 の C 行を「既存正本への参照だけでは具体的対応を示せない」に限定。新 F を起票しない結論は維持 (レビューも支持) |
+| 10 | 本 wave が署名分類の自動再投入を採用する疑い | refuted | 修正なし。§8 に「赤の自動再投入を外した」を追記 |
+
+親の再検算 (DW-O16): 所見 1 は t2288 型 script の `attempt=$((attempt + 1))` と `if [ "$BEHIND" -gt 0 ]` の位置で確認 (merge は behind のときだけ、attempt は毎投入)。
+所見 7 の 3 本目は `ls -l --time-style` で 07:23 (t2711) と確認。所見 4 は inbox 逐語「PSI (`/proc/pressure/io` は 14:07 に some avg60=0.48%、同時刻の走査は 3.6 秒)」で確認。
