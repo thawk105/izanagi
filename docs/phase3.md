@@ -437,6 +437,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - [x] [T-2528] D1936項23・25に従い、coder3種とplannerのwhiteboard例を実射影の5fieldへ訂正。
      plannerの説明もcurrent_perf・leading_indicators・whiteboardと任意policy_hintに整合。
      既存source pin・互換baseline・static adapterだけを追随し、実装の受理集合とruntime blockedを維持。
+   - [x] [T-2783] D2148項3に従い、明示critic診断をK2手動loopのplanner/coder入力へ渡す
+     局所経路を追加。whiteboardの5field・delta_pct=None・AO非読取を維持し、次回計画に
+     同機体・同jobのstock対照を含める。3巡目は未実走。手順は段4b runbookのT-2783追補。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。

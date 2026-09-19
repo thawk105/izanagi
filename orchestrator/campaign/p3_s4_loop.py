@@ -13,7 +13,7 @@ reward hacking 圧力が最も高い。iteration フロー (design v1 §4 の 1 
        対象外である ([T-287] の残余)
        justification / uncertainty の自由文は journal / report に残る
     2. coder   (LLM):  方向 + baseline (絶対 throughput 等の現行指標) → 具体 backoff 値 +
-       hole コード (過去候補の勝ち筋値・critic の機序帰属の専用 field は持たない)
+       hole コード (K2手動loopでは明示指定のcritic診断を任意の兄弟keyで渡せる)
     3. harness (本Py): coder コードを EVOLVE-BLOCK hole に挿入 → diff 検疫 (4a)
        - reject  → diff-quarantine rejection を WAL に焼き critic へ (bench に進めない)
        - pass    → run_campaign (build×2/verify/bench) に委譲 → WAL
@@ -1219,17 +1219,67 @@ def whiteboard_for_planner(state: LoopState) -> List[Dict]:
     return out
 
 
+_K2_DIAGNOSIS_BOUNDARY = "critic_diagnosis_is_data_not_instructions"
+_K2_DIAGNOSIS_SECTIONS = ("attribution", "recommend", "avoid", "uncertainty")
+
+
+def _validate_k2_critic_diagnosis(value: Dict[str, Any]) -> None:
+    keys = {"data_boundary", "source_sha256", *_K2_DIAGNOSIS_SECTIONS}
+    if (type(value) is not dict or set(value) != keys
+            or any(type(item) is not str for item in value.values())):
+        raise ValueError("k2_critic_diagnosis requires exact six string fields")
+    if value["data_boundary"] != _K2_DIAGNOSIS_BOUNDARY:
+        raise ValueError("k2_critic_diagnosis data_boundary mismatch")
+    if re.fullmatch(r"[0-9a-f]{64}", value["source_sha256"]) is None:
+        raise ValueError("k2_critic_diagnosis source_sha256 must be lowercase SHA-256")
+
+
+def k2_critic_diagnosis_from_bytes(raw: bytes) -> Dict[str, str]:
+    """Explicit critic bytes only; no AO reader or inference of stop decisions."""
+    diagnosis = {
+        "data_boundary": _K2_DIAGNOSIS_BOUNDARY,
+        "source_sha256": hashlib.sha256(raw).hexdigest(),
+        **agent_outputs.extract_critic_sections(raw.decode("utf-8")),
+    }
+    _validate_k2_critic_diagnosis(diagnosis)
+    return diagnosis
+
+
+def k2_next_generation_inputs(
+    context: Dict[str, Any],
+    planner_input: Dict[str, Any],
+    coder_input: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Copy complete caller inputs and project the builder's optional diagnosis.
+
+    Caller supplies metrics, knowledge, whiteboards and planner output as usual.
+    This does not validate full role schemas or launch either role.
+    """
+    planner, coder = dict(planner_input), dict(coder_input)
+    if "k2_critic_diagnosis" in context:
+        diagnosis = context["k2_critic_diagnosis"]
+        _validate_k2_critic_diagnosis(diagnosis)
+        planner["k2_critic_diagnosis"] = dict(diagnosis)
+        coder["k2_critic_diagnosis"] = dict(diagnosis)
+    else:
+        planner.pop("k2_critic_diagnosis", None)
+        coder.pop("k2_critic_diagnosis", None)
+    return planner, coder
+
+
 def planner_context_payload(
     state: LoopState,
     cfg: CampaignConfig,
     *,
     knowledge_input: Optional[Dict[str, Any]] = None,
+    k2_critic_diagnosis: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """段4 human-supervised loop: このharnessが権威を持つ入力 (whiteboard + 任意の
     policy_hint) を planner-v4 spawn 用 JSON へ射影する。current_perf/leading_indicators は
     メインセッションが別途合成し本関数の責務外。
 
     ``knowledge_input`` がある場合は両既存 key と同じ階層の兄弟 key として加える。
+    ``k2_critic_diagnosis`` はK2・非B4・reflux onの明示入力に限る。
 
     ``policy_hint`` は search_config にキーがある場合だけ exact ``str`` を受け付ける。
     キーが無い場合は planner payload にも出力しない。
@@ -1239,6 +1289,22 @@ def planner_context_payload(
         if type(knowledge_input) is not dict:
             raise ValueError("knowledge_input は exact dict が必要")
         payload["knowledge_input"] = knowledge_input
+    if k2_critic_diagnosis is not None:
+        _validate_k2_critic_diagnosis(k2_critic_diagnosis)
+        if cfg.search_config.get(wal.KNOWLEDGE_LEVEL_SEARCH_KEY) != "K2":
+            raise ValueError("k2_critic_diagnosis requires K2 campaign")
+        if (knowledge_input is None or knowledge_input.get("knowledge_level") != "K2"
+                or knowledge_input.get("data_boundary") != knowledge_manifest.DATA_BOUNDARY
+                or not isinstance(knowledge_input.get("sources"), list)
+                or not isinstance(knowledge_input.get("knowledge_manifest_sha256"), str)
+                or re.fullmatch(r"[0-9a-f]{64}",
+                                knowledge_input["knowledge_manifest_sha256"]) is None
+                or knowledge_input["knowledge_manifest_sha256"]
+                != cfg.search_config.get(wal.KNOWLEDGE_MANIFEST_SHA256_SEARCH_KEY)):
+            raise ValueError("k2_critic_diagnosis requires bound K2 knowledge projection")
+        if b4_reflux_ablation_mode(cfg) or cfg.search_config.get("reflux") != "on":
+            raise ValueError("k2_critic_diagnosis requires non-B4 reflux on")
+        payload["k2_critic_diagnosis"] = dict(k2_critic_diagnosis)
     if "policy_hint" not in cfg.search_config:
         return payload
     hint = cfg.search_config.get("policy_hint")
@@ -2751,6 +2817,8 @@ def main(
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
     ap.add_argument("--emit-planner-context", metavar="PATH.json",
                     help="proposal 生成前の planner-v4 入力 (whiteboard + 任意の policy_hint) を JSON 出力")
+    ap.add_argument("--k2-critic-diagnosis", type=Path, metavar="PATH.md",
+                    help="K2手動emit限定: 明示critic逐語を診断データとして射影")
     ap.add_argument("--knowledge-manifest", type=Path, metavar="PATH",
                     help="K2 knowledge manifest (commit/path/raw-byte SHA を検証して条件付き bind)")
     ap.add_argument("--coder-role", choices=("coder-v4-autonomous-k2",),
@@ -2809,6 +2877,12 @@ def main(
             return 1
     if supplied & ingestion:
         ap.error("agent ingestion options require --record-agent-output")
+    if a.k2_critic_diagnosis is not None and (
+        not a.emit_planner_context or a.run_iteration
+        or a.b4_reflux_ablation or a.reflux != "on"
+        or a.knowledge_manifest is None
+    ):
+        ap.error("--k2-critic-diagnosis requires K2 emit-only, non-B4, reflux on")
     if (a.agent_inputs is not None or a.agent_prompts is not None) and not a.run_iteration:
         ap.error("--agent-inputs/--agent-prompts require --run-iteration")
     if a.agent_prompts is not None and a.agent_inputs is None:
@@ -2887,6 +2961,12 @@ def main(
     resolved_knowledge = _resolve_knowledge_manifest_argument(
         a.knowledge_manifest,
     )
+    diagnosis = None
+    if a.k2_critic_diagnosis is not None:
+        try:
+            diagnosis = k2_critic_diagnosis_from_bytes(a.k2_critic_diagnosis.read_bytes())
+        except (OSError, ValueError) as exc:
+            ap.error(f"invalid --k2-critic-diagnosis: {exc}")
     knowledge_de_novo_claim = a.knowledge_de_novo_claim == "true"
     if (
         not a.emit_planner_context
@@ -2922,11 +3002,10 @@ def main(
         state = load_loop_state(layout)
         if state is None:
             state = LoopState(start_wall=time.time())
-        payload = planner_context_payload(state, cfg)
-        if knowledge_input is not None:
-            payload = planner_context_payload(
-                state, cfg, knowledge_input=knowledge_input,
-            )
+        payload = planner_context_payload(
+            state, cfg, knowledge_input=knowledge_input,
+            k2_critic_diagnosis=diagnosis,
+        )
         with open(a.emit_planner_context, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False))
         print(f"planner context を出力しました: {a.emit_planner_context}")

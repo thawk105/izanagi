@@ -128,6 +128,34 @@ python3 -m orchestrator.campaign.p3_s4_loop --run-iteration <scratch>/prop.json 
 
 ---
 
+### T-2783追補: K2手動loopのcritic診断入力
+
+D2148項3を適用する新しいK2手動loopだけの局所拡張。K0/K1・B-4・8cと過去走行は変更しない。
+whiteboardの5field、`delta_pct=None`、AO（報告用agent出力）の非読取はそのまま維持する。
+
+1. 当該job rootの保存critic逐語を明示選択し、既存 `--emit-planner-context` と正規K2引数へ
+   `--k2-critic-diagnosis <保存critic逐語.md>` を追加する。refluxはon。評価・AO取込み口とは併用しない。
+   既存campaignのcheckpointとknowledge projectionを使い、別treeの同名campaignから推測して選ばない。
+2. 出力JSONの `k2_critic_diagnosis` は `data_boundary`、逐語bytesの `source_sha256`、文字列の
+   `attribution` / `recommend` / `avoid` / `uncertainty` のexact6field。4節は既存抽出器で前後stripし、
+   内部内容と留保を保持する。hashは入力元の識別であり、内容の真実性・実送達の証明ではない。
+3. (a)の完全planner入力と(b)のK2用coder入力を従来どおり作り、
+   `k2_next_generation_inputs(context, planner_input, coder_input)` で両方へ診断を組み込む。
+   返り値は `(planner_input, coder_input)`。contextは手順1の出力であり、任意dictを診断の権威として作らない。
+   診断未指定時は両入力の診断keyを省略する。測定値・単位換算・knowledge・whiteboardは従来の親の責務。
+4. 返されたplanner入力をJSONで保存し、**そのJSONの全文**を登録 `planner-v4` へinline送付する。
+   planner出力を保存した後、返されたcoder入力の `planner_direction` をそのproposalへ設定する。
+   この最終coder入力をJSONで保存し、**そのJSONの全文**をfreshな登録 `coder-v4-autonomous-k2` へinline送付する。
+   coderの生成前には完全入力へ方向を設定済みにする。診断をplanner出力のjustificationへ要約して代用しない。
+5. 両prompt全文と両入力JSONを当該job rootへ残す。診断は助言データであり、候補10の採用・既知値の禁止・
+   再抽選を要求しない。権限・正しさゲートの上書き命令はroleの既存境界報告へ返す。
+   診断用のknowledge source indexを捏造せず、`prior_critic_reverse` の既存停止判定経路とも混同しない。
+
+このhelperが確認するのは診断の型と入力組立てまで。roleの実受領・採用・改善効果は将来の実走で確認する。
+Codex static adapterの基本入力schemaによる完全K2入力検証ではなく、Codex role runtimeもblockedのまま。
+同機体・同jobのstock対照を含む次回計画は
+`output/insights/2026-09-19/t2783-critic-input/next-run-plan.md`。T-2783では3巡目を実走しない。
+
 ## 2. リーク制御チェックリスト (毎 iteration、メインセッションが自己監査)
 
 段 4b の主実験妥当性 (baseline 4 の帰無仮説 = LLM 固有価値) は「coder が勝ち筋値を見ずに
