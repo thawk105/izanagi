@@ -4944,3 +4944,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-19","base":"baba46bb7ddeb2a928aa40c07dc351d70998549b","content_sha256":"09b671847f20b9070fbc8326c51d84fecfe2603114d0dc1c9d5f778b072d9d2e","seq":1,"tested_tip":"0ca4b5296255078d6a76726a8baa941f977b3b12","wave":"dev-wave-paper-story-20260919","wave_ref":"refs/heads/worktree-dev-wave-paper-story-2026-09-19"}
 - {"allocations":{},"authored":"2026-09-19","base":"baba46bb7ddeb2a928aa40c07dc351d70998549b","content_sha256":"7d0b11c5c0f2e8702b053225267a67c8d29560613c3128a54376276875fa711a","seq":1,"tested_tip":"0ca4b5296255078d6a76726a8baa941f977b3b12","wave":"dev-wave-paper-story-20260919","wave_ref":"refs/heads/worktree-dev-wave-paper-story-2026-09-19"}
+
+- {"allocations":{},"authored":"2026-09-20","base":"1123999c1c162e192379e98f36e8b1233a8d9788","content_sha256":"1e7308a50de55c6f533dc1f8627a76f23f5e47c651f8eabd3dfe9578845e3f14","seq":1,"tested_tip":"86d65761d6bb11055aff5aea6a3ffe68a6a9dc8c","wave":"dev-wave-t2778-child-worktree-cleanup-2","wave_ref":"refs/heads/worktree-dev-wave-t2778-child-worktree-cleanup-2"}
