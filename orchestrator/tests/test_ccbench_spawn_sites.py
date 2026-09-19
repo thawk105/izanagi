@@ -673,7 +673,7 @@ def _patch_added_define_interfaces(
                     and re.fullmatch(r"\s*#\s*define\s+" + guard[1] + r"\s*",
                                      file_added[first + 1])
                     and re.fullmatch(r"\s*#\s*endif\s*(?://.*|/\*.*\*/\s*)?", last)):
-                include_guards.update({i: guard[1] for i in range(start, len(added))})
+                include_guards[start + first] = guard[1]
 
         patch_rel = (
             path.relative_to(_ROOT) if path.is_relative_to(_ROOT) else path
@@ -2869,6 +2869,17 @@ def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):
     assert "NEW_HEADER_HH" not in patch_sources
     assert frozenset(patch_sources) == {"DEFAULT_SWITCH", "CHANGED_HEADER_HH"}
     assert non_tu_interfaces == frozenset()
+
+    (tmp_path / "escape.patch").write_text(
+        "diff --git a/escape.hh b/escape.hh\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n+++ b/escape.hh\n@@ -0,0 +1,6 @@\n"
+        "+#ifndef X\n+#define X\n+#endif\n"
+        "+#if X + 0\n+int enabled;\n+#endif\n",
+        encoding="utf-8",
+    )
+    patch_sources, _ = _patch_added_define_interfaces(patch_dir=tmp_path)
+    assert "X" in patch_sources
 
 
 def test_patch_define_inventory_matches_condition_gate_registry():
