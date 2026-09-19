@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m7-companions-not-completed-from-spec",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    combined: dict[str, str] = dict(spec.companion_defines)",
+          "new": "    combined: dict[str, str] = {}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-1]",
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_condition_gates_pass_real_factory_declarations_to_evaluator"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7b-companions-not-injected-into-configure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    rows = list(companions)",
+          "new": "    rows = []"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

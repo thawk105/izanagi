@@ -270,7 +270,7 @@ for workload in "${WORKLOADS[@]}"; do
   qsub_stdout_path="$job_root/scheduler/qsub.stdout"
   qsub_stderr_path="$job_root/scheduler/qsub.stderr"
   variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE,IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT=$THIRD_PARTY_SOURCE_ROOT"
-  if [[ "$STUDY" == paper-story-a6-certification ]]; then
+  if [[ "$STUDY" == paper-story-a6-certification || "$STUDY" == paper-story-b7-fixed5-regression ]]; then
     variable_arg+=",IZANAGI_A2_POLICY_PATH=$POLICY_PATH"
   fi
   [[ ! -e "$qsub_stdout_path" && ! -L "$qsub_stdout_path" \
@@ -362,7 +362,7 @@ for workload in a2.workload_ids(policy):
         "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": dependency,
         "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT": third_party,
     }
-    if policy.study == "paper-story-a6-certification":
+    if policy.study in {"paper-story-a6-certification", "paper-story-b7-fixed5-regression"}:
         environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
     variable_arg = ",".join(f"{key}={value}" for key, value in environment.items())
     stdout_path = f"{attempt}/jobs/{workload}/scheduler/job.stdout"

@@ -1050,6 +1050,14 @@ def _a6_policy(tmp_path):
     return A2.load_policy(path)
 
 
+def _b7_fixed5_policy(tmp_path):
+    document = json.loads(A2.B7_FIXED5_POLICY_PATH.read_text(encoding="utf-8"))
+    document["durable_measurement_base"] = str(tmp_path / "durable-b7-fixed5")
+    path = tmp_path / "b7-fixed5-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return A2.load_policy(path)
+
+
 def test_real_a6_preregistration_literal_is_materialization_eligible(tmp_path):
     policy = _a6_policy(tmp_path)
     literal = copy.deepcopy(REAL_A6_20260908B_PREREGISTRATION)
@@ -1459,7 +1467,7 @@ def _write_receipt_bundle(
             "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
             "IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT": "/pinned/third-party",
         }
-        if policy.study == "paper-story-a6-certification":
+        if policy.study in {"paper-story-a6-certification", "paper-story-b7-fixed5-regression"}:
             qsub_environment["IZANAGI_A2_POLICY_PATH"] = str(policy.path)
         variable_arg = ",".join(
             f"{key}={value}" for key, value in qsub_environment.items())
@@ -2562,6 +2570,139 @@ def test_p2_a6_full_v3_path_collects_and_materializes(tmp_path):
     assert destination == repository / policy.tracked_destination
     assert (destination / "certification.json").is_file()
     assert (destination / "COMPLETE.json").is_file()
+
+
+@pytest.mark.parametrize("adopted_gain,expected_status", [
+    (1.1, "observed-positive"), (0.9, "reject")])
+def test_b7_full_collect_materializes(tmp_path, adopted_gain, expected_status):
+    policy = _b7_fixed5_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "b7-full", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False,
+                          adopted_gain=adopted_gain)
+    _, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root)
+    report["source_commit"] = evidence["source_commit"]
+    assert A2._canonical_full_report(
+        policy, evidence, attempt_id=root.name, current_pin=CURRENT_PIN) == report
+    repository = tmp_path / "b7-repository"
+    repository.mkdir()
+    destination = A2.materialize(policy, report, evidence, repo_root=repository)
+    assert report["status"] == expected_status
+    assert evidence["completion_schema"] == A2.COMPLETION_SCHEMA
+    assert evidence["raw_manifest_schema"] == A2.RAW_MANIFEST_SCHEMA
+    assert evidence["raw_manifest_valid"] is True
+    assert len(evidence["raw_files"]) == 18
+    assert set(report["effects"]) == {"rr5", "rr50", "rr95"}
+    assert [c["workload"] for c in report["cells"]] == [
+        "rr5", "rr5", "rr50", "rr50", "rr95", "rr95"]
+    assert all(c["correctness"]["status"] == "certified" for c in report["cells"])
+    assert destination == repository / policy.tracked_destination
+    assert (destination / "certification.json").is_file()
+    assert (destination / "COMPLETE.json").is_file()
+
+
+def test_b7_policy_bytes_pin():
+    assert hashlib.sha256(A2.B7_FIXED5_POLICY_PATH.read_bytes()).hexdigest() == (
+        "c6b24050d17c4bc552d254ce65e328b3a6edca919387b5720b4e025ea78b0df1")
+
+
+def test_b7_policy_literal():
+    policy = A2.load_policy(A2.B7_FIXED5_POLICY_PATH)
+    assert policy.document["workloads"] == [
+        {"id": wid, "label": label, "rratio": ratio, "adopted_backoff_us": 5}
+        for wid, label, ratio in [("rr5", "write-heavy", "5"),
+                                  ("rr50", "balanced", "50"),
+                                  ("rr95", "read-heavy", "95")]]
+    assert [(c.cell_id, c.workload_id, c.role, dict(c.genome)) for c in policy.cells] == [
+        (wid + suffix, wid, role, genome)
+        for wid in ("rr5", "rr50", "rr95")
+        for suffix, role, genome in [
+            ("-stock", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
+            ("-fixed5", "adopted", {"BACK_OFF": 1, "BACKOFF_FIXED": 5})]]
+    assert policy.document["scheduler"] == {
+        "project": "SFC", "queue": "gen_S", "nodes": 5, "walltime": "12:00:00",
+        "job_body": "tools/pegasus/paper_story_a2_certification.sh"}
+    assert str(policy.durable_base) == (
+        "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919")
+    assert str(policy.tracked_destination) == (
+        "output/insights/2026-09-19_t1998-b7-fixed5-three-workload")
+    a2 = A2.load_policy()
+    for key in ("performance_common", "legacy_correctness", "controlled_define_base",
+                "trace0_cmake_argv", "historical_reference", "certification_composition"):
+        assert policy.document[key] == a2.document[key]
+    assert A2._qsub_job_name(policy) == "paper-b7-fixed5"
+    assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS | {"IZANAGI_A2_POLICY_PATH"}
+    assert len(A2._qsub_environment_keys(policy)) == 9
+
+
+@pytest.mark.parametrize("absolute", [False, True], ids=["relative", "absolute"])
+def test_b7_cli_canonical_policy(absolute):
+    path = A2.B7_FIXED5_POLICY_PATH
+    selected = path if absolute else path.relative_to(A2.POLICY_PATH.parents[2])
+    assert A2.canonical_policy_path(selected) == path
+    args = A2._parser().parse_args([
+        "--policy", str(selected), "preregister", "--attempt-id", "b7-cli",
+        "--current-pin", CURRENT_PIN])
+    policy = A2._load_selected_policy(args)
+    assert policy.study == "paper-story-b7-fixed5-regression"
+    assert A2.workload_ids(policy) == ("rr5", "rr50", "rr95")
+
+
+@pytest.mark.parametrize("mutation,reason", [
+    ("genome", "adopted cell does not match workload policy"),
+    ("unknown", "policy keys mismatch"),
+    ("workloads", "study shape"), ("cells", "study shape")])
+def test_b7_invalid_policy(tmp_path, mutation, reason):
+    document = json.loads(A2.B7_FIXED5_POLICY_PATH.read_text())
+    if mutation == "genome":
+        document["cells"][1]["genome"]["BACKOFF_FIXED"] = 10
+    elif mutation == "unknown":
+        document["unknown"] = True
+    else:
+        document[mutation].pop()
+    path = tmp_path / "invalid-b7.json"
+    path.write_text(json.dumps(document))
+    with pytest.raises(A2.CertificationError, match=reason):
+        A2.load_policy(path)
+
+
+def test_b7_noncanonical_policy_rejected(tmp_path):
+    path = tmp_path / "unshipped-b7.json"
+    path.write_bytes(A2.B7_FIXED5_POLICY_PATH.read_bytes())
+    assert A2.load_policy(path).study == "paper-story-b7-fixed5-regression"
+    args = type("Args", (), {"policy": str(path), "qsub_argv": ["--", "qsub"]})()
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._load_selected_policy(args)
+    with pytest.raises(A2.CertificationError, match="canonical shipped policy"):
+        A2._exact_qsub_command(args)
+
+
+@pytest.mark.parametrize("success_count", [1, 2])
+def test_b7_partial_boundary(tmp_path, success_count):
+    policy = _b7_fixed5_policy(tmp_path)
+    root = A2.preregister_attempt(policy, "b7-partial", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(
+        policy, root, record_completion=False,
+        driver_rc={wid: 0 if i < success_count else 7
+                   for i, wid in enumerate(A2.workload_ids(policy))})
+    completion_path, _ = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    completion, _ = A2._read_json(completion_path)
+    assert completion["schema_version"] == A2.COMPLETION_SCHEMA
+    assert completion["raw_result_manifest"] is None
+    assert completion["raw_result_manifest_sha256"] is None
+    assert not (root / "raw-manifest.json").exists()
+    completion["schema_version"] = A2.PARTIAL_COMPLETION_SCHEMA
+    completion["successful_workload"] = "rr5"
+    binding = A2._validate_submission_receipt(policy, submission, root.name, root, CURRENT_PIN)
+    with pytest.raises(A2.CertificationError, match="exact two-workload policy"):
+        A2._validate_completion_receipt(policy, completion, root.name, root, CURRENT_PIN, binding)
 
 
 def test_a6_anomaly_is_immediate_reject(tmp_path):

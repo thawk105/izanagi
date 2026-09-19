@@ -43,11 +43,7 @@ SORT_VARIANT_SOURCE = '''#include "storage.hh"
 #ifndef SORT_VARIANT
 #error "SORT_VARIANT must be defined"
 #endif
-#if SORT_VARIANT
-static constexpr int condition_gate_sort_variant = 1;
-#else
-static constexpr int condition_gate_sort_variant = 0;
-#endif
+static constexpr int condition_gate_sort_variant = SORT_VARIANT;
 class TxExecutor {
  public:
   bool validationPhase() {

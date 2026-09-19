@@ -1,0 +1,160 @@
+{
+  "schema_version": "paper-story-a2-certification-policy/v2",
+  "study": "paper-story-b7-fixed5-regression",
+  "historical_reference": {
+    "ccbench_commit": "6656e93",
+    "role": "originating historical campaign only; never a current comparison value"
+  },
+  "durable_measurement_base": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919",
+  "tracked_destination": "output/insights/2026-09-19_t1998-b7-fixed5-three-workload",
+  "performance_common": {
+    "records": 1000000,
+    "threads": 48,
+    "skew": "0.9",
+    "rmw": "0",
+    "max_ope": "10",
+    "extime": 3,
+    "reps": 5,
+    "base": "L-W0",
+    "wal": 0,
+    "ccbench_protocol": "silo"
+  },
+  "legacy_correctness": {
+    "ycsb_tuple_num": "200",
+    "thread_num": "4",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "true",
+    "ycsb_max_ope": "5",
+    "extime": "1"
+  },
+  "workloads": [
+    {
+      "id": "rr5",
+      "label": "write-heavy",
+      "rratio": "5",
+      "adopted_backoff_us": 5
+    },
+    {
+      "id": "rr50",
+      "label": "balanced",
+      "rratio": "50",
+      "adopted_backoff_us": 5
+    },
+    {
+      "id": "rr95",
+      "label": "read-heavy",
+      "rratio": "95",
+      "adopted_backoff_us": 5
+    }
+  ],
+  "controlled_define_base": {
+    "CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION": "1",
+    "CCBENCH_NO_WAIT_OF_TICTOC": "0",
+    "CCBENCH_WAL": "0",
+    "CCBENCH_BACKOFF_NOINLINE": "0",
+    "CCBENCH_TRACE": "0"
+  },
+  "trace0_cmake_argv": {
+    "configure": {
+      "source_option": "-S",
+      "build_directory_option": "-B",
+      "fixed_arguments": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF"
+      ],
+      "toolchain_arguments": [
+        {
+          "role": "cc",
+          "prefix": "-DCMAKE_C_COMPILER="
+        },
+        {
+          "role": "cxx",
+          "prefix": "-DCMAKE_CXX_COMPILER="
+        }
+      ],
+      "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+      "fetchcontent_path_argument_prefixes": [
+        "-DFETCHCONTENT_BASE_DIR=",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="
+      ],
+      "controlled_define_argument": "-D"
+    },
+    "build": {
+      "subcommand": "--build",
+      "target_option": "--target",
+      "target_prefix": "ycsb_",
+      "target_suffix": ".exe",
+      "jobs_option": "-j"
+    }
+  },
+  "cells": [
+    {
+      "id": "rr5-stock",
+      "workload": "rr5",
+      "role": "stock",
+      "genome": {
+        "BACK_OFF": 0,
+        "BACKOFF_FIXED": -1
+      }
+    },
+    {
+      "id": "rr5-fixed5",
+      "workload": "rr5",
+      "role": "adopted",
+      "genome": {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5
+      }
+    },
+    {
+      "id": "rr50-stock",
+      "workload": "rr50",
+      "role": "stock",
+      "genome": {
+        "BACK_OFF": 0,
+        "BACKOFF_FIXED": -1
+      }
+    },
+    {
+      "id": "rr50-fixed5",
+      "workload": "rr50",
+      "role": "adopted",
+      "genome": {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5
+      }
+    },
+    {
+      "id": "rr95-stock",
+      "workload": "rr95",
+      "role": "stock",
+      "genome": {
+        "BACK_OFF": 0,
+        "BACKOFF_FIXED": -1
+      }
+    },
+    {
+      "id": "rr95-fixed5",
+      "workload": "rr95",
+      "role": "adopted",
+      "genome": {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5
+      }
+    }
+  ],
+  "certification_composition": {
+    "campaign_unit": "one independently environment-contracted campaign per workload",
+    "outer_certification": "logical conjunction in policy workload order"
+  },
+  "scheduler": {
+    "project": "SFC",
+    "queue": "gen_S",
+    "nodes": 5,
+    "walltime": "12:00:00",
+    "job_body": "tools/pegasus/paper_story_a2_certification.sh"
+  }
+}
