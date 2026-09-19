@@ -1,0 +1,46 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-f91d96c942)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/output/pegasus-dispatch/orphan-holds/unknown-e481709607c8d1915a4651c8.json
+[Pegasus dispatch] request ID 10799.nqsv を受理しました
+[Pegasus dispatch] request 10799.nqsv の状態: QUE
+[Pegasus dispatch] request 10799.nqsv の状態: RUN
+[Pegasus dispatch] request 10799.nqsv の状態: END
+[Pegasus dispatch] request 10799.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/output/pegasus-dispatch/orphan-holds/unknown-e481709607c8d1915a4651c8.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/output/pegasus-dispatch/f91d96c94283f8c0f7ff91ef00715fc8/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 10799.nqsv child stdout begin
+| wrapper_sha256=65017778972c7dcab6b5bdd0da801da11fb7e923e1075d9755101ff90446bc55
+| runner_sha256=7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99
+| probe: completed output=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke/result.json
+[Pegasus dispatch] request 10799.nqsv child stdout end
+[Pegasus dispatch] request 10799.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1421137, "time_ns": 1789824608479173093}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1421158, "event": "direct-child-wait-start", "pid": 1421144, "time_ns": 1789824608507357888}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1421158, "event": "direct-child-wait-complete", "pid": 1421144, "time_ns": 1789824751216706705}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1421144, "rc": 0, "time_ns": 1789824751216820939}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1421137, "rc": 0, "time_ns": 1789824751221356694}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1421137}, {"comm": "bash", "pid": 1421118}, {"comm": "nqs_shpd", "pid": 1421117}, {"comm": "nqs_shpd", "pid": 1420919}, {"comm": "nqs_shpd", "pid": 2269}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1421137, "sid": 1421117, "time_ns": 1789824751221780978}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.33253995515406, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1421137, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789824751255152665, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1421137, "time_ns": 1789824751257185363}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1421137, "time_ns": 1789824751260435947}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1421137, "time_ns": 1789824751261060671}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1421137, "time_ns": 1789824751261069291}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1421137, "time_ns": 1789824751264363986}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1421137, "time_ns": 1789824751264374128}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1421137, "rc": 0, "time_ns": 1789824751264383083}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1421137, "rc": 0, "time_ns": 1789824751264396768}
+|
+| ============================================================
+| Request ID:             10799.nqsv
+| Request Name:           izdw-f91d96c942
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sat Sep 19 22:27:21 2026
+| Started Request Time:   Sat Sep 19 22:30:07 2026
+| Ended Request Time:     Sat Sep 19 22:32:31 2026
+| Resources Information:
+|   Elapse:               148S
+|   Remaining Elapse:     8852S
+| ============================================================
+[Pegasus dispatch] request 10799.nqsv child stderr end

@@ -1,0 +1,407 @@
+### date --iso-8601=seconds
+2026-09-19T22:04:42+09:00
+### rc=0
+### cat /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/bench-go.json
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001",
+  "ready": [
+    {
+      "campaign_id": "paper-story-a1-write-heavy-paired-ec74e1c8",
+      "ordinal": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/ready/write-heavy.json",
+      "sha256": "241e6f69cfa1cdcceccdbedecad73c37c6e7f3cecf8bc2ab2e99e5cc8dcfbb4f",
+      "workload": "write-heavy"
+    },
+    {
+      "campaign_id": "paper-story-a1-balanced-paired-fdd1cb88",
+      "ordinal": 1,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/ready/balanced.json",
+      "sha256": "d43d98fc4c25ab9cc8c07b971a8828f4c5d9940f09e89e4d4c6ee92133db8029",
+      "workload": "balanced"
+    },
+    {
+      "campaign_id": "paper-story-a1-read-heavy-paired-9912d892",
+      "ordinal": 2,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/ready/read-heavy.json",
+      "sha256": "9a66feb9797b9b5255821531fca8946698cbc994c1ef0f45bb18e7ceb38c9ae1",
+      "workload": "read-heavy"
+    }
+  ],
+  "schema_version": "paper-story-a1-paired-bench-go/v1",
+  "source_commit": "d2ebef7a407dc6be61622ed596cf08b8b518f606",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1"
+}
+### rc=0
+### ls -la /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/ready /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/bench-start
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement:
+合計 28
+drwxr-xr-x 3 tanab SFC  4096  9月 18 06:30 .
+drwxr-xr-x 3 tanab SFC  4096  9月 18 06:30 ..
+drwx------ 6 tanab SFC  4096  9月 18 06:30 attempt-0001
+-rw------- 1 tanab SFC 14100  9月 18 06:30 attempt-0001.intent.json
+
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier:
+合計 20
+drwx------ 4 tanab SFC 4096  9月 18 06:33 .
+drwx------ 6 tanab SFC 4096  9月 18 06:30 ..
+-rw------- 1 tanab SFC 1425  9月 18 06:33 bench-go.json
+drwx------ 2 tanab SFC 4096  9月 18 06:33 bench-start
+drwx------ 2 tanab SFC 4096  9月 18 06:33 ready
+
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/bench-start:
+合計 20
+drwx------ 2 tanab SFC 4096  9月 18 06:33 .
+drwx------ 4 tanab SFC 4096  9月 18 06:33 ..
+-rw------- 1 tanab SFC  593  9月 18 06:33 balanced.json
+-rw------- 1 tanab SFC  595  9月 18 06:33 read-heavy.json
+-rw------- 1 tanab SFC  596  9月 18 06:33 write-heavy.json
+
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/barrier/ready:
+合計 20
+drwx------ 2 tanab SFC 4096  9月 18 06:33 .
+drwx------ 4 tanab SFC 4096  9月 18 06:33 ..
+-rw------- 1 tanab SFC 1082  9月 18 06:32 balanced.json
+-rw------- 1 tanab SFC 1088  9月 18 06:33 read-heavy.json
+-rw------- 1 tanab SFC 1091  9月 18 06:32 write-heavy.json
+### rc=0
+### qstat -Q
+[EXECUTION QUEUE] Batch Server Host: nqsv
+=========================================
+QueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG
+--------------- --- ---- ------- ---- ----------------------------------------------------
+gen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 
+gen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 
+gen_S             1  149 ENA ACT   30   67   0   0  12   4  31   0   0  20   0   0   0   0 
+--------------- --- ---- ------- ---- ----------------------------------------------------
+ <TOTAL>                                67   0   0  12   4  31   0   0  20   0   0   0   0
+--------------- --- ---- ------- ---- ----------------------------------------------------
+
+[INTERACTIVE QUEUE] Batch Server Host: nqsv
+===========================================
+QueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS
+--------------- --- ---- ------- ---- ----------------------------------------
+debug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 
+interactive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 
+--------------- --- ---- ------- ---- ----------------------------------------
+ <TOTAL>                                 0   0   0   0   0   0   0   0   0   0
+--------------- --- ---- ------- ---- ----------------------------------------
+
+Routing Queue does not exist on nqsv.
+
+[NETWORK QUEUE] Batch Server Host: nqsv
+=======================================
+QueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN
+--------------- -------------------- --------------- ----------------
+DefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 
+--------------- -------------------- --------------- ----------------
+ <TOTAL>                                        1000    0   0   0   0
+--------------- -------------------- --------------- ----------------
+
+### rc=0
+### qstat
+RequestID       ReqName  UserName Queue     Pri STT S   Memory      CPU   Elapse R H M Jobs
+--------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----
+10711.nqsv      fp-rr95- tanab    gen_S       0 RUN -  565.32M   143.10     1944 N Y Y    1 
+10712.nqsv      fp-rr50- tanab    gen_S       0 RUN -  563.29M    31.20     1935 N Y Y    1 
+10713.nqsv      fp-rr5-w tanab    gen_S       0 RUN -    1.05G     9.92     1933 N Y Y    1 
+10721.nqsv      izdw-sha tanab    gen_S       0 RUN -   20.75G  4075.37      237 N Y Y    1 
+10722.nqsv      izdw-sha tanab    gen_S       0 PRR -    0.00B     0.00        0 N Y Y    1 
+10723.nqsv      izdw-99e tanab    gen_S       0 PRR -    0.00B     0.00        0 N Y Y    1 
+10725.nqsv      izdw-0e9 tanab    gen_S       0 PRR -    0.00B     0.00        0 N Y Y    1 
+10737.nqsv      izdw-70e tanab    gen_S       0 RUN -    1.05G    30.27      174 N Y Y    1 
+10740.nqsv      izdw-ef2 tanab    gen_S       0 PRR -    0.00B     0.00        0 N Y Y    1 
+### rc=0
+### env IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache python3 -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/tools/pegasus/fetch_third_party.py verify --repo-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree
+{"cache_root": "/work/1/SFC/tanab/izanagi-thirdparty-cache", "operation": "verify", "schema_version": "pegasus-thirdparty-fetch/v1", "sources": [{"head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "name": "masstree", "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "resolved_path": "/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree"}, {"head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "name": "mimalloc", "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "resolved_path": "/work/1/SFC/tanab/izanagi-thirdparty-cache/mimalloc"}, {"head": "f8d7d77c06936315286eb55f8de22cd23c188571", "name": "googletest", "pin": "f8d7d77c06936315286eb55f8de22cd23c188571", "resolved_path": "/work/1/SFC/tanab/izanagi-thirdparty-cache/googletest"}, {"head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "name": "gflags", "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "resolved_path": "/work/1/SFC/tanab/izanagi-thirdparty-cache/gflags"}, {"head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "name": "glog", "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "resolved_path": "/work/1/SFC/tanab/izanagi-thirdparty-cache/glog"}]}
+### rc=0
+### cat /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/hydrate.done
+0
+### rc=0
+### cat /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/hydrate-default.json
+{"cache_root": "/work/1/SFC/tanab/izanagi-thirdparty-cache", "operation": "hydrate", "schema_version": "pegasus-thirdparty-fetch/v1", "source_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src", "sources": [{"head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "name": "masstree", "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/masstree"}, {"head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "name": "mimalloc", "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/mimalloc"}, {"head": "f8d7d77c06936315286eb55f8de22cd23c188571", "name": "googletest", "pin": "f8d7d77c06936315286eb55f8de22cd23c188571", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/googletest"}, {"head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "name": "gflags", "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/gflags"}, {"head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "name": "glog", "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/glog"}]}
+### rc=0
+### cat /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/hydrate.json
+{"cache_root": "/work/1/SFC/tanab/izanagi-thirdparty-cache", "operation": "hydrate", "schema_version": "pegasus-thirdparty-fetch/v1", "source_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated", "sources": [{"head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "name": "masstree", "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated/masstree"}, {"head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "name": "mimalloc", "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated/mimalloc"}, {"head": "f8d7d77c06936315286eb55f8de22cd23c188571", "name": "googletest", "pin": "f8d7d77c06936315286eb55f8de22cd23c188571", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated/googletest"}, {"head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "name": "gflags", "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated/gflags"}, {"head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "name": "glog", "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated/glog"}]}
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree worktree list --porcelain
+worktree /work/1/SFC/tanab/izanagi
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/main
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree
+HEAD a99425b66258911973785b11fd7d194884aeec64
+detached
+locked
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1505-a1-sized-submit/submit-tree
+HEAD d2ebef7a407dc6be61622ed596cf08b8b518f606
+detached
+locked T-1505 A-1 sized attempt-0001 submit-tree (measurement in flight)
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree
+HEAD 2ba4000870c63254132410b3002b5298c0c6a210
+detached
+locked T-2288 (b) floor-pair 3 stages (w1/w2/finalize) submit checkout; do not advance HEAD or remove until finalize
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-a2-nodes5-probe/submit-tree
+HEAD 3f61c34084addf7befadcf9a0f72c7a7e9b789d3
+branch refs/heads/probe/t2489-a2-nodes5-submit
+locked T-2489 A-2 nodes=5 probe attempt in flight
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip/submit-tree
+HEAD d97c423bdd14e0b416cb4f585d350e6c2b251287
+detached
+
+worktree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/submit-tree
+HEAD d2ebef7a407dc6be61622ed596cf08b8b518f606
+detached
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-worker-time-trim
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-acceptance-worker-time-trim
+locked claude session dev-wave-acceptance-worker-time-trim (pid 1370417 start 142858891)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-tail-cohort2
+HEAD 8737cacb4bd286eb3e0784d16dba6eb85e5d6eab
+branch refs/heads/worktree-dev-wave-b10-tail-cohort2
+locked claude session dev-wave-b10-tail-cohort2 (pid 1360526 start 142855579)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b5-generator-contrast-prereg
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-b5-generator-contrast-prereg
+locked claude session dev-wave-b5-generator-contrast-prereg (pid 1352740 start 142852525)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-round3
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-k2-loop-round3
+locked dev-wave-k2-loop-round3 running
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-mocc-witlight-arm-run
+locked claude session dev-wave-mocc-witlight-arm-run (pid 1337991 start 142846966)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-story-2026-09-19
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-paper-story-2026-09-19
+locked claude session dev-wave-paper-story-2026-09-19 (pid 1343817 start 142849458)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor
+HEAD 0709a4018ead6da495391674d76284fe479cf983
+branch refs/heads/worktree-dev-wave-t1851-c3c-official-floor
+locked
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1998-three-workload-regression
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/worktree-dev-wave-t1998-three-workload-regression
+locked claude session dev-wave-t1998-three-workload-regression (pid 1345524 start 142850135)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2035-axis1-materials-record
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/worktree-dev-wave-t2035-axis1-materials-record
+locked claude session dev-wave-t2035-axis1-materials-record (pid 1364060 start 142856508)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2153-witness-6
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/worktree-dev-wave-t2153-witness-6
+locked claude session dev-wave-t2153-witness-6 (pid 783030 start 142727735)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-floor-pair-w1
+HEAD 2ba4000870c63254132410b3002b5298c0c6a210
+branch refs/heads/worktree-dev-wave-t2288-floor-pair-w1
+locked claude session dev-wave-t2288-floor-pair-w1 (pid 777372 start 142725672)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit
+HEAD 2f91187584d6bdfcc8aa16034c2c3e9338ef4c6f
+branch refs/heads/worktree-dev-wave-t2698-official-floor-resubmit
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-chain-land-2
+HEAD 0a799da6c53a9d769cdefa0358e1baecebaeeb8f
+branch refs/heads/worktree-dev-wave-t2724-chain-land-2
+locked claude session dev-wave-t2724-chain-land-2 (pid 3204258 start 141948795)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-freeze-g1-gen
+HEAD 22998265212c43a6b0f42051d7bf1b49735f77e9
+branch refs/heads/worktree-dev-wave-t2724-freeze-g1-gen
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2766-pairing-ab
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-t2766-pairing-ab
+locked claude session dev-wave-t2766-pairing-ab (pid 786362 start 142728986)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2773-mocc-template-wave2
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/worktree-dev-wave-t2773-mocc-template-wave2
+locked claude session dev-wave-t2773-mocc-template-wave2 (pid 1355812 start 142853752)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2778-child-worktree-cleanup
+HEAD 2ba4000870c63254132410b3002b5298c0c6a210
+branch refs/heads/worktree-dev-wave-t2778-child-worktree-cleanup
+locked claude session dev-wave-t2778-child-worktree-cleanup (pid 791448 start 142730797)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2786-recovery
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-t2786-recovery
+locked claude session dev-wave-t2786-recovery (pid 779030 start 142726281)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-test-inventory-prune
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dev-wave-test-inventory-prune
+locked claude session dev-wave-test-inventory-prune (pid 1471455 start 142901116)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-verify-phase-adopted-backoff
+HEAD 657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+branch refs/heads/worktree-dev-wave-verify-phase-adopted-backoff
+locked claude session dev-wave-verify-phase-adopted-backoff (pid 1357958 start 142854713)
+
+worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dw-a1-sized-attempt2
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/worktree-dw-a1-sized-attempt2
+locked claude session dw-a1-sized-attempt2 (pid 1340370 start 142848241)
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2489-nodes5-local-lock
+HEAD 88c28dcc603049ecd5167065bffb031161d6b837
+branch refs/heads/dev-wave-t2489-nodes5-local-lock
+locked T-2489 nodes5 local lock wave
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2737-noninert-codex
+HEAD 4c9d9ecc263332f0edc31d8b42a14e879ff512b0
+branch refs/heads/dev-wave-t2737-noninert-codex
+locked T2737 wave worker
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2786-base-decomposition
+HEAD 7975385b55a2e3451f6c80d584a9312f44d5199d
+branch refs/heads/codex-dev-wave-t2786-base-decomposition
+locked
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2724-chain-scratch
+HEAD 8298f743011e901b974c2f554ac2ae7e575df865
+branch refs/heads/scratch-t2724-chain-check
+locked "dev-wave-t2724-t080-defer-active-v2 scratch (chain \346\234\211\343\202\212\346\234\250)"
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2724-g1-gen
+HEAD 32ba8cae45001697f050bee377413153e6d798a5
+branch refs/heads/freeze-g1-gen-t2724
+locked dev-wave-t2724-freeze-g1-gen Codex author active
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2737-noninert-author
+HEAD 9bd4077f1f1c590292f6d34f73837cdb7aa731e2
+branch refs/heads/impl-dev-wave-t2737-noninert-codex
+locked T2737 D95 author
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2737-noninert-fix1
+HEAD ae816441cd80822f5fe10f2f91534f4e587d52e5
+branch refs/heads/fix-dev-wave-t2737-noninert-1
+locked T2737 fix1 author
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2737-noninert-fix3
+HEAD 2262ece4da95b048efb7cca9ff7f743c9848e96b
+branch refs/heads/fix-dev-wave-t2737-noninert-3
+locked dev-wave-t2737-noninert-codex fix3 child
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2766-unit-impl
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/dev-wave-t2766-unit-impl
+locked dev-wave-t2766-pairing-ab unit worktree
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2778-author
+HEAD 2ba4000870c63254132410b3002b5298c0c6a210
+branch refs/heads/codex-t2778-author
+locked Codex author active (dev-wave t2778 child-worktree-cleanup)
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2786-probe-author
+HEAD b82e3a924ba1576758dec60068709f6f6edd2541
+branch refs/heads/codex-t2786-probe-author
+locked
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/t2786-probe-fix1
+HEAD 2277c8236e14e23954d529e20d963e79cea8ade0
+branch refs/heads/codex-t2786-probe-fix1
+locked
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/tinv-scanner
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/codex-tinv-scanner
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/witlight-author
+HEAD a99425b66258911973785b11fd7d194884aeec64
+branch refs/heads/dev-wave-witlight-author
+locked witlight author
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/witlight-node2
+HEAD a99425b66258911973785b11fd7d194884aeec64
+detached
+locked witlight compute dispatch
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/witlight-node3
+HEAD a99425b66258911973785b11fd7d194884aeec64
+detached
+locked witlight compute dispatch
+
+worktree /work/1/SFC/tanab/izanagi/.codex/worktrees/witlight-node4
+HEAD a99425b66258911973785b11fd7d194884aeec64
+detached
+locked witlight compute dispatch
+
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree submodule status --recursive
+ 511c9538e4e8efa54b45cda62e72389ed3b706ec external/ccbench (v1.1.0-126-g511c9538)
+ fb14e6597ecf7cc206af8f3424ca22503bb1e17d external/ccbench/third_party/shirakami (heads/master)
+ f8d7d77c06936315286eb55f8de22cd23c188571 external/ccbench/third_party/shirakami/third_party/googletest (release-1.8.0-3335-gf8d7d77c)
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree rev-parse HEAD
+a99425b66258911973785b11fd7d194884aeec64
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree status --porcelain --untracked-files=all --ignore-submodules=all
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree check-ignore -v output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/gflags/CMakeLists.txt
+.gitignore:25:output/env/pegasus/silo_ladder_rung1/job-staging/	output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/gflags/CMakeLists.txt
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/external/ccbench rev-parse HEAD
+511c9538e4e8efa54b45cda62e72389ed3b706ec
+### rc=0
+### git -C /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/submit-tree/external/ccbench status --porcelain --untracked-files=no
+### rc=0
+### namei -l /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement
+f: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement
+drwxr-xr-x root  root /
+drwxr-xr-x root  root work
+drwxr-xr-x root  root 1
+drwxr-xr-x root  SFC  SFC
+drwxr-xr-x tanab SFC  tanab
+drwxr-xr-x tanab SFC  dev-wave-jobs
+drwxr-xr-x tanab SFC  dev-wave-paper-story-a1-balanced5-sized-20260913
+drwxr-xr-x tanab SFC  measurement
+### rc=0
+### python3 -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/precheck_paths.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002
+{
+ "base_real": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement",
+ "base_is_dir": true,
+ "base_wx": true,
+ "attempt_real": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+ "attempt_lexists": false,
+ "intent_lexists": false,
+ "base_entries": [
+  "attempt-0001",
+  "attempt-0001.intent.json"
+ ]
+}
+### rc=0
+### df -h /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement
+Filesystem                                                                                Size  Used Avail Use% Mounted on
+10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work   85T  3.9T   82T   5% /work
+### rc=0
+### df -i /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement
+Filesystem                                                                                   Inodes     IUsed      IFree IUse% Mounted on
+10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work 5958702368 976236101 4982466267   17% /work
+### rc=0
+### ls -la /work/1/SFC/tanab/dev-wave-jobs/dev-wave-a1-sized-attempt2/third-party-hydrated
+合計 28
+drwxr-xr-x  7 tanab SFC 4096  9月 19 22:04 .
+drwxr-xr-x  6 tanab SFC 4096  9月 19 22:04 ..
+drwxr-xr-x  8 tanab SFC 4096  9月 19 22:04 gflags
+drwxr-xr-x  9 tanab SFC 4096  9月 19 22:04 glog
+drwxr-xr-x  8 tanab SFC 4096  9月 19 22:04 googletest
+drwxr-xr-x  4 tanab SFC 4096  9月 19 22:04 masstree
+drwxr-xr-x 13 tanab SFC 4096  9月 19 22:04 mimalloc
+### rc=0

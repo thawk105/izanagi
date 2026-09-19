@@ -1,0 +1,55 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "m0-equivalent-import-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/t1259_scan_bound.py",
+     "old": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe\n",
+     "new": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe  # helper import\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-fixture-bound-zero",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/t1259_scan_bound.py",
+     "old": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 120.0\n",
+     "new": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 0.0\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-fixture-skips-scan",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/t1259_scan_bound.py",
+     "old": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return probe._repo_snapshot(\n        repo_root, git_timeout_seconds=FIXTURE_GIT_TIMEOUT_SECONDS\n    )\n",
+     "new": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return {\n        \"head\": \"0\" * 40,\n        \"detached\": True,\n        \"tracked_status\": \"\",\n        \"untracked_paths\": [],\n        \"source_sha256\": {},\n    }\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound",
+    "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

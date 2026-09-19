@@ -1,0 +1,35 @@
+start 2026-09-19 22:23:39 JST
+sub HEAD before: 511c9538e4e8efa54b45cda62e72389ed3b706ec
+Preparing worktree (detached HEAD e9e477ca)
+Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at e9e477ca fix(mocc): preserve TRACE=0 include identity
+tmp HEAD: e9e477ca1b55348ab4530de0b1cf663ce4555290
+26	6	cc/mocc/transaction.cc
+Switched to a new branch 'izanagi-t1943-mocc-g2-witlight'
+[izanagi-t1943-mocc-g2-witlight e0905b3d] perf(mocc): defer payload witness formatting until after unlock
+ 1 file changed, 26 insertions(+), 6 deletions(-)
+W = e0905b3d3c06282a17d63bd4ddc9eac68424ab56
+e0905b3d3c06282a17d63bd4ddc9eac68424ab56 e9e477ca1b55348ab4530de0b1cf663ce4555290 perf(mocc): defer payload witness formatting until after unlock
+commit e0905b3d3c06282a17d63bd4ddc9eac68424ab56
+Author: thawk105 <thawk105@gmail.com>
+Date:   Sat Sep 19 22:23:41 2026 +0900
+
+    perf(mocc): defer payload witness formatting until after unlock
+
+    Capture post-store producers while the write locks are held and emit S
+    records after unlockCLL. Preserve witness grammar and decode failures
+    without adding include lines or changing TRACE=0 executable source.
+
+    The T-1943 payload-lineage witness wrote each S record (decode + ofstream
+    formatting) between the tidword publish and unlockCLL, which lengthens the
+    [publish, unlock] window that the T-2774 static candidate (ii) must cross.
+    This change keeps the shared-body decode (and its abort on decode failure)
+    at the publish site, stores the decoded producer in a thread_local vector
+    that is only constructed when the witness is enabled, and formats the S
+    records after unlockCLL by re-walking write_set_ in the same order. Values,
+    count, order and the 5-field S grammar are unchanged; consumers that check
+    witness-post-store-token-mismatch keep their coverage. Static design and
+    rationale: izanagi output/insights/2026-09-18/t2779-mocc-g2-observation-conditions
+sub HEAD after: 511c9538e4e8efa54b45cda62e72389ed3b706ec
+branch ref: e0905b3d3c06282a17d63bd4ddc9eac68424ab56
+end 2026-09-19 22:23:41 JST

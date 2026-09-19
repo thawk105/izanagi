@@ -1636,13 +1636,19 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
   分類するもので、driver の subcommand は管轄外である。§7.0 の実行場所判定にも掛からない —
   qsub 自体は login 側で行う軽い操作である。
 
-### 7.8 B-4 床値 (floor-pair) の窓 job と finalize job の投入 ([T-2288] 2026-09-18 着地、実投入は未実施)
+### 7.8 B-4 床値 (floor-pair) の窓 job と finalize job の投入 ([T-2288] 2026-09-18 着地、w1 は 2026-09-19 に初回実投入)
 
 凍結済み spec 3 本 (`output/env/pegasus/floor-pair/t2288-f1/`、D2138) を `orchestrator/campaign/floor_pair_driver.py` の
 `--execute-window` / `--finalize` で走らせる資材は、login 側の `tools/pegasus/submit_floor_pair.sh` (submitter) と
-計算ノードの `tools/pegasus/floor_pair_campaign.sh` (job body) である。**着地 wave では実 qsub・計算ノードでの実行・
-8 変数の伝播・実効 walltime・signal 配送を実測していない** (F660)。これらは次の測定 wave の初回実行で確認し、
-結果 (到達した段・rc・receipt) を記録する。
+計算ノードの `tools/pegasus/floor_pair_campaign.sh` (job body) である。着地 wave では実 qsub・計算ノードでの実行・
+8 変数の伝播・実効 walltime・signal 配送を実測していなかった (F660)。**初回実投入 (w1、2026-09-19、3 spec とも
+terminal `complete`) で実測した事実**は `output/insights/2026-09-19/t2288-floor-pair-w1/README.md` が一次資料で、
+この機体で次回 (w2 / finalize) に効く点だけを挙げる: (1) 計算ノード側の `PBS_JOBID` は `0:10711.nqsv` の形 (`0:`
+接頭辞)、(2) NQSV の request accounting (`Ended Request Time` / `Elapse`) は `-e` で指定した `scheduler.stderr` に出る
+(`scheduler.stdout` は空。`tools/dev_wave_wait.py compute --accounting-file` に渡すのはこちら)、(3) `job-result.json` は
+8 変数のうち `FP_EVIDENCE_DIR` と `FP_ELAPSTIM_REQ` の受信値を写さない (6 変数は値で、残り 2 個は出力先と形式検査の通過で
+確認)、(4) 1 窓 job の所要は 69〜77 分 (124 session、1 session ≈ 34〜37 秒)、(5) `place` は login node で完了する
+(`place_record` は site 検査を持たない)。signal 配送と SIG_IGN 継承 (F1012) は walltime 前に終わる走では検証されない。
 
 - **1 job = 1 spec × (1 窓 | finalize)。** 3 spec × 2 窓 = 6 window job + 3 finalize job。並走できるかは admission に
   依存し、資材は保証しない。

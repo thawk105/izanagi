@@ -1,0 +1,102 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M1-helper-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/run_ss2pl_lock_study.py",
+          "old": "    buildcache.prepare_masstree_fetchcontent(\n",
+          "new": "    (lambda **kwargs: None)(\n"
+        }
+      ],
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-study-conditional-include",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "old": "+#include \"ss2pl_study_lock.hh\"\n+#if SS2PL_LOCK_IMPL == 1\n+using ReaderWriteLock",
+          "new": "+#if SS2PL_LOCK_IMPL == 1\n+#include \"ss2pl_study_lock.hh\"\n+using ReaderWriteLock"
+        }
+      ],
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-wfg-conditional-include",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "old": "@@ -10,6 +9,7 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#include \"include/ss2pl_wfg.hh\"",
+          "new": "@@ -10,6 +9,9 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#if SS2PL_WFG_DIAG\n+#include \"include/ss2pl_wfg.hh\"\n+#endif"
+        }
+      ],
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-dlr-marker-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "old": "   OPTIONS\n     DLR1\n",
+          "new": "   OPTIONS\n-    DLR1\n+    $<$<EQUAL:${CCBENCH_SS2PL_DLR},0>:DLR0>$<$<NOT:$<EQUAL:${CCBENCH_SS2PL_DLR},0>>:DLR1>\n"
+        }
+      ],
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-publish-wait-manual-observation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "old": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+  publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);",
+          "new": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-wfg-unconditional-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "old": "+if(CCBENCH_SS2PL_WFG_DIAG EQUAL 1)\n+  list(APPEND _ss2pl_sources wfg.cc)",
+          "new": "+if(TRUE)\n+  list(APPEND _ss2pl_sources wfg.cc)"
+        }
+      ],
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
