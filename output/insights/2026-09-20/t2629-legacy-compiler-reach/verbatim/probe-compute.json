@@ -1,0 +1,107 @@
+{
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2629-legacy-compiler-reach",
+  "git_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "hostname": "bnode020",
+  "limitations": [
+    "Login では _run の heavy-work gate が configure 前に拒否する。evidence 不在時は build 自体を省略する。",
+    "観測はこの node・日時・PATH に限定する。g++-13 が存在する機体では項目 3/4 の結果が変わる。",
+    "pipeline の WAL abort 変換・cache-hit 経路・2 compiler 間の evidence 不一致は測っていない。",
+    "認可 guard 通過は full attestation 成功ではなく、toolchain の性能契約も保証しない。"
+  ],
+  "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "results": {
+    "authorization_linux_baremetal": {
+      "exception": {
+        "message": "Pegasus compute では receipt state 内で一意な required authorization_contract だけを受理する",
+        "stage": "guard",
+        "type": "CertifiedWriterAuthorizationError"
+      },
+      "observed": null
+    },
+    "authorization_pegasus": {
+      "exception": null,
+      "observed": {
+        "attestation_mode": "required",
+        "env_tag": "pegasus",
+        "returned_env_tag": "pegasus"
+      }
+    },
+    "env": {
+      "exception": null,
+      "observed": {
+        "PATH": "/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+        "default_compilers": [
+          "gcc-13",
+          "g++-13"
+        ],
+        "executables": {
+          "cmake": {
+            "realpath": "/usr/bin/cmake",
+            "which": "/usr/bin/cmake"
+          },
+          "g++": {
+            "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+            "which": "/usr/bin/g++"
+          },
+          "g++-13": {
+            "realpath": null,
+            "which": null
+          },
+          "gcc": {
+            "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+            "which": "/usr/bin/gcc"
+          },
+          "gcc-13": {
+            "realpath": null,
+            "which": null
+          }
+        },
+        "g++_version": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+        "has_nqsv_env": false,
+        "hostname": "bnode020",
+        "site": "PEGASUS_COMPUTE",
+        "site_compilers": [
+          "gcc",
+          "g++"
+        ],
+        "utc": "2026-09-19T22:42:17.641788+00:00"
+      }
+    },
+    "evidence_default_cxx": {
+      "exception": {
+        "message": "source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)",
+        "type": "RuntimeError"
+      },
+      "observed": null
+    },
+    "evidence_site_cxx": {
+      "exception": null,
+      "observed": {
+        "ccbench_commit": "511c953",
+        "cxx": "g++",
+        "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2629-legacy-compiler-reach/external/ccbench",
+        "src_token": "stock",
+        "tracked_clean": true
+      }
+    },
+    "legacy_build_trace": {
+      "exception": {
+        "message": "configure failed (rc=1): CMake Error at CMakeLists.txt:3 (project):\n  The CMAKE_CXX_COMPILER:\n\n    g++-13\n\n  is not a full path and was not found in the PATH.\n\n  Tell CMake where to find the compiler by setting either the environment\n  variable \"CXX\" or the CMake cache entry CMAKE_CXX_COMPILER to the full path\n  to the compiler, or to the compiler name if it is in the PATH.\n\n\n",
+        "stage": "build",
+        "type": "RuntimeError"
+      },
+      "observed": null
+    },
+    "limitations": {
+      "exception": null,
+      "observed": [
+        "Login では _run の heavy-work gate が configure 前に拒否する。evidence 不在時は build 自体を省略する。",
+        "観測はこの node・日時・PATH に限定する。g++-13 が存在する機体では項目 3/4 の結果が変わる。",
+        "pipeline の WAL abort 変換・cache-hit 経路・2 compiler 間の evidence 不一致は測っていない。",
+        "認可 guard 通過は full attestation 成功ではなく、toolchain の性能契約も保証しない。"
+      ]
+    }
+  },
+  "schema": "t2629-legacy-compiler-reach-probe/v1"
+}
