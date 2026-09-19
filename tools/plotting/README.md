@@ -163,6 +163,17 @@ root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `izanagi-b10-static-tail-formal-figure-provenance/v1`。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig8 節を正本とする。
 
+**再現欄付きの後継図 (fig8b、2026-09-20):** `OUT_PREFIX` の後ろに `--reproduction-cohort 2` を付けると、
+**主結果 cohort 1 (上 block) と独立再現 cohort 2** (group `b10-backoff-grid-20260919T131526Z-2235286`、
+`group-report-20260919-cohort2/` の 3 file、下 block) を縦 2 block (4 行 × 3 列、7.2 × 10.6 in) で
+区別して併記する。cohort 2 単独の図は作らない (受理する値は `2` だけ)。役割 (1 = primary、2 = reproduction)
+と順序は生成器の `COHORTS` 表で固定し、CLI からも provenance の改変からも入れ替えられない。拒否条件と
+pin (CLI から渡せない) は両 cohort に同じ。provenance の schema は `.../v2` で、`cohorts[]` に cohort ごとの
+記録を持ち、top-level に cohort をまたぐ統計 field は無い (`claim_boundary.cohorts_pooled: false`)。caption は
+事前登録 §4.5 の固定表現を各 cohort へ独立に適用し、合成・プール・一致度評価をしない旨を含む。省略時は
+上の単 cohort 経路 (fig8 の形) のままで、その受理集合・射影は変えていない。図番号の英字 suffix (`fig8b_`) を
+受理するのは `--reproduction-cohort 2` の経路だけ。正本は同 README の fig8b 節。
+
 ## A-1 balanced5 sized attempt-0001 (対差平均 ± 登録済み区間) figure
 
 `plot_a1_sized_paired.py` は、A-1 balanced5 sized 本走 attempt-0001 (study
