@@ -42,7 +42,9 @@ title: [T-2035] 軸 1 OpenAlex の取得済み 78 leaf を全列挙した後継�
 - 受入 1 (22:24 投入、計算ノード) は child-green (25,323 passed / 69 skipped、red 0、flake 0、tested main `657e1e5a7` / tested tip
   `ca3625c8b`)。land 1 巡目は F672 型 (別 wave の登録 path `dev-wave-t2786-recovery` の strict 解決が `[Errno 4]` で落ち、
   `retryable_same_request=false`、main は無傷) で rc=31。既存 F672 の復旧どおり受入 1 を捨て、failures fragment (F672 の再発 4 例目) を
-  同じ tip に積んで受入を取り直し、新しい request で land した (結果は land の受領証)。
+  同じ tip に積んで受入 2 を取り直した (child-green、同数)。main が `8fd1eecf9` へ進んでいたので固定 SHA で前方 merge し landing tip
+  `b81d16ddf` で land 2 巡目 → 同型 F672 (別の他 wave の path、5 例目) で rc=31。fragment に機序の候補 (watchdog の 0.1 秒 SIGALRM) を
+  追記して受入 3 を取り直し、新しい request で land した (結果は land の受領証)。
 - 工数: codex 子 2 本 (consult 1・review 1、いずれも read-only、luna / medium)。親の実測: 分類 script 1、sha256sum 1、焦点走 1、check_docs 4、
   provenance 検査 4、spool dry-run 2、受入 2、land 2 巡以上。
 - scope 外の実在 stale (実装せず、起票せず、insight に記録): 主論文の入口 `docs/paper-story/README.md` と最新版 `2026-09-17.md` §8 C-4 の
