@@ -1098,3 +1098,54 @@ screening でも同じ宣言を転送し、乱択設定を静的 scalar と宣�
 旧 campaign の lock・WAL・report と記録された測定事実は変更せず、現行 gate の結果で
 過去の意味状態を遡及的に昇格させない。§5 の本格系列 spec の bytes、格子・反復数・測定順・
 停止基準は本追補で変更しない。
+
+## 2026-09-19 追記 — 第 2 cohort の地位 (独立再現) を結果より前に固定する
+
+**§0「本書の版と発効」への記載 (末尾配置)。** 変更日は 2026-09-19、理由は D2050 と同日のユーザー決定に
+基づき、第 2 cohort の地位と報告方法を投入前に固定するためである。ユーザー指定の「日付付き append-only
+追記」を守るため、§0 が求める変更理由・時点の記載を §0 本文へ挿入せずここに置く。commit `cad6f46d8` の
+文書 bytes は、本追記後の文書の先頭部分としてそのまま保持されている (既存行の変更・削除は 0)。
+
+**この追記は第 2 cohort の結果を見る前に書いた。** 第 2 cohort はこの時点で投入していない。
+この追記を含む commit が第 2 cohort の束縛 commit (`B10_PREREGISTRATION_COMMIT`) になる。
+したがって第 2 cohort が記録する本書の blob SHA-256 は、cohort 1 が束縛した commit `cad6f46d8` の
+blob と異なる。§5 の spec bytes は変えていないので、spec SHA-256 は両 cohort で同一である。
+本書の hash を本書に書かない規則 (§0) はそのまま守り、値はここに書かない。
+
+**前向きに固定する対象は、未投入の第 2 cohort の地位と報告方法だけである。** cohort 1 の結果は既知である。
+本追記は cohort 1 の判定・稿・図と 2026-09-10 追補の手続を遡及的に変更も正当化もしない。
+
+### 何を固定するか (ユーザー決定 2026-09-19、D2050 の充足)
+
+1. **地位。** 第 2 cohort は cohort 1 (group `b10-backoff-grid-20260915T061814Z-545445`、集団 verdict
+   `not-observed-in-any-workload`) に対する**独立再現**である。置換ではない。
+2. **主と併記。** 主結果は cohort 1 の group `b10-backoff-grid-20260915T061814Z-545445`、verdict
+   `not-observed-in-any-workload` と固定し、第 2 cohort の結果によって置換しない。cohort 1 の既存の稿・図は
+   append-only の凍結物としてそのまま保持する。第 2 cohort の稿と、fig8 の**再現欄**には、主結果と独立再現を
+   区別して両 cohort の group id・集団 verdict・束縛情報・一次成果物参照を併記する。再現欄の追加は主結果の
+   変更を意味しない。第 2 cohort の一致・不一致・`invalid` によって掲載の有無や主従を変えない。
+3. **合成しない。** 2 つの cohort の標本・区間推定・verdict を合成しない。cohort をまたぐ有意水準の保証、
+   統合 verdict、プール推定を作らない。§4.5 の結末表は cohort ごとに独立に適用する。
+4. **結果にかかわらず 1 本を報告する。** 第 2 cohort の verdict が cohort 1 と一致しても、不一致でも、
+   `invalid` でも、そのまま再現欄へ書く。第 2 cohort の結果を取り下げず、他 cohort による置換・多数決を
+   行わない。未完走または報告生成失敗も報告対象とし、得られた観測値と失敗理由を §7 に従って記述的に
+   開示する。機械生成 verdict が無い場合は、その不在と理由を明記し、生成済みの `invalid` と混同しない。
+   第 3 cohort の実施・地位は本追記では定めない。
+5. **同じ規則。** 格子・動作点・反復数・測定順・判定式・失敗条件・正しさ・出所・3 job の同一性は
+   §4〜§7 の既存規則をそのまま第 2 cohort に適用する。**本追記は §4〜§9 の 1 行も変えない。**
+6. **同一機構・別 identity。** 投入は `tools/pegasus/submit_b10_backoff_grid.sh --run-kind t2500-tail-formal`
+   で、3 workload を 3 job に割り別ノードで走らせる (cohort 1 と同じ)。group id・campaign id・出力 root は
+   cohort 1 と別であり、cohort 1 の cell を 1 つも継ぎ合わせない (§7 の失敗条件 10)。探索走 campaign は、
+   2026-09-16 の cohort 1 集団報告の再導出で用いた
+   `/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-balanced/campaigns/t2418-backoff-static-explore-v1-silo-balanced-sweep-783ccbe8`
+   を投入時・報告時とも指定する。用途は正しさ検査 mode の比較だけであり、探索標本は本格推定へ入れない。
+   これは cohort 1 の投入時に渡した探索 campaign を特定する主張ではない (投入時の値は保存されていない)。
+7. **主張の範囲を増やさない。** 第 2 cohort の verdict ごとに §4.5 の分類と表現制約をそのまま守る。
+   cohort 1 と同じ verdict であっても、「再現された」を「飽和しない」へ読み替えない。`indeterminate` を
+   非飽和へ読み替えない。性能は未認証のまま (`performance_certified: false`) である。
+
+### この追記が言わないこと
+
+- cohort 1 の判定・稿・図の有効性について新しいことは何も言わない。過去の判定は追記でのみ訂正する
+  (絶対規律 7)。
+- 第 2 cohort の結果について、方向・大きさ・cohort 1 との一致の見込みを何も言わない。

@@ -1,0 +1,109 @@
+#!/usr/bin/env python3.10
+"""Smoke-only evidence capture; delegates execution and classification to v5."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+from uuid import uuid4
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def capture(saved_trace, evidence_dir, binding):
+    """Copy before delegation; failed or duplicate captures raise exceptions."""
+    dest = saved_trace.parent
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    run_dir = evidence_dir / dest.name
+    run_dir.mkdir()
+    shutil.copytree(saved_trace, run_dir / saved_trace.name)
+    witness = dest / "witness"
+    if witness.exists():
+        shutil.copytree(witness, run_dir / "witness")
+    files = [
+        {"path": str(path.relative_to(evidence_dir)),
+         "bytes": path.stat().st_size, "sha256": sha256(path)}
+        for path in sorted(run_dir.rglob("*")) if path.is_file()
+    ]
+    manifest_path = evidence_dir / "capture-manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        manifest = {"schema_version": "witlight-smoke-capture/v1",
+                    "runs": [], "saved_run_count": 0, "saved_file_count": 0}
+    manifest["runs"].append({"run": dest.name, "source_trace": str(saved_trace),
+                             **binding, "files": files,
+                             "saved_file_count": len(files)})
+    manifest["saved_run_count"] = len(manifest["runs"])
+    manifest["saved_file_count"] = sum(r["saved_file_count"] for r in manifest["runs"])
+    temporary = evidence_dir / f".capture-manifest-{uuid4().hex}.tmp"
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump(manifest, handle, indent=2, allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, manifest_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def observe_command(original, evidence_dir, binding):
+    def command(argv, *args, **kwargs):
+        # v5 launches Python with -B; accept the equivalent no--B spelling too.
+        module_index = 2 if len(argv) > 1 and argv[1] == "-B" else 1
+        if (len(argv) > module_index + 2
+                and argv[module_index] == "-m"
+                and argv[module_index + 1] == "orchestrator.verifier"):
+            saved_trace = Path(argv[module_index + 2])
+            if not saved_trace.is_absolute():
+                cwd = args[0] if args else kwargs["cwd"]
+                saved_trace = Path(cwd) / saved_trace
+            capture(saved_trace, evidence_dir, binding)
+        return original(argv, *args, **kwargs)
+    return command
+
+
+def absolute_path(value):
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError("must be an absolute path")
+    return path
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument("--runner", required=True, type=absolute_path)
+    parser.add_argument("--smoke-evidence-dir", required=True, type=absolute_path)
+    options, remaining = parser.parse_known_args()
+    binding = {"wrapper_sha256": sha256(__file__),
+               "runner_sha256": sha256(options.runner),
+               "runner_path": str(options.runner), "smoke_capture": True}
+    print("wrapper_sha256=" + binding["wrapper_sha256"], flush=True)
+    print("runner_sha256=" + binding["runner_sha256"], flush=True)
+    # Import must not write a pycache beside the externally owned runner.
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("witlight_smoke_runner", options.runner)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load runner: {options.runner}")
+    runner = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = runner
+    spec.loader.exec_module(runner)
+    runner.command = observe_command(runner.command, options.smoke_evidence_dir, binding)
+    sys.argv = [str(options.runner), *remaining]
+    return runner.main()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "M1-literal-match-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if not assigned or assigned_value != coder_value:",
+          "new": "    if not assigned or assigned_value == coder_value:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-value-domain-always-accepts",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if decision.accepted:\n        return\n    error = AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)",
+          "new": "    if decision.accepted or True:\n        return\n    error = AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1-comment-only-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "# -*- coding: utf-8 -*-",
+          "new": "# -*- coding: utf-8 -*-  # mutation-control"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

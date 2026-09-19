@@ -1,8 +1,8 @@
 diff --git a/cc/ss2pl/CMakeLists.txt b/cc/ss2pl/CMakeLists.txt
-index 7cc2f407..e7855816 100644
+index 7cc2f4077..cb471c419 100644
 --- a/cc/ss2pl/CMakeLists.txt
 +++ b/cc/ss2pl/CMakeLists.txt
-@@ -1,7 +1,48 @@
+@@ -1,7 +1,38 @@
 +if(NOT CCBENCH_SS2PL_LOCK_IMPL MATCHES "^[01]$")
 +  message(FATAL_ERROR "CCBENCH_SS2PL_LOCK_IMPL must be 0 or 1")
 +endif()
@@ -16,16 +16,6 @@ index 7cc2f407..e7855816 100644
 +  message(FATAL_ERROR "CCBENCH_SS2PL_WFG_DIAG must be 0 or 1")
 +endif()
 +
-+if(CCBENCH_SS2PL_DLR EQUAL 0)
-+  set(_ss2pl_dlr_marker DLR0)
-+elseif(CCBENCH_SS2PL_DLR EQUAL 1)
-+  set(_ss2pl_dlr_marker DLR1)
-+elseif(CCBENCH_SS2PL_DLR EQUAL 2)
-+  set(_ss2pl_dlr_marker DLR2)
-+else()
-+  message(FATAL_ERROR "CCBENCH_SS2PL_DLR must be 0, 1, or 2")
-+endif()
-+
 +set(_ss2pl_sources transaction.cc util.cc)
 +if(CCBENCH_SS2PL_WFG_DIAG EQUAL 1)
 +  list(APPEND _ss2pl_sources wfg.cc)
@@ -37,8 +27,7 @@ index 7cc2f407..e7855816 100644
 +  SOURCES   ${_ss2pl_sources}
 +  WORKLOADS ycsb bomb tpcc
    OPTIONS
--    DLR1
-+    ${_ss2pl_dlr_marker}
+     DLR1
      KEY_SORT=${CCBENCH_KEY_SORT}
 +    SS2PL_LOCK_IMPL=${CCBENCH_SS2PL_LOCK_IMPL}
 +    SS2PL_LOCK_KIND=${CCBENCH_SS2PL_LOCK_KIND}
@@ -128,11 +117,11 @@ index 5b504661..1973c18e 100644
  alignas(CACHE_LINE_SIZE) GLOBAL uint32_t TotalThreadNum;
 diff --git a/cc/ss2pl/include/ss2pl_lock.hh b/cc/ss2pl/include/ss2pl_lock.hh
 new file mode 100644
-index 00000000..a1a60105
 --- /dev/null
 +++ b/cc/ss2pl/include/ss2pl_lock.hh
-@@ -0,0 +1,53 @@
-+#pragma once
+@@ -0,0 +1,51 @@
++#ifndef SS2PL_LOCK_HH
++#define SS2PL_LOCK_HH
 +
 +#ifndef SS2PL_LOCK_IMPL
 +#define SS2PL_LOCK_IMPL 0
@@ -171,27 +160,24 @@ index 00000000..a1a60105
 +#error "SS2PL_WFG_DIAG must be 0 or 1"
 +#endif
 +
-+#if SS2PL_DLR == 0 && !defined(DLR0)
-+#error "SS2PL_DLR=0 requires DLR0"
-+#elif SS2PL_DLR == 1 && !defined(DLR1)
-+#error "SS2PL_DLR=1 requires DLR1"
-+#elif SS2PL_DLR == 2 && !defined(DLR2)
-+#error "SS2PL_DLR=2 requires DLR2"
++#if SS2PL_LOCK_IMPL == 0 && SS2PL_DLR == 2
++#error "SS2PL_DLR=2 requires SS2PL_LOCK_IMPL=1"
 +#endif
 +
-+#if SS2PL_LOCK_IMPL == 0
 +#include "../../../include/rwlock.hh"
-+#else
 +#include "ss2pl_study_lock.hh"
++#if SS2PL_LOCK_IMPL == 1
 +using ReaderWriteLock = SS2PLStudyLockT<SS2PL_LOCK_KIND, SS2PL_DLR>;
 +#endif
++
++#endif  // SS2PL_LOCK_HH
 diff --git a/cc/ss2pl/include/ss2pl_study_lock.hh b/cc/ss2pl/include/ss2pl_study_lock.hh
 new file mode 100644
-index 00000000..f8b7b726
 --- /dev/null
 +++ b/cc/ss2pl/include/ss2pl_study_lock.hh
-@@ -0,0 +1,496 @@
-+#pragma once
+@@ -0,0 +1,503 @@
++#ifndef SS2PL_STUDY_LOCK_HH
++#define SS2PL_STUDY_LOCK_HH
 +
 +#include <array>
 +#include <atomic>
@@ -204,6 +190,8 @@ index 00000000..f8b7b726
 +
 +#include "../../../include/atomic_wrapper.hh"
 +#include "../../../include/cache_line_size.hh"
++
++#if SS2PL_LOCK_IMPL == 1 || defined(SS2PL_STUDY_LOCK_TESTING)
 +
 +enum class SS2PLAttemptState : std::uint8_t {
 +  inactive = 0,
@@ -687,16 +675,22 @@ index 00000000..f8b7b726
 +  std::atomic<bool>* contention_observer_ = nullptr;
 +#endif
 +};
++
++#endif  // IMPL=1 or the explicit unit-test seam
++
++#endif  // SS2PL_STUDY_LOCK_HH
 diff --git a/cc/ss2pl/include/ss2pl_wfg.hh b/cc/ss2pl/include/ss2pl_wfg.hh
 new file mode 100644
-index 00000000..7f4d48dd
 --- /dev/null
 +++ b/cc/ss2pl/include/ss2pl_wfg.hh
-@@ -0,0 +1,20 @@
-+#pragma once
+@@ -0,0 +1,27 @@
++#ifndef SS2PL_WFG_HH
++#define SS2PL_WFG_HH
 +
 +#include <cstdint>
 +#include <string>
++
++#if SS2PL_WFG_DIAG
 +
 +enum class SS2PLWfgMode : std::uint8_t { read = 0, write = 1 };
 +
@@ -713,6 +707,10 @@ index 00000000..7f4d48dd
 +void ss2pl_wfg_released(std::uint32_t thid, const void* lock);
 +void ss2pl_wfg_record_no_wait_failure();
 +void ss2pl_wfg_record_acquire(SS2PLWfgMode mode, bool upgrade);
++
++#endif  // SS2PL_WFG_DIAG
++
++#endif  // SS2PL_WFG_HH
 diff --git a/cc/ss2pl/include/transaction.hh b/cc/ss2pl/include/transaction.hh
 index cdcb7e82..5f9cfe25 100644
 --- a/cc/ss2pl/include/transaction.hh
@@ -1325,7 +1323,7 @@ index 69993363..c3aa69d1 100644
    return 0;
  } catch (const bad_alloc&) { ERR; }
 diff --git a/cc/ss2pl/transaction.cc b/cc/ss2pl/transaction.cc
-index 4e5a7ed8..e777ae45 100644
+index 4e5a7ed88..0a4590ef5 100644
 --- a/cc/ss2pl/transaction.cc
 +++ b/cc/ss2pl/transaction.cc
 @@ -1,4 +1,3 @@
@@ -1333,17 +1331,15 @@ index 4e5a7ed8..e777ae45 100644
  #include <stdio.h>
  #include <string.h>
  
-@@ -10,6 +9,9 @@
+@@ -10,6 +9,7 @@
  #include "../../include/result.hh"
  #include "include/common.hh"
  #include "include/transaction.hh"
-+#if SS2PL_WFG_DIAG
 +#include "include/ss2pl_wfg.hh"
-+#endif
  
  using namespace std;
  
-@@ -35,25 +37,75 @@ inline SetElement<Tuple>* TxExecutor::searchWriteSet(Storage s,
+@@ -35,25 +35,75 @@ inline SetElement<Tuple>* TxExecutor::searchWriteSet(Storage s,
    return nullptr;
  }
  
@@ -1432,7 +1428,7 @@ index 4e5a7ed8..e777ae45 100644
  
  #if BACK_OFF
  #if ADD_ANALYSIS
-@@ -65,15 +117,19 @@ void TxExecutor::abort() {
+@@ -65,15 +115,19 @@ void TxExecutor::abort() {
  #if ADD_ANALYSIS
    result_->local_backoff_latency_ += rdtscp() - start;
  #endif
@@ -1457,7 +1453,7 @@ index 4e5a7ed8..e777ae45 100644
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      switch ((*itr).op_) {
        case OpType::UPDATE: {
-@@ -85,11 +141,8 @@ bool TxExecutor::commit() {
+@@ -85,11 +139,8 @@ bool TxExecutor::commit() {
          break;
        }
        case OpType::DELETE: {
@@ -1469,7 +1465,7 @@ index 4e5a7ed8..e777ae45 100644
          gc_records_.push_back((*itr).rcdptr_);
          break;
        }
-@@ -98,41 +151,38 @@ bool TxExecutor::commit() {
+@@ -98,41 +149,38 @@ bool TxExecutor::commit() {
      }
    }
  
@@ -1529,7 +1525,7 @@ index 4e5a7ed8..e777ae45 100644
    e = searchReadSet(s, key);
    if (e) {
      *body = &(e->body_);
-@@ -144,9 +194,6 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -144,9 +192,6 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
      goto FINISH_READ;
    }
  
@@ -1539,7 +1535,7 @@ index 4e5a7ed8..e777ae45 100644
    Tuple* tuple;
    tuple = Masstrees[get_storage(s)].get_value(key);
  #if ADD_ANALYSIS
-@@ -155,6 +202,14 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -155,6 +200,14 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
  
    read_internal(s, key, tuple);
@@ -1554,10 +1550,14 @@ index 4e5a7ed8..e777ae45 100644
    *body = &(read_set_.back().body_);
  
  FINISH_READ:
-@@ -169,22 +224,57 @@ void TxExecutor::read_internal(Storage s, std::string_view key, Tuple* tuple) {
+@@ -169,22 +222,57 @@ void TxExecutor::read_internal(Storage s, std::string_view key, Tuple* tuple) {
  
    if (reconnoitering_) goto FINISH_READ_LOCK;
  
+-#ifdef DLR0
+-  /**
+-   * Acquire lock with wait.
+-   */
 +#if SS2PL_LOCK_IMPL == 1
 +  if (hasReadLock(&tuple->lock_) || hasWriteLock(&tuple->lock_)) {
 +    goto FINISH_READ_LOCK;
@@ -1583,16 +1583,14 @@ index 4e5a7ed8..e777ae45 100644
 +    goto FINISH_READ;
 +  }
 +#else
- #ifdef DLR0
--  /**
--   * Acquire lock with wait.
--   */
++#if SS2PL_DLR == 0
    tuple->lock_.r_lock();
    r_lock_list_.emplace_back(&tuple->lock_);
+-#elif defined(DLR1)
 +#if SS2PL_WFG_DIAG
 +  publish_acquired(*this, &tuple->lock_, SS2PLWfgMode::read);
 +#endif
- #elif defined(DLR1)
++#elif SS2PL_DLR == 1
    if (tuple->lock_.r_trylock()) {
      r_lock_list_.emplace_back(&tuple->lock_);
 +#if SS2PL_WFG_DIAG
@@ -1608,7 +1606,7 @@ index 4e5a7ed8..e777ae45 100644
      this->status_ = TransactionStatus::aborted;
      goto FINISH_READ;
    }
-+#elif defined(DLR2)
++#elif SS2PL_DLR == 2
 +  tuple->lock_.r_lock();
 +  r_lock_list_.emplace_back(&tuple->lock_);
 +#if SS2PL_WFG_DIAG
@@ -1618,7 +1616,7 @@ index 4e5a7ed8..e777ae45 100644
  #endif
  
  FINISH_READ_LOCK:
-@@ -244,94 +334,167 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -244,94 +332,167 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
    return Status::OK;
  }
  
@@ -1639,29 +1637,31 @@ index 4e5a7ed8..e777ae45 100644
    for (auto rItr = read_set_.begin(); rItr != read_set_.end(); ++rItr) {
      if ((*rItr).storage_ != s) continue;
 -    if ((*rItr).key_ == key) { // hit
-+    if ((*rItr).key_ != key) continue;
-+
-+#if SS2PL_LOCK_IMPL == 0
- #if DLR0
+-#if DLR0
 -      // Workaround for handling static BoMB properly
 -      if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
 -        this->status_ = TransactionStatus::aborted;
 -        goto FINISH_WRITE;
 -      }
-+    if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
-+      this->status_ = TransactionStatus::aborted;
-+      goto FINISH_WRITE;
-+    }
- #elif defined(DLR1)
+-#elif defined(DLR1)
 -      if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
 -        this->status_ = TransactionStatus::aborted;
 -        goto FINISH_WRITE;
 -      }
++    if ((*rItr).key_ != key) continue;
++
++#if SS2PL_LOCK_IMPL == 0
++#if SS2PL_DLR == 0
 +    if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
 +      this->status_ = TransactionStatus::aborted;
 +      goto FINISH_WRITE;
 +    }
-+#elif defined(DLR2)
++#elif SS2PL_DLR == 1
++    if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
++      this->status_ = TransactionStatus::aborted;
++      goto FINISH_WRITE;
++    }
++#elif SS2PL_DLR == 2
 +    (*rItr).rcdptr_->lock_.upgrade();
  #endif
  
@@ -1751,6 +1751,19 @@ index 4e5a7ed8..e777ae45 100644
 -  if (tuple == nullptr) return Status::WARN_NOT_FOUND;
 +    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
  
+-#if DLR0
+-  /**
+-   * Lock with wait.
+-   */
+-  tuple->lock_.w_lock();
+-#elif defined(DLR1)
+-  if (!tuple->lock_.w_trylock()) {
+-    /**
+-     * No-wait and abort.
+-     */
+-    this->status_ = TransactionStatus::aborted;
+-    goto FINISH_WRITE;
+-  }
 +#if SS2PL_LOCK_IMPL == 1
 +    if (hasWriteLock(&tuple->lock_)) {
 +      write_set_.emplace_back(s, key, tuple, std::move(body), OpType::UPDATE);
@@ -1759,7 +1772,13 @@ index 4e5a7ed8..e777ae45 100644
 +    if (hasReadLock(&tuple->lock_)) {
 +#if SS2PL_WFG_DIAG
 +      publish_wait(*this, &tuple->lock_, SS2PLWfgMode::write);
-+#endif
+ #endif
+-
+-  /**
+-   * Register the contents to write lock list and write set.
+-   */
+-  w_lock_list_.emplace_back(&tuple->lock_);
+-  write_set_.emplace_back(s, key, tuple, std::move(body), OpType::UPDATE);
 +      if (!tuple->lock_.upgrade(control_)) {
 +#if SS2PL_WFG_DIAG
 +        publish_failed(*this);
@@ -1801,33 +1820,16 @@ index 4e5a7ed8..e777ae45 100644
 +      return_status = Status::ERROR_LOCK_FAILED;
 +    }
 +#else
- #if DLR0
--  /**
--   * Lock with wait.
--   */
--  tuple->lock_.w_lock();
++#if SS2PL_DLR == 0
 +    tuple->lock_.w_lock();
- #elif defined(DLR1)
--  if (!tuple->lock_.w_trylock()) {
--    /**
--     * No-wait and abort.
--     */
--    this->status_ = TransactionStatus::aborted;
--    goto FINISH_WRITE;
--  }
++#elif SS2PL_DLR == 1
 +    if (!tuple->lock_.w_trylock()) {
 +      this->status_ = TransactionStatus::aborted;
 +      goto FINISH_WRITE;
 +    }
-+#elif defined(DLR2)
++#elif SS2PL_DLR == 2
 +    tuple->lock_.w_lock();
- #endif
--
--  /**
--   * Register the contents to write lock list and write set.
--   */
--  w_lock_list_.emplace_back(&tuple->lock_);
--  write_set_.emplace_back(s, key, tuple, std::move(body), OpType::UPDATE);
++#endif
 +    w_lock_list_.emplace_back(&tuple->lock_);
 +    write_set_.emplace_back(s, key, tuple, std::move(body), OpType::UPDATE);
 +#if SS2PL_WFG_DIAG
@@ -1846,7 +1848,7 @@ index 4e5a7ed8..e777ae45 100644
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
-@@ -345,19 +508,55 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -345,19 +506,55 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  #if ADD_ANALYSIS
    ++result_->local_tree_traversal_;
  #endif
@@ -1903,7 +1905,7 @@ index 4e5a7ed8..e777ae45 100644
  
  #if ADD_ANALYSIS
    result_->local_write_latency_ += rdtscp() - start;
-@@ -370,17 +569,65 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+@@ -370,17 +567,65 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
    std::uint64_t start = rdtscp();
  #endif
  
@@ -1972,7 +1974,7 @@ index 4e5a7ed8..e777ae45 100644
  
    write_set_.emplace_back(s, key, tuple, OpType::DELETE);
  
-@@ -391,23 +638,41 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+@@ -391,76 +636,156 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
  }
  
  Status TxExecutor::read_lock(Storage s, std::string_view key) {
@@ -1998,6 +2000,7 @@ index 4e5a7ed8..e777ae45 100644
 +    if (w_lock == &tuple->lock_) return Status::OK;
    }
  
+-#ifdef DLR0
 +#if SS2PL_WFG_DIAG
 +  publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);
 +#endif
@@ -2017,14 +2020,15 @@ index 4e5a7ed8..e777ae45 100644
 +    return Status::ERROR_LOCK_FAILED;
 +  }
 +#else
- #ifdef DLR0
++#if SS2PL_DLR == 0
    tuple->lock_.r_lock();
- #elif defined(DLR1)
-@@ -415,24 +680,72 @@ Status TxExecutor::read_lock(Storage s, std::string_view key) {
+-#elif defined(DLR1)
++#elif SS2PL_DLR == 1
+   if (!tuple->lock_.r_trylock()) {
      this->status_ = TransactionStatus::aborted;
      return Status::ERROR_LOCK_FAILED;
    }
-+#elif defined(DLR2)
++#elif SS2PL_DLR == 2
 +  tuple->lock_.r_lock();
  #endif
    r_lock_list_.emplace_back(&tuple->lock_);
@@ -2051,6 +2055,7 @@ index 4e5a7ed8..e777ae45 100644
 +    if (w_lock == &tuple->lock_) return Status::OK;
    }
  
+-#if DLR0
 +  if (hasReadLock(&tuple->lock_)) {
 +#if SS2PL_WFG_DIAG
 +    publish_wait(*this, &tuple->lock_, SS2PLWfgMode::write);
@@ -2093,14 +2098,15 @@ index 4e5a7ed8..e777ae45 100644
 +    return Status::ERROR_LOCK_FAILED;
 +  }
 +#else
- #if DLR0
++#if SS2PL_DLR == 0
    tuple->lock_.w_lock();
- #elif defined(DLR1)
-@@ -440,27 +753,41 @@ Status TxExecutor::write_lock(Storage s, std::string_view key) {
+-#elif defined(DLR1)
++#elif SS2PL_DLR == 1
+   if (!tuple->lock_.w_trylock()) {
      this->status_ = TransactionStatus::aborted;
      return Status::ERROR_LOCK_FAILED;
    }
-+#elif defined(DLR2)
++#elif SS2PL_DLR == 2
 +  tuple->lock_.w_lock();
  #endif
    w_lock_list_.emplace_back(&tuple->lock_);
@@ -2148,7 +2154,7 @@ index 4e5a7ed8..e777ae45 100644
    r_lock_list_.clear();
    w_lock_list_.clear();
  }
-@@ -468,10 +795,20 @@ void TxExecutor::unlockList() {
+@@ -468,10 +793,20 @@ void TxExecutor::unlockList() {
  void TxExecutor::reconnoiter_begin() { reconnoitering_ = true; }
  
  void TxExecutor::reconnoiter_end() {
@@ -2764,3 +2770,18 @@ index c809adb6..bc10d947 100644
        ++tx.result_->local_abort_counts_;
        goto RETRY;
      }
+diff --git a/include/rwlock.hh b/include/rwlock.hh
+index 856119f3f..180d30214 100644
+--- a/include/rwlock.hh
++++ b/include/rwlock.hh
+@@ -8,3 +8,4 @@
++#if !defined(SS2PL_LOCK_IMPL) || SS2PL_LOCK_IMPL == 0
+ class ReaderWriteLock {
+ public:
+   std::atomic<int> counter;
+@@ -107,3 +108,5 @@ public:
+     }
+   }
+ };
++
++#endif  // stock ReaderWriteLock
