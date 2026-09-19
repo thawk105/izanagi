@@ -203,13 +203,24 @@ def test_mocc_template_instrumentation_preserves_body():
     moved = moved.replace(operation, operation+block)
     moved_patch = M._diff(template, moved).encode()
     assert M.instrumentation_preservation(old, moved_patch, stock, template)["operation_contexts_identical"] is False
-    for bad in (new.replace(b"if (!izanagi_cll_has_writer ||", b"if (false && !izanagi_cll_has_writer ||"),
-                new.replace(b"if (!izanagi_perm_ok)", b"if (false && !izanagi_perm_ok)"),
-                moved_patch,
-                new.replace(b"+#line 1204", b"+#line 1205")):
+    entrance = (b"if (!izanagi_cll_has_writer ||\n"
+                b"+        we.rcdptr_->rwlock_.ldAcqCounter() != W_LOCKED)")
+    assert new.count(entrance) == 1
+    controls = (
+        ("X always false", new.replace(entrance, b"if (false && (" + entrance[4:-1] + b"))"),
+         (False, True, True)),
+        ("P disabled", new.replace(b"if (!izanagi_perm_ok)", b"if (false && !izanagi_perm_ok)"),
+         (False, True, True)),
+        # Regenerating this diff also classifies two #endif lines as additions;
+        # added_body therefore fails alongside operation_contexts. Restorations stay intact.
+        ("after publish", moved_patch, (False, False, True)),
+        ("line +1", new.replace(b"+#line 1204", b"+#line 1205"), (True, True, False)),
+        ("line -1", new.replace(b"+#line 1204", b"+#line 1203"), (True, True, False)),
+    )
+    for label, bad, expected in controls:
         assert bad != new
         record = M.instrumentation_preservation(old, bad, stock, template)
-        assert not all(record[k] for k in keys)
+        assert tuple(record[k] for k in keys) == expected, (label, record)
 
 
 def _projection():
@@ -263,16 +274,6 @@ def test_mocc_template_checks_are_input_derived():
     assert len(M.CHECK_KEYS) == 30 and len(M.MATRIX) == 12
     checks = M.compute_checks({}, {})
     assert tuple(checks) == M.CHECK_KEYS and not any(checks.values())
-    proof = {"identity": {"claim": M.IDENTITY_CLAIM, "stock": {"digest": "1"*64},
-        "template_off": {"digest": "1"*64, "baseline": "1"*64, "src_token": "stock"},
-        "template_on_b": {"digest": "2"*64, "src_token": "2"*64}, "benign_diff_sha256": "3"*64},
-        "quarantine_controls": {"cases": {"benign": {"diff_sha256": "3"*64}}}}
-    assert M.compute_checks(proof, {})["template_on_benign_identity_distinct"]
-    proof["identity"]["template_on_b"]["digest"] = "1"*64
-    assert not M.compute_checks(proof, {})["template_on_benign_identity_distinct"]
-    proof = {"auditor_definition": {"tools": ["Read", "Grep", "Glob", "Bash"],
-        "accepted_runs": {c["run_name"]: True for c in M.MATRIX}, "performance_rejected": True}}
-    assert not M.compute_checks(proof, {})["auditor_definition_read_only_and_projection"]
     runs = {}
     for cell in M.MATRIX:
         flags = M.wave1._cell_flags(cell)
@@ -286,6 +287,146 @@ def test_mocc_template_checks_are_input_derived():
             "x_reasons": {}, "p_reasons": {}, "non_insert_writes": 2, "read_rows": 0}
     assert M._matrix_complete(runs)
     assert all(M.compute_checks({"runs": runs}, {})[c["run_name"]+"_certified_and_silent"] for c in M.MATRIX)
+    expected_keys = {
+        *(f"template_stock_{work}_{regime}_t{thread}_certified_and_silent"
+          for work in ("w", "u") for regime in ("hot", "cold", "default") for thread in (1, 4)),
+        "matrix_runs_complete_and_terminated", "template_off_stock_identity",
+        "template_on_benign_identity_distinct", "trace0_logical_rows_identical",
+        "trace0_nm_izanagi_zero", "trace0_strings_izanagi_trace_zero", "toolchain_matches_policy",
+        "template_touch_set_is_exact", "instrumentation_touch_set_is_transaction_only",
+        "instrumentation_body_preserved", "auditor_definition_read_only_and_projection",
+        "auditor_mocc_items_present", "quarantine_accepts_benign_hole",
+        "quarantine_rejects_frozen_frame_and_outside_edits", "auditor_digest_and_deny_only_controls",
+        "consumer_binding_controls", "wave1_proof_bound_and_all_pass", "legacy_proof_bound_and_all_pass",
+    }
+    cases = {"benign": (True, None), "stock-frame": (False, "frame-altered"),
+        **{k: (False, "outside-region") for k in ("fallback", "CLL", "RLL", "validation", "X", "P",
+                                                  "write-registration", "RLL-write-registration")},
+        "directive": (False, "hole-escape"), "comment-splice": (False, "hole-escape"),
+        "bad-anchor": (False, "malformed")}
+    gate = {"driver_id": M.DRIVER_ID, "macro": A.FLAG, "admission": {"admitted": True},
+        "supply": {"terminal_status": "green", "driver_id": M.DRIVER_ID, "macro": A.FLAG,
+                   "evidence": {"owner_tu": A.SOURCE_REL}},
+        "meaning": {"terminal_status": "green", "driver_id": M.DRIVER_ID, "macro": A.FLAG,
+                    "evidence": {"source_rel": A.SOURCE_REL,
+                                 "start_directive": "#if MOCC_TEMP_PREDICATE // file-scope helper"}}}
+    logical = {"logical_rows_identical": True, "base_logical_rows_count": 2,
+        "patched_logical_rows_count": 2, "base_logical_rows_sha256": "4"*64,
+        "patched_logical_rows_sha256": "4"*64}
+    preservation_flags = ("added_body_identical", "operation_contexts_identical", "line_restorations_match")
+    policy = {"expected_compiler_version_body_sha256": {"gcc": "5"*64, "g++": "6"*64}}
+    proof = {
+        "runs": runs, "condition_gates": [copy.deepcopy(gate) for _ in range(3)],
+        "identity": {"claim": M.IDENTITY_CLAIM, "stock": {"digest": "1"*64},
+            "template_off": {"digest": "1"*64, "baseline": "1"*64, "src_token": "stock"},
+            "template_on_b": {"digest": "2"*64, "src_token": "2"*64}, "benign_diff_sha256": "3"*64},
+        "trace0": {"claim": M.TRACE0_CLAIM, "off": copy.deepcopy(logical), "on_b": copy.deepcopy(logical),
+            "binary": {"nm_izanagi_count": 0, "strings_izanagi_trace_count": 0, "strings_izanagi_macro_count": 0}},
+        "toolchain": {"version_body_sha256": copy.deepcopy(policy["expected_compiler_version_body_sha256"])},
+        "template": {"path": M.TEMPLATE_PATCH, "sha256": "7"*64, "source_rel": A.SOURCE_REL,
+                     "marker_id": A.MARKER_ID, "flag": A.FLAG, "touch_set": sorted(A.TEMPLATE_TOUCH_SET)},
+        "touch_sets": {M.TEMPLATE_PATCH: sorted(A.TEMPLATE_TOUCH_SET), M.INSTRUMENTATION_PATCH: [A.SOURCE_REL]},
+        "patches": {"instrumentation": {"path": M.INSTRUMENTATION_PATCH, "sha256": "8"*64},
+                    "legacy_instrumentation": {"path": M.legacy.INSTRUMENTATION_PATCH, "sha256": "9"*64}},
+        "instrumentation_preservation": {**dict.fromkeys(preservation_flags, True),
+                                         "old_sha256": "9"*64, "new_sha256": "8"*64},
+        "auditor_definition": {"tools": ["Read", "Grep", "Glob"],
+            "items": dict.fromkeys(("gallery_8", "gallery_9", "gallery_13", "gallery_16",
+                                    "checklist_11", "checklist_12", "checklist_13"), True),
+            "accepted_runs": dict.fromkeys(runs, True), "performance_rejected": True,
+            "projections": {name: _projection() for name in runs}},
+        "quarantine_controls": {
+            "cases": {k: {"passed": passed, "subtype": subtype, "diff_sha256": "3"*64}
+                      for k, (passed, subtype) in cases.items()},
+            "deny_only": dict.fromkeys(("matching-pass", "mismatched-digest", "reject-or-uncertain",
+                                        "machine-reject-preserved"), True)},
+        "consumer_binding_controls": dict.fromkeys(("alias-rejected", "wrong-oid-rejected",
+                                                   "literal-accepted-and-marker-detected"), True),
+    }
+    for name, path, keys in (("wave1", M.WAVE1_PROOF, M.wave1.CHECK_KEYS),
+                             ("legacy", M.LEGACY_PROOF, M.legacy.CHECK_KEYS)):
+        proof[name+"_proof"] = {"path": path, "sha256": "a"*64, "all_pass": True,
+                                "checks": dict.fromkeys(keys, True), "required_checks": list(keys)}
+    checks = M.compute_checks(proof, policy)
+    assert tuple(checks) == M.CHECK_KEYS and set(checks) == expected_keys
+    assert all(value is True for value in checks.values()), checks
+    covered = set()
+    missing = object()
+
+    def reject(key, path, value=missing, *, cascades=()):
+        changed = copy.deepcopy(proof)
+        target = changed
+        for part in path[:-1]:
+            target = target[part]
+        if value is missing:
+            del target[path[-1]]
+        else:
+            target[path[-1]] = value
+        result = M.compute_checks(changed, policy)
+        expected_false = {key, *cascades}
+        assert {k for k, v in result.items() if v is False} == expected_false, (path, expected_false, result)
+        covered.add(key)
+
+    dq_yes = "quarantine_accepts_benign_hole"
+    dq_no = "quarantine_rejects_frozen_frame_and_outside_edits"
+    reject(dq_no, ("quarantine_controls", "cases", "stock-frame", "subtype"), "outside-region")
+    reject(dq_yes, ("quarantine_controls", "cases", "benign", "passed"), False)
+    # Both DQ checks demand the exact case set; keep benign to preserve ON identity.
+    reject(dq_yes, ("quarantine_controls", "cases", "extra"), {}, cascades=(dq_no,))
+    reject(dq_yes, ("quarantine_controls", "cases", "stock-frame"), cascades=(dq_no,))
+    deny = "auditor_digest_and_deny_only_controls"
+    reject(deny, ("quarantine_controls", "deny_only", "machine-reject-preserved"), False)
+    reject(deny, ("quarantine_controls", "deny_only", "machine-reject-preserved"))
+    auditor = "auditor_definition_read_only_and_projection"
+    reject(auditor, ("auditor_definition", "tools"), ["Read", "Grep", "Glob", "Bash"])
+    reject(auditor, ("auditor_definition", "performance_rejected"), False)
+    first_run = next(iter(runs))
+    reject(auditor, ("auditor_definition", "accepted_runs", first_run), False)
+    reject(auditor, ("auditor_definition", "projections", first_run, "wall_seconds"), 1)
+    for item in proof["auditor_definition"]["items"]:
+        reject("auditor_mocc_items_present", ("auditor_definition", "items", item), False)
+        reject("auditor_mocc_items_present", ("auditor_definition", "items", item))
+    for key in proof["consumer_binding_controls"]:
+        reject("consumer_binding_controls", ("consumer_binding_controls", key), False)
+    for flag in preservation_flags:
+        reject("instrumentation_body_preserved", ("instrumentation_preservation", flag), False)
+    for sha in ("old_sha256", "new_sha256"):
+        reject("instrumentation_body_preserved", ("instrumentation_preservation", sha), "b"*64)
+    for name in ("wave1", "legacy"):
+        key, record = name+"_proof_bound_and_all_pass", name+"_proof"
+        reject(key, (record, "all_pass"), False)
+        required = proof[record]["required_checks"][0]
+        reject(key, (record, "checks", required))
+        reject(key, (record, "checks", required), False)
+        reject(key, (record, "path"), "elsewhere/proof.json")
+        reject(key, (record, "sha256"), "invalid")
+        # Real-file SHA binding is on the JSON consumer side (_consumer), not compute_checks.
+        changed = copy.deepcopy(proof)
+        changed[record]["sha256"] = "b"*64
+        assert M.compute_checks(changed, policy) == checks
+    off, on = "template_off_stock_identity", "template_on_benign_identity_distinct"
+    # ON invokes off(), so each OFF failure also invalidates ON.
+    reject(off, ("identity", "template_off", "src_token"), "c"*64, cascades=(on,))
+    reject(off, ("identity", "template_off", "digest"), "c"*64, cascades=(on,))
+    reject(off, ("identity", "claim"), "changed", cascades=(on,))
+    reject(on, ("identity", "template_on_b", "digest"), "1"*64)
+    reject(on, ("identity", "benign_diff_sha256"), "c"*64)
+    for side in ("off", "on_b"):
+        for field, value in (("logical_rows_identical", False), ("patched_logical_rows_count", 3),
+                             ("patched_logical_rows_sha256", "c"*64)):
+            reject("trace0_logical_rows_identical", ("trace0", side, field), value)
+    reject("trace0_logical_rows_identical", ("trace0", "claim"), "changed")
+    reject("trace0_nm_izanagi_zero", ("trace0", "binary", "nm_izanagi_count"), 1)
+    for field in ("strings_izanagi_trace_count", "strings_izanagi_macro_count"):
+        reject("trace0_strings_izanagi_trace_zero", ("trace0", "binary", field), 1)
+    reject("toolchain_matches_policy", ("toolchain", "version_body_sha256", "g++"), "c"*64)
+    for key, patch in (("template_touch_set_is_exact", M.TEMPLATE_PATCH),
+                       ("instrumentation_touch_set_is_transaction_only", M.INSTRUMENTATION_PATCH)):
+        reject(key, ("touch_sets", patch), proof["touch_sets"][patch]+["extra.cc"])
+    matrix = "matrix_runs_complete_and_terminated"
+    reject(matrix, ("condition_gates",), proof["condition_gates"][:2])
+    reject(matrix, ("condition_gates", 0, "admission", "admitted"), False)
+    reject(matrix, ("condition_gates", 0, "meaning", "evidence", "start_directive"), "#if OTHER")
     for cell in M.MATRIX:
         name = cell["run_name"]
         for key, value in (("txns", 0), ("non_insert_writes", 0), ("certified", False), ("total_cycles", 1),
@@ -293,15 +434,23 @@ def test_mocc_template_checks_are_input_derived():
             changed = copy.deepcopy(runs)
             changed[name][key] = value
             assert not M.compute_checks({"runs": changed}, {})[name+"_certified_and_silent"], (name,key)
+            # Summary/raw consistency or X/P reason totals also fail the matrix;
+            # non_insert_writes is not a field in the raw verifier summary.
+            reject(name+"_certified_and_silent", ("runs", name, key), value,
+                   cascades=() if key == "non_insert_writes" else (matrix,))
         for side in ("benchmark", "verifier"):
             for key,value in (("terminated", False), ("timed_out", True), ("returncode", 2)):
                 changed = copy.deepcopy(runs)
                 process = changed[name] if side == "benchmark" else changed[name]["verifier"]
                 process[key] = value
                 assert not M._matrix_complete(changed), (name,side,key)
+                path = ("runs", name) + (("verifier",) if side == "verifier" else ()) + (key,)
+                reject(matrix, path, value)
         changed = copy.deepcopy(runs)
         changed[name]["verifier"]["record"]["integrity"]["version_dups"] = 1
         assert not M.compute_checks({"runs": changed}, {})[name+"_certified_and_silent"]
+        reject(name+"_certified_and_silent", ("runs", name, "verifier", "record", "integrity", "version_dups"), 1)
+    assert covered == expected_keys
 
 
 def test_mocc_template_off_matches_stock_and_on_is_distinct():
