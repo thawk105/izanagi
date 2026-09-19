@@ -1130,6 +1130,28 @@ def _verifier_policy(raw_bytes: bytes, expected_sha256: str) -> tuple[str, ...]:
     return tuple(ordered)
 
 
+def _wal_terminal_shape_valid(records: Sequence[dict]) -> bool:
+    terminal = records[-1]
+    if {"variant", "stage", "env_tag", "ts", "payload"} != set(terminal):
+        return False
+    if type(terminal["variant"]) is not str:
+        return False
+    if type(terminal["env_tag"]) is not str:
+        return False
+    terminal_ts = terminal["ts"]
+    if type(terminal_ts) not in (int, float):
+        return False
+    if type(terminal_ts) is float and not math.isfinite(terminal_ts):
+        return False
+    if type(terminal["payload"]) is not dict:
+        return False
+    terminal_count = sum(
+        record.get("stage") in (STAGE_COMMIT, STAGE_ABORT)
+        for record in records
+    )
+    return terminal_count == 1
+
+
 def _validate_wal_outcomes(
     paired: Sequence[_MemberRecord],
     resolved: Sequence[ResolvedResultEvidence],
@@ -1140,6 +1162,7 @@ def _validate_wal_outcomes(
         physical = item.record["physical_result"]
         wal_records = resolved_item.ordered_wal.records
         terminal = wal_records[-1]
+        _require(FormalReasonCode.FC07, _wal_terminal_shape_valid(wal_records))
         attempt = physical["build_attempt_id"]
         _require(FormalReasonCode.FC07, _wal_field(terminal, "build_attempt_id") == attempt)
         if physical["outcome"] == "accepted":
