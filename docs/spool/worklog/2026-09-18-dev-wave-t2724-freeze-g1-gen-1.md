@@ -17,18 +17,6 @@ title: [T-2724] 凍結 v2 g1 の世代導入 commit G を Codex author が作り
 - **裁定 (ユーザー委任「codex に相談して決めて」、2026-09-18 09:15〜09:18 JST の read-only codex 2 レンズが一致):** 択 A、設計候補 A-3 + 4 経路の test 修正を 1 つの実装 wave に収め、chain の無い main へ先に land する。順序は整合 wave → 本 wave (X1' + X2 + G を 1 wave で) → A / X → W-4 spec → W-5。詳細と却下案は {{D:t080-receipt-defers-unknownness-to-active-v2}}。相談で判明した事実: main は `a0ccb8ad9` へ前進、並行 wave (a) は entry 1640 で記録だけを land (chain は未着地)。
 - 実走: worktree 開始 gate / midflight gate rc=0、author 自己検証、provenance preflight 3 回 + range 監査 1 回 (request 4992.nqsv)、probe、三軸走査 (wave 木 rc=1 / insight + fragment のみ hit 0)、焦点走 (request 5001.nqsv、422.9 秒)、T-080 receipt 解決 probe (login、407 秒)、P3 gate-check (login、log 末尾 07:25 JST)、`check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0。
 - 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 2、裁定相談 2、全段 `gpt-6-astra` / `medium`)。親の実測は上記。
+- **現況 (2026-09-19、取り込み wave `worktree-dev-wave-t2724-chain-land-2` による追記):** 本 fragment は G wave の branch に未 fold のまま保全されていたものを、取り込み wave が現況に合わせて次の一手差分だけ改めた (本文は当時の記録のまま)。上の裁定の実装 (A-3 + 4 経路 45 node の fixture 切離し) は entry 1683 (D2154) で chain の無い main へ着地済みで、新規 T は立てない (済んだ作業を次の一手として再起動しない)。X1' + X2 + G の取り込み・受入・land と、その後の次の一手は取り込み wave のエントリが 1 度だけ書く。
 
 ## 次の一手差分
-
-### carry
-
-- [T-750]
-
-### 更新
-
-- [T-2724] **P1・G 済み → 裁定済み ({{D:t080-receipt-defers-unknownness-to-active-v2}}、ユーザー委任) → 先に整合 wave ({{T:t080-receipt-live-scan-vs-v2-closure}}) の land → 本 wave が X1' + X2 + G を 1 wave で land → A / X の人間手番**: 世代導入 G `32ba8cae4` (branch `freeze-g1-gen-t2724`、親 X1' `cc82edc8c`、候補 bytes と同一) は作成済みで wave branch `worktree-dev-wave-t2724-freeze-g1-gen` (merge `88d020466`) に保全、未 land。X1' を含む木では受入の非 held 45 node が赤になり oracle gate (P3) も `holdout.unknownness_layer2` で閉じる (T-080 receipt の live scan と v2 closure の矛盾、A / X では解消しない)。裁定: A-3 (receipt の履歴・静的検証・epoch 束縛は維持、承認済み active v2 の full launch validation 成功時だけ未知性層 2 を委譲) + 4 経路 45 node の test の実 root 切り離しを 1 つの実装 wave (Codex author、新 D + 境界 test + 変異 matrix) で chain の無い main へ 先に land する。その後、本 wave が保存 branch の X2 と fold 後の main を固定 SHA で merge し (merge-base 1 つ)、受入 → land。A / X はユーザーが `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §5 の手順で commit。並行 wave (a) は entry 1640 で記録だけ land 済み (chain は運んでいない)。(d) の帰結記録には held 2 本と非 held 45 node を足す。T-750 P-1 / P-3 は別管理。
-  base: 0e9776de69cc561e014b042bc484d76a6f318f3d12c66fee2e3dd86b59bdbeaa
-
-### 新規
-
-- {{T:t080-receipt-live-scan-vs-v2-closure}} **P1・裁定済み ({{D:t080-receipt-defers-unknownness-to-active-v2}}) → Codex author の実装 wave (着手可)**: T-080 (v1 移行 receipt) の解決 `t080_freeze_migration.verify_receipt` の未知性層 2 (`_verify_holdout_live_scan` の zero-hit 判定) を、承認済み active v2 世代の `launch_validate` が同一 root・HEAD・世代で成功した場合に限りその完全一致検証 (C2-4) へ委譲する (A-3)。receipt の履歴・静的検証・epoch 束縛、`_make_gate_decision` の集約、`_campaign_t080_value` の拒否、`static_gate_adapter`・campaign-start 前の再解決の同条件、未発効時の拒否、official clean scan は維持。同じ wave で 4 経路 45 node (`test_s8b_oracle_driver.py` の T-080 fixture 10 / `run_block(root=ROOT)` 契約 29 / 公開 gate 1、`test_s8b_floor_campaign.py` の実 HEAD clone 5) を実 root の成果物に依存しない fixture へ移し負例を残す。境界 test (発効・receipt・走査・束縛・経路)、変異 matrix (完全一致→包含、refusal 無視、承認前委譲、検索規約照合削除、開始前再検査削除)、段階別 preflight の文書 (runbook §2 P3 の期待は chain 導入後の oracle 段階に適用不可) を含める。走査除外・hold・G と chain の bytes・A / X の境界は変えない (規律 2)。A-3 の同等性を境界 test で示せなければ停止。chain の無い main へ land し、着地後に世代導入 G の wave が X1' + X2 + G を land する。一次資料 `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §4、相談 2 本は同 job dir `artifacts/…/s10-a.md` / `s10-b.md`。

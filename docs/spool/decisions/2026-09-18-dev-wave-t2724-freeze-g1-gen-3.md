@@ -54,3 +54,9 @@ D2120 項 2 (a) の chain 取り込みは維持するが、実行順序に前提
 - C (45 node を growth hold) — 検出力の削除。DW-O18 は再赤でも hold 登録しないと定める。
 - D (chain を main に載せず別 branch で oracle) — X1' を含む checkout なら branch を問わず同じ拒否が出る。既裁定の変更も要る。
 - 設計 wave → 再裁定 → 実装 wave の分離 — 余分な直列工程と発効前の受入問題を残す (レンズ B)。
+
+**現況 (2026-09-19、取り込み wave による追記):** 本決定は G wave の branch に fragment として保全され、fold は取り込み wave で行われた。
+項 1・2 の実装形は D2154 (chain の無い main へ着地済み)。項 4 (ii) の X1' + X2 + G の取り込みは取り込み wave
+(`worktree-dev-wave-t2724-chain-land-2`) が実施し、(iii) 以降は人間手番のまま。
+
+**現況 (2026-09-20、pin 更新 wave による追記):** 取り込み wave (2 回目) は受入全走が B-10 の freeze-tree byte pin 1 node で赤になり chain を land しなかった (entry 1688)。本 fragment の fold と X1' / X2 / G の main 着地は、pin を G を含む tree の値へ更新する 3 回目の wave (`worktree-dev-wave-t2724-b10-pin-update`) が行う。
