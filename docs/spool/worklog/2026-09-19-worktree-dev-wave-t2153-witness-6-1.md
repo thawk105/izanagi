@@ -36,7 +36,10 @@ title: [T-2153] 意味 witness 対応集合を (d)(e)(f) の 6 macro で実 TU �
 - **変異 matrix:** run 1 は baseline が一過性の PARSE_ERROR (受領証行 0) で中止 → 保持 container で手動実走 374 passed、resume は baseline を再走しないため別 scratch root で run 2。run 2 = baseline PASSED、m1〜m6 KILLED (期待 node 完全一致)、m0 等価 SURVIVED、m7 は MISMATCH (期待 4 に対し実 9 = `make_define_request` が spec companion を request へ写すため request 契約でも落ちる過剰決定、DW-M03)。m7 を 9 node で再登録し注入 seam だけを切る m7b を足して再走 → 両方 KILLED・完全一致。最終 8 KILLED + 等価 1 SURVIVED、MISMATCH 0。帰属表は insight §8。
 - 統合 commit `7cc76d98b` (登録簿 +2、rung1 1 行、test 4 file)。author 2 巡 + fix 1 巡 + review 2 + focus 1 + plan 1 + consult 2
   (codex gpt-6-astra medium)。author の sandbox は `qstat -Q` preflight で test 未実走 (rc=16)、親が計算ノード dispatch で実走した。
-- 受入全走と land の結果は専用 handoff と land 受領証へ集約する。
+- 受入 attempt 1 (main 32f0526bc を取り込んだ tip 7d9e74c48) は赤 6 = 3 shard × xdist worker internal error 2
+  (`real_repo_receipt_memo` の `lock-acquire-failed` TimeoutError、session 開始時で test 未到達)。本 wave は同 module に
+  非接触なので非帰属 (real-repo lock 競合の F945 族の変種、launcher の F945 grep には不一致) と判定し、同一 tip で 1 回だけ再投入した
+  (DW-O18)。受入と land の最終結果は専用 handoff と land 受領証へ集約する。
 
 ## 次の一手差分
 
