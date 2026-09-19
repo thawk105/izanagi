@@ -4953,3 +4953,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-20","base":"c1bbcdf5ccb98f9faa73bd5d82d73e81975f1e14","content_sha256":"51220d84b2b521d6e235058116d9923dc800ea562b125f5a3f9d2e0f4337bcf7","seq":1,"tested_tip":"38f39d6521c84128ecaf36a1ed014ea70d0897e5","wave":"dev-wave-t2766-pairing-ab","wave_ref":"refs/heads/record-dev-wave-t2766-pairing-ab"}
 - {"allocations":{"D:t2766-pairing-ab-measurement":"D2164"},"authored":"2026-09-20","base":"c1bbcdf5ccb98f9faa73bd5d82d73e81975f1e14","content_sha256":"07fcb52fed6f00cc1539e30fea8b6b6484cf0f9bad524e40833266f5447173cb","seq":2,"tested_tip":"38f39d6521c84128ecaf36a1ed014ea70d0897e5","wave":"dev-wave-t2766-pairing-ab","wave_ref":"refs/heads/record-dev-wave-t2766-pairing-ab"}
+
+- {"allocations":{},"authored":"2026-09-20","base":"b7f970dfa507558f7fb669a5ab38958d6c76b57c","content_sha256":"4319caa7ef15a7dde6fd00962d787d6aea4d74569d208819baa20d69c9ca1fce","seq":1,"tested_tip":"fc8ff0c4aef96355369e80d570c7209ab955258f","wave":"dev-wave-t2789-acceptance-ops-docs","wave_ref":"refs/heads/worktree-dev-wave-t2789-acceptance-ops-docs"}
