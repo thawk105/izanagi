@@ -1,0 +1,121 @@
+{
+  "bench": {
+    "cv": 0.001587557122064743,
+    "leading_indicators": {
+      "abort_rate": 0.09065000000000001,
+      "ipc": null,
+      "latency_ns": 4902.069100000001,
+      "llc_miss_rate": null,
+      "throughput_tps": 815983.0
+    },
+    "median_tps": 815983.0,
+    "perf_preflight": {
+      "available": false,
+      "candidates": [
+        {
+          "executable": true,
+          "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+          "rc": 0
+        },
+        {
+          "executable": true,
+          "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+          "rc": 0
+        }
+      ],
+      "parsed_events": [],
+      "probe_argv": [
+        "perf",
+        "stat",
+        "-x,",
+        "-o",
+        "<tmp>/perf.csv",
+        "-e",
+        "LLC-load-misses,LLC-loads,instructions,cycles",
+        "--",
+        "/bin/true"
+      ],
+      "rc": 2,
+      "reason": "nonzero-rc",
+      "schema": "izanagi-perf-preflight/v1",
+      "status": "unavailable",
+      "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+    },
+    "rounds": 1,
+    "settled": true,
+    "tps": [
+      815067.0,
+      816899.0
+    ]
+  },
+  "commit": {
+    "fitness_tps": 815983.0
+  },
+  "digest_sha256": "f993251dc33cd9d25246778c8b6b8820f431d4d121030377af65f9046ebe3598",
+  "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+  "loop_state": {
+    "iteration": 1,
+    "reverse_recommendations": 0,
+    "start_wall": 1789824041.4768934,
+    "whiteboard": [
+      {
+        "delta_pct": null,
+        "direction": "decrease",
+        "iteration": 1,
+        "magnitude": "large",
+        "result": "success"
+      }
+    ]
+  },
+  "records": [
+    {
+      "env_tag": "pegasus",
+      "stage": "build_start",
+      "ts": 1789824048.324135,
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "build_done",
+      "ts": 1789824063.3342838,
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "verify_done",
+      "ts": 1789824076.580601,
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "bench_done",
+      "ts": 1789824078.7320874,
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "commit",
+      "ts": 1789824078.7577965,
+      "variant": "002642c7ac96"
+    }
+  ],
+  "stop_decision": {
+    "reason": "continue",
+    "stop": false
+  },
+  "variant": "002642c7ac96",
+  "verify": {
+    "aborts": 122211,
+    "anomalies": 0,
+    "certified": true,
+    "commits": 523120,
+    "verdict": "serializable"
+  },
+  "wal_refs": [
+    "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba",
+    "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759",
+    "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11",
+    "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f",
+    "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+  ]
+}

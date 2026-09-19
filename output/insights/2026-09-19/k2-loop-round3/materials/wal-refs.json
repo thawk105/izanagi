@@ -1,0 +1,27 @@
+[
+  {
+    "stage": "build_start",
+    "variant": "002642c7ac96",
+    "ref": "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba"
+  },
+  {
+    "stage": "build_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759"
+  },
+  {
+    "stage": "verify_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11"
+  },
+  {
+    "stage": "bench_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f"
+  },
+  {
+    "stage": "commit",
+    "variant": "002642c7ac96",
+    "ref": "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+  }
+]
