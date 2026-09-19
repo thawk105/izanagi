@@ -4913,3 +4913,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-19","base":"e756077716d2bebddb0f3b8c1cb9977f0a638f13","content_sha256":"3be1c4e3ac013f5e2b13f8be133064608e2b477584783199251703d0c0333ecc","seq":3,"tested_tip":"e32e3494889e8160bff722fc23fef99c0833876c","wave":"dev-wave-t2737-noninert-codex","wave_ref":"refs/heads/dev-wave-t2737-noninert-codex"}
 
 - {"allocations":{"T:mocc-witness-on-g2-acquisition":"[T-2798]"},"authored":"2026-09-19","base":"ef897a0cfc467de703b583c80f44a41a37a4e7c0","content_sha256":"8cb5d3f43831ec7f130f69742efd710d2835b41dd2ec9637d9d9e8464d1f2310","seq":1,"tested_tip":"062ca00e7f23a76d66316c22dc3ee288e3b99f4c","wave":"dev-wave-mocc-witlight-arm-run","wave_ref":"refs/heads/worktree-dev-wave-mocc-witlight-arm-run"}
+
+- {"allocations":{"T:test-d-pin-ruling":"[T-2799]"},"authored":"2026-09-19","base":"60bbe8a65a6f1634e0833bed74677e994a33e957","content_sha256":"63e7f2f52705232aadf759d37dd9ff9e32032f05a1e72c415d0c88d33e6664da","seq":1,"tested_tip":"7ff5e1976a2fd4300d9429c6458096f5dec38414","wave":"dev-wave-test-inventory-prune","wave_ref":"refs/heads/worktree-dev-wave-test-inventory-prune"}
