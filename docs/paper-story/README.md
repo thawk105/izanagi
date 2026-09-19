@@ -30,128 +30,123 @@
 | 2026-09-05 | `2026-09-05.md` | 説明可能性 (軸 3) の核を D1598 で 3 点へ書き直し、A-2 結果節 (`results/` 系列) と図 5 が凍結された翌日に、その走行の adopted cell が採用静的 backoff を build していなかったこと (F707 再発。D1645 で取り直しまで論文素材から外す) が確定した後。A-1 pilot 事前登録の発効・A-5 の Pegasus 不充足 (D1525)・A-6 の `indeterminate`・床値の量の確定 (D1639 / D1641)・人間手番の AI 委任 (D1638) と予算承認・鍵配置の実施 (1278)・B-10 balanced 完走と read-heavy 試し打ち成功・調整済み adaptive の正しさ認証・2 本目の論文系列の新設 (D1637) まで | **差別化の核は「対象がトランザクション CC・action vocabulary そのものの拡張・正しさゲートを毎反復」の 3 点で書く。忠実性・proof chain・試行 provenance は補助。** 前版が「現行環境で正式に測って負けた 1 点」と数えた A-2 は、採用構成についての判定ではなかった。採用構成を現行環境の正式 protocol で測った判定は無い。第 2 幕主軸の結論は不変。§9 の第 4 文を書き換え |
 | 2026-09-14 | `2026-09-14.md` | 採用構成を現行環境の正式 protocol で測った判定が 3 workload とも出た後。A-2 の取り直し attempt が `observed-positive` (2026-09-07)・A-6 が完走して `reject` (2026-09-08)・balanced の stock-inline 対が `accepted` (2026-09-14)・A-1 の pilot 完走と反復数の確定 (n=30) と本走認可の据え置き (D1986 項5)・走行間ばらつきの下限が 3 workload 揃ったこと・official 床値 campaign の史上初の実投入 (未 land)・B-10 待ち方 grid の閉鎖 (D1678)・静的 tail 本走 driver の着地 (本走未投入)・文献調査 2 軸の停止 (D1760 / D1931)・mocc への証明面計装 (T-2294)・D1936 と D1986 の一括裁定まで | **前版が「採用構成を現行環境の正式 protocol で測った判定は 1 件も無い」と書いた空白が埋まった。** A-2 protocol (write-heavy と balanced の連言) は `observed-positive`、A-6 protocol (read-heavy) は `reject`、balanced の別の事前登録の対比較は `accepted` で、**符号は旧環境と 3 workload とも一致した — ただし再現判定ではない。** 但し書き 2 (性能 workload そのものでの採用静的 backoff の certification) は限定 4 つ付きで外れた。第 2 幕主軸の結論と S' 不成立は不変。B-1 (既知軸最良の超越) も不成立のまま |
 | 2026-09-17 | `2026-09-17.md` | official 床値 campaign が初めて計測段を越えて完走し floor 案の実値が出た (2026-09-16、両 holdout とも配線下限 0.03 × stock 中央値、未発効)・B-10 静的 backoff 右 tail の本走が完走して集団判定が出た (2026-09-15、`not-observed-in-any-workload`)・B-7 の 3 走行材料がそろったが要件充足へは昇格しない (D2044 項3)・rr5 の accepted 較正で silo 3 workload セルが揃い非 silo 4 対の within-run floor が用途限定で登録された (D2083)・B-4 の材料 (記述統計追補 D2016、binary record と配置 D2069、`perf_config` の 3 項目と 3 cell と較正選別規則 D2088〜D2090) が増えたが A-5 の値待ちで実施不可のまま・D1640 の追補 (D2049)・fig7・identity 走査境界の到達実測 (T-2630、修正は裁定待ち)・K2 ループの 1 巡 (T-2588、既評価値の再提案)・A-1 認可据え置きの再確認 (D2044 項8)・D2044 (39 項) の一括裁定・8c manifest schema の `n` (D2071 / D2072)・ライセンス D1992 まで (local main `fa24e6ea8` から導出) | **前版が「未取得・未投入」と書いた 2 つの測定 (official 床値、右 tail 本走) が完走したが、どちらも肯定的 headline 主張を増やしていない。** 床値は配線下限で決まった未発効の案、右 tail は「この事前登録の述語では、表現可能域である 9999 マイクロ秒までに飽和を観測しなかった」という記述的な結末。正しさの identity 層に上限が 1 つ実測で加わり、exact claim の限定は D1993 の 4 つ + 1 つ。第 2 幕主軸の結論・S' 不成立・B-1 不成立は不変。前版を 3 か所で訂正した (執筆時点で偽だったもの) |
+| 2026-09-19 | `2026-09-19.md` | A-1 balanced5 sized 本走の attempt-0001 が D2120 項 3 の 1 attempt 認可で投入され 3 workload とも完走した後 (2026-09-18、登録済み解析は 3 本とも `resolved-above-floor`、符号 +/+/−、非認証 lane のまま。単独稿と fig9)・stock mocc の G2 signal の 非 certifying 観測 3 件 (T-2774 witness off でだけ再現 2/40・3/40・2/40、T-2779 通常 5/120・診断 0/120・backoff 2/120、T-2780 discriminator の finalization 到達。D2148 項 13 = 上流報告まで)・Silo 固定スコープの解除 (D2114) と mocc 第 2 例の準備 (機械実証の設計 D2134 と wave 1 D2147、pin 前進の承認 D2150 項 1 = 未実施)・official 床値の g1 床としての採用裁定 (D2120 項 2) と g1 候補の実体化 (保存 branch) と chain land の不成立 (entry 1640) と A-3 整合 (D2154。chain 未取り込み・未発効)・B-4 spec 3 本の凍結 (D2138) と窓 job の資材 (D2145) と `PerfConfig` の出所 (D2146。実測未開始)・identity 層の上限の修正 (T-2731、D2108。残る限界は明記)・K2 2 巡目 (T-2746、事後承認 D2148 項 2) と機序仮説層 v3 の初適用 (D2143) と critic 診断の型付き入力経路 (T-2783、D2155。3 巡目未実走)・fig8 の成立・A-6 と T-1998 の単独稿・軸 1 の再開と限定付き閉鎖 (D2095 / D2120 項 14 / D2150 項 4)・一括裁定 4 回 (D2104 / D2120 / D2150 / D2148) まで (local main `a99425b66` から導出) | **前版が「本走未投入・認可据え置き」と書いた A-1 が非認証 lane の attempt-0001 として完走したが、「A-1 の値がある」とは書けず、肯定的 headline 主張は増えていない。** mocc は観測 3 件が出たが根因未同定・非 certifying で「第 2 成功例」ではない。床値は採用が裁定されたが未発効、B-10 は図が成立しても閉じていない。exact claim の限定は D1993 の 4 つ + identity の 1 つ (範囲は修正後に狭まった)。第 2 幕主軸の結論・S' 不成立・B-1 不成立は不変。前版の執筆時点の誤りは 0 件 |
 
-**最新 = `2026-09-17.md`。** 図は `figures/` に、2026-07-10 版の作成時に気づいた示唆は
+**最新 = `2026-09-19.md`。** 図は `figures/` に、2026-07-10 版の作成時に気づいた示唆は
 `notes-2026-07-10.md` に分離。`figures/fig3_arc_status.png` は 2026-07-10 版（Phase 3 段 5 時点）の
 現況図であり、2026-08-23 版以降の第 3 幕の記述とは一致しない（各版 §0 に明記）。
 
 **この節は最新版の訂正だけを載せる。** 旧版が自分の前版をどこで訂正したかは、その旧版自身の
 冒頭が持つ（凍結物なので、訂正の一覧も版と一緒に凍結されている）。
 
-**2026-09-17 版が前版 (2026-09-14 版) を訂正した箇所は 3 つ。** いずれも同版の冒頭と該当節に理由がある。
-**3 つとも、前版が書かれた 2026-09-14 の時点で既に偽だった記述である** (後日状況が変わったのではない)。
-凍結物である 2026-09-14 版は書き換えていない。前版が自分の前版 (2026-09-05 版) を訂正した 4 か所は、
-2026-09-14 版自身の冒頭が持つ。
+**2026-09-19 版が前版 (2026-09-17 版) を訂正した箇所は 0 件である。** 同版の導出 (§0〜§10 の全項目を正典から
+独立に導き直す) で、前版の記述が執筆時点で既に偽だったものは見つからなかった。前版の記述で古くなったものはすべて
+「当時は真で、後続の前進が古くした」型であり、同版の本文で現在地へ更新した — その代表 3 件は、この節の下に積んでいた
+stale 注記 (Silo 固定スコープの解除、fig8 の成立、A-1 attempt-0001 の完走) である。**0 件は誤りが無いことの証明ではない**
+(下の「積んでいる項目の少なさは…」を参照)。前版が自分の前版 (2026-09-14 版) を訂正した 3 か所 (層3 screening の対象範囲、
+official 初投入日 2026-09-09、D1341 未 land の誤認) は、前版自身の冒頭が持つ。
 
-1. §1・§2 第 3 幕 (c)・§3 の項目 3・§6・§7・§8 の B-9 — 計 6 箇所で、bench-first screening campaign を
-   層3 の対象外あるいは未対応として扱っていた。**誤りである。** 対応は 2026-08-25 の [T-1291] で
-   schema の 2 段の変更 (`b8318b956` / `ed251424d`) により着地しており、2026-08-26 版から 4 版続けて
-   運ばれた (F1 の再発、entry 1539)。**B-9 という項目は閉じていない** — 残る 2 項は「裁定で停止」と
-   「発効条件待ち」である。
-2. §0 の前進 7・§2 (c)・§5・§6・§7・§8 の A-4 — official 床値 campaign の史上初の実投入を
-   「2026-09-11」と書いていた。**日付が誤りである。** 一次記録
-   (`output/insights/2026-09-09/t1851-unit-c3b-floor-range/README.md`) は request `988501.nqsv` の投入を
-   **2026-09-09 22:09 JST** と記録している。通過した gate・停止した gate の記述は正しかった。
-3. 冒頭の「取り込まなかったもの」・§0 の前進 7・§2 (c)・§2 (g)・§6・§7・§8 の A-4・§9 —
-   「D1341 により意図的に land されていない [T-1851] の実装単位群」と書いていた。**前版の執筆時点で
-   既に偽だった。** D2 単位の統合 commit `ce2769c32` (2026-09-10) は前版の起点 `af3762d62` の祖先であり、
-   entry 1450 (2026-09-11) が一括 land を記録している。**D1341 の裁定そのものは有効である。** 誤ったのは、
-   過去の worklog の「land しない」を現況へ転写したことである。
-
-前版が B-2 の `delta_min` について「受理集合を広げる向き」と書いた箇所は、誤りとは断定しない。
+B-2 の `delta_min` について 2026-09-14 版が「受理集合を広げる向き」と書いた箇所は、引き続き誤りとは断定しない。
 D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過小に、他方を過大にするので、両 holdout を合わせた
-受理集合が単純に広がるとは言えない。2026-09-17 版は「片側についての説明」として限定して書く。
+受理集合が単純に広がるとは言えない。2026-09-17 版と 2026-09-19 版は「片側についての説明」として限定して書く。
 
 ## 最新スナップショット以後に確定したこと（stale 注記）
 
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**現在この節に積んでいる項目は 4 件である。**
+**現在この節に積んでいる項目は 11 件である。** いずれも 2026-09-19 版の導出起点 (local main `a99425b66`、2026-09-19 21:41 JST)
+より後、同日夜〜翌 2026-09-20 未明に local main へ着地した事実で、同版の記述は執筆時点では真であり、後続で古くなった型である。
+同版は凍結物なので書き換えず、ここで指す一次資料が勝つ。**着地の順は同版が作られた wave の受入待ちの間であり、同版の
+段 6 レビューはこれらを読んでいない。**
 
-- **Silo 固定スコープの解除 — 合成対象を Silo に限定する方針は現在の方針ではない (2026-09-17、同版の導出後
-  に確定)。** 同版 §1 の「2026-07-27 のユーザー裁定でスコープは Silo ベースに固定されている」と、§8 C-1 の
-  理由にある「2026-07-27 裁定で Silo ベースに固定した以上」は、2026-09-17 の改訂 (一次資料 = `docs/phase3.md`
-  の「2026-09-17 改訂」節と、そこが指す `output/insights/2026-09-17/cross-protocol-scope-release/README.md`)
-  により**現在の方針ではない**。**C-1 を将来スコープとする結論は維持する** (狙う増分主張は「指定した二つの
-  CC 実装で合成・評価手順を実証した」に限り、その第 2 例の証拠と C-1 の protocol 横断 stock 最良比較は別項)。
-  変わったのは方針と準備の着手だけであり、**事実は変わっていない**: 非 Silo (mocc / tictoc / cicada) の性能比較は
-  0 件、認定較正は mocc / tictoc の rr50・rr95 各 2 件で cicada は 0 件 (較正は物差しであって性能選定ではない)、
-  mocc の証明面計装は現行 pin の祖先ではない、pin 前進は未承認 (D1603 の材料 3 点が揃った時点で [T-167] の
-  再承認として提示)、mocc を変異探索面へ入れるには D579 の独立実証が要る。したがって **§6 の「広げた」「選定が
-  成立した」とする主張の禁止、および §7 の空間登録や較正を拡張実証と扱わない規則は、証拠の現況に基づくため
-  引き続き有効である。**
-
-- **B-10 静的 backoff 右 tail 09-15 正式 cohort の論文図 fig8 が成立した — 同版と results 稿の「図は無い」は
-  当時は真であり、後続で古くなった記述である (2026-09-17、同版の導出後に成立)。** 同版 §4 の表の行
-  「B-10 右 tail 09-15 cohort の図 (未作成)」(同じ趣旨の「図は無い (§4)」は §0 の前進 2 と §8 の B-10 に、
-  「未作成の予定仕様」は §10 の段 3 にもある) と、results 稿 `results/2026-09-16-b10-static-tail-not-observed.md`
-  §0.3 の「09-15 cohort を描いた図は存在しない」および §3 限定 11「論文図は無い」は、執筆時点では真であった。
-  2026-09-17 に [T-2647] の wave が同版 §4 の予定仕様どおりの図を作り、local main に着地した (一次資料 =
-  `output/insights/2026-09-17/t2647-b10-tail-fig8/README.md`、実装 commit `4636181a9`、段 6 fix `ce39429d5`)。
-  本体系列 `figures/fig8_b10_static_tail_not_observed.{png,pdf,provenance.json}` (着地 bytes の SHA-256: PNG
-  `24eab2e8…`、PDF `11071b72…`、provenance JSON `3ccdb0aa…`)、生成器 `tools/plotting/plot_b10_static_tail_formal.py`。
-  caption・proof chain・入力 3 file の SHA-256 束縛の正本は `figures/README.md` の fig8 節。図は group
-  `b10-backoff-grid-20260915T061814Z-545445` (集団判定 `not-observed-in-any-workload`) の**記述図**であり、
-  `fig2c` の続きではなく、2 本目の論文と共用しない (D1637)。**言い方は事前登録 §4.5 の固定表現に限る** —
-  言えるのは「この事前登録の述語では、表現可能域である 9999 マイクロ秒までに飽和を観測しなかった」までであり、
-  「飽和しない」「飽和点が存在しない」とは書かない。**図の成立で変わらないこと:** `performance_certified: false`
-  は動いていない (性能認証ではなく、この図を variant 採用の根拠にしない — 絶対規律 2)。B-10 も [T-2647] も
-  閉じていない。D2104 項 7 (B-10 右 tail の再現 cohort は今は走らせない) も解除されていない — 同項は理由の
-  一つに「結果を使う下流 (論文図) が未成立」を挙げるが、決定は優先順位の判断であり、**D2120 項 16 (2026-09-17)
-  が「図の成立で理由の一部は変わったが、主経路 (K2 / A-1) 優先の理由が残るので保留を維持する。図の成立は追加
-  測定の必要性を示さない」と裁定した。** 走らせるなら D2050 の地位明記を満たす別 wave を新規に起票する
-  (同項)。当時の実行全体の独立監査も未実施のままである。同版と results 稿の当該記述は凍結物なので書き換えず、
-  下の移管先 3 の「§4 (図は無い)」も同版の内容の説明として正しいので変えない。
-
-- **A-1 balanced5 sized 本走の attempt-0001 が投入され、3 workload とも完走した — 同版の「本走未投入・認可据え置き」は
-  執筆時点では真であり、後続で古くなった記述である (2026-09-18、同版の導出後に成立)。** 同版 §8 の A-1 項の見出し
-  「【未取得。pilot 完走・反復数確定・本走 policy 凍結 (非認証 lane)・本走未投入・認可据え置き (D2044 項8 で再確認)】」と
-  同項の「基準 HEAD の時点で、その実装が閉じたことを記録する着地済みの正典は無い」(同じ趣旨の「本走未投入」は §0 の
-  前進 10、§2 (g) の要点 2、§6 の「A-1 の本走は未投入である」、§9 表の「未取得」列にもあり、§2 第 2 幕と §6 の
-  「取れていないのは A-1 が定める配置と推定対象による測定である」も同じ現況を指す) は、執筆時点では真であった。2026-09-17 の D2120 項 3
-  (ユーザー裁定) が既存 submit 経路で 1 attempt を認可し (D2044 項 8 の据え置き条件「試験運転専用の分岐を外す実装が閉じた
-  時点で改めて諮る」は entry 1590、commit `ad83b108b` で成立)、[T-1505] の wave が 2026-09-18 に attempt-0001 を投入、
-  3 workload とも `valid=true` / `errors=[]` で完走した (job `4939` write-heavy / `4940` balanced / `4941` read-heavy、各 30 対、
-  `measurement_source_commit` = local main `d2ebef7a4`、submit 06:30 → materialize 06:45 JST、再投入なし)。一次資料 =
-  `output/insights/2026-09-18/t1505-a1-sized-attempt1/README.md` (時系列・受領証・分類・言わないこと) と公開 leaf
-  `output/insights/2026-09-13/paper-story-a1-balanced5-sized/` (README.md / receipt.json / result.json / .complete.json)。
-  登録済み解析 (policy `orchestrator/campaign/paper_story_a1_paired.v3-sized.json`) の分類は 3 workload とも
-  `resolved-above-floor` (B = baseline 平均の 3 %)、対差平均 (variant − baseline) の符号は write-heavy 正 / balanced 正 /
-  read-heavy 負、`variance_plan_breach` は 3 本とも false。6 arm の verifier は既存 verifier のまま 0 anomalies (規律 2 の
-  判定であり、性能の判定ではない)。**attempt の完走で変わらないこと:** result.json / receipt.json とも `formal=false` /
-  `promotion_prohibited=true` (result.json の `authority` は schema v3 の固定値 `exploratory`、policy の `result_authority` は
-  `sized-preregistered-descriptive-only`) の**非認証 lane のまま**であり、同項の「『A-1 が動き始めた』『A-1 の設計は固まった』
-  とは書けるが、『A-1 の値がある』とは書けない」という区別は本 attempt の記録では動かしていない — この非認証 lane の結果を
-  どう位置づけるかは裁定に属し (一次資料 §6)、A-1 の充足・formal 化・昇格、再投入、本走の再認可はいずれも判定されて
-  おらず、認可はユーザー手番のままである (D2044 項 8)。descriptive 出力を headline 値・workload 横断の結論・C1 の再現判定に
-  しない (符号が C1 の旧環境値と 3 workload とも一致することは再現判定ではない。D1993 / `L23` の区別は維持)。同版 §7 の
-  チェック項目「A-1 の study を『A-3 の値の対測定による追試』と呼ばない」と「T-1998 の `accepted` を A-1 の完了・A-5 の
-  充足と読まない」は有効なままである。claim-evidence 系列 `claim-evidence/2026-08-26.md` の A-1 行 (§4 の表、「未取得
-  (0 件)」) は、当時の凍結 policy v2 (`static10 − adaptive`、`formal=false`) を前提とした 2026-08-26 時点の凍結物であり、
-  D1262 の estimand 揃え直し (`fixed10 / fixed5 / fixed2 − no-backoff`) 以後の study と本 attempt を反映していない。
-  同行は書き換えず、本 attempt の記録は上の一次資料を見る。同版・claim-evidence 稿の当該記述は凍結物なので書き換えない。
-  **本 attempt の単独 results 稿と記述図 (2026-09-18):** `results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` (一次資料全体から作った統制稿、限定 20 件) と `figures/fig9_a1_balanced5_sized_attempt1.{png,pdf,provenance.json}` (生成器 `tools/plotting/plot_a1_sized_paired.py`、3 workload の対差平均 ± h と床 ±B の記述図) が着地した。稿も図も descriptive であり、上の「変わらないこと」(非認証 lane・充足/formal 化/再認可の未判定・headline 値/横断結論/C1 再現判定にしない) はすべて維持される。
-  **attempt-0002 は投入されていない (2026-09-19):** ユーザー裁定 (2026-09-19) が独立再現として 1 attempt を認可したが、既存 submit 経路は qsub の前に `prior attempt reached the bench barrier; group rerun is prohibited` (driver の `_assert_no_prior_v3_bench_start`、規律 2 由来の防壁、commit `abff80d1b`) で拒否した。測定値は無く、attempt-0002 の results 稿・2 attempt の並記・図は存在しない。裁定に従い再投入せず止めた。一次資料と裁定パッケージ (同 study の 2 本目をどの経路で投入可能にするか、択 1〜3) は `output/insights/2026-09-19/a1-sized-attempt2/README.md` (§1〜§2、§7)。上の「変わらないこと」と L-A1S-4 (単一 attempt を反復間の安定性へ一般化しない) はそのまま残る。
-
+- **A-1 sized attempt-0002 は 1 attempt 認可されたが、既存 submit 経路の gate で qsub 前に拒否され投入されなかった (2026-09-19、
+  entry 1687、D2156)。** 同版 §8 の A-1 (「再投入・再認可はユーザー手番で判定されていない」「再投入は行われていない」) と §0 の前進 1・
+  §6・§7 の同趣旨は、執筆時点では真であった。ユーザー裁定 (2026-09-19) が「独立再現として 1 attempt を認可、非認証 lane を維持、
+  落ちたら再投入せず止める」と定め、投入前照合 21 項目はすべて成立したが、submit は 22:05:30→22:05:36 JST に rc 2、stderr
+  `paper-story A-1 refused: prior attempt reached the bench barrier; group rerun is prohibited` (`_assert_no_prior_v3_bench_start`、
+  規律 2 由来の防壁、commit `abff80d1b`) で停止した。**測定値は無く、attempt-0002 の results 稿・2 attempt の並記・図は存在しない。**
+  gate は緩めず、同じ study の 2 本目をどの経路で投入可能にするかは裁定パッケージ (択 1〜3) として返された。一次資料 =
+  `output/insights/2026-09-19/a1-sized-attempt2/README.md`。**同版の「A-1 の値がある」とは書かない扱いと、L-A1S-4 (単一 attempt を
+  反復間の安定性へ一般化しない) はそのまま残る。**
+- **B-10 静的右 tail の第 2 cohort (独立再現) が完走し、集団判定が出た (2026-09-19、entry 1690、D2157)。** 同版 §8 の B-10
+  (「第 2 cohort の地位は未決 (D2050) で再現 cohort の保留は維持 (D2120 項 16)」)、§4 の Fig 8 の注意 (「再現 cohort の保留は維持」)、
+  §6・§7・§9 の同趣旨は、執筆時点では真であった。ユーザー決定 (2026-09-19) 「第 2 cohort は独立再現。cohort 1 の verdict を主として
+  保持し、cohort 2 の verdict は再現欄に併記。合成しない」を結果を見る前に事前登録 `docs/b10-backoff-static-tail-preregistration.md`
+  の末尾追記 (commit `8737cacb4`、22:01 JST) で固定し (D2050 の充足)、group `b10-backoff-grid-20260919T131526Z-2235286`
+  (job `10752` / `10753` / `10754`) の集団 `verdict` は `not-observed-in-any-workload` (3 workload とも `not-observed`、18 区間すべて
+  `declining`、`failures` 空、正しさ 120 記録 certified・anomaly 0)。**cohort 1 と同じ verdict だが合成せず、言い方は事前登録 §4.5 の
+  固定表現に限り、「再現されたので飽和しない」とは書かない。`performance_certified: false` のまま。** 統制稿は
+  `results/2026-09-19-b10-static-tail-cohort2.md` (限定 16 件、図は無い — fig8 は cohort 1 の図で、再現欄の追加は別 wave)、一次資料は
+  `output/insights/2026-09-19/b10-tail-cohort2/README.md`。**B-10 は閉じていない。**
+- **K2 手動 loop の 3 巡目が critic-2 診断入りで実走された (2026-09-19、entry 1691)。** 同版 §0 の前進 9・§2 (c)・§6・§8 の B-6
+  (「3 巡目は未実走」「実受領・採用・効果は別の実走で確認する」) は執筆時点では真であった。ユーザー決定 (2026-09-19) 「候補の生成 1 回・
+  評価 1 本・同 job の stock 対照 1 本、再投入なし」の縮小走行で、D2155 の診断経路が初めて実走し、critic-2 逐語 → 6 field →
+  planner-4 (decrease / large) / coder-4 (`value=10` = 診断の候補値と同じ、既知値列挙外) → job `10761.nqsv` (Elapse 69 秒) が
+  serializable / certified / anomalies 0、median 815,983 tps (CV 0.16%)、停止判定 `continue`。critic-3 は帰属不能 (3 巡連続)。
+  **診断は既知値 20 / 25 を開示するので「値を見せていない」とは書かず、非同時刻の 3 走 (20 / 25 / 10) は改善・退行の根拠にしない。
+  同 job の stock 対照は未達 (縮小走行)。** 一次資料 = `output/insights/2026-09-19/k2-loop-round3/README.md`。
+- **B-4 床値 (floor-pair) の w1 が凍結 spec 3 本で実投入され、3 job とも terminal complete で完走した (2026-09-19〜20、entry 1693、
+  [T-2288] (b))。** 同版 §2 (c)・§8 の B-4 (「測定そのものは基準 HEAD の時点で始まっていない」) は執筆時点では真であった。実行 HEAD
+  `2ba400087` の detached checkout から rr95 `10711.nqsv` / rr50 `10712.nqsv` / rr5 `10713.nqsv` を投入し、初回実配送の証拠 (8 変数・
+  walltime・signal・到達段・receipt) を記録した。**w2 と finalize は後続 wave であり、集約発行・採用裁定・§5 記入は行われていない。
+  ablation (B-4 本体) は適格な赤 precursor 0 件のまま実施不可である。** 一次資料 = `output/insights/2026-09-19/t2288-floor-pair-w1/README.md`。
+- **freeze v2 g1 の chain を main へ運ぶ 2 度目の試みも land せず、記録だけが land した (2026-09-19、entry 1688)。** 同版 §8 の A-4
+  (「chain は main に未取り込み、A / X は人間手番、未発効」) は**今も真**であり、ここに積むのは理由が変わった点である — 保存枝
+  chain (X1' / X2) と G を merge した木 (三軸走査 hit 4/4 = 設計どおり、焦点走 8 file 0 failed) の受入全走が、B-10 の freeze-tree
+  byte pin 1 node (`test_b10_freeze_tree_bytes_match_the_wave_local_gate`) で赤になり、pin 更新は D2120 (b) の射程外として merge 済み
+  状態を branch `t2724-chain-land-2-saved` (`0a799da6c`) に保存した。一次資料 = `output/insights/2026-09-19/t2724-chain-land-2/README.md`。
+- **mocc の軽量 witness を hook branch に実装し 4 arm × 60 走を実測した (2026-09-19〜20、entry 1696)。** 同版の「観測 3 件」に
+  4 件目が加わる。on 0/60・0/60、off 1/60・1/60、discriminator 未発火。非 certifying で、昇格・pin 前進・変異探索は認可されていない
+  (ユーザー決定 2026-09-19)。測定は pin `e9e477ca` + [X/P、測定 patch] で TRACE=1 観測専用 (合成 source の TRACE=0 identity は未担保)。
+  認可枠 60/arm の検出力は 0.105 で上限として明記。一次資料 = `output/insights/2026-09-19/mocc-witlight-arm-run/README.md`。
+  **同版の「根因は未同定」「mocc は第 2 成功例とは書かない」は変わらない。**
+- **[T-2773] mocc の auditor-live 相当の機械実証 wave 2 が実走された (2026-09-20、entry 1701、D2159)。** 同版 §8 の C-1
+  (「後続は 2 wave」「wave 1 … 正式 template は含まず」) は執筆時点では真であった。ユーザー決定 (2026-09-19) が「mocc 温度述語軸の
+  オンボーディング段階 A を承認し wave 2 を認可する。探索および pin 前進は認可しない」と定め、温度述語 template (1 helper・1 hole・
+  4 callsite・OFF 原文保存) を `e9e477ca` へ接続し、compute (`11161.nqsv`) で 30 check all_pass、OFF = stock は実 resolver の正規化前処理
+  identity で一致・ON-B は別 identity、n=1 の fresh `auditor` 子の判定 (A1' reject / A2' reject / B' pass) を取った。**探索・pin 前進は
+  未解禁のまま。** 一次資料 = `output/insights/2026-09-19/t2773-mocc-template-wave2/README.md`。
+- **B-5 生成器対照 (K2 loop / ランダム変異 / 機械 sweep) の事前登録 v1 が作られた (2026-09-20、entry 1692、D2158)。** 同版 §8 の
+  B-5 (「設計は 3 アームで書かれ、非拘束の設計メモに留めてある (D1012)」) は執筆時点では真であった。`docs/b5-generator-contrast-preregistration.md`
+  (v1、**未発効**) が固定 backoff hole の内で 3 生成器を同一評価数で比べる主張の形・評価数予算・score・判定順を結果を見る前に固定した。
+  **本走・生成器の実装・D1409 の条件変更は認可されておらず、B-5 の対照は依然として未取得である。** 一次資料 =
+  `output/insights/2026-09-19/b5-generator-contrast-prereg/README.md`。
+- **A-2 認証系列の `scheduler.nodes=5` が policy に整合された (2026-09-19、entry 1686、[T-2489])。** 同版 §0 の前進 12・§7
+  (「基準 HEAD の A-2 policy は `nodes: 1` のまま」「D2148 項 5 の採用裁定は未実装」) は執筆時点では真であった。policy 1 key・literal pin・
+  host / nodefile / qsub fixture が同時に整合され、node-local lock の局所候補は計算ノード 2 台の実測 (`9137.nqsv`) で同一ノード内の
+  既存排他を失うため**不採用**となった。**A-2 の新しい attempt は走っておらず、A-2 の判定 (`observed-positive`) は動いていない。**
+  一次資料 = `output/insights/2026-09-19/t2489-a2-nodes5-local-lock/README.md`。
 - **採用候補 fixed 5 µs / fixed 10 µs の検証相 (独立 8 反復 × 3 workload の trace 検証) が走り、両候補とも 24 枠 anomaly ゼロだった — 同版 §8 の B-8「種を変えた長時間実行による最終候補の検証 —【未取得。変化なし】」に関連する追加検証が得られた (2026-09-19〜20、同版の導出後に成立)。B-8 自体を取得済みと書き換えるかは次版で仕分ける。** 2026-09-19 のユーザー裁定により、S-1 事前登録 (iv 付属) の対象 (系側 gate 構成) を採用候補 2 genome へ変え、同節の反復数 (8 × 3 workload)・校正規則 ({3, 6, 10} s、verifier wall ≤ 600 s の最大値)・判定規則 (全件 anomaly ゼロで pass) を**準用**した追加検証を Pegasus gen_S で走らせた (一次資料 = `output/insights/2026-09-20/verify-phase-adopted-backoff/README.md`、単独 results 稿 = `results/2026-09-20-verify-phase-adopted-backoff.md`)。校正で両候補とも extime 3 s に確定し、本走 24 枠 + 校正完走 6 verdict = 30 verify / 候補が すべて `serializable`・certified・anomaly 0 (校正 10 s の未完走 2 件 / 候補は verdict を持たず開示のみ)。**変わらないこと:** これは操作的事実であって 1−εⁿ の確率主張ではなく、性能値を含まず (規律 1)、A-2 / A-6 / [T-1998] の性能判定と既存 certified 記録は昇格も降格もしない (規律 7)。S-1 事前登録本文への「確定値の日付付き追記」は凍結束縛 (`output/s1-freeze/known_axes_freeze.json` の source sha256) により未履行の繰延べであり、同版の「独立した検証相を持たない」という S-1 最終報告の記述も S-1 自身については真のまま。B-8 を「取得済み」と書けるかは、当該 item の要件本文 (種を変えた長時間実行) に対し本検証相 (自己シードの独立反復、extime 3 s) が何を満たし何を満たさないかを次版で仕分ける。fixed-10 の source bytes は A-2 当時と patch 改訂 `91a5bfca3` 分だけ異なる (identity は現行 source に束縛)。
+- **同一候補 fixed 5 µs を 3 workload で同一 attempt・同時期に測り、各 workload の同 campaign 内 stock 対照との対差を D1639 の
+  between-run 床値と比べた B-7 の材料稿が着地した (2026-09-19、`results/2026-09-19-b7-fixed5-three-workload-regression.md`)。** 同版 §8 の
+  B-7 (「材料は事後の併記であって、同一 variant の横断比較と床値超の判定を供給していない」) は執筆時点では真であった。study
+  `paper-story-b7-fixed5-regression`、attempt `b7f5-20260919a` (request `10807` / `10808` / `10809`、source `c18a80967`、6 cell × 5 標本、
+  限定 14 件、図は無い) は、A-2 / A-6 と同じ certification 経路を descriptive に使った別 study instance で、判定規則 (対差 < −床値 で
+  退行、床値 = JSON 全桁) は結果を見る前に固定された (ユーザー裁定 2026-09-19)。機構の outer status は `reject` (3 workload の論理積、
+  read-heavy の負の効果の帰結)、稿の床値判定は write-heavy +67.8968% / balanced +12.6717% は退行なし、**read-heavy −11.3787% は床値
+  (−0.2228%) 超の退行**。correctness は別の trace-enabled 走行で 6 cell とも certified・anomaly 0 (性能の判定ではない)。
+  **B-7 の要件充足は判定しない (D2044 項 3)。既存材料 (2026-09-16 稿、workload 別採用値 10 / 5 / 2 µs) とは表を分けて併記し、プールしない。
+  certification の昇格でも有意差判定でもない。** 一次資料は同稿が指す権威 bytes。
 
-2026-09-17 版は同日 02:10 JST の local main
-(`fa24e6ea8`、[T-2630] と [T-2288] の記録の fold を含む) から導出している。前版 (2026-09-14 版) に対して積んでいた
-3 項目は、いずれも 2026-09-17 版が本文へ取り込んだのでここから外した。移管先は次のとおりである。
+2026-09-19 版は同日 21:41 JST の local main
+(`a99425b66`、worklog entry 1685 までの fold を含む) から導出している。前版 (2026-09-17 版) に対して積んでいた
+3 項目は、いずれも 2026-09-19 版が本文へ取り込んだのでここから外した。移管先は次のとおりである。
 
-1. **B-2 — `delta_min` の保持群ラベルの追補 (D2049、2026-09-16 実施)** → 同版 §0 の前進 6、§8 の B-2、
-   §5 の [T-1875] の項。片側の境界の説明に限定し、連言全体の受理集合が広がるとは書かない。
-2. **層3 の事実層は bench-first screening campaign を 2026-08-25 から対象にしている (entry 1539)** →
-   同版の冒頭の訂正 1、§1、§2 (c)、§3 の項目 3、§6、§8 の B-9。記録済み 7 件の双射・現行 producer で描画できる
-   集合・材料レポートを保存している 8 件の 3 つを分けて書く。保存した 1 件は非 certifying の歴史閲覧材料。
-3. **B-10 の静的 backoff 右 tail の本走が完走して集団判定が出た (2026-09-15)** → 同版 §0 の前進 2、
-   §2 (g) 項 9、§3 の項目 4、§4 (図は無い)、§6、§8 の B-10、§9 の第 4 種。言い方は事前登録 §4.5 の固定表現に
-   限り、`performance_certified: false`、当時の実行全体の独立監査は未実施。前版の 5 箇所 (当時は真) は
-   現在地の案内として更新した。
+1. **Silo 固定スコープの解除 (D2114、2026-09-17)** → 同版 §0 の前進 3、§1 (スコープの段落)、§2 (b) 項 1、§6 の
+   「言えること」と「言えないこと」、§7、§8 の C-1。方針と準備の着手だけが変わり、事実 (非 Silo の性能比較 0 件、
+   pin `511c9538`) は変わっていないと書き、「広げた」「選定が成立した」「mocc は第 2 成功例」とは書かない。
+2. **B-10 静的 backoff 右 tail 09-15 正式 cohort の論文図 fig8 (2026-09-17)** → 同版 §0 の前進 5、§2 第 2 幕の機序の項、
+   §3 の項目 4、§4 (表の Fig 8 行と「Fig 8 について守ること」)、§6、§8 の B-10、§9 の第 4 種。言い方は事前登録 §4.5 の
+   固定表現に限り、`performance_certified: false`、図の成立で B-10 は閉じず再現 cohort の保留は維持 (D2120 項 16)。
+   前版と results 稿の「図は無い」は当時は真として書き換えない。
+3. **A-1 balanced5 sized 本走の attempt-0001 の完走 (2026-09-18) と単独稿・fig9** → 同版 §0 の前進 1、§2 第 2 幕の
+   測定契約の項、§2 (f) の第 4、§3 の項目 4、§4 (表の Fig 9 行と「Fig 9 について守ること」)、§6、§7、§8 の exact claim と
+   A-1、§9 の第 4 種。非認証 lane の descriptive 出力として置き、「A-1 の値がある」とは書かず、A-1 の充足・formal 化・
+   再投入・再認可は未判定 (ユーザー手番、D2044 項 8 / D2120 項 3) と書く。claim-evidence 稿の A-1 行は凍結物として不変。
 
-**積んでいる項目の少なさは「最新版に誤りが無い」という保証ではない。** 2026-09-17 版自身が、前版が
-執筆時点で既に偽だった記述を 3 件 (上の訂正一覧) 見つけている。同じ型の誤りが最新版にもありうる。
+**積んでいる項目の数は「最新版に誤りが有る」ことも「無い」ことも保証しない。** 上の 9 件はいずれも「当時は真で後続が古くした」型であり、執筆時点の誤りではない。2026-09-19 版は前版の執筆時点の誤りを 0 件と判定したが、2026-09-17 版が自分の前版に
+執筆時点で既に偽だった記述を 3 件 (前版の冒頭) 見つけた型の誤りは、最新版にもありうる。
 **次に正典が動いたら、その項目をここへ積む。**
 **項目が積まれること自体は、新しい日付の版を作る要求にはならない** (D1858)。
 
