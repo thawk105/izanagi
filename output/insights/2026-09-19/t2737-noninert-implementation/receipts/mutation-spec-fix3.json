@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M7-guard-exclusion-widened-to-modified-files",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "            if not any(line.startswith(\"new file mode \") for line in lines):\n                continue\n",
+          "new": "            if False:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-guard-exclusion-accepts-valued-define",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\s*\",\n                                     file_added[first + 1])\n",
+          "new": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\b.*\",\n                                     file_added[first + 1])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

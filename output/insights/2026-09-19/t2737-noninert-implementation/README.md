@@ -81,3 +81,52 @@ transactionに `publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);` の消�
 harnessは5 KILLED・1 SURVIVED、全6件が事前の自動判定期待と一致、MISMATCH/PARSE_ERROR/TIMEOUTは0。
 wrapper rc=0、共有木の前後観測一致、復元・teardown完了。原台帳とwrapper受領証は `receipts/`。
 受入全走はこの記録commit時点では未実施。実装と計器保存、局所の検出力をcontrols全体の成立へ拡張しない。
+
+## 受入の赤と目録testの修正 (回収session、2026-09-19 21:29〜23:30 JST)
+
+記録commit `fdbf21820` の後に中断したwaveを回収した。main `2ba400087` (baseから35 commit) を統合commit
+`4c9d9ecc2` で取り込み (衝突は `docs/phase3.md` の先頭項目1か所、両項目を保持)、check_docs・spool dry-run・
+焦点走 (`test_ss2pl_lock_study.py` + `test_hooks.py`、586 passed) を緑にしてから受入全走を投入した。
+
+受入attempt 1 (21:29〜21:39、tested main `2ba400087`、tip `4c9d9ecc2`、3 shard) は **3 failed / 25276 passed /
+69 skipped**。赤はすべて `orchestrator/tests/test_ccbench_spawn_sites.py` の define 目録:
+`test_patch_define_inventory_matches_condition_gate_registry` (`SS2PL_WFG_HH`・`SS2PL_LOCK_HH`・
+`SS2PL_STUDY_LOCK_HH` が `DEFINE_SPECS` に無い)、`..._classifies_t2155_production_sinks_exactly`
+(`proven-unreachable` 38≠35)、`..._t2520_certify_entry_removal` (同 28≠25)。F945型ではない。
+
+原因は本wave起因である。3 macroは patch c (一次資料 §1.1、`#pragma once` が `-E -P` に残渣を残すため
+新規header 3本を include guard へ) の guard で、baseとmainの patch には無い (どちらも hit 0)。目録関数
+`_patch_added_define_interfaces()` は patch が足した `#if/#ifndef` 条件の新規 macro を外部供給 TU define と
+みなして registry と照合するが、include guard 慣用句の構造的除外を持っていなかった (他の patch は新規 header を
+足していないため前例が無い)。焦点走が `patches/` を directory glob で読む consumer test を名前検索で落とした
+点は F386 の再発として台帳へ追記した。
+
+裁定 (`verbatim/fix3-ruling.md`): `#pragma once` への復帰は裁定違反、`DEFINE_SPECS` 登録は supply macro 化、
+期待値更新・skip・deselect は弱体化なので採らず、目録関数に「新規 file の先頭 `#ifndef X`・直後の値なし
+`#define X`・末尾 `#endif`」の慣用句だけを除く構造的除外を Codex author で足した (fix3、+53/-8、
+`verbatim/fix3.md`、統合commit `134ea235c`)。焦点走 (spawn_sites + ss2pl + plain_runner_coverage +
+real-repo meta 2 node、計算ノード 10723.nqsv) は 180 passed / 2 skipped。
+
+受理集合が変わる変更なので read-only の焦点再レビュー (`verbatim/focus3.md`) を1本入れたところ **NO-GO**:
+fix3 は guard macro X をその file の全条件行から除くため、guard 形の新規 file が本文で `#if X + 0` を使うと
+外部供給 macro X が候補から消える (反例 escape.hh)。fix4 (`verbatim/fix4-ruling.md`、`verbatim/fix4.md`、
++12/-1、統合commit `7f24b1c32`) で除外を guard 自身の `#ifndef X` 行1行に限り、反例を unit test の負例に
+足した。焦点走 (10762.nqsv) は 180 passed / 2 skipped。実物の patch では guard 3個以外に候補差は無く、
+`SS2PL_LOCK_IMPL`・`SS2PL_LOCK_KIND`・`SS2PL_DLR`・`SS2PL_WFG_DIAG` は候補に残る (focus3 の実測)。
+
+変異は fix 最終commit `7f24b1c32` を独立cloneの main に固定して再走した (`receipts/mutation-spec-fix4.json`、
+`receipts/mutation-ledger-fix4.json`、`receipts/mutation-wrapper-fix4.json`)。runner は
+`run_tests.py --force-dispatch orchestrator/tests/test_ccbench_spawn_sites.py`、baseline PASSED。
+
+| 変異 | 実測結果 | 殺した test |
+|---|---|---|
+| M7 除外を変更 file の guard へ拡大 | KILLED | 負例 (変更 file 内 guard が候補から消える) |
+| M8 値付き `#define X 0` も除外 | KILLED | 負例 (既定値慣用句が候補から消える) |
+| M9 除外を file 全条件行へ (fix3 の挙動) | KILLED | 負例 escape.hh (`#if X + 0` の X が候補から消える) |
+
+3件とも期待 node (`test_patch_define_inventory_excludes_only_new_file_include_guards`) だけで KILLED、
+MISMATCH/SURVIVED/TIMEOUT は 0、wrapper は共有木の前後一致・teardown 完了。fix3 版の M7/M8 (2 KILLED、
+`receipts/mutation-ledger-fix3.json`) は fix4 で置き換えた参考値として保持する。
+Codex 子は fix3 11 call / 215秒、fix4 7 call / 106秒、focus3 6 call / 127秒。子はいずれも計算ノードの
+dispatch preflight で pytest を起動できず「実装済み・未実走」で報告し、実走はすべて親が行った。
+この節の時点で受入再走・land は未実施。

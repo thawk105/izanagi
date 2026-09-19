@@ -35,8 +35,6 @@ title: [T-2737] D2148項4のSS2PL依存準備と非inert差分を接続し、pha
 
 ## 次の一手差分
 
-### 完了
+### carry
 
-- [T-2737] D2148項4のhelper接続と非inert局所修正、phase1条件・計器呼出し保存の検証を完了した。controls全体は未成立のまま、inert側の契約は変更しない。
-  remaining: none
-  base: 26025c5cd7c51c3e144cff72b3a2a31863e40953e922a9a17833ccb705e5c8a8
+- [T-2737]
