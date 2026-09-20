@@ -189,6 +189,7 @@ baseline PASSED (rc 0、37.6 秒)。**M0 SURVIVED (等価対照)、M1〜M17 は�
 - 裁定パッケージ候補 (実装せず): `build_admission.derive_build_admission` の stock-baseline 分岐が full PIN と短縮 `CURRENT_PIN` を exact 比較する点
   (S4 の stock は machine-generated class で admission される)。正規化は admission gate の変更なのでユーザー裁定。
 - 設計メモ (scope 外、DW-G04): stock 先行 (planner 前) の順序選択 env、block stock の配置、実 argv の独立 receipt。
+- 段 8 (skill 自己改善) の候補 1 件、実装せず裁定パッケージ候補へ: `docs/dev-wave/operations.md` の DW-O26「同一 worktree からの dispatch は全種を直列にする」へ「provenance の range 監査 (`check_ai_provenance.py --range`) も login の memory 予算次第で計算ノードへ dispatch しうる」の 1 句を足す案。本 wave で焦点走 2 が同 worktree の監査 dispatch と衝突して rc=16 (走行ゼロ) になった実測が発火根拠。試したところ DW-O26 は exact 契約 pin と単節予算 1000 bytes (1031 bytes に超過) に当たるため、Codex author + fixture placeholder + 予算増が要り、`docs/skill-self-improvement.md` の「予算の変更は実装せず裁定パッケージへ送る」に従って記録だけ置く (編集は戻した)。
 
 ## 8. 一次資料
 
