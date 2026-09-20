@@ -1301,6 +1301,17 @@
   行分割は old / new に改行を含めた複数行 anchor で吸収する。再照準した変異は裁定へ追補として書き、
   段 6 の焦点再レビューに「台帳の replacements と登録の逐語一致」を点検項目として渡す。**
   一次資料は `output/insights/2026-09-16/t2482-scope-wording/README.md` の変異台帳節。
+
+- **再発: 2026-09-21** — [T-2797] wave で、変異の期待 node を `DW-M07` の probe 経路で**実測して**登録したが、
+  probe を走らせた統合 commit 4 の後に fix3 (commit 5) が test 1 本 (`test_b5_string_preflight_rejection_uses_wal_and_rc0`) を足し、
+  fix 最終 commit で期待 node を再検証せずに final を走らせたため、M10 / M11 の観測が期待の上位集合 (差は当該 test 1 本) になり
+  **MISMATCH 2 件**を出した (変異は 2 件とも rc=1 で殺されており、無効なのは期待集合)。型は F28 の「事前登録を実測でなく設計から書いた」
+  の新しい顕在化で、**実測はしたが fix 前の commit の実測で、fix 後には古くなっていた** (2026-08-16 の対応表転記、2026-08-25 の子の自己申告に続く
+  第 3 の転記元 = 古い probe)。`DW-M07` の「本走前に fix 最終 commit で old 逐語 anchor・期待 node を再検証」を anchor だけ (`--plan-only`) で済ませ、
+  期待 node の再検証を省いたのが直接原因。`DW-M08` に従い初回結果を消さず erratum を残し、final 走の観測を完全集合として再登録して
+  final2 (2 件) を再走し KILLED (期待 = 観測) で閉じた。恒久対応は変更なし (`DW-M07` の再検証は anchor と期待 node の両方を対象にする、
+  という既存文のとおり) — 手順として「fix commit が test を足したら、その test file を含む probe を fix 最終 commit で再走してから final」を
+  親の memory へ置く。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
