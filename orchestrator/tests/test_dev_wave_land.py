@@ -3013,6 +3013,79 @@ def test_gitlink_change_lands_but_cannot_report_success_before_d16_sync() -> Non
         ) == (LAND.RC_OK, "already-landed"), synchronized
 
 
+def test_gitlink_change_with_pending_fold_resumes_after_d16_sync() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        submodule = repo.root / "submodule-source"
+        subprocess.run(
+            [REAL_GIT, "init", "-q", "-b", "main", str(submodule)],
+            check=True,
+        )
+        _git(submodule, "config", "user.name", "Dev Wave Test")
+        _git(submodule, "config", "user.email", "dev-wave@example.invalid")
+        (submodule / "sub.txt").write_text("sub\n", encoding="utf-8")
+        _git(submodule, "add", "sub.txt")
+        _git(submodule, "commit", "-qm", "submodule base")
+        old_submodule_tip = _git(submodule, "rev-parse", "HEAD")
+        (submodule / "sub.txt").write_text("sub updated\n", encoding="utf-8")
+        _git(submodule, "commit", "-qam", "submodule target")
+        expected_submodule_tip = _git(submodule, "rev-parse", "HEAD")
+        _git(
+            wave, "-c", "protocol.file.allow=always",
+            "submodule", "add", "-q", str(submodule), "vendor/submodule",
+        )
+        _git(wave, "commit", "-qm", "change gitlink")
+        tip = _wait_budget_fold_tip(repo, wave)
+        folded_before = (repo.main / "docs/spool/FOLDED.md").read_bytes()
+        result = _land(repo.request(wave, tip=tip))
+        assert (
+            result.rc,
+            result.status,
+        ) == (
+            LAND.RC_LANDED_POSTCONDITION_FAILED,
+            "landed-postcondition-failed",
+        ), result
+        assert "D16" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        registry = _turn_registry_snapshot(repo)
+        assert len(registry["requests"]) == 1
+        entry = next(iter(registry["requests"].values()))
+        ticket = repo.main / ".git/dev-wave-land-turn" / entry["ticket"]
+        record = json.loads(ticket.read_text().splitlines()[-1])["record"]
+        assert record["expected_fold"] == "planned"
+        assert record["phase"] == "waiting"
+        request = repo.request(wave, tip=tip)
+
+        uninitialized = _land(request)
+        assert (
+            uninitialized.rc,
+            uninitialized.status,
+        ) == (
+            LAND.RC_LANDED_POSTCONDITION_FAILED,
+            "landed-postcondition-failed",
+        ), uninitialized
+
+        _git(
+            repo.main, "-c", "protocol.file.allow=always",
+            "submodule", "update", "--init", "--recursive",
+        )
+        main_submodule = repo.main / "vendor" / "submodule"
+        assert _git(main_submodule, "rev-parse", "HEAD") == expected_submodule_tip
+        _git(main_submodule, "checkout", "-q", old_submodule_tip)
+        mismatched = _land(request)
+        assert mismatched.rc != LAND.RC_OK, mismatched
+
+        _git(main_submodule, "checkout", "-q", expected_submodule_tip)
+        synchronized = _land(request)
+        assert (
+            synchronized.rc,
+            synchronized.status,
+        ) == (LAND.RC_OK, "landed"), synchronized
+        assert _git(repo.main, "rev-parse", "HEAD") == synchronized.fold_commit_sha
+        assert _git(repo.main, "rev-parse", "HEAD^1") == tip
+        assert (repo.main / "docs/spool/FOLDED.md").read_bytes() != folded_before
+
+
 def test_deleted_gitlink_recovery_requires_worktree_and_nested_metadata_absent() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
@@ -3967,11 +4040,11 @@ def test_land_still_rejects_protected_unregistered_or_unsafe_child() -> None:
             assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
-@pytest.mark.parametrize("phase", ["rolled-back", "ff-done", "finalized"])
+@pytest.mark.parametrize("phase", ["rolled-back", "ff-done", "finalized", "ff-done-fold-pending"])
 def test_land_turn_dead_mutating_resolved_by_observation(phase) -> None:
     with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
         wave = repo.waves["a"]
-        tip = (_wait_budget_fold_tip(repo, wave) if phase == "finalized"
+        tip = (_wait_budget_fold_tip(repo, wave) if phase in {"finalized", "ff-done-fold-pending"}
                else repo.commit(wave, "wave.txt", "wave\n"))
         request = repo.request(wave, tip=tip)
         real_mark = LAND._land_turn_mutating
@@ -3987,16 +4060,33 @@ def test_land_turn_dead_mutating_resolved_by_observation(phase) -> None:
                 raise _TurnSchedulerStopped()
             return real_finish(repository, result)
 
-        with (_patched_land_attr("_land_turn_mutating", marked),
+        real_postcondition = LAND._postcondition
+
+        def postcondition(*args, **kwargs):
+            result = real_postcondition(*args, **kwargs)
+            if phase == "ff-done-fold-pending":
+                assert result.rc == LAND.RC_OK
+                raise _TurnSchedulerStopped()
+            return result
+
+        with (_patched_land_attr("_postcondition", postcondition),
+              _patched_land_attr("_land_turn_mutating", marked),
               _patched_land_attr("_finish_land_turn", finished)):
             with pytest.raises(_TurnSchedulerStopped):
                 _land_real_gate(request)
         before = _git(repo.main, "rev-parse", "HEAD")
         assert before == (repo.base if phase == "rolled-back" else
-                          tip if phase == "ff-done" else before)
+                          tip if phase in {"ff-done", "ff-done-fold-pending"} else before)
         if phase == "finalized":
             assert before != tip and _git(repo.main, "rev-parse", "HEAD^1") == tip
         assert not (repo.main / ".git" / LAND._FOLD_STATE_NAME).exists()
+        old = _turn_registry_snapshot(repo)
+        dead_key, dead_entry = next(iter(old["requests"].items()))
+        if phase == "ff-done-fold-pending":
+            ticket = repo.main / ".git/dev-wave-land-turn" / dead_entry["ticket"]
+            record = json.loads(ticket.read_text().splitlines()[-1])["record"]
+            assert record["phase"] == "mutating"
+            assert record["expected_fold"] == "planned"
         next_request = repo.request(repo.waves["b"], acceptance_wave="successor")
         with _queued_land_turn(repo, next_request) as (repository, turn):
             lock = LAND._LandLockHandle()
@@ -4006,13 +4096,47 @@ def test_land_turn_dead_mutating_resolved_by_observation(phase) -> None:
             finally:
                 lock.close()
             entries = _turn_registry_snapshot(repo)["requests"]
-            assert len(entries) == (2 if phase == "rolled-back" else 1)
+            assert len(entries) == (2 if phase in {"rolled-back", "ff-done-fold-pending"} else 1)
+            if phase == "ff-done-fold-pending":
+                assert entries[dead_key] == dead_entry
+                latest = LAND._turn_last_record(turn, entries[dead_key])
+                assert latest["phase"] == "waiting"
+                assert latest["expected_fold"] == "planned"
         assert _git(repo.main, "rev-parse", "HEAD") == before
 
 
 test_land_turn_dead_mutating_resolved_by_observation._plain_cases = [
-    ("rolled-back",), ("ff-done",), ("finalized",),
+    ("rolled-back",), ("ff-done",), ("finalized",), ("ff-done-fold-pending",),
 ]
+
+
+def test_land_turn_dead_mutating_unknown_head_remains_unresolved() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        wave = repo.waves["a"]
+        tip = _wait_budget_fold_tip(repo, wave)
+        request = repo.request(wave, tip=tip)
+        with _granted_land_turn(repo, request) as first:
+            LAND._land_turn_mutating(
+                first, plan=type("Planned", (), {"status": "planned"})(),
+                main_before=repo.base, landing_tip=tip,
+                wave_ref=_git(wave, "symbolic-ref", "HEAD"),
+                trusted_main_cutoff=repo.base, landed_commits=request.audited_commits,
+            )
+            key = first.turn.key
+        current = repo.commit(repo.main, "unrelated.txt", "unrelated\n")
+        assert current not in {repo.base, tip}
+        assert _git(repo.main, "rev-parse", "HEAD^1") != tip
+        with _queued_land_turn(repo, repo.request(repo.waves["b"])) as (repository, turn):
+            lock = LAND._LandLockHandle()
+            try:
+                with pytest.raises(LAND._Reject, match="unresolved mutating turn") as caught:
+                    LAND._wait_land_turn(repository, lock)
+                assert caught.value.rc == LAND.RC_FOLD_RECOVERY_FAILED
+                assert caught.value.retryable_same_request
+            finally:
+                lock.close()
+            entry = _turn_registry_snapshot(repo)["requests"][key]
+            assert LAND._turn_last_record(turn, entry)["phase"] == "mutating"
 
 
 def test_land_turn_dead_mutating_two_observers_do_not_duplicate_records() -> None:
