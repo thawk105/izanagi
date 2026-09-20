@@ -574,10 +574,10 @@ _SYNTHETIC_CLEANUP_DESCRIPTION = (
     "deletion needs explicit $cleanup-branches."
 )
 _EXPECTED_CLEANUP_SKILL_SHA256 = (
-    "268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea"
+    "c7a840a8cd718c26513f74d063392bbb738d9616d33429c589631b5e79b15876"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "7cc008fabc10b3b495eedfeb0bfbee2de14a3c908e1eb5aa6dd7ff4d7ebaf8ae"
+    "a838dbbccac10c9bb31d14c54357d29941a44ce51efbb1faa5375d9f8a4d264b"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -608,6 +608,10 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
   unknown、棚卸し後の change、新しい residency があれば停止する。
 - `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
   `git worktree prune` を実行せず、preview と残作業を人間へ引き渡す。
+- 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
+  「証拠の所在」節) を経るまで foreign/unknown と同じく保持して報告する。
+- dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・entry 数照合) を前提にし、
+  検算を欠く撤去手順を人間へ渡さない (F1034)。
 - sandbox または shared Git metadata の権限が不足する場合は権限を拡大しない。安全に実行できた操作、
   対象、未実行操作を人間へ返す。
 
@@ -625,7 +629,7 @@ _SYNTHETIC_CLEANUP_OPENAI_YAML = """interface:
 """
 _SYNTHETIC_CLEANUP_COMMAND = """---
 description: マージ済みブランチと worktree を安全手順で掃除する (submodule 罠対応、push 系はユーザー引き渡し)
-argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。省略時は全量棚卸しして安全なものだけ削除]
+argument-hint: [任意: 対象限定 (branch/worktree 名)。省略時は全量棚卸し]
 ---
 
 ## 0. 最優先 mutation boundary
@@ -644,9 +648,7 @@ branch/worktree の新規作成、surviving worktree の tracked/untracked file�
 handoff/worklog/spool/insight/failure/decision の作成、`git add/commit/amend/merge/rebase/cherry-pick/reset`、
 同一実行内の自己改善、local main/commit graph/remote の変更、push を禁止する。repo file を変更しない
 cleanup では project tests・build・provenance 監査も行わない。未確定事項・新しい罠・prompt 不備は
-final で裁定候補として返し、実装・記録・commit は後から明示起動された別 dev-wave だけが行う。
-
-削除は不可逆に近いので、以下の条件を満たすものだけ消し、迷ったら残して報告する。
+final で裁定候補として返し、実装・記録は明示起動された別 dev-wave だけが行う。
 
 ## 1. 棚卸し (削除の前に全量を見る)
 
@@ -654,8 +656,7 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 - `git worktree list` / `git branch -a` を列挙。全 local branch の
   `git rev-list --count --left-right <b>...main` (左=ahead 右=behind) と
   ahead>0 のみ `git cherry main <b>` を各 1 command に集約。
-  rebase/cherry-pick 後も ahead>0。`+` 行は実在でなく内容判定
-  (spool 不在は fold で正常)。未着地は §5 へ
+  `+` 行は実在でなく内容判定 (spool 不在は fold で正常)。未着地は §5 へ
 - 除外対象含む全 worktree の `GIT_OPTIONAL_LOCKS=0 git status --short` を §4 用に保存。
   独立な読み取り並列可。読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止。
   対象入り argv の全読み取り終了後、§2 の安い条件通過対象のみ §3 の占有検査へ。
@@ -670,6 +671,8 @@ final で裁定候補として返し、実装・記録・commit は後から明�
   worktree: HEAD 直近 (目安 1h) は保持、main 取込済み必須。
   branch: **ahead=0 (main 取込済み)** のみ `git branch -d` (`-D` 禁止)。
   -d 拒否は取込漏れの兆候、停止・報告
+- 未追跡 `output/` (`exploration/`・`env/`) は該当 wave の insight「証拠の所在」節で
+  repo 外原本か確かめ、原本なら候補にせず残置・報告 (F1034)
 - 高い条件: 削除直前に §1 の status 空を再確認。§3 の占有・判定不能は保持。
   迷えばユーザー確認。対象内で作業中は先に main checkout へ退出
 
@@ -679,31 +682,33 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
 1. `git -C <worktree> checkout --detach`
-2. `git branch -d <branch>` (取り込み済み確認の上)
+2. `git branch -d <branch>`
 3. 全対象の 1・2・占有検査の後、dir 撤去は
    `python3 tools/cleanup_remove_dirs.py -- <絶対path>...` を前景 1 回 (setsid・nohup・& 禁止)。
    rc0 (全件 removed) 以外は停止。detach・branch 削除・prune は直列。rc0 後
    `git worktree prune --dry-run --verbose` の全候補＝今回所有確認済み対象なら
    `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
+§5 で引き渡す dirty 撤去 script も本節に従い、退避を撤去の前提にする: tar は `-C <worktree>`
+を `-T` の前に置き、`ls-files -o` の list と entry 数が一致しなければ撤去しない (F1034)。
+
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
 
-ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
-`git log` で確認し、`action: keep` で抜けて本節の手順で畳む。
-cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) や occupied/locked worktree は、
+ExitWorktree の remove を `discard_changes: true` で押し切らず、main が当該 commit を含むと
+確認して `action: keep` で抜け、本節で畳む。
+cwd 固定の背景セッションや occupied/locked worktree は、
 detach・unlock・branch/directory 削除・prune を行わず、そのまま引き渡す (F51)。
 
 ## 4. 事後検査
 
 - `git worktree list` / `git branch` が期待どおり
-- `git submodule status` — main checkout の external/ccbench が `-` prefix なし (初期化済み) で
-  pin に一致すること
+- `git submodule status` — main checkout の external/ccbench が初期化済み (`-` なし) で pin 一致
 - cleanup 前の status を保存し、surviving worktree・index・repo file に新しい差分が無い
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-リモート branch の削除 (`git push origin --delete <b>`) と main の push は行わず、対象をユーザーへ列挙。
+remote branch の削除と main の push は行わず、対象をユーザーへ列挙。
 削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
 
 ## 6. 自己改善候補の終端
@@ -9944,13 +9949,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_181
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_181
-        oversized = original + "\n" + "x" * 23
+        assert len(original.encode("utf-8")) == 6_201
+        oversized = original + "\n" + "x" * 3
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 
