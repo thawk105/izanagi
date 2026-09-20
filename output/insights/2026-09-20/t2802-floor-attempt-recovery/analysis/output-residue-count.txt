@@ -1,0 +1,19 @@
+== /work/1/SFC/tanab/izanagi/.codex/worktrees/t2802-base-a
+output files: 25740  bytes: 763548892
+pegasus-dispatch files: 9  bytes: 5127908  entries: 2
+largest 5 under pegasus-dispatch:
+2970460 output/pegasus-dispatch/1cb82f7a833356f10ac5a34db843bfd4/izdw-1cb82f7a83.o11950
+2143234 output/pegasus-dispatch/1cb82f7a833356f10ac5a34db843bfd4/receipt.json
+2924 output/pegasus-dispatch/1cb82f7a833356f10ac5a34db843bfd4/izdw-1cb82f7a83.e11950
+2147 output/pegasus-dispatch/1cb82f7a833356f10ac5a34db843bfd4/dispatch.sh
+373 output/pegasus-dispatch/1cb82f7a833356f10ac5a34db843bfd4/request.json
+== /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2802-floor-attempt-recovery
+output files: 25762  bytes: 763688770
+pegasus-dispatch files: 33  bytes: 5251350  entries: 5
+largest 5 under pegasus-dispatch:
+2982426 output/pegasus-dispatch/116a14cbd460045f15d503b94ab05fba/izdw-116a14cbd4.o11949
+2135480 output/pegasus-dispatch/116a14cbd460045f15d503b94ab05fba/receipt.json
+34058 output/pegasus-dispatch/4bf4b1646d845236e611ca657296f71d/receipt.json
+25936 output/pegasus-dispatch/baffd539f1ae8cfd8b80f29b4c990d46/receipt.json
+17166 output/pegasus-dispatch/49b447ef825740aa31f085f90ad5ce46/receipt.json
+2026-09-20T13:53:24+0900

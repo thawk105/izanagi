@@ -1,0 +1,383 @@
+{
+  "schema": "izanagi-k2-loop-flow-figure-provenance/v1",
+  "generated_utc": "2026-09-20T06:02:37.817732+00:00",
+  "figure_created": "2026-09-20",
+  "caption_source": {
+    "path": "docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md",
+    "sha256": "1b0f6f568f17af4967362cb864a14c18ef9220f826e257c113da0065bb512758"
+  },
+  "inputs": [
+    {
+      "kind": "flow",
+      "path": "tools/plotting/k2_loop_flow_2026-09-20.json",
+      "sha256": "95944c0877a3449930a188d95c8c91995682f0a9e0f3ead0041f05c8daa3c1e8"
+    },
+    {
+      "kind": "caption_source",
+      "path": "docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md",
+      "sha256": "1b0f6f568f17af4967362cb864a14c18ef9220f826e257c113da0065bb512758"
+    },
+    {
+      "kind": "role_definition",
+      "path": ".claude/agents/planner-v4.md",
+      "sha256": "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027"
+    },
+    {
+      "kind": "role_definition",
+      "path": ".claude/agents/coder-v4-autonomous-k2.md",
+      "sha256": "5d730eeaf09b639ef146157e6a7fe4786e79ace60af3de5c15bb23a16bf9e427"
+    },
+    {
+      "kind": "role_definition",
+      "path": ".claude/agents/critic.md",
+      "sha256": "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b"
+    }
+  ],
+  "generator": {
+    "path": "tools/plotting/plot_k2_loop_flow.py",
+    "sha256": "9aa05ad82288cd6dc531fafcaa9d7b8dc425ecb9818964e04845766c2792a515"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig12_k2_manual_loop_dataflow.png",
+      "sha256": "a6f2b550bd67ddfd05db193493736ef388b2a9f24d60916cb8964607dc3df991"
+    },
+    {
+      "path": "docs/paper-story/figures/fig12_k2_manual_loop_dataflow.pdf",
+      "sha256": "c280037fe72fb60c4420864f1de1df1b28bbf5a7b5ed1c104d13244f2493cfcf"
+    }
+  ],
+  "drawn_items": [
+    {
+      "id": "title",
+      "kind": "title",
+      "text": "K2 manual loop: data flow over three recorded rounds (schematic; no performance values)"
+    },
+    {
+      "id": "subtitle",
+      "kind": "subtitle",
+      "text": "Source: frozen results note 2026-09-20-k2-manual-loop-three-rounds.md (SHA-256 in provenance); figure created 2026-09-20"
+    },
+    {
+      "id": "knowledge",
+      "kind": "knowledge",
+      "text": "K2 knowledge source (identical source bytes in all rounds) a measurement WAL from another machine; manifest receipt verified inside the job; declared as data, not instructions"
+    },
+    {
+      "id": "lane-parent",
+      "kind": "lane",
+      "text": "Parent session: typed projection builds the planner and coder input JSON, sends the full JSON inline, runs preflight checks on the login node (per round records)"
+    },
+    {
+      "id": "lane-planner",
+      "kind": "lane",
+      "text": "planner-v4 no tool access (structural blockade of tool use); outputs direction and magnitude, no value, no mechanism"
+    },
+    {
+      "id": "lane-coder",
+      "kind": "lane",
+      "text": "coder-v4-autonomous-k2 no tool access (structural blockade of tool use); outputs a backoff literal and self-reports knowledge use and data boundary"
+    },
+    {
+      "id": "lane-proposal",
+      "kind": "lane",
+      "text": "Proposal file a backoff hole literal; run-card known-value re-proposals are recorded, not counted as new values"
+    },
+    {
+      "id": "lane-evaluation",
+      "kind": "lane",
+      "text": "Evaluation: Pegasus compute-node job separate trace-enabled verify and trace-disabled bench builds and runs; campaign WAL terminal record"
+    },
+    {
+      "id": "lane-critic",
+      "kind": "lane",
+      "text": "critic legacy role with Bash; reads digest and WAL; not B-4 material"
+    },
+    {
+      "id": "round-1",
+      "kind": "column",
+      "text": "Round 1 proposal 2026-09-16 (per round records) \u00b7 evaluation 2026-09-16 (job log)"
+    },
+    {
+      "id": "round-1.parent",
+      "kind": "cell",
+      "text": "planner: current_perf, leading_indicators, whiteboard, knowledge_input coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context current_perf from the knowledge source's last bench record; whiteboard empty"
+    },
+    {
+      "id": "round-1.planner",
+      "kind": "cell",
+      "text": "planner-1 decrease / medium instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-1.coder",
+      "kind": "cell",
+      "text": "coder-1 synthesizes one backoff literal instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-1.proposal",
+      "kind": "cell",
+      "text": "proposal-1 backoff literal 20 in the run-card known set evaluated re-proposal of a known literal, evaluated under the round authorization"
+    },
+    {
+      "id": "round-1.evaluation",
+      "kind": "cell",
+      "text": "job 1216 verdict serializable; certified; no anomaly; stop: continue legacy verify condition"
+    },
+    {
+      "id": "round-1.critic",
+      "kind": "cell",
+      "text": "critic-1 not attributable to any design choice same-campaign stock control first (R0) instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-2",
+      "kind": "column",
+      "text": "Round 2 proposal 2026-09-16 (per round records) \u00b7 evaluation 2026-09-18 (job log)"
+    },
+    {
+      "id": "round-2.parent",
+      "kind": "cell",
+      "text": "planner: current_perf, leading_indicators, whiteboard, knowledge_input coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context current_perf and whiteboard from the previous evaluation"
+    },
+    {
+      "id": "round-2.planner",
+      "kind": "cell",
+      "text": "planner-2 decrease / small instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-2.coder",
+      "kind": "cell",
+      "text": "coder-2 synthesizes one backoff literal instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-2.proposal",
+      "kind": "cell",
+      "text": "proposal-2 backoff literal 25 outside the run-card known set evaluated submitted for evaluation"
+    },
+    {
+      "id": "round-2.evaluation",
+      "kind": "cell",
+      "text": "job 4954 refused at preflight: job 4947 verdict serializable; certified; no anomaly; stop: continue the refused submission did not reach the campaign"
+    },
+    {
+      "id": "round-2.critic",
+      "kind": "cell",
+      "text": "critic-2 not attributable; runs are not contemporaneous decrease, large; same-job stock control first (R0) instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "after-round-2",
+      "kind": "column",
+      "text": "After round 2 (not a round) proposal 2026-09-18 (per round records) \u00b7 evaluation: none"
+    },
+    {
+      "id": "after-round-2.parent",
+      "kind": "cell",
+      "text": "planner: current_perf, leading_indicators, whiteboard, knowledge_input coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context same measurement as the next column; no diagnosis key (typed path not yet implemented)"
+    },
+    {
+      "id": "after-round-2.planner",
+      "kind": "cell",
+      "text": "planner-3 decrease / medium instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "after-round-2.coder",
+      "kind": "cell",
+      "text": "coder-3 synthesizes one backoff literal instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "after-round-2.proposal",
+      "kind": "cell",
+      "text": "proposal-3 backoff literal 20 in the run-card known set not evaluated re-proposal of a known literal; not evaluated by ruling"
+    },
+    {
+      "id": "after-round-2.evaluation",
+      "kind": "cell",
+      "text": "not evaluated"
+    },
+    {
+      "id": "after-round-2.critic",
+      "kind": "cell",
+      "text": "no critic"
+    },
+    {
+      "id": "round-3",
+      "kind": "column",
+      "text": "Round 3 proposal 2026-09-19 (per round records) \u00b7 evaluation 2026-09-19 (job log)"
+    },
+    {
+      "id": "round-3.parent",
+      "kind": "cell",
+      "text": "planner: current_perf, leading_indicators, whiteboard, knowledge_input + k2_critic_diagnosis coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context + k2_critic_diagnosis same measurement as the previous column, plus diagnosis from the previous critic verbatim"
+    },
+    {
+      "id": "round-3.planner",
+      "kind": "cell",
+      "text": "planner-4 decrease / large instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-3.coder",
+      "kind": "cell",
+      "text": "coder-4 synthesizes one backoff literal instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "round-3.proposal",
+      "kind": "cell",
+      "text": "proposal-4 backoff literal 10 outside the run-card known set evaluated matches diagnosis candidate (self-reported advice, not causation)"
+    },
+    {
+      "id": "round-3.evaluation",
+      "kind": "cell",
+      "text": "job 10761 verdict serializable; certified; no anomaly; stop: continue same-job stock control not achieved"
+    },
+    {
+      "id": "round-3.critic",
+      "kind": "cell",
+      "text": "critic-3 not attributable again same-job stock control first (R0) instruction-like content: none detected (self-report)"
+    },
+    {
+      "id": "arrow-m1",
+      "kind": "arrow",
+      "text": "m1: round-1.evaluation \u2192 round-2.parent measurement reflux: current_perf and whiteboard"
+    },
+    {
+      "id": "arrow-m2a",
+      "kind": "arrow",
+      "text": "m2a: round-2.evaluation \u2192 after-round-2.parent measurement reflux"
+    },
+    {
+      "id": "arrow-m2b",
+      "kind": "arrow",
+      "text": "m2b: round-2.evaluation \u2192 round-3.parent measurement reflux: current_perf and whiteboard"
+    },
+    {
+      "id": "arrow-d1",
+      "kind": "arrow",
+      "text": "d1: round-2.critic \u2192 round-3.parent diagnosis reflux: typed path, identical for planner and coder k2_critic_diagnosis: attribution, recommend, avoid, uncertainty, data_boundary, source_sha256"
+    },
+    {
+      "id": "arrow-a1",
+      "kind": "arrow",
+      "text": "a1: round-1.critic \u2192 round-2.parent no typed path: diagnosis not delivered"
+    },
+    {
+      "id": "arrow-a2",
+      "kind": "arrow",
+      "text": "a2: round-2.critic \u2192 after-round-2.parent no diagnosis key"
+    },
+    {
+      "id": "arrow-a3",
+      "kind": "arrow",
+      "text": "a3: round-3.critic \u2192 no destination no further proposal in the recorded scope"
+    },
+    {
+      "id": "stock_control",
+      "kind": "stock_control",
+      "text": "same-job stock control not achieved; ruling pending (T-2795)"
+    },
+    {
+      "id": "legend-arrows",
+      "kind": "legend",
+      "text": "Solid: measurement reflux; dashed: diagnosis reflux; dotted with cross: absent path; thin: within-column flow; dashed box: not a round."
+    },
+    {
+      "id": "legend-r6",
+      "kind": "legend",
+      "text": "R6: self-reported; shield: none detected; red X: detected. data-boundary check: role self-report; planner in uncertainty prose, critic in a trust-boundary section; not a mechanical gate; coder: structured field data_boundary_report.instruction_like_content_detected: false in all four coder outputs; no role reported detection"
+    },
+    {
+      "id": "footnote-source",
+      "kind": "footnote",
+      "text": "Read from the frozen results note 2026-09-20-k2-manual-loop-three-rounds.md; no performance values are drawn and the three runs are not compared."
+    },
+    {
+      "id": "footnote-certified",
+      "kind": "footnote",
+      "text": "Certified means the trace-enabled verify run found the trace serializable with no anomaly; it is not a performance certification."
+    },
+    {
+      "id": "footnote-discipline",
+      "kind": "footnote",
+      "text": "Discipline-six marks are role self-reports, not a mechanical gate; causal effects of knowledge or diagnosis are not claimed."
+    }
+  ],
+  "arrows": [
+    {
+      "id": "m1",
+      "kind": "measurement-reflux",
+      "from": "round-1.evaluation",
+      "to": "round-2.parent",
+      "visible": true
+    },
+    {
+      "id": "m2a",
+      "kind": "measurement-reflux",
+      "from": "round-2.evaluation",
+      "to": "after-round-2.parent",
+      "visible": true
+    },
+    {
+      "id": "m2b",
+      "kind": "measurement-reflux",
+      "from": "round-2.evaluation",
+      "to": "round-3.parent",
+      "visible": true
+    },
+    {
+      "id": "d1",
+      "kind": "diagnosis-reflux",
+      "from": "round-2.critic",
+      "to": "round-3.parent",
+      "visible": true
+    },
+    {
+      "id": "a1",
+      "kind": "absent",
+      "from": "round-1.critic",
+      "to": "round-2.parent",
+      "visible": true
+    },
+    {
+      "id": "a2",
+      "kind": "absent",
+      "from": "round-2.critic",
+      "to": "after-round-2.parent",
+      "visible": true
+    },
+    {
+      "id": "a3",
+      "kind": "absent",
+      "from": "round-3.critic",
+      "to": null,
+      "visible": true
+    }
+  ],
+  "roles": [
+    {
+      "name": "planner-v4",
+      "definition_path": ".claude/agents/planner-v4.md",
+      "tools_none": true,
+      "sha256": "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027"
+    },
+    {
+      "name": "coder-v4-autonomous-k2",
+      "definition_path": ".claude/agents/coder-v4-autonomous-k2.md",
+      "tools_none": true,
+      "sha256": "5d730eeaf09b639ef146157e6a7fe4786e79ace60af3de5c15bb23a16bf9e427"
+    },
+    {
+      "name": "critic",
+      "definition_path": ".claude/agents/critic.md",
+      "tools_none": false,
+      "sha256": "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b"
+    }
+  ],
+  "caption": "Figure 12. Data flow of the K2 manual synthesis loop over three recorded rounds, read from the frozen results note 2026-09-20-k2-manual-loop-three-rounds.md. In each round the parent session projects typed JSON inputs (planner: current_perf, leading_indicators, whiteboard, knowledge_input; coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context) to planner-v4 and coder-v4-autonomous-k2; the proposal is one backoff literal evaluated by one Pegasus compute-node job with separate trace-enabled verify and trace-disabled bench builds and a campaign WAL terminal record; critic reads the digest and the WAL. Measurement reflux occurred twice between the recorded rounds (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round), and diagnosis reflux occurred once (the second critic into the third-round inputs as the typed key k2_critic_diagnosis with fields attribution, recommend, avoid, uncertainty, data_boundary, source_sha256, identical for planner and coder). Three measurement arrows are drawn because the second evaluation feeds both the unevaluated proposal and the third-round proposal; three dotted arrows mark absent paths. The unevaluated proposal, generated without a diagnosis key, re-proposed a known value. The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation. Certified means only that the trace-enabled verify run found the observed trace serializable with no anomaly; it is not a performance certification and not a choice among candidates. Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; none is reported in the recorded rounds. Their form differs by role and they are not a mechanical gate. No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control. The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results. This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared. Role launch times, inline delivery, proposal dates, and the fine ordering of steps rest on each round's records; saved prompts and inputs are not proof of delivery. This figure does not judge whether B-6 is met; the tool-less declaration concerns tool access only, and leak control is not complete.",
+  "argv": [
+    "python3",
+    "tools/plotting/plot_k2_loop_flow.py",
+    "docs/paper-story/figures/fig12_k2_manual_loop_dataflow"
+  ],
+  "versions": {
+    "matplotlib": "3.10.9",
+    "numpy": "2.2.6"
+  }
+}

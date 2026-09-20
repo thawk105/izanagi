@@ -1,0 +1,49 @@
+"""Rewrite the replica of attempt-0001 evidence so its attempt_root points at the replica base.
+
+The real durable base is never written. The replica lives in the job dir and is used only to
+exercise the gate against real-shaped evidence (bench-go / ready triple / bench-start) with
+and without an authorization record. Digests are recomputed where the gate verifies them
+(intent_sha256); path-bound fields (attempt_root, bench-go ready[].path) are rewritten.
+"""
+import json
+import pathlib
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from orchestrator.campaign import paper_story_a1_paired as p  # noqa: E402
+
+REAL_BASE = "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement"
+replica = pathlib.Path(sys.argv[2]).resolve()
+assert replica.is_dir() and replica.name == "replica-base", replica
+
+
+def rewrite(value):
+    if isinstance(value, str):
+        return value.replace(REAL_BASE, str(replica))
+    if isinstance(value, list):
+        return [rewrite(v) for v in value]
+    if isinstance(value, dict):
+        return {k: rewrite(v) for k, v in value.items()}
+    return value
+
+
+def dump(path: pathlib.Path, value) -> None:
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+
+
+intent_path = replica / "attempt-0001.intent.json"
+intent = rewrite(json.loads(intent_path.read_bytes()))
+intent["intent_sha256"] = p._submission_intent_digest(intent)
+dump(intent_path, intent)
+barrier = replica / "attempt-0001" / "barrier"
+for sub in ("ready", "bench-start"):
+    for f in sorted((barrier / sub).glob("*.json")):
+        dump(f, rewrite(json.loads(f.read_bytes())))
+bench_go_path = barrier / "bench-go.json"
+bench_go = rewrite(json.loads(bench_go_path.read_bytes()))
+for binding in bench_go["ready"]:
+    binding["sha256"] = p._sha256_file(pathlib.Path(binding["path"]))
+dump(bench_go_path, bench_go)
+print("replica rewritten:", replica)
+print("intent attempt_root:", intent["attempt_root"], "sha:", intent["intent_sha256"][:12])
+print("bench-go ready paths:", [b["path"].rsplit("/", 1)[-1] for b in bench_go["ready"]])

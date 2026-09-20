@@ -1,0 +1,66 @@
+{
+  "m0-equivalent-docstring": [],
+  "m1-a6-pin-drift-accepted": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_pin_drift_is_rejected",
+    "orchestrator/tests/test_plot_a2_certification.py::test_current_cli_reads_repository_owned_pin_table"
+  ],
+  "m2-closure-count-fixed-12": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_canonical_current_full_measurements_load_without_override",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_contains_fixed_literals",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_excludes_forbidden_words",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[observed-positive--0.1-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject--0.1-True]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject-0-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject-0.1-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_cli_writes_three_outputs",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_fixture_loads_as_current_full_with_six_file_closure",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_provenance_tracks_caption_source_with_current_sha",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_real_size_figure_has_two_columns_and_passes_layout",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_rejects_six_file_closure_underflow_and_overflow[False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_rejects_six_file_closure_underflow_and_overflow[True]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_layout_rejects_wrong_axes_count",
+    "orchestrator/tests/test_plot_a2_certification.py::test_t2364_canonical_current_full_measurements_load_without_override"
+  ],
+  "m3-drop-a6-caption-source": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_cli_writes_three_outputs",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_provenance_tracks_caption_source_with_current_sha"
+  ],
+  "m4-layout-accept-any-axes": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_layout_rejects_wrong_axes_count"
+  ],
+  "m5-drop-a6-caption-literal": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_contains_fixed_literals",
+    "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig11_repo_closure_and_caption_when_present"
+  ],
+  "m6a-legacy-accepts-a6-study": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_legacy_profile_is_rejected"
+  ],
+  "m6b-current-full-drops-a6": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_canonical_current_full_measurements_load_without_override",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_contains_fixed_literals",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_excludes_forbidden_words",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[observed-positive--0.1-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject--0.1-True]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject-0-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_caption_median_statement_is_conditional[reject-0.1-False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_cli_writes_three_outputs",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_fixture_loads_as_current_full_with_six_file_closure",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_provenance_tracks_caption_source_with_current_sha",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_real_size_figure_has_two_columns_and_passes_layout",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_rejects_six_file_closure_underflow_and_overflow[False]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_rejects_six_file_closure_underflow_and_overflow[True]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_a6_zero_workload_policy_is_rejected",
+    "orchestrator/tests/test_plot_a2_certification.py::test_layout_rejects_wrong_axes_count",
+    "orchestrator/tests/test_plot_a2_certification.py::test_t2364_canonical_current_full_measurements_load_without_override"
+  ],
+  "m7-distinct-check-removed": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_duplicate_workload_requests[created_utc]",
+    "orchestrator/tests/test_plot_a2_certification.py::test_current_rejects_duplicate_workload_requests[request_id]"
+  ],
+  "m8-landed-skip-on-missing": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig11_rejects_all_missing_outputs"
+  ],
+  "m9-a2-caption-drift": [
+    "orchestrator/tests/test_plot_a2_certification.py::test_a2_current_full_caption_is_unchanged_for_landed_fig6"
+  ]
+}

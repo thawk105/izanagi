@@ -1,0 +1,139 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-hit-trusts-marker-campaign-run-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    expected = _canonical_measurement_generation_floor_attempt_document(\n        attempt_id=attempt_id, **projection.document_fields,\n    )\n",
+          "new": "    _hit = context is not None and memo_key in context.projections\n    expected = _canonical_measurement_generation_floor_attempt_document(\n        attempt_id=attempt_id, **{**projection.document_fields, **({\"campaign_run_id\": marker.get(\"campaign_run_id\")} if _hit else {})},\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-hit-skips-coverage",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    elif attempt_id not in projection.attempt_ids:\n        raise HoldoutAdmissionError(\n            \"floor measurement generation claim attempt coverage is invalid\"\n        )\n",
+          "new": "    elif False and attempt_id not in projection.attempt_ids:\n        raise HoldoutAdmissionError(\n            \"floor measurement generation claim attempt coverage is invalid\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-skip-canonical-filename",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        if path != _floor_canonical_marker_path(root, canonical):\n            raise HoldoutAdmissionError(\"floor consume marker filename is not canonical\")\n",
+          "new": "        if False and path != _floor_canonical_marker_path(root, canonical):\n            raise HoldoutAdmissionError(\"floor consume marker filename is not canonical\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-skip-attempt-ledger-duplicate-identity",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        if identity in ledger_by_identity:\n            raise HoldoutAdmissionError(\"floor attempt ledger has a duplicate identity\")\n",
+          "new": "        if False and identity in ledger_by_identity:\n            raise HoldoutAdmissionError(\"floor attempt ledger has a duplicate identity\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6g-skip-main-equality-generation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if main != expected_main:\n        raise HoldoutAdmissionError(\n            \"floor measurement generation ledger differs from its claim\"\n        )\n",
+          "new": "    if False and main != expected_main:\n        raise HoldoutAdmissionError(\n            \"floor measurement generation ledger differs from its claim\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6v-skip-main-equality-v1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if main != expected_main:\n        raise HoldoutAdmissionError(\"floor consume main ledger differs from its claim\")\n",
+          "new": "    if False and main != expected_main:\n        raise HoldoutAdmissionError(\"floor consume main ledger differs from its claim\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-skip-completed-rejection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    if completed_attempt:\n        # MUT-A6: completed session evidence forbids a second measurement.\n",
+          "new": "    if False and completed_attempt:\n        # MUT-A6: completed session evidence forbids a second measurement.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-memo-survives-across-calls",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "class _FloorAttemptRecoveryContext:\n",
+          "new": "_T2802_CTX: dict = {}\n\n\nclass _FloorAttemptRecoveryContext:\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "    context = _FloorAttemptRecoveryContext()\n",
+          "new": "    context = _T2802_CTX.setdefault(root, _FloorAttemptRecoveryContext())\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P0-equivalent-identity-str",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        identity = (\n            str(canonical[identity_field]), str(canonical[\"attempt_id\"]),\n        )\n        if identity in ledger_by_identity:\n",
+          "new": "        identity = (\n            canonical[identity_field], canonical[\"attempt_id\"],\n        )\n        if identity in ledger_by_identity:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
