@@ -1,0 +1,16 @@
+== sort-1v0 noinline-1v0 (login-pre -> i1-after)
+row 0: STABLE VALUE differs: record_digest: before='1368ce64baa087be11bc3942ac79cdf3361c6c3c7ec2c6e0776b17d552e94b02' after='18b73152ad129c9b86716a7215b8969b6def1cdb276c27d01f729eb83e623c20'
+row 1: STABLE VALUE differs: record_digest: before='c69f5df6ae97c02410e03dfbbab2190c5c3ef241501d5ead66b428cbb5880e0e' after='4b81974e2eafff928bff0d31070e5b2631d0b5db6526446ed26896b98d01bad4'
+row 2: STABLE VALUE differs: admission_digest: before='6c040840d479b9b965cdf05c34d4fb1f207f54836863aae1516c2f2a2688a1ca' after='9551f70b1cd574ae42d011ed8ae7352cd518ff196f8bce67da21ffb171097165'
+sort-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+row 0: STABLE VALUE differs: record_digest: before='766c132f627e5351fbb6597fe5d84fe4f928ae71eeade2a54cd3ebed706cee3a' after='0abe8b2c6a70ec37f9a3ecd1a7fd513c20233556347483353d36937c20df4dd8'
+row 1: STABLE VALUE differs: record_digest: before='279fd8f1bd54de19b9b96123dc4b0fda1b10fb0f7227f498b38f5b268d3d8ee0' after='eccc0685ccf3d0577c68acb0e6b7a108ca4dd45787d83af8890631d409139d51'
+row 2: STABLE VALUE differs: admission_digest: before='aad327aecc43e4ffbab3692759f933860662568f34c5a8847eb1a0876f708dc5' after='691b0d1cd8c8131ceb1bced061cf274d4b53511c6bbf10b5705584f0c60616a5'
+noinline-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+rc=1
+== rung1-1v0 (login-pre2 -> i1-after)
+row 0: STABLE VALUE differs: record_digest: before='f572156b194a117d663ca595acfaa0e17a732db3915ee01137f8f623d5b242cc' after='255aae2489eb85166762ed7e609ddb3ad92041431e4148ba44779b1b12720591'
+row 1: STABLE VALUE differs: record_digest: before='11e108e204f15597e7ef55c8caefbbb7a29bbbab6851397a9461c6fa2ef673f8' after='9d3faba633f5b4e3c7e8c8b63251dfd917b5d3600d423b8a6a04436e28c0db37'
+row 2: STABLE VALUE differs: admission_digest: before='e66e62df3130772dccdfec6abb4dbe797a369420529276072901c777d40decc9' after='e589f47e14bce54cddd4fbb6e4e9314ce4e87c0a447433c1b00a289eb95ac922'
+rung1-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+rc=1

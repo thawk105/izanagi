@@ -69416,3 +69416,72 @@ D2174 項 6 を維持し、git author identity から推測しない。今回も
 - stock を別 out_root (同 job・別 layout) で評価する — D464 の排他保証範囲外、D2183 の同 WAL 条件を破る。root を変えても identity は変わらず「別 campaign = 別 ID」でもない。
 - 本 wave で launcher を直して再投入する — 依頼の scope 外・再投入禁止。
 - stock 未測定を stock の失格・非 STOCK 判定に置き換える — inert は未測定のまま (規律 2 を緩めず、判定も捏造しない)。
+
+## D2188. 受入 shard 内 pairing を既定 on で採用し、property 4 種を残す (2026-09-20)
+
+**決定:** D2172 項 1 (択 (a)) の実装として、受入の collection hook (`orchestrator/tests/conftest.py`) は cost 順の unit 列に無条件で `_pair_initial_distribution_units` (realized order の 49〜96 位を候補中最小 cost の 48 unit に入れ替える) を適用する。環境変数 `IZANAGI_ACCEPTANCE_PAIRING_V1` の opt-in・token・`tests` task の allowlist 行は撤去し、opt-out も設けない。全 item への property 4 種 (`izanagi_acceptance_pairing_v1_{scope,rank,partner,worker}`、pairing 適用走のみ) は残す。unit < 96 の無変更、cardinality 不成立時の `pytest.UsageError` (fail-closed)、受理集合 (selected / hold / group / unit 境界・marker・既存 property・identity) の不変は保つ。
+
+**理由:**
+- 効果の再確認 (待ち手経由 = 本番経路の実受入、A = 採用前 main / B = 採用後の隣接対 3 組) で 3 対とも B が短く、最遅 shard の JUnit wall の対差 145.8 / 86.3 / 57.3 秒、対率中央値 19.6 % で、事前登録した land 条件 (全対 ΔW > 0 かつ対率中央値 ≥ 10 %) を満たした。前 wave (同一 tip の直接投入) の 101.7 / 112.9 / 144.3 秒と同方向。
+- property は本番の毎受入に「発火と実配布の witness」(被覆 100 %、rank 48〜95 = partner 集合、多重集合の独立再計算、worker 別 item 列) を残す唯一の手段で、既定 on の正例 test と変異 M5 の帰属もこれに依る。機序が未同定のまま採るので、後から機序を調べる材料を毎走残す価値がある。
+- opt-out を足さないのは、裁定が「名指しの変更に限定し付随する gate を足さない」と定めるためと、off の経路を残すと A 不変の負例と変異 M3 を維持し続ける費用が要るため。撤去は並べ替えの呼び出し 1 行と property 付与の削除で戻る。
+
+**却下した選択肢:**
+- property を外して順序変更だけ入れる — junit.xml は小さくなる (受入 1 走あたり約 −13 MB) が、本番で pairing が発火した証拠が junit から消え、機序調査の材料も残らない。
+- (b) A 側 witness (機序調査) を採用の前提にする — 裁定が「相乗り可、採用を遅らせない」と定め、A の item → worker 対応は A の code を変えないと取れない (A = 採用前 main でなくなる) ため本 wave では取らない。
+- (c) 見送り — 効果は本 wave でも 3 対同方向で確認された。
+
+**再訪条件:** property の費用は junit.xml が受入 1 走あたり約 +13 MB (A 0.7 / 1.8 / 1.6 MB → B 2.4 / 6.2 / 6.4 MB、3.4 倍) と実測した。session dir の容量が問題になった時点で、property を rank / partner だけに縮約するか外すかを別裁定にする。効果量は regime 依存 (57〜146 秒の観測) で「毎受入 100 秒」と一般化しない。対 3 (docs fold だけの最もきれいな対) が 12.6 % と閾値に近いため、効果の消失が疑われたら同じ事前登録 (隣接対 3 組、閾値 10 %) で再測する。
+
+## D2189. 複数 file に散る directive 箇所群は 1 macro の副 file 宣言として同じ深い鏡像で計装し、複数 file macro に限り箇所ごとの識別 marker で総数の相殺を拒否する (2026-09-20)
+
+**決定:** D1490 / D2182 の compile-time 枝選択 witness に、1 macro が所有 TU 以外の file にも逐語 directive を持つ型を足す。
+(1) 主 entry は既存 2-tuple のまま `_CONDITIONAL_BRANCH_WITNESSES` に置き、副 file は別 mapping
+`_CONDITIONAL_BRANCH_COMPANION_SITES` (macro → (source_rel, start_directive, N) の tuple) に宣言する。`_declared_site_count` は
+主宣言 file の N のまま (S1 fixture helper の consumer 契約)、総数は `_declared_total_site_count` (和) で導出し期待式 (N·v, N) の N に使う。
+(2) 主 + 副を各々 no-follow capture して file ごとに N_i 箇所を計装し (file ごとの箇所数不一致は既存 reason
+`compile-time-branch-site-count-mismatch`、detail に file 名)、副があれば主 == owner TU でも D1613 の深い鏡像を使い、全計装 file を
+symlink 作成対象から除いて同じ shadow に書く。(3) **複数 file macro に限り**、各箇所に固有 marker
+`IZANAGI_COMPILE_TIME_BRANCH_SITE_{SELECTED,COMPLETED}(f<i>s<j>)` を総数 marker の隣に挿入し、preprocess argv に token 貼り付けの
+`-D…(k)=…_OBSERVED_##k` 2 本を足して、総数 (N·v, N) の判定の後に箇所ごとの要求 (1,1) / 対照 (0,1) と和 = 総数を
+`compile-time-branch-site-observation-mismatch` で要求する。(4) 複数 file macro の green evidence にだけ `companion_sources`
+(副 file の登録値と計装に使った capture) と `site_observations` (全箇所 × 両腕) の 2 key を載せ、green 再検証は副宣言の有無を登録簿から
+決め (record の key から決めない)、row の型・順序・登録値・digest・identity・site 集合・各 row の値・和・両腕 argv の site marker define を
+検査する。既存 dataclass に field を足さず、`proof_kind` も変えない。(5) 登録簿へ `BACKOFF_REQUESTED_US` (`cc/silo/transaction.cc` ×2 +
+`include/backoff.hh` ×2、対照 0) を足す (枝選択 21 → 22、対応集合 22 → 23)。driver は配線しない (`backoff_requested_us` /
+`backoff_sweep` / `screening_driver` は admission を成果物へ載せない、D1492)。
+
+**主張の範囲:** 確立するのは「宣言した owner TU を当該 configure で前処理したとき、DefineSpec patch の逐語 N 箇所すべてで define の値が
+枝の選択を決めている」ことまで。副 file の証拠はその owner TU と configure の include 文脈に限り、同 header を include する他 TU や
+header 単体の意味は主張しない。箇所の活性は configure に依存し (abort() 内の箇所は `#if BACK_OFF` の内側)、`BACK_OFF=0` では
+completed 3/4 で red になる (fail-closed、実測)。`BACK_OFF` を companion define にしない (検査する configure を変えてしまう)。
+
+**理由:**
+
+- 所有 TU 2 箇所だけの登録は D2161 (2) の部分登録であり、header 2 箇所が未観測のまま macro 名が未確立一覧から消える (前 wave が退けた過大主張)。
+- 総数一致だけでは全箇所観測を含意しない。静的に構成できる反例 = owner の 2 箇所を外側 `#if 0` で殺し、`#pragma once` の無い header を
+  2 回展開すると、各 file の逐語箇所数は 2 のまま総数は (4,4)/(0,4) になる (段 2 plan が指摘、段 3 の 2 レンズが独立に成立を確認)。
+  箇所識別を足すと `f0s0=(0,0,0,0)` で拒否される (合成 fixture の独立 node と、評価側の直接検査で実測)。単 file macro では
+  .cc の TU は再展開されず、header 単 file は N=1 で重複が総数に出るので総数で足り、既存 21 macro の計装・argv・record を変えない。
+- 箇所固有 marker を `-D` の function-like macro + token 貼り付けで作ると、既存の総数 marker と同じくコメント / raw string 内では展開されず
+  数えられない (D1490 の構造的 fail-closed を保つ)。g++ 11.4.0 で生死実験のうえ採用。
+- header 宣言の既存例 (BACKOFF_NOINLINE) の深い鏡像 (D1613) は 1 file しか書かなかった。副 file を同じ鏡像へ書くとき、計装 file を
+  symlink 作成対象から除かないと symlink 越しの write で元 source を書き換える (段 3 A / 段 2 plan の条件)。
+- 副 file の証拠を record に載せないと、再検証が「主 2 箇所 + header 2 箇所」を裏付けられない (段 3 A の must-fix)。既存 dataclass に
+  field を足すと既定値でも canonical JSON へ出て既存 record の bytes が変わる (D2182) ので、複数 file macro にだけ現れる key にする。
+- 実 TU (pin e9e477ca1、fixed → requested-us、official 同形供給) で login と計算ノードとも (4,4)/(0,4) green / admitted / 未確立 []、
+  `BACK_OFF=0` は (3,3)/(0,3) red。既存 SORT / NOINLINE / RUNG1 の record は変更前後で一時 path 由来の digest 以外同一 (代表 3 cell、
+  他 18 macro の bytes 同一は主張しない)。
+
+**却下した選択肢:**
+
+- **所有 TU の 2 箇所だけで登録する** — 部分登録 (D2161 (2))。
+- **総数 (4,4)/(0,4) だけで判定し、相殺は主張範囲の限定で対応する** — witness の主張「各箇所で値が枝を決める」が一般には偽になる。
+  複数 file の型を足す本題の健全性であり、仮想リスク向けの新 gate ではない (段 3 B の判定)。
+- **登録簿の value を tuple of tuples にする / `_CONDITIONAL_BRANCH_SITE_COUNTS` を file 別にする** — 2-tuple consumer 3 件と
+  `_declared_site_count` の S1 consumer を壊す。別 mapping で持つ。
+- **別 proof_kind / 既存 dataclass の optional field / 副 file 用 dataclass** — 同じ owner-TU 枝選択の主張に validator 分岐を増やすだけ、
+  optional field は canonical JSON へ出る、新 dataclass は過剰 (段 2 / 段 3 B)。
+- **`BACK_OFF=1` を companion にする** — 検査する configure を変え、`BACK_OFF=0` の red (fail-closed) を失う。
+- **単 file の複数箇所 macro (RUNG1 / GATING) にも箇所識別を広げる** — 総数で足りる型に argv と record の変更を持ち込む (I1 違反)。
+- **所有 TU 内の未宣言 directive の走査・include 専用 gate** — 前 wave と同じく裁定パッケージ候補のまま。
