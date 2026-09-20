@@ -41,6 +41,8 @@ title: [T-2803] 全史 provenance 監査の受領証 attributes fingerprint を 
 - 事故 (自分起因): 単独走の dispatch 走行中に fix commit を作り実 repo HEAD を読むテスト 23 件を非帰属赤にした (F558 の同型再発、failures fragment)。
   E-2 で clone に author identity が無く commit が失敗したまま 1 走投げた (同 tip の warm 走として記録、identity は `git -c` で commit だけに与えた)。
 - 裁定パッケージ候補 (起票せず insight §11): 候補列挙の 1 走内 memo 化、`attr.tree` 等の束縛、errno 正規化。
+- 段 8 (自己改善): 候補 2 件。(1) 既存 argv 接頭 pin が別目的の git 呼び出しを数えて fix が 2 巡増えた件は新規 F {{F:argv-prefix-pins-count-new-subprocess}} へ
+  (DW-S05-C への 1 句収容は L1.5 予算 9,696 bytes 満杯・独立 1 例で D782 / D730 により「実施しない」)。(2) 開始 gate の ff-only → 即 gate は gate 出力自身が指示するので記録のみ。
 - 工数: codex 8 本 (consult 1、author 1、review 2、fix 3、focus 1、60 call)、計算ノード job = 焦点走 7 + 変異 probe 6 + final 6、login 走 = full 監査 3 + E-1 2 + E-2 4。
 
 ## 次の一手差分
