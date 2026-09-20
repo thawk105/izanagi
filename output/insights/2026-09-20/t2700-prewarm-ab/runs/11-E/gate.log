@@ -1,0 +1,3 @@
+2026-09-20T14:12:55+0900 gate: load1=10.60 leaders=2 (max 2, l1 < 30)
+2026-09-20T14:15:07+0900 gate: load1=7.56 leaders=1 (max 2, l1 < 30)
+2026-09-20T14:15:31+0900 gate: load1=13.09 leaders=1 (max 2, l1 < 30)

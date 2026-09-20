@@ -1,0 +1,3 @@
+2026-09-20T11:40:50+0900 launch: cond=E slot=3 tip=7447c9a35c769ff6b962d364ed5f9fd0c089c749 main=a5b3a1ab66d8b4752d6857ad80725228fd664aaf leaders=1 load1=1.31 worktree=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2700-prewarm-ab warm_tip=7447c9a35c769ff6b962d364ed5f9fd0c089c749 warm_rc=0
+2026-09-20T12:06:06+0900 finished: child_rc=0 session_root=/work/1/SFC/tanab/.izanagi-acceptance-shards/b93092196b20cb76935be22ef66db683 dirty_after=0 tip_after=7447c9a35c769ff6b962d364ed5f9fd0c089c749
+2026-09-20T12:06:06+0900 copy_ok=1
