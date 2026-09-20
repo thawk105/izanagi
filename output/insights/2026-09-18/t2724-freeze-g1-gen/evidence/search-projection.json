@@ -1,0 +1,28 @@
+{
+ "match_convention": "file-level conjunction: 同一ファイルが rratio/skew/rmw の三軸正規表現すべてに一致した場合だけ 1 hit と数える",
+ "holdouts": {
+  "rr80": {
+   "hit_count": 3,
+   "hit_paths": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json"
+   ]
+  },
+  "rr20": {
+   "hit_count": 3,
+   "hit_paths": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json"
+   ]
+  }
+ },
+ "positive_control": {
+  "hit_count": 188,
+  "hit_path_count": 10
+ },
+ "search": {
+  "file_count": 27697
+ }
+}

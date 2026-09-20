@@ -1,0 +1,25 @@
+host bnode003 HOME /home/SFC/tanab XDG_CONFIG_HOME None
+my partition: f093170f9856 receipt path: /work/1/SFC/tanab/izanagi/.git/provenance-audit-receipts/f093170f9856c67cd9cdac8e344bd07ef9edca64ddc23607b0d165ae34f7306a/b7f970dfa507558f7fb669a5ab38958d6c76b57c.json
+my inherited: {'LC_CTYPE': 'C.UTF-8'}
+my config lines: 13
+my checker: 5cb709cbca5d
+my attributes: "e5dc7c524d3e3d863efe5158758280342e6f01031e3292702e87595b6a8f711b"
+  45d1c5a24232 files=2 newest_tip=47a80bed46a3 tip_is_ancestor_of_head=True diffs=['environment.inherited', 'attributes']
+     their inherited: {'GIT_ATTR_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_SYSTEM': '/dev/null', 'GIT_NO_LAZY_FETCH': '1', 'GIT_NO_REPLACE_OBJECTS': '1', 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0', 'LANG': 'ja_JP.UTF-8', 'LC_ALL': 'C', 'LC_CTYPE': 'C.UTF-8'}
+     their attributes: "ad5d8b2520236ba846df687955afd926607406dda7c4565c56d1f19846e8785d"
+  51ecd641d7da files=64 newest_tip=8ff77290d0d2 tip_is_ancestor_of_head=True diffs=['environment.config', 'environment.inherited', 'attributes']
+     their inherited: {'GIT_PAGER': 'cat', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'LC_CTYPE': 'C.UTF-8'}
+     their attributes: "643a491ecbf6113c39b755751ec6dcd4c343e9a5b6c9640cb69d1301d4795619"
+     config only-mine: [] only-theirs: ['filter.lfs.clean=git-lfs clean -- %f', 'filter.lfs.process=git-lfs filter-process', 'filter.lfs.required=true', 'filter.lfs.smudge=git-lfs smudge -- %f']
+  56f2a25a2f80 files=38 newest_tip=2ba4000870c6 tip_is_ancestor_of_head=True diffs=['environment.config', 'environment.inherited', 'attributes']
+     their inherited: {'GIT_PAGER': 'cat', 'LANG': 'ja_JP.UTF-8', 'LC_ALL': 'C.UTF-8', 'LC_CTYPE': 'C.UTF-8'}
+     their attributes: "4a2cfdb4bb33000b6e4c8ec20ee377b27e2264d764d25b2e01aea201c0d6304e"
+     config only-mine: [] only-theirs: ['filter.lfs.clean=git-lfs clean -- %f', 'filter.lfs.process=git-lfs filter-process', 'filter.lfs.required=true', 'filter.lfs.smudge=git-lfs smudge -- %f']
+  722118955deb files=64 newest_tip=b7f970dfa507 tip_is_ancestor_of_head=True diffs=['environment.config', 'environment.inherited']
+  94a6690cd476 files=64 newest_tip=38f39d6521c8 tip_is_ancestor_of_head=True diffs=['environment.inherited']
+  c30b5c12a4c7 files=16 newest_tip=a4e2522c579b tip_is_ancestor_of_head=True diffs=['environment.inherited', 'attributes']
+     their inherited: {'GIT_ATTR_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_SYSTEM': '/dev/null', 'GIT_NO_LAZY_FETCH': '1', 'GIT_NO_REPLACE_OBJECTS': '1', 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0', 'LANG': 'C.UTF-8', 'LC_ALL': 'C', 'LC_CTYPE': 'C.UTF-8'}
+     their attributes: "4a2cfdb4bb33000b6e4c8ec20ee377b27e2264d764d25b2e01aea201c0d6304e"
+* f093170f9856 files=64 newest_tip=48dfbbbf6a15 tip_is_ancestor_of_head=True diffs=['attributes']
+     their inherited: {'LC_CTYPE': 'C.UTF-8'}
+     their attributes: "fab0629409e32a0a1526c9c16fbfd904364d66b04de586628a530938c339b4af"
