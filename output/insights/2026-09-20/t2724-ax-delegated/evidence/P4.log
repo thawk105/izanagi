@@ -1,0 +1,6 @@
+RequestID       ReqName  UserName Queue     Pri STT S   Memory      CPU   Elapse R H M Jobs
+--------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----
+12607.nqsv      izdw-22b tanab    gen_S       0 RUN -  281.41G  2847.41     1768 N Y Y    1 
+12665.nqsv      izdw-sha tanab    gen_S       0 RUN -   35.59G  4907.37      484 N Y Y    1 
+12678.nqsv      izdw-aa0 tanab    gen_S       0 RUN -    5.56G    90.00       35 N Y Y    1 
+12679.nqsv      izdw-e46 tanab    gen_S       0 PRR -    0.00B     0.00        0 N Y Y    1 

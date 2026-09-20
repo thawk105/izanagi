@@ -1,0 +1,9 @@
+IZANAGI_FREEZE_HOLD {"check_id": "frozen-artifacts.manifest-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+PASS test_frozen_artifacts_keep_positive_control_fires_during_hold
+PASS test_frozen_artifacts_manifest_positive_control_fires_when_released
+{"held_checks": [{"check_id": "frozen-artifacts.manifest-bytes", "reason": {"authority": "user", "decision": "freeze-verification-hold", "release": "ユーザーの明示命令のみ", "release_condition": "explicit-user-command-only", "ruled_on": "2026-08-12", "ruling": "rulings-4th-batch-2026-08-12"}, "status": "held"}], "mismatches": [], "status": "held"}
+PASS test_frozen_artifacts_match_manifest
+PASS test_frozen_manifest_hold_keep_partition_is_exact
+PASS test_manifest_shape_is_exact
+
+5 passed, 0 failed, 0 skipped
