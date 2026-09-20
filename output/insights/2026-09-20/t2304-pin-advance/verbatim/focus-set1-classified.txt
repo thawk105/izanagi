@@ -1,0 +1,93 @@
+failure blocks: 86
+
+== 39 x AssertionError: assert 'p3-t178-ycsb...mous-<hex>' == 'p3-t178-ycsb...mous-<hex>'
+   - test_campaign_chain_rejects_cross_trial_campaign_substitution  @ orchestrator/tests/test_autonomous_trial_completeness.py:3678
+   - test_campaign_chain_failed_peer_does_not_exempt_missing_admitted_report  @ orchestrator/tests/test_autonomous_trial_completeness.py:3678
+   - test_campaign_chain_declares_certified_acceptance_purpose  @ orchestrator/tests/test_autonomous_trial_completeness.py:3678
+   - test_campaign_identity_is_pinned_without_producer_helper_oracle  @ orchestrator/tests/test_autonomous_trial_completeness.py:4993
+   - test_campaign_chain_reads_legacy_layer3_without_epoch  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:658
+   - test_m5_exploratory_workload_flags_are_the_only_mismatch  @ orchestrator/tests/test_autonomous_trial_completeness.py:3678
+   ... (+33)
+
+== 19 x AssertionError: assert '<hex>...<hex>' == '<hex>...<hex>'
+   - ERROR at setup of test_policy_two_assignment_sequence_is_exact  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   - ERROR at setup of test_policy_two_assigned_zero_follows_recommendation  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   - ERROR at setup of test_policy_zero_matches_patch_b_transitions_exactly  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   - ERROR at setup of test_policy_two_lcg_advances_on_every_update  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   - ERROR at setup of test_dynamic_ceiling_shrink_can_make_both_arms_equal  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   - ERROR at setup of test_negative_gradient_never_increases_dynamic_ceiling  @ orchestrator/tests/test_dynamic_backoff_transitions.py:790
+   ... (+13)
+
+== 3 x AssertionError: assert 1 == 0
+   - test_public_certification_creates_group_only_after_all_24_requests  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:1451
+   - test_group_receipt_requires_exact_24_terminal_request_set  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:1067
+   - test_run_and_verify_phase_measurements_keep_distinct_meanings  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:513
+
+== 3 x AssertionError: Regex pattern did not match.
+   - test_load_effective_reasons_unknown_reason  @ orchestrator/tests/test_s8a_trigger_sweep.py:770
+   - test_load_effective_reasons_broken_conservation  @ orchestrator/tests/test_s8a_trigger_sweep.py:737
+   - test_load_effective_reasons_partial_run  @ orchestrator/tests/test_s8a_trigger_sweep.py:731
+
+== 2 x AssertionError: assert 'certificatio...ecution-error' == 'verifier-identity-mismatch'
+   - test_public_certification_rejects_post_verifier_identity_drift_only  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:753
+   - test_public_certification_rejects_verifier_identity_drift_only  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:753
+
+== 1 x AssertionError: assert '現行 env 契約の f...exact_count=0' == 'launch certi...protocol.json'
+   - test_public_official_preflight_rejects_legacy_byte_drift_after_capture  @ orchestrator/tests/test_s8b_floor_campaign.py:15965
+
+== 1 x KeyError: 'selected'
+   - test_public_official_preflight_rejects_resolved_protocol_byte_drift  @ orchestrator/tests/test_s8b_floor_campaign.py:15944
+
+== 1 x orchestrator.campaign.s8b_floor_campaign.FloorCampaignError: 現行 env 契約の floor protocol を一意に解決できない: current_count=2 head_exact_count=0
+   - test_public_official_preflight_accepts_versioned_protocol  @ orchestrator/campaign/s8b_floor_campaign.py:1071
+
+== 1 x AssertionError: assert 'p3-s5-sort-l...mous-<hex>' == 'p3-s5-sort-l...mous-<hex>'
+   - test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:753
+
+== 1 x AssertionError: assert 'certificatio...ecution-error' == 'verifier-argv-contract'
+   - test_public_certification_rejects_lenient_argv_only  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:658
+
+== 1 x AssertionError: assert 'certificatio...ecution-error' == 'trace-build-identity'
+   - test_public_certification_rejects_trace_disabled_cache_identity  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:753
+
+== 1 x AssertionError: assert 'certificatio...ecution-error' == 'target-trace-dir-mismatch'
+   - test_public_certification_rejects_substituted_target_trace_only  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:680
+
+== 1 x AssertionError: assert 'certificatio...ecution-error' == 'target-verifier-exit'
+   - test_public_certification_rejects_target_exit_three_only  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:753
+
+== 1 x AssertionError: assert 'certificatio...ecution-error' == 'certificatio...ocol-mismatch'
+   - test_public_certification_rejects_non_silo_genome_before_verification  @ orchestrator/tests/test_t2187_adaptive_const_probe.py:768
+
+== 1 x ValueError: artifact-invalid: /tmp/pytest-of-tanab/pytest-0/popen-gw20/test_public_policy_producer_ou0/dynamic/perf/t2417-policy/rep-0.json: ccbench pin identity is invalid
+   - test_public_policy_producer_output_is_final_and_analysis_compatible  @ orchestrator/campaign/backoff_policy_performance_analysis.py:137
+
+== 1 x ValueError: artifact-invalid: /tmp/pytest-of-tanab/pytest-0/popen-gw27/test_public_policy_producer_p00/dynamic/perf/t2417-policy/rep-0.json: ccbench pin identity is invalid
+   - test_public_policy_producer_p0_binary_drift_between_blocks_is_accepted  @ orchestrator/campaign/backoff_policy_performance_analysis.py:137
+
+== 1 x ValueError: artifact-invalid: /tmp/pytest-of-tanab/pytest-0/popen-gw20/test_public_policy_producer_re0/dynamic/perf/t2417-policy/rep-0.json: ccbench pin identity is invalid
+   - test_public_policy_producer_reasoned_missing_is_local_in_analysis  @ orchestrator/campaign/backoff_policy_performance_analysis.py:137
+
+== 1 x AssertionError: canonical bytes が独立 golden と不一致
+   - test_builder_golden_bytes_and_sha_are_stable  @ orchestrator/tests/test_s8b_protocol_builder.py:97
+
+== 1 x AssertionError: assert {'status': 'f...<hex>'} == {'status': 'f...<hex>'}
+   - test_freeze_protocol_success_writes_only_fixed_tmp_repo_path  @ orchestrator/tests/test_s8b_protocol_builder.py:552
+
+== 1 x orchestrator.campaign.build_admission.BuildAdmissionError: build admission receipt の schema/policy が不一致
+   - test_load_effective_reasons_ok  @ orchestrator/campaign/s8a_trigger_sweep.py:195
+
+== 1 x AssertionError: assert 'p3-s8a-trigg...mous-<hex>' == 'p3-s8a-trigg...mous-<hex>'
+   - test_campaign_identity_is_unchanged_for_other_and_split_for_compute  @ orchestrator/tests/test_p3_s4_loop_trigger_gating.py:933
+
+== 1 x AssertionError: assert {'balanced': ...eep-<hex>'} == {'balanced': ...eep-<hex>'}
+   - test_default_off_campaign_ids_remain_historical_values  @ orchestrator/tests/test_s8a_trigger_sweep.py:370
+
+== 1 x AssertionError: assert {'backoff-swe...eep-<hex>'} == frozenset({'b...ep-<hex>'})
+   - test_screening_none_keeps_representative_legacy_campaign_ids_unchanged  @ orchestrator/tests/test_campaign.py:732
+
+== 1 x AssertionError: assert 'readheavy-lo...arch-<hex>' == 'readheavy-lo...arch-<hex>'
+   - test_campaign_id_binds_admission_policy  @ orchestrator/tests/test_campaign.py:533
+
+== 1 x AssertionError: assert 'silo_<hex>_t0' == 'silo_<hex>_t0'
+   - test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit  @ orchestrator/tests/test_campaign.py:11220
