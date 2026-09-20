@@ -2864,6 +2864,336 @@ def test_parallel_capability_remains_bound_to_parent_pid():
     )
 
 
+def _capacity_tuple_result(trace_dir, workers=1):
+    """Run the preserved pre-capacity builder through the full result consumer."""
+    original = DSG._build_compact
+    DSG._build_compact = DSG._build_compact_tuple
+    try:
+        return verify_trace_dir(trace_dir, workers=workers)
+    finally:
+        DSG._build_compact = original
+
+
+def _capacity_compare_tuple_graph(compact):
+    packed = DSG.from_compact(compact)
+    original = DSG._build_compact
+    DSG._build_compact = DSG._build_compact_tuple
+    try:
+        old = DSG.from_compact(compact)
+    finally:
+        DSG._build_compact = original
+    assert packed.adj == old.adj
+    assert list(packed.adj) == list(old.adj)
+    assert packed._sccs() == old._sccs()
+    assert packed.integrity == old.integrity
+    assert packed.anomalies() == old.anomalies()
+    return packed
+
+
+def test_capacity_all_fixture_results_match_frozen_baseline():
+    # Frozen by the parent using 947fd160a, never regenerated from this builder.
+    frozen = {
+        'g1_serial':
+            '6ad7f8866e63185f8f9ee59a7f6fa3d181ba89a48804a46dbe461ab61787847a',
+        'g2_rmw_chain':
+            '992efbf4dce5edeace363ba442cf1daca8833ec70d06d280a83efd298df29831',
+        'g3_readonly':
+            '300c484d617666c8782f6abfb7fac30b32ac2f95d929e6ae11a26bd344ed8af9',
+        'g4_rw_no_cycle':
+            '1c548ac2f52f066f462e39447a18616f32f072e9db5d3aa98ec53f7e3a94235b',
+        'g5_silo_real_prefix':
+            '97d177435df8e15ce61f1b915f20fdd0af18702b4b15af530be7c47324d235c8',
+        'g6_silo_serial_1thread':
+            '1727ccdcc182df2aaefe656b0eed6f6d2f60a6812b4000a4361595a3cd88cc1a',
+        'g7_mocc_minimal_2thread':
+            'e42f5c0357452c141e732cb10a2c312075052e588566635e798854e5a1262703',
+        'integrity_orphan':
+            '43d3c1de1ca2dc8801a19edac8b796f2ee5ebf574ec0950e52cc20ddede383bb',
+        'm1_commit_at_genesis':
+            '3743cde434c76d687c93168f163d54162d51db24b1fa4537a256d2cd51c53b62',
+        'm2_version_dup':
+            'c35948493a15523a48353a52395f18ea64b92aa6e4ae588c642de01aa0e076d1',
+        'm3_mocc_lock_coverage':
+            'fd7fdd8c4752f51d3a7b1d9f796f3f1873a98da2cf52b9fca5e6723c28485149',
+        'm4_mocc_permutation':
+            'ec9206ae410a63a937ccf083ed987ec11122f444e343360f8716144a56595572',
+        'p1_phantom_skew':
+            'edc848576b586b0764b9e75d293c7451bb180c460e92984a4848c593d99f6a88',
+        'r1_write_skew':
+            '9ff85b22f8e09f611ddafd9e965713a36bc95153e673bab4795f99f41fa36135',
+        'r2_lost_update':
+            '56703559326954eb84a73c9c5d22f3c438b2de01bfae540a97f2a14162f9cd72',
+        'r3_cycle3':
+            '903278a3387fe59d12e57becd25115904c0e37b267d0fa550f49f11ed3614b2c',
+        'r4_mixed_cycle':
+            '37b07f44e83803b11791d52bca70f49de3ac20faf8aef55617880060bd615520',
+        'r5_nonlatest_transitive':
+            'a163e7037a18f82bd8771a3ddb0370ad22170901fd224200fb54e7c69ae802fa',
+        'r6_epoch_version_order':
+            '9db95da142e9a08f8b16a1ca1172d7f1ce8dc24745a73bb1e8691e32a69dc0bf',
+        'r7_epoch_rw_successor':
+            'd54af553d91e3abbbd94bf19777b51bda40ef85deb279a24aca84c16f3bce191',
+        'r8_silo_broken_norw':
+            'ef947c5498fb3abc313267e5c6fb5e8c33a927872bba17e39198b227b0019b88',
+        'r9_dense_cycle4':
+            'd4874d30526e3929ed73b1f9e936f0d8af4ef8d0c735038b9eea3824cfb925bd',
+    }
+    names = sorted(name for name in os.listdir(FIX)
+                   if os.path.isdir(os.path.join(FIX, name))
+                   and any(f.startswith("trace_") and f.endswith(".log")
+                           for f in os.listdir(os.path.join(FIX, name))))
+    assert names == sorted(frozen)
+    for name in names:
+        trace_dir = os.path.join(FIX, name)
+        old = _capacity_tuple_result(trace_dir)
+        for workers in (1, 2):
+            result = verify_trace_dir(trace_dir, workers=workers)
+            assert result == old, (name, workers, "all VerifyResult fields")
+            doc = result_to_dict(result)
+            doc["trace_dir"] = name
+            blob = json.dumps(doc, sort_keys=True, separators=(",", ":"),
+                              ensure_ascii=True).encode()
+            assert hashlib.sha256(blob).hexdigest() == frozen[name], (name, workers)
+
+
+def test_capacity_packed_versions_preserve_bounds_duplicates_and_notes():
+    import shutil
+    from orchestrator.verifier.parse import _parse_trace_dir_compact
+    from orchestrator.verifier.dsg import _PackedVersions
+
+    d = _tmp_trace(
+        "C 0 0 1 0 0 2\nW 0 bb U 1 0\nW 0 aa U 1 0\nE 0\n"
+        "C 1 0 1 0 0 3\nW 1 bb U 1 0\nW 1 bb U 1 0\nW 1 aa U 1 0\nE 1\n",
+        "C 2 1 0 9 0 0\nE 2\n"
+        "C 3 1 1 0 0 2\nW 3 aa U 1 0\nW 3 bb U 1 0\nE 3\n"
+        "C 4 1 2 1 2 0\nR 4 bb 1 0\nR 4 aa 1 0\nE 4\n",
+    )
+    try:
+        old = _capacity_tuple_result(d)
+        for workers in (1, 2):
+            result = verify_trace_dir(d, workers=workers)
+            assert result == old
+            assert result_to_dict(result) == result_to_dict(old)
+            assert result.integrity.version_dups == 5
+            assert result.integrity.genesis_commits == 4
+            assert result.integrity.notes == [
+                "txid 0 commits at or below genesis sentinel (1,0): (1, 0) (non-physical)",
+                "txid 1 commits at or below genesis sentinel (1,0): (1, 0) (non-physical)",
+                "version dup: key=bb ver=(1, 0) by txid 0 and 1",
+                "version dup: key=bb ver=(1, 0) by txid 0 and 1",
+                "version dup: key=aa ver=(1, 0) by txid 0 and 1",
+                "txid 2 commits at or below genesis sentinel (1,0): (0, 9) (non-physical)",
+                "txid 3 commits at or below genesis sentinel (1,0): (1, 0) (non-physical)",
+                "version dup: key=aa ver=(1, 0) by txid 0 and 3",
+                "version dup: key=bb ver=(1, 0) by txid 0 and 3",
+            ]
+        graph = _capacity_compare_tuple_graph(_parse_trace_dir_compact(d, workers=1))
+        assert isinstance(graph.versions, _PackedVersions)
+        assert tuple(graph.versions) == ("bb", "aa")
+        assert graph.producer[("bb", (1, 0))] == 0
+        assert graph.producer.get(("aa", (1, 0))) == 0
+        assert ("aa", (1, 0)) in graph.producer
+        assert ("aa", (1, -1)) not in graph.producer
+        assert graph.versions.get("aa") == [(1, 0)]
+        assert graph.versions.get("cc") is None
+        assert graph.adj == {0: (4,)}
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = _tmp_trace("C 0 0 2 1 0 2\nW 0 aa U 2 1\nW 0 aa U 2 1\nE 0\n")
+    try:
+        result = verify_trace_dir(d, workers=1)
+        assert result == _capacity_tuple_result(d)
+        assert result.integrity.version_dups == 0
+        assert result.integrity.notes == []
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    # Each out-of-range writer triggers the untouched tuple builder before
+    # genesis/dup diagnostics are emitted, even when valid writes precede it.
+    for epoch, tid in ((2**32, 0), (0, -1), (-1, 0), (2, 2**32)):
+        d = _tmp_trace(
+            "C 0 0 1 0 0 1\nW 0 aa U 1 0\nE 0\n"
+            f"C 1 0 {epoch} {tid} 1 1\nR 1 aa 1 0\n"
+            f"W 1 aa U {epoch} {tid}\nE 1\n")
+        try:
+            old = _capacity_tuple_result(d)
+            calls = []
+            original = DSG._build_compact_tuple
+            def record_tuple(graph):
+                assert graph.integrity == Integrity()
+                assert graph.producer == {} and graph.versions == {}
+                calls.append(True)
+                return original(graph)
+            DSG._build_compact_tuple = record_tuple
+            try:
+                result = verify_trace_dir(d, workers=1)
+            finally:
+                DSG._build_compact_tuple = original
+            assert calls == [True]
+            assert result == old
+            assert result_to_dict(result) == result_to_dict(old)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    # Signed-array boundary, epoch-first ordering, and out-of-range reads.
+    # Too-large/negative tid reads still have a tuple-order rw successor.
+    d = _tmp_trace(
+        "C 0 0 2147483647 4294967295 0 1\nW 0 aa U 2147483647 4294967295\nE 0\n"
+        "C 1 0 2147483648 0 0 1\nW 1 aa U 2147483648 0\nE 1\n"
+        "C 2 0 4294967295 4294967295 0 1\nW 2 aa U 4294967295 4294967295\nE 2\n",
+        "C 3 1 2 1 8 0\n"
+        "R 3 aa 2147483647 4294967296\nR 3 aa 2147483648 -1\n"
+        "R 3 aa -1 0\nR 3 aa 4294967296 0\n"
+        "R 3 aa 4294967295 4294967295\nR 3 ff 1 0\n"
+        "R 3 ff 0 0\nR 3 aa 0 9223372036854775807\nE 3\n")
+    try:
+        graph = _capacity_compare_tuple_graph(_parse_trace_dir_compact(d, workers=1))
+        assert isinstance(graph.versions, _PackedVersions)
+        assert graph.versions.versions_flat.typecode == "q"
+        assert graph.versions.producers_flat.typecode == "q"
+        assert graph.versions.key_offsets.typecode == "Q"
+        assert all(a.typecode == "i" for a in graph.versions.token_to_key)
+        assert graph.versions["aa"] == [
+            (2147483647, 4294967295), (2147483648, 0),
+            (4294967295, 4294967295),
+        ]
+        assert graph.integrity.orphan_reads == 6
+        assert {u: set(vs) for u, vs in graph.adj.items()} == {
+            3: {0, 1}, 2: {3}, 0: {1}, 1: {2},
+        }
+        old = _capacity_tuple_result(d)
+        for workers in (1, 2):
+            result = verify_trace_dir(d, workers=workers)
+            assert result == old
+            assert result_to_dict(result) == result_to_dict(old)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads():
+    import shutil
+    from orchestrator.verifier.parse import _parse_trace_dir_compact
+    d = _tmp_trace(
+        "C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n"
+        "C 1 0 2 2 1 1\nR 1 aa 2 1\nW 1 aa U 2 2\nE 1\n",
+        "C 0 1 3 1 0 1\nW 0 bb U 3 1\nE 0\n"
+        "C 2 1 3 2 1 0\nR 2 bb 3 1\nE 2\n")
+    try:
+        old = _capacity_tuple_result(d)
+        for workers in (1, 2):
+            result = verify_trace_dir(d, workers=workers)
+            assert result == old
+            assert result_to_dict(result) == result_to_dict(old)
+            assert (result.n_txns, result.n_reads, result.n_writes,
+                    result.n_keys, result.n_edges, result.total_cycles) == (3, 2, 2, 2, 1, 0)
+            assert result.integrity == Integrity(
+                orphan_reads=1, dup_txids=1,
+                notes=["duplicate txid C-lines: 0 ..."],
+                proof_surfaces=ProofSurfaceAssessment(
+                    protocol="silo", lock_coverage="evidence-present",
+                    permutation="evidence-present", write_intent="evidence-absent"))
+            assert result.verdict == "indeterminate"
+        graph = _capacity_compare_tuple_graph(_parse_trace_dir_compact(d, workers=1))
+        assert graph.adj == {0: (2,)}
+        assert tuple(graph.versions) == ("bb", "aa")
+        assert ("aa", (2, 1)) not in graph.producer
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_capacity_edge_worker_reads_only_arrays():
+    import shutil
+    from array import array
+    from orchestrator.verifier.parse import _parse_trace_dir_compact
+    from orchestrator.verifier.dsg import (
+        _EdgeWorkerState, _EdgeTask, _edge_candidates_for_task,
+        _PackedVersions, _PackedProducer,
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("edge worker read a parent Mapping/key object")
+
+    class ArrayVersions(_PackedVersions):
+        __getitem__ = get = __contains__ = __iter__ = forbidden
+
+    class ArrayProducer(_PackedProducer):
+        __getitem__ = get = __contains__ = __iter__ = forbidden
+
+    class NoKeys:
+        __getitem__ = __iter__ = forbidden
+
+    d = _ordinal_witness_trace()
+    try:
+        compact = _parse_trace_dir_compact(d, workers=1)
+        graph = DSG.from_compact(compact)
+        original = graph.versions
+        guarded = ArrayVersions(
+            NoKeys(), original.token_to_key, original.key_offsets,
+            original.versions_flat, original.producers_flat)
+        state = _EdgeWorkerState(compact, ArrayProducer(guarded), guarded, NoKeys())
+        outcome = _edge_candidates_for_task(_EdgeTask(0, "read", 0, 17), state)
+        assert outcome.run_src == array("q", [8, 16, 1])
+        assert outcome.run_offsets == array("q", [0, 1, 2, 4])
+        assert outcome.run_dst == array("q", [1, 1, 8, 16])
+        assert outcome.orphan_reads == 0
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = _tmp_trace(
+        "C 0 0 2 1 0 2\nW 0 bb U 2 1\nW 0 aa U 2 1\nE 0\n"
+        "C 1 0 3 1 0 1\nW 1 aa U 3 1\nE 1\n",
+        "C 2 1 4 1 0 2\nW 2 bb U 4 1\nW 2 aa U 4 1\nE 2\n")
+    try:
+        compact = _parse_trace_dir_compact(d, workers=1)
+        graph = DSG.from_compact(compact)
+        original = graph.versions
+        guarded = ArrayVersions(
+            NoKeys(), original.token_to_key, original.key_offsets,
+            original.versions_flat, original.producers_flat)
+        state = _EdgeWorkerState(compact, ArrayProducer(guarded), guarded, NoKeys())
+        outcome = _edge_candidates_for_task(_EdgeTask(1, "ww", 0, 2), state)
+        assert outcome.run_src == array("q", [0, 1])
+        assert outcome.run_offsets == array("q", [0, 2, 3])
+        assert outcome.run_dst == array("q", [2, 1, 2])
+        assert outcome.orphan_reads == 0
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_capacity_workers_1_and_16_match():
+    import shutil
+    from orchestrator.verifier.parse import _parse_trace_dir_compact
+    # Sixteen real files, with wr/rw/ww and the collision-sensitive two SCCs.
+    source = _serial_parent_optimization_trace()
+    try:
+        files = ["" for _ in range(16)]
+        rank = 0
+        for name in sorted(os.listdir(source)):
+            with open(os.path.join(source, name)) as stream:
+                frame = []
+                for line in stream:
+                    frame.append(line)
+                    if line.startswith("E "):
+                        files[rank % 16] += "".join(frame)
+                        rank += 1
+                        frame = []
+        d = _tmp_trace(*files)
+        try:
+            old = _capacity_tuple_result(d)
+            _capacity_compare_tuple_graph(_parse_trace_dir_compact(d, workers=1))
+            for workers in (1, 2, 16, None):
+                result = verify_trace_dir(d, workers=workers)
+                assert result == old
+                assert result_to_dict(result) == result_to_dict(old)
+                assert result.n_edges == 9
+                assert [a.cycle for a in result.anomalies] == [[17, 24], [0, 8]]
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+    finally:
+        shutil.rmtree(source, ignore_errors=True)
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():
