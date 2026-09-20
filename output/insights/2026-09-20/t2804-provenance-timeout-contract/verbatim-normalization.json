@@ -1,0 +1,26 @@
+{
+  "note": "diff --check 抵触の行末空白だけを可逆最小正規化した (DW-S07)。原本は job dir /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/ に残る。",
+  "files": {
+    "reviews/s6-review-A.md": {
+      "original_sha256": "d9442143ac4ebd97e98a613130b1382e6fd61fa23b85137a8897eeed8e224836",
+      "original_bytes": 8853,
+      "normalized_sha256": "3913a0f05f98f8b6c900c26ba8501740d2de15e1b224dbcbf91ac44f08982001",
+      "normalized_bytes": 8837,
+      "rule": "strip trailing spaces/tabs at end of each line; visible characters unchanged"
+    },
+    "measurements/live-L1.stderr.txt": {
+      "original_sha256": "2d607addc4b4c8a506a9cc674cb0bd2bab9c03816513d679e4cf47d47d659e4f",
+      "original_bytes": 3544,
+      "normalized_sha256": "e853c096433d33529067e4c58683dee7d3f8f7f43e44c9494aad6b8d7bb9dae2",
+      "normalized_bytes": 3543,
+      "rule": "strip trailing spaces/tabs at end of each line; visible characters unchanged"
+    },
+    "measurements/live-L3.stderr.txt": {
+      "original_sha256": "58488a69b54b7e3ec248e0eda6bb1d4ee5d252f6b456776a85e89c03976a6a94",
+      "original_bytes": 3499,
+      "normalized_sha256": "fb4cdbad1e294971fae2c0b2a30fad507e521062ba7ec20e8be97b1dadcd0283",
+      "normalized_bytes": 3498,
+      "rule": "strip trailing spaces/tabs at end of each line; visible characters unchanged"
+    }
+  }
+}

@@ -1,0 +1,311 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-deadline-without-post-reserve",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    deadline_at = outer_deadline - _PROVENANCE_DEADLINE_POST_RESERVE_S\n",
+          "new": "    deadline_at = outer_deadline\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[100-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[288-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[exception]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[interrupt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-queue-budget-without-cleanup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        - dispatch_compute.DEFAULT_CLEANUP_BUDGET_S\n        - _PROVENANCE_DISPATCH_PRE_RESERVE_S\n",
+          "new": "        - _PROVENANCE_DISPATCH_PRE_RESERVE_S\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1.0--183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1001.0--1183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[197.9-15.9-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[198.0-16.0-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[30.0--152.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[exception]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[interrupt]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[900.0-120.0-258.0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-queue-budget-without-pre-reserve",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        - dispatch_compute.DEFAULT_CLEANUP_BUDGET_S\n        - _PROVENANCE_DISPATCH_PRE_RESERVE_S\n    )\n",
+          "new": "        - dispatch_compute.DEFAULT_CLEANUP_BUDGET_S\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1.0--183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1001.0--1183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[197.9-15.9-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[198.0-16.0-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[30.0--152.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[exception]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[interrupt]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[900.0-120.0-258.0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-min-to-max",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    queue_wait_timeout_s = min(\n",
+          "new": "    queue_wait_timeout_s = max(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[0-None]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[100-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1.0--183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1001.0--1183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[197.9-15.9-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[198.0-16.0-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[30.0--152.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[exception]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[interrupt]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[100.0-90.0-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[900.0-120.0-258.0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-refusal-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if queue_wait_timeout_s < _PROVENANCE_MIN_QUEUE_BUDGET_S:\n",
+          "new": "    if queue_wait_timeout_s >= _PROVENANCE_MIN_QUEUE_BUDGET_S:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[0-None]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[100-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[288-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1.0--183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[-1001.0--1183.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[197.9-15.9-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[198.0-16.0-True]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[30.0--152.0-False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[16]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[1]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[exception]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_terminal_line_reports_observable_values[interrupt]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[100.0-90.0-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_uses_dispatcher_default_constants[900.0-120.0-258.0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-refusal-boundary-le",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if queue_wait_timeout_s < _PROVENANCE_MIN_QUEUE_BUDGET_S:\n",
+          "new": "    if queue_wait_timeout_s <= _PROVENANCE_MIN_QUEUE_BUDGET_S:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_refuses_before_dispatch[198.0-16.0-True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-unset-env-still-derives",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if outer_deadline is None:\n        return dispatch_compute.dispatch(argv, **dispatch_kwargs)\n    now = time.monotonic()\n",
+          "new": "    if outer_deadline is None:\n        outer_deadline = time.monotonic() + 480.0\n    now = time.monotonic()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_unset_preserves_dispatch_kwargs[False]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_unset_preserves_dispatch_kwargs[True]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-deadline-at-not-passed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    dispatch_kwargs[\"deadline_at\"] = deadline_at\n",
+          "new": "    pass  # deadline_at omitted\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[cap_oom]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[force]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_applies_to_all_dispatch_entries[headroom_short]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[100-100.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[288-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_composes_d612_with_min[900-288.0]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_derives_deadline_and_queue_wait",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_reserved_intervals_fit_outer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-invalid-env-treated-as-unset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if raw is None:\n        return None\n    deadline = float(raw)\n",
+          "new": "    if raw is None:\n        return None\n    try:\n        deadline = float(raw)\n    except ValueError:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_invalid_value_returns_infra[ ]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_invalid_value_returns_infra[]",
+        "orchestrator/tests/test_check_ai_provenance.py::test_outer_deadline_invalid_value_returns_infra[abc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "E0-min-operands-swapped",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    queue_wait_timeout_s = min(\n        dispatch_kwargs.get(\n            \"queue_wait_timeout_s\", dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S,\n        ),\n        queue_budget,\n    )\n",
+          "new": "    queue_wait_timeout_s = min(\n        queue_budget,\n        dispatch_kwargs.get(\n            \"queue_wait_timeout_s\", dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S,\n        ),\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-land-env-not-set",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    env[_PROVENANCE_OUTER_DEADLINE_ENV] = repr(time.monotonic() + _PROVENANCE_AUDIT_TIMEOUT_S)\n",
+          "new": "    pass  # outer deadline env omitted\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_outer_deadline_overwrites_inherited_value",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_subprocess_contract_and_exception_mapping"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-land-env-setdefault",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    env[_PROVENANCE_OUTER_DEADLINE_ENV] = repr(time.monotonic() + _PROVENANCE_AUDIT_TIMEOUT_S)\n",
+          "new": "    env.setdefault(_PROVENANCE_OUTER_DEADLINE_ENV, repr(time.monotonic() + _PROVENANCE_AUDIT_TIMEOUT_S))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_outer_deadline_overwrites_inherited_value"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-land-timeout-481",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "_PROVENANCE_AUDIT_TIMEOUT_S = 480\n",
+          "new": "_PROVENANCE_AUDIT_TIMEOUT_S = 481\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_cumulative_wait_budget_arithmetic_uses_production_timeouts",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_timeout_is_retryable_and_retains",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_outer_deadline_overwrites_inherited_value",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_subprocess_contract_and_exception_mapping"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
