@@ -1,0 +1,8 @@
+2026-09-20T11:25:34+0900 launch: cond=A slot=1 tip=b7f970dfa507558f7fb669a5ab38958d6c76b57c main=7d0e044f7effc008ea8c3f6b9c0036af523d96df leaders=1 load1=5.22
+2026-09-20T11:34:52+0900 finished: child_rc=16 session_root=/work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de dirty_after=0 tip_after=b7f970dfa507558f7fb669a5ab38958d6c76b57c
+2026-09-20T11:34:52+0900 missing /work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-0/junit.xml
+2026-09-20T11:34:52+0900 missing /work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-0/report.json
+2026-09-20T11:34:52+0900 missing /work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-1/junit.xml
+2026-09-20T11:34:52+0900 missing /work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-1/report.json
+2026-09-20T11:34:52+0900 missing /work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-2/report.json
+2026-09-20T11:34:52+0900 copy_ok=0

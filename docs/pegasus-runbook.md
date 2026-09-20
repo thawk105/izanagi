@@ -1012,11 +1012,15 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   `tools/run_tests.py` の acceptance shape 判定が False になり、受入専用の事前検査が
   黙って無効化される (`_is_acceptance_run` の default-deny に落ちる)。報告用の整形が要るなら
   受入とは別の走行を立てる。
-- **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
-  無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
-  **親が自分で merge commit を作った wave では、待ち手へ渡す message file を親の merge の
-  message file と別にする。** 両親が同じ実装面 path を変えた merge は `DW-O17` により Codex
-  `role=author` を要し、その message file には Codex の著者行が入る。同じ file を待ち手へ渡すと、
+- **`--merge-message-file` は任意である (現行機構、[T-2785])。** 省略すると、behind が判明した時点で
+  待ち手が self-report の message (`merge main` + 自己申告 `role=integrator` の `AI-Agent:` trailer) を
+  使って main を取り込む。渡す場合は待機を始める前に用意し、message には `DW-O17` に従った
+  `AI-Agent:` trailer を書く。message の事前確認・複製で止まる経路は次の 2 つである: (a) 渡した path が
+  regular file でないとき claim 前に `stage=merge-message-preflight` (rc=2、走行ゼロ)、(b) behind 判明後に
+  message の検証済み複製を作れないとき (渡した file が読めない・`AI-Agent:` 行を欠く・temp へ書けない)
+  `stage=merge-message` (rc=70)。
+  **待ち手へ message file を渡す場合は、親の merge 用 file と別にする。** 両親が同じ実装面 path を
+  変えた merge は `DW-O17` により Codex `role=author` を要し、その message file には Codex の著者行が入る。同じ file を待ち手へ渡すと、
   待ち手が作る別の merge commit まで Codex 著述を名乗ることになる。待ち手用は自己申告の
   `role=integrator` だけを持つ file にし、実装面 overlap があれば待ち手が fail-closed で止まるのに
   任せる (2026-08-23 実測、取り残し branch の回収 wave)。
@@ -1088,7 +1092,7 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   (`merge_pending` は merge の前に立つのでこの経路に正しく載る)。
   取り込んだ main SHA は**作成された merge commit の second parent が記録する**ので、
   message 本文へ SHA を差し込む必要はない (F191 点 1 の erratum)。
-  **`--merge-message-file` は repo の外 (`dev-wave-jobs/<wave>/` 等) へ置く。**
+  **`--merge-message-file` を渡す場合は repo の外 (`dev-wave-jobs/<wave>/` 等) へ置く。**
   repo 内に置くと、その message file 自身が tree を汚す。
   **`--ff-only` と `--no-edit` は使わない** (wave branch が自前 commit を持つと fast-forward
   できず `Not possible to fast-forward` で止まる)。中断は `git merge --abort` → `release` の順。

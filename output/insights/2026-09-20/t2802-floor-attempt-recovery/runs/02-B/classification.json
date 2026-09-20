@@ -1,0 +1,6 @@
+{
+  "kind": "infra",
+  "by": "parent (claude, dev-wave-t2802-floor-attempt-recovery)",
+  "evidence": "run.json other_leaders=2 > gate.leaders_max=1 at launch (chain.log 2026-09-20T10:35:22+0900 'leaders=2'). The gate had opened on two consecutive checks + jitter re-check with leaders<=1; another wave's acceptance waiter (dev_wave_wait.py acceptance) appeared between the re-check and the launch. Child rc=0 and artifacts copied, but the analyzer's run-validity rule 'gate metadata' rejects the run; B's F/W were not computed or read. Not attributable to the B implementation.",
+  "at": "2026-09-20T11:05:00+09:00"
+}
