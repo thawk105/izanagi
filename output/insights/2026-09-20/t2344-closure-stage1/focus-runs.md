@@ -27,3 +27,10 @@ raw log は pytest 出力の末尾空白を含み `git diff --check` に抵触�
 - Request ID:             13858.nqsv
 - Elapse:               44S
 - 結果: 1721 passed, 3 skipped in 38.09s
+
+## f4 — fix 2 後 (95b5d8d3d)、`test_b10_backoff_static_tail_formal.py` 単独走
+
+- raw log sha256 `f6de37418d516514baa08ec3d83f5204fa462ea0f0168a2ba4a03680acbb5148` (4589 bytes)
+- Request ID:             13908.nqsv
+- Elapse:               14S
+- 結果: 69 passed in 8.27s

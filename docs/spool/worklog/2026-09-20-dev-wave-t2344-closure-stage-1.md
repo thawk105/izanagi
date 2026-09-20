@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-20
 wave: dev-wave-t2344-closure-stage
 seq: 1
-title: [T-2344] enforcement source closure を 63 → 85 path へ 1 段進めた — 現行 63 の直接 import 先 22 本を収載し、exact-63 を歴史閲覧 grammar として収載、scope 文言と独立 literal を同 commit で追随 (コード + test、branch worktree-dev-wave-t2344-closure-stage、Codex author 2 commit、変異 11/11 KILLED + 対照 1 SURVIVED、受入は最終 tip に投入)
+title: [T-2344] enforcement source closure を 63 → 85 path へ 1 段進めた — 現行 63 の直接 import 先 22 本を収載し、exact-63 を歴史閲覧 grammar として収載、scope 文言と独立 literal を同 commit で追随 (コード + test、branch worktree-dev-wave-t2344-closure-stage、Codex author 3 commit、変異 11/11 KILLED + 対照 1 SURVIVED、受入 attempt 1 赤 1 件 → fix 2 → 最終 tip に再投入)
 ---
 
 ## 本文
@@ -36,7 +36,8 @@ title: [T-2344] enforcement source closure を 63 → 85 path へ 1 段進めた
   certified 再解析を続けるか — (a) 修正済み exact-63 解析 checkout の保存、(b) 新 grammar で再測定、(c) 現状維持。
 - 言わないこと: 推移閉包が閉じた・certified 経路が source-bound (未収載 78、和で 88 が残る)・20 本すべてで certified 拒否を実走した (代表 4 件)。
 - 事故: 段 5 author v1 の即停止 (親 prompt の編集許可の括弧書きが plan §4 より狭かった。2 分の損失、変更 0)。
-- 工数: codex 8 本 (plan 1・consult 2・author 2・review 2・fix 1、gpt-6-astra / medium)、計算ノード job = 焦点走 3 (f1 fix 前・f2 fix 後・f3 merge 後 + DW-O26 改訂版の inventory 4 群) + 変異 probe 13 + final 13 + 受入。
+- **受入全走 attempt 1 (tip 43c32588b) は赤 1 件で停止**: `test_b10_backoff_static_tail_formal.py::test_formal_loader_rejects_real_exploration` が実在の exploration campaign (exact-63) を certified 経路に渡し `not formal` を期待 → decode 段 (exact key 集合不正) で拒否されて不一致。本 wave 起因 (受理集合の変化そのもの、production は D1653 どおり)。fix 2 で主張を「実 exact-63 は decode 段拒否」と「not formal は現行 grammar の合成 campaign で検査」の 2 node に分けて残し、単独走緑。段 6 レビュー 2 本と焦点走 3 本が取り逃したのは、この test が変更 symbol を参照せず実 外部 root の記録済み campaign を読むため (F474 の再発として記録、対処は memory)。受入は最終 tip へ再投入。
+- 工数: codex 9 本 (plan 1・consult 2・author 2・review 2・fix 2、gpt-6-astra / medium)、計算ノード job = 焦点走 4 (f1 fix 前・f2 fix 後・f3 merge 後 + DW-O26 改訂版の inventory 4 群・f4 fix 2 後の単独走) + 変異 probe 13 + final 13 + 受入 2 回。
 
 ## 次の一手差分
 

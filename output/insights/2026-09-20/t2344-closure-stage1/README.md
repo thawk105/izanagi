@@ -11,7 +11,7 @@
   歴史閲覧限定 decoder、収載は実在 corpus が確認できた grammar だけ)、D2081 (scope 文言は日付・commit 付き測定事実)。設計判断は本 wave の
   decisions fragment。一次資料 (先行) は `output/insights/2026-09-09/t2344-closure-reachability/`。
 - 基準: local main `f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad` で着手 (worktree 作成直後に ff-only)。
-- 実装 commit: `65e94a3a7` (段 5、Codex author)、`5bfb5fec0` (段 6 fix 1、Codex author)。
+- 実装 commit: `65e94a3a7` (段 5、Codex author)、`5bfb5fec0` (段 6 fix 1、Codex author)、`95b5d8d3d` (受入赤の fix 2、Codex author)。
 - authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾)。
 
 ## 1. 何をしたか
@@ -101,8 +101,11 @@ sha256 は記録 (当時の事実、規律 7) で変えない。B-4 projection h
 | RB-4 裁定外の一般化・互換 union は無い | refuted | closed |
 | RB-5 test 構成 (codec 4 + admission 5 + drift 1 = 10 関数 100 ケース) | refuted | closed |
 | RB-6 旧 63 の certified 再解析喪失は実装どおり、C の実測は代表 4 件 | 開示 (nit) | closed (§5 に「代表 4 件」と書く) |
+| **受入 attempt 1 の赤 1 件** `test_b10_backoff_static_tail_formal.py::test_formal_loader_rejects_real_exploration` = 実在の exploration campaign (`b10-backoff-grid-t2418-explore`、exact-63) を certified 経路に渡し `not formal` を期待していた test が、decode 段 (exact key 集合不正) で拒否されて message 不一致 | real (本 wave 起因 = §5 の受理集合変化そのもの。production は D1653 どおり) | **closed**: fix 2 (`95b5d8d3d`、Codex author) で主張を「実 exact-63 は decode 段拒否」と 「not formal は現行 85 grammar の合成 campaign (run_kind を t2418-explore にした certified lock) で検査」の 2 node に分けて残した (regex の緩和・skip なし)。単独走 f4 緑。逐語は `verbatim/acceptance-red-1.md` / `verbatim/s6-fix2.md` |
 
-fix は 1 巡・test file 1 本・5 literal。焦点再レビューの codex 子は投入していない (fix の派生値 850 は親が式から再計算し、f2 の緑で閉じた)。
+fix は 2 巡 (fix 1: test file 1 本・5 literal、fix 2: test file 1 本・2 node)。焦点再レビューの codex 子は投入していない (fix 1 の派生値 850 は親が式から再計算し f2 の緑で閉じ、fix 2 は親が裁定 §6 の開示と junit 本文で帰属を判定し f4 の緑で閉じた)。
+
+**静的レビュー 2 本と焦点走 3 本が受入赤を取り逃した理由 (F474 の再発として failures へ):** 当該 test は `campaign_lock` / `artifact_admission` の symbol を参照せず、`b10_backoff_static_tail_formal` 経由で実 外部 root (`/work/1/SFC/tanab/`) の記録済み campaign (旧 grammar) を読む。記録済み成果物は「変更した値を別の形で持つ consumer」で symbol grep にも literal grep にも掛からない。受理集合を変える wave は実 外部 root を読む test (2026-09-20 時点 14 file) を参照関係に依らず焦点走へ加える (memory へ記録。DW-O26 は予算満杯)。
 
 ## 5. 受理集合の変化 (開示、DW-G05) と実 lock での到達点
 
@@ -162,7 +165,8 @@ kill は受理集合か fail-closed 挙動が期待方向へ変わった赤だ�
   f1 (`65e94a3a7`、job 13633.nqsv、Elapse 39 s) 3112 passed / 3 failed (§4)、f2 (`5bfb5fec0`、job 13649.nqsv、Elapse 40 s) **3115 passed / 0 failed**。
 - 全史 provenance 監査 (`check_ai_provenance.py`): 12061 件、新規違反なし (実装 commit 後)。
 - 焦点走 f3 (merge 後の tip、DW-O26 改訂版 (T-2813) の inventory 4 群 `test_campaign.py` / `test_official_perf_closure.py` / `test_p3_exploration_namespace.py` / `test_p3_b4_wiring_probe.py` + 変更 test 5 file): job 13858.nqsv、Elapse 44 s、**1721 passed / 3 skipped / 0 failed**。
-- 受入全走: 記録 commit を含む最終 tip に land 前に 1 回投入する。受領証は job dir (`acceptance-receipt-*.json`) と land の記録が持つ。件数は本文へ書かない (書けば tip が変わり取り直しになる)。
+- 焦点走 f4 (fix 2 後、`test_b10_backoff_static_tail_formal.py` 単独走): job 13908.nqsv、Elapse 14 s、**69 passed / 0 failed**。
+- 受入全走 attempt 1 (tip `43c32588b` = 記録 commit + main `6305f2d05` の merge、3 shard): 赤 1 件 (上の受入赤、F945 型でないので script が停止)。fix 2 後に同系列の最終 tip へ再投入する。受領証は job dir (`acceptance-receipt-*.json`) と land の記録が持つ。件数は本文へ書かない (書けば tip が変わり取り直しになる)。
 
 ## 8. 裁定パッケージ候補 (本 wave では実装しない)
 
@@ -181,8 +185,8 @@ kill は受理集合か fail-closed 挙動が期待方向へ変わった赤だ�
 
 ## 10. 工数
 
-codex 子 8 本 (plan 1、consult 2、author 2 (v1 は編集許可の不一致で即停止・変更 0)、review 2、fix 1、全て gpt-6-astra / medium)。
-計算ノード job: 焦点走 3 (f1 / f2 / f3) + 変異 probe 13 run + final 13 run + 受入 (land 前 1 回)。段 5 author v2 は 851 s / 26 call。
+codex 子 9 本 (plan 1、consult 2、author 2 (v1 は編集許可の不一致で即停止・変更 0)、review 2、fix 2、全て gpt-6-astra / medium)。
+計算ノード job: 焦点走 4 (f1 / f2 / f3 / f4) + 変異 probe 13 run + final 13 run + 受入 2 回 (attempt 1 赤 1 件、最終 tip で再投入)。段 5 author v2 は 851 s / 26 call。
 
 ## 成果物
 
@@ -195,11 +199,11 @@ codex 子 8 本 (plan 1、consult 2、author 2 (v1 は編集許可の不一致�
 | `pin_closure.log` / `overlap_scan.log` | DW-O09 の pin 閉包、他 worktree との編集面重複走査 |
 | `mutation-spec-*.json` / `mutation-probe.json` / `mutation-final.json` / `mutation-final-derivation.json` | 変異 spec と台帳 (probe / final)。台帳 2 本は `artifact.stdout` と `procedure.collection` を `{omitted, bytes, sha256}` に置換した要約版で、原本 (2.95 MB / 2.01 MB) は job dir に残し `_summary_of.original_sha256` で束縛 |
 | `focus-runs.md` | 焦点走 3 本 (fix 前 / fix 後 / merge 後 + inventory 4 群) の job ID・所要・合否・赤 node と raw log の sha256 (raw log は末尾空白のため job dir に残す) |
-| `verbatim/` | brief、measured-facts、plan、lens A/B、ruling、author v1/v2、review A/B、fix 1、probe script の逐語 |
+| `verbatim/` | brief、measured-facts、plan、lens A/B、ruling、author v1/v2、review A/B、fix 1、受入赤 1 件の裁定、fix 2、probe script の逐語 |
 
 ### verbatim の可逆最小正規化 (DW-S07)
 
-codex 子の出力 8 本は行末に Markdown の hard break (半角空白 2 つ) を持ち `git diff --check` に抵触するため、**行末の空白だけ**を除去した (可視文字不変)。復元は下表の行の行末に半角空白 2 つを付ける。原文は job dir (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2344-closure-stage/`) の元 file と codex launcher の receipt (`output_sha256`) に残る。記録は `verbatim-normalization.json`。
+codex 子の出力 9 本は行末に Markdown の hard break (半角空白 2 つ) を持ち `git diff --check` に抵触するため、**行末の空白だけ**を除去した (可視文字不変)。復元は下表の行の行末に半角空白 2 つを付ける。原文は job dir (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2344-closure-stage/`) の元 file と codex launcher の receipt (`output_sha256`) に残る。記録は `verbatim-normalization.json`。
 
 | file | 行 | 原文 sha256 (bytes) | 正規化後 sha256 (bytes) |
 |---|---|---|---|
@@ -211,3 +215,4 @@ codex 子の出力 8 本は行末に Markdown の hard break (半角空白 2 つ
 | `verbatim/s6-fix1.md` | 21, 22 | `4a7f61fbbc4dab9b09bade550ae9cd9e55d4d4d21c3c9fbc515d2ece9c44b243` (1458) | `aaf22bce8e0e9ebc3f4bd32f4b7b7b79ca5cf71f6cf87d1cf6b1cb86aba064e2` (1454) |
 | `verbatim/s6-reviewA.md` | 7, 8, 19, 20, 33, 34, 47, 48, 57, 58, 67, 68, 73, 74, 75 | `c6145a797a3e450372d62ddc88def35d3999ff0eaa3baf38702d08c4a5a9f91e` (8151) | `5360d783cfae9543beb8a62c2ce0469443b003a87f144becf0f3a260803fc62b` (8121) |
 | `verbatim/s6-reviewB.md` | 75, 76, 77 | `9ff5d55c8a47ce7393ce0375f4ae409009f032f3d1913c5f2174b001e66b7506` (7301) | `f2b25dfc4cc01de2afa3d5a5c9a5b17b25664ddbfaa3d7b5f97102b15c3ddf81` (7295) |
+| `verbatim/s6-fix2.md` | 27 | `c50cdbe2981ba590b796e5ac54644976ecab516cc4a60095ad9f2b2d9a0359ca` (1420) | `42be28cb4ac8ea351383e23acb3a1839b7a81880e8a37af87ef3f0049532d448` (1418) |
