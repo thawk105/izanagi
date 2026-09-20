@@ -1,0 +1,40 @@
+{
+  "epoch": 1789923438.3470316,
+  "loadavg": [
+    0.4384765625,
+    0.53662109375,
+    0.84765625
+  ],
+  "others": 0,
+  "stale_pytest": 0,
+  "other_processes": [],
+  "stale_pytest_processes": [],
+  "system_users_excluded": [
+    "bin",
+    "chrony",
+    "daemon",
+    "dbus",
+    "mail",
+    "nobody",
+    "nscd",
+    "ntp",
+    "postfix",
+    "root",
+    "rpc",
+    "rpcuser",
+    "sshd",
+    "sync",
+    "sys"
+  ],
+  "residues": [],
+  "hostname": "bnode008",
+  "HEAD": "2afb3976822dc0e3d8591c139f6ab607278b9276",
+  "git_status_line_count": 0,
+  "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "pytest": "9.1.1",
+  "xdist": "3.8.0",
+  "nproc": 48,
+  "TMPDIR": "/tmp/t2817b-92lojivl/tmp",
+  "removed_env": [],
+  "acceptance_shards_env": "unset: compute has no outer shard dispatch; plugin spec selects 0/3"
+}

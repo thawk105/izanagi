@@ -1,0 +1,346 @@
+{
+ "raw/job-out/S0-a/cell.txt": {
+  "normalized_bytes": 522,
+  "normalized_sha256": "01e6f2f4cba061d48c9b6498d80d517ea3180754fc3fe51d97ae351a16b33030",
+  "original_bytes": 523,
+  "original_sha256": "f3eab5206adad9f75c5b7e576bb2725da7ffc7550ee76e086160261b313daf7b",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S0-b/cell.txt": {
+  "normalized_bytes": 522,
+  "normalized_sha256": "3250e549ba50341855122513ac27889553b417dfcc789ca594906da6302481ed",
+  "original_bytes": 523,
+  "original_sha256": "121b2ed12977958e6cf27c59f0e5a5b21707edf6e4501aa8ea8843d6bfd0f8de",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S1-a/cell.txt": {
+  "normalized_bytes": 460,
+  "normalized_sha256": "5fdf2b2b7247b958bf5265a285215a4411d3625326a674a7a7d841aa515ce5af",
+  "original_bytes": 461,
+  "original_sha256": "d87583879792ffcd27592219ba6ebb074fc2d5a04a237e88f26a4cb11d12bb98",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S1-b/cell.txt": {
+  "normalized_bytes": 460,
+  "normalized_sha256": "c57ec9b11bc96006b016bb18e8c1f808539cf2f58b2a02fbe8184ec39c1bf917",
+  "original_bytes": 461,
+  "original_sha256": "0021881ac5bf588241bad8b843d880d4f1d56ee032e4e2f77ff9ca53b013c1c7",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S2-a/cell.txt": {
+  "normalized_bytes": 487,
+  "normalized_sha256": "39caa99a97fb035d82ddc42ba81a612e690223c2fa18f007c55631ff6a7dfe97",
+  "original_bytes": 488,
+  "original_sha256": "9ab8d358ce1ae704128bb501087f803c16dde3451250eb203da7682b2c16f1e4",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S2-b/cell.txt": {
+  "normalized_bytes": 487,
+  "normalized_sha256": "26ffe045140fc26369d2427a6775d56e93a9c6d84adc000ca5a7b16a41e984b7",
+  "original_bytes": 488,
+  "original_sha256": "c54d6ad0782dff90a4f1cd0db809e053da2aa77edc2f0e2ff1bfe3834d1d0f03",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S3-a/cell.txt": {
+  "normalized_bytes": 464,
+  "normalized_sha256": "e87dd765f348e9da1171919e3bab6a84123a7b0512b3c3c53b0b4595811be524",
+  "original_bytes": 465,
+  "original_sha256": "3211daf6759b040408bab45eb528aa31ac5522e0b1cbe7e7402459fd72cdb5fe",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/S3-b/cell.txt": {
+  "normalized_bytes": 464,
+  "normalized_sha256": "55f3bb9338965ecf7e2eaef3c368a42e89c9109e61fb9489c8146771193cc770",
+  "original_bytes": 465,
+  "original_sha256": "2e19af251d6949400cb96a02928adf0218377d8dfd737cdbee0b14e22af2a029",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "raw/job-out/warm/cell.txt": {
+  "normalized_bytes": 357,
+  "normalized_sha256": "32803cd7b511eafa47af7f88ab5e4e7b72c20e3459d68ffe3dda75266c76f901",
+  "original_bytes": 358,
+  "original_sha256": "248fefe8e0acbeb8adb966e97700642eae5033b6d277c11292c491145191fcbc",
+  "stripped_lines": [
+   [
+    6,
+    " "
+   ]
+  ]
+ },
+ "verbatim/run-probe-a.log": {
+  "normalized_bytes": 3942,
+  "normalized_sha256": "9e29efa467241353be27d1bbd40113b4855dae99f7f5cd1e22e081932765bb87",
+  "original_bytes": 3943,
+  "original_sha256": "29ef9e95c19ac4d797c762ed7023bef4c92926fe8e59faded8f659a15fb4b0f5",
+  "stripped_lines": [
+   [
+    26,
+    " "
+   ]
+  ]
+ },
+ "verbatim/run-probe-b.log": {
+  "normalized_bytes": 3978,
+  "normalized_sha256": "426c8df15fb43270b019ec19bf543824f830956967d7884b0995741415de32b6",
+  "original_bytes": 3979,
+  "original_sha256": "98686f12d9a08c5f28a196c471e6fb172926bd25a0e3dcc77dadfbcdd50701f4",
+  "stripped_lines": [
+   [
+    26,
+    " "
+   ]
+  ]
+ },
+ "verbatim/s3-consult-out.md": {
+  "normalized_bytes": 16683,
+  "normalized_sha256": "97beba1b948d73e5e9f65a4f9d37b05289a2b30a1f504036c84fd9f6af5e4ef8",
+  "original_bytes": 16773,
+  "original_sha256": "e7a7e2bd20de25acd999721af451b3c7dac0ddb5b14626c8cdb91949b58f5a2a",
+  "stripped_lines": [
+   [
+    5,
+    "  "
+   ],
+   [
+    6,
+    "  "
+   ],
+   [
+    7,
+    "  "
+   ],
+   [
+    10,
+    "  "
+   ],
+   [
+    11,
+    "  "
+   ],
+   [
+    12,
+    "  "
+   ],
+   [
+    15,
+    "  "
+   ],
+   [
+    16,
+    "  "
+   ],
+   [
+    17,
+    "  "
+   ],
+   [
+    18,
+    "  "
+   ],
+   [
+    21,
+    "  "
+   ],
+   [
+    22,
+    "  "
+   ],
+   [
+    23,
+    "  "
+   ],
+   [
+    26,
+    "  "
+   ],
+   [
+    27,
+    "  "
+   ],
+   [
+    28,
+    "  "
+   ],
+   [
+    31,
+    "  "
+   ],
+   [
+    32,
+    "  "
+   ],
+   [
+    33,
+    "  "
+   ],
+   [
+    36,
+    "  "
+   ],
+   [
+    37,
+    "  "
+   ],
+   [
+    38,
+    "  "
+   ],
+   [
+    39,
+    "  "
+   ],
+   [
+    40,
+    "  "
+   ],
+   [
+    43,
+    "  "
+   ],
+   [
+    44,
+    "  "
+   ],
+   [
+    45,
+    "  "
+   ],
+   [
+    48,
+    "  "
+   ],
+   [
+    49,
+    "  "
+   ],
+   [
+    50,
+    "  "
+   ],
+   [
+    51,
+    "  "
+   ],
+   [
+    54,
+    "  "
+   ],
+   [
+    55,
+    "  "
+   ],
+   [
+    56,
+    "  "
+   ],
+   [
+    59,
+    "  "
+   ],
+   [
+    60,
+    "  "
+   ],
+   [
+    61,
+    "  "
+   ],
+   [
+    62,
+    "  "
+   ],
+   [
+    67,
+    "  "
+   ],
+   [
+    68,
+    "  "
+   ],
+   [
+    69,
+    "  "
+   ],
+   [
+    70,
+    "  "
+   ],
+   [
+    97,
+    "  "
+   ],
+   [
+    98,
+    "  "
+   ],
+   [
+    99,
+    "  "
+   ]
+  ]
+ },
+ "verbatim/s5-fix1-a-out.md": {
+  "normalized_bytes": 3924,
+  "normalized_sha256": "33dd629a8c74962f863594078c054f70e04a121603b81126437e3e53c1365818",
+  "original_bytes": 3928,
+  "original_sha256": "a74e7fff853d3b11cbe2778d4ce8838275f8ddbacda28a8c21fd51677f0f3473",
+  "stripped_lines": [
+   [
+    9,
+    " "
+   ],
+   [
+    10,
+    " "
+   ],
+   [
+    62,
+    " "
+   ],
+   [
+    63,
+    " "
+   ]
+  ]
+ }
+}

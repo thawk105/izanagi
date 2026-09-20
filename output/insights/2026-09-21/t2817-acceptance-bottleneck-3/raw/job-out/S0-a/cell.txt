@@ -1,0 +1,14 @@
+cell=S0-a
+stage=S0
+half=a
+start_epoch=1789923620.196853638
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-joba
+argv=python3.10 -m pytest /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-joba/orchestrator/tests --collect-only -q -p no:cacheprovider
+others=0
+stale_pytest=0
+cohort_start=1789923620.250319736
+cohort_end=1789923637.154717106
+rc_list=0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+end_epoch=1789923637.155641444
+wall=16.958787918
+rc=0

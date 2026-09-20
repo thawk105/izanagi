@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""受入成果物 (repo 外) を read-only で読み、shard 層の内訳を並べる (整形のみ、状態変更なし)。
+
+各 session / shard について:
+  host, timestamp (junit), W (junit testsuite time), pre (= collection_finished − junit timestamp),
+  O (max worker occupancy duration_s とその worker), L (最長 testcase の time と nodeid),
+  P = O − L (相方), F = W − O (固定費), memo (IZANAGI_MEMO_PREWARM_V1 の receipt_memo_s / barrier_s),
+  pairing (junit に izanagi_acceptance_pairing_v1 property があるか), passed/failed
+"""
+import json
+import os
+import re
+import sys
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path("/work/1/SFC/tanab/.izanagi-acceptance-shards")
+LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 40
+
+MEMO_RE = re.compile(r"IZANAGI_MEMO_PREWARM_V1 (\{.*\})")
+
+
+def iter_sessions():
+    dirs = [d for d in ROOT.iterdir() if d.is_dir()]
+    dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+    return dirs[:LIMIT]
+
+
+def parse_junit_head(path):
+    # 先頭 testsuite の属性だけを読む (file は数 MB)
+    with open(path, "rb") as fh:
+        head = fh.read(4096).decode("utf-8", "replace")
+    m = re.search(r"<testsuite [^>]*>", head)
+    if not m:
+        return None
+    attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(0)))
+    return attrs
+
+
+def longest_testcase(path):
+    best = (0.0, None, None)
+    pairing = False
+    for _event, elem in ET.iterparse(path, events=("end",)):
+        if elem.tag == "testcase":
+            t = float(elem.get("time") or 0.0)
+            if t > best[0]:
+                worker = None
+                for prop in elem.iter("property"):
+                    n = prop.get("name", "")
+                    if n == "izanagi_acceptance_pairing_v1_worker":
+                        worker = prop.get("value")
+                best = (t, elem.get("classname", "") + "::" + elem.get("name", ""), worker)
+            if not pairing:
+                for prop in elem.iter("property"):
+                    if prop.get("name", "").startswith("izanagi_acceptance_pairing_v1"):
+                        pairing = True
+                        break
+            elem.clear()
+    return best, pairing
+
+
+def memo_line(dispatcher_log):
+    try:
+        text = dispatcher_log.read_text(errors="replace")
+    except OSError:
+        return None
+    m = MEMO_RE.search(text)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return None
+
+
+def main():
+    rows = []
+    for session in iter_sessions():
+        for shard in sorted(session.glob("shard-*")):
+            report = shard / "report.json"
+            junit = shard / "junit.xml"
+            if not report.is_file() or not junit.is_file():
+                continue
+            try:
+                r = json.load(open(report))
+            except (OSError, json.JSONDecodeError):
+                continue
+            attrs = parse_junit_head(junit)
+            if not attrs:
+                continue
+            ts = attrs.get("timestamp")
+            try:
+                t0 = datetime.fromisoformat(ts).timestamp()
+            except (TypeError, ValueError):
+                t0 = None
+            st = r.get("session_timeline") or {}
+            cf = st.get("collection_finished_epoch_s")
+            pre = (cf - t0) if (cf is not None and t0 is not None) else None
+            occ = r.get("worker_occupancy") or {}
+            omax = max(((v.get("duration_s") or 0.0), k) for k, v in occ.items()) if occ else (None, None)
+            (L, lnode, lworker), pairing = longest_testcase(junit)
+            W = float(attrs.get("time") or 0.0)
+            memo = memo_line(shard / "dispatcher.log")
+            tc = r.get("terminal_counts") or {}
+            rows.append({
+                "session": session.name[:8],
+                "shard": shard.name,
+                "host": attrs.get("hostname"),
+                "timestamp": ts,
+                "W": W,
+                "pre": pre,
+                "O": omax[0],
+                "O_worker": omax[1],
+                "L": L,
+                "L_node": lnode,
+                "L_worker": lworker,
+                "P": (omax[0] - L) if omax[0] is not None else None,
+                "F": (W - omax[0]) if omax[0] is not None else None,
+                "memo_receipt_s": (memo or {}).get("receipt_memo_s"),
+                "memo_barrier_s": (memo or {}).get("barrier_s"),
+                "pairing": pairing,
+                "passed": tc.get("passed"),
+                "failed": tc.get("failed"),
+                "error": tc.get("error"),
+                "scheduler": r.get("effective_scheduler"),
+            })
+    json.dump(rows, sys.stdout, ensure_ascii=False, indent=1)
+    print()
+
+
+if __name__ == "__main__":
+    main()

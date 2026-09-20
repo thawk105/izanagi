@@ -1,0 +1,340 @@
+{
+  "schema_version": "t2817-probe/v1",
+  "complete": true,
+  "errors": [],
+  "times": {
+    "t_import": {
+      "epoch": 1789922954.685536,
+      "monotonic": 1529954.931914454
+    },
+    "configure": {
+      "epoch": 1789922954.7528858,
+      "monotonic": 1529954.999264244
+    },
+    "sessionstart": {
+      "epoch": 1789922954.757628,
+      "monotonic": 1529955.004006511
+    },
+    "collection_entry": {
+      "epoch": 1789922954.8330283,
+      "monotonic": 1529955.079406717
+    },
+    "collection_exit": {
+      "epoch": 1789922954.8330684,
+      "monotonic": 1529955.079446368
+    },
+    "all_collected": {
+      "epoch": 1789922955.3112907,
+      "monotonic": 1529955.557668796
+    },
+    "collection_checked": {
+      "epoch": 1789922955.311302,
+      "monotonic": 1529955.557680095
+    },
+    "first_nodedown": {
+      "epoch": 1789922955.3121824,
+      "monotonic": 1529955.558561143
+    },
+    "sessionfinish": {
+      "epoch": 1789922955.3169,
+      "monotonic": 1529955.563278346
+    },
+    "unconfigure": {
+      "epoch": 1789922955.6380608,
+      "monotonic": 1529955.884439467
+    }
+  },
+  "workers": {
+    "gw1": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789922954.9852176,
+          "monotonic": 1529955.231595987
+        },
+        "configure": {
+          "epoch": 1789922955.0351367,
+          "monotonic": 1529955.281515267
+        },
+        "sessionstart": {
+          "epoch": 1789922955.0377443,
+          "monotonic": 1529955.284122648
+        },
+        "collection_entry": {
+          "epoch": 1789922955.041203,
+          "monotonic": 1529955.287581431
+        },
+        "first_itemcollected": {
+          "epoch": 1789922955.2946947,
+          "monotonic": 1529955.54107318
+        },
+        "last_itemcollected": {
+          "epoch": 1789922955.297804,
+          "monotonic": 1529955.544182121
+        },
+        "cf_entry": {
+          "epoch": 1789922955.304478,
+          "monotonic": 1529955.550856468
+        },
+        "cf_exit": {
+          "epoch": 1789922955.3054974,
+          "monotonic": 1529955.551875492
+        },
+        "collection_exit": {
+          "epoch": 1789922955.3055227,
+          "monotonic": 1529955.551900856
+        },
+        "sessionfinish": {
+          "epoch": 1789922955.311571,
+          "monotonic": 1529955.557949162
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 484,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": false,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "T2817_PROBE_OUT": "/home/SFC/tanab/.claude/jobs/bdc63616/tmp/smoke-a2/probe-s1.json",
+          "IZANAGI_RUN_TESTS_SCOPE_UNIT": "izanagi-run-tests-3438001-a1d26632c434e8ff.scope",
+          "IZANAGI_RUN_TESTS_SCOPE_CAP": "1073741824",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "37deaf4e5cbe463397b716746bb659cd",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "1bf35077b22946e399060e6d2a473274",
+          "PYTEST_XDIST_TESTRUNUID": "7bfc7f852b3348418d819724ca92f0bd",
+          "PYTEST_XDIST_WORKER": "gw1",
+          "PYTEST_XDIST_WORKER_COUNT": "2"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": false
+      },
+      "workerid": "gw1",
+      "collection_finished_epoch_s": null,
+      "selected_count": null
+    },
+    "gw0": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789922954.951422,
+          "monotonic": 1529955.197800441
+        },
+        "configure": {
+          "epoch": 1789922955.0030136,
+          "monotonic": 1529955.24939206
+        },
+        "sessionstart": {
+          "epoch": 1789922955.0057683,
+          "monotonic": 1529955.252146713
+        },
+        "collection_entry": {
+          "epoch": 1789922955.009447,
+          "monotonic": 1529955.255825704
+        },
+        "first_itemcollected": {
+          "epoch": 1789922955.294761,
+          "monotonic": 1529955.541139513
+        },
+        "last_itemcollected": {
+          "epoch": 1789922955.2977397,
+          "monotonic": 1529955.544117867
+        },
+        "cf_entry": {
+          "epoch": 1789922955.3044598,
+          "monotonic": 1529955.550838269
+        },
+        "cf_exit": {
+          "epoch": 1789922955.3055131,
+          "monotonic": 1529955.551891439
+        },
+        "collection_exit": {
+          "epoch": 1789922955.305539,
+          "monotonic": 1529955.55191709
+        },
+        "sessionfinish": {
+          "epoch": 1789922955.3115673,
+          "monotonic": 1529955.557945716
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 484,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": false,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "T2817_PROBE_OUT": "/home/SFC/tanab/.claude/jobs/bdc63616/tmp/smoke-a2/probe-s1.json",
+          "IZANAGI_RUN_TESTS_SCOPE_UNIT": "izanagi-run-tests-3438001-a1d26632c434e8ff.scope",
+          "IZANAGI_RUN_TESTS_SCOPE_CAP": "1073741824",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "37deaf4e5cbe463397b716746bb659cd",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "1bf35077b22946e399060e6d2a473274",
+          "PYTEST_XDIST_TESTRUNUID": "7bfc7f852b3348418d819724ca92f0bd",
+          "PYTEST_XDIST_WORKER": "gw0",
+          "PYTEST_XDIST_WORKER_COUNT": "2"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": false
+      },
+      "workerid": "gw0",
+      "collection_finished_epoch_s": null,
+      "selected_count": null
+    }
+  },
+  "nodes": {
+    "gw0": {
+      "configure": {
+        "epoch": 1789922954.7973723,
+        "monotonic": 1529955.043750833
+      },
+      "collection_entry": {
+        "epoch": 1789922955.3094177,
+        "monotonic": 1529955.55579603
+      },
+      "ids_count": 484,
+      "collection_exit": {
+        "epoch": 1789922955.3112476,
+        "monotonic": 1529955.557625843
+      },
+      "nodedown": {
+        "epoch": 1789922955.3145869,
+        "monotonic": 1529955.560965208
+      },
+      "error": null
+    },
+    "gw1": {
+      "configure": {
+        "epoch": 1789922954.8323367,
+        "monotonic": 1529955.078715099
+      },
+      "collection_entry": {
+        "epoch": 1789922955.307295,
+        "monotonic": 1529955.553673627
+      },
+      "ids_count": 484,
+      "collection_exit": {
+        "epoch": 1789922955.3093598,
+        "monotonic": 1529955.555738041
+      },
+      "nodedown": {
+        "epoch": 1789922955.3121824,
+        "monotonic": 1529955.558561143
+      },
+      "error": null
+    }
+  },
+  "item_count": 0,
+  "collection_mismatch": false,
+  "config": {
+    "dist": "loadgroup",
+    "loadscopereorder": false,
+    "numprocesses": 2,
+    "maxfail": null,
+    "shard_spec": false,
+    "ledger_attr": true,
+    "ledger_entries": 0,
+    "early_memo_attr": false,
+    "effective_scheduler_attr": true,
+    "argv": [
+      "/home/SFC/tanab/.local/lib/python3.10/site-packages/pytest/__main__.py",
+      "--dist",
+      "loadgroup",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-acceptance-bottleneck-3/orchestrator/tests/test_hooks.py",
+      "-n",
+      "2",
+      "--dist",
+      "loadgroup",
+      "--no-loadscope-reorder",
+      "--junitxml=/home/SFC/tanab/.claude/jobs/bdc63616/tmp/smoke-a2/junit-s1.xml",
+      "-p",
+      "t2817_probe_plugin",
+      "-p",
+      "no:cacheprovider",
+      "-q"
+    ],
+    "env": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+      "T2817_PROBE_COLLECT_ONLY": "1",
+      "T2817_PROBE_OUT": "/home/SFC/tanab/.claude/jobs/bdc63616/tmp/smoke-a2/probe-s1.json",
+      "IZANAGI_RUN_TESTS_SCOPE_UNIT": "izanagi-run-tests-3438001-a1d26632c434e8ff.scope",
+      "IZANAGI_RUN_TESTS_SCOPE_CAP": "1073741824",
+      "PYTEST_VERSION": "9.1.1",
+      "IZANAGI_RECEIPT_MEMO_NONCE": "37deaf4e5cbe463397b716746bb659cd",
+      "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "1bf35077b22946e399060e6d2a473274"
+    },
+    "ledger_option_inputs": {
+      "dist": "loadgroup",
+      "maxfail": null,
+      "loadscopereorder": false,
+      "cacheshow": null,
+      "stepwise": false,
+      "stepwise_skip": false,
+      "stepwise_reset": false,
+      "failedfirst": false,
+      "newfirst": false,
+      "lf": false,
+      "collectonly": false,
+      "setuponly": false,
+      "setupplan": false,
+      "showfixtures": false,
+      "show_fixtures_per_test": false,
+      "trace": false
+    },
+    "ledger_should_load": false
+  },
+  "exitstatus": 0
+}

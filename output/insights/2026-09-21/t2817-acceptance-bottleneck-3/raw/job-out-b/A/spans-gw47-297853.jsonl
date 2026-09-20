@@ -1,0 +1,1 @@
+{"worker": "gw47", "pid": 297853, "name": "verify", "key": null, "begin_epoch": 1789923619.7576022, "begin_mono": 404313.302479935, "end_epoch": 1789923619.7663057, "end_mono": 404313.311183112, "ok": true, "error": null, "extra": {"nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused", "span_id": "297853:7", "parent_span_id": null}}

@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""pairing 群 shard-0 の junit から、ledger 未収載の T-2724 系 node の所要 (call time) と rank を集める (read-only)。
+出力: node ごとの n / median / min / max と、各 session での rank・worker、および同 worker 上の item 数。"""
+import json, sys, statistics
+import xml.etree.ElementTree as ET
+from pathlib import Path
+ROOT = Path("/work/1/SFC/tanab/.izanagi-acceptance-shards")
+LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+TARGETS = (
+    "test_t080_active_v2_delegation_accepts_full_receipt",
+    "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+    "test_t080_delegated_campaign_start_rechecks_receipt",
+    "test_t080_delegated_campaign_start_rejects_late_hit_file",
+    "test_t080_failed_launch_preserves_receipt_refusal",
+    "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+    "test_v1_gate_does_not_delegate_with_active_v2",
+)
+def sessions():
+    d = [x for x in ROOT.iterdir() if x.is_dir()]
+    d.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    return d[:LIMIT]
+per_node = {}
+rows = []
+for s in sessions():
+    j = s / "shard-0" / "junit.xml"
+    if not j.is_file():
+        continue
+    items = []
+    pairing = False
+    for _e, el in ET.iterparse(j, events=("end",)):
+        if el.tag == "testcase":
+            props = {p.get("name", ""): p.get("value") for p in el.iter("property")}
+            if any(k.startswith("izanagi_acceptance_pairing_v1") for k in props):
+                pairing = True
+            items.append((float(el.get("time") or 0.0), el.get("name", ""), props.get("izanagi_acceptance_pairing_v1_worker"), props.get("izanagi_acceptance_pairing_v1_rank")))
+            el.clear()
+    if not pairing:
+        continue
+    by_w = {}
+    for it in items:
+        by_w.setdefault(it[2], []).append(it)
+    for t, name, w, rank in items:
+        base = name.split("[")[0]
+        if base in TARGETS:
+            per_node.setdefault(name, []).append(t)
+            rows.append({"session": s.name[:8], "node": name, "time": t, "worker": w, "rank": rank,
+                         "worker_items": len(by_w.get(w, [])), "worker_sum": round(sum(i[0] for i in by_w.get(w, [])), 1)})
+out = {"per_node": {}, "rows": rows}
+for name, ts in sorted(per_node.items()):
+    out["per_node"][name] = {"n": len(ts), "median": round(statistics.median(ts), 1), "min": round(min(ts), 1), "max": round(max(ts), 1)}
+json.dump(out, sys.stdout, ensure_ascii=False, indent=1)
+print()

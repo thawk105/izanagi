@@ -1,0 +1,235 @@
+"""Compute-only smoke then one A replica; Python 3.10 standard library."""
+import argparse
+import getpass
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+sys.dont_write_bytecode = True
+SPEC_ENV = 'IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1'
+UNSET = ('PYTEST_ADDOPTS', 'PYTEST_XDIST_TESTRUNUID', 'IZANAGI_TASK_RUN_SIDECAR',
+         'PYTHONPYCACHEPREFIX', 'IZANAGI_TEST_RUNNER_EXCLUSIONS_V1', 'PYTEST_PLUGINS',
+         'PYTEST_DISABLE_PLUGIN_AUTOLOAD', 'IZANAGI_RUN_GROWTH_HELD_TESTS',
+         'PYTEST_XDIST_WORKER', 'PYTEST_XDIST_WORKER_COUNT',
+         'IZANAGI_ACCEPTANCE_SHARDS', SPEC_ENV, 'T2817_REPLICA_OUT')
+_ACTIVE = None
+
+
+def dump(path, value):
+    path = Path(path)
+    pending = path.with_name(path.name + '.pending')
+    pending.write_text(json.dumps(value, indent=2, ensure_ascii=True) + '\n')
+    pending.replace(path)
+
+
+def command(argv, **kwargs):
+    return subprocess.check_output(argv, text=True, timeout=30, **kwargs).strip()
+
+
+def activity(tmp):
+    user = getpass.getuser()
+    processes = command(['ps', '-eo', 'user,pid,comm']).splitlines()[1:]
+    system = {'root', 'daemon', 'bin', 'sys', 'sync', 'mail', 'nobody',
+              'dbus', 'rpc', 'rpcuser', 'chrony', 'ntp', 'postfix', 'sshd', 'nscd'}
+    rows = [line.split(None, 2) for line in processes]
+    others = [r for r in rows if len(r) == 3 and r[0] not in system | {user}]
+    stale = [r for r in rows if len(r) == 3 and r[0] == user and 'pytest' in r[2]]
+    return {'epoch': time.time(), 'loadavg': list(os.getloadavg()),
+            'others': len(others), 'stale_pytest': len(stale),
+            'other_processes': others, 'stale_pytest_processes': stale,
+            'system_users_excluded': sorted(system),
+            'residues': sorted(str(p) for p in tmp.glob('izanagi-t080-e2e-session-*'))}
+
+
+def group_exists(pid):
+    try:
+        os.killpg(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def reap_group(process):
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        if not group_exists(process.pid):
+            process.poll()
+            return True
+        try:
+            os.killpg(process.pid, sig)
+        except ProcessLookupError:
+            return True
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            process.poll()
+            if not group_exists(process.pid):
+                return True
+            time.sleep(.1)
+    return not group_exists(process.pid)
+
+
+def child(argv, env, repo, log):
+    global _ACTIVE
+    started = time.monotonic()
+    with log.open('wb') as stream:
+        _ACTIVE = subprocess.Popen(argv, cwd=repo, env=env, stdout=stream,
+                                   stderr=subprocess.STDOUT, start_new_session=True)
+        rc = _ACTIVE.wait()
+        wall = time.monotonic() - started
+        remaining = group_exists(_ACTIVE.pid)
+        reaped = reap_group(_ACTIVE) if remaining else True
+        if reaped:
+            _ACTIVE = None
+        if remaining:
+            raise RuntimeError(f'child group remained after rc={rc}; reaped={reaped}')
+    return rc, wall
+
+
+def run(args, out):
+    repo, probe = Path(args.repo_root).resolve(), Path(args.probe_dir).resolve()
+    if any(p == repo or repo in p.parents for p in (probe, out)):
+        raise ValueError('probe and output must be outside the measurement checkout')
+    if any(out.iterdir()):
+        raise ValueError('out-root must be empty (one run only)')
+    scratch = Path('/scr') / getpass.getuser()
+    try:
+        tmp = scratch / f't2817b-{os.getpid()}' / 'tmp'
+        if not scratch.is_dir():
+            raise OSError('node scratch unavailable')
+        tmp.mkdir(parents=True, exist_ok=False)
+    except OSError:
+        tmp = Path(tempfile.mkdtemp(prefix='t2817b-', dir='/tmp')) / 'tmp'
+        tmp.mkdir()
+    env = os.environ.copy()
+    removed = sorted(k for k in UNSET if k in env)
+    for name in UNSET:
+        env.pop(name, None)
+    env.update(PYTHONDONTWRITEBYTECODE='1', IZANAGI_TASK_RUN_AUTO_RECORD='0',
+               PYTHONPATH=str(probe) + os.pathsep + str(repo),
+               TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp))
+    if any(k in env for k in UNSET):
+        raise RuntimeError('forbidden child environment survived sanitization')
+    before = activity(tmp)
+    before.update(hostname=socket.gethostname(),
+                  HEAD=command(['git', '-C', str(repo), 'rev-parse', 'HEAD']),
+                  git_status_line_count=len(command(['git', '-C', str(repo), 'status',
+                                                     '--porcelain']).splitlines()),
+                  python=sys.version, pytest=importlib.metadata.version('pytest'),
+                  xdist=importlib.metadata.version('pytest-xdist'),
+                  nproc=int(command(['nproc'])), TMPDIR=str(tmp), removed_env=removed,
+                  acceptance_shards_env='unset: compute has no outer shard dispatch; plugin spec selects 0/3')
+    dump(out / 'env-before.json', before)
+    if before['git_status_line_count']:
+        dump(out / 'incomplete.json', {'reason': 'measurement checkout is not clean',
+                                      'rc': 4, 'git_status_line_count': before['git_status_line_count']})
+        return 4
+    smoke = out / 'smoke'
+    smoke.mkdir()
+    base = ['python3.10', str(repo / 'tools/run_tests.py')]
+    plugins = ['-p', 'no:cacheprovider', '-p', 't2817_replica_plugin']
+    argv = base + ['orchestrator/tests/test_s8b_oracle_driver.py', '-k',
+                   'shared_base_builds_real_builder_once_across_processes',
+                   '-n', '2', '--dist', 'loadgroup'] + plugins
+    rc, wall = child(argv, dict(env, T2817_REPLICA_OUT=str(smoke)), repo, smoke / 'pytest.log')
+    spans = [json.loads(line) for p in smoke.glob('spans-*.jsonl')
+             for line in p.read_text().splitlines()]
+    builds = sum(e['name'] == 'build' and e['ok'] for e in spans)
+    smoke_record = {'argv': argv, 'rc': rc, 'wall_s': wall, 'build_spans': builds}
+    dump(smoke / 'run.json', smoke_record)
+    if rc or builds < 1 or list(smoke.glob('record-error-*.json')):
+        dump(out / 'incomplete.json', dict(smoke_record, reason='smoke failed',
+             log_tail='\n'.join((smoke / 'pytest.log').read_text(errors='replace').splitlines()[-60:])))
+        return 4
+    # Repeat the clean-tree guard immediately before A.
+    if command(['git', '-C', str(repo), 'status', '--porcelain']):
+        dump(out / 'incomplete.json', {'reason': 'measurement checkout dirty after smoke', 'rc': 4})
+        return 4
+    directory = out / 'A'
+    directory.mkdir()
+    # The sole repository API required by the runner contract is invoked in a
+    # separate interpreter. This file itself imports standard library only.
+    code = ('from pathlib import Path; from tools import acceptance_shards; '
+            'import sys; print(acceptance_shards.create_session(Path(sys.argv[1]), 3))')
+    session_log = directory / 'create-session.log'
+    session_rc, _ = child(['python3.10', '-c', code, str(repo)], env, repo, session_log)
+    if session_rc:
+        raise RuntimeError(f'create_session failed: rc={session_rc}')
+    session = Path(session_log.read_text().strip())
+    if not session.is_absolute() or not (session / 'shard-0').is_dir():
+        raise RuntimeError('create_session returned no absolute session directory')
+    record = {'condition': 'A', 'job_tag': args.job_tag, 'HEAD': before['HEAD'],
+              'session_root': str(session), 'session_basename': session.name,
+              'smoke': smoke_record, 'rc': None, 'start_epoch': time.time()}
+    dump(out / 'run.json', record)
+    dump(directory / 'run.json', record)
+    dump(directory / 'env-before.json', activity(tmp))
+    argv = base + ['orchestrator/tests', '-n', '48', '--dist', 'loadgroup',
+                   '--junitxml=' + str(session / 'shard-0/junit.xml'),
+                   '-p', 'tools.acceptance_shards'] + plugins
+    child_env = dict(env, T2817_REPLICA_OUT=str(directory))
+    child_env[SPEC_ENV] = json.dumps({'session_root': str(session), 'shard_count': 3, 'shard_index': 0})
+    record['argv'] = argv
+    dump(directory / 'run.json', record)
+    rc, wall = child(argv, child_env, repo, directory / 'pytest.log')
+    record.update(rc=rc, wall_s=wall, end_epoch=time.time())
+    dump(directory / 'env-after.json', activity(tmp))
+    copied = directory / 'session'
+    copied.mkdir()
+    missing = []
+    for name in ('report.json', 'junit.xml'):
+        source = session / 'shard-0' / name
+        if source.is_file():
+            shutil.copy2(source, copied / name)
+        else:
+            missing.append(name)
+    record['missing_artifacts'] = missing
+    dump(directory / 'run.json', record)
+    dump(out / 'run.json', record)
+    if rc or missing:
+        dump(out / 'incomplete.json', {'reason': 'A failed or artifacts missing',
+                                      'rc': rc, 'missing': missing})
+    return rc if rc else (4 if missing else 0)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('mode', choices=['run'])
+    for name in ('repo-root', 'probe-dir', 'out-root', 'job-tag'):
+        parser.add_argument('--' + name, required=True)
+    args = parser.parse_args()
+    if not socket.gethostname().startswith('bnode'):
+        print('compute hostname prerequisite failed (requires bnode)', file=sys.stderr)
+        return 3
+    out = Path(args.out_root).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    rc = 4
+
+    def stop_job(signum, frame):
+        signal.alarm(0)
+        raise InterruptedError(f'job deadline or termination: signal={signum}')
+
+    for sig in (signal.SIGTERM, signal.SIGALRM, signal.SIGINT):
+        signal.signal(sig, stop_job)
+    signal.alarm(2800)
+    try:
+        rc = run(args, out)
+    except BaseException as exc:
+        signal.alarm(0)
+        rc = 124 if isinstance(exc, InterruptedError) else 4
+        reaped = reap_group(_ACTIVE) if _ACTIVE is not None else True
+        dump(out / 'incomplete.json', {'reason': repr(exc), 'rc': rc, 'group_reaped': reaped})
+    finally:
+        signal.alarm(0)
+        (out / 'probe.done').write_text(f'rc={rc}\n')
+    return rc
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

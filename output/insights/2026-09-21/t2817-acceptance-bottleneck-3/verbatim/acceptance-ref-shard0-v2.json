@@ -1,0 +1,48 @@
+[
+ {
+  "session": "73684ba6",
+  "host": "bnode009",
+  "ts": "09-21T02:17:32",
+  "W": 351.4,
+  "pre": 61.76235914230347,
+  "gap_cf_first": 0.02216958999633789,
+  "post": 10.033466339111328,
+  "O_max": 279.386129899,
+  "O_max_w": "gw14",
+  "O_L": 210.00170989,
+  "L": 210.001,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.000709889999995994,
+  "Lw_items": [
+   [
+    210.0,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    181.4,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    46.1,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    16.6,
+    "test_s8c_preregistration_predicates::test_repository_ca",
+    "14"
+   ]
+  ]
+ }
+]

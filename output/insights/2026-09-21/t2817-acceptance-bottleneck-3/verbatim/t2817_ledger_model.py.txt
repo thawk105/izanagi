@@ -1,0 +1,343 @@
+#!/usr/bin/env python3.10
+"""Fixed-duration 48-worker list scheduling, not a runtime prediction."""
+import argparse
+from collections import defaultdict
+import heapq
+import json
+import math
+from pathlib import Path
+import statistics
+import xml.etree.ElementTree as ET
+
+DISCLAIMER = '固定所要 list-scheduling の model 値であり実 wall の予測ではない。D2107 の refresh 入力でも採用案でもない'
+WORKERS = 48
+INITIAL_DISTRIBUTION_UNITS = 96  # conftest _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS
+# Registry snapshots below are copied as literals, never imported from the repo.
+REAL_REPO_STRIP_NODES = frozenset({
+    'test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order',
+    'test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs',
+    'test_campaign.py::test_evolve_block_markers_structure_and_inert',
+    'test_campaign.py::test_source_digest_failsclosed_on_missing_define',
+    'test_campaign.py::test_source_digest_fixed_variant_distinct',
+    'test_campaign.py::test_source_digest_parse_options_defaults',
+    'test_campaign.py::test_source_digest_semantic_comment_vs_behavior',
+    'test_campaign.py::test_source_digest_stock_roundtrip',
+    'test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory',
+    'test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch',
+    'test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure',
+    'test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation',
+    'test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases',
+    'test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected',
+    'test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent',
+    'test_codex_reasoning_ab.py::test_m3_focus_artifact_directions',
+    'test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing',
+    'test_codex_reasoning_ab.py::test_m3_snapshot_mode_change',
+    'test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required',
+    'test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers',
+    'test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned',
+    'test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected',
+    'test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication',
+    'test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static',
+    'test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore',
+    'test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive',
+    'test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested',
+    'test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment',
+    'test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid',
+    'test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run',
+    'test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment',
+    'test_hooks.py::test_real_submodule_payload_edit',
+    'test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls',
+    'test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls',
+    'test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint',
+    'test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint',
+    'test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root',
+    'test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes',
+    'test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control',
+    'test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default',
+    'test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module',
+    'test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight',
+    'test_s1_9pair_figure_provenance.py::test_n10_production_stops_judgment_gate_disagreement_and_marker_uses_report',
+    'test_s1_9pair_figure_provenance.py::test_n11_spy_pins_artist_values_and_bbox_before_save',
+    'test_s1_9pair_figure_provenance.py::test_n12_collects_all_artist_and_legend_text',
+    'test_s1_9pair_figure_provenance.py::test_n13_bbox_checker_rejects_overlapping_non_tick_text',
+    'test_s1_9pair_figure_provenance.py::test_n14_bbox_checker_pins_ticks_marker_reference_clearance_and_agg',
+    'test_s1_9pair_figure_provenance.py::test_n16_bbox_checker_rejects_legacy_bottom_legend_overlap',
+    'test_s1_9pair_figure_provenance.py::test_n17_bbox_checker_rejects_missing_bottom_legend',
+    'test_s1_9pair_figure_provenance.py::test_n18_bbox_checker_rejects_bottom_legend_excluded_from_tight_bbox',
+    'test_s1_9pair_figure_provenance.py::test_n3_production_strict_floor_rejects_exact_boundary',
+    'test_s1_9pair_figure_provenance.py::test_n4_production_collection_retains_unstable_eighth_sample',
+    'test_s1_9pair_figure_provenance.py::test_n9_rejects_any_failed_hard_gate',
+    'test_s1_9pair_figure_provenance.py::test_p1_independent_real_wal_projection_matches_frozen_report',
+    'test_s1_9pair_figure_provenance.py::test_p2_certified_acceptance_rejects_historical_e0_campaign',
+    'test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain',
+    'test_s1_9pair_figure_provenance.py::test_p4_frozen_manifest_remains_23_and_excludes_new_figure',
+    'test_s1_9pair_figure_provenance.py::test_p5_test_module_does_not_import_generator_for_expected_values',
+    'test_s1_9pair_figure_provenance.py::test_p6_production_ignores_unknown_build_fields_as_data',
+    'test_s1_9pair_figure_provenance.py::test_p7_production_load_campaign_pins_admission_calls_and_receipts',
+    'test_s1_9pair_figure_provenance.py::test_p8_production_caption_matches_independent_parent_text',
+    'test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper',
+    'test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze',
+    'test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points',
+    'test_s1_known_axes_freeze.py::test_historical_cli_selects_view',
+    'test_s1_known_axes_freeze.py::test_historical_current_use_matches_real_reconstruction',
+    'test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison',
+    'test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference',
+    'test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound',
+    'test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics',
+    'test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict',
+    'test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics',
+    'test_s1_known_axes_freeze.py::test_historical_path_identity_uses_original_bytes',
+    'test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable',
+    'test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads',
+    'test_s1_known_axes_freeze.py::test_historical_view_does_not_consult_current_semantics_or_head',
+    'test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags',
+    'test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin',
+    'test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper',
+    'test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head',
+    'test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper',
+    'test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy',
+    'test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics',
+    'test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule',
+    'test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze',
+    'test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict',
+    'test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control',
+    'test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags',
+    'test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible',
+    'test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper',
+    'test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper',
+    'test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper',
+    'test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper',
+    'test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol',
+    'test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol',
+    'test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture',
+    'test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift',
+    'test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e',
+    'test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration',
+    'test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration',
+    'test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused',
+    'test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused',
+    'test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null',
+    'test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam',
+    'test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2',
+    'test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged',
+    'test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control',
+    'test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding',
+    'test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union',
+    'test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir',
+    'test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir',
+    'test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace',
+})
+
+
+def finite(value):
+    return (type(value) in (float, int) and value >= 0 and math.isfinite(value))
+
+
+def load_ledger(path):
+    data = json.loads(path.read_text(encoding='utf-8'))
+    durations = data.get('duration_seconds_by_nodeid')
+    if (type(data.get('schema_version')) is not int or data['schema_version'] != 1 or
+            data.get('unit') != 'seconds' or not isinstance(durations, dict) or
+            type(data.get('nodeid_count')) is not int or data['nodeid_count'] != len(durations)):
+        raise ValueError('invalid duration ledger schema')
+    return {k: float(v) for k, v in durations.items() if isinstance(k, str) and finite(v)}
+
+
+def ledger_value(node, group, ledger):
+    if node in ledger:
+        return ledger[node]
+    return ledger.get(node + '@' + group) if group else None
+
+
+def runtime_nodeid(node, group):
+    runtime = node + '@' + group if group else node
+    # _real_repo_node_id: module basename + original function, no parameters.
+    short = node.split('::')[0].rsplit('/', 1)[-1] + '::' + node.split('::')[1].split('[', 1)[0].split('@', 1)[0]
+    if group == 'real-repo' and short in REAL_REPO_STRIP_NODES:
+        runtime = node
+    return runtime
+
+
+def scope(node):
+    return node.rsplit('@', 1)[-1] if node.rfind('@') > node.rfind(']') else node
+
+
+def junit_medians(paths, selected, groups):
+    # Invert pytest's module/class/name mangling against the selected universe.
+    # No pairing property is read; parameters remain opaque strings.
+    lookup = defaultdict(set)
+    for node in selected:
+        parts = node.split('::')
+        module = parts[0].removesuffix('.py').replace('/', '.')
+        classname = '.'.join([module] + parts[1:-1])
+        for name in {parts[-1], parts[-1] + '@' + groups[node] if groups[node] else parts[-1]}:
+            lookup[(classname, name)].add(node)
+    samples = defaultdict(list)
+    unmatched = []
+    for path in paths:
+        seen = set()
+        for case in ET.parse(path).getroot().iter('testcase'):
+            key = (case.get('classname', ''), case.get('name', ''))
+            candidates = lookup.get(key, set())
+            if not candidates:
+                # A narrower pytest rootdir may omit a leading path component.
+                candidates = set().union(*(nodes for (cls, name), nodes in lookup.items()
+                                           if name == key[1] and cls.endswith('.' + key[0])))
+            if len(candidates) != 1:
+                unmatched.append({'file': str(path), 'classname': key[0], 'name': key[1],
+                                  'reason': 'unmapped/ambiguous'})
+                continue
+            node = next(iter(candidates))
+            if node in seen:
+                raise ValueError(f'duplicate testcase for {node} in {path}')
+            seen.add(node)
+            value = float(case.attrib['time'])
+            if not finite(value):
+                raise ValueError(f'invalid junit time for {node}')
+            samples[node].append(value)
+    return {n: statistics.median(v) for n, v in samples.items()}, dict(samples), unmatched
+
+
+def make_units(selected, groups, ledger):
+    units = {}
+    for node in selected:
+        key = scope(runtime_nodeid(node, groups[node]))
+        unit = units.setdefault(key, {'scope': key, 'index': len(units), 'nodes': []})
+        unit['nodes'].append(node)
+    for unit in units.values():
+        costs = [ledger_value(n, groups[n], ledger) for n in unit['nodes']]
+        unit['known'] = all(c is not None for c in costs) and math.isfinite(sum(c for c in costs if c is not None))
+        unit['cost'] = sum(costs) if unit['known'] else None
+    return list(units.values())
+
+
+def order_units(units):
+    known = sorted((u['cost'] for u in units if u['known']), reverse=True)
+    if not known:
+        raise ValueError('no known unit: policy default cost undefined; model unavailable')
+    default = known[min(INITIAL_DISTRIBUTION_UNITS, len(known)) - 1]
+    for u in units:
+        if not u['known']:
+            u['cost'] = default
+    ordered = sorted(units, key=lambda u: (-u['cost'], u['index']))
+    realized = sorted(ordered, key=lambda u: -len(u['nodes']))
+    if len(realized) >= INITIAL_DISTRIBUTION_UNITS:
+        candidates = list(enumerate(realized[WORKERS:], start=WORKERS))
+        partners = sorted(candidates, key=lambda entry: (entry[1]['cost'], entry[0]))[:WORKERS]
+        positions = {position for position, _ in partners}
+        paired = (realized[:WORKERS] + [u for _, u in partners] +
+                  [u for position, u in candidates if position not in positions])
+        if [u['scope'] for u in sorted(paired, key=lambda u: -len(u['nodes']))] != [u['scope'] for u in paired]:
+            raise ValueError('acceptance pairing infeasible: cardinality reorder would change intended queue')
+        realized = paired
+    # With fewer than 96 units conftest does not pair, but xdist still sorts cardinality.
+    for rank, unit in enumerate(realized):
+        unit['rank'] = rank
+        unit['partner'] = len(realized) >= INITIAL_DISTRIBUTION_UNITS and WORKERS <= rank < 2 * WORKERS
+    return realized, default
+
+
+def simulate(ordered, durations):
+    workers = [{'worker': i, 'occupancy': 0.0, 'units': []} for i in range(WORKERS)]
+    heap = []
+    assignments = {}
+    for i, unit in enumerate(ordered):
+        if i < WORKERS:
+            start, worker = 0.0, i
+        else:
+            start, worker = heapq.heappop(heap)
+        duration = sum(durations[n] for n in unit['nodes'])
+        entry = {**unit, 'duration': duration, 'start': start, 'end': start + duration}
+        workers[worker]['units'].append(entry)
+        workers[worker]['occupancy'] = start + duration
+        assignments[unit['scope']] = worker
+        heapq.heappush(heap, (start + duration, worker))
+    maximum = max(workers, key=lambda w: w['occupancy'])
+    longest = max(ordered, key=lambda u: sum(durations[n] for n in u['nodes']))
+    length = sum(durations[n] for n in longest['nodes'])
+    longest_worker = workers[assignments[longest['scope']]]
+    return {'O_max_model': maximum['occupancy'], 'maximum_worker': maximum,
+            'L': length, 'longest_unit_scope': longest['scope'], 'L_worker': longest_worker,
+            'O_max_model_minus_L': maximum['occupancy'] - length, 'workers': workers}
+
+
+def model(ledger, report, junits):
+    selected = report['selected']
+    if (not isinstance(selected, list) or not selected or len(set(selected)) != len(selected) or
+            not all(isinstance(n, str) and '::' in n for n in selected)):
+        raise ValueError('selected must be a nonempty unique nodeid list')
+    raw = report['observed_universe']
+    groups = ({r['nodeid']: r['group'] for r in raw} if isinstance(raw, list) else dict(raw))
+    if any(n not in groups or (groups[n] is not None and not isinstance(groups[n], str)) for n in selected):
+        raise ValueError('selected node group missing/invalid')
+    medians, samples, unmatched = junit_medians(junits, selected, groups)
+    a_order, default = order_units(make_units(selected, groups, ledger))
+    missing = [n for n in selected if ledger_value(n, groups[n], ledger) is None]
+    refreshed = dict(ledger)
+    refreshed.update({n: medians[n] for n in missing if n in medians})
+    b_order, b_default = order_units(make_units(selected, groups, refreshed))
+    durations = {}
+    sources = {}
+    for n in selected:
+        prior = ledger_value(n, groups[n], ledger)
+        durations[n] = medians[n] if n in medians else prior if prior is not None else default
+        sources[n] = 'junit median' if n in medians else 'ledger' if prior is not None else 'baseline default'
+    a, b = simulate(a_order, durations), simulate(b_order, durations)
+    limitations = [
+        '元 collection index は report に無く未再現。selected の保存順を unit index とし、同値はその index 順。',
+        'real-repo suffix 除去は author 時 conftest registry の literal snapshot。将来の registry 変更は追随しない。',
+        '動的 xdist の先読み・共有 base 相互作用・setup 重複は再現しない。指定の空き worker への list scheduling。',
+        '同時に空いた worker は番号順。L が同値なら queue 上の最初を表示。',
+        '所要は両案で固定。JUnit と ledger の両方に無い node は (a) の既定 cost を共用。',
+    ]
+    without_median = [n for n in missing if n not in medians]
+    if without_median:
+        limitations.append('(b) 未収載のうち JUnit 中央値なしは未補完: ' + str(len(without_median)) + ' node')
+    return {'disclaimer': DISCLAIMER, 'workers': WORKERS, 'initial_distribution_units': INITIAL_DISTRIBUTION_UNITS,
+            'limitations': limitations, 'a_current_ledger': {'default_cost': default, **a},
+            'b_missing_with_junit_medians': {'default_cost': b_default, **b},
+            'O_max_model_a_minus_b': a['O_max_model'] - b['O_max_model'],
+            'missing_ledger_nodes': missing, 'missing_junit_for_missing_ledger': without_median,
+            'junit_unmatched': unmatched, 'junit_medians': medians, 'junit_samples': samples,
+            'duration_sources': sources, 'fixed_durations': durations}
+
+
+def markdown(data):
+    out = [DISCLAIMER, '\n| 案 | O_max_model | L | O_max_model − L | L worker 占有 |',
+           '| --- | --- | --- | --- | --- |']
+    for key in ('a_current_ledger', 'b_missing_with_junit_medians'):
+        scenario = data[key]
+        out.append(f"| {key} | {scenario['O_max_model']:.6f} | {scenario['L']:.6f} | {scenario['O_max_model_minus_L']:.6f} | {scenario['L_worker']['occupancy']:.6f} |")
+    out.append(f"\n(a) − (b) = {data['O_max_model_a_minus_b']:.6f} 秒 (model)。rank は 0 起点。")
+    for key in ('a_current_ledger', 'b_missing_with_junit_medians'):
+        out.append('\n## ' + key)
+        out.append(f"既定 cost = {data[key]['default_cost']:.6f}")
+        for label in ('maximum_worker', 'L_worker'):
+            w = data[key][label]
+            out.extend([f"\n{label}: worker {w['worker']}, occupancy={w['occupancy']:.6f}",
+                        '\n| rank | scope | cost | 所要 | start | end | nodes |',
+                        '| --- | --- | --- | --- | --- | --- | --- |'])
+            for u in w['units']:
+                values = [u[k] for k in ('rank', 'scope', 'cost', 'duration', 'start', 'end', 'nodes')]
+                out.append('| ' + ' | '.join(str(v).replace('|', '\\|') for v in values) + ' |')
+    out.append('\n## 限界\n\n' + '\n'.join('- ' + v for v in data['limitations']))
+    out.append('\nJUnit 未対応 testcase: ' + str(len(data['junit_unmatched'])))
+    return '\n'.join(out) + '\n'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ledger', required=True, type=Path)
+    parser.add_argument('--report', required=True, type=Path)
+    parser.add_argument('--junit', required=True, action='append', type=Path)
+    parser.add_argument('--markdown', required=True, type=Path)
+    parser.add_argument('--json', required=True, type=Path)
+    args = parser.parse_args()
+    data = model(load_ledger(args.ledger), json.loads(args.report.read_text(encoding='utf-8')), args.junit)
+    data['inputs'] = {'ledger': str(args.ledger), 'report': str(args.report), 'junit': list(map(str, args.junit))}
+    args.json.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+    args.markdown.write_text(markdown(data), encoding='utf-8')
+
+
+if __name__ == '__main__':
+    main()

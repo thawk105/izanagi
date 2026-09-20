@@ -1,0 +1,11 @@
+cell=S3-b
+stage=S3
+half=b
+start_epoch=1789923835.574199010
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-joba
+argv=python3.10 -m pytest /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-joba/orchestrator/tests -n 48 --dist loadgroup --junitxml=/scr/tanab/t2817-2775719/out/S3-b/junit.xml -p tools.acceptance_shards -p no:cacheprovider -p t2817_probe_plugin -q
+others=0
+stale_pytest=0
+end_epoch=1789923902.156149332
+wall=66.581950426
+rc=0

@@ -1,0 +1,17 @@
+#!/bin/bash
+# [T-2817] Job B (現行 tip の A 条件 replica 1 走、観測 wrapper) の投入 launcher (親の運転 script、repo 外)。
+# 計算ノード 1 job (generic)。cwd は dispatcher が wave 木に固定するが runner は --repo-root を正とする。
+D=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3
+W=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-acceptance-bottleneck-3
+echo $$ > "$D/run-probe-b.pid"
+export PYTHONDONTWRITEBYTECODE=1
+cd "$W" || { echo "rc=3" > "$D/run-probe-b.done"; exit 3; }
+date '+%Y-%m-%dT%H:%M:%S%z start' >> "$D/run-probe-b.times"
+git rev-parse HEAD > "$D/run-probe-b.tip.txt"
+python3 tools/pegasus/dispatch_compute.py --task generic \
+  --walltime 00:50:00 --queue-wait-timeout 5400 --overall-grace 5400 \
+  -- python3.10 "$D/probe/t2817_replica_runner.py" run --repo-root "$W" --probe-dir "$D/probe" --out-root "$D/job-out-b" --job-tag t2817-b1 > "$D/run-probe-b.log" 2>&1
+rc=$?
+date "+%Y-%m-%dT%H:%M:%S%z end rc=$rc" >> "$D/run-probe-b.times"
+echo "rc=$rc" > "$D/run-probe-b.done"
+exit "$rc"

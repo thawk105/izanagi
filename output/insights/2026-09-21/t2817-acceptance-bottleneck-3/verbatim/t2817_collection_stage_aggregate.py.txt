@@ -1,0 +1,343 @@
+#!/usr/bin/env python3.10
+"""Aggregate Job A without importing the checkout or executing pytest."""
+import argparse
+from datetime import datetime
+import json
+import math
+from pathlib import Path
+import re
+import statistics
+import xml.etree.ElementTree as ET
+
+CELLS = ('warm', 'S0-a', 'S1-a', 'S2-a', 'S3-a', 'S3-b', 'S2-b', 'S1-b', 'S0-b')
+LABELS = {
+    '10': 'xdist 起動 + 同時 collection + controller 通知',
+    '21': 'plugin + memo 同期→早期並走の切替',
+    '32': 'ledger 読込・配送・検証・並び替え・property 付与の複合',
+}
+
+
+def read(path):
+    try:
+        return path.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return ''
+
+
+def number(value):
+    try:
+        n = float(value)
+        return n if math.isfinite(n) else None
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+def difference(a, b):
+    return a - b if a is not None and b is not None else None
+
+
+def summary(values):
+    values = [v for v in values if v is not None]
+    return {'min': min(values), 'median': statistics.median(values), 'max': max(values)} if values else {
+        'min': None, 'median': None, 'max': None}
+
+
+def all_max(values):
+    return max(values) if values and all(v is not None for v in values) else None
+
+
+def mean_pair(values):
+    return statistics.mean(values) if len(values) == 2 and all(v is not None for v in values) else None
+
+
+def timing(path):
+    for line in reversed(read(path).splitlines()):
+        parts = line.split()
+        if len(parts) == 4 and all(number(p) is not None for p in parts):
+            return dict(zip(('wall', 'user', 'sys', 'maxrss'), map(float, parts)))
+    return dict.fromkeys(('wall', 'user', 'sys', 'maxrss'))
+
+
+def epoch(data, key):
+    value = data.get('times', {}).get(key, {})
+    return number(value.get('epoch')) if isinstance(value, dict) else None
+
+
+def lustre(path):
+    raw = read(path)
+    if not raw or 'lustre_stats=unreadable' in raw:
+        return None
+    section = None
+    counts = {}
+    for line in raw.splitlines():
+        if line.startswith('### '):
+            section = line[4:]
+        elif section:
+            match = re.match(r'^(\S+)\s+(\d+)\s+samples\b', line)
+            if match:
+                counts[section + ':' + match[1]] = int(match[2])
+    return counts or None
+
+
+def lustre_delta(before, after):
+    if before is None or after is None:
+        return None
+    # Include every llite/mdc operation; preserve device identities and resets.
+    return {k: (after[k] - before[k] if k in before and k in after and after[k] >= before[k] else None)
+            for k in sorted(before.keys() | after.keys())}
+
+
+def loadavg(path):
+    values = read(path).split()
+    return [number(v) for v in values[:3]] if len(values) >= 3 else None
+
+
+def memory(path):
+    match = re.search(r'MemAvailable:\s*(\d+)', read(path))
+    return int(match[1]) if match else None
+
+
+def junit_timestamp(path, missing):
+    try:
+        root = ET.parse(path).getroot()
+        suite = root if root.tag == 'testsuite' else root.find('.//testsuite')
+        if suite is None:
+            raise ValueError('testsuite absent')
+        timestamp = suite.attrib['timestamp']
+        parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            raise ValueError('timezone absent')
+        return timestamp, parsed.timestamp()
+    except (OSError, ET.ParseError, KeyError, ValueError) as exc:
+        missing.append('junit timestamp: ' + str(exc))
+        return None, None
+
+
+def log_records(directory, prefix, missing):
+    records = []
+    for filename in ('out', 'err'):
+        for line in read(directory / filename).splitlines():
+            if prefix not in line:
+                continue
+            raw = line.split(prefix, 1)[1].strip()
+            try:
+                records.append({'source': filename, 'value': json.loads(raw)})
+            except ValueError:
+                missing.append('malformed ' + prefix.strip() + ' in ' + filename)
+                records.append({'source': filename, 'raw': raw})
+    return records
+
+
+def cell(directory):
+    name = directory.name
+    missing = []
+    fields = dict(line.split('=', 1) for line in read(directory / 'cell.txt').splitlines() if '=' in line)
+    if not fields:
+        missing.append('cell.txt absent/empty')
+    stage, _, half = name.partition('-')
+    result = {
+        'cell': name, 'stage': stage, 'half': half or 'warm',
+        'rc': number(fields.get('rc')), **timing(directory / 'time.txt'),
+        'cell_wall': number(fields.get('wall')),
+        'others': number(fields.get('others')), 'stale_pytest': number(fields.get('stale_pytest')),
+        'loadavg_before': loadavg(directory / 'loadavg-before.txt'),
+        'loadavg_after': loadavg(directory / 'loadavg-after.txt'),
+        'MemAvailable_before_kB': memory(directory / 'mem-before.txt'),
+        'MemAvailable_after_kB': memory(directory / 'mem-after.txt'),
+        'lustre_count_delta': lustre_delta(lustre(directory / 'lustre-before.txt'), lustre(directory / 'lustre-after.txt')),
+        'missing': missing,
+    }
+    if result['lustre_count_delta'] is None:
+        missing.append('Lustre stats unreadable/missing')
+    if stage == 'S0':
+        processes = []
+        for i in range(48):
+            processes.append({'process': i, **timing(directory / f'proc-{i}.time'),
+                              'start': number(read(directory / f'proc-{i}.start')),
+                              'end': number(read(directory / f'proc-{i}.end')),
+                              'rc': number(read(directory / f'proc-{i}.rc'))})
+        start = number(fields.get('cohort_start'))
+        result['s0'] = {
+            'processes': processes,
+            'process_wall': summary([p['wall'] for p in processes]),
+            'cohort_wall': difference(number(fields.get('cohort_end')), start),
+            'cohort_collect_end': difference(all_max([p['end'] for p in processes]), start),
+            'rc_list': [p['rc'] for p in processes],
+        }
+        result['valid'] = all(p['rc'] == 0 and p['wall'] is not None and p['end'] is not None for p in processes)
+        if not result['valid']:
+            missing.append('S0 process failed or missing (48 expected)')
+        return result
+    if stage == 'warm':
+        result['valid'] = result['rc'] == 0
+        return result
+    try:
+        probe = json.loads(read(directory / 'probe.json'))
+        if not isinstance(probe, dict):
+            raise ValueError('object expected')
+    except ValueError as exc:
+        probe = {}
+        missing.append('probe.json absent/invalid: ' + str(exc))
+    complete = probe.get('complete') is True
+    if not complete:
+        missing.append('complete is not true')
+    junit_exists = (directory / 'junit.xml').is_file()
+    timestamp, junit_epoch = junit_timestamp(directory / 'junit.xml', missing)
+    result['valid'] = complete and junit_exists
+    workers = list(probe.get('workers', {}).values())
+    if not all(isinstance(w, dict) for w in workers):
+        workers = []
+        missing.append('invalid worker payloads')
+    # Do not calculate comparison values from partial workers, even if some exist.
+    active = workers if result['valid'] else []
+    wc = lambda key: [epoch(w, key) for w in active]
+    sstart = epoch(probe, 'sessionstart')
+    intervals = {}
+    for label, end, start in (('wait', 'cf_exit', 'cf_entry'),
+                              ('collect', 'last_itemcollected', 'collection_entry'),
+                              ('modify', 'cf_entry', 'last_itemcollected')):
+        values = [difference(epoch(w, end), epoch(w, start)) for w in active]
+        intervals[label] = summary(values)
+        if any(v is None for v in values):
+            missing.append(label + ' worker timestamps incomplete')
+    nodes = probe.get('nodes', {})
+    result['xdist'] = {
+        'complete': complete, 'collection_mismatch': probe.get('collection_mismatch'),
+        'junit_timestamp': timestamp, 'junit_epoch': junit_epoch,
+        'pre_junit': difference(all_max(wc('cf_exit')), junit_epoch),
+        'pre_entry': difference(all_max(wc('cf_entry')), junit_epoch),
+        'pre_plugin': difference(all_max([number(w.get('collection_finished_epoch_s')) for w in active]), junit_epoch)
+                      if stage in ('S2', 'S3') else None,
+        **intervals,
+        'spawn': difference(min(wc('sessionstart')), sstart)
+                 if active and all(v is not None for v in wc('sessionstart')) else None,
+        'all_collected': difference(epoch(probe, 'all_collected'), sstart),
+        'first_nodedown': difference(epoch(probe, 'first_nodedown'), sstart),
+        'sessionfinish': difference(epoch(probe, 'sessionfinish'), sstart),
+        'ids_count': summary([number(n.get('ids_count')) for n in nodes.values()]),
+        'memo': log_records(directory, 'IZANAGI_MEMO_PREWARM_V1 ', missing),
+        'effective_scheduler': log_records(directory, 'IZANAGI_EFFECTIVE_SCHEDULER_V1 ', missing),
+        'config': probe.get('config', {}),
+        'controller_times': probe.get('times', {}), 'nodes': nodes,
+        'workers': probe.get('workers', {}), 'errors': probe.get('errors', []),
+    }
+    return result
+
+
+def aggregate(root, reference):
+    cells = [cell(root / name) for name in CELLS]
+    by_name = {c['cell']: c for c in cells}
+
+    def metric(stage, half, wall=False):
+        c = by_name[f'S{stage}-{half}']
+        if not c.get('valid'):
+            return None
+        if stage == 0:
+            return c['s0']['cohort_wall']
+        return c['wall'] if wall else c['xdist']['pre_junit']
+
+    deltas = []
+    for pair, label in LABELS.items():
+        end, start = map(int, pair)
+        row = {'name': 'Δ' + pair, 'meaning': label}
+        for wall in (False, True):
+            prefix = 'wall_' if wall else ''
+            values = [difference(metric(end, h, wall), metric(start, h, wall)) for h in ('a', 'b')]
+            row.update({prefix + 'a': values[0], prefix + 'b': values[1], prefix + 'mean': mean_pair(values)})
+        deltas.append(row)
+    variation = [{'stage': 'S' + str(s),
+                  'pre_or_cohort_b_minus_a': difference(metric(s, 'b'), metric(s, 'a')),
+                  'wall_b_minus_a': difference(metric(s, 'b', True), metric(s, 'a', True))}
+                 for s in range(4)]
+    s3 = mean_pair([metric(3, h) for h in ('a', 'b')])
+    delta = difference(s3, reference)
+    return {'cells': cells, 'deltas': deltas, 'half_variation': variation,
+            'reference': {'reference_pre': reference, 'S3_mean_pre_junit': s3,
+                          'difference': delta, 'threshold_s': 10,
+                          'reproduces_reference': abs(delta) <= 10 if delta is not None else None},
+            'missing': {c['cell']: c['missing'] for c in cells if c['missing']}}
+
+
+def display(value):
+    if value is None:
+        return 'n/a'
+    if isinstance(value, float):
+        return f'{value:.6f}'
+    if isinstance(value, (dict, list, bool)):
+        def visible(v):
+            if v is None:
+                return 'n/a'
+            if isinstance(v, dict):
+                return {k: visible(item) for k, item in v.items()}
+            if isinstance(v, list):
+                return [visible(item) for item in v]
+            return v
+        value = json.dumps(visible(value), ensure_ascii=False, separators=(',', ':'))
+    return str(value).replace('|', '\\|').replace('\n', ' ')
+
+
+def table(columns, rows):
+    return '\n'.join(['| ' + ' | '.join(columns) + ' |',
+                      '| ' + ' | '.join('---' for _ in columns) + ' |'] +
+                     ['| ' + ' | '.join(display(v) for v in row) + ' |' for row in rows])
+
+
+def markdown(data):
+    cells = data['cells']
+    out = ['## cell 表', '時間は秒、maxrss と MemAvailable は kB。rc は表示のみ。',
+           table(['cell', 'stage', 'half', 'valid', 'rc', 'wall', 'user', 'sys', 'maxrss', 'others', 'stale_pytest',
+                  'load before', 'load after', 'Mem before', 'Mem after', 'Lustre count 差'],
+                 [[c.get(k) for k in ('cell', 'stage', 'half', 'valid', 'rc', 'wall', 'user', 'sys', 'maxrss', 'others',
+                                      'stale_pytest', 'loadavg_before', 'loadavg_after', 'MemAvailable_before_kB',
+                                      'MemAvailable_after_kB', 'lustre_count_delta')] for c in cells]),
+           '## S0 表', table(['cell', 'wall min/median/max', 'cohort_wall', 'cohort_collect_end', 'rc_list'],
+                             [[c['cell'], c['s0']['process_wall'], c['s0']['cohort_wall'], c['s0']['cohort_collect_end'],
+                               c['s0']['rc_list']] for c in cells if 's0' in c]),
+           '## xdist 段の計時表',
+           table(['cell', 'complete', 'mismatch', 'JUnit timestamp', 'pre_junit', 'pre_entry', 'pre_plugin',
+                  'wait min/median/max', 'collect min/median/max', 'modify min/median/max', 'spawn', 'ids min/median/max'],
+                 [[c['cell']] + [c['xdist'].get(k) for k in ('complete', 'collection_mismatch', 'junit_timestamp',
+                   'pre_junit', 'pre_entry', 'pre_plugin', 'wait', 'collect', 'modify', 'spawn', 'ids_count')]
+                  for c in cells if 'xdist' in c]),
+           'wait は各 worker の cf_exit − cf_entry (hook 全体)。modify は複合区間。worker 個別時刻は JSON に保持。',
+           '## 段差表',
+           table(['差', '意味', 'a', 'b', '平均', 'Δwall a', 'Δwall b', 'Δwall 平均'],
+                 [[r[k] for k in ('name', 'meaning', 'a', 'b', 'mean', 'wall_a', 'wall_b', 'wall_mean')]
+                  for r in data['deltas']]),
+           'S1 は controller 同期 memo を含む。S3−S2 は並走への影響も含む。削減可能量ではない。',
+           table(['stage', 'pre/cohort b−a', 'wall b−a'],
+                 [[r[k] for k in ('stage', 'pre_or_cohort_b_minus_a', 'wall_b_minus_a')] for r in data['half_variation']]),
+           '順序反転 2 走は時間変動の記述であり、外乱除去の証明ではない。',
+           '## controller/memo 表',
+           table(['cell', 'all_collected', 'first_nodedown', 'sessionfinish', 'config facts', 'memo 全行', 'scheduler'],
+                 [[c['cell'], x['all_collected'], x['first_nodedown'], x['sessionfinish'],
+                   {k: v for k, v in x['config'].items() if k not in ('argv', 'env')}, x['memo'], x['effective_scheduler']]
+                  for c in cells if 'xdist' in c for x in [c['xdist']]]),
+           'controller 時間は sessionstart 起点。first_nodedown は shutdown 開始の近似。',
+           table(['cell', 'controller epoch/monotonic 時刻', 'node 通知入口/出口'],
+                 [[c['cell'], c['xdist']['controller_times'], c['xdist']['nodes']] for c in cells if 'xdist' in c]),
+           '## 参照照合',
+           table(['reference pre', 'S3 mean pre_junit', 'difference', 'threshold', 'reproduces_reference'],
+                 [[data['reference'][k] for k in ('reference_pre', 'S3_mean_pre_junit', 'difference',
+                                                  'threshold_s', 'reproduces_reference')]]),
+           '閾値 10 秒は便宜的。true でも同 SHA・node 条件は別途照合が必要。false の場合は段差を受入 pre の内訳候補とは呼ばない。',
+           '## 欠測', table(['cell', '欠測'], list(data['missing'].items()))]
+    return '\n\n'.join(out) + '\n'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('out_root', type=Path)
+    parser.add_argument('--markdown', required=True, type=Path)
+    parser.add_argument('--json', required=True, type=Path)
+    parser.add_argument('--reference-pre', type=float)
+    args = parser.parse_args()
+    if args.reference_pre is not None and not math.isfinite(args.reference_pre):
+        parser.error('--reference-pre must be finite')
+    data = aggregate(args.out_root, args.reference_pre)
+    args.json.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+    args.markdown.write_text(markdown(data), encoding='utf-8')
+
+
+if __name__ == '__main__':
+    main()

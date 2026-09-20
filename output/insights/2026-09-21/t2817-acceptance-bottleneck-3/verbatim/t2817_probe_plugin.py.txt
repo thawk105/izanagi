@@ -1,0 +1,258 @@
+"""Wave-local collection instrumentation; never import repository modules."""
+import time
+
+T_IMPORT = {"epoch": time.time(), "monotonic": time.monotonic()}
+
+import contextlib
+import functools
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+
+import pytest
+from xdist.scheduler import LoadGroupScheduling
+
+
+def stamp():
+    return {"epoch": time.time(), "monotonic": time.monotonic()}
+
+
+def state(config):
+    return config._t2817_probe_state
+
+
+def worker(config):
+    return hasattr(config, "workerinput")
+
+
+def facts(config):
+    ledger = getattr(config, "_izanagi_acceptance_duration_seconds_by_nodeid", None)
+    result = {
+        **{key: getattr(config.option, key, None) for key in
+           ("dist", "loadscopereorder", "numprocesses", "maxfail")},
+        "shard_spec": getattr(config, "_izanagi_acceptance_shard_spec", None) is not None,
+        "ledger_attr": hasattr(config, "_izanagi_acceptance_duration_seconds_by_nodeid"),
+        "ledger_entries": len(ledger) if isinstance(ledger, dict) else None,
+        "early_memo_attr": hasattr(config, "_izanagi_early_memo_job"),
+        "effective_scheduler_attr": hasattr(config, "_izanagi_effective_scheduler"),
+        "argv": list(sys.argv),
+        "env": {k: v for k, v in os.environ.items() if
+                k.startswith(("IZANAGI_", "PYTEST_", "T2817_")) or
+                k in ("PYTHONDONTWRITEBYTECODE", "TMPDIR")},
+    }
+    if worker(config):
+        workerinput = config.workerinput
+        ledger_key = "izanagi_acceptance_duration_ledger_v1"
+        payload = workerinput.get(ledger_key)
+        result.update(
+            workerinput_keys=sorted(workerinput.keys()),
+            ledger_payload_present=ledger_key in workerinput,
+            ledger_payload_entries=(
+                len(payload) if isinstance(payload, (dict, list)) else None),
+            early_memo_paths_present="izanagi_early_memo_paths" in workerinput,
+        )
+    else:
+        # Mirror conftest's parsed-option gate without importing repository code.
+        disabled_booleans = (
+            "stepwise", "stepwise_skip", "stepwise_reset", "failedfirst",
+            "newfirst", "lf", "collectonly", "setuponly", "setupplan",
+            "showfixtures", "show_fixtures_per_test", "trace",
+        )
+        option = config.option
+        inputs = {
+            "dist": getattr(option, "dist", None),
+            "maxfail": getattr(option, "maxfail", 0),
+            "loadscopereorder": getattr(option, "loadscopereorder", True),
+            "cacheshow": getattr(option, "cacheshow", None),
+            **{name: getattr(option, name, False) for name in disabled_booleans},
+        }
+        result["ledger_option_inputs"] = inputs
+        result["ledger_should_load"] = (
+            inputs["dist"] == "loadgroup"
+            and inputs["maxfail"] in (None, 0)
+            and not any(bool(inputs[name]) for name in disabled_booleans)
+            and inputs["cacheshow"] is None
+            and inputs["loadscopereorder"] is not False
+        )
+    return result
+
+
+def write(config):
+    if worker(config) or not os.environ.get("T2817_PROBE_OUT"):
+        return
+    data = state(config)
+    data["config"] = facts(config)
+    expected = getattr(config.option, "numprocesses", None)
+    data["complete"] = (type(expected) is int and expected > 0 and
+                        len(data["workers"]) == expected)
+    path = Path(os.environ["T2817_PROBE_OUT"])
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                         prefix=path.name + ".", delete=False) as stream:
+            temporary = stream.name
+            json.dump(data, stream, ensure_ascii=True, indent=2, allow_nan=False)
+            stream.write("\n")
+        os.replace(temporary, path)
+    except BaseException as exc:
+        data["errors"].append({"where": "write", "error": repr(exc)})
+        raise
+    finally:
+        if temporary is not None and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+@contextlib.contextmanager
+def record_errors(config, where):
+    try:
+        yield
+    except BaseException as exc:
+        state(config)["errors"].append({"where": where, "error": repr(exc)})
+        if not worker(config):
+            write(config)
+        raise
+
+
+def guarded(function):
+    @functools.wraps(function)
+    def call(*args, **kwargs):
+        first = args[0] if args else next(iter(kwargs.values()))
+        config = getattr(first, "config", first)
+        with record_errors(config, function.__name__):
+            return function(*args, **kwargs)
+    return call
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config):
+    config._t2817_probe_state = {
+        "schema_version": "t2817-probe/v1", "complete": False, "errors": [],
+        "times": {"t_import": T_IMPORT, "configure": stamp()},
+        "workers": {}, "nodes": {}, "item_count": 0,
+        "collection_mismatch": None,
+    }
+
+
+@pytest.hookimpl(tryfirst=True)
+@guarded
+def pytest_sessionstart(session):
+    state(session.config)["times"]["sessionstart"] = stamp()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_collection(session):
+    config = session.config
+    with record_errors(config, "pytest_collection"):
+        state(config)["times"]["collection_entry"] = stamp()
+        try:
+            return (yield)
+        finally:
+            state(config)["times"]["collection_exit"] = stamp()
+
+
+@guarded
+def pytest_itemcollected(item):
+    data = state(item.config)
+    now = stamp()
+    data["times"].setdefault("first_itemcollected", now)
+    data["times"]["last_itemcollected"] = now
+    data["item_count"] += 1
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_collection_finish(session):
+    config = session.config
+    with record_errors(config, "pytest_collection_finish"):
+        state(config)["times"]["cf_entry"] = stamp()
+        try:
+            return (yield)
+        finally:
+            state(config)["times"]["cf_exit"] = stamp()
+
+
+@pytest.hookimpl(optionalhook=True)
+@guarded
+def pytest_configure_node(node):
+    state(node.config)["nodes"].setdefault(node.gateway.id, {})["configure"] = stamp()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True, optionalhook=True)
+def pytest_xdist_node_collection_finished(node, ids):
+    config = node.config
+    with record_errors(config, "pytest_xdist_node_collection_finished"):
+        data = state(config)["nodes"].setdefault(node.gateway.id, {})
+        data.update(collection_entry=stamp(), ids_count=len(ids))
+        try:
+            return (yield)
+        finally:
+            data["collection_exit"] = stamp()
+
+
+@pytest.hookimpl(tryfirst=True, optionalhook=True)
+@guarded
+def pytest_xdist_make_scheduler(config, log):
+    if (worker(config) or os.environ.get("T2817_PROBE_COLLECT_ONLY") != "1" or
+            config.getoption("dist") != "loadgroup"):
+        return None
+    sched = LoadGroupScheduling(config, log)
+
+    def schedule():
+        with record_errors(config, "schedule"):
+            assert sched.collection_is_completed
+            if sched.collection is not None:
+                return
+            data = state(config)
+            data["times"]["all_collected"] = stamp()
+            ok = sched._check_nodes_have_same_collection()
+            data["times"]["collection_checked"] = stamp()
+            data["collection_mismatch"] = not ok
+            if not ok:
+                sched.log("**Different tests collected, aborting run**")
+                return
+            sched.collection = list(next(iter(sched.registered_collections.values())))
+            # Empty workqueue and assigned_work: DSession initiates shutdown.
+
+    sched.schedule = schedule
+    return sched
+
+
+@pytest.hookimpl(tryfirst=True, optionalhook=True)
+@guarded
+def pytest_testnodedown(node, error):
+    config = node.config
+    data = state(config)
+    now = stamp()
+    data["times"].setdefault("first_nodedown", now)
+    entry = data["nodes"].setdefault(node.gateway.id, {})
+    entry.update(nodedown=now, error=None if error is None else str(error))
+    payload = getattr(node, "workeroutput", {}).get("t2817")
+    if isinstance(payload, dict):
+        data["workers"][node.gateway.id] = payload
+    write(config)
+
+
+@pytest.hookimpl(tryfirst=True)
+@guarded
+def pytest_sessionfinish(session, exitstatus):
+    config = session.config
+    data = state(config)
+    data["times"]["sessionfinish"] = stamp()
+    data["exitstatus"] = int(exitstatus)
+    data["config"] = facts(config)
+    if worker(config):
+        data["workerid"] = config.workerinput["workerid"]
+        shard = getattr(config, "_izanagi_acceptance_shard_state", None)
+        data["collection_finished_epoch_s"] = (
+            shard.get("collection_finished_epoch_s") if isinstance(shard, dict) else None)
+        data["selected_count"] = len(shard["selected"]) if isinstance(shard, dict) else None
+        config.workeroutput["t2817"] = data
+    else:
+        write(config)
+
+
+@guarded
+def pytest_unconfigure(config):
+    state(config)["times"]["unconfigure"] = stamp()
+    write(config)
