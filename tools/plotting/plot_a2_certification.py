@@ -652,6 +652,7 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
             for workload in workload_ids
         )
         if _study_label(data) == "A-6":
+            workload = w[workload_ids[0]]
             median_note = (
                 ": the adopted cell's median did not exceed the stock cell's median"
                 if data["outer_status"] == "reject" and data["effects"][workload_ids[0]] < 0
@@ -659,7 +660,8 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
             )
             return (
                 f"Figure {figure_number}. A-6 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
-                f"The single workload campaign was {campaigns}; with one policy workload, the outer status is that workload's verdict itself. "
+                f"The single workload campaign was request {workload['request_id']} on {workload['host']}, "
+                f"campaign claim recorded at {workload['created_utc']}; with one policy workload, the outer status is that workload's verdict itself. "
                 "The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars "
                 "are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median "
                 f"and the effect denominator. The median effect copied from certification is {effect_text}. M tps means million transactions per second. "
@@ -667,11 +669,16 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
                 "and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined "
                 f"median ratio{median_note}. This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, "
                 "repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy "
-                "or that static backoff is harmful for read-heavy in general. The bottom row is a descriptive leading indicator: one aggregate "
-                "abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled "
-                f"runs: all {len(data['cells'])} cells were certified, but this is not a performance certification, and the performance reject "
-                "does not withdraw that correctness evidence. L01 limits that evidence to point-key traces; under D1257 the correctness argv "
-                f"was not independently recorded. {data['gate_note']} Conditions: {c['threads']} threads, "
+                "or that static backoff is harmful for read-heavy in general. The value is not extrapolated to other read ratios, machines, "
+                "CCBench pins, or concurrency-control protocols. The bottom row is a descriptive leading indicator: one abort-rate observation "
+                "per cell, taken from the repetition whose throughput is closest to the median (the runner's representative-repetition rule), "
+                "with no confidence interval and no causal mechanism claim. Correctness comes from separate trace-enabled "
+                f"runs: all {len(data['cells'])} cells were certified. This is not a performance certification. "
+                "The performance reject does not withdraw that correctness evidence. That evidence is limited: L01 limits it to point-key traces; "
+                "under D1257 the correctness argv was not independently recorded; artifact hashes alone are not compile-out proof "
+                "(the evidence is source-routed); and src_token equality does not by itself establish semantic identity of the whole "
+                "translation unit (limitations (i) to (v) of the results note). "
+                f"{data['gate_note']} Conditions: {c['threads']} threads, "
                 f"{c['records']:,} records, Zipf {c['zipf_skew']}, read-modify-write disabled, max operations "
                 f"{c['max_ope']}, {c['extime']} s, {c['reps']} repetitions, CCBench pin {c['ccbench_pin']}, no perf, "
                 "trace-disabled performance. The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, "

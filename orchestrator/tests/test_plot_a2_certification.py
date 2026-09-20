@@ -1805,7 +1805,12 @@ def test_a6_caption_contains_fixed_literals(tmp_path):
     caption = plot._caption(data, fixture["prefix"])
     for literal in (
         "with one policy workload, the outer status is that workload's verdict itself",
-        "but this is not a performance certification, and the performance reject does not withdraw that correctness evidence",
+        "Correctness comes from separate trace-enabled runs: all 2 cells were certified. This is not a performance certification. The performance reject does not withdraw that correctness evidence.",
+        "one abort-rate observation per cell, taken from the repetition whose throughput is closest to the median (the runner's representative-repetition rule)",
+        "src_token equality does not by itself establish semantic identity of the whole translation unit",
+        "artifact hashes alone are not compile-out proof (the evidence is source-routed)",
+        "The value is not extrapolated to other read ratios, machines, CCBench pins, or concurrency-control protocols.",
+        "campaign claim recorded at",
         "This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy or that static backoff is harmful for read-heavy in general.",
         "The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, not an independent reproduction, and are not pooled here; the A-2 attempts measured other workloads and are neither pooled nor compared as before/after.",
         "Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision.",
@@ -1832,7 +1837,7 @@ def test_a6_caption_excludes_forbidden_words(tmp_path):
     caption = plot._caption(_load(plot, fixture), fixture["prefix"])
     for phrase in ("significant", "superior", "improvement", "performance certified", "reproduced",
                    "replicated", "research failure", "Top-row y axes are scaled independently by workload",
-                   "older series", "sign difference"):
+                   "older series", "sign difference", "aggregate abort-rate"):
         assert phrase not in caption
 
 
@@ -1936,6 +1941,14 @@ def test_landed_fig11_repo_closure_and_caption_when_present():
     assert all(p.is_file() for p in paths), "fig11 integration bundle is incomplete"
     plot = _plot()
     provenance = json.loads(paths[-1].read_text())
+    tracked = {row["kind"]: row["path"] for row in provenance["tracked_inputs"]}
+    cert = json.loads((REPO / tracked["certification"]).read_text())
+    raw_manifest = json.loads((REPO / tracked["raw_manifest"]).read_text())
+    assert provenance["study"] == cert["study"]
+    assert provenance["outer_status"] == cert["status"]
+    assert provenance["effects"] == cert["effects"]
+    assert [c["median_tps"] for c in provenance["cells"]] == [c["performance"]["median_tps"] for c in cert["cells"]]
+    assert {r["path"] for r in provenance["external_inputs"]} == set(raw_manifest["files"])
     assert [r["path"] for r in provenance["outputs"]] == [p.relative_to(REPO).as_posix() for p in paths[:2]]
     plot.validate_repo_closure(provenance, REPO)
     readme = (prefix.parent / "README.md").read_text()
