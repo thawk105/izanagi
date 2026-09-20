@@ -265,6 +265,19 @@
   一次資料: `output/insights/2026-09-19/paper-story-20260919/README.md` §3〜§4、`verbatim/review-out.md` 所見 3・4、
   `verbatim/focus-out.md` 対応表 2・3・8。恒久対応は変更なし — 版の全面再導出では、前版から運ぶ文の時点語を
   「日付付きの版名」へ置き換えてから再照合する (2026-09-19 版 §10 の契約)。
+
+- **再発: 2026-09-20** — (1) 論文ストーリー 2026-09-19 版 §3 項目 3 の見出し「仮説層は未実装」は、2026-09-17 版から
+  付け替えられずに運ばれた文で、機序仮説層 v3 が 2026-09-18 の D2143 で実装され同版の起点 `a99425b66` に含まれていた以上、
+  同版の執筆時点で既に偽だった (同版の本文自身は「K2 2 巡目で初適用」と書いており、見出しだけが残った)。2026-09-19 版の
+  親の自己点検と段 6 の 2 本のレビューはこれを拾わず、凍結物に偽が残った (実害)。2026-09-20 版の全面再導出の親も見出しを
+  そのまま運び、同版の段 6 read-only レビューが検出して冒頭の訂正 1 として一覧へ移した (2026-09-19 版は凍結物として書き換え
+  ない。README の訂正一覧・版の履歴表に「1 件」で記録)。転写元が一次資料でなく前版の見出しであった点で F1 と同型であり、
+  前版が「執筆時点の誤り 0 件」と判定していても、新版の導出はその判定を継承せずに見出し語まで一次資料へ再照合する必要がある。
+  (2) 同 wave の親が専用 handoff の段 1 完了時刻を `date` で採らず推定で「07:47 JST」と書き、直後に `date` (07:16 JST) で
+  「07:15 JST」へ訂正した (near-miss、実害なし。2026-09-19 の B-4 w1 wave と同型)。
+  一次資料: `output/insights/2026-09-20/paper-story-20260920/README.md` §4、同 `verbatim/review-out.md` 所見 2。
+  恒久対応は変更なし — 版の全面再導出では見出し・括弧書きの状態語も一次資料 (D 本文) へ再照合し、handoff の時刻は
+  `date` の出力だけを書く。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -24020,6 +24033,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 本 wave の D1714 が要求する
   「node → worker 割当」の実測が、この仮定の誤りを毎回顕在化させる。
 
+
+- **再発: 2026-09-18** — [T-2724] 候補生成 wave の一次資料 §8 と裁定パッケージ (d) が、chain (official 床値 result) を main に載せる帰結を growth hold 登録簿にある実 repo 走査 test 2 本だけで数え、登録簿に無い実 root consumer (実 root の git-visible output を fixture へ複製する T-080 fixture 10 node、実 committed HEAD を clone して official clean scan を通す 5 node、`run_block(root=ROOT)` で T-080 receipt を解決し process 内 memo で共有する契約 test 29 node、公開 gate の v1 verify 1 node) と production の oracle gate (`_make_gate_decision` が receipt refusal を無条件 merge、`_campaign_t080_value` が invalid receipt を拒否) への波及を列挙しないまま D2120 項 2 (a)(d) が裁定された。世代導入 G の wave が X1' を含む木で焦点走を実走して 45 failed / 967 passed、runbook §2 P3 `gate-check` の refusals に `holdout-freeze-verify: [holdout.unknownness_layer2]` が混入することを観測 (`output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §4)。恒久対応の追加: memory `chain-consequence-enumerate-real-root-consumers` (2026-09-18 作成) — 凍結 / official 成果物を tree に入れる帰結は hold 登録簿でなく `ROOT` 参照 (複製・clone・`root=ROOT` 解決) を grep で列挙し、その成果物を含む木で当該 file を `tools/run_tests.py` で 1 走し、production gate (runbook P3) も同じ木で 1 回叩いてから裁定材料に書く。
 ### F863. 高速化がキャッシュ経由で検出力を静かに下げた [恒真ゲート]
 
 - 事象: 実 repo `output/` snapshot を git 索引経由へ変える実装が、初版で 3 つの経路から
