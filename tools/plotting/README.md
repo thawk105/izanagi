@@ -204,6 +204,38 @@ repo 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig9 節を正本とする。
 
+## B-7 fixed 5 µs 三 workload 退行 (床値判定の記述図) figure
+
+`plot_b7_fixed5_regression.py` は、採用候補 fixed 5 µs を 3 workload で同一 attempt に測った study
+`paper-story-b7-fixed5-regression` (attempt `b7f5-20260919a`、3 workload × 2 cell × 5 標本) の標本・median・効果と、
+D1639 の between-run 床値との比較を 2 段 (上段 3 panel の標本、下段 1 panel の効果と −floor) で描く専用生成器である。
+既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_b7_fixed5_regression.py [--repo-root PATH] [--measurement-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の権威 bytes `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json` と
+`raw-manifest.json`、床値 JSON `output/env/pegasus/calibration/between_run_noise_t48_skew0p9_{rr5,rr50,rr95}_rmw0.json`、
+policy `orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json` (6 file、生成器の pin 表で SHA-256 束縛。pin は CLI から渡せない) と、
+raw-manifest が SHA-256 で束縛する repo 外の raw cell JSON 6 本 (`--measurement-root` 配下、既定は durable authority の path)。
+
+- median は raw の 5 標本から再計算し certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、median の比からの
+  再計算と照合する。図に出す判定の出所は稿 `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` §2.1 の転記
+  (定数) で、生成器は述語 `effect < −floor` (床 = 床値 JSON の `between_run.cv` 全桁、strict) を転記との整合検査にだけ使う。
+- SHA-256 不一致、schema / study / attempt / cell 順序の不一致、`source_binding_status` ≠ bound、adopted の `src_token` 不整合、
+  `correctness.status` ≠ certified、raw の verify 記録の不整合、性能標本が trace-enabled、`unstable`、標本数 ≠ 5、median / 効果 / 判定の不一致、
+  床値 JSON の genome / 条件の不一致、caption_source の不在のいずれでも成果物を出さない。
+- 保存前に renderer-backed layout check を実行し、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- caption は英文で、「B-7 の充足判定ではない」「規則 (effect < −floor、strict) と D1639 の床の出自」「退行なしは優越でも差が無いことの証明でもない、
+  有意差判定はしない」「outer status は論理積の出力で研究の判定ではない」「単一 attempt、昇格しない」「正しさは別走行、性能の認証ではない」
+  「CI は標本の記述」「上段 y は workload 別」「既存材料とプール・比較しない」の固定文を逐語で含む。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-b7-fixed5-regression-figure-provenance/v1`。`tracked_inputs` には稿を `caption_source` として SHA-256 付きで記録する
+(稿は provenance の SHA-256 を持たない、F36)。`external_inputs` には raw 6 本の root 相対 path と SHA-256 を記録する。
+論文図の再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig10 節を正本とする。
+
 ## S-1a 9 対 (失敗報告図) command example
 
 `plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。
