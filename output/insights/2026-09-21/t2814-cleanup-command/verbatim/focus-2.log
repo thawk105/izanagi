@@ -1,0 +1,54 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-6688bf4b8a)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2814-cleanup-command/output/pegasus-dispatch/orphan-holds/unknown-446f830f78273000fe7fc3c1.json
+[Pegasus dispatch] request ID 14127.nqsv を受理しました
+[Pegasus dispatch] request 14127.nqsv の状態: QUE
+[Pegasus dispatch] request 14127.nqsv の状態: RUN
+[Pegasus dispatch] request 14127.nqsv の状態: END
+[Pegasus dispatch] request 14127.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2814-cleanup-command/output/pegasus-dispatch/orphan-holds/unknown-446f830f78273000fe7fc3c1.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2814-cleanup-command/output/pegasus-dispatch/6688bf4b8aff0123276c15ebf654e79d/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 14127.nqsv child stdout begin (size=14612 bytes, omitted_bytes=10516)
+| d the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_FLAKY_HOLD_SUMMARY_V1 {"registered_node_count":1,"matched_node_count":1,"skipped_node_count":1,"registry_sha256":"ed7b4d7e4e5eafe836f11397da6b596d2c04d227996a8a217aa5970b6e117be2"}
+|
+| 3870 passed, 16 skipped in 76.78s (0:01:16)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 14127.nqsv child stdout end
+[Pegasus dispatch] request 14127.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 338953, "time_ns": 1789925403990108070}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 338975, "event": "direct-child-wait-start", "pid": 338961, "time_ns": 1789925404018908564}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 338975, "event": "direct-child-wait-complete", "pid": 338961, "time_ns": 1789925482539517745}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 338961, "rc": 0, "time_ns": 1789925482539636531}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 338953, "rc": 0, "time_ns": 1789925482544161160}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 338953}, {"comm": "bash", "pid": 338934}, {"comm": "nqs_shpd", "pid": 338933}, {"comm": "nqs_shpd", "pid": 338707}, {"comm": "nqs_shpd", "pid": 2321}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 338953, "sid": 338933, "time_ns": 1789925482544606157}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 84.3524110969156, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 338953, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789925482628997921, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 338953, "time_ns": 1789925482637898693}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 338953, "time_ns": 1789925482657912966}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 338953, "time_ns": 1789925482658920823}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 338953, "time_ns": 1789925482658931710}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 338953, "time_ns": 1789925482661193610}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 338953, "time_ns": 1789925482661202947}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 338953, "rc": 0, "time_ns": 1789925482661212902}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 338953, "rc": 0, "time_ns": 1789925482661230167}
+|
+| ============================================================
+| Request ID:             14127.nqsv
+| Request Name:           izdw-6688bf4b8a
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 02:23:39 2026
+| Started Request Time:   Mon Sep 21 02:30:03 2026
+| Ended Request Time:     Mon Sep 21 02:31:22 2026
+| Resources Information:
+|   Elapse:               84S
+|   Remaining Elapse:     3516S
+| ============================================================
+[Pegasus dispatch] request 14127.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

@@ -1,0 +1,12 @@
+t2804 final receipts n=15; pytest sum 300 s (n=14) median 21.0; RUN区間 sum 1306 s median 41
+pytest / wrapper 1753 s = 17.1%; RUN区間 / 1753 = 74.5%
+dev-wave-t2803-provenance-receipt n=14 median 0.30 max 16.7 ge5=1 sum 21.4
+dev-wave-t2804-provenance-timeout-contract n=30 median 0.30 max 11.3 ge5=2 sum 26.3
+dev-wave-t2813-o26-inventory n=12 median 0.15 max 4.5 ge5=0 sum 6.3
+dev-wave-t2153-witness-requested-us n=22 median 0.20 max 6.4 ge5=3 sum 21.6
+dev-wave-t2807-b8-prerun n=6 median 0.60 max 6.3 ge5=2 sum 13.2
+all n=84 median 0.30 ge5=8 sum_ge5=63.2
+RUN@ min 1 max 32 n=84
+probe n=39 ge5=4
+final n=39 ge5=2
+prerun/run n=6 ge5=2
