@@ -185,3 +185,19 @@ repo 内 (本 dir):
 - 投入・取込みの記録: `qsub-0001.stdout`、`qstat-after-submit-0001.txt`、`setup-submit-tree.log`、`hydrate.json`、`ingest-real.log`
 - 親の glue (repo 外、実装面ではない): `build_round3_inputs.py`、`build_coder_input_4.py`、`build_proposal_4.py`、`project_round3_results.py`、
   `build_critic_input_3.py`、`run-ingest.sh`、`run-layer3.sh`、`qsub-submit.sh`、`setup-submit-tree.sh`
+
+## 追記 — 同 job pair の投入結果 (T-2795、2026-09-20): 候補 10 の再評価だけ成立、stock は one-shot claim で認可前に停止、pair 不成立
+
+D2172 項 3 (i) で認可された同 job pair (候補 10 + stock 対照、1 job) を、D2183 の launcher (`IZANAGI_S4_STOCK_CONTROL=1`) で 2026-09-20 に 1 回だけ投入した
+(wave `dev-wave-t2795-k2-pair`、job `13339.nqsv`、host `bnode032`、Elapse 74 秒、fresh submit-tree HEAD `6a3e15809` = 当日の local main、CCBench `511c9538…`)。
+一次資料は `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。上の本文 (3 巡目、縮小走行) は変更しない。
+
+- **候補 10 (本巡の `materials/proposal-4.json` を再評価、認可済み):** campaign `p3-s4-loop-s4-autonomous-b24749ae` (新 ID — T-2304 の pin 前進で admission policy の
+  epoch が動いたため。同 variant `002642c7ac96`)、serializable / certified / anomalies 0 (commits 522,868 / aborts 121,826)、median **811,956 tps** (2 反復
+  `[817565, 806347]`、CV 0.98%、abort 率 9.16%)、`outcome=certified`、停止判定 `continue`。**pair 試行における既知候補 10 の追加評価**であり、上表の 3 走とも
+  非同時刻・別 tree (本走は別 policy epoch)。815,983 との差を改善・退行・再現性の根拠にしない。
+- **stock (同 job の 2 起動目、`--stock-control`):** condition gate (stock 形) は正常復帰したが、`run_campaign` の認可段 `loop._authorize_measurement` →
+  `campaign_claim.acquire_claim` で `ClaimError: campaign claim は既に 2080612 が所有している` (候補 driver が同 identity の claim を残して終了、one-shot claim
+  leaf は所有者の生死を見ず `O_EXCL` で拒否、D464 / D553)。**build / verify / bench に到達せず、`src_token == STOCK` (inert) は未確認、`outcome=certified-stock` は
+  得られず、pair は不成立。** 依頼の停止規則どおり再投入せず、4 巡目 (項 3 (iv)) も投入していない。同 job の stock 対照は本巡でも**未達のまま** (critic の R0 は
+  未解消)。修復方向 (1 回の認可・claim の所有期間で候補と stock を両評価する driver 設計) は同 insight §4 の裁定パッケージ。

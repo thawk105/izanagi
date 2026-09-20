@@ -1,0 +1,251 @@
+{
+ "ao_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-k2-loop-round3/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/runs/agent_outputs.jsonl",
+ "ao_sha256": "66d3e737c1e4bb2e651805d97d40e047093f85273642464d24b23b797813efce",
+ "wal_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-k2-loop-round3/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/runs/wal.jsonl",
+ "wal_sha256": "eb8927b78129a8700ceec9c30a13df1fa7287b1c5520f6cf19ae48b191aa4daa",
+ "wal_records": [
+  {
+   "variant": "002642c7ac96",
+   "stage": "build_start",
+   "env_tag": "pegasus",
+   "ref": "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba"
+  },
+  {
+   "variant": "002642c7ac96",
+   "stage": "build_done",
+   "env_tag": "pegasus",
+   "ref": "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759"
+  },
+  {
+   "variant": "002642c7ac96",
+   "stage": "verify_done",
+   "env_tag": "pegasus",
+   "ref": "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11"
+  },
+  {
+   "variant": "002642c7ac96",
+   "stage": "bench_done",
+   "env_tag": "pegasus",
+   "ref": "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f"
+  },
+  {
+   "variant": "002642c7ac96",
+   "stage": "commit",
+   "env_tag": "pegasus",
+   "ref": "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+  }
+ ],
+ "agent_outputs": [
+  {
+   "stage": "planner_proposed",
+   "variant": "002642c7ac96",
+   "env_tag": "pegasus",
+   "ts": 1789824469.2085643,
+   "payload_keys": [
+    "input_sha256",
+    "output",
+    "provenance",
+    "refs"
+   ],
+   "provenance_keys": [
+    "input_file_sha256",
+    "input_path",
+    "mode",
+    "prompt_path",
+    "prompt_sha256",
+    "source_path",
+    "source_sha256"
+   ],
+   "provenance_mode": "ingested",
+   "source_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-k2-loop-round3/verbatim/planner-4.json",
+   "source_sha256": "59122afb3729c9d13b265ac33e355d6f62d58d86477d45c68f20339f2ae03e50",
+   "input_file_sha256": "87a7fb53da7de332f00f43985de4b8be94ba4f7f6a65ae1729f121835eea7747",
+   "input_sha256": "bc41b23552c59b78601b1e07fa3cc23e5692e23a98ad3436bfddfcbb4b566ed0",
+   "refs": [
+    "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba",
+    "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759",
+    "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11",
+    "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f",
+    "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+   ],
+   "refs_resolve_in_wal": [
+    [
+     "002642c7ac96",
+     "build_start"
+    ],
+    [
+     "002642c7ac96",
+     "build_done"
+    ],
+    [
+     "002642c7ac96",
+     "verify_done"
+    ],
+    [
+     "002642c7ac96",
+     "bench_done"
+    ],
+    [
+     "002642c7ac96",
+     "commit"
+    ]
+   ],
+   "output_keys": [
+    "proposal"
+   ],
+   "digest_sha256": null
+  },
+  {
+   "stage": "coder_proposed",
+   "variant": "002642c7ac96",
+   "env_tag": "pegasus",
+   "ts": 1789824470.2239747,
+   "payload_keys": [
+    "input_sha256",
+    "output",
+    "provenance",
+    "refs"
+   ],
+   "provenance_keys": [
+    "input_file_sha256",
+    "input_path",
+    "mode",
+    "prompt_path",
+    "prompt_sha256",
+    "source_path",
+    "source_sha256"
+   ],
+   "provenance_mode": "ingested",
+   "source_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-k2-loop-round3/verbatim/coder-4.json",
+   "source_sha256": "49ca42a1aeb9b6a72b58e101beffd443d965ed018f1825ab989af728f5bf843e",
+   "input_file_sha256": "1db9d189892611bfd07e66a68ae3d2e7bced3859da5192a8f6ebdcb6bdb93379",
+   "input_sha256": "aa61c24083a959f1987670882d05a17c0be74db640e29d1c2a28a223bab5f356",
+   "refs": [
+    "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba",
+    "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759",
+    "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11",
+    "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f",
+    "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+   ],
+   "refs_resolve_in_wal": [
+    [
+     "002642c7ac96",
+     "build_start"
+    ],
+    [
+     "002642c7ac96",
+     "build_done"
+    ],
+    [
+     "002642c7ac96",
+     "verify_done"
+    ],
+    [
+     "002642c7ac96",
+     "bench_done"
+    ],
+    [
+     "002642c7ac96",
+     "commit"
+    ]
+   ],
+   "output_keys": [
+    "classification",
+    "data_boundary_report",
+    "knowledge_use",
+    "proposal"
+   ],
+   "digest_sha256": null
+  },
+  {
+   "stage": "critic_attributed",
+   "variant": "002642c7ac96",
+   "env_tag": "pegasus",
+   "ts": 1789824470.7776084,
+   "payload_keys": [
+    "digest_sha256",
+    "input_sha256",
+    "output",
+    "provenance",
+    "refs"
+   ],
+   "provenance_keys": [
+    "input_file_sha256",
+    "input_path",
+    "mode",
+    "prompt_path",
+    "prompt_sha256",
+    "source_path",
+    "source_sha256"
+   ],
+   "provenance_mode": "ingested",
+   "source_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-k2-loop-round3/verbatim/critic-3.md",
+   "source_sha256": "5cd8f5187e627f7d85c2cfb9f5be9fb8e9702d62f3f3255ef24c3a8d1912af25",
+   "input_file_sha256": "10a94095e388f5e25acbcf3a3f45de6ad8d2f607e6fd4b1393979c5f92fe529a",
+   "input_sha256": "b16f27c227489d385fa3a4e36b92ef7822ffce02c7bd4ba970c381bfcafb6e9f",
+   "refs": [
+    "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba",
+    "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759",
+    "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11",
+    "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f",
+    "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+   ],
+   "refs_resolve_in_wal": [
+    [
+     "002642c7ac96",
+     "build_start"
+    ],
+    [
+     "002642c7ac96",
+     "build_done"
+    ],
+    [
+     "002642c7ac96",
+     "verify_done"
+    ],
+    [
+     "002642c7ac96",
+     "bench_done"
+    ],
+    [
+     "002642c7ac96",
+     "commit"
+    ]
+   ],
+   "output_keys": [
+    "attribution",
+    "avoid",
+    "raw_markdown",
+    "recommend",
+    "uncertainty"
+   ],
+   "digest_sha256": "f993251dc33cd9d25246778c8b6b8820f431d4d121030377af65f9046ebe3598"
+  }
+ ],
+ "insight_proposal_raw_sha256": "bd3e5fd2110cc75313a8692f9c6e4c3ba4b20aa5050f0c99a50ab049ea12d53f",
+ "insight_proposal_canonical_b4_sha256": "c9b2595a90fc30b0e030e26379cbdfa2dd7d80b7fd35d3d3dee9cc2e55d56f55",
+ "ao_source_sha256_matches_insight_proposal": [
+  false,
+  false
+ ],
+ "loop_state": {
+  "iteration": 1,
+  "start_wall": 1789824041.4768934,
+  "reverse_recommendations": 0,
+  "whiteboard": [
+   {
+    "iteration": 1,
+    "direction": "decrease",
+    "magnitude": "large",
+    "result": "success",
+    "delta_pct": null
+   }
+  ]
+ },
+ "lock_keys": [
+  "authority",
+  "identity_preimage",
+  "schema_version"
+ ],
+ "lock_search_config_keys": []
+}

@@ -18,6 +18,13 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 本体論文の日本語結果・考察草稿を 2026-09-20 版として再導出し、09-10 の前稿 (entry 1436) を supersede した
+  (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-20/paper-results-ja/results-discussion.md`。
+  09-10 以後の results 稿 15 本と図 fig4〜fig12・fig8b を主張ごとの 12 節・表 15 に束ね、数値は各稿の表の逐語、
+  言えること / 言えないことは各稿の限定と story 2026-09-20 版 §6 + README stale 注記 (D2174 項 3) に揃えた。
+  前稿本文は不変 (前稿 dir に前方 pointer の README を追加)。文書成果の完了であり、未取得の測定 (A-1 充足・A-5・
+  B-1・B-2・B-5・B-8 など) や Phase 3 全体の完了を意味しない。
+
 - [x] [T-2737] D2148項4のSS2PL非inert局所修正を実装した (2026-09-19)。
   関門前の依存準備、phase1の4軸と実build、計器呼出し保存、既存C++テストを確認。
   controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
@@ -293,6 +300,8 @@ stock 最良 / ランダム変異 / 機械 sweep) とその操作的定義・LLM
 実際に発火した。一方、8b の workload 特化は旧比較の結果から
 独立した新しい主張なので、既知結果を pilot と明示し、未見 holdout・descriptor ablation・全件報告を別の
 前向き設計として凍結する。kickoff は旧主実験を満たさなくてよい (別スコープ)。
+2026-09-20 の D1441 反映 (復活条件の「非列挙」の語義改訂) は、凍結成果物が sha256 で参照する同文書の bytes を
+保全し、別 file `docs/phase3-main-experiment-addendum-1.md` に日付付き追補として記録した。
 
 ---
 
@@ -458,6 +467,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      planner-4 / coder-4 へ型付き入力として届き、候補10 (decrease / large) を1評価して
      serializable・異常0・certified・continue を得た。同job stock対照は既存経路に結線がなく未達
      (裁定パッケージ)。改善の実証ではない。記録は `output/insights/2026-09-19/k2-loop-round3/README.md`。
+   - [x] [T-2795] D2172項3 (i) の同job pair launcher (D2183) を初投入 (2026-09-20、実装差分ゼロ)。候補10の再評価は
+     certified、stockは同campaignの2起動目がone-shot claim leaf (D464) に認可前で拒否され pair 不成立
+     (STOCK性未確認、再投入なし、4巡目未投入)。修復方向は裁定パッケージ。記録は
+     `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。

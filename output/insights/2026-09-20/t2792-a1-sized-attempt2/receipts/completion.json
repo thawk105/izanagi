@@ -1,0 +1,109 @@
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+  "group_terminal": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/raw/job-terminal.json",
+    "sha256": "a9bc5f9a150533fd3900140bd2dea1b307c9706e2862158a3a98499a6af6cb38"
+  },
+  "jobs": [
+    {
+      "job_terminal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/job-terminal.json",
+        "sha256": "450d62d8071ffb1b8b94bbb3cccdd253e38b7f6c7f201fdaf5e09643b34a9230"
+      },
+      "ordinal": 0,
+      "request_id": "13220.nqsv",
+      "scheduler_terminal": {
+        "exit_status": {
+          "observed": false
+        },
+        "observed_epoch": 1789896605,
+        "qstat_rc": 0,
+        "qstat_stdout": "Batch Request: 13220.nqsv does not exist on nqsv.\n",
+        "qstat_stdout_sha256": "49634adb4728ed3d8e91915436528c708bd82f5737cd33333dfa6665a33804af",
+        "qstat_visible": false,
+        "state": {
+          "observed": false
+        },
+        "terminal_reason": "request-disappeared-after-visibility"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/scheduler/job.stderr",
+        "sha256": "eb5cf97b58330221c69e2b64d95c79dffc60a13f52ecbd0bbe6bacefdc0b0669"
+      },
+      "stdout": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/scheduler/job.stdout",
+        "sha256": "db53534e56943b9fba0df1e1f03a9ee09805035f5bd074d43e8a94e38ae4b005"
+      },
+      "workload": "write-heavy"
+    },
+    {
+      "job_terminal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/job-terminal.json",
+        "sha256": "17ec81ace87c572e829d377930a8d993b019cade6135842b70963cff9339bc96"
+      },
+      "ordinal": 1,
+      "request_id": "13221.nqsv",
+      "scheduler_terminal": {
+        "exit_status": {
+          "observed": false
+        },
+        "observed_epoch": 1789896605,
+        "qstat_rc": 0,
+        "qstat_stdout": "Batch Request: 13221.nqsv does not exist on nqsv.\n",
+        "qstat_stdout_sha256": "e1c856038d64138f2729e94bd723e74f5c08419c9fe02a80d173dec1ce9ea313",
+        "qstat_visible": false,
+        "state": {
+          "observed": false
+        },
+        "terminal_reason": "request-disappeared-after-visibility"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/scheduler/job.stderr",
+        "sha256": "2b6932e50919d9cb823a05a0334aa0532032b3f78faa10b33b46cda46dfe8fcc"
+      },
+      "stdout": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/scheduler/job.stdout",
+        "sha256": "fca0ee6b444c6a521f12c1ed646670cb5191fa84716ffac250b31109900e116b"
+      },
+      "workload": "balanced"
+    },
+    {
+      "job_terminal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/job-terminal.json",
+        "sha256": "a817c5795dc59b714d7308284147ac37c158329120904b207ddbee7bcc819753"
+      },
+      "ordinal": 2,
+      "request_id": "13222.nqsv",
+      "scheduler_terminal": {
+        "exit_status": {
+          "observed": false
+        },
+        "observed_epoch": 1789896605,
+        "qstat_rc": 0,
+        "qstat_stdout": "Batch Request: 13222.nqsv does not exist on nqsv.\n",
+        "qstat_stdout_sha256": "639fed9e5ef385d1474a867ec90ef9a0f1469788ad67fc8f9606bc1f76ca05a9",
+        "qstat_visible": false,
+        "state": {
+          "observed": false
+        },
+        "terminal_reason": "request-disappeared-after-visibility"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/scheduler/job.stderr",
+        "sha256": "2c4398ff2102587ccf507db00f61dd0478d02472808315c8f38cac0f2e7dd1f4"
+      },
+      "stdout": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/scheduler/job.stdout",
+        "sha256": "529a89cc7e29188c11e58cbc16a2b54203c7809cfb119bd7db273b661ff77cc8"
+      },
+      "workload": "read-heavy"
+    }
+  ],
+  "schema_version": "paper-story-a1-paired-group-completion/v1",
+  "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "submission_receipt": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/receipts/submission.json",
+    "sha256": "7fb0ebd66652d4d91cf399d2fa5b523b90615f0c493c4275f089ba1a8561aeb6"
+  }
+}

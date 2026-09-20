@@ -307,6 +307,20 @@
   (`verbatim-projection-cut-by-heading-not-line-range` / `timestamps-from-date-or-mtime-not-estimation` と同じ族) から変更なし —
   散文の量化 (「すべて」「単調」「別 X」「上」) は書く前に表・record から機械で確かめ、要約文は一次資料の field 名 (`equivalence_relation`
   の値、`execution_host` の有無) で言い直す。段 6 の独立レビューは docs-only でも省かない (`DW-C00`)。
+
+- **再発: 2026-09-20 (near-miss、結果・考察草稿の再導出 wave `dev-wave-paper-results-ja-2026-09-20`)** — 本体論文の結果・考察草稿を
+  09-10 以後の results 稿 15 本から再導出した際、(1) §12 の official floor 案を「未発効」、(2) §6 の検証相の 10 s 未完走の原因を「原因は未確定」と
+  書いた。どちらも論文ストーリー 2026-09-20 版 §6 / §8 と results 稿 (凍結物) の文面からの転写で、起草起点の local main に既に含まれていた
+  当日の worklog entry 1742 (凍結 v2 g1 は承認 A / active pointer X で批准済み、批准 loader は成功、P3 の launch validation は未達) と
+  entry 1744 (未完走 2 型を fixed-5 の保全 trace で同定) を読まずに書いた。数表 15 の数値は稿の表から機械照合 (逐語存在 360 token) で守れたが、
+  **「未」型の状態語は機械照合の射程外**で、段 6 の独立 read-only レビュー (must-fix) が捕まえ、凍結前に「批准と launch validation 未達を分ける」
+  「記録時点では未確定 → 後続で同定、当時の記録・判定集合・extime は不変」へ直した (実害なし。稿・README に残っていない)。
+  同じレビューは、条件の帰属 (S-1a の 324 verify を全部 `legacy` と書いた。実は legacy 306 + s2 18)・集約方法の一律化 (abort 率を「代表 rep 1 点」と
+  書いたが右 tail は 5 反復平均)・実行時刻 (mocc の 4 block を「別時刻」と書いたが軽量 witness の 4 block は同時刻) も捕まえた。転写対象が
+  「二次資料 (版) の状態語と、稿の限定を要約する際の条件の括り」へ広がった顕在化。恒久対応は memory から変更なし — 版・stale 注記は「言い方」の
+  出所に留め、「未発効」「未確定」「未実施」型の状態語は起草前に当日の worklog entry 見出しを全部読んで grep で反証し、稿の限定を要約するときは
+  条件 (検査 mode の内訳・集約方法・実行時刻) を稿の逐語で引く。一次資料から事実を再抽出する docs-only wave に read-only レビュー 1 本を残す
+  規則 (D2148 項 11) の適用例が 1 つ増えた。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -27651,6 +27665,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入全走が検出者である。**走査器 1 本の緑を全 gate の緑と読まない。**
   記録に「走査器 rc=0」と書くときは、その走査器の候補集合が何であるかを併記する。
 
+
+- **再発: 2026-09-20** ([T-2792] A-1 sized attempt-0002 の記録 wave) — DW-S07 の三軸語走査器 (`s8b_holdout_freeze search`) を段 7 で走らせ「本 wave の file に hit なし」を確認したうえで、**その走査器の生出力 (走査の対象・正規表現名・既知 hit の一覧を含む JSON) を insight の `verbatim/three-axis-scan.txt` として repo に写した。** 出力自身が三軸語 conjunction に当たり、受入全走 (attempt 1、25 分) が `test_s8b_oracle_driver` の t080 系 `IZANAGI_FREEZE_HOLD` と `test_s8b_floor_campaign` の `clean scan 拒否` で赤 25 件 (全件がこの file を名指し)。走査は写す前の tree に対して行ったので緑だった。是正: file を削除し (走査結果は insight の要約 1 行で足りる)、走査を再走して hit が既知 4 file に戻ることを確認してから受入を取り直した。**走査器の出力は走査器の候補集合に入る**ので、走査後に足す file にも同じ検査を掛ける。
 ### F1014. 段 1 で採った consumer 列挙を段 5 まで持ち越し、その間に着地した新 consumer を落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 1 で旧 locator の読み手を列挙し (28 file)、段 4 の裁定に写した。段 5 の投入直前に
@@ -27755,6 +27771,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: driver の build 経路を stub する test しか無い gate 統合 commit。段 1 で「その driver は統合後に
   実走したか」を worklog / insight で照合する。
 
+
+- **再発: 2026-09-20** — K2 同 job pair launcher (D2183、job body の stock step + driver `--stock-control`、2026-09-20 land) は、候補と同じ campaign
+  (同 identity・同 out_root) に **2 つ目の driver process** から `run_campaign` を通す設計だったが、Pegasus 契約 (reservation 必須) の実認可経路
+  `loop._authorize_measurement` → `campaign_claim.acquire_claim` (single-process campaign の one-shot claim leaf、同 identity path は所有者の生死を見ず `O_EXCL`
+  で拒否、D464 / D553) との整合を一度も実走で確かめずに land した。初投入 (`13339.nqsv`) で候補は certified、stock は condition gate 正常復帰の直後に
+  `ClaimError` で停止し、build にも到達しなかった (STOCK 性未確認、pair 不成立)。実装 wave の test は実 `run_campaign` を戻すものを含むが site `OTHER`
+  (`single_process=False`) で claim 分岐に入らず、job contract test は代用 python で driver を起動しない (1746 passed + 変異 17/17 KILLED はこの経路を含まない)。
+  実装 wave の insight は「1 job も投入していない」「STOCK 成立は未測定」を正直に明記していたが、未測定の開示は統合欠陥の不存在を保証しない。
+  恒久対応は未実施 (修復 wave が同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査を含める、D2187)。補助参照 F81 / F722。
+  一次資料 `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §2。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と
