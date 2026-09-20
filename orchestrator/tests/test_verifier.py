@@ -3194,6 +3194,185 @@ def test_capacity_workers_1_and_16_match():
         shutil.rmtree(source, ignore_errors=True)
 
 
+def _capacity_broken_pool_child(kind):
+    import importlib
+    import shutil
+    import signal
+    import time
+
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    module = dsg_module if kind == "edge" else parse_module
+    name = "_edge_candidates_for_task" if kind == "edge" else "_parse_file_worker"
+    original = getattr(module, name)
+    parent_pid = os.getpid()
+    d = _ordinal_witness_trace()
+    # Four files permit four parse workers as well as multiple edge tasks.
+    with open(os.path.join(d, "trace_3.log"), "w"):
+        pass
+    # Results must exceed the result pipe capacity: after a worker exits the
+    # manager stops draining that pipe. Tiny results can finish and consume
+    # shutdown sentinels even without SIGKILL, hiding the production deadlock.
+    for file_index in range(4):
+        with open(os.path.join(d, f"trace_{file_index}.log"), "a") as fh:
+            for txid in range(17 + file_index, 17 + 16384, 4):
+                epoch, tid = (1, 0) if txid == 17 else (3, txid)
+                fh.write(
+                    f"C {txid} {file_index} 3 {txid + 1} 1 1\n"
+                    f"R {txid} ee {epoch} {tid}\n"
+                    f"W {txid} ee U 3 {txid + 1}\nE {txid}\n")
+    marker = os.path.join(d, "exited-worker")
+
+    def fail_worker(task, *args):
+        if os.getpid() != parent_pid:
+            assert signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+            index = task.task_index if kind == "edge" else task[0]
+            if index == 0:
+                time.sleep(0.3)
+                with open(marker, "w") as fh:
+                    fh.write(str(os.getpid()))
+                os._exit(3)
+            time.sleep(5)
+        return original(task, *args)
+
+    # The parse function itself is submitted and must resolve by module name.
+    fail_worker.__module__ = module.__name__
+    fail_worker.__name__ = fail_worker.__qualname__ = name
+    try:
+        baseline = verify_trace_dir(d, workers=1)
+        setattr(module, name, fail_worker)
+        started = time.monotonic()
+        recovered = verify_trace_dir(d, workers=4)
+        assert time.monotonic() - started < 60
+        assert os.path.exists(marker), "worker exit was not exercised"
+        assert result_to_dict(recovered) == result_to_dict(baseline)
+        pids = (dsg_module._LAST_DSG_WORKER_PIDS if kind == "edge"
+                else parse_module._LAST_PARSE_WORKER_PIDS)
+        assert pids == {parent_pid}, pids
+        with open(f"/proc/{parent_pid}/task/{parent_pid}/children") as fh:
+            assert not fh.read().strip(), "pool left live or unreaped children"
+    finally:
+        setattr(module, name, original)
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def _capacity_run_broken_pool_child(kind):
+    import signal
+    # Kill the entire isolated group even when the pre-fix pool hangs.  Killing
+    # only subprocess.run's child would leave its SIGTERM-ignoring workers.
+    with tempfile.TemporaryDirectory(prefix="verifier-pool-child-") as d:
+        pid_path = os.path.join(d, "pid")
+        script = (
+            "import os, runpy, sys\n"
+            "with open(sys.argv[2], 'w') as f: f.write(str(os.getpid()))\n"
+            "sys.path.insert(0, os.path.dirname(sys.argv[1]))\n"
+            "tests = runpy.run_path(sys.argv[1])\n"
+            "tests['_capacity_broken_pool_child'](sys.argv[3])\n"
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", script, os.path.abspath(__file__),
+                 pid_path, kind],
+                timeout=120, start_new_session=True, capture_output=True,
+                text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+            )
+            assert result.returncode == 0, result.stdout + result.stderr
+        finally:
+            if os.path.exists(pid_path):
+                with open(pid_path) as fh:
+                    pid = int(fh.read())
+                try:
+                    os.killpg(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+
+def test_capacity_broken_pool_terminates_workers_and_falls_back():
+    _capacity_run_broken_pool_child("edge")
+
+
+def test_capacity_parse_broken_pool_terminates_workers():
+    _capacity_run_broken_pool_child("parse")
+
+
+def test_capacity_partial_outcomes_are_released_before_full_fallback():
+    """Partial arrays must die before the first sequential task, without GC."""
+    import concurrent.futures
+    import importlib
+    import shutil
+    import weakref
+    from unittest.mock import patch
+
+    dsg_module = importlib.import_module("orchestrator.verifier.dsg")
+    parse_module = importlib.import_module("orchestrator.verifier.parse")
+    d = _ordinal_witness_trace()
+    try:
+        for kind in ("edge", "parse"):
+            for failure in ("worker", "incomplete", "submit"):
+                refs = []
+                sequential_tasks = []
+                original = (dsg_module._edge_candidates_for_task if kind == "edge"
+                            else parse_module._parse_file_worker)
+
+                class PartialPool:
+                    def __init__(self, **kwargs):
+                        self.state = kwargs.get("initargs", (None,))[0]
+                        self.count = 0
+
+                    def submit(self, fn, task):
+                        self.count += 1
+                        if self.count > 1 and failure == "submit":
+                            raise OSError("submit failure sentinel")
+                        future = concurrent.futures.Future()
+                        if self.count == 1 or failure == "incomplete":
+                            outcome = (original(task, self.state) if kind == "edge"
+                                       else original(task))
+                            # Duplicate indices exercise completeness rejection.
+                            if failure == "incomplete":
+                                outcome = replace(outcome, **{
+                                    "task_index" if kind == "edge" else "path_index": 0,
+                                })
+                            refs.append(weakref.ref(
+                                outcome.run_dst if kind == "edge"
+                                else outcome.txn_commit_epoch))
+                            future.set_result(outcome)
+                        else:
+                            future.set_exception(RuntimeError("worker failure sentinel"))
+                        return future
+
+                    def shutdown(self, **kwargs):
+                        pass
+
+                def sequential(task, *args):
+                    assert refs, "no partial outcome was injected"
+                    assert all(ref() is None for ref in refs), (
+                        kind, failure, "partial arrays still live at fallback")
+                    sequential_tasks.append(task)
+                    return original(task, *args)
+
+                module = dsg_module if kind == "edge" else parse_module
+                name = ("_edge_candidates_for_task" if kind == "edge"
+                        else "_parse_file_worker")
+                # Parse the edge test input first, outside the fake pool.
+                compact = parse_module._parse_trace_dir_compact(d, workers=1)
+                expected_graph = DSG.from_compact(compact)
+                compact = replace(compact, worker_count=4)
+                with patch.object(concurrent.futures, "ProcessPoolExecutor", PartialPool), \
+                        patch.object(concurrent.futures, "as_completed", iter), \
+                        patch.object(module, name, sequential):
+                    if kind == "edge":
+                        graph = DSG.from_compact(compact)
+                        assert graph.adj == expected_graph.adj
+                        assert graph.anomalies() == expected_graph.anomalies()
+                    else:
+                        parsed = parse_module._parse_trace_dir_compact(d, workers=4)
+                        assert list(parsed.winner_txid) == list(compact.winner_txid)
+                assert len(sequential_tasks) > 1, "full fallback was not exercised"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():

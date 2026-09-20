@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
                     Integrity, Txn, Version)
-from .parse import _CompactTrace, _txn_from_columns
+from .parse import _CompactTrace, _kill_pool_workers, _txn_from_columns
 
 
 # Bias the unsigned 64-bit version into signed array("q") without wrapping.
@@ -561,6 +561,9 @@ class DSG:
         )
         outcomes: Optional[List[_EdgeCandidateColumns]] = None
         received: List[_EdgeCandidateColumns] = []
+        executor = None
+        futures = []
+        future = None
         if worker_count > 1 and len(tasks) > 1:
             try:
                 import multiprocessing
@@ -573,6 +576,7 @@ class DSG:
                     initializer=_initialize_edge_worker,
                     initargs=(state,),
                 )
+                failed = True
                 try:
                     futures = [executor.submit(_edge_worker, task) for task in tasks]
                     failed = False
@@ -585,16 +589,25 @@ class DSG:
                     if failed:
                         for future in futures:
                             future.cancel()
+                except BaseException:
+                    failed = True
+                    raise
                 finally:
+                    if failed:
+                        _kill_pool_workers(executor)
                     executor.shutdown(wait=True, cancel_futures=True)
-                outcomes = _ordered_complete_edge_outcomes(
-                    received, len(tasks))
+                if not failed:
+                    outcomes = _ordered_complete_edge_outcomes(
+                        received, len(tasks))
             except (
                     ImportError, OSError, BlockingIOError, RuntimeError,
                     ValueError, AssertionError,
             ):
                 outcomes = None
         if outcomes is None:
+            received.clear()
+            futures.clear()
+            future = executor = None
             outcomes = _ordered_complete_edge_outcomes(
                 [_edge_candidates_for_task(task, state) for task in tasks],
                 len(tasks),
