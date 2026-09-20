@@ -1,0 +1,41 @@
+{
+  "ORACLE_ENVIRONMENT_CONSUMER_NODES": [
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable",
+    "test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+    "test_sort_swo_oracle.py::test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs",
+    "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason",
+    "test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness",
+    "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
+    "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
+    "test_sort_swo_oracle.py::test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct",
+    "test_sort_swo_oracle.py::test_phase_marker_runs_immediately_before_first_oracle_subprocess",
+    "test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_programmer_error_is_not_infrastructure",
+    "test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
+    "test_sort_swo_oracle.py::test_real_compile_budget_is_fixed_positive_and_negative_only",
+    "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
+    "test_sort_swo_oracle.py::test_scratch_failure_is_unavailable_not_candidate_reject",
+    "test_sort_swo_oracle.py::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values",
+    "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable"
+  ],
+  "RECEIPT_MEMO_CONSUMER_NODES": [
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",
+    "test_s8b_binding_driftguards.py::test_receipt_memo_patches_the_driver_module_the_tests_import",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing"
+  ],
+  "source_sha256": "b80935da7fecdd6ff6d5a665b7652f90bc221748b8e9d45152055cd62dcf7a9a"
+}
