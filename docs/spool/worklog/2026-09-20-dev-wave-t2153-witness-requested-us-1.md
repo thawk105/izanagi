@@ -45,6 +45,8 @@ title: [T-2153] 意味 witness の残件 (c) — `BACKOFF_REQUESTED_US` を複�
 - 事故・気づき: 隔離 session の Bash guard が `python3 <script> <変数 path>` や heredoc 本文の "git" 文字列も拒否するので、検査 script と
   本文は Write で job dir に置き逐語 path で呼んだ。I1 の cell を最初は出力 dir 名入りの driver-id で取ったため request_digest が違い、
   同一 driver-id で取り直した (1 走分の無駄)。
+- 段 8 (skill 自己改善) の候補 2 件はいずれも docs を変えない (`DW-O03` は 971/1,000 bytes で追記が入らない、I1 cell の driver-id 統一は
+  wave 固有の作法) → 親の記憶へ。詳細は insight §6。
 - 工数: codex 6 本 (plan 1、consult 2、author 1、review 2)、計算ノード job = 焦点走 2 + cell 1 + 変異 (probe + final) + provenance 監査 + 受入。
 
 ## 次の一手差分

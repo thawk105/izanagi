@@ -69,6 +69,7 @@ login と計算ノードで 5 cell とも前処理 digest・byte 数・owner TU 
 - 段 5 author (Codex、27 call、814 s): 所有 2 file に実装、sandbox で pytest 未実走。test module を import した直接呼出し 75 ケース PASS、反実仮想 3 件 (個別等値検査除去 / 副 digest 束縛除去 / 副 schema の key 依存化) が DID NOT RAISE。親の焦点走 1 (計算ノード bnode019、所有 test + consumer 15 file: S1・mocc 3 件・A-2 certification・calibration workload・S5・rung1 driver・t152・spawn 目録・B-4 目録・s8a sweep・requested_us・backoff_sweep) = **1148 passed / 2 skipped、赤 0**。所有 test 単独の `-rA` 走 (bnode、`verbatim/focus-own2-child-stdout.txt`) = **218 PASSED / 0 skipped**、うち新設 43 node すべて PASSED。
 - 段 6 review A (正しさ境界、11 call) / B (過剰・削除・pin、9 call): **両方 GO、must-fix 0**。A: should = I1 要約の「identity から派生」は当たらない (argv の一時 path と派生 digest / ID だけ、独立 leaf 比較で確認) → 本稿 §4 に反映、m8 は payload 挿入だけを無条件化しないと個別観測で先に落ちて帰属がずれる → spec に反映。B: nit = 総和の再検査 2 ブロックは先行検査で到達不能 (裁定由来の冗長性、維持)、should = node 別の実走証拠 → `-rA` 走を追加取得。fix 巡なし、焦点再レビュー不要。
 - 変異 matrix: §8。
+- 段 8 (skill 自己改善) の候補 2 件はいずれも本 wave では docs を変えない: (i) 隔離 session の Bash guard は `python3 <script> <変数 path>` の形 (引数が計算値) も拒否する — `DW-O03` へ「引数の path も逐語で書く」を足すと L2 単節予算 (1,000 bytes) を超える (現物 971 bytes) → 親の記憶 (git-and-guard-discipline) へ。(ii) I1 の変更前後 cell は driver-id を同一にしないと request_digest が変わり 1 走無駄になる (出力 dir 名を driver-id に入れない) → 親の記憶 (mutation / cell の作法) へ。
 
 ## 7. scope 外 (裁定パッケージ候補、実装しない)
 
