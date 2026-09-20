@@ -1,0 +1,3448 @@
+{
+  "started_at": "2026-09-19T22:57:37.826009+00:00",
+  "failures": [],
+  "limitations": [
+    "\u521d\u56de\u79fb\u9001\u30fbmain \u521d\u56de\u3068\u3082 cold \u672a\u4fdd\u8a3c\u3002per-base \u5dee\u306f\u53d7\u5165 wall \u306e\u6539\u5584\u3067\u306f\u306a\u3044\u3002",
+    "C2 \u306f\u53c2\u7167 index \u3092\u7121\u6599\u3067\u4f7f\u3046\u4e0b\u9650\u6a21\u578b\u3067 production \u8a2d\u8a08\u3067\u306f\u306a\u3044\u3002",
+    "C2 \u306f\u8907\u88fd\u6e08\u307f worktree \u3092\u5909\u66f4\u305b\u305a\u7a7a stat \u3092\u901a\u5e38\u8a2d\u5b9a\u3067\u691c\u8a3c\u3059\u308b\u7d4c\u8def\u306e\u53c2\u8003\u8cbb\u7528\u3002",
+    "checkout-index \u7d4c\u8def\u306f\u672a\u6e2c\u5b9a\u3002copy \u5f8c status \u306f\u526f\u6b21\u91cf\u3002",
+    "\u5931\u683c\u30fbtimeout\u30fb\u6b20\u6e2c\u3092\u4fdd\u6301\u3057\u3001\u4e3b\u5224\u5b9a\u306e\u6210\u529f round \u6570\u3092\u660e\u793a\u3059\u308b\u3002",
+    "selftest \u306f\u4ed5\u69d8 v2 \u306b\u5f93\u3044 submodule \u306a\u3057\u3002submodule \u691c\u67fb\u306f\u672c\u8d70\u306e\u307f\u3002"
+  ],
+  "parameters": {
+    "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+    "work_parent": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1",
+    "out": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/result-selftest.json",
+    "rounds": 5,
+    "transfer_trials": 3,
+    "subprocess_timeout": 1200,
+    "keep_work": false,
+    "require_local_fs": false,
+    "selftest": true,
+    "hold_session_only": false
+  },
+  "environment": {
+    "hostname": "pegasus02",
+    "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+    "cpu_count": 96,
+    "affinity_count": 96,
+    "loadavg_start": [
+      12.2451171875,
+      12.65478515625,
+      11.89599609375
+    ],
+    "probe_sha256": "0e6759231b0e92d082196872288b978ea01ff153cecd77ad701d0de945fcef18",
+    "work_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi",
+    "fstype": "lustre",
+    "temp_environment": {
+      "TMPDIR": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/tmp",
+      "TEMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/tmp",
+      "TMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/tmp"
+    },
+    "git_version": "git version 2.34.1",
+    "source_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+    "source_common_dir": "/work/1/SFC/tanab/izanagi/.git",
+    "source_count_objects": {
+      "count": 6088,
+      "size": 172516,
+      "in-pack": 185024,
+      "packs": 21,
+      "size-pack": 480164,
+      "prune-packable": 0,
+      "garbage": 0,
+      "size-garbage": 0
+    },
+    "loadavg_end": [
+      12.06494140625,
+      12.6103515625,
+      11.8857421875
+    ]
+  },
+  "build_s": null,
+  "hold_session": null,
+  "environment_records": [
+    {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "6769742076657273696f6e20322e33342e310a",
+      "elapsed_s": 0.001278426
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "623766393730646661353037353538663766623636396135616233383935386436633736623537630a",
+      "elapsed_s": 0.006488266
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "--git-common-dir"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "2f776f726b2f312f5346432f74616e61622f697a616e6167692f2e6769740a",
+      "elapsed_s": 0.004309005
+    },
+    {
+      "argv": [
+        "git",
+        "count-objects",
+        "-v"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "636f756e743a20363038380a73697a653a203137323531360a696e2d7061636b3a203138353032340a7061636b733a2032310a73697a652d7061636b3a203438303136340a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+      "elapsed_s": 0.921323516
+    }
+  ],
+  "ok": true,
+  "selftest": {
+    "checks": {
+      "source_fixture_shape": true,
+      "one_missing_blob": true,
+      "ignored_not_in_reference": true,
+      "A_independence_and_mutations": true,
+      "A_invariants": true,
+      "C1_independence_and_mutations": true,
+      "C1_invariants": true,
+      "empty_stat": true,
+      "optional_status_does_not_write_index": true,
+      "refresh_saves_stat": true,
+      "C2_independence_and_mutations": true,
+      "C2_invariants": true,
+      "three_way_tree_commit": true,
+      "packed_add_avoids_loose": true,
+      "unpacked_add_control": true,
+      "reject_alternates": true,
+      "reject_wrong-tree": true,
+      "reject_mixed-pack": true,
+      "reject_recorded-commit": true,
+      "mountinfo": true
+    },
+    "trials": [
+      {
+        "variant": "A",
+        "failed": false,
+        "fail_reasons": [],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.030781934
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.00326643
+          }
+        ],
+        "records": [
+          {
+            "argv": [
+              "git",
+              "add",
+              "-A"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.02108601,
+            "label": "add"
+          },
+          {
+            "argv": [
+              "git",
+              "commit",
+              "-q",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.036667321,
+            "label": "commit"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.015283939,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.01304263,
+            "label": "status2"
+          }
+        ],
+        "add_s": 0.02108601,
+        "commit_s": 0.036667321,
+        "status1_s": 0.015283939,
+        "status1_hex": "",
+        "primary_outer_s": 0.073280024,
+        "total_s": 0.07303727,
+        "python_and_preparation_s": 0.0002427539999999978,
+        "status2_s": 0.01304263,
+        "status2_hex": "",
+        "variant_outer_s": 0.086395313,
+        "total_components": [
+          "add",
+          "commit",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.00738162
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.003341964
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.007733505
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.139124396
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 1,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004610332
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20380a73697a653a20340a696e2d7061636b3a20300a7061636b733a20300a73697a652d7061636b3a20300a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.063609326
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": true,
+          "vii": true,
+          "viii": true
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "count_objects": {
+          "count": 8,
+          "size": 4,
+          "in-pack": 0,
+          "packs": 0,
+          "size-pack": 0,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 513,
+          "files": 8
+        },
+        "pack_bytes": 0,
+        "variant_checks": {
+          "failed": false,
+          "fail_reasons": [],
+          "records": [
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.025563799,
+              "label": "copy_status1"
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.015758097,
+              "label": "copy_status2"
+            },
+            {
+              "argv": [
+                "git",
+                "cat-file",
+                "--batch-check"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a6337323938653836643564653733396334313939653961386262616232633137623338333965303820626c6f622031390a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a",
+              "elapsed_s": 0.007497897
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.012242199
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.012801255
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.012055394
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.011515476
+            }
+          ],
+          "copy_fixture_s": 0.17672161,
+          "copy_status1_s": 0.025563799,
+          "copy_status1_hex": "",
+          "copy_status2_s": 0.015758097,
+          "copy_status2_hex": "",
+          "copy_missing_blobs": [],
+          "ix": true,
+          "mutation_checks": {
+            "content_dirty": true,
+            "content_restored": true,
+            "mode_dirty": true,
+            "mode_restored": true
+          },
+          "x": true
+        }
+      },
+      {
+        "variant": "C1",
+        "failed": false,
+        "fail_reasons": [],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.03097663
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.003304761
+          }
+        ],
+        "selection_records": [
+          {
+            "argv": [
+              "git",
+              "ls-files",
+              "-s",
+              "-z",
+              "--",
+              "orchestrator",
+              "output"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "31303036343420656131306563383563313037393764373661666565663536663862666332366461343039313362622030096f7263686573747261746f722f2e67697469676e6f72650031303036343420663138373739303038333330346466386534356438626439363061636536333963623439313934662030096f7263686573747261746f722f62617369730031303036343420353731633162353161653736373432343638353762646263626336653236653234306636336464362030096f7263686573747261746f722f69676e6f7265640031323030303020316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f6c696e6b0031303036343420353632366162663066373265353864376131353333363862613537646234633637336330653137312030096f7263686573747261746f722f6f6e650031303036343420316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f7461726765740031303036343420663731396566643433306435326263666338353636613433623265623635353638386433383837312030096f7263686573747261746f722f74776f00",
+            "elapsed_s": 0.003282286
+          },
+          {
+            "argv": [
+              "git",
+              "ls-tree",
+              "-r",
+              "-z",
+              "b874fed6d0f04f0159529abc5bc5ccd0ee47b974",
+              "--",
+              "orchestrator/basis"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "31303036343420626c6f622063653834393361643166323333393361633066393566353533633636346161313334646338343662096f7263686573747261746f722f626173697300",
+            "elapsed_s": 0.008133215
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "--batch-check"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a3536323661626630663732653538643761313533333638626135376462346336373363306531373120626c6f6220340a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a",
+            "elapsed_s": 0.006314741
+          }
+        ],
+        "selection": {
+          "no_candidate_paths": 0,
+          "missing": 0,
+          "transfer_oids": 5
+        },
+        "select_s": 0.017952816,
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.079508601
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  20% (1/5)\rReceiving objects:  40% (2/5)\rReceiving objects:  60% (3/5)\rReceiving objects:  80% (4/5)\rReceiving objects: 100% (5/5)\rReceiving objects: 100% (5/5), done.\n",
+            "elapsed_s": 0.079508601
+          }
+        ],
+        "transfer_oid_count": 5,
+        "transfer_s": 0.079508601,
+        "cpu_s": {
+          "utime": 0.0035469999999999946,
+          "stime": 0.004852000000000023
+        },
+        "pipe_stdout_hex": "7061636b09376164633039626339623434663838366334313130313033393430343338656362386363393231660a",
+        "pack_bytes": 109,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "add",
+              "-A"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013154949,
+            "label": "add"
+          },
+          {
+            "argv": [
+              "git",
+              "commit",
+              "-q",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.034040244,
+            "label": "commit"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.015657615,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013602243,
+            "label": "status2"
+          }
+        ],
+        "add_s": 0.013154949,
+        "commit_s": 0.034040244,
+        "status1_s": 0.015657615,
+        "status1_hex": "",
+        "primary_outer_s": 0.168384392,
+        "total_s": 0.16031422499999998,
+        "python_and_preparation_s": 0.008070167000000017,
+        "status2_s": 0.013602243,
+        "status2_hex": "",
+        "variant_outer_s": 0.182068132,
+        "total_components": [
+          "select",
+          "transfer",
+          "add",
+          "commit",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.007804822
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.00326144
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.009347841
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "64616e676c696e6720626c6f6220353632366162663066373265353864376131353333363862613537646234633637336330653137310a",
+            "elapsed_s": 0.111591945
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-7adc09bc9b44f886c4110103940438ecb8cc921f.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a3536323661626630663732653538643761313533333638626135376462346336373363306531373120626c6f62202020342031332032370a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392034300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372035390a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332037360a6e6f6e2064656c74613a2035206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d376164633039626339623434663838366334313130313033393430343338656362386363393231662e7061636b3a206f6b0a",
+            "elapsed_s": 0.005636054
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 1,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.00691596
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20340a73697a653a20320a696e2d7061636b3a20350a7061636b733a20310a73697a652d7061636b3a20310a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.04778094
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": true,
+          "vii": true,
+          "viii": true
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob",
+          "blob"
+        ],
+        "count_objects": {
+          "count": 4,
+          "size": 2,
+          "in-pack": 5,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 1745,
+          "files": 6
+        },
+        "variant_checks": {
+          "failed": false,
+          "fail_reasons": [],
+          "records": [
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.0233492,
+              "label": "copy_status1"
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.015746556,
+              "label": "copy_status2"
+            },
+            {
+              "argv": [
+                "git",
+                "cat-file",
+                "--batch-check"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a6337323938653836643564653733396334313939653961386262616232633137623338333965303820626c6f622031390a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a",
+              "elapsed_s": 0.006923124
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.012279246
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.013331361
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.013562869
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.012986719
+            }
+          ],
+          "copy_fixture_s": 0.140985068,
+          "copy_status1_s": 0.0233492,
+          "copy_status1_hex": "",
+          "copy_status2_s": 0.015746556,
+          "copy_status2_hex": "",
+          "copy_missing_blobs": [],
+          "ix": true,
+          "mutation_checks": {
+            "content_dirty": true,
+            "content_restored": true,
+            "mode_dirty": true,
+            "mode_restored": true
+          },
+          "x": true
+        }
+      },
+      {
+        "variant": "C2",
+        "failed": false,
+        "fail_reasons": [],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.028063699
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.002905301
+          }
+        ],
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.039313918
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  25% (1/4)\rReceiving objects:  50% (2/4)\rReceiving objects:  75% (3/4)\rReceiving objects: 100% (4/4)\rReceiving objects: 100% (4/4), done.\n",
+            "elapsed_s": 0.039313918
+          }
+        ],
+        "transfer_oid_count": 4,
+        "transfer_s": 0.039313918,
+        "cpu_s": {
+          "utime": 0.003245999999999999,
+          "stime": 0.005890000000000006
+        },
+        "pipe_stdout_hex": "7061636b09333436346463303466656166303235333966633263613937343761663831636365303062633334300a",
+        "pack_bytes": 96,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "hash-object",
+              "-w",
+              "--stdin-paths"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "633732393865383664356465373339633431393965396138626261623263313762333833396530380a",
+            "elapsed_s": 0.007158471,
+            "label": "generate"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "-z",
+              "--index-info"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004447614,
+            "label": "index_info"
+          },
+          {
+            "argv": [
+              "git",
+              "write-tree"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.010073882,
+            "label": "write_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "commit-tree",
+              "a9203c13c7f16c7e81b626931e2426bacfafed15",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.00955474,
+            "label": "commit_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "update-ref",
+              "HEAD",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.014807692,
+            "label": "update_ref"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "--refresh"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.009732581,
+            "label": "refresh"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.014414282,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013287854,
+            "label": "status2"
+          }
+        ],
+        "generate_s": 0.007158471,
+        "index_info_s": 0.004447614,
+        "write_tree_s": 0.010073882,
+        "commit_tree_s": 0.00955474,
+        "update_ref_s": 0.014807692,
+        "refresh_s": 0.009732581,
+        "status1_s": 0.014414282,
+        "status1_hex": "",
+        "primary_outer_s": 0.157562068,
+        "total_s": 0.10950318,
+        "python_and_preparation_s": 0.048058887999999994,
+        "status2_s": 0.013287854,
+        "status2_hex": "",
+        "variant_outer_s": 0.170927415,
+        "total_components": [
+          "transfer",
+          "generate",
+          "index_info",
+          "write_tree",
+          "commit_tree",
+          "update_ref",
+          "refresh",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.007100344
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.002831657
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.008605453
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.112300896
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-3464dc04feaf02539fc2ca9747af81cce00bc340.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392032370a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372034360a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332036330a6e6f6e2064656c74613a2034206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d333436346463303466656166303235333966633263613937343761663831636365303062633334302e7061636b3a206f6b0a",
+            "elapsed_s": 0.005485377
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 1,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.005145946
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20340a73697a653a20320a696e2d7061636b3a20340a7061636b733a20310a73697a652d7061636b3a20310a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.048243883
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": true,
+          "vii": true,
+          "viii": true
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob"
+        ],
+        "count_objects": {
+          "count": 4,
+          "size": 2,
+          "in-pack": 4,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 1704,
+          "files": 6
+        },
+        "variant_checks": {
+          "failed": false,
+          "fail_reasons": [],
+          "records": [
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.022935113,
+              "label": "copy_status1"
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.015748224,
+              "label": "copy_status2"
+            },
+            {
+              "argv": [
+                "git",
+                "cat-file",
+                "--batch-check"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/fixture-copy",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a6337323938653836643564653733396334313939653961386262616232633137623338333965303820626c6f622031390a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a",
+              "elapsed_s": 0.006616737
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.012506815
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.013056392
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "204d206f7263686573747261746f722f2e67697469676e6f726500",
+              "elapsed_s": 0.011865589
+            },
+            {
+              "argv": [
+                "git",
+                "-c",
+                "core.useReplaceRefs=false",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "",
+              "stdout_hex": "",
+              "elapsed_s": 0.012264337
+            }
+          ],
+          "copy_fixture_s": 0.134657096,
+          "copy_status1_s": 0.022935113,
+          "copy_status1_hex": "",
+          "copy_status2_s": 0.015748224,
+          "copy_status2_hex": "",
+          "copy_missing_blobs": [],
+          "ix": true,
+          "mutation_checks": {
+            "content_dirty": true,
+            "content_restored": true,
+            "mode_dirty": true,
+            "mode_restored": true
+          },
+          "x": true
+        }
+      }
+    ],
+    "negative_trials": [
+      {
+        "variant": "C2",
+        "case": "alternates",
+        "failed": true,
+        "fail_reasons": [
+          "check-vi",
+          "check-viii"
+        ],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.028610647
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.002910181
+          }
+        ],
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.031268167
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  25% (1/4)\rReceiving objects:  50% (2/4)\rReceiving objects:  75% (3/4)\rReceiving objects: 100% (4/4)\rReceiving objects: 100% (4/4), done.\n",
+            "elapsed_s": 0.031268167
+          }
+        ],
+        "transfer_oid_count": 4,
+        "transfer_s": 0.031268167,
+        "cpu_s": {
+          "utime": 0.0,
+          "stime": 0.009147000000000016
+        },
+        "pipe_stdout_hex": "7061636b09333436346463303466656166303235333966633263613937343761663831636365303062633334300a",
+        "pack_bytes": 96,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "hash-object",
+              "-w",
+              "--stdin-paths"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "633732393865383664356465373339633431393965396138626261623263313762333833396530380a",
+            "elapsed_s": 0.006925149,
+            "label": "generate"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "-z",
+              "--index-info"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004316569,
+            "label": "index_info"
+          },
+          {
+            "argv": [
+              "git",
+              "write-tree"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.010458054,
+            "label": "write_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "commit-tree",
+              "a9203c13c7f16c7e81b626931e2426bacfafed15",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.009271089,
+            "label": "commit_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "update-ref",
+              "HEAD",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013564488,
+            "label": "update_ref"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "--refresh"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.009870474,
+            "label": "refresh"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.015767861,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.012754271,
+            "label": "status2"
+          }
+        ],
+        "generate_s": 0.006925149,
+        "index_info_s": 0.004316569,
+        "write_tree_s": 0.010458054,
+        "commit_tree_s": 0.009271089,
+        "update_ref_s": 0.013564488,
+        "refresh_s": 0.009870474,
+        "status1_s": 0.015767861,
+        "status1_hex": "",
+        "primary_outer_s": 0.107977762,
+        "total_s": 0.101441851,
+        "python_and_preparation_s": 0.006535911000000005,
+        "status2_s": 0.012754271,
+        "status2_hex": "",
+        "variant_outer_s": 0.120796043,
+        "total_components": [
+          "transfer",
+          "generate",
+          "index_info",
+          "write_tree",
+          "commit_tree",
+          "update_ref",
+          "refresh",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.008464174
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.003034239
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.009352235
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "64616e676c696e6720636f6d6d697420376164373861363334663533306233383034356561373933626335343230303236306664366166330a",
+            "elapsed_s": 0.181469528
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-3464dc04feaf02539fc2ca9747af81cce00bc340.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392032370a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372034360a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332036330a6e6f6e2064656c74613a2034206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d333436346463303466656166303235333966633263613937343761663831636365303062633334302e7061636b3a206f6b0a",
+            "elapsed_s": 0.006258787
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.00593935
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20340a73697a653a20320a696e2d7061636b3a20340a7061636b733a20310a73697a652d7061636b3a20310a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a616c7465726e6174653a202f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f736f757263652f2e6769742f6f626a656374730a",
+            "elapsed_s": 0.049320554
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": false,
+          "vii": true,
+          "viii": false
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob"
+        ],
+        "count_objects": {
+          "count": 4,
+          "size": 2,
+          "in-pack": 4,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0,
+          "alternates": [
+            "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source/.git/objects"
+          ]
+        },
+        "objects": {
+          "bytes": 1825,
+          "files": 7
+        }
+      },
+      {
+        "variant": "C2",
+        "case": "wrong-tree",
+        "failed": true,
+        "fail_reasons": [
+          "check-i",
+          "check-ii",
+          "check-iv"
+        ],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.027102369
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.002945656
+          }
+        ],
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.023240215
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  25% (1/4)\rReceiving objects:  50% (2/4)\rReceiving objects:  75% (3/4)\rReceiving objects: 100% (4/4)\rReceiving objects: 100% (4/4), done.\n",
+            "elapsed_s": 0.023240215
+          }
+        ],
+        "transfer_oid_count": 4,
+        "transfer_s": 0.023240215,
+        "cpu_s": {
+          "utime": 0.0,
+          "stime": 0.008532000000000095
+        },
+        "pipe_stdout_hex": "7061636b09333436346463303466656166303235333966633263613937343761663831636365303062633334300a",
+        "pack_bytes": 96,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "hash-object",
+              "-w",
+              "--stdin-paths"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "633732393865383664356465373339633431393965396138626261623263313762333833396530380a",
+            "elapsed_s": 0.007011005,
+            "label": "generate"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "-z",
+              "--index-info"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004074087,
+            "label": "index_info"
+          },
+          {
+            "argv": [
+              "git",
+              "write-tree"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.01025623,
+            "label": "write_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "commit-tree",
+              "a9203c13c7f16c7e81b626931e2426bacfafed15",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.009258457,
+            "label": "commit_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "update-ref",
+              "HEAD",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.014311598,
+            "label": "update_ref"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "--refresh"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.010162995,
+            "label": "refresh"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.016715316,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013599141,
+            "label": "status2"
+          }
+        ],
+        "generate_s": 0.007011005,
+        "index_info_s": 0.004074087,
+        "write_tree_s": 0.01025623,
+        "commit_tree_s": 0.009258457,
+        "update_ref_s": 0.014311598,
+        "refresh_s": 0.010162995,
+        "status1_s": 0.016715316,
+        "status1_hex": "",
+        "primary_outer_s": 0.105379086,
+        "total_s": 0.095029903,
+        "python_and_preparation_s": 0.010349182999999998,
+        "status2_s": 0.013599141,
+        "status2_hex": "",
+        "variant_outer_s": 0.119060958,
+        "total_components": [
+          "transfer",
+          "generate",
+          "index_info",
+          "write_tree",
+          "commit_tree",
+          "update_ref",
+          "refresh",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "303737356335643931653237316365303833356664336336623065303939633233363565373534650a",
+            "elapsed_s": 0.008743868
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "346162323038616539393962633365336335326439393133366663383864643237306132306364350a",
+            "elapsed_s": 0.003061433
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "346162323038616539393962633365336335326439393133366663383864643237306132306364350a366162333333643666303831313130633764353362343462656636306438643565613232656334640a30373735633564393165323731636530383335666433633662306530393963323336356537353465200a62343163346539333832366433343239616366323664303838353163653264616638333930646361206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a30326563313731386231636261376562366265666635623566636661656234616466346663653361206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a",
+            "elapsed_s": 0.009657541
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.117691713
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-3464dc04feaf02539fc2ca9747af81cce00bc340.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392032370a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372034360a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332036330a6e6f6e2064656c74613a2034206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d333436346463303466656166303235333966633263613937343761663831636365303062633334302e7061636b3a206f6b0a",
+            "elapsed_s": 0.005469937
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 1,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.005606363
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20380a73697a653a20340a696e2d7061636b3a20340a7061636b733a20310a73697a652d7061636b3a20310a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.050262138
+          }
+        ],
+        "checks": {
+          "i": false,
+          "ii": false,
+          "iii": true,
+          "iv": false,
+          "v": true,
+          "vi": true,
+          "vii": true,
+          "viii": true
+        },
+        "tree": "0775c5d91e271ce0835fd3c6b0e099c2365e754e",
+        "commit": "4ab208ae999bc3e3c52d99136fc88dd270a20cd5",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob"
+        ],
+        "count_objects": {
+          "count": 8,
+          "size": 4,
+          "in-pack": 4,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 2162,
+          "files": 10
+        }
+      },
+      {
+        "variant": "C2",
+        "case": "mixed-pack",
+        "failed": true,
+        "fail_reasons": [
+          "check-vii",
+          "check-viii"
+        ],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.027289007
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.002964379
+          }
+        ],
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.023240984
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  25% (1/4)\rReceiving objects:  50% (2/4)\rReceiving objects:  75% (3/4)\rReceiving objects: 100% (4/4)\rReceiving objects: 100% (4/4), done.\n",
+            "elapsed_s": 0.023240984
+          }
+        ],
+        "transfer_oid_count": 5,
+        "transfer_s": 0.023240984,
+        "cpu_s": {
+          "utime": 0.0062630000000000186,
+          "stime": 0.0026880000000000237
+        },
+        "pipe_stdout_hex": "7061636b09333436346463303466656166303235333966633263613937343761663831636365303062633334300a",
+        "pack_bytes": 96,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "hash-object",
+              "-w",
+              "--stdin-paths"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "633732393865383664356465373339633431393965396138626261623263313762333833396530380a",
+            "elapsed_s": 0.007386621,
+            "label": "generate"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "-z",
+              "--index-info"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004477232,
+            "label": "index_info"
+          },
+          {
+            "argv": [
+              "git",
+              "write-tree"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.010517048,
+            "label": "write_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "commit-tree",
+              "a9203c13c7f16c7e81b626931e2426bacfafed15",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.009055722,
+            "label": "commit_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "update-ref",
+              "HEAD",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.014187899,
+            "label": "update_ref"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "--refresh"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.010369377,
+            "label": "refresh"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.016233185,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013082057,
+            "label": "status2"
+          }
+        ],
+        "generate_s": 0.007386621,
+        "index_info_s": 0.004477232,
+        "write_tree_s": 0.010517048,
+        "commit_tree_s": 0.009055722,
+        "update_ref_s": 0.014187899,
+        "refresh_s": 0.010369377,
+        "status1_s": 0.016233185,
+        "status1_hex": "",
+        "primary_outer_s": 0.102129682,
+        "total_s": 0.095468068,
+        "python_and_preparation_s": 0.006661613999999996,
+        "status2_s": 0.013082057,
+        "status2_hex": "",
+        "variant_outer_s": 0.115277179,
+        "total_components": [
+          "transfer",
+          "generate",
+          "index_info",
+          "write_tree",
+          "commit_tree",
+          "update_ref",
+          "refresh",
+          "status1"
+        ],
+        "negative_transfer": {
+          "pipe": [
+            {
+              "argv": [
+                "git",
+                "pack-objects",
+                "--stdout",
+                "--delta-base-offset"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+              "rc": 0,
+              "stderr": "",
+              "elapsed_s": 0.015118185
+            },
+            {
+              "argv": [
+                "git",
+                "index-pack",
+                "--stdin",
+                "-v"
+              ],
+              "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+              "rc": 0,
+              "stderr": "Receiving objects: 100% (1/1)\rReceiving objects: 100% (1/1), done.\n",
+              "elapsed_s": 0.015118185
+            }
+          ],
+          "transfer_oid_count": 1,
+          "transfer_s": 0.015118185,
+          "cpu_s": {
+            "utime": 0.002609,
+            "stime": 0.0032050000000000134
+          },
+          "pipe_stdout_hex": "7061636b09383631386634613861636162316532646666643865623635303436373433383864306532626131310a",
+          "pack_bytes": 309
+        },
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.00849845
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.002941697
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.00882987
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "64616e676c696e6720636f6d6d697420376164373861363334663533306233383034356561373933626335343230303236306664366166330a",
+            "elapsed_s": 0.114673224
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-3464dc04feaf02539fc2ca9747af81cce00bc340.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392032370a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372034360a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332036330a6e6f6e2064656c74613a2034206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d333436346463303466656166303235333966633263613937343761663831636365303062633334302e7061636b3a206f6b0a",
+            "elapsed_s": 0.005885341
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-8618f4a8acab1e2dffd8eb6504674388d0e2ba11.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3761643738613633346635333062333830343565613739336263353432303032363066643661663320636f6d6d697420323637203138312031320a6e6f6e2064656c74613a2031206f626a6563740a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d383631386634613861636162316532646666643865623635303436373433383864306532626131312e7061636b3a206f6b0a",
+            "elapsed_s": 0.006016987
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "7ad78a634f530b38045ea793bc54200260fd6af3"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.005683592
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20340a73697a653a20320a696e2d7061636b3a20350a7061636b733a20320a73697a652d7061636b3a20320a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.049533784
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": true,
+          "vii": false,
+          "viii": false
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob",
+          "commit"
+        ],
+        "count_objects": {
+          "count": 4,
+          "size": 2,
+          "in-pack": 5,
+          "packs": 2,
+          "size-pack": 2,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 3017,
+          "files": 8
+        }
+      },
+      {
+        "variant": "C2",
+        "case": "recorded-commit",
+        "failed": true,
+        "fail_reasons": [
+          "check-viii"
+        ],
+        "setup_records": [
+          {
+            "argv": [
+              "git",
+              "init",
+              "-q"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.030137018
+          },
+          {
+            "argv": [
+              "git",
+              "config",
+              "--int",
+              "--get",
+              "gc.auto"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "300a",
+            "elapsed_s": 0.003299075
+          }
+        ],
+        "pipe": [
+          {
+            "argv": [
+              "git",
+              "pack-objects",
+              "--stdout",
+              "--delta-base-offset"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+            "rc": 0,
+            "stderr": "",
+            "elapsed_s": 0.023280467
+          },
+          {
+            "argv": [
+              "git",
+              "index-pack",
+              "--stdin",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "Receiving objects:  25% (1/4)\rReceiving objects:  50% (2/4)\rReceiving objects:  75% (3/4)\rReceiving objects: 100% (4/4)\rReceiving objects: 100% (4/4), done.\n",
+            "elapsed_s": 0.023280467
+          }
+        ],
+        "transfer_oid_count": 4,
+        "transfer_s": 0.023280467,
+        "cpu_s": {
+          "utime": 0.003609000000000029,
+          "stime": 0.005325000000000024
+        },
+        "pipe_stdout_hex": "7061636b09333436346463303466656166303235333966633263613937343761663831636365303062633334300a",
+        "pack_bytes": 96,
+        "records": [
+          {
+            "argv": [
+              "git",
+              "hash-object",
+              "-w",
+              "--stdin-paths"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "633732393865383664356465373339633431393965396138626261623263313762333833396530380a",
+            "elapsed_s": 0.007649507,
+            "label": "generate"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "-z",
+              "--index-info"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004282727,
+            "label": "index_info"
+          },
+          {
+            "argv": [
+              "git",
+              "write-tree"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.010465238,
+            "label": "write_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "commit-tree",
+              "a9203c13c7f16c7e81b626931e2426bacfafed15",
+              "-m",
+              "T080 migration basis",
+              "-m",
+              "AI-Agent: none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.009147183,
+            "label": "commit_tree"
+          },
+          {
+            "argv": [
+              "git",
+              "update-ref",
+              "HEAD",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.01318554,
+            "label": "update_ref"
+          },
+          {
+            "argv": [
+              "git",
+              "update-index",
+              "--refresh"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.010271548,
+            "label": "refresh"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.015528326,
+            "label": "status1"
+          },
+          {
+            "argv": [
+              "git",
+              "-c",
+              "core.useReplaceRefs=false",
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.untrackedCache=false",
+              "status",
+              "--porcelain=v1",
+              "-z",
+              "--untracked-files=all",
+              "--ignore-submodules=none"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.013408301,
+            "label": "status2"
+          }
+        ],
+        "generate_s": 0.007649507,
+        "index_info_s": 0.004282727,
+        "write_tree_s": 0.010465238,
+        "commit_tree_s": 0.009147183,
+        "update_ref_s": 0.01318554,
+        "refresh_s": 0.010271548,
+        "status1_s": 0.015528326,
+        "status1_hex": "",
+        "primary_outer_s": 0.105515229,
+        "total_s": 0.093810536,
+        "python_and_preparation_s": 0.011704693000000002,
+        "status2_s": 0.013408301,
+        "status2_hex": "",
+        "variant_outer_s": 0.119000547,
+        "total_components": [
+          "transfer",
+          "generate",
+          "index_info",
+          "write_tree",
+          "commit_tree",
+          "update_ref",
+          "refresh",
+          "status1"
+        ],
+        "check_records": [
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD^{tree}"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+            "elapsed_s": 0.006975792
+          },
+          {
+            "argv": [
+              "git",
+              "rev-parse",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+            "elapsed_s": 0.002960229
+          },
+          {
+            "argv": [
+              "git",
+              "rev-list",
+              "--objects",
+              "HEAD"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+            "elapsed_s": 0.008856123
+          },
+          {
+            "argv": [
+              "git",
+              "fsck",
+              "--connectivity-only"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.11274453
+          },
+          {
+            "argv": [
+              "git",
+              "verify-pack",
+              "-v",
+              "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture/.git/objects/pack/pack-3464dc04feaf02539fc2ca9747af81cce00bc340.idx"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f62202020362031352031320a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f6220202031302031392032370a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f62202020382031372034360a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f62202020342031332036330a6e6f6e2064656c74613a2034206f626a656374730a2f776f726b2f312f5346432f74616e61622f6465762d776176652d6a6f62732f6465762d776176652d74323730392d626c6f622d7472616e736665722d636f73742f73656c66746573742d312f74323730392d6a77763874356f692f73656c66746573742f666978747572652f2e6769742f6f626a656374732f7061636b2f7061636b2d333436346463303466656166303235333966633263613937343761663831636365303062633334302e7061636b3a206f6b0a",
+            "elapsed_s": 0.005398948
+          },
+          {
+            "argv": [
+              "git",
+              "cat-file",
+              "-e",
+              "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "",
+            "elapsed_s": 0.004950809
+          },
+          {
+            "argv": [
+              "git",
+              "count-objects",
+              "-v"
+            ],
+            "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+            "rc": 0,
+            "stderr": "",
+            "stdout_hex": "636f756e743a20340a73697a653a20320a696e2d7061636b3a20340a7061636b733a20310a73697a652d7061636b3a20310a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+            "elapsed_s": 0.048738345
+          }
+        ],
+        "checks": {
+          "i": true,
+          "ii": true,
+          "iii": true,
+          "iv": true,
+          "v": true,
+          "vi": true,
+          "vii": true,
+          "viii": false
+        },
+        "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+        "commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+        "pack_object_types": [
+          "blob",
+          "blob",
+          "blob",
+          "blob"
+        ],
+        "count_objects": {
+          "count": 4,
+          "size": 2,
+          "in-pack": 4,
+          "packs": 1,
+          "size-pack": 1,
+          "prune-packable": 0,
+          "garbage": 0,
+          "size-garbage": 0
+        },
+        "objects": {
+          "bytes": 1704,
+          "files": 6
+        }
+      }
+    ],
+    "records": [
+      {
+        "argv": [
+          "git",
+          "init",
+          "-q"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.033191797
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "gc.auto",
+          "0"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.005146194
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "user.name",
+          "T080 E2E Human"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.004745096
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "user.email",
+          "t080-e2e@example.invalid"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.004681951
+      },
+      {
+        "argv": [
+          "git",
+          "add",
+          "-A"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.024133763
+      },
+      {
+        "argv": [
+          "git",
+          "add",
+          "-f",
+          "--",
+          "orchestrator/ignored"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.012107174
+      },
+      {
+        "argv": [
+          "git",
+          "commit",
+          "-q",
+          "-m",
+          "T080 migration basis",
+          "-m",
+          "AI-Agent: none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.037772992
+      },
+      {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "623837346665643664306630346630313539353239616263356263356363643065653437623937340a",
+        "elapsed_s": 0.003911448
+      },
+      {
+        "argv": [
+          "git",
+          "add",
+          "-A"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.018241959
+      },
+      {
+        "argv": [
+          "git",
+          "commit",
+          "-q",
+          "-m",
+          "T080 migration basis",
+          "-m",
+          "AI-Agent: none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.040016965
+      },
+      {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "376164373861363334663533306233383034356561373933626335343230303236306664366166330a",
+        "elapsed_s": 0.003863709
+      },
+      {
+        "argv": [
+          "git",
+          "ls-files",
+          "-s",
+          "-z"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "31303036343420656131306563383563313037393764373661666565663536663862666332366461343039313362622030096f7263686573747261746f722f2e67697469676e6f72650031303036343420663138373739303038333330346466386534356438626439363061636536333963623439313934662030096f7263686573747261746f722f62617369730031303036343420353731633162353161653736373432343638353762646263626336653236653234306636336464362030096f7263686573747261746f722f69676e6f7265640031323030303020316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f6c696e6b0031303036343420353632366162663066373265353864376131353333363862613537646234633637336330653137312030096f7263686573747261746f722f6f6e650031303036343420316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f7461726765740031303036343420663731396566643433306435326263666338353636613433623265623635353638386433383837312030096f7263686573747261746f722f74776f00",
+        "elapsed_s": 0.00314988
+      },
+      {
+        "argv": [
+          "git",
+          "init",
+          "-q"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.031274055
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "gc.auto",
+          "0"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.005243198
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "user.name",
+          "T080 E2E Human"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.005008732
+      },
+      {
+        "argv": [
+          "git",
+          "config",
+          "user.email",
+          "t080-e2e@example.invalid"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.004646937
+      },
+      {
+        "argv": [
+          "git",
+          "add",
+          "-A"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.02517308
+      },
+      {
+        "argv": [
+          "git",
+          "commit",
+          "-q",
+          "-m",
+          "T080 migration basis",
+          "-m",
+          "AI-Agent: none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.036183227
+      },
+      {
+        "argv": [
+          "git",
+          "ls-files",
+          "--debug"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "6f7263686573747261746f722f2e67697469676e6f72650a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a6f7263686573747261746f722f62617369730a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a6f7263686573747261746f722f6c696e6b0a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a6f7263686573747261746f722f6f6e650a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a6f7263686573747261746f722f7461726765740a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a6f7263686573747261746f722f74776f0a20206374696d653a20303a300a20206d74696d653a20303a300a20206465763a203009696e6f3a20300a20207569643a2030096769643a20300a202073697a653a203009666c6167733a20300a",
+        "elapsed_s": 0.003355906
+      },
+      {
+        "argv": [
+          "git",
+          "-c",
+          "core.useReplaceRefs=false",
+          "-c",
+          "core.fsmonitor=false",
+          "-c",
+          "core.untrackedCache=false",
+          "status",
+          "--porcelain=v1",
+          "-z",
+          "--untracked-files=all",
+          "--ignore-submodules=none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.017223261
+      },
+      {
+        "argv": [
+          "git",
+          "-c",
+          "core.useReplaceRefs=false",
+          "-c",
+          "core.fsmonitor=false",
+          "-c",
+          "core.untrackedCache=false",
+          "status",
+          "--porcelain=v1",
+          "-z",
+          "--untracked-files=all",
+          "--ignore-submodules=none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.014894152
+      },
+      {
+        "argv": [
+          "git",
+          "ls-files",
+          "--debug"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "6f7263686573747261746f722f2e67697469676e6f72650a20206374696d653a20313738393835383636303a300a20206d74696d653a20313738393835383636303a300a20206465763a2037343337363633373409696e6f3a203336393232343139380a20207569643a203331363039096769643a2033303431300a202073697a653a203809666c6167733a20300a6f7263686573747261746f722f62617369730a20206374696d653a20313738393835383635383a300a20206d74696d653a20313738393835383635383a300a20206465763a2037343337363633373409696e6f3a203336393232343230380a20207569643a203331363039096769643a2033303431300a202073697a653a20313009666c6167733a20300a6f7263686573747261746f722f6c696e6b0a20206374696d653a20313738393835383635383a300a20206d74696d653a20313738393835383635383a300a20206465763a2037343337363633373409696e6f3a203336393232343138300a20207569643a203331363039096769643a2033303431300a202073697a653a203609666c6167733a20300a6f7263686573747261746f722f6f6e650a20206374696d653a20313738393835383635383a300a20206d74696d653a20313738393835383635383a300a20206465763a2037343337363633373409696e6f3a203336393232343139340a20207569643a203331363039096769643a2033303431300a202073697a653a20313909666c6167733a20300a6f7263686573747261746f722f7461726765740a20206374696d653a20313738393835383635383a300a20206d74696d653a20313738393835383635383a300a20206465763a2037343337363633373409696e6f3a203336393232343138390a20207569643a203331363039096769643a2033303431300a202073697a653a203609666c6167733a20300a6f7263686573747261746f722f74776f0a20206374696d653a20313738393835383635383a300a20206d74696d653a20313738393835383635383a300a20206465763a2037343337363633373409696e6f3a203336393232343230320a20207569643a203331363039096769643a2033303431300a202073697a653a203409666c6167733a20300a",
+        "elapsed_s": 0.003432825
+      },
+      {
+        "argv": [
+          "git",
+          "cat-file",
+          "--batch-check"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a6337323938653836643564653733396334313939653961386262616232633137623338333965303820626c6f622031390a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a6139323033633133633766313663376538316236323639333165323432366261636661666564313520747265652033390a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a653432383630383532613031383863373339343562303139656334613232323834643439356661322074726565203139390a",
+        "elapsed_s": 0.005959526
+      },
+      {
+        "argv": [
+          "git",
+          "add",
+          "-A"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.011990533
+      },
+      {
+        "argv": [
+          "git",
+          "commit",
+          "-q",
+          "-m",
+          "T080 migration basis",
+          "-m",
+          "AI-Agent: none"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "",
+        "elapsed_s": 0.032683111
+      },
+      {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+        "elapsed_s": 0.002927293
+      }
+    ],
+    "stat": {
+      "index_info_debug": "orchestrator/.gitignore\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\norchestrator/basis\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\norchestrator/link\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\norchestrator/one\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\norchestrator/target\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\norchestrator/two\n  ctime: 0:0\n  mtime: 0:0\n  dev: 0\tino: 0\n  uid: 0\tgid: 0\n  size: 0\tflags: 0\n",
+      "before_refresh_sha256": "6cf56ad387ebc1dd43f4aa30fba75196a3467b8e113eedb3213a790f62cb2200",
+      "status_hex": [
+        "",
+        ""
+      ],
+      "status_index_unchanged": [
+        true,
+        true
+      ],
+      "refreshed_debug": "orchestrator/.gitignore\n  ctime: 1789858660:0\n  mtime: 1789858660:0\n  dev: 743766374\tino: 369224198\n  uid: 31609\tgid: 30410\n  size: 8\tflags: 0\norchestrator/basis\n  ctime: 1789858658:0\n  mtime: 1789858658:0\n  dev: 743766374\tino: 369224208\n  uid: 31609\tgid: 30410\n  size: 10\tflags: 0\norchestrator/link\n  ctime: 1789858658:0\n  mtime: 1789858658:0\n  dev: 743766374\tino: 369224180\n  uid: 31609\tgid: 30410\n  size: 6\tflags: 0\norchestrator/one\n  ctime: 1789858658:0\n  mtime: 1789858658:0\n  dev: 743766374\tino: 369224194\n  uid: 31609\tgid: 30410\n  size: 19\tflags: 0\norchestrator/target\n  ctime: 1789858658:0\n  mtime: 1789858658:0\n  dev: 743766374\tino: 369224189\n  uid: 31609\tgid: 30410\n  size: 6\tflags: 0\norchestrator/two\n  ctime: 1789858658:0\n  mtime: 1789858658:0\n  dev: 743766374\tino: 369224202\n  uid: 31609\tgid: 30410\n  size: 4\tflags: 0\n",
+      "after_refresh_sha256": "4cf9223b40e918a78bcd90b636cc6c8e80969ec25febd960dbcacb4a4cc550ae"
+    },
+    "loose_counts": {
+      "A": 8,
+      "C1": 4,
+      "tree_commit_count": 3
+    },
+    "fstype": "lustre"
+  },
+  "reference": {
+    "tree": "a9203c13c7f16c7e81b626931e2426bacfafed15",
+    "builder_commit": "6ab333d6f081110c7d53b44bef60d8d5ea22ec4d",
+    "index_entries": 6,
+    "regular": 5,
+    "symlink": 1,
+    "gitlink": 0,
+    "bytes": 47,
+    "ref_blobs": 5,
+    "present": 4,
+    "missing": 1,
+    "missing_paths": [
+      [
+        "orchestrator/one",
+        "c7298e86d5de739c4199e9a8bbab2c17b3839e08"
+      ]
+    ],
+    "in_repo_sources": 1,
+    "real_basis": "b874fed6d0f04f0159529abc5bc5ccd0ee47b974",
+    "recorded_commits": 1,
+    "ref_reachable": 7,
+    "count_objects": {
+      "count": 8,
+      "size": 4,
+      "in-pack": 0,
+      "packs": 0,
+      "size-pack": 0,
+      "prune-packable": 0,
+      "garbage": 0,
+      "size-garbage": 0
+    },
+    "records": [
+      {
+        "argv": [
+          "git",
+          "ls-files",
+          "-s",
+          "-z"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "31303036343420656131306563383563313037393764373661666565663536663862666332366461343039313362622030096f7263686573747261746f722f2e67697469676e6f72650031303036343420636538343933616431663233333933616330663935663535336336363461613133346463383436622030096f7263686573747261746f722f62617369730031323030303020316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f6c696e6b0031303036343420633732393865383664356465373339633431393965396138626261623263313762333833396530382030096f7263686573747261746f722f6f6e650031303036343420316465353635393333623035663734633735666639613635323061663566396638613561326631642030096f7263686573747261746f722f7461726765740031303036343420663731396566643433306435326263666338353636613433623265623635353638386433383837312030096f7263686573747261746f722f74776f00",
+        "elapsed_s": 0.003135769
+      },
+      {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a",
+        "elapsed_s": 0.003972608
+      },
+      {
+        "argv": [
+          "git",
+          "cat-file",
+          "--batch-check"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/source",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "3164653536353933336230356637346337356666396136353230616635663966386135613266316420626c6f6220360a63373239386538366435646537333963343139396539613862626162326331376233383339653038206d697373696e670a6365383439336164316632333339336163306639356635353363363634616131333464633834366220626c6f622031300a6561313065633835633130373937643736616665656635366638626663323664613430393133626220626c6f6220380a6637313965666434333064353262636663383536366134336232656236353536383864333838373120626c6f6220340a",
+        "elapsed_s": 0.006531573
+      },
+      {
+        "argv": [
+          "git",
+          "rev-parse",
+          "HEAD^{tree}"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "613932303363313363376631366337653831623632363933316532343236626163666166656431350a",
+        "elapsed_s": 0.007156526
+      },
+      {
+        "argv": [
+          "git",
+          "rev-list",
+          "--objects",
+          "HEAD"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "366162333333643666303831313130633764353362343462656636306438643565613232656334640a61393230336331336337663136633765383162363236393331653234323662616366616665643135200a65343238363038353261303138386337333934356230313965633461323232383464343935666132206f7263686573747261746f720a65613130656338356331303739376437366166656566353666386266633236646134303931336262206f7263686573747261746f722f2e67697469676e6f72650a63653834393361643166323333393361633066393566353533633636346161313334646338343662206f7263686573747261746f722f62617369730a31646535363539333362303566373463373566663961363532306166356639663861356132663164206f7263686573747261746f722f6c696e6b0a63373239386538366435646537333963343139396539613862626162326331376233383339653038206f7263686573747261746f722f6f6e650a66373139656664343330643532626366633835363661343362326562363535363838643338383731206f7263686573747261746f722f74776f0a",
+        "elapsed_s": 0.007834571
+      },
+      {
+        "argv": [
+          "git",
+          "count-objects",
+          "-v"
+        ],
+        "cwd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-jwv8t5oi/selftest/fixture",
+        "rc": 0,
+        "stderr": "",
+        "stdout_hex": "636f756e743a20380a73697a653a20340a696e2d7061636b3a20300a7061636b733a20300a73697a652d7061636b3a20300a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+        "elapsed_s": 0.063941179
+      }
+    ]
+  },
+  "work_removed": true,
+  "finished_at": "2026-09-19T22:57:43.032242+00:00"
+}
