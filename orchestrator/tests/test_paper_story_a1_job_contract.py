@@ -3321,6 +3321,79 @@ def test_sized_submit_requires_hydrate_and_preserves_attempt_names(tmp_path, mon
                 assert not paired._attempt_intent_path(attempt).exists()
 
 
+def _v3_rerun_submit_evidence(attempt, *, record_source=None):
+    # Share data builders only; reader, gate, intent and destination stay real.
+    from orchestrator.tests.test_paper_story_a1_paired import (
+        _rerun_prior_barrier_fixture, _rerun_record, _rerun_save,
+    )
+    _rerun_prior_barrier_fixture(attempt.parent)
+    if record_source is not None:
+        _rerun_save(attempt, _rerun_record(attempt, source=record_source))
+
+
+def test_v3_submit_reaches_qsub_with_exact_rerun_authorization(tmp_path, monkeypatch):
+    """受理: 一致 record で実 gate と intent を経て qsub に三回届く。拒否: 再使用は許さない。"""
+    repo, attempt, head, policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch, study_id=paired.V3_SIZED_STUDY_ID,
+        attempt_name="attempt-0002",
+    )
+    _v3_rerun_submit_evidence(attempt, record_source=head)
+    calls = []
+
+    def qsub(argv, *, cwd):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, f"{122 + len(calls)}.server\n", "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    assert paired.run_submit(SimpleNamespace(
+        study_id=paired.V3_SIZED_STUDY_ID, expected_head=head,
+        attempt_root=str(attempt), third_party_source_root=str(repo / "hydrated"),
+    )) == 0
+    assert len(calls) == 3
+    assert paired._attempt_intent_path(attempt).is_file()
+
+
+@pytest.mark.parametrize("kind,message", [
+    ("absent", "group rerun is prohibited"),
+    ("source", "rerun authorization record differs: source_commit"),
+    ("intent", "intent exists without group receipt"),
+    ("attempt", "submit attempt root must not already exist"),
+])
+def test_v3_submit_refuses_rerun_without_or_with_mismatched_authorization(
+    tmp_path, monkeypatch, kind, message,
+):
+    """受理: 一致 record と新規 namespace は qsub に進む。拒否: 不一致や再使用では intent を作らない。"""
+    repo, attempt, head, policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch, study_id=paired.V3_SIZED_STUDY_ID,
+        attempt_name="attempt-0002",
+    )
+    source = None if kind == "absent" else ("b" * 40 if kind == "source" else head)
+    _v3_rerun_submit_evidence(attempt, record_source=source)
+    intent = paired._attempt_intent_path(attempt)
+    if kind == "intent":
+        intent.write_bytes(b"preserve existing intent")
+    elif kind == "attempt":
+        attempt.mkdir()
+    calls = []
+    def qsub(argv, *, cwd):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, f"{122 + len(calls)}.server\n", "")
+
+    monkeypatch.setattr(paired, "_run_qsub", qsub)
+    monkeypatch.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+    with pytest.raises(paired.PaperStoryError, match=message):
+        paired.run_submit(SimpleNamespace(
+            study_id=paired.V3_SIZED_STUDY_ID, expected_head=head,
+            attempt_root=str(attempt), third_party_source_root=str(repo / "hydrated"),
+        ))
+    assert calls == []
+    if kind == "intent":
+        assert intent.read_bytes() == b"preserve existing intent"
+    else:
+        assert not intent.exists()
+
+
 def test_sized_group_intent_requires_hydrate(tmp_path, monkeypatch):
     repo, attempt, head, policy = _v3_submit_cli_fixture(
         tmp_path, monkeypatch, study_id=paired.a1_source.SIZED_STUDY_ID,
