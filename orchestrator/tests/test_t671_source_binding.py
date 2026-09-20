@@ -101,9 +101,34 @@ _T733_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
     "orchestrator/qualification/series.py",
     "orchestrator/campaign/verify_fanout_worker.py",
 )
+_T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/agent_outputs.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/critic/digest.py",
+)
 _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     *_PRE_T733_ENFORCEMENT_SOURCE_PATHS,
     *_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX,
+    *_T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX,
 )
 _PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[:14]
 _S8C_DECIDER_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[14:17]
@@ -266,7 +291,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths()
     )
     assert len(_PRE_T733_ENFORCEMENT_SOURCE_PATHS) == 24
     assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 39
-    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 63
+    assert len(_T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 22
+    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 85
     assert (
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
