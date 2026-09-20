@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "# 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。\n",
+          "new": "# 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。(等価変異: comment のみ)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-cmd-sha-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "CLEANUP_COMMAND_SHA256 = (\n    \"a838dbbccac10c9bb31d14c54357d29941a44ce51efbb1faa5375d9f8a4d264b\"\n)",
+          "new": "CLEANUP_COMMAND_SHA256 = (\n    \"7cc008fabc10b3b495eedfeb0bfbee2de14a3c908e1eb5aa6dd7ff4d7ebaf8ae\"\n)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-skill-sha-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (\n    \"c7a840a8cd718c26513f74d063392bbb738d9616d33429c589631b5e79b15876\"\n)",
+          "new": "CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (\n    \"268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea\"\n)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-fixture-cmd-sha-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "_EXPECTED_CLEANUP_COMMAND_SHA256 = (\n    \"a838dbbccac10c9bb31d14c54357d29941a44ce51efbb1faa5375d9f8a4d264b\"\n)",
+          "new": "_EXPECTED_CLEANUP_COMMAND_SHA256 = (\n    \"7cc008fabc10b3b495eedfeb0bfbee2de14a3c908e1eb5aa6dd7ff4d7ebaf8ae\"\n)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-fixture-bytes-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode(\"utf-8\")) == 6_201\n",
+          "new": "    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode(\"utf-8\")) == 6_181\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
