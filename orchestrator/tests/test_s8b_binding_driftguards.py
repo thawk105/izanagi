@@ -219,10 +219,10 @@ def test_report_matching_cell_entry_has_no_issue_non_vacuity():
 # --------------------------------------------------------------------------- #
 #
 # binding entry の schema を壊した (必須キー欠落) manifest を実 run_block / gate_check
-# 経路へ与える。現行の実測挙動: verify_manifest 内 _validate_binding_identity が
-# ManifestError を送出し、gate_check がそれを捕捉して "manifest-verify: ..." refusal
-# を refusals に積み allowed=False を返す。run_block は gate 拒否時に一切書き込まず
-# status="refused" を返す (例外は伝播せず構造化 refusal になる —— 実測に従う)。
+# 経路へ与える。g1 発効後の実 repo は manifest 検証前の launch validation で拒否する。
+# 未発効 tmp repo の補完テストでは binding schema の ManifestError が
+# "manifest-verify: ..." refusal に積まれることを維持する。
+# run_block は拒否時に一切書き込まず status="refused" を返す。
 # fake prepare/evaluate は一度も呼ばれず、campaign 出力・budget 台帳・実走マーカーへの
 # 書き込みも発生しない。
 
@@ -249,9 +249,9 @@ def _broken_binding_manifest(tmp_path: Path):
 def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
     """run_block: schema を壊した binding manifest は refused で fail-closed。
 
-    実測固定: 例外は伝播せず status="refused" / allowed=False の構造化 refusal に
-    倒れ、refusals に "manifest-verify: ManifestError: ..." が binding schema 不一致で
-    積まれる。fake prepare/evaluate は一度も呼ばれず、output_root・budget・marker_root
+    g1 発効後は manifest 検証前の launch validation で拒否される。
+    その exact 集合を固定し、binding schema 拒否は tmp repo の補完テストで維持する。
+    fake prepare/evaluate は一度も呼ばれず、output_root・budget・marker_root
     のいずれも生成されない (書き込みゼロ)。
     """
     freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
@@ -262,7 +262,7 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
     budget_path = tmp_path / "b-budget.json"
     marker_root = tmp_path / "b-markers"
 
-    # [T-057] 対象は binding schema 不一致の fail-closed 挙動。実 repo receipt の解決は
+    # [T-057] 対象は launch 拒否時の fail-closed 挙動。実 repo receipt の解決は
     # incidental (1 回 22.4 秒) なので process 内 memo と共有する。
     # [T-117] 同様に active 世代解決 (1 回 4.4 秒) も incidental なので memo する。
     with pytest.MonkeyPatch.context() as patcher, \
@@ -283,11 +283,9 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
 
     assert result["status"] == "refused"
     assert result["allowed"] is False
-    manifest_verify = [r for r in result["refusals"]
-                       if r.startswith("manifest-verify:")]
-    assert manifest_verify, result["refusals"]
-    assert any("ManifestError" in r and "binding_identity entry schema が不一致" in r
-               for r in manifest_verify)
+    driver_fixtures._assert_exact_refusals(
+        result["refusals"], driver_fixtures._ACTIVATED_G1_REFUSALS,
+    )
     # fake が一度も呼ばれない (実走前 gate で倒れる)。
     assert prepare_fn.calls == []
     assert evaluate_fn.calls == []
@@ -298,16 +296,14 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
 
 
 def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_path):
-    """gate_check 経路: 壊れた binding manifest で manifest-verify refusal を積む。
+    """歴史的 node 名。実 repo gate は manifest 検証前の launch 拒否を返す。
 
-    run_block が委譲する gate 単体でも、_validate_binding_identity の ManifestError を
-    構造化 refusal ("manifest-verify: ...") として refusals に積み allowed=False を
-    返すことを固定する (run_block の refused 判定の根)。
+    binding schema 拒否の検出力は未発効 tmp repo の補完テストで維持する。
     """
     freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
 
     # [T-057] 同上。gate 単体経路でも receipt 解決は incidental。
-    # [T-117] active 世代解決も同様 (対象は manifest-verify refusal の積み上げ)。
+    # [T-117] active 世代解決も同様 (対象は launch 拒否集合)。
     with pytest.MonkeyPatch.context() as patcher, \
             receipt_memo.patch_driver_resolver(), \
             ratified_memo.patch_ratified_loader():
@@ -323,9 +319,35 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
         )
 
     assert decision.allowed is False
-    assert any(r.startswith("manifest-verify:")
-               and "binding_identity entry schema が不一致" in r
-               for r in decision.refusals), decision.refusals
+    driver_fixtures._assert_exact_refusals(
+        decision.refusals, driver_fixtures._ACTIVATED_G1_REFUSALS,
+    )
+
+
+def test_run_block_broken_binding_manifest_aggregates_refusals_in_tmp_repo(tmp_path):
+    """未発効 tmp repo で binding schema 拒否の集約と書込みゼロを維持する。"""
+    root, _ = driver_fixtures._t080_repo(tmp_path, receipt="never-issued")
+    freeze_path, broken_path, _approved = _broken_binding_manifest(tmp_path)
+    prepare_fn = driver_fixtures._prepare_factory()
+    evaluate_fn = driver_fixtures._fake_evaluate_factory()
+    output_root = tmp_path / "b-out"
+    budget_path = tmp_path / "b-budget.json"
+    marker_root = tmp_path / "b-markers"
+
+    result = driver.run_block(
+        manifest_path=broken_path, block_id="b0", freeze_path=freeze_path,
+        root=root, output_root=output_root, budget_path=budget_path,
+        marker_root=marker_root, prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+    )
+
+    assert result["status"] == "refused" and result["allowed"] is False
+    driver_fixtures._assert_exact_refusals(result["refusals"], {
+        driver_fixtures._NO_ACTIVE_REFUSAL,
+        "manifest-verify: ManifestError: binding_identity entry schema が不一致",
+    })
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not output_root.exists() and not budget_path.exists()
+    assert not marker_root.exists()
 
 
 #
