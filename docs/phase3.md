@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2810] 凍結 v2 g1 の launch validator を official 成果物の現物形へ整合した (2026-09-20)。
+  journal allowlist に `reservation-preflight` と binding 2 key を足し、段階 6 lineage を「一意・非 merge 導入 i について C ≤ i ≤ G」+
+  「G 自身が追加した世代文書の導入 == {G}」へ改めた。実 repo の historical reverify は段階 8 (未発効候補の scan hit) まで到達、
+  live は現行 policy 照合で拒否のまま。全 gate 受理・W-4 / W-5 は未達。記録 = `output/insights/2026-09-20/t2810-g1-launch-validation/README.md`。
+
 - [x] [T-2737] D2148項4のSS2PL非inert局所修正を実装した (2026-09-19)。
   関門前の依存準備、phase1の4軸と実build、計器呼出し保存、既存C++テストを確認。
   controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
