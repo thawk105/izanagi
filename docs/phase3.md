@@ -467,6 +467,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      planner-4 / coder-4 へ型付き入力として届き、候補10 (decrease / large) を1評価して
      serializable・異常0・certified・continue を得た。同job stock対照は既存経路に結線がなく未達
      (裁定パッケージ)。改善の実証ではない。記録は `output/insights/2026-09-19/k2-loop-round3/README.md`。
+   - [x] [T-2795] D2172項3 (i) の同job pair launcher (D2183) を初投入 (2026-09-20、実装差分ゼロ)。候補10の再評価は
+     certified、stockは同campaignの2起動目がone-shot claim leaf (D464) に認可前で拒否され pair 不成立
+     (STOCK性未確認、再投入なし、4巡目未投入)。修復方向は裁定パッケージ。記録は
+     `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
