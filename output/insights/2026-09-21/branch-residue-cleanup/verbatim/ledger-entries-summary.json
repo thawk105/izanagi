@@ -1,0 +1,30 @@
+{
+ "recorded_at": "2026-09-20T16:43:28Z",
+ "report_sha256": "5996581c34d9fa0ea248f2c7bb136a70d9b751e1629f48992e2ba50331a94550",
+ "bundle_sha256": "b062caa76ced973fb92cea89f449bdc1fc54b0f9648146ccef1e3e959a5c6ffe",
+ "storage": {
+  "packed": 245,
+  "loose": 3
+ },
+ "basis": {
+  "assessment-time-conservative-floor": 245,
+  "loose-object-mtime-plus-prune-expire": 3
+ },
+ "verdict": {
+  "landed": 26,
+  "indeterminate": 218,
+  "not-landed": 4
+ },
+ "source_ref_counts": {
+  "1": 175,
+  "2": 27,
+  "5": 5,
+  "4": 5,
+  "3": 12,
+  "8": 1,
+  "6": 2,
+  "0": 21
+ },
+ "elapsed_s": 31.4,
+ "git_commands": 424
+}

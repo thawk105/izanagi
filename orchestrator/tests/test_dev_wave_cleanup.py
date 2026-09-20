@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -145,18 +146,18 @@ def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):
     before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),
               _sha(case.repo.main, 'refs/heads/author'))
     calls = []
-    original_git, original_remove = cleanup._git, cleanup._remove_verified_tree
+    original_git, original_remove = subprocess.run, cleanup._remove_verified_tree
 
-    def spy_git(cwd, *args):
-        if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:
-            calls.append(args)
-        return original_git(cwd, *args)
+    def spy_git(command, *args, **kwargs):
+        if tuple(command[3:5]) in {('worktree', 'unlock'), ('checkout', '--detach'), ('branch', '-D'), ('branch', '-d')}:
+            calls.append(command)
+        return original_git(command, *args, **kwargs)
 
     def spy_remove(*args):
         calls.append(('rmtree',))
         return original_remove(*args)
 
-    monkeypatch.setattr(cleanup, '_git', spy_git)
+    monkeypatch.setattr(cleanup.subprocess, 'run', spy_git)
     monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)
     with pytest.raises(cleanup.CleanupFailure) as caught:
         cleanup.run(argv or _child_argv(case))
@@ -168,8 +169,15 @@ def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):
                       _sha(case.repo.main, 'refs/heads/author'))
 
 
-def test_remove_child_archives_dirty_integrated_author_and_keeps_branch(tmp_path, monkeypatch, capsys):
+def test_remove_child_archives_dirty_integrated_author_and_deletes_branch(tmp_path, monkeypatch, capsys):
     case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'transient-report.md').write_text('intermediate report\n')
+    _git(case.child, 'add', 'transient-report.md')
+    _git(case.child, 'commit', '-m', 'C: transient report')
+    intermediate = _sha(case.child)
+    _git(case.child, 'rm', 'transient-report.md')
+    _git(case.child, 'commit', '-m', 'D: remove transient report')
+    case = ChildRepo(case.repo, case.child, case.manifest, case.evidence, case.admin, _sha(case.child))
     (case.child / 'tracked.txt').write_text('staged\n')
     _git(case.child, 'add', 'tracked.txt')
     (case.child / 'tracked.txt').write_text('unstaged\n')
@@ -181,13 +189,14 @@ def test_remove_child_archives_dirty_integrated_author_and_keeps_branch(tmp_path
     wave_before = _file_snapshot(case.repo.wave)
     main_head, wave_head = _sha(case.repo.main), _sha(case.repo.wave)
     main_status = _git(case.repo.main, 'status', '--porcelain').stdout
-    original_git = cleanup._git
+    original_subprocess = subprocess.run
+    calls = []
 
-    def keep_branch(cwd, *args):
-        assert args[:2] != ('branch', '-d')
-        return original_git(cwd, *args)
+    def observe(command, *args, **kwargs):
+        calls.append(tuple(command))
+        return original_subprocess(command, *args, **kwargs)
 
-    monkeypatch.setattr(cleanup, '_git', keep_branch)
+    monkeypatch.setattr(cleanup.subprocess, 'run', observe)
     original_run = cleanup.run
     results = []
 
@@ -204,12 +213,30 @@ def test_remove_child_archives_dirty_integrated_author_and_keeps_branch(tmp_path
     assert len(result.occupancy) == 2
     assert not case.child.exists() and not case.admin.exists()
     assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
-    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
+    assert any(call[3:] == ('branch', '-D', '--', 'author') for call in calls)
+    assert not any(call[3:5] == ('branch', '-d') for call in calls)
     assert (_sha(case.repo.main), _sha(case.repo.wave)) == (main_head, wave_head)
     assert _file_snapshot(case.repo.wave) == wave_before
     assert (case.repo.main / 'tracked.txt').read_bytes() == b'integrated\n'
     assert _git(case.repo.main, 'status', '--porcelain').stdout == main_status
     receipt = json.loads((case.evidence / 'removed.json').read_text())
+    bundle = case.evidence / 'history.bundle'
+    assert bundle.is_file()
+    assert _git(case.repo.main, 'bundle', 'verify', str(bundle)).returncode == 0
+    assert case.head.encode() in _git(case.repo.main, 'bundle', 'list-heads', str(bundle)).stdout.split()
+    assert receipt['branch_deleted'] is True
+    assert receipt['deleted_branch_tip'] == case.head
+    assert receipt['integration_main_tip'] == main_head
+    assert receipt['integration_basis'] == 'owned-tree-match'
+    assert receipt['history_bundle'] == str(bundle)
+    assert receipt['history_bundle_sha256'] == hashlib.sha256(bundle.read_bytes()).hexdigest()
+    recovery = tmp_path / 'recovery'
+    _git(case.repo.main, 'init', str(recovery))
+    # An incremental bundle requires main's prerequisite history in the empty repo.
+    _git(recovery, 'fetch', str(case.repo.main), 'main')
+    _git(recovery, 'bundle', 'unbundle', str(bundle))
+    assert _git(recovery, 'show', intermediate + ':transient-report.md').stdout == b'intermediate report\n'
     assert set(receipt['files']) == {'committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch', 'status.txt', 'head-sha.txt', 'branch.txt'}
     assert (case.evidence / 'head-sha.txt').read_text().strip() == case.head
     assert (case.evidence / 'branch.txt').read_text().strip() == 'refs/heads/author'
@@ -307,7 +334,7 @@ def test_remove_child_reflog_retained_by_other_branch(tmp_path, monkeypatch):
     assert not case.child.exists() and not case.admin.exists()
     assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
     assert _sha(case.repo.main, 'refs/heads/author') == case.head
-    assert _sha(case.repo.main, 'refs/heads/other') == base
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/other^{commit}', check=False).returncode == 128
     files = {'committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch',
              'status.txt', 'head-sha.txt', 'branch.txt'}
     receipt = json.loads((case.evidence / 'removed.json').read_text())
@@ -315,6 +342,9 @@ def test_remove_child_reflog_retained_by_other_branch(tmp_path, monkeypatch):
     assert all((case.evidence / name).is_file() for name in files)
     assert (case.evidence / 'head-sha.txt').read_text().strip() == base
     assert (case.evidence / 'branch.txt').read_text().strip() == 'refs/heads/other'
+    assert receipt['history_bundle'] is None
+    assert receipt['history_bundle_sha256'] is None
+    assert receipt['integration_basis'] == 'owned-tree-match'
 
 
 def test_remove_child_rejects_unreachable_reflog_history(tmp_path, monkeypatch):
@@ -417,7 +447,7 @@ def test_remove_child_already_clean_with_receipt(tmp_path, monkeypatch):
     before = _file_snapshot(case.evidence)
     assert cleanup.run(_child_argv(case)).outcome == 'already-clean'
     assert _file_snapshot(case.evidence) == before
-    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
 
 
 @pytest.mark.parametrize('defect', [
@@ -501,7 +531,7 @@ def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state)
         head = _sha(case.child)
         assert cleanup.run(_child_argv(case)).outcome == 'removed'
         assert not case.child.exists() and not case.admin.exists()
-        assert _sha(case.repo.main, 'refs/heads/author') == head
+        assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
     else:
         _child_rejected(case, monkeypatch, 'backup-precheck')
 
@@ -517,11 +547,36 @@ def test_remove_child_detached_ancestry_and_empty_backup(tmp_path, monkeypatch):
     argv = _child_argv(case)
     argv[6] = str(detached)
     assert cleanup.run(argv).outcome == 'removed'
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['branch_deleted'] is False
+    assert receipt['deleted_branch_tip'] is None
+    assert receipt['history_bundle'] is None
+    assert receipt['integration_basis'] == 'ancestry'
     assert (case.evidence / 'branch.txt').read_text() == 'detached\n'
     for name in ('status.txt', 'tracked.patch', 'index.patch', 'committed.patch'):
         assert (case.evidence / name).read_bytes() == b''
     with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:
         assert archive.getnames() == []
+
+
+def test_remove_child_detached_nonancestor_skips_bundle(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _git(case.child, 'checkout', '--detach')
+    _edit_child_manifest(case, branch=None)
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', case.head,
+                'main', check=False).returncode == 1
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    assert not case.child.exists() and not case.admin.exists()
+    assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['branch_deleted'] is False
+    assert receipt['deleted_branch_tip'] is None
+    assert receipt['integration_basis'] == 'owned-tree-match'
+    assert receipt['history_bundle'] is None
+    assert receipt['history_bundle_sha256'] is None
+    assert receipt['history_bundle_reason'] == 'detached child has no branch ref to bundle'
+    assert not (case.evidence / 'history.bundle').exists()
 
 
 def _argv(repo: Repo, **overrides: str) -> list[str]:
@@ -2000,8 +2055,9 @@ def test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist(monk
         ("worktree", "remove", "--force", "--", "x"),
         ("submodule", "deinit", "-f", "--", "external/ccbench"),
         ("submodule", "deinit"),
-        ("branch", "-D", "--", "x"),
         ("branch", "-D", "x"),
+        ("branch", "-D", "--", "x", "extra"),
+        ("branch", "--", "-D", "x"),
     ),
 )
 def test_git_argv_validator_directly_rejects_forbidden_commands(argv):
@@ -2250,6 +2306,161 @@ def test_argv_requires_each_option_once_and_full_lowercase_sha(capsys):
         assert rc == 2 and captured.out == ""
         assert captured.err.startswith("dev-wave-cleanup: status=rejected phase=argv reason=")
         assert captured.err.count("\n") == 1
+
+
+def test_common_git_runner_rejects_force_delete(monkeypatch):
+    argv = ('branch', '-D', '--', 'x')
+    cleanup._validate_git_argv(argv)
+    calls = []
+    monkeypatch.setattr(cleanup.subprocess, 'run', lambda *a, **k: calls.append(a))
+    for runner in (cleanup._git, cleanup._must_git):
+        with pytest.raises(RuntimeError, match='reserved for integrated child'):
+            runner(Path('/tmp'), *argv)
+    assert calls == []
+
+
+def test_wave_cleanup_uses_only_lowercase_d(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    original = subprocess.run
+    calls = []
+
+    def observe(command, *args, **kwargs):
+        if command[0] == 'git' and command[3:4] == ['branch']:
+            calls.append(tuple(command[3:]))
+        return original(command, *args, **kwargs)
+
+    monkeypatch.setattr(cleanup.subprocess, 'run', observe)
+    assert _run(repo, capsys)[0] == 0
+    assert ('branch', '-d', '--', 'wave') in calls
+    assert all('-D' not in call for call in calls)
+
+
+def test_remove_child_ancestry_child_skips_bundle_and_deletes_branch(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _git(case.repo.main, 'merge', '--no-edit', 'author')
+    main_tip = _sha(case.repo.main)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    assert not case.child.exists() and not case.admin.exists()
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['branch_deleted'] is True
+    assert receipt['deleted_branch_tip'] == case.head
+    assert receipt['integration_main_tip'] == main_tip
+    assert receipt['integration_basis'] == 'ancestry'
+    assert receipt['history_bundle'] is None
+    assert receipt['history_bundle_sha256'] is None
+    assert receipt['history_bundle_reason']
+    assert not (case.evidence / 'history.bundle').exists()
+
+
+@pytest.mark.parametrize('operation', ['create', 'verify'])
+def test_remove_child_bundle_verify_failure_is_partial(tmp_path, monkeypatch, operation):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    before = (_file_snapshot(case.child), _file_snapshot(case.admin), _sha(case.repo.main, 'author'))
+    original = subprocess.run
+
+    fired = []
+
+    def fail(command, *args, **kwargs):
+        if tuple(command[3:5]) == ('bundle', operation):
+            fired.append(True)
+            bundle = case.evidence / 'history.bundle'
+            if operation == 'create':
+                bundle.mkdir()  # Real Git cannot publish a bundle over a directory.
+            else:
+                bundle.write_bytes(b'invalid bundle header\n')
+        return original(command, *args, **kwargs)
+
+    monkeypatch.setattr(cleanup.subprocess, 'run', fail)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert fired == [True]
+    assert (caught.value.rc, caught.value.phase) == (30, 'history-bundle')
+    assert before == (_file_snapshot(case.child), _file_snapshot(case.admin), _sha(case.repo.main, 'author'))
+    assert not (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_branch_delete_failure_is_partial(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = subprocess.run
+    fired = []
+
+    def lock_branch(command, *args, **kwargs):
+        if command[3:] == ['branch', '-D', '--', 'author']:
+            fired.append(True)
+            assert not case.child.exists() and not case.admin.exists()
+            lock = case.repo.main / '.git/refs/heads/author.lock'
+            lock.touch()
+            try:
+                return original(command, *args, **kwargs)
+            finally:
+                lock.unlink()
+        return original(command, *args, **kwargs)
+
+    monkeypatch.setattr(cleanup.subprocess, 'run', lock_branch)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert fired == [True]
+    assert (caught.value.rc, caught.value.phase) == (30, 'branch-delete')
+    assert not case.child.exists() and not case.admin.exists()
+    assert _sha(case.repo.main, 'author') == case.head
+    assert not (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_receipt_rejects_recreated_branch(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    _git(case.repo.main, 'branch', 'author', case.head)
+    before = _file_snapshot(case.evidence)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (20, 'evidence')
+    assert 'reappeared' in caught.value.reason
+    assert _sha(case.repo.main, 'author') == case.head
+    assert before == _file_snapshot(case.evidence)
+
+
+def test_remove_child_deletes_branch_after_admin_removal(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = subprocess.run
+    observed = []
+
+    def observe(command, *args, **kwargs):
+        if command[3:] == ['branch', '-D', '--', 'author']:
+            assert not case.child.exists() and not case.admin.exists()
+            assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
+            observed.append(True)
+        return original(command, *args, **kwargs)
+
+    monkeypatch.setattr(cleanup.subprocess, 'run', observe)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    assert observed == [True]
+
+
+@pytest.mark.parametrize('operation', ['create', 'verify'])
+def test_bundle_argv_requires_exact_evidence_path(operation):
+    evidence = Path('/tmp/evidence')
+    argv = ('bundle', operation, str(evidence / 'history.bundle'))
+    if operation == 'create':
+        argv += ('refs/heads/x', '^' + 'b' * 40)
+    cleanup._validate_git_argv(argv, evidence=evidence)
+    for invalid in (argv + ('extra',), (*argv[:2], '/tmp/outside/history.bundle', *argv[3:]),
+                    (*argv[:2], 'relative/history.bundle', *argv[3:])):
+        with pytest.raises(RuntimeError, match='not allowlisted'):
+            cleanup._validate_git_argv(invalid, evidence=evidence)
+    with pytest.raises(RuntimeError, match='not allowlisted'):
+        cleanup._validate_git_argv(argv)
+    if operation == 'create':
+        for ref in ('a' * 40, 'refs/tags/x', 'refs/heads/', 'refs/heads/-x',
+                    'refs/heads/HEAD', 'refs/heads/x..y', 'refs/heads/x@{y',
+                    'refs/heads/.x', 'refs/heads/x.lock', 'refs/heads/x//y',
+                    'refs/heads/x.', 'refs/heads/x y', 'refs/heads/x\\y',
+                    'refs/heads/x[y', 'refs/heads/x\ny'):
+            with pytest.raises(RuntimeError, match='not allowlisted'):
+                cleanup._validate_git_argv((*argv[:3], ref, argv[4]), evidence=evidence)
+        with pytest.raises(RuntimeError, match='not allowlisted'):
+            cleanup._validate_git_argv((*argv[:4], 'b' * 40), evidence=evidence)
 
 
 if __name__ == "__main__":
