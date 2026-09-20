@@ -38,9 +38,9 @@ B-10 待ち方 grid と右 tail 2 cohort / mocc 観測 2 件 / 考察 / 未取�
 | 裁定 | D2172 項 2 (T-2792、実装は entry 1736 で着地)・項 3 (T-2795、実装は entry 1746 で着地)・項 4 (B-5 部品の段階実装)、D2174 項 3、D2160、D2162、D2157、D2156、D2155、D2148 項 2・13、D1993、D1678、D1598、D1067、D1637 | 「裁定済み・実装済み・測定は未」を分けて書いた |
 | 並走 wave | ListAgents 10 本に同主題なし。序論・限界 / 方法節 / story 次版は別成果物 | 稼働中 wave の成果は数えない (採用時点 = `482f19b88`、pin 前進 [T-2304] まで) |
 
-## 3. 親の機械照合 (稿 v1、job dir `artifacts/numcheck.py`)
+## 3. 親の機械照合 (稿 v1 = 355 token、fix 後の v3 = 360 token、job dir `artifacts/numcheck.py`)
 
-- 本文の数値 token 355 件 (2 桁以下の整数・年月日・節番号・D / T / fig 番号を除く) を、一次資料の本文 (results 稿 19 本・story 2026-09-20 版・
+- 本文の数値 token 355 件 (fix 後 360 件) (2 桁以下の整数・年月日・節番号・D / T / fig 番号を除く) を、一次資料の本文 (results 稿 19 本・story 2026-09-20 版・
   paper-story README・figures README・凍結 JSON 2 本・S' 最終報告・関連 insight 3 本・decisions・worklog) に対して桁区切りの有無を両方で逐語
   存在検査した。**未検出 4 件はすべて稿側の表記の違い** (S-1a 稿の表は `−37.4` / `−44.6` / `+83.5` を `%` 無しの列で持つ、K2 稿は `+18.7 %` と
   空白入り) で、値は一致した。
@@ -64,9 +64,51 @@ B-10 待ち方 grid と右 tail 2 cohort / mocc 観測 2 件 / 考察 / 未取�
 | §6 未取得 | §12 (A-1 / A-5 / B-1 / B-2 / B-5 / B-3 / B-6 / B-4 / B-8 / 床値 / C-1) |
 | 出所 9 件 | 出所 25 件 |
 
-## 5. 段 6 — 独立 read-only レビュー 1 本と焦点再レビュー
+## 5. 段 6 — 独立 read-only レビュー 1 本と焦点再レビュー 2 本 (3 巡、DW-O16 の上限内)
 
-(レビュー後に追記)
+### 5.1 review-1 (read-only、gpt-6-astra / medium、28 call、507 秒、18:35〜18:44 JST、rc=0、`outcome: accepted`)
+
+prompt = job dir `prompt-review.md` (2 レンズ = A: 一次資料との照合・帰属・母集合 / B: 主張の強さ・限定・禁止句・story §6 整合)。
+**NO-GO、所見 12 = must-fix 4 / should-fix 7 / nit 1。数表 15 の転記違いは 0。** 親の裁定: 12 件すべて real・採用 (refuted 0)。
+
+| # | 種別 | 所見 (要旨) | 一次資料 | 親の fix |
+|---|---|---|---|---|
+| 1 | must-fix | §12 が凍結 v2 g1 を「未発効」と書くが、採用時点に含まれる entry 1742 で承認 A / active pointer X により批准済み (loader 成功)、P3 の launch validation は未達 | worklog entry 1742、D2180、`output/insights/2026-09-20/t2724-ax-delegated/README.md` | 批准と launch validation 未達を分けて書き直し、出所 25 を追加 |
+| 2 | must-fix | §6 が検証相の 10 s 未完走の原因を「未確定」と書くが、entry 1744 (verifier 容量 wave) が fixed-5 の trace 2 本で同定済み | worklog entry 1744、D2181、`output/insights/2026-09-20/verifier-capacity/README.md` | 「記録時点では未確定 → 後続で同定、当時の記録・判定集合・extime は不変 (規律 7)」へ |
+| 3 | must-fix | §7 が S-1a の 324 verify を全部 `legacy` に帰属 (実は develop 18 が `s2`、legacy 306 + s2 18) | S-1a 稿 §2.5 | 条件内訳を明記 |
+| 4 | must-fix | §11 が旧 A-2 の訂正の根拠を `src_token` 単独へ帰属 (稿は token・tracked clean・空 diff・空 paths の連言、token 単独では木が HEAD どおりと言えない) | 旧 A-2 reject 稿 §1.1 | 連言の照合と新 attempt の identity 要求を分け、性能 / 正しさの独立の例を b7f5・検証相へ |
+| 5 | should-fix | §12 が B-5 を「必要性を示す対照」と呼ぶ (D1067 は条件付き優越へ狭めた) | D1067 | 「条件付き優越を問う対照 (必要性の形では言えない)」へ |
+| 6 | should-fix | 「09-10 以後の稿 12 本」が母集合と合わない (15 本 = 単独稿 13 + B-7 併記稿 2、出所が引くのは 17 本) | `ls docs/paper-story/results/`、前稿の出所 | 冒頭・README 2 本を 15 本 (13 + 2) へ |
+| 7 | should-fix | 採用時点が本文に 2 つ (`482f19b88` と §12 の `fec4a8187`)、§3 冒頭の「現行 Pegasus・pin 511c953」 | Git 履歴、pin 前進 insight | `482f19b88` に統一、§3 は「測定当時の現行環境」へ |
+| 8 | should-fix | §9.2 に右 tail の事前登録 §0 の限定 (格子・刻み・等価幅・品質 gate は探索走の後の選択) が無い | 右 tail cohort 1・2 稿 §3 限定 12 | 追記 (cohort 2 の地位・併記法の事前固定も) |
+| 9 | should-fix | §10 に mocc の CP / Fisher の仮定 (独立・同率 Bernoulli、node 内相関等の非モデル化、固定時間あたりの率) が無い | mocc 観測条件稿 §0.1 項 8、witlight 稿 §3 項 8 | 追記 (→ focus-1 で partial、focus-2 で closed) |
+| 10 | should-fix | §9.1 の 36 cell が `symmetric-modulo` 18 + `constant` 自己比較 18 であることが不明瞭 | 待ち方 grid 稿 §2.4 | 明記 |
+| 11 | should-fix | 前稿 §4 にあった S-3 の非有意の限定 (寄与不存在の証明でない、反例還流の比較でない) が落ちた | 前稿、確定文言、S' 最終報告 | 復元 |
+| 12 | nit | 出所冒頭「repo root 相対」と `results/` `figures/` の短縮が不一致 | 実在 dir | 短縮規約を明記 |
+
+fix commit `27df019b1` (`artifacts/fix1.py`、3 file +51/−29)。**所見 1・2 は起草起点 `fec4a8187` に含まれる entry を親が見落としたもので、稼働中 wave の先取りではない**
+(review の総括のとおり)。
+
+### 5.2 focus-1 (read-only、gpt-6-astra / medium、11 call、218 秒、18:51〜18:54 JST、rc=0、`outcome: accepted`)
+
+所見対応表 = **closed 11 / partial 1 (所見 9: 追記した「4 block は別 node・別 binary・別時刻」が witlight 稿 §3 項 8 の「4 node で同時刻」と不整合) /
+regressed 0**。親が足した量化 (306 + 18、15 = 13 + 2、17、36 = 18 + 18、17 cell は正) は再計数で一致。範囲外の 1 巡走査で新規 2 件:
+13 (must-fix) §3.6「採用静的 backoff は性能を測った workload そのもので certified」が [T-1998] (legacy 各 arm 1 回) へ広がって読める、
+14 (should-fix) §11「各 cell の abort 率は代表 rep 1 点」が右 tail (5 反復算術平均) と矛盾。NO-GO。親の裁定: 3 件 real・採用。
+fix commit `62c9f887b` (`artifacts/fix2.py`、1 file +9/−5): §3.6 を A-2 / A-6 (legacy 1 + performance 5) に限定し T-1998 は legacy 各 1 回と明記、
+§10 で表 14 (別 node・別 binary・別時刻) と表 15 (4 node で同時刻、block 内で 4 arm 順次) を書き分け、§11 で abort 率の集約方法を実験ごとに書き分け。
+
+### 5.3 focus-2 (read-only、gpt-6-astra / medium、3 call、63 秒、18:58〜18:59 JST、rc=0、`outcome: accepted`)
+
+所見 9 / 13 / 14 = **3 件とも closed、GO** (対象 3 件に限る判定)。逐語の照合先は T-1998 稿 §2.3・§3 限定 7、A-2 稿 §2.2、A-6 稿 §2.2・§2.3、
+mocc 2 稿の該当項、右 tail cohort 1 稿 §2.3、b7f5 稿 §2.3、K2 稿 §2.1。
+
+### 5.4 段 6 の費用と気づき
+
+- codex 3 本 (review 28 call / 507 秒、focus 11 call / 218 秒、focus 3 call / 63 秒)、いずれも gpt-6-astra / medium (docs 権威の effort)。
+- 数表の転記は機械照合 (逐語存在) で守れたが、**採用時点より前に着地した worklog entry (1742 / 1744) の状態語**と、**稿の限定の条件 (検査条件の内訳、
+  集約方法、実行時刻)** は機械照合の射程外で、独立レビューが全部ここを突いた。次の再導出では、起草前に worklog の当日 entry の見出しを全部読み、
+  「未発効」「未確定」「未実施」型の状態語を書く前に grep で反証する。
 
 ## 6. 限界と言わないこと
 
