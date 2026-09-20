@@ -4751,7 +4751,7 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
     )
     # T-671 で契約 H が identity から外れた current golden を独立に pin する。
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-d567badf"
     )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
         "fixture-completeness", "ycsb-a",

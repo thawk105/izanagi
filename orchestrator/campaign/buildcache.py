@@ -1056,7 +1056,8 @@ def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
     """cache 入力と生成済み build system から masstree root を読む。
 
     旧 pin ``511c9538e4e8efa54b45cda62e72389ed3b706ec`` は CMake 3.22.1 / 3.25.0 で同形を実測済み (2026-08-27 T-1997)。
-    新 pin ``e9e477ca1b55348ab4530de0b1cf663ce4555290`` も CMake 3.25.0 の bnode019 / pegasus02 で両 check が成功 (2026-09-20 T-2304、3.22.1 は未確認)。
+    新 pin ``e9e477ca1b55348ab4530de0b1cf663ce4555290`` も CMake 3.25.0 (計算ノード bnode019、build 込み) と
+    3.22.1 (login pegasus02、configure のみ) で同形を実測し両 check が成功した (2026-09-20 T-2304)。
     Unix Makefiles・base-only で空値の FETCHCONTENT_SOURCE_DIR_MASSTREE は 1 行、pairs は <base>/masstree-src/{config.h,libkohler_masstree_json.a}。
     CCBench pin 更新時は生成物の形を再実測すること。
     """
