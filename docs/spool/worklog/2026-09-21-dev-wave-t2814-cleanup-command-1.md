@@ -38,8 +38,8 @@ title: [T-2814] /cleanup-branches §2・§3 に F1034 の 2 命令 (未追跡 ou
   集め final に登録 → **baseline PASSED 37.3 s、KILLED 4/4 (期待 node 完全一致: command sha 旧値 321 / skill sha 旧値 335 / fixture sha 旧値 1 / bytes assert 旧値 1)、等価 1 SURVIVED、
   MISMATCH 0**。docs 側 (+1 byte) は実 repo 正例 test が growth hold で skip のため harness に載せず、fix 子 2 巡目の「6,204 で合成 repo の check_docs が予算超過 + SHA 不一致」が同型の実測。
 - 焦点走 19 file (変更 test 1 + `tools/check_docs.py` の consumer 14 + inventory 4 群): f1 (統合 C、untracked の spool fragment あり) は 3869 passed / 16 skipped / 1 failed
-  (`test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` = untracked fragment を検出、実装差分でなく親の手順起因)。f2 は記録 commit 後に
-  同集合で再走 (結果は本エントリの追記で確定)。`python3 tools/check_docs.py` 違反なし、全史 provenance 監査 rc 0 (12188 件)。
+  (`test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` = untracked fragment を検出、実装差分でなく親の手順起因)。f2 (記録 commit 6e0cafe08 後、
+  clean tree、同集合) は **3870 passed / 16 skipped / 0 failed** (76.8 秒)。`python3 tools/check_docs.py` 違反なし、全史 provenance 監査 rc 0 (12188 件)。
   受入全走は記録 commit を含む最終 tip に land 前に 1 回投入し、受領証は job dir (`acceptance-receipt-*.json`) と land の記録が持つ。
 - 言わないこと: 引き渡し script の退避検算を機械強制する gate・tool は足していない (scope 外、command 本文の命令のみ)。施錠の判定手段 (`git worktree list` の locked 表示 /
   admin dir の `locked` file) は本文に書いていない (余白なし、§2 安い条件と同じ流儀)。T-2601 対象の撤去者・日時は不明のまま (推測しない)。

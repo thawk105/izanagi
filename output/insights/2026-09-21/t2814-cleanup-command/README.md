@@ -29,7 +29,7 @@
 5. **段 6 レビュー (read-only 1 本) は NO-GO (must-fix 1: §3 の検算文が一次資料と受理集合が異なる) → fix 1 で一次資料の条件へ訂正。焦点再レビュー (fix 1〜3) は GO (所見 1・2 closed、記録面 nit 2 → 訂正済み)。** §4。
 6. **変異 matrix (anchor = fix 統合 6dae18be1): baseline PASSED (37.3 s)、KILLED 4/4 (期待 node 完全一致 321 / 335 / 1 / 1)、等価 1 SURVIVED、MISMATCH 0、TIMEOUT 0。** §5。
 7. **焦点走 19 file: f1 (統合 C、untracked fragment あり) 3869 passed / 16 skipped / 1 failed (赤は untracked の spool fragment を検出する inventory test = 親の手順起因)、
-   f2 (記録 commit 後、同 19 file) は記録 commit の後に走らせ、結果は追記 commit で本 README §6 と worklog fragment に書く (この時点では未実施)。** §6。
+   f2 (記録 commit 6e0cafe08 後、同 19 file) 3870 passed / 16 skipped / 0 failed (76.8 秒)。** §6。
 8. **[T-2601] は対象 2 本 (`dev-wave-t1875-delta-min-gate` / `dev-wave-t2267-exec-site-class`) が `git worktree list` (38 本)・`git branch --list`・`.git/worktrees/` admin・
    `.claude/worktrees/` と `dev-wave-jobs/` の directory・`docs/unreachable-object-ledger.md` のいずれにも無い (00:4x JST 実測) ので閉鎖 (`完了`)。** §7。
 
@@ -111,7 +111,7 @@
   consumer 14 file (`git grep -l check_docs orchestrator/tests/`) + inventory 4 群 (DW-O26) → 3869 passed / 16 skipped / **1 failed**
   (`test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` = 作業ツリーの untracked `docs/spool/failures/…-2.md` を検出。本 wave の実装差分でなく
   記録 fragment を untracked のまま投入した親の手順起因。DW-O18 の「自分起因は直す」)。
-- 焦点走 f2 (`verbatim/focus-2.log`、記録 commit 後、同 19 file): 未実施 (記録 commit の後に投入し、結果は追記 commit で書く)。
+- 焦点走 f2 (`verbatim/focus-2.log`、request 14127.nqsv、runner 76.78 秒、tip = 記録 commit 6e0cafe08、clean tree、同 19 file): **3870 passed / 16 skipped / 0 failed**、rc=0。
 - `python3 tools/check_docs.py` 違反なし (統合 C 後、記録 commit 前)、`git diff --check` rc=0、provenance 全史 rc=0 (docs 12182 → 統合 12183 → fix 統合 12188 件)。
 - 三軸語走査・placeholder 走査・spool dry-run は記録 commit 前に実施し、結果は worklog fragment に書く。
 - 受入全走は DW-O12 に従い記録 commit + 段 8 の後に `tools/dev_wave_wait.py acceptance` で投入する。child-green でなければ land しない。
@@ -135,4 +135,4 @@
 `T-2814-origin.md`、`brief.md`、`startup-gate.log`、`s4-adjudication.md`、`reduction-table.md`、`cleanup-branches.old.md`、`SKILL.old.md`、`s5-author-prompt.md`、`s5-author.md`、
 `s6-review-prompt.md`、`s6-review.md`、`s6-adjudication.md`、`s6-fix1-prompt.md`、`s6-fix1.md`、`s6-fix2-prompt.md`、`s6-fix2.unaccepted.md`、`s6-fix3-prompt.md`、`s6-fix3.unaccepted.md`、
 `s6-fix4-prompt.md`、`s6-fix4.md`、`s6-rereview-prompt.md`、`s6-rereview.md`、`mutation-spec-probe.json`、`mutation-spec-final.json`、`mutation-probe-summary.json`、
-`mutation-final-summary.json`、`focus-1.log` (末尾空白の可逆正規化 = `NORMALIZATION.md`。`focus-2.log` は f2 の追記 commit で置く)。
+`mutation-final-summary.json`、`focus-1.log`、`focus-2.log` (末尾空白の可逆正規化 = `NORMALIZATION.md`)。計 29 file (`NORMALIZATION.md` 含む)。
