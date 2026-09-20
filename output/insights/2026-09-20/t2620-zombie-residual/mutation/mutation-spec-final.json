@@ -1,0 +1,74 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-equivalent-count-init",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        return None\n    count = 0\n    try:\n        entries = os.scandir(\"/proc\")\n",
+          "new": "        return None\n    count = int(0)\n    try:\n        entries = os.scandir(\"/proc\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-exclude-zombie-state",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "                if int(fields[2]) == identity.pid:\n                    count += 1\n",
+          "new": "                if fields[0] == \"Z\":\n                    continue\n                if int(fields[2]) == identity.pid:\n                    count += 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_sigterm_ignore_subreaper_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-normal-reap-live-residual-as-clean",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    return residual, residual == 0\n",
+          "new": "    return (residual if residual is None else 0), residual is not None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_running_is_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-checker-drops-residual-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "            and attempt[\"validator_rc\"] == 0\n            and attempt[\"process_group_residual\"] == 0\n            and attempt[\"termination_verified\"]\n",
+          "new": "            and attempt[\"validator_rc\"] == 0\n            and attempt[\"termination_verified\"]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_t2620_check_receipt_rejects_residual_only_changes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
