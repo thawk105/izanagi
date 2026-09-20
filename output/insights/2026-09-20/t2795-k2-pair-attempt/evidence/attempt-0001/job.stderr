@@ -1,0 +1,52 @@
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_C_COMPILER
+
+
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_C_COMPILER
+
+
+Traceback (most recent call last):
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/campaign_claim.py", line 427, in acquire_claim
+    fd = os.open(path, flags, 0o600)
+FileExistsError: [Errno 17] File exists: '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/output/env/pegasus/claims/p3-s4-loop-s4-autonomous-b24749ae.claim'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/p3_s4_loop.py", line 3410, in <module>
+    sys.exit(main())
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/p3_s4_loop.py", line 3248, in main
+    out = _run_stock_control_resolved(
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/p3_s4_loop.py", line 1986, in _run_stock_control_resolved
+    summary = run_campaign(
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/loop.py", line 517, in run_campaign
+    authorization = _authorize_measurement(
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/loop.py", line 236, in _authorize_measurement
+    campaign_claim.acquire_claim(claim_root, record)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/orchestrator/campaign/campaign_claim.py", line 430, in acquire_claim
+    raise ClaimError(
+orchestrator.campaign.campaign_claim.ClaimError: campaign claim は既に 2080612 が所有している
+
+============================================================
+Request ID:             13339.nqsv
+Request Name:           izs4loop
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Sun Sep 20 19:12:26 2026
+Started Request Time:   Sun Sep 20 19:12:36 2026
+Ended Request Time:     Sun Sep 20 19:13:45 2026
+Resources Information:
+  Elapse:               74S
+  Remaining Elapse:     10726S
+============================================================

@@ -27769,6 +27769,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: driver の build 経路を stub する test しか無い gate 統合 commit。段 1 で「その driver は統合後に
   実走したか」を worklog / insight で照合する。
 
+
+- **再発: 2026-09-20** — K2 同 job pair launcher (D2183、job body の stock step + driver `--stock-control`、2026-09-20 land) は、候補と同じ campaign
+  (同 identity・同 out_root) に **2 つ目の driver process** から `run_campaign` を通す設計だったが、Pegasus 契約 (reservation 必須) の実認可経路
+  `loop._authorize_measurement` → `campaign_claim.acquire_claim` (single-process campaign の one-shot claim leaf、同 identity path は所有者の生死を見ず `O_EXCL`
+  で拒否、D464 / D553) との整合を一度も実走で確かめずに land した。初投入 (`13339.nqsv`) で候補は certified、stock は condition gate 正常復帰の直後に
+  `ClaimError` で停止し、build にも到達しなかった (STOCK 性未確認、pair 不成立)。実装 wave の test は実 `run_campaign` を戻すものを含むが site `OTHER`
+  (`single_process=False`) で claim 分岐に入らず、job contract test は代用 python で driver を起動しない (1746 passed + 変異 17/17 KILLED はこの経路を含まない)。
+  実装 wave の insight は「1 job も投入していない」「STOCK 成立は未測定」を正直に明記していたが、未測定の開示は統合欠陥の不存在を保証しない。
+  恒久対応は未実施 (修復 wave が同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査を含める、D2187)。補助参照 F81 / F722。
+  一次資料 `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §2。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と
