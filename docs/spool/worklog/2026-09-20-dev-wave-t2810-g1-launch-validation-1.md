@@ -44,6 +44,10 @@ title: [T-2810] 凍結 v2 g1 の launch validator を official 成果物の現�
   移植は未実施・未確認。独立 fixture の成功は launch core の証拠で loader 込みの chain 成功ではない (loader 成功は実 repo で別に実測)。binding は記録内の
   整合情報で PBS job の外部認証ではなく、DAG の記録順は実時間順を保証しない。fixture の journal は key 文法と型契約だけが現物と一致する。
 - 事故: 親が author 子の進捗確認で他 worktree へ `cd` を含む Bash を打ち追跡 cwd が移った (F100 再発、`EnterWorktree(path)` で即復帰、実害なし)。
+- 受入 attempt 1 (tip `9e6f2b08d` = 段 8 commit + main `30d0323c1` の前方 merge、2026-09-21 03:12〜03:17 JST): shard-1 が collection 終了時の受入基盤
+  (`conftest._wait_early_memo_job` → `real_repo_receipt_memo` の lock 取得) で `memo publication timeout` (errno 110、`lock-acquire-failed`) → INTERNALERROR、
+  兄弟 shard 2 本が signal 15 で中断され orphan hold (request 14171 / 14172)。本 wave は conftest / receipt memo に触れておらず test は 1 件も走っていない
+  → 非帰属 (DW-O18、判定根拠は job dir `acceptance-red-final-1.md`)。orphan job の終端を待って hold を退避・削除し、同一内容で 1 回再投入する。
 - 工数: codex 子 9 本 (plan 1、consult 2、author 1、fix 2、review 2、focus 1)。計算ノード job: 焦点走 2 + held 診断走 1 + 変異 (probe 16 走 + final 16 走、独立 clone) + 受入。wave 全体 18:58〜 (受入・land は別記)。
 
 ## 次の一手差分
