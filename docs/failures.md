@@ -12554,6 +12554,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子の prompt に「`git merge` を自分で実行するな。親が実行済みで競合マーカーが
   作業木にある」と書く運用。書き忘れても子は fail-closed で降りるため、被害は 1 起動分に留まる。
 
+
+- **再発: 2026-09-20** — 削除 wave の親が author prompt に `git rm` を指示し、子は `.git/worktrees/<unit>/index.lock: Read-only file system` で無変更終了した (約 1 分)。merge に限らず index を書く git 操作はすべて同族。子は作業ツリーの `rm` と file 編集だけを行い、stage は起動器の終端 commit と親の `git apply --index` が担う。
 ### F360. 探索 primitive の文字列検索が in-process 呼び出しを落とす [テスト代表性] [手順漏れ]
 
 - 事象: 成長比例テストの全件走査で、子は 209 file / 8,018 top-level test を AST で閉包化し
