@@ -3078,28 +3078,45 @@ def test_public_b4_receipt_gate_requires_exact_protocol_marker():
         )
 
 
+# Recorded T-816 policy epoch; current T-2304 IDs remain independent literals.
+_T816_MARKED_CAMPAIGN_IDS = {
+    "base": (
+        "p3-s4-loop-s4-autonomous-47062c3f",
+        "p3-s4-loop-s4-autonomous-6e844e5b",
+    ),
+    "sort": (
+        "p3-s5-sort-loop-s5-sort-autonomous-48e2968e",
+        "p3-s5-sort-loop-s5-sort-autonomous-c0614e6c",
+    ),
+    "trigger": (
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-2adb6cf7",
+        "p3-s8a-trigger-loop-s8a-trigger-autonomous-6328b84a",
+    ),
+}
+
+
 @pytest.mark.parametrize(
     ("driver", "expected_ids"),
     (
         (
             "base",
             (
-                "p3-s4-loop-s4-autonomous-47062c3f",
-                "p3-s4-loop-s4-autonomous-6e844e5b",
+                "p3-s4-loop-s4-autonomous-36636f6e",
+                "p3-s4-loop-s4-autonomous-97e99268",
             ),
         ),
         (
             "sort",
             (
-                "p3-s5-sort-loop-s5-sort-autonomous-48e2968e",
-                "p3-s5-sort-loop-s5-sort-autonomous-c0614e6c",
+                "p3-s5-sort-loop-s5-sort-autonomous-5e23ed3e",
+                "p3-s5-sort-loop-s5-sort-autonomous-365dfaba",
             ),
         ),
         (
             "trigger",
             (
-                "p3-s8a-trigger-loop-s8a-trigger-autonomous-2adb6cf7",
-                "p3-s8a-trigger-loop-s8a-trigger-autonomous-6328b84a",
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-44860c77",
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-6c36625a",
             ),
         ),
     ),
@@ -3127,6 +3144,10 @@ def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
 
     assert tuple(C.B4_DRIVER_CONFIG_FACTORIES) == ("base", "sort", "trigger")
     assert tuple(str(ident.campaign_id(cfg)) for cfg in configs) == expected_ids
+    assert all(
+        current != historical
+        for current, historical in zip(expected_ids, _T816_MARKED_CAMPAIGN_IDS[driver])
+    )
     assert tuple(cfg.search_config["reflux"] for cfg in configs) == ("on", "off")
     assert all(
         cfg.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE

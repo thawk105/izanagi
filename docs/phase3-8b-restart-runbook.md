@@ -158,7 +158,7 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 
 | # | コマンド | 期待 |
 |---|---|---|
-| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit 511c9538…` (2026-08-12 [T-816] 手順 4 で前進。`d706650c…` 期の床値を歴史再開するなら、その旧 commit を明示 checkout する) |
+| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit e9e477ca…` (2026-09-20 [T-2304] で D2150 項 1 の候補へ前進。値の正本は `orchestrator/campaign/s8b_approved.py` の `CCBENCH_FULL_SHA`。凍結済み floor protocol は自身の `ccbench_pin` (`511c9538…`、2026-08-12 [T-816] 手順 4 で前進した期の値) を保持し、その期の床値を歴史再開するなら旧 commit を明示 checkout する。`d706650c…` 期も同様) |
 | P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `5 passed, 0 failed` / rc=0 (2026-09-20 現物の直接 runner は 5 関数を列挙する。held marker が出る検査は bytes 全検証済みと読まない) |
 | P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = v1 path は既知 4 件 exact のまま、active 世代 path は `freeze-ratify:` が消え、全 gate が成立した場合だけ `allowed: true`。2026-09-20 時点の実測は `v2-execution: launch-validate: [journal-state-invalid] …` で refused、W-3 参照) |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |
