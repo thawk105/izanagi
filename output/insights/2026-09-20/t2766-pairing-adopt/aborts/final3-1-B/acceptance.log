@@ -1,0 +1,5 @@
+acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します
+acceptance-command argv=["python3", "tools/run_tests.py"]
+acceptance-command timeout=none (long-running acceptance is intentional)
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":"482f19b88dbbe255fc2bb0dcc95b14c1681c1a83","classification":"acceptance-command","log_sha256":null,"normalized_child_rc":1,"raw_child_rc":1,"reason":"child-verdict","retry":false}
+error: stage=acceptance-command rc=70 source_rc=1

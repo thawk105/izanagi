@@ -1,0 +1,24 @@
+{
+  "M1-opt-out-always-true": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_default_configure_starts_job[empty]",
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_default_configure_starts_job[unset]"
+  ],
+  "M2-configure-does-not-set-attr": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_configure_keeps_synchronous_cache_barrier"
+  ],
+  "M3-selected-ignores-attr": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_configure_keeps_synchronous_cache_barrier"
+  ],
+  "M4-allowlist-key-removed": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_early_memo_environment_request_and_child_overlay[empty]",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_early_memo_environment_request_and_child_overlay[token]",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_tests_task_env_allowlist_is_exact"
+  ],
+  "M5-invalid-value-accepted": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_invalid_configure_fails_closed"
+  ],
+  "M6-configure-call-removed": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_configure_keeps_synchronous_cache_barrier",
+    "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_opt_out_invalid_configure_fails_closed"
+  ]
+}

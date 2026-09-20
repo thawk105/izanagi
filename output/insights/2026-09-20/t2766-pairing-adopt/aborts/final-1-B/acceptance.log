@@ -1,0 +1,4 @@
+acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します
+ M external/ccbench
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":"482f19b88dbbe255fc2bb0dcc95b14c1681c1a83","classification":"prerun-clean","log_sha256":null,"normalized_child_rc":null,"raw_child_rc":null,"reason":"terminal-prerun-clean","retry":false}
+error: stage=prerun-clean rc=70

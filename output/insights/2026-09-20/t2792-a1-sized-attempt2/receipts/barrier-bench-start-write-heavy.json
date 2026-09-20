@@ -1,0 +1,12 @@
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+  "bench_go_sha256": "6aeb15f0c3101775e5c291ca032cfe267f5a882e12b61db706c0ebb8b7e9f33a",
+  "ordinal": 0,
+  "ready_sha256": "ce6d895da2e55ad80fc37784e32726febb07b853b00dc18566bbd95f702f3f45",
+  "recorded_epoch": 1789895924,
+  "request_id": "0:13220.nqsv",
+  "schema_version": "paper-story-a1-paired-bench-start/v1",
+  "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "workload": "write-heavy"
+}

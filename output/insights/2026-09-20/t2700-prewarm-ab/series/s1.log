@@ -1,0 +1,73 @@
+2026-09-20T09:09:24+0900 s1 start: target=8 max_runs=20 tip=7447c9a35c769ff6b962d364ed5f9fd0c089c749
+2026-09-20T09:09:24+0900 state: runs_seen=0 valid_pairs=0 cutoff=False reason= next=1-E slot=1
+2026-09-20T09:09:24+0900 launch 01-E slot 1
+2026-09-20T10:13 parent: gate never opened for 63 min (other leaders mostly 2) -> series killed before any submission (no run dir), LEADERS_MAX 1->2, relaunch s1
+2026-09-20T10:12:15+0900 s1 start: target=8 max_runs=20 tip=7447c9a35c769ff6b962d364ed5f9fd0c089c749
+2026-09-20T10:12:15+0900 state: runs_seen=0 valid_pairs=0 cutoff=False reason= next=1-E slot=1
+2026-09-20T10:12:15+0900 launch 01-E slot 1
+2026-09-20T10:35:33+0900 01-E rc=0
+2026-09-20T10:35:34+0900 state: runs_seen=1 valid_pairs=0 cutoff=False reason= next=2-E slot=1
+2026-09-20T10:35:34+0900 launch 02-E slot 1
+2026-09-20T10:38 parent: series killed while 02-E in gate (no run dir): analyzer rejected run.json timestamps '+0900' (fromisoformat) -> false invalid of 01-E; fix5 (accept +HHMM) then relaunch s1
+2026-09-20T10:44 parent: fix5 applied (analyzer accepts +HHMM); 01-E re-judged valid; relaunch s1 (next 02-L slot 1)
+2026-09-20T10:40:16+0900 s1 start: target=8 max_runs=20 tip=7447c9a35c769ff6b962d364ed5f9fd0c089c749
+2026-09-20T10:40:16+0900 state: runs_seen=1 valid_pairs=0 cutoff=False reason= next=2-L slot=1
+2026-09-20T10:40:16+0900 launch 02-L slot 1
+2026-09-20T10:56:51+0900 02-L rc=0
+2026-09-20T10:56:52+0900 state: runs_seen=2 valid_pairs=1 cutoff=False reason= next=3-L slot=2
+2026-09-20T10:56:52+0900 launch 03-L slot 2
+2026-09-20T11:25:03+0900 03-L rc=0
+2026-09-20T11:25:04+0900 state: runs_seen=3 valid_pairs=1 cutoff=False reason= next=4-E slot=2
+2026-09-20T11:25:04+0900 launch 04-E slot 2
+2026-09-20T11:37:48+0900 04-E rc=0
+2026-09-20T11:37:49+0900 state: runs_seen=4 valid_pairs=2 cutoff=False reason= next=5-E slot=3
+2026-09-20T11:37:49+0900 launch 05-E slot 3
+2026-09-20T12:06:06+0900 05-E rc=0
+2026-09-20T12:06:08+0900 state: runs_seen=5 valid_pairs=2 cutoff=False reason= next=6-L slot=3
+2026-09-20T12:06:08+0900 launch 06-L slot 3
+2026-09-20T12:32:40+0900 06-L rc=0
+2026-09-20T12:32:43+0900 state: runs_seen=6 valid_pairs=3 cutoff=False reason= next=7-L slot=4
+2026-09-20T12:32:43+0900 launch 07-L slot 4
+2026-09-20T13:05:46+0900 07-L rc=0
+2026-09-20T13:05:48+0900 state: runs_seen=7 valid_pairs=3 cutoff=False reason= next=8-E slot=4
+2026-09-20T13:05:48+0900 launch 08-E slot 4
+2026-09-20T13:37:08+0900 08-E rc=1
+2026-09-20T13:37:10+0900 state: runs_seen=8 valid_pairs=3 cutoff=False reason= next=9-L slot=4
+2026-09-20T13:37:10+0900 launch 09-L slot 4
+2026-09-20T14:01:13+0900 09-L rc=0
+2026-09-20T14:01:17+0900 state: runs_seen=9 valid_pairs=3 cutoff=False reason= next=10-E slot=4
+2026-09-20T14:01:17+0900 launch 10-E slot 4
+2026-09-20T14:12:50+0900 10-E rc=0
+2026-09-20T14:12:55+0900 state: runs_seen=10 valid_pairs=4 cutoff=False reason= next=11-E slot=5
+2026-09-20T14:12:55+0900 launch 11-E slot 5
+2026-09-20T14:26:07+0900 11-E rc=0
+2026-09-20T14:26:14+0900 state: runs_seen=11 valid_pairs=4 cutoff=False reason= next=12-L slot=5
+2026-09-20T14:26:14+0900 launch 12-L slot 5
+2026-09-20T14:49:42+0900 12-L rc=0
+2026-09-20T14:49:46+0900 state: runs_seen=12 valid_pairs=5 cutoff=False reason= next=13-L slot=6
+2026-09-20T14:49:46+0900 launch 13-L slot 6
+2026-09-20T15:02:08+0900 13-L rc=0
+2026-09-20T15:02:13+0900 state: runs_seen=13 valid_pairs=5 cutoff=False reason= next=14-E slot=6
+2026-09-20T15:02:13+0900 launch 14-E slot 6
+2026-09-20T15:14:17+0900 14-E rc=1
+2026-09-20T15:14:23+0900 state: runs_seen=14 valid_pairs=5 cutoff=False reason= next=15-L slot=6
+2026-09-20T15:14:23+0900 launch 15-L slot 6
+2026-09-20T15:31:32+0900 15-L rc=0
+2026-09-20T15:31:37+0900 state: runs_seen=15 valid_pairs=5 cutoff=False reason= next=16-E slot=6
+2026-09-20T15:31:37+0900 launch 16-E slot 6
+2026-09-20T15:56:11+0900 16-E rc=0
+2026-09-20T15:56:17+0900 state: runs_seen=16 valid_pairs=6 cutoff=False reason= next=17-E slot=7
+2026-09-20T15:56:17+0900 launch 17-E slot 7
+2026-09-20T16:54:54+0900 17-E rc=1
+2026-09-20T16:54:58+0900 state: runs_seen=17 valid_pairs=6 cutoff=False reason= next=18-E slot=7
+2026-09-20T16:54:58+0900 launch 18-E slot 7
+2026-09-20T17:18:28+0900 18-E rc=0
+2026-09-20T17:18:33+0900 state: runs_seen=18 valid_pairs=6 cutoff=False reason= next=19-L slot=7
+2026-09-20T17:18:33+0900 launch 19-L slot 7
+2026-09-20T17:42:46+0900 19-L rc=0
+2026-09-20T17:42:52+0900 state: runs_seen=19 valid_pairs=7 cutoff=False reason= next=20-L slot=8
+2026-09-20T17:42:52+0900 launch 20-L slot 8
+2026-09-20T17:55:10+0900 20-L rc=0
+2026-09-20T17:55:16+0900 state: runs_seen=20 valid_pairs=7 cutoff=True reason=max-runs next=21-E slot=8
+2026-09-20T17:55:16+0900 cutoff reached (max-runs)
+2026-09-20T17:55:16+0900 s1 end: valid_pairs=7 runs_seen=20

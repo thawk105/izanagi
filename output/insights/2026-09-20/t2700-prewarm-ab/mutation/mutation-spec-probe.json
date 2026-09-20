@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-opt-out-always-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    value = os.environ.get(_EARLY_MEMO_OPT_OUT_ENV)\n    if value in (None, \"\"):\n        return False\n",
+          "new": "    value = os.environ.get(_EARLY_MEMO_OPT_OUT_ENV)\n    if value in (None, \"\"):\n        return True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-configure-does-not-set-attr",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if _early_memo_opted_out():\n        setattr(config, _EARLY_MEMO_OPT_OUT_ATTR, True)\n",
+          "new": "    if _early_memo_opted_out():\n        pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-selected-ignores-attr",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if getattr(config, _EARLY_MEMO_OPT_OUT_ATTR, False):\n        return False\n    if (\n        hasattr(config, \"workerinput\")\n",
+          "new": "    if (\n        hasattr(config, \"workerinput\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-allowlist-key-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            # T-2700 measurement-only opt-out; do not land on main.\n            \"IZANAGI_T2700_EARLY_MEMO_OFF_V1\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-invalid-value-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if value != _EARLY_MEMO_OPT_OUT_TOKEN:\n        raise pytest.UsageError(\n            f\"{_EARLY_MEMO_OPT_OUT_ENV} must be exactly \"\n            f\"{_EARLY_MEMO_OPT_OUT_TOKEN!r}, empty, or unset\"\n        )\n    return True\n",
+          "new": "    if value != _EARLY_MEMO_OPT_OUT_TOKEN:\n        return False\n    return True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-configure-call-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        _growth_holds_opted_in()\n        _configure_early_memo_opt_out(config)\n",
+          "new": "        _growth_holds_opted_in()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

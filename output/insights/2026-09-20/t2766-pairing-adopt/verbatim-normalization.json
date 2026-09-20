@@ -1,0 +1,22 @@
+{
+ "rule": "行末の空白 (space) を除去。可視文字は不変。復元は原本 sha256 と bytes を持つ job dir の原本 (/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2766-pairing-adopt/codex/s6-reviewA.md) から行う。",
+ "files": {
+  "verbatim/s6-reviewA.md": {
+   "original_sha256": "840b1e5af53216a2f82dda2eac520561e0ac0e869b4912f145544324f60fa592",
+   "original_bytes": 8901,
+   "normalized_sha256": "d773fbf31e9464405c3895945da1a4affc983347eeaab19b0c54ab21a02ea1f3",
+   "normalized_bytes": 8899,
+   "lines_with_trailing_ws_removed": 1,
+   "line": 31,
+   "removed": "2 空白 (markdown の行末 2 空白改行)"
+  },
+  "verbatim/rerun-t810.log": {
+   "original_sha256": "5ec0c830f17591ca15cc517ca5b20b4b55b7d29e5812d237a2af225e55d6ce2d",
+   "original_bytes": 4588,
+   "normalized_sha256": "d2f6393b3582a497e6964ebdf5c7dacc49b21d444c5ad103b797d51e578e93e7",
+   "normalized_bytes": 4586,
+   "lines_with_trailing_ws_removed": 2,
+   "removed": "pytest 出力の行末空白 1 byte × 2 行 (14 / 36 行目)。原本は job dir focus/rerun-t810.log"
+  }
+ }
+}

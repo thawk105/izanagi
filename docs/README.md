@@ -17,6 +17,9 @@
 - `phase1.md` / `phase2.md` — タスク分解 (完了・凍結)
 - `phase3.md` — 現行 phase doc。チェックリストと must 表 = タスク粒度の完了状況の正本
 - `phase3-main-experiment.md` — 主実験の事前登録
+- `phase3-main-experiment-addendum-1.md` — 上記事前登録の 2026-07-12 追記に対する追補 1。D1441 による
+  「非列挙」の語義改訂 (固定予算の下で操作的に列挙し尽くせない) を記録する。原文 bytes は不変
+  (凍結成果物が sha256 を記録するため、D1789 の erratum 系列と同じ別 file 訂正形)
 - `phase3-8b-restart-runbook.md` — 8b 再開 (床値実測 → freeze v2 再凍結 → oracle 実走) の手順・
   毎回の preflight・偽の赤の見分け・未実装段の正本。状態は持たない (状態は worklog 末尾)
 - `phase3-8c-preregistration.md` — 段 8c 正式系列 (H1/H2 × on/off/swapped) の事前登録。

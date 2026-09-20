@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""attempt-0001 の result.json source_binding.files と、指定 tree (submit-tree @fec4a8187) の現物 sha256 を比べる。
+usage: compare_binding.py <leaf1> <tree> [<leaf2>]"""
+import hashlib, json, os, sys
+leaf1 = sys.argv[1]; tree = sys.argv[2]
+leaf2 = sys.argv[3] if len(sys.argv) > 3 else None
+r1 = json.load(open(os.path.join(leaf1, 'result.json')))
+r2 = json.load(open(os.path.join(leaf2, 'result.json'))) if leaf2 else None
+
+
+def sha(p):
+    h = hashlib.sha256()
+    with open(p, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 20), b''):
+            h.update(b)
+    return h.hexdigest()
+
+
+files1 = r1['source_binding']['files']
+files2 = r2['source_binding']['files'] if r2 else {}
+print("| file | attempt-0001 blob / working sha | 現物 @tree | attempt-0002 blob / working sha | 0001 = tree | 0001 = 0002 |")
+print("|---|---|---|---|---|---|")
+for path, f in files1.items():
+    p = os.path.join(tree, path)
+    cur = sha(p) if os.path.exists(p) else None
+    g = files2.get(path)
+    print(f"| `{path}` | `{f['git_blob_oid'][:12]}…` / `{f['working_sha256'][:12]}…` | `{(cur or 'NA')[:12]}…` | " + (f"`{g['git_blob_oid'][:12]}…` / `{g['working_sha256'][:12]}…`" if g else "-") + f" | {f['working_sha256'] == cur} | {(g['working_sha256'] == f['working_sha256']) if g else '-'} |")
+if r2:
+    extra = set(files2) - set(files1)
+    print("attempt-0002 だけの file:", sorted(extra))
+    print("measurement_source_commit:", r1['source_binding']['measurement_source_commit'], r2['source_binding']['measurement_source_commit'])

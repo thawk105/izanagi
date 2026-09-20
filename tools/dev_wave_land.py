@@ -2989,8 +2989,16 @@ def _finish_land_turn(repository: _Repository, result: LandResult) -> None:
             and not os.path.lexists(repository.common / _FOLD_STATE_NAME)
         )
         unresolved = mutating and result.rc != RC_OK and not rollback_complete
+        landed_fold_pending = (
+            result.status == "landed-postcondition-failed"
+            and result.main_after == turn.record.get("landing_tip")
+            and result.main_after is not None
+            and not os.path.lexists(repository.common / _FOLD_STATE_NAME)
+        )
         if result.rc == RC_OK:
             phase = "done"
+        elif landed_fold_pending:
+            phase = "waiting"
         elif unresolved:
             phase = "mutating"
         elif rollback_complete:
@@ -3053,13 +3061,21 @@ def _observe_dead_land_turn(repository: _Repository, lock: _LandLockHandle,
                     f"landing_tip={record.get('landing_tip')}: {type(exc).__name__}: {exc}",
                     retryable_same_request=True,
                 ) from exc
-        if declared is None or not declared.ok:
+        if (current == record.get("landing_tip")
+                and record.get("expected_fold") != "noop"
+                and (parent.returncode != 0
+                     or parent.stdout.decode("ascii").strip() != record.get("landing_tip"))):
+            # FF completed, but fold never started. Keep the request for the
+            # existing already-landed path, including its D16 synchronization gate.
+            phase = "waiting"
+        elif declared is None or not declared.ok:
             raise _Reject(RC_FOLD_RECOVERY_FAILED,
                           f"unresolved mutating turn: main={current}, "
                           f"main_before={record.get('main_before')}, "
                           f"landing_tip={record.get('landing_tip')}",
                           retryable_same_request=True)
-        phase = "done"
+        else:
+            phase = "done"
     with _turn_registry(repository, turn) as registry:
         if registry["requests"].get(key) != entry:
             return
