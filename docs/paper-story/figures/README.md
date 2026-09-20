@@ -1334,13 +1334,16 @@ fig6 (A-2) と同じ生成器・同じ描画契約で描いた**結果図**で�
 - 上段 1 panel (read-heavy rr95): cell ごとの trace-disabled 性能標本 5 点、短い横棒が median、ひし形と誤差棒が標本平均と t 分布 95% 信頼区間 (df 4)、
   灰色の破線が stock (無 backoff、`BACK_OFF=0`) の median = 効果の分母。adopted は採用静的 backoff fixed 2 µs (`BACK_OFF=1`, `BACKOFF_FIXED=2`)。
   median 比の効果 −5.7841% (`effects.rr95 = -0.057841193339621455`、certification.json の値を写す) を直接ラベルで置く。
-- 下段 1 panel: 記述的な先行指標として cell あたり 1 点の集計 abort 率 (stock 0.1547、adopted 0.145)。信頼区間は付けず、因果の機序も主張しない。
+- 下段 1 panel: 記述的な先行指標として cell あたり 1 点の abort 率 (stock 0.1547、adopted 0.145)。5 rep の集約値ではなく、**5 rep のうち throughput が median に最も近い rep の値**
+  (runner の代表 rep 規則、稿 §2.3・§4 限定 6)。信頼区間は付けず、因果の機序も主張しない。
 
 **言えるのは protocol の status まで**である。A-6 は policy の workload が rr95 の 1 つなので、outer status `reject` はその 1 問 (adopted の median が stock を上回るか)
 の答えそのものである。1 attempt・5 標本の中央値比較であり、有意差・between-run floor 超の退行・別走行での再現性・研究の失敗は判定しない (D12、稿 §0・§4 限定 1)。
 read-heavy で stock が最良であることの証明でも、静的 backoff 一般が read-heavy で有害であることの証明でもない (稿 §4 限定 3)。
 **性能の `reject` と正しさの `certified` は別の段である** (D1993 項 2): 正しさは別の trace-enabled 走行から来て 2 cell とも certified (legacy 1 + performance 条件 5)、
-これは性能の認証ではなく、性能の `reject` は取得済みの正しさ証拠を取り消さない (稿 §2.2)。図を variant 採用の根拠にしない (絶対規律 2)。
+これは性能の認証ではない。性能の `reject` は取得済みの正しさ証拠を取り消さない (稿 §2.2)。正しさ証拠の射程は稿 §4 限定 4 の (i)〜(v)
+(L01 の point-key trace、D1257 の argv 未記録、artifact hash 単独は compile-out の証明でない、条件関門は記録まで、`src_token` 一致は翻訳単位全体の意味一致を保証しない) に従う。
+図を variant 採用の根拠にしない (絶対規律 2)。
 
 ## 既存図との関係
 
@@ -1365,8 +1368,10 @@ read-heavy で stock が最良であることの証明でも、静的 backoff �
 - 再計算と照合: 各 cell の median は 5 標本から再計算して certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、
   median の比からの再計算と `abs_tol = 1e-12` で照合する (`effect_crosschecks`)。生成器は判定を作らない。
 - identity: 受領証 / raw / WAL / certification の 4 者で `src_token` が一致し、stock cell は `stock`、adopted cell は非 `stock` の SHA-256、
-  両 cell とも `source_binding_status = bound` であることを要求する (fig6 と同じ)。
-- 拒否条件: SHA-256 不一致 (tracked 2 file、外部 6 file)、study が pin 表の exact 2 件 (A-2 / A-6) に無い、schema / attempt / cell 順序 / policy identity の不一致、
+  両 cell とも `source_binding_status = bound` であることを要求する (fig6 と同じ)。この一致が言えるのは identity 層までで、証明力の上限は稿 §4 限定 4 (iii)(v) のとおり
+  (artifact hash 単独は compile-out の証明でなく、`src_token` 一致は翻訳単位全体の意味一致を保証しない)。
+- 拒否条件: SHA-256 不一致 (tracked 2 file、外部 6 file)、certification / raw-manifest の leaf が pin 表 `CANONICAL_SHA256` (A-2 の 2 attempt + A-6 = 3 leaf) に無い、
+  study が `STUDY_PROFILES` の exact 2 件 (A-2 / A-6) に無い (legacy profile は A-2 のみ)、schema / attempt / cell 順序 / policy identity の不一致、
   6 file 閉包の過不足、`source_binding_status` ≠ bound、`src_token` の 4 者不一致、`correctness.status` ≠ certified、median / effect の不一致、
   raw の性能標本が trace-enabled、caption_source (稿) の不在。いずれでも成果物を出さない。
 - **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-18-a6-certification-reject.md` の
@@ -1389,9 +1394,11 @@ python3 tools/plotting/plot_a2_certification.py \
 
 provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。
 着地したバイト列の同一性は provenance JSON が記録した `outputs[].sha256` と `orchestrator/tests/test_plot_a2_certification.py` の
-`test_landed_fig11_repo_closure_and_caption_when_present` が守る。着地後の closure 検査は repo 内の tracked 入力 (権威 bytes 2 file + 稿) と出力の SHA-256、
-`external_inputs` と raw-manifest の一致、provenance の cells から作り直した artist / caption との一致を見る (durable root を読まない。
-durable root が読めるときは `validate_external_sources` が 6 file の SHA-256 も照合する)。生成器の `generator.sha256` は生成時点の記録であり、
+`test_landed_fig11_repo_closure_and_caption_when_present` が守る。`validate_repo_closure` が見るのは provenance の自己整合と hash
+(repo 内の tracked 入力 = 権威 bytes 2 file + 稿と出力の SHA-256、`external_inputs` の各 path が raw-manifest に同じ SHA-256 で載ること、provenance の cells から
+作り直した artist / caption との一致) までで、権威 bytes との値の再照合は同 test の直接照合 (provenance の `study` / `outer_status` / `effects` / `cells[].median_tps` が
+tracked certification.json と一致、`external_inputs` の path 集合が raw-manifest の `files` と完全一致) が担う。durable root は読まない
+(root が読めるときは `validate_external_sources` が 6 file の SHA-256 も照合する)。生成器の `generator.sha256` は生成時点の記録であり、
 現行 source を縛る pin ではない (規律 7)。
 
 ## 条件関門についてこの図が言えること
@@ -1402,15 +1409,11 @@ raw manifest は `use_class="paper"` かつ `admitted=true` と記録する cano
 
 ## 作図規約への適合
 
-- §1: 数値は WAL / raw の 5 標本と certification.json の `effects` からその場で読み、median と効果を再計算して記録値と fail-closed で照合する。
-- §2: 5 標本の生値と、標本平均 ± t 分布 95% CI (df 4) を描く。CI は標本の記述であって、効果・判定・median の区間ではないと caption に明記する。
-- §3: 比較対象 (stock の median) を水平の破線で描き、標本と目で比べられる。
-- §5: 図中ラベルは `no backoff` / `fixed 2 us` と workload 名 (read-heavy (rratio 95)) だけ。内部識別子は出さない。
-- §6: provenance に tracked 入力 2 file + caption_source の path と SHA-256、外部入力 6 file、study / attempt / source commit / pin / request / host / 時刻、測定条件、
-  2 cell (標本・median・平均・CI・abort 率)、`effects` と `effect_crosschecks`、`correctness`、`artist_series`、caption、展開済み再現 argv を記録する。
-- §9: 保存前に renderer-backed layout check を走らせ、text の重なり・逸脱・axes 数の不一致があれば 3 成果物を 1 つも出さない。
-- §10: 単体テストの fixture は実寸 (1 workload × 2 cell × 5 標本、verify 12 記録、6 file) で、本物の matplotlib Figure を layout check へ通す。
-  実データで実走して 3 成果物を確かめた (下の proof chain)。
+fig6 と同じ生成器なので適合の形は同じである — §1 は 5 標本・median・効果をその場で再計算して hash 束縛の certification と照合する (判定は凍結 report を権威として読む。fig5 節の「作図規約への適合」が書く限定例外と同じ)、§2 標本 + 平均 ± t95 CI (df 4、標本の記述)、§3 stock median の破線、§6 provenance (入力の path と SHA-256・測定条件・主要数値・caption・再現 argv)、§9 保存前の layout check。本図で違うのは次だけ。
+
+- §5: 図中ラベルは `no backoff` / `fixed 2 us`、panel 題と脚注の workload 名 (read-heavy、rratio 95 / rr95) だけ。
+- §9: layout check は 2 行 × 1 列 (axes 数の不一致も拒否)。
+- §10: fixture は実寸 (1 workload × 2 cell × 5 標本、verify 12 記録、receipt 2 frame × 2 cell、6 file) で本物の Figure を layout check へ通す。実データで実走して 3 成果物を確かめた (下の proof chain)。
 
 ## キャプション正文
 
@@ -1420,7 +1423,7 @@ certification.json・raw manifest・WAL から書式化し、限定の固定文 
 性能 reject は正しさ証拠を取り消さない / 1 attempt・5 標本で floor 超・再現性・研究の成否・read-heavy 一般を判定しない / B-10 は履歴的照合で pool しない・A-2 と pool も前後比較もしない /
 CI は標本の記述) を逐語で含む。
 
-> Figure 11. A-6 formal certification attempt a6-20260908b (outer status: reject). The single workload campaign was request 982234.nqsv on bnode031 at 2026-09-07T16:29:41.491476+00:00; with one policy workload, the outer status is that workload's verdict itself. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. The median effect copied from certification is read-heavy (rr95) fixed 2 us -5.7841%. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined median ratio: the adopted cell's median did not exceed the stock cell's median. This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy or that static backoff is harmful for read-heavy in general. The bottom row is a descriptive leading indicator: one aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all 2 cells were certified, but this is not a performance certification, and the performance reject does not withdraw that correctness evidence. L01 limits that evidence to point-key traces; under D1257 the correctness argv was not independently recorded. The raw manifest binds canonical condition-admission records reporting use_class="paper" and admitted=true for all 2 policy cells; the original supply and meaning records are not retained in this artifact. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, CCBench pin 511c953, no perf, trace-disabled performance. The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, not an independent reproduction, and are not pooled here; the A-2 attempts measured other workloads and are neither pooled nor compared as before/after.
+> Figure 11. A-6 formal certification attempt a6-20260908b (outer status: reject). The single workload campaign was request 982234.nqsv on bnode031, campaign claim recorded at 2026-09-07T16:29:41.491476+00:00; with one policy workload, the outer status is that workload's verdict itself. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. The median effect copied from certification is read-heavy (rr95) fixed 2 us -5.7841%. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined median ratio: the adopted cell's median did not exceed the stock cell's median. This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy or that static backoff is harmful for read-heavy in general. The value is not extrapolated to other read ratios, machines, CCBench pins, or concurrency-control protocols. The bottom row is a descriptive leading indicator: one abort-rate observation per cell, taken from the repetition whose throughput is closest to the median (the runner's representative-repetition rule), with no confidence interval and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all 2 cells were certified. This is not a performance certification. The performance reject does not withdraw that correctness evidence. That evidence is limited: L01 limits it to point-key traces; under D1257 the correctness argv was not independently recorded; artifact hashes alone are not compile-out proof (the evidence is source-routed); and src_token equality does not by itself establish semantic identity of the whole translation unit (limitations (i) to (v) of the results note). The raw manifest binds canonical condition-admission records reporting use_class="paper" and admitted=true for all 2 policy cells; the original supply and meaning records are not retained in this artifact. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, CCBench pin 511c953, no perf, trace-disabled performance. The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, not an independent reproduction, and are not pooled here; the A-2 attempts measured other workloads and are neither pooled nor compared as before/after.
 
 ## proof chain
 
@@ -1429,9 +1432,10 @@ CI は標本の記述) を逐語で含む。
 - 標本の由来 → durable authority の WAL `bench_done` と raw cell JSON (provenance の `external_inputs` に root 相対 path と SHA-256)
 - 入力の束縛 → tracked `raw-manifest.json` の `files` (provenance の `tracked_inputs`) と生成器の pin 表、稿 §5.1 の表
 - source identity → 受領証 / raw / WAL / certification の 4 者で `src_token` が一致すること、stock cell は `stock`、adopted cell は非 `stock` であること
-- 正しさの記録 → `certification.json` の `cells[].correctness` (2 cell とも `status = certified`、legacy 1・performance 5)。性能の認証ではない
+- 正しさの記録 → `certification.json` の `cells[].correctness` (2 cell とも `status = certified`、legacy 1・performance 5)。性能の認証ではなく、射程は稿 §4 限定 4 (i)〜(v)
 - 限定と条件の言い方 → 稿 (provenance の `caption_source`、SHA-256 束縛)
-- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py` (`test_landed_fig11_repo_closure_and_caption_when_present`)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py` (`test_landed_fig11_repo_closure_and_caption_when_present`: 着地 bytes の SHA-256、caption の逐語収録、
+  caption_source の現 SHA-256、provenance と tracked certification.json / raw-manifest の値の直接照合)
 - 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-18-a6-certification-reject.md`
 - 判定の性質と関係の裁定 → D12 (protocol status を成否の宣告へ拡張しない)、D1993 項 2 (性能 reject は正しさ証拠の欠落でない)、[T-2430] (B-10 との整合は履歴的照合、反復 attempt は行わない)
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
@@ -1442,8 +1446,8 @@ CI は標本の記述) を逐語で含む。
 着地 file の現物 SHA-256 の一致を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
 
 - `fig11_a6_certification_reject.png` SHA-256: `6781f24be93699c7443b784ec5167a7ab1b590c6d7a89fa07fc68504b6fd1549`
-- `fig11_a6_certification_reject.pdf` SHA-256: `93cc6ce0aa808a5b3a1a739e7275d67980abd1e05b97a2c40717334c56de2808`
-- `fig11_a6_certification_reject.provenance.json` SHA-256: `1fdf11a025a1451fd8913f4cb62bfed76bf065abfd1379ddc7225a7ceb6721db`
+- `fig11_a6_certification_reject.pdf` SHA-256: `dcaf1b26d5153c650ea12f8b49773239a12a8a4cbc6d967d1e7399af4701df26`
+- `fig11_a6_certification_reject.provenance.json` SHA-256: `3f57baff302c43d9dede1e4c48ee94c011e3befe964928ec2283895eaeb22f16`
 
 provenance が `caption_source` として束縛する稿の SHA-256 は `34a968428f867ce26479abe37320946b6eb8149007244dfe1d18a18446633850`
 (稿は凍結物で、着地後に変わらない)。
