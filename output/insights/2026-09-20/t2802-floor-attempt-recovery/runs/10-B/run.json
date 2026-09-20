@@ -1,0 +1,32 @@
+{
+  "run": "10",
+  "condition": "B",
+  "pair_slot": 3,
+  "condition_worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2802-floor-attempt-recovery",
+  "expected_sha": "7adf2eea6e5a187954094344448726372d7139a3",
+  "tracked_diff_stat_sha256": "b0f872d0ffa5da0214fa2d8ec68693bdfb750e7a80baf8ec3a9595b003335075",
+  "valid_tree": true,
+  "measurement_tip": "7adf2eea6e5a187954094344448726372d7139a3",
+  "tip_sha": "7adf2eea6e5a187954094344448726372d7139a3",
+  "tip_sha_after": "7adf2eea6e5a187954094344448726372d7139a3",
+  "main_sha_at_launch": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+  "submitted_at": "2026-09-20T13:40:33+0900",
+  "finished_at": "2026-09-20T13:50:57+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/5becb04eec3c18c891123cef695cecdc",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 11.55,
+  "rc": 0,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 1,
+    "load1_max_exclusive": 30.0,
+    "leader_query": "ps -eo args | grep '[d]ev_wave_wait.py' | grep ' acceptance' | grep -vc <slug>"
+  }
+}
