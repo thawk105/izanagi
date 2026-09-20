@@ -5102,3 +5102,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-20","base":"0c951fd5007377137bd599536249436966017f1a","content_sha256":"8576dd86e17624e1765d54320329ad1692964c87648c28ef041c5b8f6329570d","seq":2,"tested_tip":"82705b75480a834dd0962ff3f1b438206699aee2","wave":"dev-wave-fig13-b10-waiting-grid","wave_ref":"refs/heads/worktree-dev-wave-fig13-b10-waiting-grid"}
 
 - {"allocations":{"T:k2-originals-lost-readme-stale-note":"[T-2816]"},"authored":"2026-09-20","base":"fff438637c728d00a9b9527006b4a30befd36611","content_sha256":"c3108d2bfda7e96d9b8239610349e8684da4a4e5513e7932f04fac82fbc9147c","seq":1,"tested_tip":"bc66f8b4c6e1b5a83e866e5a24efefa5fc52d9c8","wave":"dev-wave-k2-loop-originals-lost-downstream","wave_ref":"refs/heads/worktree-dev-wave-k2-loop-originals-lost-downstream"}
+
+- {"allocations":{},"authored":"2026-09-20","base":"e19e80365527e8f8bab7c7c39da1b570e9ac0af1","content_sha256":"badddf984c4c098525a7ea9bad408a4c9fa8cbe70684ac9ce82c02dcf73405c5","seq":1,"tested_tip":"56e00b2f379c8a9783e1e10bb813f3f52cbd4ac2","wave":"dev-wave-t2813-o26-inventory","wave_ref":"refs/heads/worktree-dev-wave-t2813-o26-inventory"}
