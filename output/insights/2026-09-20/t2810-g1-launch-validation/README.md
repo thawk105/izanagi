@@ -185,7 +185,12 @@ baseline PASSED、M0 SURVIVED (harness の SURVIVED 検出の正例)、M1〜M14 
 
 ## 10. 段 8 — dev-wave 改善候補
 
-(段 8 で記録)
+- 候補 1 (一次資料 §5 の α 文言「C < 導入 < G」が現物 topology と不一致、N4): brief 前の前提実測 (DW-S01) で発見できたので手順の欠落ではない。記録のみ、docs 変更なし。
+- 候補 2 (pin 前進が policy epoch 経由で held 真値 `_ACTIVATED_G1_REFUSALS` を静かに古くし、hold により受入で赤にならなかった): routing 1 (同型再発) として
+  failures F10「pin 前進で腐る構造」へ再発追記 (`docs/spool/failures/…-3.md`)。DW-O09 (pin 閉包) への「値 pin は間接依存 (policy sha) でも古くなる」の追記は
+  L2 予算の範囲で判断が要るので入口・reference は変えず、memory `ccbench-pin-advance-execution-facts` に「policy epoch を動かす wave は held 真値の再実測を
+  帰結に含める」を追記 (恒久対応の実体)。
+- F100 再発 (他 worktree へ `cd`) は failures fragment に記録済み。command 入口・reference の変更はゼロ。
 
 ## 11. 収録物
 
