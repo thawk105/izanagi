@@ -1,0 +1,343 @@
+{
+  "schema": "izanagi-k2-loop-flow/v1",
+  "figure_created": "2026-09-20",
+  "caption_source": "docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md",
+  "reference_ids": [
+    "K2",
+    "B-4",
+    "R0",
+    "T-2795"
+  ],
+  "roles": [
+    {
+      "id": "planner",
+      "name": "planner-v4",
+      "definition_path": ".claude/agents/planner-v4.md",
+      "tools_none": true,
+      "label": "Planner",
+      "sublabel": "tools: [] (structural blockade); outputs direction and magnitude, no value, no mechanism",
+      "source_anchor": "§1.4"
+    },
+    {
+      "id": "coder",
+      "name": "coder-v4-autonomous-k2",
+      "definition_path": ".claude/agents/coder-v4-autonomous-k2.md",
+      "tools_none": true,
+      "label": "Coder",
+      "sublabel": "tools: [] (structural blockade); outputs a backoff literal and self-reports knowledge use and data boundary",
+      "source_anchor": "§1.4"
+    },
+    {
+      "id": "critic",
+      "name": "critic",
+      "definition_path": ".claude/agents/critic.md",
+      "tools_none": false,
+      "label": "Critic",
+      "sublabel": "legacy role with Bash; reads digest and WAL; not B-4 material",
+      "source_anchor": "§1.4"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "parent",
+      "label": "Parent session: typed projection",
+      "sublabel": "builds input JSON; full inline sending and login preflight checks according to round records",
+      "source_anchor": "§1.4"
+    },
+    {
+      "id": "planner",
+      "label": "Planner",
+      "sublabel": "tools: [] (structural blockade); outputs direction and magnitude, no value, no mechanism",
+      "source_anchor": "§1.4"
+    },
+    {
+      "id": "coder",
+      "label": "Coder",
+      "sublabel": "tools: [] (structural blockade); outputs a backoff literal and self-reports knowledge use and data boundary",
+      "source_anchor": "§1.4"
+    },
+    {
+      "id": "proposal",
+      "label": "Proposal file",
+      "sublabel": "a backoff hole literal; known-value re-proposals are recorded, not counted as new values",
+      "source_anchor": "§1.5"
+    },
+    {
+      "id": "evaluation",
+      "label": "Evaluation: Pegasus compute-node job",
+      "sublabel": "separate trace-enabled verify and trace-disabled bench builds and runs; campaign WAL terminal record",
+      "source_anchor": "§1.1"
+    },
+    {
+      "id": "critic",
+      "label": "Critic",
+      "sublabel": "legacy role with Bash; reads digest and WAL; not B-4 material",
+      "source_anchor": "§1.4"
+    }
+  ],
+  "knowledge": {
+    "label": "K2 knowledge source (identical source bytes in all rounds)",
+    "sublabel": "a measurement WAL from another machine; manifest receipt verified inside the job; declared as data, not instructions",
+    "source_anchor": "§1.2"
+  },
+  "diagnosis_fields": [
+    "attribution",
+    "recommend",
+    "avoid",
+    "uncertainty",
+    "data_boundary",
+    "source_sha256"
+  ],
+  "planner_keys": [
+    "current_perf",
+    "leading_indicators",
+    "whiteboard",
+    "knowledge_input"
+  ],
+  "coder_keys": [
+    "baseline",
+    "planner_direction",
+    "whiteboard",
+    "knowledge_input",
+    "leakproof_context"
+  ],
+  "columns": [
+    {
+      "id": "round-1",
+      "kind": "round",
+      "label": "Initial round",
+      "date_proposal": "2026-09-16",
+      "date_evaluation": "2026-09-16",
+      "source_anchor": "§2.2 巡 1",
+      "cells": {
+        "parent": {
+          "sublabel": "current_perf from the knowledge source's last bench record; whiteboard empty",
+          "has_diagnosis": false
+        },
+        "planner": {
+          "instance": "planner-1",
+          "direction": "decrease",
+          "magnitude": "medium",
+          "discipline6": "uncertainty prose: no instruction-like strings"
+        },
+        "coder": {
+          "instance": "coder-1",
+          "value": 20,
+          "discipline6": "structured field: no instruction-like content"
+        },
+        "proposal": {
+          "instance": "proposal-1",
+          "value": 20,
+          "known_value": true,
+          "evaluated": true,
+          "sublabel": "known value re-proposal, evaluated under the round authorization"
+        },
+        "evaluation": {
+          "job": "1216",
+          "refused_jobs": [],
+          "verdict": "serializable",
+          "certified": true,
+          "anomalies_none": true,
+          "stop": "continue",
+          "sublabel": "bnode host; legacy verify condition"
+        },
+        "critic": {
+          "instance": "critic-1",
+          "attribution": "not attributable to any design choice",
+          "recommend": "same-campaign stock control first ( R0 )",
+          "discipline6": "trust-boundary section: no instruction-like strings"
+        }
+      }
+    },
+    {
+      "id": "round-2",
+      "kind": "round",
+      "label": "Next round",
+      "date_proposal": "2026-09-16",
+      "date_evaluation": "2026-09-18",
+      "source_anchor": "§2.2 巡 2",
+      "cells": {
+        "parent": {
+          "sublabel": "current_perf and whiteboard from the previous evaluation",
+          "has_diagnosis": false
+        },
+        "planner": {
+          "instance": "planner-2",
+          "direction": "decrease",
+          "magnitude": "small",
+          "discipline6": "uncertainty prose: no instruction-like strings"
+        },
+        "coder": {
+          "instance": "coder-2",
+          "value": 25,
+          "discipline6": "structured field: no instruction-like content"
+        },
+        "proposal": {
+          "instance": "proposal-2",
+          "value": 25,
+          "known_value": false,
+          "evaluated": true,
+          "sublabel": "outside the known set"
+        },
+        "evaluation": {
+          "job": "4954",
+          "refused_jobs": [
+            "4947"
+          ],
+          "verdict": "serializable",
+          "certified": true,
+          "anomalies_none": true,
+          "stop": "continue",
+          "sublabel": "the refused submission did not reach the campaign"
+        },
+        "critic": {
+          "instance": "critic-2",
+          "attribution": "not attributable; runs are not contemporaneous",
+          "recommend": "decrease, large; same-job stock control first ( R0 )",
+          "discipline6": "trust-boundary section: no instruction-like strings"
+        }
+      }
+    },
+    {
+      "id": "after-round-2",
+      "kind": "not-a-round",
+      "label": "After evaluation (not a round)",
+      "date_proposal": "2026-09-18",
+      "date_evaluation": null,
+      "source_anchor": "§2.2 巡 2",
+      "cells": {
+        "parent": {
+          "sublabel": "same measurement as the next column; no diagnosis key (typed path not yet implemented)",
+          "has_diagnosis": false
+        },
+        "planner": {
+          "instance": "planner-3",
+          "direction": "decrease",
+          "magnitude": "medium",
+          "discipline6": "uncertainty prose: no instruction-like strings"
+        },
+        "coder": {
+          "instance": "coder-3",
+          "value": 20,
+          "discipline6": "structured field: no instruction-like content"
+        },
+        "proposal": {
+          "instance": "proposal-3",
+          "value": 20,
+          "known_value": true,
+          "evaluated": false,
+          "sublabel": "known value re-proposal; not evaluated by ruling"
+        },
+        "evaluation": null,
+        "critic": null
+      }
+    },
+    {
+      "id": "round-3",
+      "kind": "round",
+      "label": "Final round",
+      "date_proposal": "2026-09-19",
+      "date_evaluation": "2026-09-19",
+      "source_anchor": "§2.2 巡 3",
+      "cells": {
+        "parent": {
+          "sublabel": "same measurement as the previous column, plus diagnosis from the previous critic verbatim",
+          "has_diagnosis": true
+        },
+        "planner": {
+          "instance": "planner-4",
+          "direction": "decrease",
+          "magnitude": "large",
+          "discipline6": "uncertainty prose: no instruction-like strings"
+        },
+        "coder": {
+          "instance": "coder-4",
+          "value": 10,
+          "discipline6": "structured field: no instruction-like content"
+        },
+        "proposal": {
+          "instance": "proposal-4",
+          "value": 10,
+          "known_value": false,
+          "evaluated": true,
+          "sublabel": "outside the known set; matches diagnosis candidate (self-reported advice, not causation)"
+        },
+        "evaluation": {
+          "job": "10761",
+          "refused_jobs": [],
+          "verdict": "serializable",
+          "certified": true,
+          "anomalies_none": true,
+          "stop": "continue",
+          "sublabel": "same-job stock control not achieved"
+        },
+        "critic": {
+          "instance": "critic-3",
+          "attribution": "not attributable again",
+          "recommend": "same-job stock control first ( R0 )",
+          "discipline6": "trust-boundary section: no instruction-like strings"
+        }
+      }
+    }
+  ],
+  "arrows": [
+    {
+      "id": "m1",
+      "kind": "measurement-reflux",
+      "from": "round-1.evaluation",
+      "to": "round-2.parent",
+      "label": "measurement reflux: current_perf and whiteboard"
+    },
+    {
+      "id": "m2a",
+      "kind": "measurement-reflux",
+      "from": "round-2.evaluation",
+      "to": "after-round-2.parent",
+      "label": "measurement reflux"
+    },
+    {
+      "id": "m2b",
+      "kind": "measurement-reflux",
+      "from": "round-2.evaluation",
+      "to": "round-3.parent",
+      "label": "measurement reflux: current_perf and whiteboard"
+    },
+    {
+      "id": "d1",
+      "kind": "diagnosis-reflux",
+      "from": "round-2.critic",
+      "to": "round-3.parent",
+      "label": "diagnosis reflux: typed path, identical for planner and coder"
+    },
+    {
+      "id": "a1",
+      "kind": "absent",
+      "from": "round-1.critic",
+      "to": "round-2.parent",
+      "label": "no typed path: diagnosis not delivered"
+    },
+    {
+      "id": "a2",
+      "kind": "absent",
+      "from": "round-2.critic",
+      "to": "after-round-2.parent",
+      "label": "no diagnosis key"
+    },
+    {
+      "id": "a3",
+      "kind": "absent",
+      "from": "round-3.critic",
+      "to": null,
+      "label": "no further proposal in the recorded scope"
+    }
+  ],
+  "stock_control": {
+    "label": "same-job stock control",
+    "sublabel": "not achieved; ruling pending ( T-2795 )",
+    "source_anchor": "§2.2 巡 3"
+  },
+  "discipline6": {
+    "label": "data-boundary check",
+    "definition": "role self-report that external input contained no instruction-like strings; coder as a structured field, planner in uncertainty prose, critic in a trust-boundary section; not a mechanical gate"
+  }
+}
