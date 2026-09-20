@@ -321,6 +321,34 @@
   出所に留め、「未発効」「未確定」「未実施」型の状態語は起草前に当日の worklog entry 見出しを全部読んで grep で反証し、稿の限定を要約するときは
   条件 (検査 mode の内訳・集約方法・実行時刻) を稿の逐語で引く。一次資料から事実を再抽出する docs-only wave に read-only レビュー 1 本を残す
   規則 (D2148 項 11) の適用例が 1 つ増えた。
+
+- **再発: 2026-09-20 (near miss)** — [T-2501] wave (docs のみ) の親が、専用 handoff の段 1 brief と段 4 裁定の見出しに書いた JST 時刻
+  (21:05 / 21:12) を `date` で実測せず推定で書いた。実際はどちらも commit 1 (`git log --format=%ci` で 21:04:51) より前で、brief は開始 gate
+  (`startup-gate.log` の mtime 20:53:36) の後である。段 7 で commit 日時と mtime を採ったときに気づいた。逐語 (insight `verbatim/brief.md` /
+  `verbatim/adjudication.md`) は改変せず、insight README §2 に訂正を書いた。成果物 (runbook / glossary) への影響は無い。
+  原因は 2026-09-18 の再発と同型 — wave 冒頭の `date` 1 回に体感の経過を足した。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
+
+- **再発: 2026-09-20 (論文ストーリー 2026-09-20 第 2 版 `2026-09-20b.md` の wave)** — (1) **実害:** 「『非列挙』の定義をどう置き直すかは
+  未裁定である」という文が、2026-09-02 版 (fold `45994d900` 04:42、当時は真) から 2026-09-05 / 09-14 / 09-17 / 09-19 / 09-20 の 5 版へ
+  付け替えられずに運ばれ、D1441 (2026-09-02、fold `89a551d0e` 07:43) が操作的定義への置き直しを裁定した後も凍結物 5 本に偽が残った。
+  2026-09-20 版は §8 B-5 で D1441 を引きながら §2 (b)・§3 項目 2・§7・§8 B-1 で「未裁定」と書き、版内で矛盾していた。5 版の親と各段 6
+  レビューはいずれも拾わず、今回はユーザーが依頼文で名指しした。転写元が一次資料でなく前版の本文である点で F1 と同型。第 2 版は
+  4 か所を D1441 の裁定内容へ直し、冒頭の訂正 1 と README の訂正一覧に記録した (旧 5 版は凍結物として書き換えない)。
+  (2) **near-miss 3 件 (段 6 の read-only レビューが捕捉、凍結前に訂正、実害なし):** S-1a 単独稿の限定件数を cohort2 稿の「16 件」を写して
+  16 と書いた (現物は 19)、fig8b の PDF SHA-256 を 16 桁の目視で `c5454544…` と写した (現物・provenance は `c5454454…`。P2-4 sweep 稿 wave
+  の教訓「転記 SHA は集合比較で検査する」の再発 — 訂正後に job dir の `check_hashes.py` で版の 8 桁 prefix 43 件を figures / results /
+  provenance の現物と集合比較した)、2026-09-02 版の着地時刻を `git log --first-parent main -- <file>` の結果 (別 wave が main を取り込んだ
+  merge `b664df20c` 07:14) から採り、導入 commit `ad88a391c` 04:22 とその wave の fold `45994d900` 04:42 を見なかった。
+  (3) **near-miss (受入の claim 前に親の自己点検で訂正、実害なし):** 版の §8 B-1 ほか 5 箇所で「非列挙」の実装残件を「起票された項目も無い」と
+  書いたが、次の一手には [T-1871] (D1441 の 4 点を事前登録の追補として置く — 2026-09-02 の entry 1184 で「裁定済み → 実装待ち」) が carry stub
+  `- [T-1871] (N)` で残っていた。親は次の一手を語 (「非列挙」「D1409」) で grep して stub の本文を遡らず、段 6 の 2 レビューも拾わなかった
+  (レビュー 10 は「段階 B の全履歴の不在は証明していない」と自ら限定)。peer の着地通知 (追補 1 の着地 = entry 1752) を契機に直した。
+  **carry stub は本文を持たないので、次の一手の走査は ID を carry 鎖の実体まで遡ってから語で照合する** (第 24〜26 回 /rulings の
+  「carry 鎖の実体まで解決」と同じ手順)。
+  一次資料: `output/insights/2026-09-20/paper-story-20260920b/README.md` §4、同 `verbatim/review-out.md` 所見 1〜3。
+  恒久対応は変更なし — 版の全面再導出では「未裁定」「裁定待ち」「未実施」型の状態語を D 台帳の見出しで検索して裁定の有無を確かめ
+  (前版の判定を継承しない)、転記した SHA は集合比較で検査し、版の着地時刻は file の導入 commit と fold commit から採る (first-parent の
+  merge は着地時刻ではない)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -19854,6 +19882,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   焦点走を投げ、後発が `reason=orphan-hold` で子を起動せずに戻った (rc=16)。焦点走は別 worktree (実装子 A の
   worktree、同じ差分) から投げ直して実害なし。`DW-O26` の「同一 worktree からの dispatch は全種を直列にする」を
   親が投入直前に確かめなかった遵守の失敗。
+
+- **再発: 2026-09-20** — fig13 (B-10 待ち方 grid の forest 図) wave で、親が実装 commit 直後の provenance full 監査を同一 wave worktree から
+  背景 dispatch し (request 13493.nqsv、queue 待ち 12 分)、その待ちの間に段 6 fix1 の実装 commit と docs commit を同じ worktree に作った。
+  監査は起動時に HEAD (`680d6136d`) を固定し、終了時の HEAD (`225d0b311`) と不一致で `実行不能: HEAD が監査中に変化した` (rc=2、違反判定ではない) を返した。
+  後発 dispatch の投入ではなく **HEAD の変更**が原因で、直列化の対象に「dispatch が終わるまで同一 worktree の commit / merge / checkout を作らない」も
+  含めて読む必要がある。実害なし — 全 commit を固めた後に監査を再走して閉じた。qdel も hold の手動削除もしていない。
 ### F657. 環境の偶然への依存を消す是正が、別の環境依存を持ち込んだ [テスト代表性] [恒真ゲート]
 
 - 事象: process 全体の fd 件数比較をやめ、clean な子 process 内で「開始前後の全 fd identity
@@ -28009,3 +28043,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: turn registry は ff の前に ticket を `mutating` にし、`_finish_land_turn` は `landed-postcondition-failed` を「未解決の mutating」として残す。`_observe_dead_land_turn` の回復は「main == main_before (rolled-back)」「main == landing_tip かつ expected_fold == noop (done)」「main^1 == landing_tip の fold commit (done)」の 3 形しか知らず、**「ff 済み・fold 未開始 (expected_fold = planned)・fold state 無し」を解決できない**。D16 経路の test (`test_gitlink_change_lands_but_cannot_report_success_before_d16_sync`) と dead mutating の test (`ff-done`) はいずれも fragment 無し (noop fold) で書かれており、pending fragment との組合せが代表されていなかった。
 - 恒久対応: `tools/dev_wave_land.py` の `_observe_dead_land_turn` にこの形を「landed-fold-pending」として解決する分岐 (同一要求は `waiting` で already-landed 経路へ進み fold を行う、他要求は dead ticket を `waiting` に書き換えて election を塞がない) と、`_finish_land_turn` で同形を `mutating` に残さない分岐を足し、`orchestrator/tests/test_dev_wave_land.py` に pending fragment 付きの D16 変種と `ff-done-fold-pending` 観測 test、不明な mutating が従来どおり raise する負例を固定した (本 wave の fix commit、insight `output/insights/2026-09-20/t2304-pin-advance/README.md` §6)。
 - 再発検知: 上記 test 3 本 (pending fragment 付き D16 の同一要求再実行が `landed` + fold commit、後続要求が塞がれない、不明形は raise)。
+
+### F1034. cleanup 引き渡し script の退避 tar が空のまま worktree 4 本を撤去し、K2 loop の campaign 原本を失った [恒真ゲート] [手順漏れ] [証拠破損]
+
+- 事象: 2026-09-20 19:25 JST、`/cleanup-branches` の裁定候補 1 (unlocked・main 取込済み・非占有だが未追跡 `output/` を抱えた
+  worktree 4 本) を、Claude が repo 外に書いた引き渡し script `/work/1/SFC/tanab/cleanup-20260920/handoff.sh retire` で
+  ユーザーが撤去した。退避 step (`git diff HEAD` + 未追跡 file の tar) を撤去の前に置いていたが、`backup/20260920-192523/*/untracked.tgz`
+  は 4 本とも 0 entry だった。tracked の差分は 0 だったので失ったのは未追跡 file だけで、K2 loop の campaign 原本
+  (`submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` の WAL・`agent_outputs.jsonl`・`loop_state.json`・
+  `s4_loop_digest.txt`・`campaign.lock`・受領証) が round 3 は全部、round 2 は AO と `campaign.lock`、roundtrip (t2588) は全部
+  (sha256 の記録も無し) 消失した。t2698 は wave 自身の `run-backup/` bundle が在り実害なし。Lustre に snapshot は無く復元不能。
+  損失表と写しの照合は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`
+- 根本原因: (1) `tar --null -T - -czf out -C "$w"` の順で書いたため、`-T -` の file 名が script の cwd (repo root) 基準で解決されて
+  全件 stat 不能になり、`2>/dev/null || :` がそれを握り潰した — 退避 step が何もせず「成功」する恒真ゲート。(2) 候補判定で
+  submit-tree の `?? output/exploration/` を「単なる dirty」と見なし、各 wave の insight「証拠の所在」節 (「campaign WAL は repo へ
+  複製していない、原本は submit-tree の下」) と round 3 HANDOFF の「submit-tree は残置」を引かなかった。(3) script を実データで
+  通す前にユーザーへ渡した (読み取り subcommand だけ実走し、退避 step は撤去を伴うため試さなかった)
+- 恒久対応: `handoff.sh` を同日 fail-closed に修正 (`tar -C "$w" --null -T -`、エラー非抑止、`ls-files -o` の list と tar の非 dir entry 数を
+  照合し不足なら撤去せず rc=6。生きている worktree で 72/72 を実測)。memory `cleanup-discipline` に「退避 tar の -C 順・entry 検算・
+  `?? output/exploration/` は原本」を追記。`/cleanup-branches` §2・§3 への反映 (未追跡 `output/` の原本判定に insight「証拠の所在」を
+  引く、退避の検算を撤去の前提にする) は [T-2814] で別 wave が行う
+- 再発検知: 退避 dir の `untracked-list.txt` と `untracked.tgz` の entry 数照合 (修正後の script が rm 前に自動で行う)。
+  worktree 撤去を含む cleanup では、撤去後に `backup/*/untracked.tgz` の entry 数 > 0 を報告に載せる

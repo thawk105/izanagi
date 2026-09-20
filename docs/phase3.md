@@ -18,6 +18,12 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 本体論文の日本語関連研究節を新規起草した (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。
+  `output/insights/2026-09-20/paper-related-work-ja/related-work.md`。正典 `docs/related-work/README.md` と
+  `claim-survey/` の範囲だけで書き (新規の文献取得は 0 件、D1760 / D1931 の停止を「調査不要」へ広げない)、差別化の核 3 点
+  (D1598) と落とせない限定 3 つは story 2026-09-20 版 §1 に揃え、軸 1 = `RW1`・軸 3 = `RW0` の成熟度を本文の限定にした。
+  正典・凍結物・版は不変。文書成果の完了であり、先行研究調査の完了・優先権主張・Phase 3 全体の完了を意味しない。
+
 - [x] 本体論文の日本語結果・考察草稿を 2026-09-20 版として再導出し、09-10 の前稿 (entry 1436) を supersede した
   (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-20/paper-results-ja/results-discussion.md`。
   09-10 以後の results 稿 15 本と図 fig4〜fig12・fig8b を主張ごとの 12 節・表 15 に束ね、数値は各稿の表の逐語、
@@ -477,6 +483,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      certified、stockは同campaignの2起動目がone-shot claim leaf (D464) に認可前で拒否され pair 不成立
      (STOCK性未確認、再投入なし、4巡目未投入)。修復方向は裁定パッケージ。記録は
      `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
+   - [x] [T-2815] K2 loop 3巡の campaign 原本消失 (2026-09-20 19:25 JST、cleanup 事故 F1034) の下流影響を照合した (docs のみ、実装差分ゼロ)。
+     3巡の値・判定・稿・図は不変。round 3 の `loop_state.json` と round 2/3 の AO は repo 派生物から byte 一致で再構成でき、
+     WAL は内容同一 (canonical ref 5/5) まで、roundtrip は転記値のみ。4巡目の入力元 (round 3 派生物からの射影 / 別走 /
+     pair 走) は裁定パッケージ。記録は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。

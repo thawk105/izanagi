@@ -1,0 +1,11 @@
+porcelain before: empty
+before sha256=687d7412caca3b5bccf90548bc657508036e23e66117d814fe06c98665aad6ad bytes=18279
+mutated: '4 群' -> '5 群' (bytes unchanged 18279)
+git diff --stat:
+docs/dev-wave/operations.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+check_docs rc=1
+  check_docs: 1 件の違反
+    - docs/dev-wave/operations.md: 可視 H2 節 'DW-O26 — 焦点走の consumer test 拡張' の節全体が exact 契約と不一致 — sections=1
+restored: sha256 matches HEAD blob, porcelain empty
+RESULT: KILLED (check_docs rc=1, exact pin mismatch)
