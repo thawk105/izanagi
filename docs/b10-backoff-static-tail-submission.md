@@ -24,6 +24,13 @@ Pegasus の投入経路へつなぐ操作手順だけを持つ。格子・判定
    mode をこの campaign から読み、自分の mode と比較する。探索走の数値は本走の判定に入らない。
 5. 出力親は repo の外にあり、repo を祖先に持たない絶対 path であること (既存 3 系列と同じ)。
 6. **投入 checkout の凍結 tree (`output/s1-freeze` + `output/s8b-freeze` の全 file) の bytes digest が、その checkout の job script の `EXPECTED_FREEZE_TREES_SHA256` と一致すること。** 凍結 v2 g1 の世代導入 G (`output/s8b-freeze/holdout_freeze.v2.g1.json`) を main に載せた版以降、この定数は G を含む tree の値であり、この版の job script は G を欠く tree・file の追加・bytes の変更を測定前の digest 検査で `fail 2` として拒否する (旧 script と旧 tree を備えた旧 checkout の組はこの更新で失効しない。旧 cohort の記録値は測定時点の事実として不変)。
+7. **hydrate 済みの third-party staging が投入元 checkout にあること (現行 job body の前提)。**
+   job body は `<repo root>/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/` 配下の
+   gflags / glog が `tools/pegasus/policy.json` の pin に exact 一致し clean であることを測定前に検査し、
+   無ければ `dependency_policy_contract` の `fail 2` で止まる。新しい worktree にはこの staging が無いので、
+   投入前に `tools/pegasus/README.md` §6 の `fetch_third_party.py hydrate` をその checkout で済ませておく
+   (計算ノードは外部ネットワークを持たない)。投入 script はこれを login で検査しない
+   (2026-09-19 の attempt 1 で実測、[T-2794])。
 
 ## 2. 3 workload の投入
 
