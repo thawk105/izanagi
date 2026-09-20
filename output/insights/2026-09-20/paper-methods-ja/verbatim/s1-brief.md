@@ -1,0 +1,12 @@
+## 段 1 brief (18:08)
+- 研究前進: 本体論文 (日本語) の方法節と実装対応メモ。完了判定 = (1) 09-10 以後の 7 機構 (A-1 sized policy v3 と 1 attempt 認可の投入経路 + authorize-rerun、A-2/A-6 certification の receipt 束縛、B-10 静的右 tail・待ち方 grid の事前登録と driver、採用候補 2 genome の検証相、K2 型付き critic 診断 D2155、mocc trace-hook と witness、床値 pair protocol v3) が「実装済み」と「各実験で実際に使った」を区別して書かれ、(2) certified の意味が story 2026-09-20 版 §6 (固定条件で certified な correctness の観測 = 性能の判定ではない、build された bytes についての判定、`src_token` 束縛と限定 (i)〜(v)) と一致し、(3) 段 6 read-only review が GO
+- scope: docs-only。新規 file = `output/insights/2026-09-20/paper-methods-ja/{methods,implementation,README}.md`。前稿・story・実装・README (paper-story) は不変。英訳・新規実験・gate/検査/台帳の追加は scope 外 (依頼逐語)
+- 確定済みユーザー裁定: 依頼文 (軽量版 DW-C00、fresh worktree、前稿を上書きしない、certified を §6 に揃える、実装済み / 使用の区別)。D2148 項 11 (一次資料再抽出の docs-only は read-only review 1 本を残す)
+- 不変条件: 事実は一次資料 (D 本文・insight README・成果物 field・worklog entry) から取り、story の要約文は出所にしない (数値は方法節に転載しない = 前稿の裁定を継承)。時点語は日付 + entry/D 番号で書く。「実装済み」= 関数・経路の現行 main での存在、「使用」= attempt / entry を名指し。量化語 (「すべて」「唯一」「初めて」) は record で確かめてから書く
+- (P1) 前稿の 6 節構成 (対象と構成 / 変異生成と編集範囲 / 正しさ検証と反例還流 / 独立性能測定 / raw screening と certified 経路 / 選択と評価の射程) を保ち、新機構は該当節へ足す (親の provisional 裁定、攻撃対象)
+- (P2) 「現行実装」の基準は local main `fec4a8187`。story 2026-09-20 版は main `b7f970dfa` 基準なので、その後の着地 (1716 B-10 pin 更新 + chain land、1736 authorize-rerun、1744 verifier 容量、1745 意味 witness (b)(c)、1746 K2 pair launcher) は「実装済み・story 未反映」と明記する。稼働中の兄弟 wave (t-2792 attempt-0002 投入) は数えない
+- 成果物の形: methods.md (前稿同様 散文、性能値なし)、implementation.md (対応表を現行 main の関数名で再照合 + 新機構の行、読み分け表、実走・契約・未了の境界)、README.md (brief・review 逐語・検算・限界)
+- 分割方針: 段 2・3 省略 (設計択一なし・正しさ防壁に触れない・受理集合不変)。段 5 = 親が執筆。段 6 = codex read-only review 1 本 (レンズ A: 一次資料との事実照合・実装済み/使用の区別、レンズ B: 過大主張・時点語・certified 意味の §6 整合)、must-fix があれば親が直し focus 1 本 (DW-O16 上限内)
+- 受入・実測環境: docs-only。焦点走 = check_docs 集合 (login bounded local → dispatch)、受入全走は門番 loop で計算ノード、land は `dev_wave_land.py`
+- 条件再評価: O08/O09/O10 = 非該当 (新規 path、pin・目録に不在を grep で確認)。O13 = 非該当 (gate 新設なし、依頼で scope 外)。O11 = 削除なし
+- 読む一次資料 (worklog entry): 1636/1687/1736 (A-1)、1702 (検証相)、1705 (B-7 fixed5)、1684/1691/1746 (K2)、1666/1701/1696 (mocc)、1639/1661/1693 (床値 pair)、1690/1737 (B-10)、1744/1745 (verifier 容量・意味 witness)、+ 該当 D (D2155/D2156/D2157/D2160/D2162/D2172/D2178/D2183)
