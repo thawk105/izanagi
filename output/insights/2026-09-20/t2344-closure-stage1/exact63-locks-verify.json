@@ -1,0 +1,147 @@
+{
+  "expected_wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+  "locks": [
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-write-heavy/campaigns/t2266-backoff-static-tail-v2-silo-write-heavy-sweep-ba50e41d/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "7f17e1c63b5db01b424c87cf5778635dd653dab2",
+      "lock_sha256": "fd0f544b7e9157221062e873b709afbe56fc60751a435e231ee32177b851f411"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-read-heavy/campaigns/t2266-backoff-static-tail-v2-silo-read-heavy-sweep-8c0d1b59/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "7f17e1c63b5db01b424c87cf5778635dd653dab2",
+      "lock_sha256": "3cfa232e31612bb3b2b3a7333aa18b07e74cde3f1e1883478f7ba37e931d006e"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-balanced/campaigns/t2266-backoff-static-tail-v2-silo-balanced-sweep-55f67740/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "7f17e1c63b5db01b424c87cf5778635dd653dab2",
+      "lock_sha256": "134ee39d2e537b606573c3ac961132bc595c4dc0c7eb65c58e0d42e2b5a8a61c"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-balanced/campaigns/t2418-backoff-static-explore-v1-silo-balanced-sweep-783ccbe8/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c49cdca1d40454ad006a6b583c61703b14dedd56",
+      "lock_sha256": "a2300ef27b4daa7be8ca86fb3f91ba8257d9c834729b95c66fa4d228b42a635c"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-read-heavy/campaigns/t2418-backoff-static-explore-v1-silo-read-heavy-sweep-a3c44399/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c49cdca1d40454ad006a6b583c61703b14dedd56",
+      "lock_sha256": "daf7c3119ebd17f50e98782fc4adc0a9f2e5f8c7f976788126bfabcecf6aeb29"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-write-heavy/campaigns/t2418-backoff-static-explore-v1-silo-write-heavy-sweep-c9cea61a/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c49cdca1d40454ad006a6b583c61703b14dedd56",
+      "lock_sha256": "6386c3c799071199f220f88a43d8ae7212d3507f529812c4b7d1d1b917821722"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-9064a9e0/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "0600887d92538b3f34d894f9674d202d0a29a578",
+      "lock_sha256": "484f3acf20c39d6570a0501fc65af0b6886fff1d0925d2873484b209f698f4ed"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-1c8d08f7/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "0600887d92538b3f34d894f9674d202d0a29a578",
+      "lock_sha256": "9ed76b03987b26ac09b8033523b7c0eaec1754c1a2f12748571ef149ef9c9a18"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-9cda88f0/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "0600887d92538b3f34d894f9674d202d0a29a578",
+      "lock_sha256": "1953e0fbe2b6448c4e2a7db2a8f18cf586d9813efa7b03fca3b2d279fde02d37"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-45feee64/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "8737cacb4bd286eb3e0784d16dba6eb85e5d6eab",
+      "lock_sha256": "5503fb0181efe38022beeb08c85775076f3cd1c3d90b5135daf21d40e156cfa7"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-d7cbfe58/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "8737cacb4bd286eb3e0784d16dba6eb85e5d6eab",
+      "lock_sha256": "7c975f4715ccf20b73311e8aa8e199f87ddcd9271204735b02c466d108d83d71"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-ed0b204e/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "8737cacb4bd286eb3e0784d16dba6eb85e5d6eab",
+      "lock_sha256": "4af8d0a2d6f1d6c395556f80fc685ee85cfb792b91126a33023aa1ab3a6fedc8"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-99c517a9/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "3f61c34084addf7befadcf9a0f72c7a7e9b789d3",
+      "lock_sha256": "d13c113650404f50159abbd04ee02b687433546c450f232e40a5162b885b80a6"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-4172d2ed/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "3f61c34084addf7befadcf9a0f72c7a7e9b789d3",
+      "lock_sha256": "949733343e2cbbc5492050be732b6e66a51d6268ab54eb0aae960c30a9408656"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260909b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-a4efd902/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "86bcea64e1e96b8c02660b93ce5ebcbde1966565",
+      "lock_sha256": "5812a6d729c51bce49170c0a0d858f83c05aecc8672821db0143a82b25fc26fa"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-b7-fixed5-regression-rr5-2b1c7c96/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c18a80967ed3d9a901b395116c23f90d6a554b36",
+      "lock_sha256": "b7a45abba77d564f1f33a66652f7efcb08af9f7858a7c04a93c2a881f60a0dbe"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-b7-fixed5-regression-rr95-78070af2/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c18a80967ed3d9a901b395116c23f90d6a554b36",
+      "lock_sha256": "3d11a76ddd5a24ca188dff08f3f9d15c5ab125689ebb70f9398d1d1c7aa1bb9e"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-b7-fixed5-regression-rr50-6e2177d3/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "c18a80967ed3d9a901b395116c23f90d6a554b36",
+      "lock_sha256": "bd9add69e558f2336333746dabda323387021e6702c2f8936a885e11f2370e73"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-20260917b-official/campaigns/backoff-sweep-silo-write-heavy-sweep-5e637735/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "1042a1bc95057fa03117d504cfa2b0fafaae60d0",
+      "lock_sha256": "a02f446d11772d415a8b9f32cc551a78ce0225ffa00056ea18fb131896191632"
+    },
+    {
+      "path": "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs/t1998-balanced-stock-inline-20260913T132723Z-548740-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "wire_sha256": "da939c53d8a8041c14d2bbaa2165a7bdf1dc66bb623385dee73734bf5106d1dc",
+      "exact_match_sorted_63": true,
+      "contract_loader_commit": "a551cdd3014708993475108f014aacbf32c21137",
+      "lock_sha256": "ba24c65d01ce80bb17d0ae1ff8f5242078c2cb7b9a6b3c502959542b61ba0c61"
+    }
+  ],
+  "n_63key": 20,
+  "n_exact_match": 20
+}
