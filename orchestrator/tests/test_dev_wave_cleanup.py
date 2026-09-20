@@ -559,6 +559,26 @@ def test_remove_child_detached_ancestry_and_empty_backup(tmp_path, monkeypatch):
         assert archive.getnames() == []
 
 
+def test_remove_child_detached_nonancestor_skips_bundle(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _git(case.child, 'checkout', '--detach')
+    _edit_child_manifest(case, branch=None)
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', case.head,
+                'main', check=False).returncode == 1
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    assert not case.child.exists() and not case.admin.exists()
+    assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['branch_deleted'] is False
+    assert receipt['deleted_branch_tip'] is None
+    assert receipt['integration_basis'] == 'owned-tree-match'
+    assert receipt['history_bundle'] is None
+    assert receipt['history_bundle_sha256'] is None
+    assert receipt['history_bundle_reason'] == 'detached child has no branch ref to bundle'
+    assert not (case.evidence / 'history.bundle').exists()
+
+
 def _argv(repo: Repo, **overrides: str) -> list[str]:
     values = {
         "main": os.fspath(repo.main),
@@ -2423,7 +2443,7 @@ def test_bundle_argv_requires_exact_evidence_path(operation):
     evidence = Path('/tmp/evidence')
     argv = ('bundle', operation, str(evidence / 'history.bundle'))
     if operation == 'create':
-        argv += ('a' * 40, '^' + 'b' * 40)
+        argv += ('refs/heads/x', '^' + 'b' * 40)
     cleanup._validate_git_argv(argv, evidence=evidence)
     for invalid in (argv + ('extra',), (*argv[:2], '/tmp/outside/history.bundle', *argv[3:]),
                     (*argv[:2], 'relative/history.bundle', *argv[3:])):
@@ -2431,6 +2451,16 @@ def test_bundle_argv_requires_exact_evidence_path(operation):
             cleanup._validate_git_argv(invalid, evidence=evidence)
     with pytest.raises(RuntimeError, match='not allowlisted'):
         cleanup._validate_git_argv(argv)
+    if operation == 'create':
+        for ref in ('a' * 40, 'refs/tags/x', 'refs/heads/', 'refs/heads/-x',
+                    'refs/heads/HEAD', 'refs/heads/x..y', 'refs/heads/x@{y',
+                    'refs/heads/.x', 'refs/heads/x.lock', 'refs/heads/x//y',
+                    'refs/heads/x.', 'refs/heads/x y', 'refs/heads/x\\y',
+                    'refs/heads/x[y', 'refs/heads/x\ny'):
+            with pytest.raises(RuntimeError, match='not allowlisted'):
+                cleanup._validate_git_argv((*argv[:3], ref, argv[4]), evidence=evidence)
+        with pytest.raises(RuntimeError, match='not allowlisted'):
+            cleanup._validate_git_argv((*argv[:4], 'b' * 40), evidence=evidence)
 
 
 if __name__ == "__main__":

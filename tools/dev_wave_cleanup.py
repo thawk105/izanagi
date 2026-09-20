@@ -16,6 +16,7 @@ remove-child は統合証明済みの子 branch を専用経路の -D で削除�
 所有内容は main、所有外の最終差分は証拠 dir、中間版は同 dir の history.bundle
 が担う。Git object は延命しない。撤去開始後の失敗は rc=30。
 HEAD が main の祖先なら履歴は main にあるため bundle は作らない。
+detached 子は bundle を作らず、木の撤去で reflog は失われる (現行どおり)。
 
 remove-child の argv は次の4組 (path は絶対):
 --main-worktree <MAIN> --manifest <MANIFEST>
@@ -311,7 +312,13 @@ def _validate_git_argv(args: Sequence[str], *, evidence: Path | None = None) -> 
         if len(argv) == 3 and argv[1] == "verify":
             return
         if (len(argv) == 5 and argv[1] == "create"
-                and _SHA_RE.fullmatch(argv[3])
+                and argv[3].startswith("refs/heads/")
+                and argv[3][11:] != "HEAD" and not argv[3][11:].startswith("-")
+                and all(part and not part.startswith(".") and not part.endswith(".lock")
+                        for part in argv[3][11:].split("/"))
+                and not argv[3].endswith(".")
+                and ".." not in argv[3] and "@{" not in argv[3]
+                and re.search(r"[\x00-\x20\x7f~^:?*\[\\]", argv[3]) is None
                 and argv[4].startswith("^") and _SHA_RE.fullmatch(argv[4][1:])):
             return
     raise RuntimeError(f"git argv is not allowlisted: {argv!r}")
@@ -1848,10 +1855,15 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         phase = "history-bundle"
         bundle = None
         bundle_digest = None
-        if not _ancestor(args.main, proof.head, proof.main_tip):
+        bundle_reason = None
+        if proof.branch is None:
+            bundle_reason = "detached child has no branch ref to bundle"
+        elif _ancestor(args.main, proof.head, proof.main_tip):
+            bundle_reason = "child HEAD is a main ancestor"
+        else:
             bundle = args.evidence / "history.bundle"
             for bundle_argv in (
-                ("bundle", "create", os.fspath(bundle), proof.head, "^" + proof.main_tip),
+                ("bundle", "create", os.fspath(bundle), proof.branch, "^" + proof.main_tip),
                 ("bundle", "verify", os.fspath(bundle)),
             ):
                 _validate_git_argv(bundle_argv, evidence=args.evidence)
@@ -1932,7 +1944,7 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
                    "integration_basis": "ancestry" if ancestry else "owned-tree-match",
                    "history_bundle": os.fspath(bundle) if bundle is not None else None,
                    "history_bundle_sha256": bundle_digest,
-                   "history_bundle_reason": "child HEAD is a main ancestor" if bundle is None else None}
+                   "history_bundle_reason": bundle_reason}
         temporary = args.evidence / "removed.json.tmp"
         _sync_file(temporary, json.dumps(receipt, sort_keys=True).encode() + b"\n")
         os.link(temporary, args.evidence / "removed.json")
