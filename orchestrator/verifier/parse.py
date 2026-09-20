@@ -624,6 +624,15 @@ def _parse_file_worker(task: tuple[int, str]) -> _ParsedFileOutcome:
     return _parse_file_to_columns(task)
 
 
+def _kill_pool_workers(executor) -> None:
+    """A broken pool must terminate even when forked workers ignore SIGTERM."""
+    for process in list((getattr(executor, "_processes", None) or {}).values()):
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass  # The worker exited between taking the snapshot and kill().
+
+
 def _parallel_file_outcomes(
         paths: Sequence[str], worker_count: int,
 ) -> tuple[Optional[List[_ParsedFileOutcome]], List[_ParsedFileOutcome]]:
@@ -637,6 +646,9 @@ def _parallel_file_outcomes(
         executor = ProcessPoolExecutor(
             max_workers=worker_count, mp_context=context,
         )
+        infrastructure_failure = True
+        futures = []
+        future = None
         try:
             futures = [
                 executor.submit(_parse_file_worker, (index, path))
@@ -652,14 +664,23 @@ def _parallel_file_outcomes(
             if infrastructure_failure:
                 for future in futures:
                     future.cancel()
+        except BaseException:
+            infrastructure_failure = True
+            raise
         finally:
+            if infrastructure_failure:
+                _kill_pool_workers(executor)
             executor.shutdown(wait=True, cancel_futures=True)
+            futures.clear()
+            future = executor = None
     except (
             ImportError, OSError, BlockingIOError, RuntimeError, ValueError,
             AssertionError,
     ):
         return None, received
 
+    if infrastructure_failure:
+        return None, received
     indices = [outcome.path_index for outcome in received]
     if len(indices) != len(paths) or sorted(indices) != list(range(len(paths))):
         return None, received
@@ -795,6 +816,7 @@ def _parse_trace_dir_compact(
         outcomes, received = _parallel_file_outcomes(paths, worker_count)
         if outcomes is None:
             # Partial results are never evidence: reread all files serially.
+            received.clear()
             outcomes = _sequential_file_outcomes(paths)
     else:
         outcomes = _sequential_file_outcomes(paths)

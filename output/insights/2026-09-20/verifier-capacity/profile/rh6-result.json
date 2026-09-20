@@ -1,0 +1,873 @@
+{
+  "schema_version": "verifier-profile-probe/v1",
+  "label": "rh6",
+  "started_at": "2026-09-20T04:58:13.589747+00:00",
+  "bindings": {
+    "repo_head": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+    "python": {
+      "executable": "/usr/bin/python3.10",
+      "version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]"
+    },
+    "probe_sha256": "bc86ca222282c5eb1c5f716b240095c435f0474300962689df94a7e86f7bb03d",
+    "verifier_sha256": {
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/dsg.py": "e77eaabd929e1e05f853b230041495a19b004a8156ddc805676bbd81ffbcbb05",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    }
+  },
+  "node": {
+    "meminfo": {
+      "MemTotal": 130536316,
+      "MemFree": 125930840,
+      "MemAvailable": 126035584,
+      "Cached": 649964,
+      "AnonPages": 197112,
+      "SwapTotal": 25165816,
+      "SwapFree": 25165816,
+      "Committed_AS": 962312
+    },
+    "vmstat": {
+      "oom_kill": 0,
+      "pswpin": 0,
+      "pswpout": 0,
+      "pgmajfault": 1868357
+    },
+    "loadavg": [
+      0.03,
+      0.23,
+      0.8
+    ],
+    "hostname": "bnode042",
+    "cpu_count": 48,
+    "affinity_cpus": 48
+  },
+  "single_tenant": {
+    "ok": true,
+    "message": null
+  },
+  "restore": {
+    "wall_s": 33.277,
+    "files": 48,
+    "bytes": 12762677610,
+    "trace_dir": "/scr/vcap-profile-rh6-0431c316/trace",
+    "skipped": false
+  },
+  "child": {
+    "argv": [
+      "/usr/bin/python3.10",
+      "-B",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/probe/verifier_profile_probe.py",
+      "_child",
+      "--trace-dir",
+      "/scr/vcap-profile-rh6-0431c316/trace",
+      "--expected-commits",
+      "32754846",
+      "--ccbench-root",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4/external/ccbench",
+      "--phase-log",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/rh6/phases.jsonl",
+      "--result",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/rh6/child-result.json",
+      "--workers",
+      "default",
+      "--estimate-packed-producer"
+    ],
+    "timed_out": false,
+    "sampler_errors": [],
+    "pid": 2874439,
+    "rc": 0,
+    "signal": null,
+    "t_popen_monotonic": 361021.902,
+    "t_popen_returned_monotonic": 361021.902,
+    "t_wait_monotonic": 362077.349,
+    "walls": {
+      "wall_s": 1055.447,
+      "popen_s": 0.0,
+      "wait_s": 1055.446
+    },
+    "rusage": {
+      "ru_utime": 3823.888,
+      "ru_stime": 168.776,
+      "ru_maxrss": 89764448
+    }
+  },
+  "phases": {
+    "parse": {
+      "wall_s": 134.669,
+      "extra": {
+        "n_files": 48,
+        "n_txns": 32754846,
+        "n_reads": 308323065,
+        "n_writes": 16366030,
+        "worker_pids": [
+          2874442,
+          2874443,
+          2874444,
+          2874445,
+          2874446,
+          2874447,
+          2874448,
+          2874449,
+          2874450,
+          2874451,
+          2874452,
+          2874453,
+          2874454,
+          2874455,
+          2874456,
+          2874457
+        ],
+        "parse_fallback": false,
+        "legacy": false,
+        "dup_txids": 0,
+        "missing_txids": 0,
+        "framing_violations": 0,
+        "malformed_keys": 0
+      },
+      "calls": [
+        {
+          "wall_s": 134.669,
+          "extra": {
+            "n_files": 48,
+            "n_txns": 32754846,
+            "n_reads": 308323065,
+            "n_writes": 16366030,
+            "worker_pids": [
+              2874442,
+              2874443,
+              2874444,
+              2874445,
+              2874446,
+              2874447,
+              2874448,
+              2874449,
+              2874450,
+              2874451,
+              2874452,
+              2874453,
+              2874454,
+              2874455,
+              2874456,
+              2874457
+            ],
+            "parse_fallback": false,
+            "legacy": false,
+            "dup_txids": 0,
+            "missing_txids": 0,
+            "framing_violations": 0,
+            "malformed_keys": 0
+          }
+        }
+      ]
+    },
+    "producer": {
+      "wall_s": 56.999,
+      "extra": {
+        "n_keys": 965824,
+        "n_producer": 16366030
+      },
+      "calls": [
+        {
+          "wall_s": 56.999,
+          "extra": {
+            "n_keys": 965824,
+            "n_producer": 16366030
+          }
+        }
+      ]
+    },
+    "edges-workers": {
+      "wall_s": 122.062,
+      "extra": {
+        "gc_freeze": false,
+        "call_index": 1
+      },
+      "calls": [
+        {
+          "wall_s": 122.062,
+          "extra": {
+            "gc_freeze": false,
+            "call_index": 1
+          }
+        }
+      ]
+    },
+    "adjacency-replay": {
+      "wall_s": 322.2,
+      "extra": {
+        "call_index": 1,
+        "received": 32,
+        "task_count": 32,
+        "complete": true
+      },
+      "calls": [
+        {
+          "wall_s": 322.2,
+          "extra": {
+            "call_index": 1,
+            "received": 32,
+            "task_count": 32,
+            "complete": true
+          }
+        }
+      ]
+    },
+    "edges": {
+      "wall_s": 444.267,
+      "extra": {
+        "dsg_worker_pids": [
+          2874724,
+          2874725,
+          2874726,
+          2874727,
+          2874730,
+          2874731,
+          2874732,
+          2874733,
+          2874734,
+          2874735,
+          2874736,
+          2874737,
+          2874740,
+          2874741,
+          2874742,
+          2874743
+        ],
+        "edge_fallback": false,
+        "n_sources": 32753860,
+        "n_keys": 965824,
+        "n_producer": 16366030,
+        "orphan_reads": 0,
+        "gc_freeze": false,
+        "gc_unfreeze_after": false
+      },
+      "calls": [
+        {
+          "wall_s": 444.267,
+          "extra": {
+            "dsg_worker_pids": [
+              2874724,
+              2874725,
+              2874726,
+              2874727,
+              2874730,
+              2874731,
+              2874732,
+              2874733,
+              2874734,
+              2874735,
+              2874736,
+              2874737,
+              2874740,
+              2874741,
+              2874742,
+              2874743
+            ],
+            "edge_fallback": false,
+            "n_sources": 32753860,
+            "n_keys": 965824,
+            "n_producer": 16366030,
+            "orphan_reads": 0,
+            "gc_freeze": false,
+            "gc_unfreeze_after": false
+          }
+        }
+      ]
+    },
+    "assess": {
+      "wall_s": 0.006,
+      "extra": {
+        "status": {
+          "protocol": "silo",
+          "X": "evidence-present",
+          "P": "evidence-present",
+          "I": "evidence-absent"
+        }
+      },
+      "calls": [
+        {
+          "wall_s": 0.006,
+          "extra": {
+            "status": {
+              "protocol": "silo",
+              "X": "evidence-present",
+              "P": "evidence-present",
+              "I": "evidence-absent"
+            }
+          }
+        }
+      ]
+    },
+    "n_edges": {
+      "wall_s": 1.638,
+      "extra": {
+        "n_edges": 594786279
+      },
+      "calls": [
+        {
+          "wall_s": 1.638,
+          "extra": {
+            "n_edges": 594786279
+          }
+        }
+      ]
+    },
+    "scc": {
+      "wall_s": 277.179,
+      "extra": {
+        "total_cycles": 0,
+        "n_reported": 0,
+        "n_edges": 594786279,
+        "anomalies_wall_s": 275.54,
+        "includes_n_edges": true
+      },
+      "calls": [
+        {
+          "wall_s": 277.179,
+          "extra": {
+            "total_cycles": 0,
+            "n_reported": 0,
+            "n_edges": 594786279,
+            "anomalies_wall_s": 275.54,
+            "includes_n_edges": true
+          }
+        }
+      ]
+    },
+    "estimate-dict_producer": {
+      "wall_s": 64.884,
+      "extra": {},
+      "calls": [
+        {
+          "wall_s": 64.884,
+          "extra": {}
+        }
+      ]
+    },
+    "estimate-packed_producer": {
+      "wall_s": 53.563,
+      "extra": {},
+      "calls": [
+        {
+          "wall_s": 53.563,
+          "extra": {}
+        }
+      ]
+    }
+  },
+  "estimate": {
+    "dict_producer": {
+      "wall_s": 61.91,
+      "rss_delta_kib": 4147900,
+      "vmrss_before_kib": 32284752,
+      "vmrss_after_kib": 36432652,
+      "entries": 16366030,
+      "n_keys": 965824,
+      "version_dups": 0,
+      "repeated_versions": 0,
+      "aborted": false,
+      "message": null,
+      "includes_per_key_lists": true
+    },
+    "packed_producer": {
+      "wall_s": 53.373,
+      "rss_delta_kib": 1042424,
+      "vmrss_before_kib": 32287944,
+      "vmrss_after_kib": 33330368,
+      "entries": 16366030,
+      "n_keys": 965824,
+      "version_dups": 0,
+      "repeated_versions": 0,
+      "aborted": false,
+      "message": null,
+      "includes_per_key_lists": false
+    }
+  },
+  "serializable": true,
+  "stop_reason": "completed",
+  "paths": {
+    "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p4",
+    "trace_src": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/trace-src/rh6",
+    "scratch_root": "/scr",
+    "output_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/rh6"
+  },
+  "peaks": {
+    "node_used_kib_peak": 90143112,
+    "sum_pss_kib_peak": 89390048,
+    "sum_private_dirty_kib_peak": 89388564,
+    "main_vmrss_kib_peak": 89763656,
+    "worker_private_dirty_kib_max": 3854608,
+    "worker_count_max": 16,
+    "by_phase": {
+      "unknown": {
+        "node_used_kib_peak": 234304,
+        "sum_pss_kib_peak": 1571,
+        "sum_private_dirty_kib_peak": 1104,
+        "main_vmrss_kib_peak": 4844,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "parse": {
+        "node_used_kib_peak": 45332128,
+        "sum_pss_kib_peak": 45328170,
+        "sum_private_dirty_kib_peak": 45316924,
+        "main_vmrss_kib_peak": 16142384,
+        "worker_private_dirty_kib_max": 3073156,
+        "worker_count_max": 16
+      },
+      "producer": {
+        "node_used_kib_peak": 14695092,
+        "sum_pss_kib_peak": 14450852,
+        "sum_private_dirty_kib_peak": 14449368,
+        "main_vmrss_kib_peak": 14459456,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "edges-workers": {
+        "node_used_kib_peak": 71446352,
+        "sum_pss_kib_peak": 70686731,
+        "sum_private_dirty_kib_peak": 58503248,
+        "main_vmrss_kib_peak": 20371500,
+        "worker_private_dirty_kib_max": 3854608,
+        "worker_count_max": 16
+      },
+      "adjacency-replay": {
+        "node_used_kib_peak": 90143112,
+        "sum_pss_kib_peak": 89390048,
+        "sum_private_dirty_kib_peak": 89388564,
+        "main_vmrss_kib_peak": 89763656,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "edges": {
+        "node_used_kib_peak": 84036640,
+        "sum_pss_kib_peak": 83621804,
+        "sum_private_dirty_kib_peak": 83620320,
+        "main_vmrss_kib_peak": 83668152,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "scc": {
+        "node_used_kib_peak": 84018448,
+        "sum_pss_kib_peak": 83635632,
+        "sum_private_dirty_kib_peak": 83634148,
+        "main_vmrss_kib_peak": 83644312,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "n_edges": {
+        "node_used_kib_peak": 84002452,
+        "sum_pss_kib_peak": 83635632,
+        "sum_private_dirty_kib_peak": 83634148,
+        "main_vmrss_kib_peak": 83644312,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "estimate-dict_producer": {
+        "node_used_kib_peak": 36698116,
+        "sum_pss_kib_peak": 36424132,
+        "sum_private_dirty_kib_peak": 36422648,
+        "main_vmrss_kib_peak": 36432652,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "estimate-packed_producer": {
+        "node_used_kib_peak": 33609696,
+        "sum_pss_kib_peak": 33353128,
+        "sum_private_dirty_kib_peak": 33351644,
+        "main_vmrss_kib_peak": 33360124,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      }
+    }
+  },
+  "vmstat_delta": {
+    "oom_kill": 0,
+    "pswpin": 0,
+    "pswpout": 0,
+    "pgmajfault": 0
+  },
+  "swap_seen": false,
+  "worker_states_tail": [
+    {
+      "t_mono": 362060.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362062.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362064.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362066.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362068.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362070.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362072.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362074.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362076.518,
+      "states": {}
+    },
+    {
+      "t_mono": 362077.349,
+      "states": {}
+    }
+  ],
+  "child_result": {
+    "phases": {
+      "parse": {
+        "wall_s": 134.669,
+        "extra": {
+          "n_files": 48,
+          "n_txns": 32754846,
+          "n_reads": 308323065,
+          "n_writes": 16366030,
+          "worker_pids": [
+            2874442,
+            2874443,
+            2874444,
+            2874445,
+            2874446,
+            2874447,
+            2874448,
+            2874449,
+            2874450,
+            2874451,
+            2874452,
+            2874453,
+            2874454,
+            2874455,
+            2874456,
+            2874457
+          ],
+          "parse_fallback": false,
+          "legacy": false,
+          "dup_txids": 0,
+          "missing_txids": 0,
+          "framing_violations": 0,
+          "malformed_keys": 0
+        },
+        "calls": [
+          {
+            "wall_s": 134.669,
+            "extra": {
+              "n_files": 48,
+              "n_txns": 32754846,
+              "n_reads": 308323065,
+              "n_writes": 16366030,
+              "worker_pids": [
+                2874442,
+                2874443,
+                2874444,
+                2874445,
+                2874446,
+                2874447,
+                2874448,
+                2874449,
+                2874450,
+                2874451,
+                2874452,
+                2874453,
+                2874454,
+                2874455,
+                2874456,
+                2874457
+              ],
+              "parse_fallback": false,
+              "legacy": false,
+              "dup_txids": 0,
+              "missing_txids": 0,
+              "framing_violations": 0,
+              "malformed_keys": 0
+            }
+          }
+        ]
+      },
+      "producer": {
+        "wall_s": 56.999,
+        "extra": {
+          "n_keys": 965824,
+          "n_producer": 16366030
+        },
+        "calls": [
+          {
+            "wall_s": 56.999,
+            "extra": {
+              "n_keys": 965824,
+              "n_producer": 16366030
+            }
+          }
+        ]
+      },
+      "edges-workers": {
+        "wall_s": 122.062,
+        "extra": {
+          "gc_freeze": false,
+          "call_index": 1
+        },
+        "calls": [
+          {
+            "wall_s": 122.062,
+            "extra": {
+              "gc_freeze": false,
+              "call_index": 1
+            }
+          }
+        ]
+      },
+      "adjacency-replay": {
+        "wall_s": 322.2,
+        "extra": {
+          "call_index": 1,
+          "received": 32,
+          "task_count": 32,
+          "complete": true
+        },
+        "calls": [
+          {
+            "wall_s": 322.2,
+            "extra": {
+              "call_index": 1,
+              "received": 32,
+              "task_count": 32,
+              "complete": true
+            }
+          }
+        ]
+      },
+      "edges": {
+        "wall_s": 444.267,
+        "extra": {
+          "dsg_worker_pids": [
+            2874724,
+            2874725,
+            2874726,
+            2874727,
+            2874730,
+            2874731,
+            2874732,
+            2874733,
+            2874734,
+            2874735,
+            2874736,
+            2874737,
+            2874740,
+            2874741,
+            2874742,
+            2874743
+          ],
+          "edge_fallback": false,
+          "n_sources": 32753860,
+          "n_keys": 965824,
+          "n_producer": 16366030,
+          "orphan_reads": 0,
+          "gc_freeze": false,
+          "gc_unfreeze_after": false
+        },
+        "calls": [
+          {
+            "wall_s": 444.267,
+            "extra": {
+              "dsg_worker_pids": [
+                2874724,
+                2874725,
+                2874726,
+                2874727,
+                2874730,
+                2874731,
+                2874732,
+                2874733,
+                2874734,
+                2874735,
+                2874736,
+                2874737,
+                2874740,
+                2874741,
+                2874742,
+                2874743
+              ],
+              "edge_fallback": false,
+              "n_sources": 32753860,
+              "n_keys": 965824,
+              "n_producer": 16366030,
+              "orphan_reads": 0,
+              "gc_freeze": false,
+              "gc_unfreeze_after": false
+            }
+          }
+        ]
+      },
+      "assess": {
+        "wall_s": 0.006,
+        "extra": {
+          "status": {
+            "protocol": "silo",
+            "X": "evidence-present",
+            "P": "evidence-present",
+            "I": "evidence-absent"
+          }
+        },
+        "calls": [
+          {
+            "wall_s": 0.006,
+            "extra": {
+              "status": {
+                "protocol": "silo",
+                "X": "evidence-present",
+                "P": "evidence-present",
+                "I": "evidence-absent"
+              }
+            }
+          }
+        ]
+      },
+      "n_edges": {
+        "wall_s": 1.638,
+        "extra": {
+          "n_edges": 594786279
+        },
+        "calls": [
+          {
+            "wall_s": 1.638,
+            "extra": {
+              "n_edges": 594786279
+            }
+          }
+        ]
+      },
+      "scc": {
+        "wall_s": 277.179,
+        "extra": {
+          "total_cycles": 0,
+          "n_reported": 0,
+          "n_edges": 594786279,
+          "anomalies_wall_s": 275.54,
+          "includes_n_edges": true
+        },
+        "calls": [
+          {
+            "wall_s": 277.179,
+            "extra": {
+              "total_cycles": 0,
+              "n_reported": 0,
+              "n_edges": 594786279,
+              "anomalies_wall_s": 275.54,
+              "includes_n_edges": true
+            }
+          }
+        ]
+      },
+      "estimate-dict_producer": {
+        "wall_s": 64.884,
+        "extra": {},
+        "calls": [
+          {
+            "wall_s": 64.884,
+            "extra": {}
+          }
+        ]
+      },
+      "estimate-packed_producer": {
+        "wall_s": 53.563,
+        "extra": {},
+        "calls": [
+          {
+            "wall_s": 53.563,
+            "extra": {}
+          }
+        ]
+      }
+    },
+    "estimate": {
+      "dict_producer": {
+        "wall_s": 61.91,
+        "rss_delta_kib": 4147900,
+        "vmrss_before_kib": 32284752,
+        "vmrss_after_kib": 36432652,
+        "entries": 16366030,
+        "n_keys": 965824,
+        "version_dups": 0,
+        "repeated_versions": 0,
+        "aborted": false,
+        "message": null,
+        "includes_per_key_lists": true
+      },
+      "packed_producer": {
+        "wall_s": 53.373,
+        "rss_delta_kib": 1042424,
+        "vmrss_before_kib": 32287944,
+        "vmrss_after_kib": 33330368,
+        "entries": 16366030,
+        "n_keys": 965824,
+        "version_dups": 0,
+        "repeated_versions": 0,
+        "aborted": false,
+        "message": null,
+        "includes_per_key_lists": false
+      }
+    },
+    "serializable": true,
+    "expected_commits": 32754846,
+    "observed": 32754846,
+    "commit_delta": 0,
+    "rusage_self": {
+      "ru_utime": 746.372,
+      "ru_stime": 59.325,
+      "ru_maxrss": 89764448
+    },
+    "rusage_children": {
+      "ru_utime": 3077.507,
+      "ru_stime": 107.999,
+      "ru_maxrss": 15934656
+    },
+    "gc_count": [
+      28,
+      0,
+      0
+    ],
+    "gc_stats": [
+      {
+        "collections": 214680,
+        "collected": 541,
+        "uncollectable": 0
+      },
+      {
+        "collections": 19515,
+        "collected": 234,
+        "uncollectable": 0
+      },
+      {
+        "collections": 68,
+        "collected": 0,
+        "uncollectable": 0
+      }
+    ],
+    "allocated_blocks": 78478,
+    "incomplete_phases": []
+  },
+  "rc": 0,
+  "wall_total_s": 1089.64
+}
