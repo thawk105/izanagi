@@ -1,0 +1,100 @@
+{
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2629-legacy-compiler-reach",
+  "git_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "hostname": "pegasus02",
+  "limitations": [
+    "Login では _run の heavy-work gate が configure 前に拒否する。evidence 不在時は build 自体を省略する。",
+    "観測はこの node・日時・PATH に限定する。g++-13 が存在する機体では項目 3/4 の結果が変わる。",
+    "pipeline の WAL abort 変換・cache-hit 経路・2 compiler 間の evidence 不一致は測っていない。",
+    "認可 guard 通過は full attestation 成功ではなく、toolchain の性能契約も保証しない。"
+  ],
+  "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+  "results": {
+    "authorization_linux_baremetal": {
+      "exception": null,
+      "observed": {
+        "attestation_mode": "none",
+        "env_tag": "linux-baremetal",
+        "returned_env_tag": "linux-baremetal"
+      }
+    },
+    "authorization_pegasus": {
+      "exception": null,
+      "observed": {
+        "attestation_mode": "required",
+        "env_tag": "pegasus",
+        "returned_env_tag": "pegasus"
+      }
+    },
+    "env": {
+      "exception": null,
+      "observed": {
+        "PATH": "/home/SFC/tanab/.local/bin:/work/SFC/tanab/scripts:/home/SFC/tanab/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/bin:/system/tool/bin:/opt/nec/nqsv/bin:/home/SFC/tanab/.fzf/bin",
+        "default_compilers": [
+          "gcc-13",
+          "g++-13"
+        ],
+        "executables": {
+          "cmake": {
+            "realpath": "/usr/bin/cmake",
+            "which": "/usr/bin/cmake"
+          },
+          "g++": {
+            "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+            "which": "/usr/bin/g++"
+          },
+          "g++-13": {
+            "realpath": null,
+            "which": null
+          },
+          "gcc": {
+            "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+            "which": "/usr/bin/gcc"
+          },
+          "gcc-13": {
+            "realpath": null,
+            "which": null
+          }
+        },
+        "g++_version": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+        "has_nqsv_env": false,
+        "hostname": "pegasus02",
+        "site": "PEGASUS_LOGIN",
+        "site_compilers": [
+          "gcc-13",
+          "g++-13"
+        ],
+        "utc": "2026-09-19T22:41:29.815810+00:00"
+      }
+    },
+    "evidence_default_cxx": {
+      "exception": null,
+      "observed": "same-as-site"
+    },
+    "evidence_site_cxx": {
+      "exception": {
+        "message": "source_digest: マクロ定義状態の照会を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — 文脈ガードを確定できないため fails-closed で停止 (D23)",
+        "type": "RuntimeError"
+      },
+      "observed": null
+    },
+    "legacy_build_trace": {
+      "exception": {
+        "message": "Site evidence unavailable; see evidence_site_cxx.",
+        "type": "SkippedNoEvidence"
+      },
+      "observed": null
+    },
+    "limitations": {
+      "exception": null,
+      "observed": [
+        "Login では _run の heavy-work gate が configure 前に拒否する。evidence 不在時は build 自体を省略する。",
+        "観測はこの node・日時・PATH に限定する。g++-13 が存在する機体では項目 3/4 の結果が変わる。",
+        "pipeline の WAL abort 変換・cache-hit 経路・2 compiler 間の evidence 不一致は測っていない。",
+        "認可 guard 通過は full attestation 成功ではなく、toolchain の性能契約も保証しない。"
+      ]
+    }
+  },
+  "schema": "t2629-legacy-compiler-reach-probe/v1"
+}
