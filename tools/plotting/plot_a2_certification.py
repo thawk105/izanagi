@@ -41,6 +41,13 @@ CERT_SCHEMA = LEGACY_CERT_SCHEMA
 MANIFEST_SCHEMA = LEGACY_MANIFEST_SCHEMA
 RAW_SCHEMA = LEGACY_RAW_SCHEMA
 STUDY = "paper-story-a2-certification"
+STUDY_PROFILES = {
+    STUDY: {"label": "A-2", "caption_source": None},
+    "paper-story-a6-certification": {
+        "label": "A-6",
+        "caption_source": "docs/paper-story/results/2026-09-18-a6-certification-reject.md",
+    },
+}
 LEGACY_WORKLOADS = ("rr5", "rr50")
 LEGACY_CELLS = ("rr5-stock", "rr5-fixed10", "rr50-stock", "rr50-fixed5")
 WORKLOADS = LEGACY_WORKLOADS
@@ -53,6 +60,10 @@ CANONICAL_SHA256 = {
     "output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json": {
         "certification": "e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671",
         "raw_manifest": "b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319",
+    },
+    "output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json": {
+        "certification": "3a9505b009f4d0aa2161bcac8e50dada6712fc214d03d7d68d705060e6d92cab",
+        "raw_manifest": "8d17953575afc4594df052d5b5b778291c4d41a1564bb1fbc2d29e8d1df94ef9",
     },
 }
 HISTORICAL_CURRENT_POLICY_VIEWS = {
@@ -271,7 +282,7 @@ def _external_plan(
 ) -> list[dict[str, Any]]:
     files = manifest.get("files")
     claims = manifest.get("campaign_claims")
-    expected_count = 10 if profile == "legacy" else 12
+    expected_count = 10 if profile == "legacy" else 6 * len(workloads)
     if type(files) is not dict or len(files) != expected_count or type(claims) is not dict:
         _fail(f"raw-manifest must contain the exact {expected_count}-file closure and campaign claims")
     if profile == "current-full" and list(claims) != list(workloads):
@@ -511,6 +522,9 @@ def load_measurements(
     profile = _profile(certification, manifest)
     cert_row["schema"] = certification["schema_version"]
     manifest_row["schema"] = manifest["schema_version"]
+    accepted_studies = (STUDY,) if profile == "legacy" else STUDY_PROFILES
+    if certification.get("study") not in accepted_studies:
+        _fail("tracked authority study is not an accepted study")
     policy = producer = None
     if profile == "current-full":
         policy, producer = _load_current_policy(certification, cert_row["sha256"])
@@ -525,7 +539,7 @@ def load_measurements(
     else:
         workloads, cell_ids = LEGACY_WORKLOADS, LEGACY_CELLS
     identity = ("study", "attempt_id", "protocol_sha256", "current_pin")
-    if any(certification.get(k) != manifest.get(k) for k in identity) or certification.get("study") != STUDY:
+    if any(certification.get(k) != manifest.get(k) for k in identity):
         _fail("tracked authority identity mismatch")
     if not isinstance(certification.get("status"), str) or not isinstance(certification.get("effects"), Mapping):
         _fail("certification status/effects are missing")
@@ -570,7 +584,7 @@ def load_measurements(
                               "rratio": wc["ycsb_rratio"], "host": claim["claim"]["host"],
                               "request_id": request,
                               "campaign_id": claim["campaign_id"], "created_utc": claim["claim"]["created_utc"]})
-    if len({row["request_id"] for row in workload_rows}) != 2 or len({row["created_utc"] for row in workload_rows}) != 2:
+    if len({row["request_id"] for row in workload_rows}) != len(workloads) or len({row["created_utc"] for row in workload_rows}) != len(workloads):
         _fail("workload campaigns must have distinct requests and recorded times")
     correctness = {row["cell_id"]: dict(row["correctness"]) for row in certification["cells"]}
     legacy_reps = {row["legacy_repetitions_observed"] for row in correctness.values()}; performance_reps = {row["performance_repetitions_observed"] for row in correctness.values()}
@@ -590,6 +604,7 @@ def load_measurements(
     if profile == "current-full":
         measurement_conditions["artifact_profile"] = profile
     return {
+        "study": certification["study"],
         "tracked_inputs": [cert_row, manifest_row], "external_inputs": external,
         "external_root": str(Path(measurement_root).resolve()), "cells": cells,
         "measurement_conditions": measurement_conditions,
@@ -616,6 +631,10 @@ def _caption_prefix(output: object) -> Path:
         _fail("caption output path must name the PNG output")
     return path.with_suffix("")
 
+def _study_label(data: Mapping[str, Any]) -> str:
+    return STUDY_PROFILES[data.get("study", STUDY)]["label"]
+
+
 def _caption(data: Mapping[str, Any], prefix: Path) -> str:
     figure_number = _figure_number(prefix)
     c = data["measurement_conditions"]
@@ -632,6 +651,33 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
             f"{100 * data['effects'][workload]:.4f}%"
             for workload in workload_ids
         )
+        if _study_label(data) == "A-6":
+            median_note = (
+                ": the adopted cell's median did not exceed the stock cell's median"
+                if data["outer_status"] == "reject" and data["effects"][workload_ids[0]] < 0
+                else ""
+            )
+            return (
+                f"Figure {figure_number}. A-6 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
+                f"The single workload campaign was {campaigns}; with one policy workload, the outer status is that workload's verdict itself. "
+                "The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars "
+                "are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median "
+                f"and the effect denominator. The median effect copied from certification is {effect_text}. M tps means million transactions per second. "
+                "Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, "
+                "and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined "
+                f"median ratio{median_note}. This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, "
+                "repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy "
+                "or that static backoff is harmful for read-heavy in general. The bottom row is a descriptive leading indicator: one aggregate "
+                "abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled "
+                f"runs: all {len(data['cells'])} cells were certified, but this is not a performance certification, and the performance reject "
+                "does not withdraw that correctness evidence. L01 limits that evidence to point-key traces; under D1257 the correctness argv "
+                f"was not independently recorded. {data['gate_note']} Conditions: {c['threads']} threads, "
+                f"{c['records']:,} records, Zipf {c['zipf_skew']}, read-modify-write disabled, max operations "
+                f"{c['max_ope']}, {c['extime']} s, {c['reps']} repetitions, CCBench pin {c['ccbench_pin']}, no perf, "
+                "trace-disabled performance. The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, "
+                "not an independent reproduction, and are not pooled here; the A-2 attempts measured other workloads and are neither pooled "
+                "nor compared as before/after."
+            )
         return (
             f"Figure {figure_number}. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
             f"The independent workload campaigns were {campaigns}, at distinct recorded times; the outer status "
@@ -709,7 +755,8 @@ def _artist_series(data: Mapping[str, Any]) -> list[dict[str, Any]]:
 def make_figure(data: Mapping[str, Any], *, frozen_legacy_caption: bool = False):
     mpl.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.grid": True,
                          "grid.alpha": .18, "axes.spines.top": False, "axes.spines.right": False})
-    fig, axes = plt.subplots(2, 2, figsize=(11.8, 7.6), squeeze=False)
+    ncols = len(data["measurement_conditions"]["workloads"])
+    fig, axes = plt.subplots(2, ncols, figsize=(11.8, 7.6) if ncols == 2 else (8.0, 7.6), squeeze=False)
     fig.subplots_adjust(left=.075, right=.98, top=.78, bottom=.12, wspace=.24, hspace=.48)
     colors = {"stock": "#666666", "adopted": "#b24a00"}
     jitter = (-.12, -.06, 0, .06, .12)
@@ -745,11 +792,13 @@ def make_figure(data: Mapping[str, Any], *, frozen_legacy_caption: bool = False)
             axis.set_xticks((0, 1), ("BACK_OFF=0", "BACK_OFF=1") if corrected_legacy else
                            ("no backoff", f"fixed {adopted['genome']['BACKOFF_FIXED']} us"))
         bottom.set_xlabel("CCBench built-in adaptive backoff" if corrected_legacy else "performance arm")
-    fig.suptitle("A-2 four-cell certification — trace-disabled performance", y=.975, fontsize=11, fontweight="bold")
+    fig.suptitle(f"{_study_label(data)} {'four' if len(data['cells']) == 4 else 'two'}-cell certification — trace-disabled performance", y=.975, fontsize=11, fontweight="bold")
     fig.text(.5, .91, f"outer status: {data['outer_status']} (protocol status, median ratio)", ha="center", fontsize=9)
-    fig.text(.5, .865, "correctness: separate trace-enabled runs, all 4 cells certified — not a performance certification",
+    fig.text(.5, .865, f"correctness: separate trace-enabled runs, all {len(data['cells'])} cells certified — not a performance certification",
              ha="center", fontsize=8)
-    fig.text(.5, .025, "Throughput axes are scaled independently by workload; abort axes share 0-1. Mean t95 CI is descriptive.",
+    fig.text(.5, .025, ("Single workload (read-heavy, rr95); abort axis is 0-1. Mean t95 CI is descriptive."
+                       if _study_label(data) == "A-6" else
+                       "Throughput axes are scaled independently by workload; abort axes share 0-1. Mean t95 CI is descriptive."),
              ha="center", fontsize=7)
     fig._a2_artist_series = _artist_series(data)
     return fig, axes
@@ -765,8 +814,10 @@ def check_figure_layout(fig, axes) -> None:
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     plot_axes = [axis for row in axes for axis in row]
-    if len(plot_axes) != 4 or len(fig.axes) != 4:
-        raise FigureLayoutError("production layout must contain four axes")
+    ncols = len(axes[0]) if len(axes) else 0
+    if (len(axes) != 2 or ncols < 1 or any(len(row) != ncols for row in axes)
+            or len(plot_axes) != 2 * ncols or len(fig.axes) != 2 * ncols):
+        raise FigureLayoutError("production layout must contain two rows and 2 * N axes")
     boxes = []
     for text in fig.findobj(Text):
         if not text.get_visible() or not text.get_text().strip():
@@ -808,7 +859,16 @@ def build_provenance(
             "sha256": _sha256(REPO_ROOT / caption_source),
             "authority_scope": "condition description only; not measurement values or protocol status",
         })
+    caption_source = STUDY_PROFILES[data.get("study", STUDY)]["caption_source"]
+    if caption_source is not None:
+        tracked_inputs.append({
+            "kind": "caption_source", "path": caption_source,
+            "sha256": _sha256(REPO_ROOT / caption_source),
+            "authority_scope": "fixed caption statements and limitation wording only; not measurement values or protocol status",
+        })
     return {
+        **({"study": data.get("study", STUDY)}
+           if data["measurement_conditions"].get("artifact_profile") == "current-full" else {}),
         "schema": SCHEMA,
         "generated_utc": generated_utc or datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "generator": {"path": "tools/plotting/plot_a2_certification.py", "sha256": _sha256(GENERATOR)},
