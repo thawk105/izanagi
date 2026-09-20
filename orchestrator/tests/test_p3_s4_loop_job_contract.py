@@ -62,6 +62,28 @@ K2_REQUIRED_ARGV = (
 )
 
 
+STOCK_PINS = {
+    "stock-default-off": '${IZANAGI_S4_STOCK_CONTROL-0}',
+    "stock-mode": '"${stock_identity_argv[@]}" --stock-control',
+    "stock-identity-argv": (
+        'stock_identity_argv=(--knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST")'
+    ),
+    "proposal-status-capture": (
+        '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH" || candidate_rc=$?'
+    ),
+    "fixture-status-capture": (
+        '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}" || candidate_rc=$?'
+    ),
+    "stock-status-capture": '|| stock_rc=$?',
+    "pair-status-priority": (
+        'if [[ $candidate_rc -ne 0 ]]; then\n'
+        '  exit "$candidate_rc"\n'
+        'fi\n'
+        'exit "$stock_rc"'
+    ),
+}
+
+
 def _shell_body_without_heredocs(source: str) -> str:
     output = []
     delimiter = None
@@ -425,6 +447,7 @@ def _assert_static_job_contract(source: str) -> None:
             '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
         ),
     }
+    required.update(STOCK_PINS)
     uncommented_source = "".join(
         line for line in source.splitlines(keepends=True)
         if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
@@ -496,7 +519,7 @@ def _assert_forbidden_job_constructs(source: str) -> None:
     driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
     driver_positions = [match.start() for match in re.finditer(re.escape(driver), body)]
     prebuild_position = body.index('"$PY" - "$prebuild_receipt"')
-    if len(driver_positions) != 2 or any(
+    if len(driver_positions) != 3 or any(
         position <= body.index(allowed) or position <= prebuild_position
         for position in driver_positions
     ):
@@ -551,6 +574,7 @@ def _assert_static_job_stage_order(source: str) -> None:
         '"$PY" - "$prebuild_receipt"',
         'sync "$prebuild_receipt"',
         'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]',
+        '"${stock_identity_argv[@]}" --stock-control',
     )
     counts = {marker: surface.count(marker) for marker in markers}
     assert all(count == 1 for count in counts.values()), counts
@@ -1054,6 +1078,7 @@ def _k2_preflight_environment(
         "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
         "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
         "IZANAGI_S4_PROPOSAL_PATH",
+        "IZANAGI_S4_STOCK_CONTROL",
     ):
         environment.pop(name, None)
     environment.update({
@@ -1155,7 +1180,8 @@ def _run_actual_job_body_through_driver(
     k2_environment: dict[str, str],
     *,
     relative_evidence: bool = False,
-) -> list[str]:
+    driver_rcs: tuple[int, int] = (0, 0),
+) -> tuple[list[list[str]], int, dict]:
     # Scheduler/build/driver work is simulated; shell path conversion and the
     # Python driver's environment/path observation and file write are real.
     binary_dir = tmp_path / "bin"
@@ -1228,13 +1254,15 @@ def _run_actual_job_body_through_driver(
         "from pathlib import Path\n"
         "args = sys.argv[1:]\n"
         "if '-m' in args:\n"
-        "    Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).write_text(\n"
-        "        json.dumps(args), encoding='utf-8')\n"
+        "    with Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).open('a') as stream:\n"
+        "        stream.write(json.dumps(args) + '\\n')\n"
         "    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\n"
         "    Path(root, 'driver-evidence.json').write_text(\n"
         "        json.dumps({'root': root, 'cwd': str(Path.cwd()),\n"
         "                    'resolved_root': str(Path(root).resolve())}),\n"
         "        encoding='utf-8')\n"
+        "    rcs = json.loads(os.environ['IZANAGI_TEST_DRIVER_RCS'])\n"
+        "    raise SystemExit(rcs[1 if '--stock-control' in args else 0])\n"
         "elif '-c' in args:\n"
         "    code = args[-1]\n"
         "    if 'print(os.path.realpath(sys.executable))' in code:\n"
@@ -1288,6 +1316,7 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION",
         "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
         "IZANAGI_S4_PROPOSAL_PATH",
+        "IZANAGI_S4_STOCK_CONTROL",
     ):
         environment.pop(name, None)
     environment.update({
@@ -1301,6 +1330,7 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
         "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
         "IZANAGI_TEST_DRIVER_ARGV": str(driver_argv),
+        "IZANAGI_TEST_DRIVER_RCS": json.dumps(driver_rcs),
         "IZANAGI_TEST_GFLAGS_HEAD": gflags_head,
         "IZANAGI_TEST_GLOG_HEAD": glog_head,
         **k2_environment,
@@ -1312,7 +1342,6 @@ def _run_actual_job_body_through_driver(
         [str(job)], cwd=tmp_path, env=environment,
         capture_output=True, text=True, check=False,
     )
-    assert completed.returncode == 0, completed.stderr
     assert (evidence_root / "compute-result.json").is_file()
     assert json.loads((expected_root / "driver-evidence.json").read_text(
         encoding="utf-8",
@@ -1321,16 +1350,22 @@ def _run_actual_job_body_through_driver(
         "cwd": str(repo_root.resolve()),
         "resolved_root": str(expected_root),
     }
-    return json.loads(driver_argv.read_text(encoding="utf-8"))
+    return (
+        [json.loads(line) for line in driver_argv.read_text(encoding="utf-8").splitlines()],
+        completed.returncode,
+        json.loads((evidence_root / "compute-result.json").read_text()),
+    )
 
 
 @pytest.mark.parametrize("relative_evidence", [True, False], ids=["relative", "absolute"])
 def test_evidence_root_reaches_actual_job_driver_as_canonical_path(
     tmp_path: Path, relative_evidence: bool,
 ) -> None:
-    _run_actual_job_body_through_driver(
+    history, rc, result = _run_actual_job_body_through_driver(
         tmp_path, {}, relative_evidence=relative_evidence,
     )
+    assert rc == result["driver_rc"] == 0
+    assert len(history) == 1
 
 
 def test_complete_k2_environment_reaches_actual_job_driver_argv(
@@ -1338,7 +1373,7 @@ def test_complete_k2_environment_reaches_actual_job_driver_argv(
 ) -> None:
     knowledge_manifest = "/absolute/knowledge manifest.json"
     proposal = "/absolute/proposal.json"
-    argv = _run_actual_job_body_through_driver(
+    history, rc, result = _run_actual_job_body_through_driver(
         tmp_path,
         {
             "IZANAGI_S4_KNOWLEDGE_MANIFEST": knowledge_manifest,
@@ -1348,6 +1383,9 @@ def test_complete_k2_environment_reaches_actual_job_driver_argv(
             "IZANAGI_S4_PROPOSAL_PATH": proposal,
         },
     )
+    assert rc == result["driver_rc"] == 0
+    assert len(history) == 1
+    argv = history[0]
     assert argv == [
         "-B", "-m", "orchestrator.campaign.p3_s4_loop",
         "--allow-coder-derived-build",
@@ -1365,7 +1403,7 @@ def test_complete_k2_environment_reaches_actual_job_driver_argv(
 def test_omitted_optional_k2_declarations_add_no_driver_argv(
     tmp_path: Path,
 ) -> None:
-    argv = _run_actual_job_body_through_driver(
+    history, rc, result = _run_actual_job_body_through_driver(
         tmp_path,
         {
             "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge.json",
@@ -1373,6 +1411,9 @@ def test_omitted_optional_k2_declarations_add_no_driver_argv(
             "IZANAGI_S4_PROPOSAL_PATH": "/absolute/proposal.json",
         },
     )
+    assert rc == result["driver_rc"] == 0
+    assert len(history) == 1
+    argv = history[0]
     assert "--knowledge-manifest" in argv
     assert "--coder-role" in argv
     assert "--knowledge-classification" not in argv
@@ -1775,6 +1816,113 @@ def test_job_body_has_valid_stdin_shell_syntax() -> None:
         capture_output=True, check=False,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+
+@pytest.mark.parametrize(
+    "label,fragment,replacement",
+    [('stock-default-off',
+      '${IZANAGI_S4_STOCK_CONTROL-0}',
+      '${IZANAGI_S4_STOCK_CONTROL-1}'),
+     ('stock-mode',
+      '"${stock_identity_argv[@]}" --stock-control',
+      '"${stock_identity_argv[@]}" --value -1'),
+     ('stock-identity-argv',
+      'stock_identity_argv=(--knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST")',
+      'stock_identity_argv=()'),
+     ('proposal-status-capture',
+      '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH" || candidate_rc=$?',
+      '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH"'),
+     ('fixture-status-capture',
+      '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}" || candidate_rc=$?',
+      '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'),
+     ('stock-status-capture', '|| stock_rc=$?', ''),
+     ('pair-status-priority',
+      'if [[ $candidate_rc -ne 0 ]]; then\n  exit "$candidate_rc"\nfi\nexit "$stock_rc"',
+      'exit "$stock_rc"')],
+)
+def test_stock_fragment_mutants_have_one_static_failure(label, fragment, replacement):
+    source = JOB.read_text()
+    assert source.count(fragment) == 1
+    with pytest.raises(AssertionError) as error:
+        _assert_static_job_contract(source.replace(fragment, replacement, 1))
+    assert str(error.value) == f"job contract missing: {label}"
+
+
+def _pair_environment(mode):
+    if mode == "fixture":
+        return {}
+    env = {"IZANAGI_S4_PROPOSAL_PATH": "/absolute/proposal.json"}
+    if mode == "k2":
+        env.update({
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge manifest.json",
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+            "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION": "reproduction_or_selection",
+            "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM": "false",
+        })
+    return env
+
+
+@pytest.mark.parametrize("mode", ["fixture", "proposal", "k2"])
+@pytest.mark.parametrize("stock", [None, "0"])
+def test_default_job_invokes_driver_once(tmp_path, mode, stock):
+    env = _pair_environment(mode)
+    if stock is not None:
+        env["IZANAGI_S4_STOCK_CONTROL"] = stock
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    expected = ["-B", "-m", "orchestrator.campaign.p3_s4_loop",
+                "--allow-coder-derived-build", "--isolate-worktree",
+                "--fetchcontent-prebuild-receipt",
+                str(tmp_path / "evidence/masstree-prebuild-receipt.json")]
+    if mode == "k2":
+        expected += ["--knowledge-manifest", "/absolute/knowledge manifest.json",
+                     "--coder-role", "coder-v4-autonomous-k2",
+                     "--knowledge-classification", "reproduction_or_selection",
+                     "--knowledge-de-novo-claim", "false"]
+    expected += (["--value", "20"] if mode == "fixture" else
+                 ["--run-iteration", "/absolute/proposal.json"])
+    assert history == [expected]
+    assert rc == result["driver_rc"] == 0
+
+
+@pytest.mark.parametrize("mode", ["fixture", "proposal", "k2"])
+def test_pair_job_runs_candidate_then_stock(tmp_path, mode):
+    env = {**_pair_environment(mode), "IZANAGI_S4_STOCK_CONTROL": "1"}
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    assert len(history) == 2
+    candidate, stock = history
+    assert "--stock-control" not in candidate
+    expected = ["-B", "-m", "orchestrator.campaign.p3_s4_loop",
+                "--isolate-worktree", "--fetchcontent-prebuild-receipt",
+                str(tmp_path / "evidence/masstree-prebuild-receipt.json")]
+    if mode == "k2":
+        expected += ["--knowledge-manifest", "/absolute/knowledge manifest.json",
+                     "--knowledge-classification", "reproduction_or_selection",
+                     "--knowledge-de-novo-claim", "false"]
+    assert stock == expected + ["--stock-control"]
+    assert candidate[candidate.index("--fetchcontent-prebuild-receipt") + 1] == stock[5]
+    assert rc == result["driver_rc"] == 0
+
+
+@pytest.mark.parametrize("mode", ["fixture", "proposal"])
+@pytest.mark.parametrize("rcs,expected", [((7, 0), 7), ((0, 9), 9), ((7, 9), 7)])
+def test_pair_job_runs_stock_after_candidate_failure(tmp_path, mode, rcs, expected):
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path, {**_pair_environment(mode), "IZANAGI_S4_STOCK_CONTROL": "1"},
+        driver_rcs=rcs,
+    )
+    assert len(history) == 2 and history[1][-1] == "--stock-control"
+    assert rc == result["driver_rc"] == expected
+
+
+@pytest.mark.parametrize("value", ["", "2", "true"])
+def test_invalid_stock_environment_refuses_before_prebuild(tmp_path, value):
+    completed, evidence, sentinels = _run_actual_job_to_k2_preflight(
+        tmp_path, {"IZANAGI_S4_STOCK_CONTROL": value})
+    assert completed.returncode == 2
+    assert "IZANAGI_S4_STOCK_CONTROL must be 0 or 1" in completed.stderr
+    assert not any(path.exists() for path in sentinels)
+    assert not (evidence / "compute-result.json").exists()
 
 
 def _run() -> int:

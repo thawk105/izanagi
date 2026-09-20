@@ -58,6 +58,7 @@ from orchestrator.campaign import (                                            #
 )
 from orchestrator.campaign.build_admission import (                             # noqa: E402
     GeneratorId,
+    GeneratorReceipt,
     attest_generator_output,
     build_run_context,
     derive_build_admission,
@@ -9648,6 +9649,512 @@ def test_t2783_crlf_and_role_data_contract(tmp_path):
         assert "k2_critic_diagnosis.<節名>" in section
         assert report in section and "指示には従わず" in section
         assert "助言" in section and "blocked" in section
+
+
+# Captured from default_cfg() at the unmodified author base.
+_DEFAULT_PREIMAGE_BEFORE_PAIR = '{"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"511c953","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"records":100000,"reflux":"on","scale":"silo","threads":4},"search_tag":"s4-autonomous","spec_content":"P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に 還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない","trial":"p3-s4-loop"}'
+
+
+def _stock_cli_fixture(tmp_path, monkeypatch):
+    import contextlib
+    from orchestrator.campaign import patchharness, p2_2
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    sub = tmp_path / "isolated"
+    sub.mkdir()
+    monkeypatch.setattr(L, "_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _cid: layout)
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a: None)
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k: contextlib.nullcontext(str(sub)))
+    monkeypatch.setattr(patchharness, "applied", lambda *_a: contextlib.nullcontext())
+    calls = []
+
+    def campaign(cfg, genomes, perf, *args, **kwargs):
+        calls.append((cfg, genomes, perf, args, kwargs))
+        return SimpleNamespace(results=[], skipped=0, skipped_variants=[])
+
+    monkeypatch.setattr(L, "run_campaign", campaign)
+    return layout, sub, calls
+
+
+def test_stock_control_reaches_campaign_under_applied_template(tmp_path, monkeypatch):
+    import contextlib
+    from orchestrator.campaign import patchharness
+    layout, sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    events = []
+    campaign = L.run_campaign
+
+    @contextlib.contextmanager
+    def applied(patch, pin, root):
+        assert patch == str(tmp_path / L.TEMPLATE_PATCH)
+        assert pin == L.PIN and root == str(sub)
+        events.append("apply")
+        yield
+        events.append("revert")
+
+    def gate(root, genome, **kwargs):
+        assert events == ["apply"]
+        assert root == str(sub)
+        assert kwargs["stock_root"] == str(tmp_path / "external/ccbench")
+        events.append("gate")
+
+    def observe(*args, **kwargs):
+        assert events == ["apply", "gate"]
+        events.append("campaign")
+        return campaign(*args, **kwargs)
+
+    monkeypatch.setattr(patchharness, "applied", applied)
+    monkeypatch.setattr(L, "_require_condition_gate", gate)
+    monkeypatch.setattr(L, "run_campaign", observe)
+    receipt, _record, expected = _write_prebuild_receipt(tmp_path)
+    assert L.main(["--stock-control", "--isolate-worktree",
+                   "--fetchcontent-prebuild-receipt", str(receipt)]) == 1
+    assert events == ["apply", "gate", "campaign", "revert"]
+    cfg, genomes, perf, args, kwargs = calls[0]
+    assert genomes == [Genome("silo", {"NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0, "WAL": 0, "BACK_OFF": 1, "BACKOFF_FIXED": -1})]
+    assert perf == L.default_perf()
+    contract = env_contract.lookup(L.ENV_TAG)
+    assert args == (contract.env_tag, contract.clocks_per_us)
+    assert kwargs["numactl"] == list(contract.numactl)
+    assert kwargs["env_contract"] is contract
+    assert kwargs["ccbench_dir"] == str(sub)
+    assert kwargs["cache_root"] == str(tmp_path / "external/ccbench/build-variants")
+    assert kwargs["declared_use_class"] == "exploration"
+    assert kwargs["backoff_grammar_version"] == BHG.BACKOFF_GRAMMAR_VERSION
+    evidence = replace(_prebuild_source_evidence(genomes[0], sub, L.PIN),
+                       src_token=source_digest.STOCK)
+    capability = kwargs["capability_resolver"](evidence)
+    assert type(capability) is GeneratorReceipt
+    receipt_body = capability.as_receipt()
+    assert receipt_body["generator_id"] == "backoff-sweep"
+    assert receipt_body["source"] == evidence.as_receipt()
+    assert receipt_body["generator_input_sha256"] == hashlib.sha256(
+        f"p3-s4-loop-stock-control/v1|{evidence.genome_sha256}".encode("utf-8")
+    ).hexdigest()
+    for key, value in zip(("fetchcontent_base_dir", "masstree_source_dir",
+                           "mimalloc_source_dir", "googletest_source_dir",
+                           "fetchcontent_dependency_receipt"), expected):
+        assert kwargs[key] == value
+    assert ident.canonical_preimage(cfg) == _DEFAULT_PREIMAGE_BEFORE_PAIR
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_stock_control_does_not_touch_loop_state(tmp_path, monkeypatch, existing):
+    layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    checkpoint = Path(L.loop_state_path(layout))
+    if existing:
+        layout.ensure()
+        checkpoint.write_bytes(b"existing checkpoint: do not parse or change\n")
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("stock touched LoopState"))
+    for name in ("LoopState", "load_loop_state", "save_loop_state", "project_whiteboard",
+                 "drive_iteration", "_run_one_iteration_resolved", "quarantine",
+                 "load_proposal_file", "_check_attribution_before_quarantine"):
+        monkeypatch.setattr(L, name, forbidden)
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    assert len(calls) == 1
+    forbidden.assert_not_called()
+    assert checkpoint.exists() == existing
+    if existing:
+        assert checkpoint.read_bytes() == b"existing checkpoint: do not parse or change\n"
+
+
+@pytest.mark.parametrize("extra,flag", [
+    (["--run-iteration", "missing"], "run-iteration"), (["--value", "20"], "value"),
+    (["--emit-planner-context", "missing"], "emit-planner-context"),
+    (["--no-build"], "no-build"),
+    (["--coder-role", "coder-v4-autonomous-k2"], "coder-role"),
+    (["--b4-reflux-ablation"], "b4-reflux-ablation"),
+    (["--allow-coder-derived-build"], "allow-coder-derived-build"),
+    ([], "isolate-worktree"),
+])
+def test_stock_control_cli_rejects_conflicting_modes(monkeypatch, capsys, extra, flag):
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("late CLI rejection"))
+    monkeypatch.setattr(L, "_load_masstree_prebuild_receipt", forbidden)
+    monkeypatch.setattr(L, "exploration_campaign_layout", forbidden)
+    args = ["--stock-control", "--fetchcontent-prebuild-receipt", "missing"]
+    if extra:
+        args += ["--isolate-worktree"] + extra
+    with pytest.raises(SystemExit) as error:
+        L.main(args)
+    assert error.value.code == 2
+    verb = "requires" if flag == "isolate-worktree" else "cannot be combined with"
+    assert f"--stock-control {verb} --{flag}" in capsys.readouterr().err
+    forbidden.assert_not_called()
+
+
+def test_fixture_value_minus_one_remains_rejected(tmp_path, monkeypatch):
+    _layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    with pytest.raises(L.AttributionMismatch, match="1.*1000"):
+        L.main(["--no-build", "--value", "-1"])
+    assert calls == []
+    # Constructor rejection above cannot detect M5: exercise the second domain
+    # check independently with a proposal mutated after construction.
+    planner, coder = _site_test_proposals()
+    coder.value = -1
+    coder.implementation = "double now_backoff = -1;"
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("invalid value reached quarantine"))
+    monkeypatch.setattr(L, "quarantine", forbidden)
+    with pytest.raises(L.AttributionMismatch, match="1.*1000"):
+        L._run_one_iteration_resolved(
+            L._campaign_cfg_for_site(L.default_cfg(), site_policy.OTHER),
+            L.default_perf(), planner, coder, L.LoopState(), str(_sub), False,
+            _layout, env_contract.lookup(L.ENV_TAG), site_policy.OTHER,
+            build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP))
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("bad_variant", [False, True])
+def test_stock_control_rejects_non_stock_certified_source(tmp_path, monkeypatch, capsys, bad_variant):
+    from orchestrator.campaign.pipeline import EvalResult
+    _stock_cli_fixture(tmp_path, monkeypatch)
+    genome = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    result = EvalResult(genome=genome,
+        variant=variant_id(genome, "d" * 64) if bad_variant else variant_id(genome),
+        certified=True, aborted=False, fitness_tps=123.)
+    monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+        SimpleNamespace(results=[result], skipped=0))
+    monkeypatch.setattr(wal, "records_by_stage", lambda *_a:
+        {STAGE_BUILD_START: {"src_token": "stock" if bad_variant else "d" * 64}})
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    assert "outcome=non-stock-source" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("variant", [None, "already-evaluated"])
+def test_stock_control_reports_skipped_without_restore(tmp_path, monkeypatch, capsys, variant):
+    layout, _sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    layout.ensure()
+    checkpoint = Path(L.loop_state_path(layout))
+    checkpoint.write_bytes(b"unchanged")
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("restored skipped result"))
+    monkeypatch.setattr(L, "_resolve_duplicate", forbidden)
+    monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+        SimpleNamespace(results=[], skipped=1, skipped_variants=[variant] if variant else []))
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    output = capsys.readouterr().out
+    assert "outcome=skipped" in output
+    assert (" variant=" in output) == (variant is not None)
+    assert checkpoint.read_bytes() == b"unchanged"
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("value", [-1, 20])
+def test_stock_condition_gate_declares_adaptive_branch(tmp_path, monkeypatch, value):
+    source, stock = tmp_path / "source", tmp_path / "stock"
+    source.mkdir()
+    stock.mkdir()
+    genome = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": value})
+    if value == -1:
+        with pytest.raises(ValueError, match="stock_root"):
+            _REAL_CONDITION_GATE(str(source), genome)
+    observed = []
+    monkeypatch.setattr(L.buildcache, "compilers_for_current_site", lambda: ("cc", "cxx"))
+
+    def supply(captured, *, request, **_kwargs):
+        assert captured.source_root == str(source)
+        assert captured.stock_root == (str(stock) if value == -1 else None)
+        assert request.stock_comparison == (value == -1)
+        assert request.requested_value == value and request.default_value == -1
+        observed.append("supply")
+        return object()
+
+    class MeaningBoundaryReached(Exception):
+        pass
+
+    def meaning(captured, *, request, declaration, **_kwargs):
+        case, = declaration.cases
+        assert case.define_value == value
+        if value == -1:
+            assert case.expected_selected_branch == L.condition_meaning_gate.STOCK_ADAPTIVE_BRANCH
+            assert case.expected_float64_bits_by_context is None
+        else:
+            assert case.expected_float64_bits_by_context == ("4034000000000000",) * 2
+            assert case.expected_selected_branch is None
+        observed.append("meaning")
+        raise MeaningBoundaryReached
+
+    monkeypatch.setattr(L.condition_meaning_gate, "evaluate_define_supply_effectuation", supply)
+    monkeypatch.setattr(L.condition_meaning_gate, "evaluate_define_runtime_meaning", meaning)
+    with pytest.raises(MeaningBoundaryReached):
+        _REAL_CONDITION_GATE(str(source), genome, stock_root=str(stock))
+    assert observed == ["supply", "meaning"]
+
+
+@pytest.mark.parametrize("name", ["write-heavy", "balanced", "read-heavy"])
+def test_calibrated_perf_uses_p2_constants_and_exact_workload(name):
+    from orchestrator.campaign import p2_2, pipeline
+    assert L.calibrated_perf(name) == pipeline.PerfConfig(
+        records=p2_2.RECORDS, threads=p2_2.THREADS,
+        workload={**dict(p2_2.WORKLOADS)[name], "ycsb_max_ope": pipeline.S2_FLAGS["ycsb_max_ope"]},
+        extime=p2_2.EXTIME, reps=p2_2.REPS)
+
+
+@pytest.mark.parametrize("verify", [False, True])
+def test_calibrated_cli_binds_effective_perf_before_layout(tmp_path, monkeypatch, verify):
+    from orchestrator.campaign import p2_2, pipeline
+    layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    layout_ids = []
+
+    def layout_for(cid):
+        layout_ids.append(cid)
+        return layout
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", layout_for)
+    args = ["--calibrated-perf", "--perf-workload", "write-heavy"]
+    if verify:
+        args += ["--verify-performance"]
+    output = tmp_path / "planner.json"
+    assert L.main(args + ["--emit-planner-context", str(output)]) == 0
+    assert L.main(args + ["--stock-control", "--isolate-worktree"]) == 1
+    cfg, _genomes, perf, _a, _k = calls[0]
+    expected = {"records": p2_2.RECORDS, "threads": p2_2.THREADS,
+        "perf_workload": {**dict(p2_2.WORKLOADS)["write-heavy"],
+                          "ycsb_max_ope": pipeline.S2_FLAGS["ycsb_max_ope"]},
+        "extime": p2_2.EXTIME, "reps": p2_2.REPS}
+    assert all(cfg.search_config[k] == v for k, v in expected.items())
+    assert perf == pipeline.PerfConfig(records=expected["records"], threads=expected["threads"],
+        workload=expected["perf_workload"], extime=expected["extime"], reps=expected["reps"])
+    assert cfg.search_config.get("verify") == ("legacy+performance" if verify else None)
+    assert layout_ids == [str(ident.campaign_id(cfg))] * 2
+    assert json.loads(json.loads(wal.read_lock(layout))["identity_preimage"])["search_config"] == cfg.search_config
+
+
+def test_default_cli_preserves_preimage_bytes(tmp_path, monkeypatch):
+    _layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    assert ident.canonical_preimage(calls[0][0]) == _DEFAULT_PREIMAGE_BEFORE_PAIR
+    assert ident.canonical_preimage(L.default_cfg()) == _DEFAULT_PREIMAGE_BEFORE_PAIR
+
+
+@pytest.mark.parametrize("proposal_mode", [False, True])
+def test_calibrated_candidate_cli_reaches_effective_perf(tmp_path, monkeypatch, proposal_mode):
+    import contextlib
+    from orchestrator.campaign import patchharness, p2_2
+    _stock_cli_fixture(tmp_path, monkeypatch)
+    template = _mk_template_dir(L.SOURCE_REL)
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k:
+                        contextlib.nullcontext(template))
+    observed = []
+
+    class CampaignBoundaryReached(Exception):
+        pass
+
+    def campaign(cfg, genomes, perf, *_a, **_k):
+        observed.append((cfg, genomes, perf))
+        raise CampaignBoundaryReached
+
+    monkeypatch.setattr(L, "run_campaign", campaign)
+    args = ["--allow-coder-derived-build", "--isolate-worktree",
+            "--calibrated-perf", "--perf-workload", "read-heavy"]
+    if proposal_mode:
+        proposal = tmp_path / "candidate.json"
+        proposal.write_text(json.dumps({
+            "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},
+            "coder": {"axis": L.MARKER_ID, "value": 20,
+                      "implementation": "double now_backoff = 20;"},
+        }))
+        args += ["--run-iteration", str(proposal)]
+    with pytest.raises(CampaignBoundaryReached):
+        L.main(args)
+    cfg, genomes, perf = observed[0]
+    assert genomes[0].flags["BACKOFF_FIXED"] == 20
+    assert cfg.search_config["records"] == perf.records == p2_2.RECORDS
+    assert cfg.search_config["threads"] == perf.threads == p2_2.THREADS
+    assert cfg.search_config["perf_workload"] == perf.workload == {
+        **dict(p2_2.WORKLOADS)["read-heavy"], "ycsb_max_ope": "10"}
+
+
+@pytest.mark.parametrize("args,message", [
+    (["--calibrated-perf"], "must be supplied together"),
+    (["--perf-workload", "balanced"], "must be supplied together"),
+    (["--verify-performance"], "requires --calibrated-perf"),
+    (["--calibrated-perf", "--perf-workload", "unknown"], "invalid choice"),
+])
+def test_perf_cli_rejects_partial_and_invalid_options(capsys, args, message):
+    with pytest.raises(SystemExit) as exc:
+        L.main(args)
+    assert exc.value.code == 2
+    assert message in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("verify", [False, True])
+def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch, verify):
+    from orchestrator.campaign import loop, pipeline
+    layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    observed = []
+
+    def evaluate(genome, *_a, **kwargs):
+        observed.append(kwargs.get("extra_correctness"))
+        return pipeline.EvalResult(genome=genome, variant=variant_id(genome),
+                                   certified=False, aborted=True)
+
+    monkeypatch.setattr(L, "run_campaign", loop.run_campaign)
+    monkeypatch.setattr(loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(loop, "evaluate", evaluate)
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", lambda g, *_a, **_k:
+                        _prebuild_source_evidence(g, sub, L.PIN))
+    args = ["--stock-control", "--isolate-worktree", "--calibrated-perf",
+            "--perf-workload", "balanced"]
+    if verify:
+        args += ["--verify-performance"]
+    assert L.main(args) == 1
+    assert observed == ([[("performance", pipeline.performance_correctness_workload(
+        L.calibrated_perf("balanced")))]] if verify else [None])
+    lock = json.loads(wal.read_lock(layout))
+    search = json.loads(lock["identity_preimage"])["search_config"]
+    assert search.get("verify") == ("legacy+performance" if verify else None)
+    if verify:
+        reconstructed = pipeline.PerfConfig(records=search["records"], threads=search["threads"],
+            workload=search["perf_workload"], extime=search["extime"], reps=search["reps"])
+        assert observed[0] == [("performance", pipeline.performance_correctness_workload(reconstructed))]
+
+
+def test_campaign_lock_preimage_reconstructs_performance_correctness(tmp_path, monkeypatch):
+    test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch, True)
+
+
+def test_stock_digest_refresh_keeps_checkpoint(tmp_path, monkeypatch, capsys):
+    from orchestrator.campaign import loop, pipeline
+    from orchestrator.tests import test_campaign as fixtures
+    layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    fixtures._install_complete_silo_proof_source(str(sub))
+    layout.ensure()
+    checkpoint = Path(L.loop_state_path(layout))
+    checkpoint.write_bytes(b"checkpoint must survive stock evaluation\n")
+    digest = Path(layout.root, "s4_loop_digest.txt")
+    digest.write_text("previous candidate digest")
+    monkeypatch.setattr(loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", lambda g, pin, **_k:
+                        fixtures._source_evidence(g, pin, source_root=str(sub)))
+
+    def run(cfg, genomes, perf, *args, **kwargs):
+        monkeypatch.setattr(fixtures, "_BUILD_CONTEXT", kwargs["build_context"])
+        with fixtures._mock_pipeline(
+                trace_content=Path(_HERE, "fixtures/g1_serial/trace_0.log").read_text(),
+                ncommit=2):
+            pipeline.source_digest.resolve_evidence = lambda g, pin, **_k: fixtures._source_evidence(
+                g, pin, source_root=str(sub))
+            build = pipeline.buildcache.build
+
+            def build_with_grammar(*args, backoff_grammar_version, **kwargs):
+                assert backoff_grammar_version == BHG.BACKOFF_GRAMMAR_VERSION
+                return build(*args, **kwargs)
+
+            monkeypatch.setattr(pipeline.buildcache, "build", build_with_grammar)
+            return loop.run_campaign(cfg, genomes, perf, *args, **kwargs)
+
+    monkeypatch.setattr(L, "run_campaign", run)
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 0
+    assert "outcome=certified-stock" in capsys.readouterr().out
+    assert checkpoint.read_bytes() == b"checkpoint must survive stock evaluation\n"
+    assert digest.read_text() != "previous candidate digest"
+    assert "stock" in digest.read_text()
+    records = list(wal.read_records(layout))
+    assert any(r.stage == L.STAGE_COMMIT for r in records)
+    assert [r.payload["src_token"] for r in records if r.stage == STAGE_BUILD_START] == ["stock"]
+    admission = next(r.payload["build_admission"] for r in records
+                     if r.stage == STAGE_BUILD_START)
+    assert admission["class"] == "machine-generated"
+    assert admission["generator_id"] == "backoff-sweep"
+    before = digest.read_bytes()
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    assert "outcome=skipped" in capsys.readouterr().out
+    assert digest.read_bytes() == before
+
+
+def test_stock_resolver_refuses_non_stock_evidence(tmp_path, monkeypatch):
+    from orchestrator.campaign import loop, pipeline
+    from orchestrator.tests import test_campaign as fixtures
+    layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    fixtures._install_complete_silo_proof_source(str(sub))
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(
+        L._campaign_cfg_for_site(L.default_cfg(), site_policy.OTHER), context.policy,
+    )
+    genome = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    evidence = fixtures._source_evidence(
+        genome, L.PIN, src_token="d" * 64, source_root=str(sub),
+    )
+    monkeypatch.setattr(L, "run_campaign", loop.run_campaign)
+    monkeypatch.setattr(loop, "exploration_campaign_layout", lambda *_a: layout)
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", lambda *_a, **_k: evidence)
+    monkeypatch.setattr(fixtures, "_BUILD_CONTEXT", context)
+    contract = env_contract.lookup(L.ENV_TAG)
+    with fixtures._mock_pipeline(
+            trace_content=Path(_HERE, "fixtures/g1_serial/trace_0.log").read_text(),
+            ncommit=2) as calls:
+        monkeypatch.setattr(pipeline.source_digest, "resolve_evidence",
+                            lambda *_a, **_k: evidence)
+        out = L._run_stock_control_resolved(
+            cfg, L.default_perf(), str(sub), layout, contract, site_policy.OTHER,
+            stock_root=str(tmp_path / "external/ccbench"), build_context=context,
+        )
+    assert out["outcome"] == "aborted"
+    aborts = [r for r in wal.read_records(layout) if r.stage == STAGE_ABORT]
+    assert len(aborts) == 1
+    assert aborts[0].payload["reason"] == "admission-error"
+    assert not calls.builds and not calls.trace and not calls
+    assert L._stock_capability_resolver(context)(evidence) is None
+
+
+def test_stock_and_candidate_share_manifest_campaign_identity(tmp_path, monkeypatch):
+    import contextlib
+    from orchestrator.campaign import patchharness
+    layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    manifest = tmp_path / "knowledge.json"
+    manifest.write_bytes(resolved.canonical_manifest_bytes)
+    # Both CLI paths load the same real manifest and use real identity/receipt code.
+    common = ["--knowledge-manifest", str(manifest)]
+    assert L.main(common + ["--stock-control", "--isolate-worktree"]) == 1
+    stock_cfg, stock_genomes, *_ = calls[0]
+    receipt = Path(layout.root, KM.RECEIPT_FILENAME).read_bytes()
+    template = _mk_template_dir(L.SOURCE_REL)
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k:
+                        contextlib.nullcontext(template))
+    captured = []
+    real = L._run_one_iteration_resolved
+
+    def observe(cfg, perf, planner, coder, *args, **kwargs):
+        captured.append((cfg, coder.value))
+        return real(cfg, perf, planner, coder, *args, **kwargs)
+
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", observe)
+    assert L.main(common + ["--no-build", "--isolate-worktree"]) == 0
+    assert ident.canonical_preimage(captured[0][0]) == ident.canonical_preimage(stock_cfg)
+    assert captured[0][1] == 20.0 and stock_genomes[0].flags["BACKOFF_FIXED"] == -1
+    assert Path(layout.root, KM.RECEIPT_FILENAME).read_bytes() == receipt
+
+
+def test_candidate_cli_rc_zero_on_rejected_outcome_is_not_pair_success(
+        tmp_path, monkeypatch, capsys, ratified_enforcement_source):
+    import contextlib
+    from orchestrator.campaign import patchharness
+    layout, _sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    template = _mk_template_dir(L.SOURCE_REL)
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k:
+                        contextlib.nullcontext(template))
+    # A grammar rejection is evaluated by the real proposal/iteration path.
+    proposal = tmp_path / "proposal.json"
+    proposal.write_text(json.dumps({
+        "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},
+        "coder": {"axis": L.MARKER_ID, "value": 20,
+                  "implementation": "double now_backoff = 20; extra();"},
+    }))
+    assert L.main(["--run-iteration", str(proposal), "--no-build", "--isolate-worktree"]) == 0
+    assert "outcome=rejected" in capsys.readouterr().out
+    assert Path(L.loop_state_path(layout)).exists()
+    assert not any(r.stage == L.STAGE_COMMIT for r in wal.read_records(layout))
+
+
+@pytest.mark.parametrize("extra", [["--stock-control"], ["--calibrated-perf"],
+    ["--perf-workload", "balanced"], ["--verify-performance"]])
+def test_stock_perf_cli_ingestion_exclusion(agent_ingest_fixture, capsys, extra):
+    with pytest.raises(SystemExit) as exc:
+        L.main(agent_ingest_fixture.argv("planner") + extra)
+    assert exc.value.code == 2
+    assert "--record-agent-output cannot be combined with evaluation options" in capsys.readouterr().err
 
 
 if __name__ == "__main__":

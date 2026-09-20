@@ -236,5 +236,111 @@ def test_prebuild_abort_retains_generated_build_attempt_id():
     assert result.verify_result is None
 
 
+
+def _performance_evaluation(*, reject_index=None, numactl=None, contract=None,
+                            forbid_execution=False):
+    from orchestrator.campaign import env_contract, p2_2
+    from orchestrator.campaign.model import Genome
+
+    campaign_fixtures._refresh_certified_writer_authority()
+    contract = contract or campaign_fixtures._AUTH_CONTRACT
+    layout = campaign_fixtures._tmp_layout()
+    campaign_fixtures._write_certified_lock(
+        layout, campaign_fixtures._bound(campaign_fixtures._cfg()))
+    perf = pipeline.PerfConfig(
+        records=p2_2.RECORDS, threads=p2_2.THREADS,
+        workload={**dict(p2_2.WORKLOADS)["balanced"],
+                  "ycsb_max_ope": pipeline.S2_FLAGS["ycsb_max_ope"]},
+        extime=p2_2.EXTIME, reps=p2_2.REPS,
+    )
+    trace_calls = []
+
+    def trace(_binary, trace_dir, flags, *_args, **kwargs):
+        index = len(trace_calls)
+        trace_calls.append((dict(flags), kwargs.get("numactl")))
+        fixture = "r1_write_skew" if index == reject_index else "g1_serial"
+        Path(trace_dir, "trace_0.log").write_text(_trace_fixture(fixture))
+        return pipeline._TraceRunResult(
+            trace_c_lines=2, returncode=0, abort_counts=0,
+            commit_count_witness=2, batch_commit_count_witness=0,
+        )
+
+    forbidden = mock.Mock(side_effect=AssertionError("rejected candidate reached bench"))
+    # Existing fixture mocks compiler/source/bench boundaries. Supplying trace
+    # bytes retains the real verifier and its capabilities on every repetition.
+    with campaign_fixtures._mock_pipeline(trace_content=_trace_fixture("g1_serial")) as calls:
+        if forbid_execution:
+            pipeline.buildcache.build = forbidden
+            pipeline.buildcache.build_v2 = forbidden
+        with mock.patch.object(pipeline, "_run_trace", forbidden if forbid_execution else trace):
+            with mock.patch.object(pipeline, "measure_point", forbidden if reject_index is not None
+                                   else pipeline.measure_point):
+                result = pipeline.evaluate(
+                    Genome("silo", {"BACK_OFF": 1}), layout, contract.env_tag,
+                    "deadbeef", perf, clocks_per_us=contract.clocks_per_us,
+                    numactl=contract.numactl if numactl is None else numactl,
+                    do_bench=True, do_settle=False,
+                    extra_correctness=[(pipeline.PERFORMANCE_TAG,
+                                        pipeline.performance_correctness_workload(perf))],
+                    authorization_contract=env_contract.authorize(contract.env_tag),
+                    build_context=campaign_fixtures._BUILD_CONTEXT, log=lambda *_a: None,
+                )
+    if reject_index is not None:
+        forbidden.assert_not_called()
+    return result, layout, trace_calls, calls
+
+
+def test_performance_verify_keeps_legacy_and_all_repetitions():
+    from orchestrator.campaign import p2_2
+    result, layout, traces, calls = _performance_evaluation()
+    expected_flags = {
+        "ycsb_tuple_num": str(p2_2.RECORDS), "thread_num": str(p2_2.THREADS),
+        **dict(p2_2.WORKLOADS)["balanced"],
+        "ycsb_max_ope": pipeline.S2_FLAGS["ycsb_max_ope"], "extime": str(p2_2.EXTIME),
+    }
+    assert result.certified and not result.aborted
+    assert traces[0] == (pipeline.CorrectnessWorkload().flags, None)
+    assert traces[1:] == [(expected_flags, campaign_fixtures._AUTH_CONTRACT.numactl)] * p2_2.REPS
+    assert len(calls) == 1
+    assert _terminal_payload(layout, STAGE_COMMIT)["verify_configs"] == ["legacy", "performance"]
+
+
+def _assert_performance_abort(index):
+    result, layout, traces, calls = _performance_evaluation(reject_index=index)
+    assert result.aborted and not result.certified
+    assert result.verify_result is not None
+    assert len(traces) == index + 1
+    assert not calls
+    assert not any(record.stage == STAGE_COMMIT for record in wal.read_records(layout))
+    payload = _terminal_payload(layout, STAGE_ABORT)
+    assert payload["reason"] == "non-serializable"
+    assert payload["verify"]["anomaly_count"] > 0
+
+
+def test_performance_anomaly_at_first_repetition_aborts_before_bench():
+    _assert_performance_abort(1)
+
+
+def test_performance_anomaly_at_last_repetition_aborts_before_bench():
+    from orchestrator.campaign import p2_2
+    _assert_performance_abort(p2_2.REPS)
+
+
+def test_legacy_anomaly_skips_performance_pass():
+    _assert_performance_abort(0)
+
+
+def test_performance_verify_requires_exact_contract_numactl():
+    from orchestrator.campaign import env_contract
+    with pytest.raises(ValueError, match="launch prefix"):
+        _performance_evaluation(numactl=("numactl", "--membind=0"), forbid_execution=True)
+    # Pegasus explicitly authorizes the empty launch prefix.
+    contract = env_contract.lookup("pegasus")
+    assert contract.numactl == ()
+    result, _layout, traces, _calls = _performance_evaluation(contract=contract, numactl=())
+    assert result.certified
+    assert all(prefix == () for _flags, prefix in traces[1:])
+
+
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
     raise SystemExit(pytest.main([__file__, "-q", *sys.argv[1:]]))
