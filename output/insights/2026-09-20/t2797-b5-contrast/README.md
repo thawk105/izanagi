@@ -36,8 +36,8 @@ wave `dev-wave-t2797-b5-contrast` (branch `worktree-dev-wave-t2797-b5-contrast`)
 
 ## 1. 置いたもの
 
-統合 commit 5 本 (起点 main `b9904a5f8` → `c41cfb09f` (A1) → `e57481558` (A2 + A3) → `92b5c4939` (fix1 + README) → `11d46a74a` (fix2 + docs) →
-`65272f3c8` (fix3))。14 file、+4505 / −27 行。実装面はすべて Codex `role=author` の子 (unit worktree `t2797-unit-{a1,a2,a3,fix1,fix2,fix3}`) が書き、
+統合 commit 6 本 (起点 main `b9904a5f8` → `c41cfb09f` (A1) → `e57481558` (A2 + A3) → `92b5c4939` (fix1 + README) → `11d46a74a` (fix2 + docs) →
+`65272f3c8` (fix3) → `517fd5451` (fix4、受入後))。15 file、+4511 / −27 行。実装面はすべて Codex `role=author` の子 (unit worktree `t2797-unit-{a1,a2,a3,fix1,fix2,fix3}`) が書き、
 親は docs 本文と統合 commit だけを担った。
 
 | file | 種別 | 内容 |
@@ -56,6 +56,7 @@ wave `dev-wave-t2797-b5-contrast` (branch `worktree-dev-wave-t2797-b5-contrast`)
 | `orchestrator/tests/test_p3_s4_loop.py` | +234 | seam 4 点の挙動 test と既定経路の bytes 不変 (固定定数) |
 | `orchestrator/tests/test_p3_s4_loop_job_contract.py` | +252 / −3 | job body の B-5 mode の実 shell test (driver 呼出し 1 回、空値 rc 2、旧候補分岐へ落ちない) |
 | `orchestrator/tests/test_hooks.py` | +9 | admission 固定表 3 つの同期 |
+| `orchestrator/tests/test_ccbench_spawn_sites.py` | +6 (fix4) | process 起動点の exact 目録に `b5_generator_contrast.default_runner` (reviewed な p3_s4_loop CLI を固定 argv・shell 無しで起動する non-CCBench site) を登録 |
 
 作らなかったもの (段 4 裁定 B13): hash8 衝突の事前網羅、純 verifier 秒の計時 adapter、新 coder entrypoint、alias 群、汎用 retry / 再配置、108 系列 launcher、発効 gate、共通 Tier0。
 
@@ -87,7 +88,8 @@ wave `dev-wave-t2797-b5-contrast` (branch `worktree-dev-wave-t2797-b5-contrast`)
 - **焦点再レビュー (`verbatim/s6-focus.md`):** NO-GO の残件 2 — (1) 文字列の文法 preflight 拒否が sidecar / rc 3 に統一されていない、(2) B04 の未投入 stock 計数。親の裁定: (1) は WAL diff-reject 経路 (rc 0) に durable な証拠があり A のみ消費・系列継続の分類が既に決定論的に出るので、sidecar への統一は行わず test で固定 (fix3)。(2) は fix3 で `logical_sessions` = 投入済み論理 slot 数 (runner 0 回は 0) に修正。
 - **fix3 (`65272f3c8`):** report の `logical_sessions`、文字列文法 preflight → WAL diff-reject 経路の test、fixture の `score_sessions` 追従。
 - **親の実走 (login、各 fix 後):** 変更 test file の焦点 (report 70 / driver 108 / loop 81、TJ 184、TL 585 passed) と consumer 回帰 190 passed。
-- **焦点走 (計算ノード、`focus/run-focus.sh` = 変更 test file + consumer + inventory 4 群 + メタ test の 21 file、`--force-dispatch`):** focus-1 = job 13573 (commit 3) 2475 passed / 10 skipped (121.5 s)、focus-2 = job 13623 (commit 4) 2521 passed / 10 skipped (123.9 s)。commit 5 (fix3、report + test だけ) は親の login 実走で確認し、受入全走 (§7) で計算ノードの証拠を取る。
+- **fix4 (`517fd5451`、受入 attempt 1 の赤 2 件の是正、Codex author):** `test_ccbench_spawn_sites.py` の exact 目録 (`_EXPLICIT_NON_CCBENCH_PROCESS_SITES`) に新 module の subprocess 起動点 `default_runner` を登録 (6 行)。焦点走の 21 file にこの目録 test を含めていなかったのが検出漏れの原因 (T-2737 と同型)。author の実走 74 件 = 72 passed / 2 skipped。
+- **焦点走 (計算ノード、`focus/run-focus.sh` = 変更 test file + consumer + inventory 4 群 + メタ test の 21 file、`--force-dispatch`):** focus-1 = job 13573 (commit 3) 2475 passed / 10 skipped (121.5 s)、focus-2 = job 13623 (commit 4) 2521 passed / 10 skipped (123.9 s)。commit 5 (fix3、report + test だけ) は親の login 実走で確認し、受入全走 (§7) で計算ノードの証拠を取る。focus-3 = job 14257 (main `9389277b0` 取込み後の tip `e4f4c900c`) 2526 passed / 10 skipped (122.3 s)。
 
 ## 5. 変異 matrix
 
@@ -202,10 +204,12 @@ home 共有の `~/.izanagi/bench.lock` を 4 job が取り合う) は decisions 
 
 ## 7. 受入全走・検査
 
-- 受入全走 (`tools/dev_wave_wait.py acceptance --lease-optional`、post-claim の main 取込み込み): **段 9 で実施、結果は本節に追記する (未実施の時点では書かない)。**
+- 受入全走 (`tools/dev_wave_wait.py acceptance`、門番付き script `run-acceptance-gated.sh` (t2288 → t2795 の写し)、post-claim の main 取込み込み、shards 3):
+  - attempt 1 (tag final、tested main `9389277b0`、tip `e4f4c900c`、04:21〜04:29 JST): rc=70、赤 2 件 = `test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites` / `::test_reviewed_process_launch_inventory_is_recursive_and_exact` (本 wave 起因、§4 の fix4 で是正)。
+  - attempt 2 (tag final2、tested main `3dbe5a41e` (12 commit 前進を自動 merge)、tested tip `088bbdec7`、04:40〜04:52 JST): **child-green、26,739 passed / 69 skipped、red 0、flake 0** (受領証 `acceptance-receipt-final2-1.json`、scheduler loadgroup)。
 - 三軸語走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`): 本 wave の insight に hit 0。rc=1 は 2026-09-17 着地済みの既存 4 file
   (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/*`、`output/s8b-freeze-candidates/holdout_freeze.v2.g1.json`) の既知 hit で本 wave 由来ではない。
-- `git diff --check`・`python3 tools/check_docs.py`・provenance 全史監査: 記録 commit の直前と受入時に実走し、結果を本節に追記する。
+- `git diff --check` (逐語 4 file の可逆正規化後に緑)・`python3 tools/check_docs.py` (記録 commit 前と main 取込み後に「違反なし」)・provenance 全史監査 (記録 commit 後 12,043 件で新規違反なし、rc 0)。land の全史監査は `dev_wave_land.py` が lock 内で再走する。
 
 ## 8. 裁定パッケージ (本走認可に向けて再提示する項)
 
