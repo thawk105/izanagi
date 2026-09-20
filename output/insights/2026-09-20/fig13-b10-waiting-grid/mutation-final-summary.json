@@ -1,0 +1,497 @@
+{
+  "schema": "fig13-mutation-ledger-summary/v1",
+  "anchor_repo_head": "46e3c0a4dd36bea4c6c0a783d677f047b0339c7b",
+  "spec_path": "mutation-spec-v3-final.json",
+  "spec_sha256": "55d50544e10b09d2bae9c08d1b922318a331a2ac77a682bc9bb97e320d33865c",
+  "results_json": {
+    "path_in_job_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-fig13-b10-waiting-grid/mutation-final-results.json",
+    "sha256": "3190cc897b97eaccad556e432447c16805f00de808a63bcbff027e736a6d3de2",
+    "bytes": 580958
+  },
+  "attempts_json": {
+    "path_in_job_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-fig13-b10-waiting-grid/mutation-final-attempts.json",
+    "sha256": "80e205a6d33d20812f3dc53361780354cdfcb8e75d3d3c61514536860d888fcd"
+  },
+  "login_probe_observed_json_sha256": "e99b555ecc390e9ec6246993c94c5876c439b72c38a07f34dde2252bfe6a6a14",
+  "runner_sha256": "c9164402016fb9514bae0bca397ad08d0a9bde8d5bc32653c7ff9fc9d0357a76",
+  "tool_sha256": "0fa7b6c4e7bb0f64f07e37874a38e3feb61156d4646e1e9776ee8aeb51ccf8ed",
+  "started_utc": "2026-09-20T11:24:23.087044+00:00",
+  "updated_utc": "2026-09-20T12:19:00.461247+00:00",
+  "summary": {
+    "KILLED": 19,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 20,
+    "matching": 20,
+    "recorded": 20,
+    "registered": 20
+  },
+  "baseline": {
+    "status": "PASSED",
+    "rc": 0,
+    "request_id": "13512.nqsv"
+  },
+  "collection_request_id": "13507.nqsv",
+  "mutations": [
+    {
+      "id": "m15-drop-calibration-records-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "duration_s": 32.139,
+      "request_id": "13513.nqsv",
+      "injection_diff_sha256": "19f025859c6663fc24d44c8b4298371b510195f4d54823d12e90a88f9fc3d8b1",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m17-drop-workload-rratio-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "duration_s": 32.162,
+      "request_id": "13514.nqsv",
+      "injection_diff_sha256": "ec0095497d259370a1b3f7b54ce2a843900ec6abc8f26c7cdbe0fec811feb864",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m18-drop-threads-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "duration_s": 1046.751,
+      "request_id": "13515.nqsv",
+      "injection_diff_sha256": "e7a2221e430afcee131a77967dd6cc9cb39864ea185f08d15905027d8ef79744",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m16-drop-workload-skew-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "duration_s": 37.489,
+      "request_id": "13534.nqsv",
+      "injection_diff_sha256": "4bc75f6e6a7a4f0f443dfcce30b8554747accba96dc0ff481b656455c3bd92ef",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "status": "SURVIVED",
+      "rc": 0,
+      "matches_expectation": true,
+      "expected_nodes": [],
+      "failed_nodes": [],
+      "duration_s": 38.764,
+      "request_id": "13535.nqsv",
+      "injection_diff_sha256": "4ac204ed2ceab913834f29d4ada9be64cb48831fb6f4c3532c3322a0869fe643",
+      "login_probe_summary": "53 passed, 0 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m1-provenance-pin-drift",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pins_match_results_document",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pins_match_results_document",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present"
+      ],
+      "duration_s": 32.651,
+      "request_id": "13536.nqsv",
+      "injection_diff_sha256": "e1a8277ac79c1c5bbbbba6e3e263175522be405d7330d1baedcc24640a16725f",
+      "login_probe_summary": "49 passed, 1 failed, 0 skipped, 3 errors"
+    },
+    {
+      "id": "m2-drop-receipt-sha-binding",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_sha_not_matching_submission_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_sha_not_matching_submission_is_rejected"
+      ],
+      "duration_s": 709.905,
+      "request_id": "13538.nqsv",
+      "injection_diff_sha256": "be1bd4a0d0e2905507c4a09c2b5db9218ec9040d2a82bc56e4b547022090e7e4",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m3-differences-order-free",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected"
+      ],
+      "duration_s": 33.566,
+      "request_id": "13557.nqsv",
+      "injection_diff_sha256": "e9419b3b9ce4ecb44eae68594d68d38f5ba0053ef060a507aff992a7851ab864",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m4-ci-formula-normal-quantile",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present"
+      ],
+      "duration_s": 33.026,
+      "request_id": "13558.nqsv",
+      "injection_diff_sha256": "aaa0a94226f8fe97656410a757cd982456ca61cbfaf91d44ec9eb7b99b605382",
+      "login_probe_summary": "28 passed, 7 failed, 0 skipped, 18 errors"
+    },
+    {
+      "id": "m5-trust-recorded-relation",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected"
+      ],
+      "duration_s": 32.426,
+      "request_id": "13559.nqsv",
+      "injection_diff_sha256": "b5474f955c0d976ad8c99b2b6186d9713378722ea5c1c468b8c3f1027b5cb455",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m6-drop-holm-recalculation",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected"
+      ],
+      "duration_s": 33.003,
+      "request_id": "13561.nqsv",
+      "injection_diff_sha256": "aa96fb72d8119917d32c52da0ec4403f1ff1b6ad6e4273ab4c08a2720ab843ee",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m7-drop-caption-literal-2",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present"
+      ],
+      "duration_s": 32.283,
+      "request_id": "13562.nqsv",
+      "injection_diff_sha256": "608cee7710c38e5c1977074ca9a139cdbd2e388b150ca2cc0396510e8af8e09e",
+      "login_probe_summary": "51 passed, 1 failed, 0 skipped, 1 errors"
+    },
+    {
+      "id": "m8-layout-overlap-ignored",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing"
+      ],
+      "duration_s": 32.404,
+      "request_id": "13563.nqsv",
+      "injection_diff_sha256": "e83f6cdcbd099279c14071550714552974082448aa834e8afe57ba4c7e2617a0",
+      "login_probe_summary": "51 passed, 2 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m9-drop-constant-zero-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected"
+      ],
+      "duration_s": 32.326,
+      "request_id": "13564.nqsv",
+      "injection_diff_sha256": "54ff930924c8f7dc0f024a0fc5cc3f2f50e619f7c7632c6aaaf56f52503567ed",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m10-accept-official-certification-true",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_official_certification_true_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_official_certification_true_is_rejected"
+      ],
+      "duration_s": 32.472,
+      "request_id": "13565.nqsv",
+      "injection_diff_sha256": "5e99fa1aa7b57b73283d5fa6d8a4717ad19b1662181a0e8b959ab444d8aff255",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m11-family-count-at-least",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected"
+      ],
+      "duration_s": 32.638,
+      "request_id": "13566.nqsv",
+      "injection_diff_sha256": "230d7141dfd4501d817cf95107f1eff348b8ccbcdf9c1eab7692e1f35c65e0e6",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m12-drop-raw-p-denominator",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected"
+      ],
+      "duration_s": 34.557,
+      "request_id": "13569.nqsv",
+      "injection_diff_sha256": "d8d5cd7175e57ca08e1b761dadbd5ebef583a4d1576023a5fb8c5c991a3a40ae",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m13a-drop-exposure-check",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "duration_s": 694.024,
+      "request_id": "13570.nqsv",
+      "injection_diff_sha256": "cedf4d6c4c4c13c26bddce9f4e89239307984df80c2d4d6701fda407ae7a9247",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    },
+    {
+      "id": "m13b-exposure-strict-boundary",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_effect_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_value_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_outcome_or_pairs_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_above_alpha_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_value_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_above_alpha_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_effect_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_outcome_or_pairs_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected"
+      ],
+      "duration_s": 32.488,
+      "request_id": "13579.nqsv",
+      "injection_diff_sha256": "f4d57946a6522b0a1958f94194bef50bc599d416251517e38a0fe7d4ad5da534",
+      "login_probe_summary": "20 passed, 18 failed, 0 skipped, 15 errors"
+    },
+    {
+      "id": "m14-figure-number-regex-loosened",
+      "category": "negative",
+      "status": "KILLED",
+      "rc": 1,
+      "matches_expectation": true,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_rejects_prefix_without_fig_number"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_rejects_prefix_without_fig_number"
+      ],
+      "duration_s": 32.444,
+      "request_id": "13580.nqsv",
+      "injection_diff_sha256": "575905fde87db4b5ebfdd5b8b07f2db6c66ac85fe0eba2da957bd73e6dd910e4",
+      "login_probe_summary": "52 passed, 1 failed, 0 skipped, 0 errors"
+    }
+  ]
+}
