@@ -86,7 +86,13 @@ probe 走 (全件 SURVIVED 期待で観測 node を集める、spec sha256 `d8ae
 - main は測定中に少なくとも 10 回前進した (peer 通知だけで 10 回: T-2610、T-2796、T-2792、B-10 results、fig11、T-2800、T-2724、verifier-capacity、T-2153、T-2795)。各走の tested_main と tip は走表のとおり。A の tip 3 本は tested_main と tree 一致、B の tip 3 本は tested_main + 採用差分 2 file (+319 −7)。
 - shard-0 の tests 数は 4048〜4116 (main 側の test 追加・削除で動く)。
 
+### landing 走 (対比較外、事前登録で判定に入れない) の観測
+
+記録 commit の後、land 用の最終受入 (B、待ち手経由) を 2 回投入した。final-1 (18:28) は main `482f19b88` (T-2304 の ccbench pin 前進 `511c9538` → `e9e477ca`) を merge して submodule pointer だけが進み `prerun-clean` rc=70 で未投入 (子は走らず)。submodule を揃えた final2-1 (18:33〜18:42、tested_main `482f19b88`、tested_tip `4240bd73d`) は child-green だが **shard-0 W = 466.5 秒** (tests 4116、shard-1 283.6、shard-2 162.7) で、系列の B (353.8〜398.6) より長く A の帯 (440.0〜501.0) に入る。pairing は発火している (property 4116 / 4116、e2e `[ccbench-current]` は gw5・rank 5 の head)。最忙は gw43 393.0 秒 (26 item)、gw33 384.1 (25)、gw44 382.1 (55)、gw37 381.4 (10) と 4 worker が 380〜393 秒で、e2e 単体も 332.8 秒 (系列の 218〜266 秒より 70〜115 秒遅い)。走全体が遅い regime (新 pin の ccbench build 費用か node 差かは未分離) で、**新 pin の regime での pairing の効果量は未測定**。この 1 走は事前登録のとおり判定に入れない (1 走比較は D357 で無効) が、採用後の最初の本番相当走がこの値であったことを記録する。raw は job dir `runs/final2-1-B/` (run.json / session の写し / receipt)。
+
 ## 7. 残存限界・未実測
+
+- **landing 走 (新 ccbench pin) の W_max 466.5 秒は系列の A の帯に入る (§6 landing 走)。** 新 pin の regime での効果量は未測定で、効果の消失が疑われたら同じ事前登録 (隣接対 3 組、閾値 10 %) で再測する (本 wave の decisions fragment `pairing-default-on-adopted` の再訪条件、D 番号は fold が付ける)。
 
 - 機序未同定 (前 wave §1 結論 5 のまま)。A 側 witness は取っていない (P2: A = 採用前 main を保つため。A の item → worker 対応は `report.json` に無い)。A の律速 worker は 01-A gw0 (73 item、428.6 秒)、04-A gw36 (76 item、369.5 秒)、05-A gw47 (25 item、384.5 秒) で中身は未観測。
 - 隣接対は同 allocation でなく、対内で main も動いた (§6)。同一 tip の対比較は前 wave (直接投入) が担い、本 wave は「待ち手経由 = 本番経路」での再確認である。

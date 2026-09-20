@@ -17,7 +17,8 @@ title: [T-2766] 受入 shard 内 pairing を既定 on にして main へ入れ�
 - **property の費用の実測:** junit.xml が受入 1 走あたり約 +13 MB (A 0.7 / 1.8 / 1.6 MB → B 2.4 / 6.2 / 6.4 MB、3.4 倍)。前 wave の「数百 KB / shard」より大きい。時間費用は分離していない。縮約・撤去は別裁定 ({{D:pairing-default-on-adopted}} の再訪条件)。
 - **競走型の再試行 2 回 (子は走らず走表に含めない):** 03-B の `claim-self-unverified` は 02-B 成功後に B wave の lease (land 用、TTL 40 分) が保持されたままだった親の launcher の欠陥 → `wave_land_window.py release` で free にし、launcher へ「取得済みの走だけ終端で release」を追加。04-A の `postcheck` は merge 後に main が動いた競走 (verifier-capacity の land と衝突)。
 - **main は測定中に少なくとも 10 回前進した** (peer 通知: T-2610、T-2796、T-2792、B-10 results、fig11、T-2800、T-2724、verifier-capacity、T-2153、T-2795)。各走の tested_main / tip は README §6。
-- 工数: codex 子 3 本 (author 1、review 2)。計算ノード job: 焦点走 1、変異 probe + final (baseline 各 1 + 変異各 5 = 12)、受入 6 走 (3 shard) + 最終受入 1 走。
+- **landing 走 (対比較外) の観測:** 記録後の最終受入 (B、main `482f19b88` = T-2304 の ccbench pin 前進 `e9e477ca` を含む) は child-green だが shard-0 W = 466.5 秒で系列の A の帯に入る (pairing は発火、property 4116/4116。4 worker が 380〜393 秒、e2e も 332.8 秒と系列より 70〜115 秒遅い regime)。事前登録どおり判定には入れないが、新 pin の regime での効果量は未測定として README §6 に記録した。1 回目の最終受入は pin 前進で submodule pointer だけ進み `prerun-clean` rc=70 (未投入) → submodule を揃えて再投入。
+- 工数: codex 子 3 本 (author 1、review 2)。計算ノード job: 焦点走 1、変異 probe + final (baseline 各 1 + 変異各 5 = 12)、受入 6 走 (3 shard) + 最終受入 (child-green 2 走、未投入 1 回)。
 
 ## 次の一手差分
 
