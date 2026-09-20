@@ -6821,6 +6821,192 @@ def test_default_dispatch_requests_the_provenance_task(
     assert seen["kwargs"]["repo_root"] == provenance.REPO
 
 
+@pytest.fixture
+def outer_deadline_dispatch(monkeypatch):
+    from tools.pegasus import dispatch_compute
+
+    for name in (
+        provenance._PROVENANCE_OUTER_DEADLINE_ENV,
+        provenance._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV,
+        provenance._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV,
+    ):
+        monkeypatch.delenv(name, raising=False)
+    clock = [1000.0]
+    monkeypatch.setattr(provenance.time, "monotonic", lambda: clock[0])
+    dispatch = mock.Mock(return_value=0)
+    monkeypatch.setattr(dispatch_compute, "dispatch", dispatch)
+    monkeypatch.setattr(provenance, "_bounded_scope_membership", lambda: None)
+    return clock, dispatch
+
+
+@pytest.mark.parametrize("overrides", [False, True])
+def test_outer_deadline_unset_preserves_dispatch_kwargs(monkeypatch, outer_deadline_dispatch, overrides):
+    _, dispatch = outer_deadline_dispatch
+    expected = {"task": "provenance", "repo_root": provenance.REPO}
+    if overrides:
+        monkeypatch.setenv(provenance._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, "1800")
+        monkeypatch.setenv(provenance._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV, "600.5")
+        expected.update(queue_wait_timeout_s=1800.0, overall_grace_s=600.5)
+    assert provenance._outer_deadline_monotonic({}) is None
+    assert provenance._default_dispatch([]) == 0
+    dispatch.assert_called_once_with([], **expected)
+
+
+def test_outer_deadline_derives_deadline_and_queue_wait(monkeypatch, outer_deadline_dispatch):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+    assert provenance._default_dispatch(["--range", "aaa..bbb"]) == 0
+    dispatch.assert_called_once_with(
+        ["--range", "aaa..bbb"], task="provenance", repo_root=provenance.REPO,
+        deadline_at=1438.0, queue_wait_timeout_s=288.0,
+    )
+
+
+@pytest.mark.parametrize("entry", ["force", "headroom_short", "cap_oom"])
+def test_outer_deadline_applies_to_all_dispatch_entries(monkeypatch, outer_deadline_dispatch, entry):
+    clock, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+    monkeypatch.setattr(provenance, "_queue_dispatch_possible", lambda: (True, "test"))
+    fingerprint = mock.Mock(return_value=provenance._TreeFingerprint("a" * 64, (0,)))
+    monkeypatch.setattr(provenance, "_tree_and_submodules_fingerprint", fingerprint)
+    scope_calls = []
+
+    def scope(argv, cap):
+        scope_calls.append((argv, cap))
+        clock[0] += 40.0
+        return provenance._ScopeResult("cap_oom")
+
+    monkeypatch.setattr(provenance, "_run_bounded_scope", scope)
+    argv = ["--range", "aaa..bbb"]
+    assert provenance.main(
+        (["--force-dispatch"] if entry == "force" else []) + argv,
+        site=site_policy.PEGASUS_LOGIN,
+        admit_fn=lambda estimate: (
+            LH.Admission.LOCAL if entry == "cap_oom" else LH.Admission.DISPATCH, "test",
+        ),
+    ) == 0
+    dispatch.assert_called_once_with(
+        argv, task="provenance", repo_root=provenance.REPO,
+        deadline_at=1438.0, queue_wait_timeout_s=248.0 if entry == "cap_oom" else 288.0,
+    )
+    assert len(scope_calls) == (1 if entry == "cap_oom" else 0)
+    assert fingerprint.call_count == (2 if entry == "cap_oom" else 0)
+
+
+@pytest.mark.parametrize("remaining, budget, accepted", [
+    (30.0, -152.0, False), (197.9, 15.9, False),
+    (-1.0, -183.0, False), (-1001.0, -1183.0, False), (198.0, 16.0, True),
+])
+def test_outer_deadline_refuses_before_dispatch(monkeypatch, capsys, outer_deadline_dispatch, remaining, budget, accepted):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, str(1000.0 + remaining))
+    assert provenance._invoke_dispatch(None, []) == (0 if accepted else 16)
+    assert dispatch.call_count == int(accepted)
+    error = capsys.readouterr().err
+    if accepted:
+        assert dispatch.call_args.kwargs["queue_wait_timeout_s"] == 16.0
+    else:
+        assert len(error.splitlines()) == 1
+        assert error.startswith("provenance dispatch budget insufficient: ")
+        fields = dict(field.split("=") for field in error.split(": ", 1)[1].split())
+        assert float(fields["remaining_s"]) == pytest.approx(remaining)
+        assert float(fields["queue_budget_s"]) == pytest.approx(budget)
+        assert float(fields["min_queue_s"]) == 16.0
+        assert fields["rc"] == "16"
+
+
+@pytest.mark.parametrize("queue, expected", [(100, 100.0), (900, 288.0), (288, 288.0), (0, None)])
+def test_outer_deadline_composes_d612_with_min(monkeypatch, outer_deadline_dispatch, queue, expected):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+    monkeypatch.setenv(provenance._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV, str(queue))
+    monkeypatch.setenv(provenance._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV, "600.5")
+    assert provenance._default_dispatch([]) == (16 if expected is None else 0)
+    if expected is None:
+        dispatch.assert_not_called()
+    else:
+        dispatch.assert_called_once_with([], task="provenance", repo_root=provenance.REPO,
+            deadline_at=1438.0, queue_wait_timeout_s=expected, overall_grace_s=600.5)
+
+
+@pytest.mark.parametrize("value", ["", " ", "abc", "NaN", "Inf", "-Inf"])
+def test_outer_deadline_invalid_value_returns_infra(monkeypatch, capsys, outer_deadline_dispatch, value):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, value)
+    assert provenance.main(["--force-dispatch"], site=site_policy.PEGASUS_LOGIN) == 16
+    dispatch.assert_not_called()
+    assert "ValueError" in capsys.readouterr().err
+
+
+def test_outer_deadline_reserved_intervals_fit_outer(monkeypatch, outer_deadline_dispatch):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+    assert provenance._default_dispatch([]) == 0
+    kwargs = dispatch.call_args.kwargs
+    post = provenance._PROVENANCE_DEADLINE_POST_RESERVE_S
+    pre = provenance._PROVENANCE_DISPATCH_PRE_RESERVE_S
+    assert post == 32.0 and post > 0
+    assert pre == 60.0 and pre >= 2 * (15.9 + 5.0)
+    assert provenance._PROVENANCE_MIN_QUEUE_BUDGET_S == 16.0
+    assert provenance._PROVENANCE_MIN_QUEUE_BUDGET_S >= 3 * 5.1
+    assert kwargs["deadline_at"] + post == 1470.0
+    assert kwargs["queue_wait_timeout_s"] + 90.0 + pre + post <= 470.0
+
+
+@pytest.mark.parametrize("queue, cleanup, expected", [(100.0, 90.0, 100.0), (900.0, 120.0, 258.0)])
+def test_outer_deadline_uses_dispatcher_default_constants(monkeypatch, outer_deadline_dispatch, queue, cleanup, expected):
+    from tools.pegasus import dispatch_compute
+
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+    monkeypatch.setattr(dispatch_compute, "DEFAULT_QUEUE_WAIT_TIMEOUT_S", queue)
+    monkeypatch.setattr(dispatch_compute, "DEFAULT_CLEANUP_BUDGET_S", cleanup)
+    assert provenance._default_dispatch([]) == 0
+    assert dispatch.call_args.kwargs["queue_wait_timeout_s"] == expected
+
+
+@pytest.mark.parametrize("outcome", [0, 1, 16, "exception", "interrupt"])
+def test_outer_deadline_terminal_line_reports_observable_values(monkeypatch, capsys, outer_deadline_dispatch, outcome):
+    clock, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, "1470")
+
+    def finish(*args, **kwargs):
+        clock[0] = 1050.0
+        if outcome == "exception":
+            raise OSError("test")
+        if outcome == "interrupt":
+            raise KeyboardInterrupt("test")
+        return outcome
+
+    dispatch.side_effect = finish
+    expected_rc = outcome if isinstance(outcome, int) else 16
+    assert provenance.main(["--force-dispatch"], site=site_policy.PEGASUS_LOGIN) == expected_rc
+    dispatch.assert_called_once()
+    lines = capsys.readouterr().err.splitlines()
+    assert lines[0] == (
+        "provenance dispatch budget: remaining_at_dispatch_s=470.0 "
+        "queue_wait_timeout_s=288.0 deadline_margin_s=32.0 "
+        f"remaining_at_return_s=420.0 rc={expected_rc}"
+    )
+    assert len(lines) == (1 if isinstance(outcome, int) else 2)
+    assert "queue_wait_s=" not in lines[0] and "run_s=" not in lines[0]
+
+
+@pytest.mark.parametrize("value", ["1470", "NaN"])
+def test_outer_deadline_does_not_change_local_scope_path(monkeypatch, outer_deadline_dispatch, value):
+    _, dispatch = outer_deadline_dispatch
+    monkeypatch.setenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, value)
+    grant = mock.Mock(return_value=(LH.Admission.LOCAL, 1234, "test"))
+    scope = mock.Mock(return_value=provenance._ScopeResult("child_rc", 3))
+    monkeypatch.setattr(LH, "grant_budget", grant)
+    monkeypatch.setattr(provenance, "_run_bounded_scope", scope)
+    monkeypatch.setattr(provenance, "_tree_and_submodules_fingerprint", lambda repo: None)
+    assert provenance.main(["--range", "aaa..bbb"], site=site_policy.PEGASUS_LOGIN) == 3
+    scope.assert_called_once_with(["--range", "aaa..bbb"], 1234)
+    grant.assert_called_once_with(operation="provenance-range")
+    dispatch.assert_not_called()
+
+
 # --- D: 祖先 bitset と並列化 ------------------------------------------------
 
 

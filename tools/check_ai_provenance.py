@@ -52,6 +52,14 @@ _DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
 _DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = (
     "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
 )
+# C-2804: 同一 host の land/checker 間で共有する絶対 monotonic 期限。
+_PROVENANCE_OUTER_DEADLINE_ENV = "IZANAGI_PROVENANCE_OUTER_DEADLINE_MONOTONIC"
+# 後段の代理値 (後段実測なし): 前段 max 15.9 秒の約 2 倍。
+_PROVENANCE_DEADLINE_POST_RESERVE_S = 32.0
+# T-2484 receipt 3,849 件、harness regime: 2.87 × (前段 max 15.9 + poll 5.0)。
+_PROVENANCE_DISPATCH_PRE_RESERVE_S = 60.0
+# queue 待ち観測 min 5.1 秒 (n=85) の約 3 倍: 運用閾値であり必要時間の証明ではない。
+_PROVENANCE_MIN_QUEUE_BUDGET_S = 16.0
 _BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_PROVENANCE_SCOPE_UNIT"
 _BOUNDED_SCOPE_CAP_ENV = "IZANAGI_PROVENANCE_SCOPE_CAP"
 _BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-provenance-"
@@ -2881,6 +2889,16 @@ def _dispatch_timeout_overrides(
     return overrides
 
 
+def _outer_deadline_monotonic(environ: Mapping[str, str]) -> float | None:
+    raw = environ.get(_PROVENANCE_OUTER_DEADLINE_ENV)
+    if raw is None:
+        return None
+    deadline = float(raw)
+    if not math.isfinite(deadline):
+        raise ValueError(f"{_PROVENANCE_OUTER_DEADLINE_ENV} は有限数でなければなりません")
+    return deadline
+
+
 def _default_dispatch(argv: Sequence[str]) -> int:
     from tools.pegasus import dispatch_compute
 
@@ -2889,7 +2907,45 @@ def _default_dispatch(argv: Sequence[str]) -> int:
         "repo_root": REPO,
         **_dispatch_timeout_overrides(environ=os.environ),
     }
-    return dispatch_compute.dispatch(argv, **dispatch_kwargs)
+    outer_deadline = _outer_deadline_monotonic(os.environ)
+    if outer_deadline is None:
+        return dispatch_compute.dispatch(argv, **dispatch_kwargs)
+    now = time.monotonic()
+    remaining = outer_deadline - now
+    deadline_at = outer_deadline - _PROVENANCE_DEADLINE_POST_RESERVE_S
+    queue_budget = (
+        remaining - _PROVENANCE_DEADLINE_POST_RESERVE_S
+        - dispatch_compute.DEFAULT_CLEANUP_BUDGET_S
+        - _PROVENANCE_DISPATCH_PRE_RESERVE_S
+    )
+    queue_wait_timeout_s = min(
+        dispatch_kwargs.get(
+            "queue_wait_timeout_s", dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S,
+        ),
+        queue_budget,
+    )
+    if queue_wait_timeout_s < _PROVENANCE_MIN_QUEUE_BUDGET_S:
+        print(
+            f"provenance dispatch budget insufficient: remaining_s={remaining} "
+            f"queue_budget_s={queue_budget} "
+            f"min_queue_s={_PROVENANCE_MIN_QUEUE_BUDGET_S} rc={PEGASUS_DISPATCH_RC}",
+            file=sys.stderr, flush=True,
+        )
+        return PEGASUS_DISPATCH_RC
+    dispatch_kwargs["deadline_at"] = deadline_at
+    dispatch_kwargs["queue_wait_timeout_s"] = queue_wait_timeout_s
+    rc = PEGASUS_DISPATCH_RC
+    try:
+        rc = dispatch_compute.dispatch(argv, **dispatch_kwargs)
+        return rc
+    finally:
+        print(
+            f"provenance dispatch budget: remaining_at_dispatch_s={remaining} "
+            f"queue_wait_timeout_s={queue_wait_timeout_s} "
+            f"deadline_margin_s={outer_deadline - deadline_at} "
+            f"remaining_at_return_s={outer_deadline - time.monotonic()} rc={rc}",
+            file=sys.stderr, flush=True,
+        )
 
 
 def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:
