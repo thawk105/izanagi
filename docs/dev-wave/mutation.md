@@ -31,7 +31,7 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 内容比較、`flock`単一走行、逐次flush、HEAD/spec束縛の`--resume`、signal復元をfail-closedで
 強制する（F32）。独自harnessは同等検査を備えると段4で事前登録する。
 変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
-実行時間上限内の経路で起動する。この2点はtoolが検証不能な親の自己申告義務。
+実行時間上限内の経路で起動する。
 生存process照合はERE/literalで`\|`を避け、worktree pathで待ち手自身と並行waveの子を除く。
 final の待ちは job dir で確定済み本文と検査の準備に充てる（未測定欄・placeholder 禁止）。
 
@@ -57,9 +57,10 @@ collectionの既存Q+G gateは元specで維持。有限の余裕は任意の遅�
 harness は rc と失敗 node を毎回記録する。pytest は `-rf`、node 抽出は F71 に従う
 （rc≠0 で 0 件は fail-closed 停止）。
 **期待 node は完全集合**で、同形式へ正規化した記録 node との完全一致だけを KILLED とする（F33）。
-期待 node は login self-run（変異ごとに注入 → 自走 harness → `DW-O19` で復元し sha256 も照合）で
-観測し dispatch final を 1 回。適用は自走の node 集合（FAIL + ERROR）が `--collect-only` と一致し
-login 実行が許される file に限り、pytest 専用 allowlist・parametrize・conftest / autouse fixture・
-環境変数・import 副作用に依存する test は dispatch probe（初回を probe と明記）へ戻す。
+期待 node は login self-run（変異ごとに注入 → 自走 harness の FAIL / ERROR を観測・正規化 →
+`DW-O19` で復元し sha256 も照合）で集め、erratum・再登録後に dispatch final を走らせる。適用は
+自走の全 node が `--collect-only` と同形式で照合でき login 実行が許される file に限り、pytest 専用
+allowlist・parametrize・fixture（conftest / autouse）・環境変数・import 副作用への依存や対応不明は
+dispatch probe（初回を probe と明記）へ戻す。
 受理集合を変えず構造化シグナルだけを pin する変異は kill でなく diagnostic sensitivity pin へ
-別枠記録する。テスト強化だけの wave は新旧 HEAD の双方へ変異を走らせ、新テストだけが検出する差分を示す。
+別枠記録する。テスト強化だけの wave は新テストと変更前 HEAD 版の双方へ変異を走らせ、新テストだけが検出する差分を示す。

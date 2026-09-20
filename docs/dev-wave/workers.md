@@ -1,7 +1,5 @@
 # dev-wave worker 契約
 
-worker 契約の正本。
-
 ## DW-S02 — 段 2 プラン起草
 
 brief と関連コードの所在を渡し、codex `reasoning=medium`、`sandbox=read-only` で
