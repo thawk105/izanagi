@@ -4972,3 +4972,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-20","base":"0e647f84c68413e7ed3241d04c29b04db422ed22","content_sha256":"b3faa3f9999471c6f7613e913e8f1a02124af9fff4b0dc3ea1180dae8081a43b","seq":1,"tested_tip":"0a60ec252b947b10050864851eee2807200081aa","wave":"dev-wave-t2709-blob-transfer-cost","wave_ref":"refs/heads/worktree-dev-wave-t2709-blob-transfer-cost"}
 - {"allocations":{"D:t2709-blob-transfer-measured":"D2168"},"authored":"2026-09-20","base":"0e647f84c68413e7ed3241d04c29b04db422ed22","content_sha256":"bd273a961589d3b788304bc0d5c9858e865e78227e672d4cf094d5d1b54ada4f","seq":2,"tested_tip":"0a60ec252b947b10050864851eee2807200081aa","wave":"dev-wave-t2709-blob-transfer-cost","wave_ref":"refs/heads/worktree-dev-wave-t2709-blob-transfer-cost"}
+
+- {"allocations":{},"authored":"2026-09-20","base":"77e0638148578869f791a64b59b8046a5df4d368","content_sha256":"5cd80af448059ba5f63a4b9e2dea567986c95ea43a55e067ce1d9b0e15cb3ba1","seq":1,"tested_tip":"559044cabe7682a314851333e4f49f9a5eb9fe23","wave":"dev-wave-k2-three-rounds-results","wave_ref":"refs/heads/worktree-dev-wave-k2-three-rounds-results"}
