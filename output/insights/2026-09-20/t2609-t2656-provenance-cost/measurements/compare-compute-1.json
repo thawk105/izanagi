@@ -1,0 +1,2052 @@
+{
+ "hostname": "bnode006",
+ "repo": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/compare-source",
+ "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+ "old_blob": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+ "old_sha256": "5cb709cbca5dd6e2cf2780c99da6a18fe02e1ad0d81fff4edd894125884e0ec6",
+ "new_sha256": "7c02fb2d5fec9d229bf1d4984181150a2b418ce6a473b4172556e53a5fd0b05c",
+ "started_at": "2026-09-20T08:35:53+09:00",
+ "rounds": 2,
+ "runs": [
+  {
+   "round": 1,
+   "version": "old",
+   "internal": {
+    "calls": {
+     "ai_agent_values": 13995,
+     "commit_paths": 11309,
+     "normal_commit_audit": 11770
+    },
+    "commit_count": 11770,
+    "commits_sha256": "ca82afa2948fdca8fd2e73731f1798604d23817ffde49c7d7b6bc953c747e0c3",
+    "cpu_children_s": 195.648,
+    "cpu_self_s": 32.203,
+    "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+    "history": {
+     "corrected": [
+      {
+       "correction": "6d7141dc8a174384f3b9be689d3516a8a3a31bbf",
+       "target": "6b64d21753d2cfc790f80caba29df7a40fef3072"
+      }
+     ],
+     "findings": [],
+     "known_violations": [
+      {
+       "commit": "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)"
+      },
+      {
+       "commit": "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "16affe169185040b33f8c6cbdd452260bddc4089",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "b0a07672737cf03424ec1790cc25a06e4c85b737",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "3f2c43d7580b8c26724d90278589862057508965",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立",
+       "ruling": "worklog(293) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "74b501962092373ba2e8bbca1566d0732e0f16c6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "f1406c22abece76276b43dde897750a46aae877e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・shell wrapper）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "ff264975a04aa19f36f861ca97efe9dc59c88659",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md"
+      },
+      {
+       "commit": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-ledger.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe、実測成果物併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "622bd786191d40bda388596fa2adbf119ee84c9a",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実測成果物・docs（追補 A・package・receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（combined path は docs/pegasus-runbook.md）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "edf74c94427686f2b91519ef10e94446d0fe89d5",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "66769067ee57d78650b208b9a86438ff2f1bf73b",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "aaffa644a969f0a58969b2661318bda4c42ac767",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "797db5def66ef1d318d06c7aa189ea51a66c9312",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみでソース著作なし；親作成 commit のため Codex 著者とは記さない",
+       "ruling": "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "a5b7045b129d062c4731acc7667262795abd3f67",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の local main 取り込み merge。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-470 の known-violation エントリと main 側の別裁定 (T-619) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_layer3_report.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc a5b7045b` は全差分行が いずれかの親に既存で、両親のどちらにも無い新規行はない。wave 側の実装面は Codex `role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の受入投入前 local main 取り込み merge `5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の known-violation エントリと main 側の別 wave (T-565、merge `76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc 5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "09ce607b779272fda5629a350676471a16bea9bb",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink （submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分のポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% 書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)"
+      },
+      {
+       "commit": "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が付与されない",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "311d463f89d1d1708a309b86d5bf63f5b034f89d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main 取り込み merge `311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは `orchestrator/campaign/layout.py` / `orchestrator/campaign/s8b_oracle_driver.py` / `orchestrator/tests/conftest.py` / `orchestrator/tests/test_campaign.py` / `orchestrator/tests/test_check_ai_provenance.py` / `orchestrator/tests/test_s8b_oracle_driver.py` / `tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc 311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた `_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の `_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave (`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1371-official-run-root 受入lease待機長期化に伴う2回目のlocal main取り込み裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されずAI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave はouter gitlink を参照しないため影響なし",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)"
+      },
+      {
+       "commit": "75d57796ea8c6af4f80f32031afc952cfef2903a",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenanceregistry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "216493593dbee40fbdac65207ca328bae5bc9f52",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が同じ file へ追加した known-violation entry が非競合で union された",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "8440a14850718e63d73dfc510aa66b853a526424",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した 19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ (T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc 8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit `09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。実装面で競合したのは `tools/check_ai_provenance.py` と `orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+      },
+      {
+       "commit": "e39a8d46567a02d231fce52abae5aee759634ff7",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込みmerge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py のKNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加したunion型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中でworking tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と複数waveのccbench provenance known-violation登録を取り込んだもの。`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに既存するテキストの選択・配置のみで解決 (新規著作なし)。`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
+      },
+      {
+       "commit": "387a1daab0d713cf86f19449e88559686f1eb575",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 (`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、docs系spool/fold多数）を取り込んだ6回目の merge `bf92f327cadfbe626e37cab73d55abe80d3994dd`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave (dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、親の Claude セッションが直接両側の既存エントリを残す union で解決した。`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、競合解決による新規著作なしと確認済み。本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、`git status` にも現れなかった。main 側由来で自動マージされた `orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
+      },
+      {
+       "commit": "b9c07cc22d483a9103dac208a83446872161ffad",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` のmerge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションがmain側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "25614f868c1a1b562a68072233fdf55b0be93cd1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した `--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` 条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit したため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が `missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "94815c57976806da56a3f067ade91c0041b2e2d1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は `orchestrator/tests/test_check_ai_provenance.py` の `test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit `94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。",
+       "ruling": "2026-08-27 本セッション内でのユーザー直接裁定 (known-violation 登録して commit し裁定送り、後続 dev-wave で解除・修理)"
+      },
+      {
+       "commit": "9bb9024aab25dc7c49f497e462a9cc21216418bc",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0][\"protocol\"] == \"silo\"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。",
+       "ruling": "2026-09-01 dev-wave-t1999-define-gate-family の受入全走前の local main 取り込み。新規 known-violation 登録に事前承認を課さない D662 の裁定に従う。"
+      },
+      {
+       "commit": "c12e25078ad155486c19eae633fde14e59753272",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。",
+       "ruling": "系統 blocker (全 land の全史 provenance 監査 rc=1・全新規 worktree の submodule 初期化失敗) を解除するため、next-tasks command 移設 wave の親 (claude) が 2026-09-08 に登録した。原因 session ([T-2412] wave) は前進修正を本 wave へ委ねた。ユーザー承認は事後報告 (本 wave の worklog fragment)。"
+      }
+     ],
+     "waived": [
+      {
+       "label": "fee55899faf0f9c6685340c41e1460d1af8df1c7",
+       "ratified": "2026-07-31",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "4bcbc2c10f97d86369fd37332c63439316ff9bd1",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "32d364ff91c0dc47453145462940176f58eaec5b",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "b36aaa1279246d5a37a3e4f9e97a81d4a5f5f486",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "e2516cc70ad7343dc5edbb6570269bea7cb1b3fb",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "f45c9b3ac2e75c7773659ca87d46d93356fbb432",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "8730a6e9fb9e8b57c650138b0203de73334c9b33",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "dd9df29dcfcc25af4e3386a9a9a0473d4692816d",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "068532c45e483aa3b644403cbd68bf33d5dbb15c",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "d87a8090aed13514eceb0ab7ab8d038b55c6e6a7",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2e9d43b07c45c0635ffb583d3349851185870b9a",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2d76e785f93a6f838b968b23b70121bd8de375df",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      }
+     ]
+    },
+    "maxrss_children_kb": 142996,
+    "maxrss_self_kb": 132596,
+    "wall_s": 35.788,
+    "rc": 0
+   },
+   "public": {
+    "rc": 0,
+    "wall_s": 37.494,
+    "cpu_children_s": 226.259,
+    "loadavg_before": [
+     3.287109375,
+     5.62890625,
+     6.474609375
+    ],
+    "loadavg_after": [
+     3.64697265625,
+     5.39990234375,
+     6.35888671875
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 1,
+   "version": "new",
+   "internal": {
+    "calls": {
+     "ai_agent_values": 11770,
+     "commit_paths": 4247,
+     "normal_commit_audit": 11770
+    },
+    "commit_count": 11770,
+    "commits_sha256": "ca82afa2948fdca8fd2e73731f1798604d23817ffde49c7d7b6bc953c747e0c3",
+    "cpu_children_s": 49.04,
+    "cpu_self_s": 19.129,
+    "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+    "history": {
+     "corrected": [
+      {
+       "correction": "6d7141dc8a174384f3b9be689d3516a8a3a31bbf",
+       "target": "6b64d21753d2cfc790f80caba29df7a40fef3072"
+      }
+     ],
+     "findings": [],
+     "known_violations": [
+      {
+       "commit": "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)"
+      },
+      {
+       "commit": "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "16affe169185040b33f8c6cbdd452260bddc4089",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "b0a07672737cf03424ec1790cc25a06e4c85b737",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "3f2c43d7580b8c26724d90278589862057508965",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立",
+       "ruling": "worklog(293) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "74b501962092373ba2e8bbca1566d0732e0f16c6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "f1406c22abece76276b43dde897750a46aae877e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・shell wrapper）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "ff264975a04aa19f36f861ca97efe9dc59c88659",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md"
+      },
+      {
+       "commit": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-ledger.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe、実測成果物併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "622bd786191d40bda388596fa2adbf119ee84c9a",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実測成果物・docs（追補 A・package・receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（combined path は docs/pegasus-runbook.md）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "edf74c94427686f2b91519ef10e94446d0fe89d5",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "66769067ee57d78650b208b9a86438ff2f1bf73b",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "aaffa644a969f0a58969b2661318bda4c42ac767",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "797db5def66ef1d318d06c7aa189ea51a66c9312",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみでソース著作なし；親作成 commit のため Codex 著者とは記さない",
+       "ruling": "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "a5b7045b129d062c4731acc7667262795abd3f67",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の local main 取り込み merge。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-470 の known-violation エントリと main 側の別裁定 (T-619) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_layer3_report.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc a5b7045b` は全差分行が いずれかの親に既存で、両親のどちらにも無い新規行はない。wave 側の実装面は Codex `role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の受入投入前 local main 取り込み merge `5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の known-violation エントリと main 側の別 wave (T-565、merge `76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc 5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "09ce607b779272fda5629a350676471a16bea9bb",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink （submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分のポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% 書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)"
+      },
+      {
+       "commit": "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が付与されない",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "311d463f89d1d1708a309b86d5bf63f5b034f89d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main 取り込み merge `311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは `orchestrator/campaign/layout.py` / `orchestrator/campaign/s8b_oracle_driver.py` / `orchestrator/tests/conftest.py` / `orchestrator/tests/test_campaign.py` / `orchestrator/tests/test_check_ai_provenance.py` / `orchestrator/tests/test_s8b_oracle_driver.py` / `tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc 311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた `_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の `_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave (`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1371-official-run-root 受入lease待機長期化に伴う2回目のlocal main取り込み裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されずAI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave はouter gitlink を参照しないため影響なし",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)"
+      },
+      {
+       "commit": "75d57796ea8c6af4f80f32031afc952cfef2903a",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenanceregistry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "216493593dbee40fbdac65207ca328bae5bc9f52",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が同じ file へ追加した known-violation entry が非競合で union された",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "8440a14850718e63d73dfc510aa66b853a526424",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した 19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ (T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc 8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit `09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。実装面で競合したのは `tools/check_ai_provenance.py` と `orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+      },
+      {
+       "commit": "e39a8d46567a02d231fce52abae5aee759634ff7",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込みmerge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py のKNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加したunion型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中でworking tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と複数waveのccbench provenance known-violation登録を取り込んだもの。`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに既存するテキストの選択・配置のみで解決 (新規著作なし)。`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
+      },
+      {
+       "commit": "387a1daab0d713cf86f19449e88559686f1eb575",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 (`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、docs系spool/fold多数）を取り込んだ6回目の merge `bf92f327cadfbe626e37cab73d55abe80d3994dd`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave (dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、親の Claude セッションが直接両側の既存エントリを残す union で解決した。`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、競合解決による新規著作なしと確認済み。本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、`git status` にも現れなかった。main 側由来で自動マージされた `orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
+      },
+      {
+       "commit": "b9c07cc22d483a9103dac208a83446872161ffad",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` のmerge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションがmain側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "25614f868c1a1b562a68072233fdf55b0be93cd1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した `--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` 条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit したため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が `missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "94815c57976806da56a3f067ade91c0041b2e2d1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は `orchestrator/tests/test_check_ai_provenance.py` の `test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit `94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。",
+       "ruling": "2026-08-27 本セッション内でのユーザー直接裁定 (known-violation 登録して commit し裁定送り、後続 dev-wave で解除・修理)"
+      },
+      {
+       "commit": "9bb9024aab25dc7c49f497e462a9cc21216418bc",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0][\"protocol\"] == \"silo\"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。",
+       "ruling": "2026-09-01 dev-wave-t1999-define-gate-family の受入全走前の local main 取り込み。新規 known-violation 登録に事前承認を課さない D662 の裁定に従う。"
+      },
+      {
+       "commit": "c12e25078ad155486c19eae633fde14e59753272",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。",
+       "ruling": "系統 blocker (全 land の全史 provenance 監査 rc=1・全新規 worktree の submodule 初期化失敗) を解除するため、next-tasks command 移設 wave の親 (claude) が 2026-09-08 に登録した。原因 session ([T-2412] wave) は前進修正を本 wave へ委ねた。ユーザー承認は事後報告 (本 wave の worklog fragment)。"
+      }
+     ],
+     "waived": [
+      {
+       "label": "fee55899faf0f9c6685340c41e1460d1af8df1c7",
+       "ratified": "2026-07-31",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "4bcbc2c10f97d86369fd37332c63439316ff9bd1",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "32d364ff91c0dc47453145462940176f58eaec5b",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "b36aaa1279246d5a37a3e4f9e97a81d4a5f5f486",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "e2516cc70ad7343dc5edbb6570269bea7cb1b3fb",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "f45c9b3ac2e75c7773659ca87d46d93356fbb432",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "8730a6e9fb9e8b57c650138b0203de73334c9b33",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "dd9df29dcfcc25af4e3386a9a9a0473d4692816d",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "068532c45e483aa3b644403cbd68bf33d5dbb15c",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "d87a8090aed13514eceb0ab7ab8d038b55c6e6a7",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2e9d43b07c45c0635ffb583d3349851185870b9a",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2d76e785f93a6f838b968b23b70121bd8de375df",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      }
+     ]
+    },
+    "maxrss_children_kb": 221108,
+    "maxrss_self_kb": 221108,
+    "wall_s": 23.69,
+    "rc": 0
+   },
+   "public": {
+    "rc": 0,
+    "wall_s": 25.983,
+    "cpu_children_s": 69.139,
+    "loadavg_before": [
+     3.17236328125,
+     5.1787109375,
+     6.26513671875
+    ],
+    "loadavg_after": [
+     3.07177734375,
+     4.95556640625,
+     6.154296875
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 2,
+   "version": "old",
+   "internal": {
+    "calls": {
+     "ai_agent_values": 13995,
+     "commit_paths": 11309,
+     "normal_commit_audit": 11770
+    },
+    "commit_count": 11770,
+    "commits_sha256": "ca82afa2948fdca8fd2e73731f1798604d23817ffde49c7d7b6bc953c747e0c3",
+    "cpu_children_s": 193.597,
+    "cpu_self_s": 32.007,
+    "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+    "history": {
+     "corrected": [
+      {
+       "correction": "6d7141dc8a174384f3b9be689d3516a8a3a31bbf",
+       "target": "6b64d21753d2cfc790f80caba29df7a40fef3072"
+      }
+     ],
+     "findings": [],
+     "known_violations": [
+      {
+       "commit": "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)"
+      },
+      {
+       "commit": "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "16affe169185040b33f8c6cbdd452260bddc4089",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "b0a07672737cf03424ec1790cc25a06e4c85b737",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "3f2c43d7580b8c26724d90278589862057508965",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立",
+       "ruling": "worklog(293) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "74b501962092373ba2e8bbca1566d0732e0f16c6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "f1406c22abece76276b43dde897750a46aae877e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・shell wrapper）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "ff264975a04aa19f36f861ca97efe9dc59c88659",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md"
+      },
+      {
+       "commit": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-ledger.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe、実測成果物併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "622bd786191d40bda388596fa2adbf119ee84c9a",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実測成果物・docs（追補 A・package・receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（combined path は docs/pegasus-runbook.md）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "edf74c94427686f2b91519ef10e94446d0fe89d5",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "66769067ee57d78650b208b9a86438ff2f1bf73b",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "aaffa644a969f0a58969b2661318bda4c42ac767",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "797db5def66ef1d318d06c7aa189ea51a66c9312",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみでソース著作なし；親作成 commit のため Codex 著者とは記さない",
+       "ruling": "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "a5b7045b129d062c4731acc7667262795abd3f67",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の local main 取り込み merge。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-470 の known-violation エントリと main 側の別裁定 (T-619) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_layer3_report.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc a5b7045b` は全差分行が いずれかの親に既存で、両親のどちらにも無い新規行はない。wave 側の実装面は Codex `role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の受入投入前 local main 取り込み merge `5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の known-violation エントリと main 側の別 wave (T-565、merge `76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc 5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "09ce607b779272fda5629a350676471a16bea9bb",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink （submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分のポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% 書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)"
+      },
+      {
+       "commit": "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が付与されない",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "311d463f89d1d1708a309b86d5bf63f5b034f89d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main 取り込み merge `311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは `orchestrator/campaign/layout.py` / `orchestrator/campaign/s8b_oracle_driver.py` / `orchestrator/tests/conftest.py` / `orchestrator/tests/test_campaign.py` / `orchestrator/tests/test_check_ai_provenance.py` / `orchestrator/tests/test_s8b_oracle_driver.py` / `tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc 311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた `_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の `_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave (`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1371-official-run-root 受入lease待機長期化に伴う2回目のlocal main取り込み裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されずAI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave はouter gitlink を参照しないため影響なし",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)"
+      },
+      {
+       "commit": "75d57796ea8c6af4f80f32031afc952cfef2903a",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenanceregistry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "216493593dbee40fbdac65207ca328bae5bc9f52",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が同じ file へ追加した known-violation entry が非競合で union された",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "8440a14850718e63d73dfc510aa66b853a526424",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した 19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ (T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc 8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit `09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。実装面で競合したのは `tools/check_ai_provenance.py` と `orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+      },
+      {
+       "commit": "e39a8d46567a02d231fce52abae5aee759634ff7",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込みmerge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py のKNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加したunion型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中でworking tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と複数waveのccbench provenance known-violation登録を取り込んだもの。`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに既存するテキストの選択・配置のみで解決 (新規著作なし)。`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
+      },
+      {
+       "commit": "387a1daab0d713cf86f19449e88559686f1eb575",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 (`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、docs系spool/fold多数）を取り込んだ6回目の merge `bf92f327cadfbe626e37cab73d55abe80d3994dd`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave (dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、親の Claude セッションが直接両側の既存エントリを残す union で解決した。`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、競合解決による新規著作なしと確認済み。本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、`git status` にも現れなかった。main 側由来で自動マージされた `orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
+      },
+      {
+       "commit": "b9c07cc22d483a9103dac208a83446872161ffad",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` のmerge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションがmain側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "25614f868c1a1b562a68072233fdf55b0be93cd1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した `--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` 条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit したため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が `missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "94815c57976806da56a3f067ade91c0041b2e2d1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は `orchestrator/tests/test_check_ai_provenance.py` の `test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit `94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。",
+       "ruling": "2026-08-27 本セッション内でのユーザー直接裁定 (known-violation 登録して commit し裁定送り、後続 dev-wave で解除・修理)"
+      },
+      {
+       "commit": "9bb9024aab25dc7c49f497e462a9cc21216418bc",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0][\"protocol\"] == \"silo\"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。",
+       "ruling": "2026-09-01 dev-wave-t1999-define-gate-family の受入全走前の local main 取り込み。新規 known-violation 登録に事前承認を課さない D662 の裁定に従う。"
+      },
+      {
+       "commit": "c12e25078ad155486c19eae633fde14e59753272",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。",
+       "ruling": "系統 blocker (全 land の全史 provenance 監査 rc=1・全新規 worktree の submodule 初期化失敗) を解除するため、next-tasks command 移設 wave の親 (claude) が 2026-09-08 に登録した。原因 session ([T-2412] wave) は前進修正を本 wave へ委ねた。ユーザー承認は事後報告 (本 wave の worklog fragment)。"
+      }
+     ],
+     "waived": [
+      {
+       "label": "fee55899faf0f9c6685340c41e1460d1af8df1c7",
+       "ratified": "2026-07-31",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "4bcbc2c10f97d86369fd37332c63439316ff9bd1",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "32d364ff91c0dc47453145462940176f58eaec5b",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "b36aaa1279246d5a37a3e4f9e97a81d4a5f5f486",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "e2516cc70ad7343dc5edbb6570269bea7cb1b3fb",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "f45c9b3ac2e75c7773659ca87d46d93356fbb432",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "8730a6e9fb9e8b57c650138b0203de73334c9b33",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "dd9df29dcfcc25af4e3386a9a9a0473d4692816d",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "068532c45e483aa3b644403cbd68bf33d5dbb15c",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "d87a8090aed13514eceb0ab7ab8d038b55c6e6a7",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2e9d43b07c45c0635ffb583d3349851185870b9a",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2d76e785f93a6f838b968b23b70121bd8de375df",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      }
+     ]
+    },
+    "maxrss_children_kb": 143072,
+    "maxrss_self_kb": 133488,
+    "wall_s": 34.821,
+    "rc": 0
+   },
+   "public": {
+    "rc": 0,
+    "wall_s": 37.509,
+    "cpu_children_s": 226.331,
+    "loadavg_before": [
+     5.7607421875,
+     5.37939453125,
+     6.25
+    ],
+    "loadavg_after": [
+     8.3291015625,
+     5.98828125,
+     6.41845703125
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 2,
+   "version": "new",
+   "internal": {
+    "calls": {
+     "ai_agent_values": 11770,
+     "commit_paths": 4247,
+     "normal_commit_audit": 11770
+    },
+    "commit_count": 11770,
+    "commits_sha256": "ca82afa2948fdca8fd2e73731f1798604d23817ffde49c7d7b6bc953c747e0c3",
+    "cpu_children_s": 49.215,
+    "cpu_self_s": 19.141,
+    "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+    "history": {
+     "corrected": [
+      {
+       "correction": "6d7141dc8a174384f3b9be689d3516a8a3a31bbf",
+       "target": "6b64d21753d2cfc790f80caba29df7a40fef3072"
+      }
+     ],
+     "findings": [],
+     "known_violations": [
+      {
+       "commit": "333605d680ec15f3f74b00e9e2746ae317b85dc5",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)"
+      },
+      {
+       "commit": "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "16affe169185040b33f8c6cbdd452260bddc4089",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "b0a07672737cf03424ec1790cc25a06e4c85b737",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "",
+       "ruling": "worklog(284) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "3f2c43d7580b8c26724d90278589862057508965",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立",
+       "ruling": "worklog(293) 2026-08-07 /rulings"
+      },
+      {
+       "commit": "f277efd4461d361d5c9aa6db9a7e00b194b76083",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "74b501962092373ba2e8bbca1566d0732e0f16c6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7ec088163dee920f0b8e1e9783faa6e36b22b730",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "f1406c22abece76276b43dde897750a46aae877e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe・shell wrapper）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "ff264975a04aa19f36f861ca97efe9dc59c88659",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md"
+      },
+      {
+       "commit": "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-spec.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=変異台帳（mutation-ledger.json）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "30719e517dcee45c014cbf1052c6dc70a8fcf693",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（submission receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実装面（test・probe、実測成果物併記）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "622bd786191d40bda388596fa2adbf119ee84c9a",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=実測成果物・docs（追補 A・package・receipt）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c75fde903384b6eb9e4d45239b66008b7639cbf7",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（combined path は docs/pegasus-runbook.md）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "edf74c94427686f2b91519ef10e94446d0fe89d5",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "7e3cc116f2466fb439ec2bddd38f35dab928c942",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "66769067ee57d78650b208b9a86438ff2f1bf73b",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "aaffa644a969f0a58969b2661318bda4c42ac767",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=merge（全 parent 共通の combined path なし）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "797db5def66ef1d318d06c7aa189ea51a66c9312",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+       "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）",
+       "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md"
+      },
+      {
+       "commit": "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみでソース著作なし；親作成 commit のため Codex 著者とは記さない",
+       "ruling": "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "a5b7045b129d062c4731acc7667262795abd3f67",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の local main 取り込み merge。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-470 の known-violation エントリと main 側の別裁定 (T-619) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_layer3_report.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc a5b7045b` は全差分行が いずれかの親に既存で、両親のどちらにも無い新規行はない。wave 側の実装面は Codex `role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "2回目の受入投入前 local main 取り込み merge `5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の known-violation エントリと main 側の別 wave (T-565、merge `76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は main 側の新規変更と衝突しなかった。`git diff-tree --cc 5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "09ce607b779272fda5629a350676471a16bea9bb",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink （submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分のポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% 書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)"
+      },
+      {
+       "commit": "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が付与されない",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "311d463f89d1d1708a309b86d5bf63f5b034f89d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main 取り込み merge `311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは `orchestrator/campaign/layout.py` / `orchestrator/campaign/s8b_oracle_driver.py` / `orchestrator/tests/conftest.py` / `orchestrator/tests/test_campaign.py` / `orchestrator/tests/test_check_ai_provenance.py` / `orchestrator/tests/test_s8b_oracle_driver.py` / `tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc 311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた `_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の `_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave (`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1371-official-run-root 受入lease待機長期化に伴う2回目のlocal main取り込み裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されずAI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave はouter gitlink を参照しないため影響なし",
+       "ruling": "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)"
+      },
+      {
+       "commit": "75d57796ea8c6af4f80f32031afc952cfef2903a",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenanceregistry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "216493593dbee40fbdac65207ca328bae5bc9f52",
+       "expected_finding_kind": "missing-ai-agent",
+       "expected_finding_value": "",
+       "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が同じ file へ追加した known-violation entry が非競合で union された",
+       "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)"
+      },
+      {
+       "commit": "8440a14850718e63d73dfc510aa66b853a526424",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した 19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ (T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc 8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit `09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。実装面で競合したのは `tools/check_ai_provenance.py` と `orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
+      },
+      {
+       "commit": "e39a8d46567a02d231fce52abae5aee759634ff7",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込みmerge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py のKNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加したunion型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中でworking tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と複数waveのccbench provenance known-violation登録を取り込んだもの。`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに既存するテキストの選択・配置のみで解決 (新規著作なし)。`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
+      },
+      {
+       "commit": "387a1daab0d713cf86f19449e88559686f1eb575",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 (`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。",
+       "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "bf92f327cadfbe626e37cab73d55abe80d3994dd",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、docs系spool/fold多数）を取り込んだ6回目の merge `bf92f327cadfbe626e37cab73d55abe80d3994dd`。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave (dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、親の Claude セッションが直接両側の既存エントリを残す union で解決した。`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、競合解決による新規著作なしと確認済み。本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、`git status` にも現れなかった。main 側由来で自動マージされた `orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
+      },
+      {
+       "commit": "b9c07cc22d483a9103dac208a83446872161ffad",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` のmerge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションがmain側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex `role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "malformed-ai-agent",
+       "expected_finding_value": "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "649fe5a060a39de295f90d2002e8f97082729ea6",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り",
+       "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)"
+      },
+      {
+       "commit": "25614f868c1a1b562a68072233fdf55b0be93cd1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した `--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` 条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit したため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が `missing-codex-author` (paths=tools/check_docs.py) を検出した。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "94815c57976806da56a3f067ade91c0041b2e2d1",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は `orchestrator/tests/test_check_ai_provenance.py` の `test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit `94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。",
+       "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
+      },
+      {
+       "commit": "9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。",
+       "ruling": "2026-08-27 本セッション内でのユーザー直接裁定 (known-violation 登録して commit し裁定送り、後続 dev-wave で解除・修理)"
+      },
+      {
+       "commit": "9bb9024aab25dc7c49f497e462a9cc21216418bc",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0][\"protocol\"] == \"silo\"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。",
+       "ruling": "2026-09-01 dev-wave-t1999-define-gate-family の受入全走前の local main 取り込み。新規 known-violation 登録に事前承認を課さない D662 の裁定に従う。"
+      },
+      {
+       "commit": "c12e25078ad155486c19eae633fde14e59753272",
+       "expected_finding_kind": "missing-codex-author",
+       "expected_finding_value": "",
+       "note": "commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。",
+       "ruling": "系統 blocker (全 land の全史 provenance 監査 rc=1・全新規 worktree の submodule 初期化失敗) を解除するため、next-tasks command 移設 wave の親 (claude) が 2026-09-08 に登録した。原因 session ([T-2412] wave) は前進修正を本 wave へ委ねた。ユーザー承認は事後報告 (本 wave の worklog fragment)。"
+      }
+     ],
+     "waived": [
+      {
+       "label": "fee55899faf0f9c6685340c41e1460d1af8df1c7",
+       "ratified": "2026-07-31",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "4bcbc2c10f97d86369fd37332c63439316ff9bd1",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "32d364ff91c0dc47453145462940176f58eaec5b",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "b36aaa1279246d5a37a3e4f9e97a81d4a5f5f486",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "e2516cc70ad7343dc5edbb6570269bea7cb1b3fb",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "f45c9b3ac2e75c7773659ca87d46d93356fbb432",
+       "ratified": "2026-08-01",
+       "reason": "codex-rate-limit"
+      },
+      {
+       "label": "8730a6e9fb9e8b57c650138b0203de73334c9b33",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "dd9df29dcfcc25af4e3386a9a9a0473d4692816d",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "068532c45e483aa3b644403cbd68bf33d5dbb15c",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "d87a8090aed13514eceb0ab7ab8d038b55c6e6a7",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2e9d43b07c45c0635ffb583d3349851185870b9a",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      },
+      {
+       "label": "2d76e785f93a6f838b968b23b70121bd8de375df",
+       "ratified": "2026-08-18",
+       "reason": "codex-sandbox-readonly-dotcodex"
+      }
+     ]
+    },
+    "maxrss_children_kb": 221988,
+    "maxrss_self_kb": 221988,
+    "wall_s": 23.77,
+    "rc": 0
+   },
+   "public": {
+    "rc": 0,
+    "wall_s": 26.126,
+    "cpu_children_s": 69.238,
+    "loadavg_before": [
+     5.96923828125,
+     5.619140625,
+     6.2841796875
+    ],
+    "loadavg_after": [
+     5.48779296875,
+     5.5234375,
+     6.23388671875
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [],
+    "stderr_static_head": ""
+   }
+  }
+ ],
+ "restored_sha256": "7c02fb2d5fec9d229bf1d4984181150a2b418ce6a473b4172556e53a5fd0b05c",
+ "restored_equals_new": true,
+ "final_status": "",
+ "verdict": {
+  "internal_old_keys": [
+   "5b0fba622a8d970d13ce057cdb1fe118d0af97e838aa0758773d823f232905aa"
+  ],
+  "internal_new_keys": [
+   "5b0fba622a8d970d13ce057cdb1fe118d0af97e838aa0758773d823f232905aa"
+  ],
+  "internal_equal": true,
+  "public_old": [
+   "(0, 'dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')"
+  ],
+  "public_new": [
+   "(0, 'dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')"
+  ],
+  "public_equal": true
+ },
+ "ended_at": "2026-09-20T08:40:03+09:00"
+}

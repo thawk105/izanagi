@@ -1,0 +1,309 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/eb1d97eccb351b24357317dd5c83cff8/izdw-eb1d97eccb.o11876",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/eb1d97eccb351b24357317dd5c83cff8/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 147.48s (0:02:27)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "aa97d5fcb8d68afea469b7600361ac9b99abeaac161061c12d64ad6fc3d87087"
+    },
+    "artifact_error": null,
+    "collection_sha256": "7fffd7cd1ef40a1410d05738f50a3b0113bb19540222737b57d6c70509ef8c0a",
+    "duration_s": 216.707,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "45ad7078ad7301a0128a0013e866c2d5fbab12c29f3caaa8619d40e48f74202f",
+    "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+    "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+    "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+    "status": "PASSED",
+    "test_output_sha256": "aa97d5fcb8d68afea469b7600361ac9b99abeaac161061c12d64ad6fc3d87087",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50"
+  },
+  "date": "2026-09-19T22:45:29.409780+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2453eb3a356794047b0957c12aa289dd/izdw-2453eb3a35.o11884",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2453eb3a356794047b0957c12aa289dd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nFF                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n        with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n            root = Path(temp)\n            head = _init_repo(root)\n            ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n            assert ancestor.status == \"ancestor\"\n    \n            tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n            nonancestor_oid = _run_git(\n                root, \"commit-tree\", tree, input_bytes=b\"orphan\\n\\nAI-Agent: none\\n\",\n            ).decode().strip()\n            nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n            assert nonancestor.status == \"not-ancestor\"\n    \n            missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n>           assert missing.status == \"missing-commit\" and missing.observed is None\nE           AssertionError: assert ('not-ancestor' == 'missing-commit'\nE             \nE             - missing-commit\nE             + not-ancestor)\n\norchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n_______ test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5 _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_stub_free_draft_fina0')\n\n    def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):\n        root, _receipt_path, document = _t080_stub_free_e2e_repo(\n            tmp_path, distinct_basis_blob=True,\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"source_repins\"]\n        ) == _T080_SOURCE_GOLDEN\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"metadata_fields\"]\n        ) == _T080_METADATA_GOLDEN\n        marker_sentinel = \"t080-held-marker-negative-witness\"\n        with mock.patch.object(\n                migration._freeze_hold, \"held_marker\",\n                side_effect=RuntimeError(marker_sentinel),\n                ) as held_marker_witness:\n            marker_failure = migration.verify_receipt(root=root)\n        assert held_marker_witness.call_count > 0\n        assert marker_failure.state == \"invalid\"\n        assert marker_failure.held_checks == ()\n        assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n    \n        resolution = migration.verify_receipt(root=root)\n        assert resolution.state == \"active-valid\"\n        assert resolution.refusals == ()\n        _assert_exact_t080_live_held_markers(resolution.held_checks)\n        assert resolution.t080_freeze_migration_observation is not None\n        items = resolution.t080_freeze_migration_observation[\"items\"]\n        assert len(items) == 17\n        fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n        basis_golden = tuple(\n            (kind, artifact, pointer, path)\n            for kind, golden in (\n                (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n                (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n            )\n            for artifact, pointer, _recorded, path, _real_observed in golden\n        )\n        observed_by_path = {\n            path: _git_blob_sha256(root, fixture_basis, path)\n            for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n        }\n        expected_blob_observations = tuple(\n            (artifact, kind, pointer, observed_by_path[path])\n            for kind, artifact, pointer, path in basis_golden\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n            for item in items[:15]\n        ) == expected_blob_observations\n        # hermetic fixture には記録 commit が無いので ancestry 2 件は missing-commit / None が独立期待値。\n        # 後段の report との一致は同一 source なので独立検算にならない。\n>       assert items[15:] == [\n            {\n                \"artifact\": \"known_axes\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n            {\n                \"artifact\": \"holdout\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n        ]\nE       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\nE         \nE         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': '2359f93aa7be78b0b347e4207262a71043d35ac9', 'status': 'not-ancestor'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-holdout-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-ccbench-current-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\n2 failed in 142.91s (0:02:22)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4123 retained_bytes=3822 omitted_bytes=301 rendered_excerpt_bytes=4096 sha256=871b51c18351453a4753018d01534e96d2782f54f13fffd03f0ebd9c68716761\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>      tmp_path, distinct_basis_blob=True,\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"source_repins\"]\n>         ) == _T080_SOURCE_GOLDEN\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"metadata_fields\"]\n>         ) == _T080_METADATA_GOLDEN\n>         marker_sentinel = \"t080-held-marker-negative-witness\"\n>         with mock.patch.object(\n>                 migration._freeze_hold, \"held_marker\",\n>                 side_effect=RuntimeError(marker_sentinel),\n>                 ) as held_marker_witness:\n>             marker_failure = migration.verify_receipt(root=root)\n>         assert held_marker_witness.call_count > 0\n>         assert marker_failure.state == \"invalid\"\n>         assert marker_failure.held_checks == ()\n>         assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n>     \n>         resolution = migration.verify_receipt(root=root)\n>         assert resolution.state == \"active-valid\"\n>         assert resolution.refusals == ()\n>         _assert_exact_t080_live_held_markers(resolution.held_checks)\n>         assert resolution.t080_freeze_migration_observation is not None\n>         items = resolution.t080_freeze_migration_observation[\"items\"]\n>         assert len(items) == 17\n>         fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n>         basis_golden = tuple(\n>             (kind, artifact, pointer, path)\n>             for kind, golden in (\n>                 (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n>                 (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n>             )\n>             for artifact, pointer, _recorded, path, _real_observed in golden\n>         )\n>         observed_by_path = {\n>             path: _git_blob_sha256(root, fixture_basis, path)\n>             for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n>         }\n>         expected_blob_observations = tuple(\n>             (artifact, kind, pointer, observed_by_path[path])\n>             for kind, artifact, pointer, path in basis_golden\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n>             for item in items[:15]\n>         ) == expected_blob_observations\n>         # hermetic fixture \\u306b\\u306f\\u8a18\\u9332 commit \\u304c\\u7121\\u3044\\u306e\\u3067 ancestry 2 \\u4ef6\\u306f missing-commit / None \\u304c\\u72ec\\u7acb\\u671f\\u5f85\\u5024\\u3002\n>         # \\u5f8c\\u6bb5\\u306e report \\u3068\\u306e\\u4e00\\u81f4\\u306f\\u540c\\u4e00 source \\u306a\\u306e\\u3067\\u72ec\\u7acb\\u691c\\u7b97\\u306b\\u306a\\u3089\\u306a\\u3044\\u3002\n> >       assert items[15:] == [\n>             {\n>                 \"artifact\": \"known_axes\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>             {\n>                 \"artifact\": \"holdout\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>         ]\n> E       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\n> E         \n> E         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': '2359f93aa7be78b0b347e4207262a71043d35ac9', 'status': 'not-ancestor'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1221 retained_bytes=1221 omitted_bytes=0 rendered_excerpt_bytes=1279 sha256=d1e60d526d39e3f187d659e3922c85a3b9e0d28d20c87f0c16f25f8698d5c0f6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n>         with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n>             root = Path(temp)\n>             head = _init_repo(root)\n>             ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n>             assert ancestor.status == \"ancestor\"\n>     \n>             tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n>             nonancestor_oid = _run_git(\n>                 root, \"commit-tree\", tree, input_bytes=b\"orphan\\x5cn\\x5cnAI-Agent: none\\x5cn\",\n>             ).decode().strip()\n>             nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n>             assert nonancestor.status == \"not-ancestor\"\n>     \n>             missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n> >           assert missing.status == \"missing-commit\" and missing.observed is None\n> E           AssertionError: assert ('not-ancestor' == 'missing-commit'\n> E             \n> E             - missing-commit\n> E             + not-ancestor)\n> \n> orchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5344 retained_bytes=5043 omitted_bytes=301 budget_bytes=49152 rendered_bytes=6574 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0d6609844e8637e5feeff654173f2937a5a82cadb596f064d2e60dab5483acd5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7fffd7cd1ef40a1410d05738f50a3b0113bb19540222737b57d6c70509ef8c0a",
+      "duration_s": 171.375,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+      ],
+      "hang_risk": false,
+      "id": "M1-missing-to-not-ancestor",
+      "injection_diff_sha256": "ebf283d44f17306ae8dc53f3a04a7643c28fa308790a9c77c26e2ca50b64af47",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8e885c06dfa503223455d38a6dabef24876ec68bdeddd5281bba9163c560ea09",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "    if kind is None:\n        return AncestryResult(\"not-ancestor\", recorded, validation_head)\n",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+        }
+      ],
+      "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+      "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+      "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+      "status": "KILLED",
+      "test_output_sha256": "0d6609844e8637e5feeff654173f2937a5a82cadb596f064d2e60dab5483acd5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ba96c08531ba7f81d5f92c9d40dddf74/izdw-ba96c08531.o11889",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ba96c08531ba7f81d5f92c9d40dddf74/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nFF                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n        with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n            root = Path(temp)\n            head = _init_repo(root)\n            ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n            assert ancestor.status == \"ancestor\"\n    \n            tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n            nonancestor_oid = _run_git(\n                root, \"commit-tree\", tree, input_bytes=b\"orphan\\n\\nAI-Agent: none\\n\",\n            ).decode().strip()\n            nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n            assert nonancestor.status == \"not-ancestor\"\n    \n            missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n>           assert missing.status == \"missing-commit\" and missing.observed is None\nE           AssertionError: assert ('ancestor' == 'missing-commit'\nE             \nE             - missing-commit\nE             + ancestor)\n\norchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n_______ test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5 _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_stub_free_draft_fina0')\n\n    def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):\n        root, _receipt_path, document = _t080_stub_free_e2e_repo(\n            tmp_path, distinct_basis_blob=True,\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"source_repins\"]\n        ) == _T080_SOURCE_GOLDEN\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"metadata_fields\"]\n        ) == _T080_METADATA_GOLDEN\n        marker_sentinel = \"t080-held-marker-negative-witness\"\n        with mock.patch.object(\n                migration._freeze_hold, \"held_marker\",\n                side_effect=RuntimeError(marker_sentinel),\n                ) as held_marker_witness:\n            marker_failure = migration.verify_receipt(root=root)\n        assert held_marker_witness.call_count > 0\n        assert marker_failure.state == \"invalid\"\n        assert marker_failure.held_checks == ()\n        assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n    \n        resolution = migration.verify_receipt(root=root)\n        assert resolution.state == \"active-valid\"\n        assert resolution.refusals == ()\n        _assert_exact_t080_live_held_markers(resolution.held_checks)\n        assert resolution.t080_freeze_migration_observation is not None\n        items = resolution.t080_freeze_migration_observation[\"items\"]\n        assert len(items) == 17\n        fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n        basis_golden = tuple(\n            (kind, artifact, pointer, path)\n            for kind, golden in (\n                (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n                (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n            )\n            for artifact, pointer, _recorded, path, _real_observed in golden\n        )\n        observed_by_path = {\n            path: _git_blob_sha256(root, fixture_basis, path)\n            for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n        }\n        expected_blob_observations = tuple(\n            (artifact, kind, pointer, observed_by_path[path])\n            for kind, artifact, pointer, path in basis_golden\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n            for item in items[:15]\n        ) == expected_blob_observations\n        # hermetic fixture には記録 commit が無いので ancestry 2 件は missing-commit / None が独立期待値。\n        # 後段の report との一致は同一 source なので独立検算にならない。\n>       assert items[15:] == [\n            {\n                \"artifact\": \"known_axes\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n            {\n                \"artifact\": \"holdout\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n        ]\nE       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\nE         \nE         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': '4682fc6d214b312788693922d99834885f6f9835', 'status': 'ancestor'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-holdout-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-ccbench-current-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\n2 failed in 145.49s (0:02:25)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4119 retained_bytes=3822 omitted_bytes=297 rendered_excerpt_bytes=4096 sha256=653ff0492e482766436495f89457cbd2acae56f73e0141c55a6a6eae6d0a30ae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>          tmp_path, distinct_basis_blob=True,\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"source_repins\"]\n>         ) == _T080_SOURCE_GOLDEN\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"metadata_fields\"]\n>         ) == _T080_METADATA_GOLDEN\n>         marker_sentinel = \"t080-held-marker-negative-witness\"\n>         with mock.patch.object(\n>                 migration._freeze_hold, \"held_marker\",\n>                 side_effect=RuntimeError(marker_sentinel),\n>                 ) as held_marker_witness:\n>             marker_failure = migration.verify_receipt(root=root)\n>         assert held_marker_witness.call_count > 0\n>         assert marker_failure.state == \"invalid\"\n>         assert marker_failure.held_checks == ()\n>         assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n>     \n>         resolution = migration.verify_receipt(root=root)\n>         assert resolution.state == \"active-valid\"\n>         assert resolution.refusals == ()\n>         _assert_exact_t080_live_held_markers(resolution.held_checks)\n>         assert resolution.t080_freeze_migration_observation is not None\n>         items = resolution.t080_freeze_migration_observation[\"items\"]\n>         assert len(items) == 17\n>         fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n>         basis_golden = tuple(\n>             (kind, artifact, pointer, path)\n>             for kind, golden in (\n>                 (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n>                 (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n>             )\n>             for artifact, pointer, _recorded, path, _real_observed in golden\n>         )\n>         observed_by_path = {\n>             path: _git_blob_sha256(root, fixture_basis, path)\n>             for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n>         }\n>         expected_blob_observations = tuple(\n>             (artifact, kind, pointer, observed_by_path[path])\n>             for kind, artifact, pointer, path in basis_golden\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n>             for item in items[:15]\n>         ) == expected_blob_observations\n>         # hermetic fixture \\u306b\\u306f\\u8a18\\u9332 commit \\u304c\\u7121\\u3044\\u306e\\u3067 ancestry 2 \\u4ef6\\u306f missing-commit / None \\u304c\\u72ec\\u7acb\\u671f\\u5f85\\u5024\\u3002\n>         # \\u5f8c\\u6bb5\\u306e report \\u3068\\u306e\\u4e00\\u81f4\\u306f\\u540c\\u4e00 source \\u306a\\u306e\\u3067\\u72ec\\u7acb\\u691c\\u7b97\\u306b\\u306a\\u3089\\u306a\\u3044\\u3002\n> >       assert items[15:] == [\n>             {\n>                 \"artifact\": \"known_axes\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>             {\n>                 \"artifact\": \"holdout\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>         ]\n> E       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\n> E         \n> E         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': '4682fc6d214b312788693922d99834885f6f9835', 'status': 'ancestor'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1213 retained_bytes=1213 omitted_bytes=0 rendered_excerpt_bytes=1271 sha256=22c26fbf49685c3a23807914eff405c87d671e72511b7dc4727a3691ca962ca6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n>         with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n>             root = Path(temp)\n>             head = _init_repo(root)\n>             ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n>             assert ancestor.status == \"ancestor\"\n>     \n>             tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n>             nonancestor_oid = _run_git(\n>                 root, \"commit-tree\", tree, input_bytes=b\"orphan\\x5cn\\x5cnAI-Agent: none\\x5cn\",\n>             ).decode().strip()\n>             nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n>             assert nonancestor.status == \"not-ancestor\"\n>     \n>             missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n> >           assert missing.status == \"missing-commit\" and missing.observed is None\n> E           AssertionError: assert ('ancestor' == 'missing-commit'\n> E             \n> E             - missing-commit\n> E             + ancestor)\n> \n> orchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5332 retained_bytes=5035 omitted_bytes=297 budget_bytes=49152 rendered_bytes=6566 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eecf3b6a29f309ff394c23860deeee1f2443cb71113643deb14b0cae09656efa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7fffd7cd1ef40a1410d05738f50a3b0113bb19540222737b57d6c70509ef8c0a",
+      "duration_s": 196.349,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+      ],
+      "hang_risk": false,
+      "id": "M2-missing-to-ancestor",
+      "injection_diff_sha256": "29098e60b77e8347bd93bfb3137f58f75146295985d1c44f15ff5685abd2d331",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "965e2193dcc5ca7bef7fb3069ca321210a7b7b6dd761b709a20a580db1364c17",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "    if kind is None:\n        return AncestryResult(\"ancestor\", recorded, validation_head)\n",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+        }
+      ],
+      "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+      "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+      "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+      "status": "KILLED",
+      "test_output_sha256": "eecf3b6a29f309ff394c23860deeee1f2443cb71113643deb14b0cae09656efa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c7e6f1603ceb92f82ef442ac1a00f9fc/izdw-c7e6f1603c.o11895",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c7e6f1603ceb92f82ef442ac1a00f9fc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_______ test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5 _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_stub_free_draft_fina0')\n\n    def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):\n        root, _receipt_path, document = _t080_stub_free_e2e_repo(\n            tmp_path, distinct_basis_blob=True,\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"source_repins\"]\n        ) == _T080_SOURCE_GOLDEN\n        assert tuple(\n            (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n            for item in document[\"metadata_fields\"]\n        ) == _T080_METADATA_GOLDEN\n        marker_sentinel = \"t080-held-marker-negative-witness\"\n        with mock.patch.object(\n                migration._freeze_hold, \"held_marker\",\n                side_effect=RuntimeError(marker_sentinel),\n                ) as held_marker_witness:\n            marker_failure = migration.verify_receipt(root=root)\n        assert held_marker_witness.call_count > 0\n        assert marker_failure.state == \"invalid\"\n        assert marker_failure.held_checks == ()\n        assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n    \n        resolution = migration.verify_receipt(root=root)\n        assert resolution.state == \"active-valid\"\n        assert resolution.refusals == ()\n        _assert_exact_t080_live_held_markers(resolution.held_checks)\n        assert resolution.t080_freeze_migration_observation is not None\n        items = resolution.t080_freeze_migration_observation[\"items\"]\n        assert len(items) == 17\n        fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n        basis_golden = tuple(\n            (kind, artifact, pointer, path)\n            for kind, golden in (\n                (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n                (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n            )\n            for artifact, pointer, _recorded, path, _real_observed in golden\n        )\n        observed_by_path = {\n            path: _git_blob_sha256(root, fixture_basis, path)\n            for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n        }\n        expected_blob_observations = tuple(\n            (artifact, kind, pointer, observed_by_path[path])\n            for kind, artifact, pointer, path in basis_golden\n        )\n        assert tuple(\n            (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n            for item in items[:15]\n        ) == expected_blob_observations\n        # hermetic fixture には記録 commit が無いので ancestry 2 件は missing-commit / None が独立期待値。\n        # 後段の report との一致は同一 source なので独立検算にならない。\n>       assert items[15:] == [\n            {\n                \"artifact\": \"known_axes\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n            {\n                \"artifact\": \"holdout\",\n                \"kind\": \"ancestry\",\n                \"subject\": \"/frozen_at_head\",\n                \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n                \"observed\": None,\n                \"status\": \"missing-commit\",\n            },\n        ]\nE       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\nE         \nE         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head/', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-holdout-artifact-bytes\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\nIZANAGI_FREEZE_HOLD {\"check_id\": \"t080.live-known-axes-ccbench-current-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\n1 failed, 1 passed in 130.87s (0:02:10)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4088 retained_bytes=3820 omitted_bytes=268 rendered_excerpt_bytes=4096 sha256=5677c3b29cd99196ed8ab51ad3561593e9966f4e8336ec1643e3fc3bc4f62490\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> _t080_stub_free_e2e_repo(\n>             tmp_path, distinct_basis_blob=True,\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"source_repins\"]\n>         ) == _T080_SOURCE_GOLDEN\n>         assert tuple(\n>             (item[\"artifact\"], item[\"json_pointer\"], item[\"recorded_sha256\"])\n>             for item in document[\"metadata_fields\"]\n>         ) == _T080_METADATA_GOLDEN\n>         marker_sentinel = \"t080-held-marker-negative-witness\"\n>         with mock.patch.object(\n>                 migration._freeze_hold, \"held_marker\",\n>                 side_effect=RuntimeError(marker_sentinel),\n>                 ) as held_marker_witness:\n>             marker_failure = migration.verify_receipt(root=root)\n>         assert held_marker_witness.call_count > 0\n>         assert marker_failure.state == \"invalid\"\n>         assert marker_failure.held_checks == ()\n>         assert any(marker_sentinel in refusal for refusal in marker_failure.refusals)\n>     \n>         resolution = migration.verify_receipt(root=root)\n>         assert resolution.state == \"active-valid\"\n>         assert resolution.refusals == ()\n>         _assert_exact_t080_live_held_markers(resolution.held_checks)\n>         assert resolution.t080_freeze_migration_observation is not None\n>         items = resolution.t080_freeze_migration_observation[\"items\"]\n>         assert len(items) == 17\n>         fixture_basis = _run_git(root, \"rev-parse\", \"HEAD^\")\n>         basis_golden = tuple(\n>             (kind, artifact, pointer, path)\n>             for kind, golden in (\n>                 (\"source-repin\", _T080_REAL_REPO_SOURCE_GOLDEN),\n>                 (\"generator-metadata\", _T080_REAL_REPO_METADATA_GOLDEN),\n>             )\n>             for artifact, pointer, _recorded, path, _real_observed in golden\n>         )\n>         observed_by_path = {\n>             path: _git_blob_sha256(root, fixture_basis, path)\n>             for path in dict.fromkeys(path for _kind, _artifact, _pointer, path in basis_golden)\n>         }\n>         expected_blob_observations = tuple(\n>             (artifact, kind, pointer, observed_by_path[path])\n>             for kind, artifact, pointer, path in basis_golden\n>         )\n>         assert tuple(\n>             (item[\"artifact\"], item[\"kind\"], item[\"subject\"], item[\"observed\"])\n>             for item in items[:15]\n>         ) == expected_blob_observations\n>         # hermetic fixture \\u306b\\u306f\\u8a18\\u9332 commit \\u304c\\u7121\\u3044\\u306e\\u3067 ancestry 2 \\u4ef6\\u306f missing-commit / None \\u304c\\u72ec\\u7acb\\u671f\\u5f85\\u5024\\u3002\n>         # \\u5f8c\\u6bb5\\u306e report \\u3068\\u306e\\u4e00\\u81f4\\u306f\\u540c\\u4e00 source \\u306a\\u306e\\u3067\\u72ec\\u7acb\\u691c\\u7b97\\u306b\\u306a\\u3089\\u306a\\u3044\\u3002\n> >       assert items[15:] == [\n>             {\n>                 \"artifact\": \"known_axes\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>             {\n>                 \"artifact\": \"holdout\",\n>                 \"kind\": \"ancestry\",\n>                 \"subject\": \"/frozen_at_head\",\n>                 \"recorded\": \"2e20d441aaf7ae267e941ecda09e4b53050943cf\",\n>                 \"observed\": None,\n>                 \"status\": \"missing-commit\",\n>             },\n>         ]\n> E       AssertionError: assert [{'artifact':...0943cf', ...}] == [{'artifact':...0943cf', ...}]\n> E         \n> E         At index 0 diff: {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head/', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'} != {'artifact': 'known_axes', 'kind': 'ancestry', 'subject': '/frozen_at_head', 'recorded': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'observed': None, 'status': 'missing-commit'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:2058: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4088 retained_bytes=3820 omitted_bytes=268 budget_bytes=49152 rendered_bytes=4838 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1d833a88605122ca95088615bb2984ff8438102d94eb1be5eb9301c99d8e5568"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7fffd7cd1ef40a1410d05738f50a3b0113bb19540222737b57d6c70509ef8c0a",
+      "duration_s": 155.442,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+      ],
+      "hang_risk": false,
+      "id": "M3-ancestry-subject-drift",
+      "injection_diff_sha256": "072aed624507281964773a85c4aba54ea331c08de170cc809c76ea1c771c0474",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "175870f4bc729720fbd7fc53a7832322286267e7c9b55c57edd3ed4ca1a87d38",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head/\",\n",
+          "old": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head\",\n"
+        }
+      ],
+      "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+      "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+      "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+      "status": "KILLED",
+      "test_output_sha256": "1d833a88605122ca95088615bb2984ff8438102d94eb1be5eb9301c99d8e5568",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/56995b1ce83b3ad1e25f4d322979d13b/izdw-56995b1ce8.o11871",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/56995b1ce83b3ad1e25f4d322979d13b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\norchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\n\n2 tests collected in 1.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "8e21d2d011385af5b363590e9abd954a7c210e5ee240a8b8ff20bdadda496f6c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "duration_s": 27.196,
+      "rc": 0,
+      "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+      "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+      "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+      "status": "PASSED",
+      "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-missing-to-not-ancestor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+          "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ebf283d44f17306ae8dc53f3a04a7643c28fa308790a9c77c26e2ca50b64af47",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "    if kind is None:\n        return AncestryResult(\"not-ancestor\", recorded, validation_head)\n",
+            "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+          }
+        ]
+      },
+      "M2-missing-to-ancestor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+          "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "29098e60b77e8347bd93bfb3137f58f75146295985d1c44f15ff5685abd2d331",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "    if kind is None:\n        return AncestryResult(\"ancestor\", recorded, validation_head)\n",
+            "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+          }
+        ]
+      },
+      "M3-ancestry-subject-drift": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "072aed624507281964773a85c4aba54ea331c08de170cc809c76ea1c771c0474",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head/\",\n",
+            "old": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "45ad7078ad7301a0128a0013e866c2d5fbab12c29f3caaa8619d40e48f74202f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+      "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "d24ec35eaf5d80fad1977fb66c3fc89d8c52e40e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+      "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "12a73e5eb1b1e601e10652e4bf3ed7b52b6f8414",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "44d655f4c65800f6f04ae191f657a2da1b235af67845d7c615b4ca28c4388ab1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a1117814881a158b0f2ef7c520c9192360b9ec6974ebcb7c259ada07a651a1a8",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-new/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "d9d7890318b78efec19b5cbcc49d2184a45e5df2f8f2184ad005f032d2aaba50",
+  "updated_at": "2026-09-19T22:58:25.913667+00:00"
+}

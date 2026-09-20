@@ -1,0 +1,18 @@
+{
+  "schema": "izanagi-verbatim-normalization/v1",
+  "reason": "DW-S07: git diff --check の末尾空白抵触に対する可逆最小正規化 (可視文字不変)",
+  "files": [
+    {
+      "path": "verbatim/focus1.log",
+      "original_sha256": "1e9e23721f068df76b125ec01eae26009ee8be802c9592af0e9160a8c89c71dd",
+      "original_bytes": 8510,
+      "normalized_sha256": "fb1b15be7bd6d24e0fd88a1ddeeebadbb2ef1943eb5355b0d6d24998785ec5f5",
+      "normalized_bytes": 8507,
+      "transform": "sed 's/[ \\t]*$//' (各行末の空白・tab を除去)",
+      "affected_lines": [19, 31, 56],
+      "removed_bytes_per_line": 1,
+      "restore": "行 19, 31, 56 (いずれも '|' だけの行) の行末に半角空白 1 個を付け直すと original_sha256 に戻る",
+      "original_source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/focus/focus1.log (repo 外の原本、未変更)"
+    }
+  ]
+}

@@ -2053,6 +2053,26 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
         (item["artifact"], item["kind"], item["subject"], item["observed"])
         for item in items[:15]
     ) == expected_blob_observations
+    # hermetic fixture には記録 commit が無いので ancestry 2 件は missing-commit / None が独立期待値。
+    # 後段の report との一致は同一 source なので独立検算にならない。
+    assert items[15:] == [
+        {
+            "artifact": "known_axes",
+            "kind": "ancestry",
+            "subject": "/frozen_at_head",
+            "recorded": "2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
+            "observed": None,
+            "status": "missing-commit",
+        },
+        {
+            "artifact": "holdout",
+            "kind": "ancestry",
+            "subject": "/frozen_at_head",
+            "recorded": "2e20d441aaf7ae267e941ecda09e4b53050943cf",
+            "observed": None,
+            "status": "missing-commit",
+        },
+    ]
 
     with mock.patch.object(migration._freeze_hold, "HELD", False):
         released = migration.verify_receipt(root=root)

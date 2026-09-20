@@ -1,0 +1,297 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/badceed1bca7d3176bd70671a28c6212/izdw-badceed1bc.o11858",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/badceed1bca7d3176bd70671a28c6212/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 149.01s (0:02:29)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "f83c8f451c4d4aa895cddbfaea52fc3b84c2d453a6cbe86c91357ab4bfb0e0ce"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e6f4f2c95441220db65e83bbd4964484cada9188ae11b398c2ec4c5078a261fe",
+    "duration_s": 176.185,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "fb300dc7139b09252f47b3fec53563d9ff21de97318ccfb90fcee35f1f76de89",
+    "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+    "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+    "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+    "status": "PASSED",
+    "test_output_sha256": "f83c8f451c4d4aa895cddbfaea52fc3b84c2d453a6cbe86c91357ab4bfb0e0ce",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6"
+  },
+  "date": "2026-09-19T22:37:24.734452+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c8e8471114b8c299822c4ecd9289871e/izdw-c8e8471114.o11859",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c8e8471114b8c299822c4ecd9289871e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF.                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n        with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n            root = Path(temp)\n            head = _init_repo(root)\n            ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n            assert ancestor.status == \"ancestor\"\n    \n            tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n            nonancestor_oid = _run_git(\n                root, \"commit-tree\", tree, input_bytes=b\"orphan\\n\\nAI-Agent: none\\n\",\n            ).decode().strip()\n            nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n            assert nonancestor.status == \"not-ancestor\"\n    \n            missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n>           assert missing.status == \"missing-commit\" and missing.observed is None\nE           AssertionError: assert ('not-ancestor' == 'missing-commit'\nE             \nE             - missing-commit\nE             + not-ancestor)\n\norchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\n1 failed, 1 passed in 147.44s (0:02:27)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1221 retained_bytes=1221 omitted_bytes=0 rendered_excerpt_bytes=1279 sha256=d1e60d526d39e3f187d659e3922c85a3b9e0d28d20c87f0c16f25f8698d5c0f6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n>         with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n>             root = Path(temp)\n>             head = _init_repo(root)\n>             ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n>             assert ancestor.status == \"ancestor\"\n>     \n>             tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n>             nonancestor_oid = _run_git(\n>                 root, \"commit-tree\", tree, input_bytes=b\"orphan\\x5cn\\x5cnAI-Agent: none\\x5cn\",\n>             ).decode().strip()\n>             nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n>             assert nonancestor.status == \"not-ancestor\"\n>     \n>             missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n> >           assert missing.status == \"missing-commit\" and missing.observed is None\n> E           AssertionError: assert ('not-ancestor' == 'missing-commit'\n> E             \n> E             - missing-commit\n> E             + not-ancestor)\n> \n> orchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1221 retained_bytes=1221 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2023 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b22d001ea624056731f982b0181d355a933fffa5a87b758d129b73df3a72a229"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e6f4f2c95441220db65e83bbd4964484cada9188ae11b398c2ec4c5078a261fe",
+      "duration_s": 780.426,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "hang_risk": false,
+      "id": "M1-missing-to-not-ancestor",
+      "injection_diff_sha256": "ebf283d44f17306ae8dc53f3a04a7643c28fa308790a9c77c26e2ca50b64af47",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "da76af1f6c248108b781c17729a1c5e383f64f12ca9df00cd251edbd1851c8c9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "    if kind is None:\n        return AncestryResult(\"not-ancestor\", recorded, validation_head)\n",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+        }
+      ],
+      "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+      "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+      "status": "KILLED",
+      "test_output_sha256": "b22d001ea624056731f982b0181d355a933fffa5a87b758d129b73df3a72a229",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c68c8023df93eeb4f2d41302a83d16db/izdw-c68c8023df.o11890",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c68c8023df93eeb4f2d41302a83d16db/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF.                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n        with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n            root = Path(temp)\n            head = _init_repo(root)\n            ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n            assert ancestor.status == \"ancestor\"\n    \n            tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n            nonancestor_oid = _run_git(\n                root, \"commit-tree\", tree, input_bytes=b\"orphan\\n\\nAI-Agent: none\\n\",\n            ).decode().strip()\n            nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n            assert nonancestor.status == \"not-ancestor\"\n    \n            missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n>           assert missing.status == \"missing-commit\" and missing.observed is None\nE           AssertionError: assert ('ancestor' == 'missing-commit'\nE             \nE             - missing-commit\nE             + ancestor)\n\norchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\n1 failed, 1 passed in 136.45s (0:02:16)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1213 retained_bytes=1213 omitted_bytes=0 rendered_excerpt_bytes=1271 sha256=22c26fbf49685c3a23807914eff405c87d671e72511b7dc4727a3691ca962ca6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error():\n>         with tempfile.TemporaryDirectory(prefix=\"izanagi_t080_ancestry_\") as temp:\n>             root = Path(temp)\n>             head = _init_repo(root)\n>             ancestor = migration._classify_ancestry(head, head, root, artifact=\"known_axes\")\n>             assert ancestor.status == \"ancestor\"\n>     \n>             tree = _run_git(root, \"rev-parse\", \"HEAD^{tree}\").decode().strip()\n>             nonancestor_oid = _run_git(\n>                 root, \"commit-tree\", tree, input_bytes=b\"orphan\\x5cn\\x5cnAI-Agent: none\\x5cn\",\n>             ).decode().strip()\n>             nonancestor = migration._classify_ancestry(nonancestor_oid, head, root, artifact=\"known_axes\")\n>             assert nonancestor.status == \"not-ancestor\"\n>     \n>             missing = migration._classify_ancestry(\"f\" * 40, head, root, artifact=\"known_axes\")\n> >           assert missing.status == \"missing-commit\" and missing.observed is None\n> E           AssertionError: assert ('ancestor' == 'missing-commit'\n> E             \n> E             - missing-commit\n> E             + ancestor)\n> \n> orchestrator/tests/test_t080_freeze_migration.py:1227: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1213 retained_bytes=1213 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2015 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7b9ccba0e303548c2459ec162eaea9ed8d7299f076fe06e718d9dcbb69ca9ea6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e6f4f2c95441220db65e83bbd4964484cada9188ae11b398c2ec4c5078a261fe",
+      "duration_s": 181.565,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "hang_risk": false,
+      "id": "M2-missing-to-ancestor",
+      "injection_diff_sha256": "29098e60b77e8347bd93bfb3137f58f75146295985d1c44f15ff5685abd2d331",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e49a961cc8bb408201b607e08a75f2db26661f922179fee281a9851be058766",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "    if kind is None:\n        return AncestryResult(\"ancestor\", recorded, validation_head)\n",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+        }
+      ],
+      "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+      "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+      "status": "KILLED",
+      "test_output_sha256": "7b9ccba0e303548c2459ec162eaea9ed8d7299f076fe06e718d9dcbb69ca9ea6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ecdec3be983938edd7775447c2a9e119/izdw-ecdec3be98.o11897",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ecdec3be983938edd7775447c2a9e119/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 136.28s (0:02:16)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2dfe1ad552116a6b489b934f8b939fa7effffeeefeb7e74fa890447ba2e3590d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e6f4f2c95441220db65e83bbd4964484cada9188ae11b398c2ec4c5078a261fe",
+      "duration_s": 186.079,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M3-ancestry-subject-drift",
+      "injection_diff_sha256": "072aed624507281964773a85c4aba54ea331c08de170cc809c76ea1c771c0474",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e8092f65f5a362be964c21b53a432e236ed8779c35782c550e33322776ba953b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head/\",\n",
+          "old": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head\",\n"
+        }
+      ],
+      "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+      "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+      "status": "SURVIVED",
+      "test_output_sha256": "2dfe1ad552116a6b489b934f8b939fa7effffeeefeb7e74fa890447ba2e3590d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0f2b9da71c19a79ddbb426fac13365bd/izdw-0f2b9da71c.o11857",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0f2b9da71c19a79ddbb426fac13365bd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\norchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\n\n2 tests collected in 2.12s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "40b376edce317468d102046f194e6b527921ad5fe7609245f3527a4598ec9a1f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "duration_s": 32.092,
+      "rc": 0,
+      "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+      "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+      "status": "PASSED",
+      "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-missing-to-not-ancestor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ebf283d44f17306ae8dc53f3a04a7643c28fa308790a9c77c26e2ca50b64af47",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "    if kind is None:\n        return AncestryResult(\"not-ancestor\", recorded, validation_head)\n",
+            "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+          }
+        ]
+      },
+      "M2-missing-to-ancestor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "29098e60b77e8347bd93bfb3137f58f75146295985d1c44f15ff5685abd2d331",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "    if kind is None:\n        return AncestryResult(\"ancestor\", recorded, validation_head)\n",
+            "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n"
+          }
+        ]
+      },
+      "M3-ancestry-subject-drift": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "072aed624507281964773a85c4aba54ea331c08de170cc809c76ea1c771c0474",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head/\",\n",
+            "old": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "fb300dc7139b09252f47b3fec53563d9ff21de97318ccfb90fcee35f1f76de89",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+      "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+      "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "82e19cf0a941ca9713ac8d70f1281f95040f0a09",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "a0e5eabc44f1c4b713fe82771b7a4e23db23354b1e489b8641d1a89838dcf33c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "9d33f779c6510ae2527cac03313da86429a5f2b20dbbf6d8ce63e11d82975797",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2711-ancestry-check/mutation-scratch-old/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "826520977b7845c372cf9e14e73e984522d6d3dbdccc5defe9207de17b379dd6",
+  "updated_at": "2026-09-19T23:00:00.347582+00:00"
+}
