@@ -293,6 +293,20 @@
   07:24 以後 / 07:42 直前)、`date` の実測で訂正した。転写対象が「隣の block の値からの外挿」へ広がった顕在化。稿・README・insight
   には推定値は残っていない。恒久対応は memory (`timestamps-from-date-or-mtime-not-estimation`) から変更なし — 表の各 cell は
   現物 field から機械抽出し、機械照合を commit 前に必ず 1 回通す。
+
+- **再発: 2026-09-20 (near-miss、単独 results 稿 wave `dev-wave-b10-waiting-grid-results`)** — B-10 待ち方 grid の results 稿で、
+  (1) §1.3 / §3 の「3 workload は別 job・別 node・別日」を record・受領証でなく記録 insight (`output/insights/2026-09-05/t1905-b10-report/README.md`
+  §2) の同文から転写した。一次資料では write-heavy の 45 record に `execution_host` が無く (`not-recorded-legacy-v2` は report driver の射影)、
+  受領証・job 結果にも host が無いので、別 node かは確定できない。(2) 題名と §2.7 で D1678 / insight の要約「内側 (32) か境界を跨ぐ (4)」を
+  「内側か境界上」と言い換え、境界を跨ぐ 4 cell の区間の一部が等価域 ±3.0% の外にある事実 (例: write-heavy μ 2 の区間 [−3.29%, +4.78%]) を
+  弱めた。(3) §2.6 の説明文「μ が大きいほど abort 率が下がり throughput が下がる」は表の値に当たらず書いた一般化で、write-heavy の
+  throughput は μ 2 → 5 で上がる (最大は μ 5 または 10)。3 件とも段 6 の独立 read-only レビューが must-fix で捕まえ、凍結前に一次資料の値へ
+  直した (実害なし。稿・README・insight に誤りは残っていない)。親の機械照合 (稿の 135 行の表・54 対差・36 cell の効果と区間・sha256 を
+  一次資料から再計算) は数値を全件一致させていたが、**数値を説明する散文の量化 (「別 node」「境界上」「単調に下がる」) は照合の射程外**だった。
+  転写対象が「記録 insight の要約文の無批判な継承」と「表を見ずに書いた単調性」へ広がった顕在化。恒久対応は memory
+  (`verbatim-projection-cut-by-heading-not-line-range` / `timestamps-from-date-or-mtime-not-estimation` と同じ族) から変更なし —
+  散文の量化 (「すべて」「単調」「別 X」「上」) は書く前に表・record から機械で確かめ、要約文は一次資料の field 名 (`equivalence_relation`
+  の値、`execution_host` の有無) で言い直す。段 6 の独立レビューは docs-only でも省かない (`DW-C00`)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -2264,6 +2278,15 @@
   (段 6 の `DW-O26` 焦点走ではそれで出た)。検出は着地前で実害ゼロ、拾ったのは
   `DW-O26` の consumer 拡張焦点走。恒久対応は F39 から変更しない。
   運用として、**pin 閉包の検索鍵に「変更予定の production file の path」を明示的に足す**。
+
+- **再発: 2026-09-20** — A-1 sized の認可 record gate を足す wave で `orchestrator/campaign/paper_story_a1_paired.py` へ 121 行を挿入し、
+  `test_ccbench_spawn_sites.py` の deferred-gate 登録簿が pin する `run_measurement` の sink 行番号 (7428、台帳と期待表の 2 箇所) がずれて
+  1 node が赤になった。段 1 の pin 閉包は同 test file を path 検索で hit させながら「AST 構造 pin」と分類して行番号を読まず、段 3 の相談と
+  段 6 のレビュー 2 本も指摘しなかった。**違いは検出点である** — 2026-09-08 の再発が足した運用 (位置を台帳に持つ test を焦点走の consumer 集合へ入れる)
+  を親が守っていたため、受入全走でなく親の焦点走 1 回目 (land 前) で出て、fix 1 巡 (pin 7428 → 7545) で閉じた (実害なし)。
+  恒久対応の置き場所の問題 (`DW-O09` の単節予算) は 2026-09-08 の記述から変わっていない。運用の補強として、
+  同 driver を触る wave の段 1 で `grep -n "paper_story_a1_paired" orchestrator/tests/test_ccbench_spawn_sites.py` の 5 つ組を読み、
+  fix 1 巡分を計画に入れる (memory `closure-and-search-discipline` に追記)。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -10830,6 +10853,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   3 種類あることが実測された。恒久対応は、段 1 の凍結節で列挙するときに
   識別子 key・編集面 path key・検査値 literal の 3 方向を別々に回し、
   1 方向しか回していない列挙を「全件」と書かないことである。
+
+- **再発: 2026-09-20** — docs-only 想定の wave が branch `worktree-next-tasks-cmd-mergebase-fix` (`.claude/commands/next-tasks.md` を
+  2+/1-、`check_docs` の byte 予算 27,100 と provenance は通過済み) を取り込んだところ、計算ノード焦点走 (request `12472.nqsv`) で
+  `test_check_docs.py::test_next_tasks_command_budget_literal_is_exact` が `assert 27060 == 26950` で赤になった。同 test は command
+  file の**現物 bytes を独立 literal で pin** している (2026-09-17 `e9a4efeae`) が、branch 側の wave も取り込み側の段 1 brief も、
+  編集面 path (`next-tasks.md`) を key に pin している側を検索していなかった (`check_docs.py` の予算表だけを見た)。恒久対応は
+  F301 本体のとおり (段 1 で編集予定 path を key に `grep -rn` し bytes / 件数 pin を全列挙する)。修復は Codex author の literal 追随
+  1 個 + 変異 matrix (M1 command file +1 byte / M2 literal off-by-one が同 node で KILLED)。一次資料は
+  `output/insights/2026-09-20/t2796-docs-carry4/README.md` §2 / §5。
 ### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
 
 - 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。

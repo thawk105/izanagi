@@ -1,0 +1,288 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "\"\"\"Render recorded paper-story statuses without recomputing judgments.\"\"\"\n",
+          "new": "\"\"\"Render recorded paper-story statuses without recomputing judgments.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-enum-membership-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "type(value) is str and value in choices",
+          "new": "type(value) is str and True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[arrow-kind]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[column-kind]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[direction]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[magnitude]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[stop]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[verdict]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-keys-superset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "set(value) == set(expected.split())",
+          "new": "set(value) >= set(expected.split())"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[arrow]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[cells]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[coder]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[column]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[critic]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[discipline]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[evaluation]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[knowledge]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[lane]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[parent]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[planner]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[proposal]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[role]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[stock]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[top]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-free-text-early-return",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    value = unicodedata.normalize(\"NFKC\", _string(value))\n",
+          "new": "    return\n    value = unicodedata.normalize(\"NFKC\", _string(value))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[10 tps]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[1216]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[2 \\xb5s]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[38%]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[A=0.58]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[K2suffix]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[\\u0661\\u0662]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[\\uff13\\uff18\\uff05]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[applied twice]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[job 1216.5]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[three runs]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4a-intersection-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    return max(0, min(left.x1",
+          "new": "    return 0 * max(0, min(left.x1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_overlap_is_a_layout_error",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[overlap]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4b-contains-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    return inner.x0 >= outer.x0-1",
+          "new": "    return True or inner.x0 >= outer.x0-1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_escape_is_a_layout_error",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[escape]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4c-segment-never-intersects",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    low, high = 0., 1.\n",
+          "new": "    return False\n    low, high = 0., 1.\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_arrow_crossing_text_is_a_layout_error",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[arrow-crossing]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-caption-source-hash-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "caption_source=dict(path=SOURCE,sha256=by_path[SOURCE])",
+          "new": "caption_source=dict(path=SOURCE,sha256='a'*64)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_caption_source_hash_is_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-tools-none-check-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(r['tools_none'] == _tools_none(role_raw), 'tools_none mismatch')",
+          "new": "_require(True, 'tools_none mismatch')"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[changed-tools]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[duplicate-line]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[missing-line]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[non-array]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[0]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[1]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-publish-skips-layout-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    destinations = _destinations(prefix)\n    check_figure_layout(fig, layout)\n",
+          "new": "    destinations = _destinations(prefix)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[arrow-crossing]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[escape]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[overlap]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-prefix-predicate-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(match is not None, 'output prefix basename",
+          "new": "_require(True, 'output prefix basename"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t8_cli_rejects_invalid_prefix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-anchor-at-least-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "source, re.M)) == 1,",
+          "new": "source, re.M)) >= 1,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_non_unique_anchor_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-drawn-items-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    _require(actual == _display_items(data['flow']), 'drawn_items disagree with flow')\n",
+          "new": "    pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_drawn_items_match_flow"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11a-discipline6-form-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(report['form'] == form, 'discipline6 form mismatch')",
+          "new": "_require(True, 'discipline6 form mismatch')"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_json_without_drawing[discipline6-form]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11b-marker-ignores-detected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "marker='X' if cell['discipline6']['instruction_like_detected'] else 'p',",
+          "new": "marker='p',"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[coder]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[critic]",
+        "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[planner]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
