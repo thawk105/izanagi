@@ -118,6 +118,12 @@ V3_GROUP_COMPLETION_SCHEMA = "paper-story-a1-paired-group-completion/v1"
 V3_READY_SCHEMA = "paper-story-a1-paired-workload-ready/v1"
 V3_BENCH_GO_SCHEMA = "paper-story-a1-paired-bench-go/v1"
 V3_BENCH_START_SCHEMA = "paper-story-a1-paired-bench-start/v1"
+V3_RERUN_AUTHORIZATION_SCHEMA = "paper-story-a1-paired-rerun-authorization/v1"
+_V3_RERUN_AUTHORIZATION_KEYS = frozenset({
+    "schema_version", "study_id", "attempt_root", "source_commit",
+    "decision", "authorization_sha256",
+})
+_V3_RERUN_AUTHORIZATION_DECISION_KEYS = frozenset({"id", "item", "decided_on"})
 _SUBMISSION_RECEIPT_KEYS = frozenset({
     "schema_version", "route", "study_id", "source_commit", "attempt_root",
     "request_id", "submission_receipt_path", "completion_receipt_path",
@@ -219,6 +225,9 @@ V3_SIZED_PREREGISTRATION_RELATIVE_PATH: str | None = (
 V3_SIZED_PREREGISTRATION_SHA256: str | None = (
     "6047eff005fbd94bad8df0313124bd4ca037dedf0f2e3db05224d04ad34fd3c2"
 )
+V3_SIZED_RERUN_AUTHORIZATIONS = frozenset({
+    (V3_SIZED_STUDY_ID, "attempt-0002", "attempt-0001", "D2172", 2, "2026-09-20"),
+})
 # Frozen preregistration §§5.4–5.5; D1452 consumer registration values.
 V3_SIZED_CERTIFICATE_REGISTERED_PARAMETERS = (
     ("search", "trials", 20000),
@@ -2669,10 +2678,67 @@ def _v3_group_intent(
     return value
 
 
+def _exact_v3_rerun_authorization(
+    base: Path, *, study_id: str, current_attempt: Path, source_commit: str,
+) -> tuple | None:
+    path = base / f"{current_attempt.name}.authorization.json"
+    if not os.path.lexists(path):
+        return None
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise PaperStoryError("rerun authorization record is unsafe") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise PaperStoryError("rerun authorization record is unsafe")
+    try:
+        record = _read_json(path)
+    except PaperStoryError as exc:
+        raise PaperStoryError("rerun authorization record is corrupt") from exc
+    decision = record.get("decision")
+    if (
+        set(record) != _V3_RERUN_AUTHORIZATION_KEYS
+        or any(type(record.get(key)) is not str for key in (
+            "schema_version", "study_id", "attempt_root", "source_commit",
+            "authorization_sha256",
+        ))
+        or type(decision) is not dict
+        or set(decision) != _V3_RERUN_AUTHORIZATION_DECISION_KEYS
+        or type(decision.get("id")) is not str
+        or type(decision.get("item")) is not int
+        or type(decision.get("decided_on")) is not str
+        or _FULL_OID.fullmatch(record["source_commit"]) is None
+        or _FULL_SHA256.fullmatch(record["authorization_sha256"]) is None
+        or record["authorization_sha256"] != _rerun_authorization_digest(record)
+    ):
+        raise PaperStoryError("rerun authorization record is corrupt")
+    for field, expected in (
+        ("schema_version", V3_RERUN_AUTHORIZATION_SCHEMA),
+        ("attempt_root", os.fspath(current_attempt)),
+        ("study_id", study_id),
+        ("source_commit", source_commit),
+    ):
+        if record[field] != expected:
+            raise PaperStoryError(f"rerun authorization record differs: {field}")
+    for authorization in V3_SIZED_RERUN_AUTHORIZATIONS:
+        if (
+            record["study_id"] == authorization[0]
+            and current_attempt.name == authorization[1]
+            and decision["id"] == authorization[3]
+            and decision["item"] == authorization[4]
+            and decision["decided_on"] == authorization[5]
+        ):
+            return authorization
+    raise PaperStoryError("rerun authorization record differs: registered decision")
+
+
 def _assert_no_prior_v3_bench_start(
-    base: Path, *, study_id: str, current_attempt: Path,
+    base: Path, *, study_id: str, current_attempt: Path, source_commit: str,
 ) -> None:
     """MF2 rear gate: fail closed once a prior attempt could reach bench."""
+    authorization = _exact_v3_rerun_authorization(
+        base, study_id=study_id, current_attempt=current_attempt,
+        source_commit=source_commit,
+    )
     try:
         entries = tuple(base.iterdir())
     except FileNotFoundError:
@@ -2727,6 +2793,7 @@ def _assert_no_prior_v3_bench_start(
         if prior != current_attempt and os.path.lexists(prior)
     }
     for prior in sorted(candidates):
+        released = authorization is not None and prior == base / authorization[2]
         if prior.is_symlink() or not prior.is_dir():
             raise PaperStoryError("prior attempt evidence root is unsafe")
         same_study_intent = intent_studies.get(prior) == study_id
@@ -2898,7 +2965,7 @@ def _assert_no_prior_v3_bench_start(
                 raise PaperStoryError("prior bench-start evidence study differs")
             bench_start_studies.add(evidence["study_id"])
 
-        if (
+        if not released and (
             bench_go_study == study_id
             or ready_workloads == set(WORKLOAD_ORDER)
             or study_id in bench_start_studies
@@ -2906,7 +2973,7 @@ def _assert_no_prior_v3_bench_start(
             raise PaperStoryError(
                 "prior attempt reached the bench barrier; group rerun is prohibited"
             )
-        if same_study_intent and (
+        if not released and same_study_intent and (
             os.path.lexists(bench_go_path)
             or all(os.path.lexists(
                 ready_root / f"{workload}.json"
@@ -2921,6 +2988,12 @@ def _assert_no_prior_v3_bench_start(
 
 def _attempt_intent_path(attempt: Path) -> Path:
     return attempt.parent / f"{attempt.name}.intent.json"
+
+
+def _rerun_authorization_digest(value: Mapping[str, object]) -> str:
+    payload = dict(value)
+    payload.pop("authorization_sha256", None)
+    return _sha256_bytes(_canonical_json_bytes(payload))
 
 
 def _submission_intent_digest(value: Mapping[str, object]) -> str:
@@ -3233,6 +3306,7 @@ def _run_submit_v3(
         raise PaperStoryError("v3 group evidence namespace is not fresh")
     _assert_no_prior_v3_bench_start(
         attempt.parent, study_id=study_id, current_attempt=attempt,
+        source_commit=expected_head,
     )
     intent = _v3_group_intent(
         repo_root=repo_root,
@@ -3390,6 +3464,49 @@ def _run_submit_v3(
             jobs=failure_jobs,
         )
         raise
+    return 0
+
+
+def run_authorize_rerun(args: argparse.Namespace) -> int:
+    policy, _ = _load_policy_for_study(args.study_id)
+    base = _durable_measurement_base(policy)
+    attempt = _validate_attempt_root(Path(args.attempt_root), base)
+    if args.study_id != _policy_study_id(policy):
+        raise PaperStoryError("rerun authorization refused: study differs")
+    if type(args.expected_head) is not str or _FULL_OID.fullmatch(args.expected_head) is None:
+        raise PaperStoryError("rerun authorization refused: invalid source")
+    if not any(
+        args.study_id == entry[0] and attempt.name == entry[1]
+        and args.decision == entry[3] and type(args.decision_item) is int
+        and args.decision_item == entry[4] and args.decided_on == entry[5]
+        for entry in V3_SIZED_RERUN_AUTHORIZATIONS
+    ):
+        raise PaperStoryError("rerun authorization refused: registered decision differs")
+    record_path = base / f"{attempt.name}.authorization.json"
+    for path, label in (
+        (_attempt_intent_path(attempt), "intent"),
+        (attempt, "attempt root"), (record_path, "record"),
+    ):
+        if os.path.lexists(path):
+            raise PaperStoryError(f"rerun authorization refused: {label} exists")
+    if not base.is_dir():
+        raise PaperStoryError("rerun authorization refused: base is not an existing directory")
+    record = {
+        "schema_version": V3_RERUN_AUTHORIZATION_SCHEMA,
+        "study_id": args.study_id,
+        "attempt_root": os.fspath(attempt),
+        "source_commit": args.expected_head,
+        "decision": {
+            "id": args.decision, "item": args.decision_item,
+            "decided_on": args.decided_on,
+        },
+    }
+    record["authorization_sha256"] = _rerun_authorization_digest(record)
+    try:
+        _exclusive_write(record_path, record)
+        _fsync_directory(base)
+    except OSError as exc:
+        raise PaperStoryError(f"rerun authorization write failed: {exc}") from exc
     return 0
 
 
@@ -8264,6 +8381,8 @@ def create_materialization_destination(raw: Path) -> Path:
 def _exact_materialization_destination(
     repo_root: Path, raw: Path,
     policy: Mapping[str, object] | None = None,
+    *, attempt: Path | None = None, base: Path | None = None,
+    source_commit: str | None = None,
 ) -> Path:
     destination = raw if raw.is_absolute() else Path.cwd() / raw
     destination = destination.resolve(strict=False)
@@ -8277,6 +8396,19 @@ def _exact_materialization_destination(
         if type(value) is not str:
             raise PaperStoryError("policy materialization destination is missing")
         relative = Path(value)
+    context = (attempt, base, source_commit)
+    if any(value is not None for value in context):
+        if any(value is None for value in context) or policy is None:
+            raise PaperStoryError("materialization authorization context is incomplete")
+        if base != _durable_measurement_base(policy):
+            raise PaperStoryError("materialization authorization base differs")
+        _validate_attempt_root(attempt, base)
+        authorization = _exact_v3_rerun_authorization(
+            base, study_id=_policy_study_id(policy), current_attempt=attempt,
+            source_commit=source_commit,
+        )
+        if authorization is not None:
+            relative = relative.with_name(f"{relative.name}-{attempt.name}")
     expected = (repo_root / relative).resolve(strict=False)
     if destination != expected:
         raise PaperStoryError("materialize destination is not the exact A-1 insight leaf")
@@ -8731,6 +8863,8 @@ def _run_materialize_v3(
     _revalidate_raw_wals(result, receipt, policy)
     destination = _exact_materialization_destination(
         repo_root, Path(args.destination), policy,
+        attempt=attempt, base=_durable_measurement_base(policy),
+        source_commit=args.expected_head,
     )
     materialized_receipt = {
         **receipt,
@@ -8909,6 +9043,10 @@ def run_materialize(args) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
+    authorize = sub.add_parser("authorize-rerun")
+    for option in ("study-id", "attempt-root", "expected-head", "decision", "decided-on"):
+        authorize.add_argument(f"--{option}", required=True)
+    authorize.add_argument("--decision-item", type=int, required=True)
     submit = sub.add_parser("submit")
     submit.add_argument("--study-id", required=True)
     submit.add_argument("--expected-head", required=True)
@@ -8943,6 +9081,8 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.mode == "authorize-rerun":
+            return run_authorize_rerun(args)
         if args.mode == "submit":
             return run_submit(args)
         if args.mode == "measure":
