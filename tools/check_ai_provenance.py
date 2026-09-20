@@ -10,6 +10,7 @@ hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、�
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import importlib
 import json
@@ -26,6 +27,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+import zlib
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
@@ -2234,7 +2236,7 @@ def _ledger_policy_is_visible(
     )
 
 
-_RECEIPT_SCHEMA = 1
+_RECEIPT_SCHEMA = 2
 _RECEIPT_DIRECTORY = "provenance-audit-receipts"
 _RECEIPT_LIMIT = 64
 
@@ -2269,6 +2271,9 @@ def _system_attributes_path():
 def _attribute_fingerprint(head):
     """Bind worktree/index and local/global/system attribute inputs, independent of tip.
 
+    Only non-absent candidates enter the digest: absent paths supply no
+    attribute rule bytes. Candidate-set changes are handled by the receipt
+    attribute_candidates containment check, not by the digest.
     Untracked directories containing no tracked files are not enumerated for
     .gitattributes discovery.
     """
@@ -2333,12 +2338,16 @@ def _attribute_fingerprint(head):
     # Probe only directories on index paths (plus the repository root). This includes
     # untracked attributes along those paths without walking ignored outputs or
     # submodule contents, and follows directory symlinks as Git does.
-    working = [[name.hex(), file_bytes(os.fsdecode(name))]
-               for name in sorted(attribute_paths)]
+    candidates = tuple(sorted(attribute_paths))
+    working = []
+    for name in candidates:
+        source = file_bytes(os.fsdecode(name))
+        if source != {"kind": "absent"}:
+            working.append([name.hex(), source])
     return _receipt_digest({"info": file_bytes(info),
                             "configured": external, "index": sorted(indexed),
                             "working": working,
-                            "system": file_bytes(_system_attributes_path())})
+                            "system": file_bytes(_system_attributes_path())}), candidates
 
 
 def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
@@ -2363,6 +2372,7 @@ def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
     )
     manifest = [[name, mode.decode("ascii"), oid.decode("ascii")]
                 for name, (mode, oid) in sorted(entries.items())]
+    digest, candidates = _attribute_fingerprint(head)
     bindings = {
         "environment": environment,
         "repository": str(common),
@@ -2373,10 +2383,10 @@ def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
         "cab_hits": sorted(oid for oid, i in ancestry.index.items()
                            if ancestry.cab_policy_mask & (1 << i)),
         "registry_manifest": _receipt_digest(manifest),
-        "attributes": _attribute_fingerprint(head),
+        "attributes": digest,
     }
     return common / _RECEIPT_DIRECTORY / (
-        _receipt_digest(environment)) / (head + ".json"), bindings
+        _receipt_digest(environment)) / (head + ".json"), bindings, candidates
 
 
 def _partition_receipts(path):
@@ -2433,12 +2443,16 @@ def _publish_audit_receipt(state: dict) -> None:
         path, receipt = state["path"], state["receipt"]
         _assert_head_unchanged(receipt["tip"])
         # Do not publish under bindings that changed during the audit.
-        _, current = _receipt_bindings(
+        _, current, candidates = _receipt_bindings(
             receipt["tip"], receipt["bindings"]["scope_epoch"],
             receipt["bindings"]["implementation_epoch"], state["ancestry"],
         )
-        if current != receipt["bindings"]:
+        encoded_candidates = base64.b64encode(
+            zlib.compress(b"\0".join(candidates), 9)).decode("ascii")
+        if (current != receipt["bindings"]
+                or candidates != state["attribute_candidates"]):
             return
+        receipt["attribute_candidates"] = encoded_candidates
         path.parent.parent.mkdir(mode=0o700, exist_ok=True)
         path.parent.mkdir(mode=0o700, exist_ok=True)
         info = path.parent.lstat()
@@ -2470,17 +2484,28 @@ def _registry_specs(registry, selected):
                  for spec in ((value,) if isinstance(value, KnownViolationSpec) else value))
 
 
-def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry):
+def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry, candidates):
     """Validate every saved input and the complete successful prefix result."""
     try:
         if (not isinstance(receipt, dict)
                 or set(receipt) != {"schema", "returncode", "bindings", "tip",
-                                    "selection", "coverage", "candidate_count", "records"}
+                                    "selection", "coverage", "candidate_count", "records",
+                                    "attribute_candidates"}
                 or type(receipt["schema"]) is not int
                 or receipt["schema"] != _RECEIPT_SCHEMA
                 or type(receipt["returncode"]) is not int
                 or receipt["returncode"] != 0
                 or receipt["bindings"] != bindings):
+            return None
+        encoded = receipt["attribute_candidates"]
+        if not isinstance(encoded, str) or not encoded:
+            return None
+        stored = zlib.decompress(base64.b64decode(encoded, validate=True)).split(b"\0")
+        if (stored != sorted(set(stored))
+                or any(not name or (name != b".gitattributes"
+                                    and not name.endswith(b"/.gitattributes"))
+                       for name in stored)
+                or not set(stored) <= set(candidates)):
             return None
         tip = receipt["tip"]
         if (not isinstance(tip, str)
@@ -2529,7 +2554,7 @@ def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry):
         if any(record.label not in prefix for record in history.waived):
             return None
         return prefix, [oid for oid in commits if oid in delta_set], history, count
-    except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeError):
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeError, zlib.error):
         return None
 
 
@@ -2565,7 +2590,8 @@ def _audit_history(
     if authoritative and receipt_state is not None:
         receipt_state.clear()
         try:
-            path, bindings = _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry)
+            path, bindings, attribute_candidates = _receipt_bindings(
+                head, scope_epoch, implementation_epoch, ancestry)
             # Rank using the existing HEAD closure, before prefix validation.
             selected_mask = 0
             for oid in commits:
@@ -2580,7 +2606,7 @@ def _audit_history(
                 candidates.append((distance, candidate.name, receipt))
             for _, _, receipt in sorted(candidates, key=lambda item: item[:2]):
                 prefix = _receipt_prefix(
-                    receipt, bindings, commits, head, ancestry, registry,
+                    receipt, bindings, commits, head, ancestry, registry, attribute_candidates,
                 )
                 if prefix is not None:
                     reuse = prefix
@@ -2647,7 +2673,8 @@ def _audit_history(
     if receipt_state is not None and path is not None and bindings is not None and not history.findings:
         keys = sorted([list(_known_violation_key(spec))
                        for spec in _registry_specs(registry, set(commits))])
-        receipt_state.update(path=path, ancestry=ancestry, receipt={
+        receipt_state.update(path=path, ancestry=ancestry,
+                             attribute_candidates=attribute_candidates, receipt={
             "schema": _RECEIPT_SCHEMA, "returncode": 0, "bindings": bindings,
             "tip": head,
             "selection": {"digest": _receipt_digest(sorted(commits)), "count": len(commits)},
