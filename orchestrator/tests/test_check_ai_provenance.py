@@ -8252,6 +8252,740 @@ def test_many_commit_delta_warm_hit(tmp_path, monkeypatch, capsys):
     assert set(delta) < set(oracle[2])
 
 
+# T-2656: path acquisition contracts. All positive data comes from real Git.
+_PATH_NONMERGE_ARGV = [
+    'git', 'diff-tree', '--stdin', '--root', '--no-renames', '-r',
+    '--name-only', '-z', '--always',
+]
+_PATH_MERGE_ARGV = [
+    'git', 'diff-tree', '--stdin', '--no-renames', '-r', '--name-only',
+    '-z', '--diff-filter=ACMRDTUXB', '--always',
+]
+
+
+def _path_tree_commit(root, files, message, parents=()):
+    """Build an explicit tree without checkout/merge heuristics or volatile hashes."""
+    _git(root, 'read-tree', '--empty')
+    for path, content in files.items():
+        mode, value = content if isinstance(content, tuple) else ('100644', content)
+        oid = value if mode == '160000' else _git(
+            root, 'hash-object', '-w', '--stdin', input_text=value,
+        )
+        _git(root, 'update-index', '--add', '--cacheinfo', f'{mode},{oid},{path}')
+    tree = _git(root, 'write-tree')
+    parent_args = [arg for parent in parents for arg in ('-p', parent)]
+    return _git(root, 'commit-tree', tree, *parent_args, input_text=message)
+
+
+def _path_history(root, monkeypatch):
+    _init_repo(root)
+    monkeypatch.setattr(provenance, 'REPO', root)
+    _install_known_violation_registry(monkeypatch, ())
+    files = {provenance.POLICY_PATH: 'scope=\n' + provenance.IMPLEMENTATION_POLICY_NEEDLE + '\n'}
+    base = _path_tree_commit(root, files, CODEX_AUTHOR)
+    bad = _path_tree_commit(root, {**files, 'tools/bad.py': 'bad\n'}, CLAUDE_AUTHOR, (base,))
+    missing = _path_tree_commit(root, files, 'missing\n', (bad,))
+    _git(root, 'update-ref', 'HEAD', missing)
+    return base, bad, missing
+
+
+def _path_oracle_audit(oid, **kwargs):
+    # The independent pre-existing oracle retains per-commit acquisition and
+    # separate validator parses. All fixture commits descend from their epochs.
+    return _PATH_REAL_NORMAL(
+        oid, scope_epoch=kwargs['scope_epoch'],
+        implementation_epoch=kwargs['implementation_epoch'],
+    )
+
+
+_PATH_REAL_NORMAL = provenance._normal_commit_audit
+
+
+def _path_public(monkeypatch, capsys, selected, head):
+    # Keep actual authoritative guards, epoch discovery, validators and reporting.
+    # Registry append-only history is unrelated to this synthetic empty registry.
+    monkeypatch.setattr(provenance, 'check_known_violation_append_only_history', lambda *a: None)
+    monkeypatch.setattr(provenance, '_commit_range', lambda *a, **k: list(selected))
+    monkeypatch.setattr(provenance, '_receipt_bindings', lambda *a: (_ for _ in ()).throw(RuntimeError('cold')))
+    assert provenance._resolve_head() == head
+    rc = provenance.main([], site=site_policy.OTHER)
+    output = capsys.readouterr()
+    return rc, output.out, output.err
+
+
+def test_ancestry_parent_rows_match_show_parents(tmp_path, monkeypatch):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    root = _batch_raw_commit(tmp_path, b'root\n')
+    sides = [_batch_raw_commit(tmp_path, f'side {i}\n'.encode(), parents=(root,)) for i in range(4)]
+    two = _batch_raw_commit(tmp_path, b'two\n', parents=tuple(sides[:2]))
+    four = _batch_raw_commit(tmp_path, b'four\n', parents=tuple(sides))
+    outside = _batch_raw_commit(tmp_path, b'outside\n')
+    _git(tmp_path, 'update-ref', 'HEAD', four)
+    ancestry = provenance._build_ancestry([four, two, outside, four])
+    assert ancestry.parents is not None
+    assert ancestry.parents.keys() == ancestry.index.keys()
+    assert len(ancestry.parents) == 8
+    for oid, parents in ancestry.parents.items():
+        assert parents == tuple(provenance._commit_parents(oid))
+    assert ancestry.parents[four] == tuple(sides)
+    assert ancestry.parents[root] == ()
+
+
+@pytest.mark.parametrize('damage', ['lf', 'duplicate', 'oid', 'root', 'outside', 'mixed'])
+def test_parent_cache_invalid_rows_fall_back(tmp_path, monkeypatch, damage):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    raw = provenance._git('rev-list', '--topo-order', '--parents', '--stdin', input_text=head + '\n')
+    lines = raw.splitlines()
+    damaged = {
+        'lf': raw.rstrip('\n'),
+        'duplicate': raw + lines[-1] + '\n',
+        'oid': raw + 'invalid\n',
+        'root': '\n'.join(lines[1:]) + '\n',
+        'outside': raw.replace(base + '\n', base + ' ' + 'f' * 40 + '\n'),
+        'mixed': raw + 'a' * 64 + '\n',
+    }[damage]
+    real_git = provenance._git
+    calls = []
+
+    def recording(*args, **kwargs):
+        if args[:3] == ('rev-list', '--topo-order', '--parents'):
+            return damaged
+        if args[:3] == ('show', '-s', '--format=%P'):
+            calls.append(args[3])
+        return real_git(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, '_git', recording)
+    ancestry = provenance._build_ancestry([head], authoritative=True, head=head)
+    assert ancestry.parents is None
+    audit = provenance._normal_commit_audit(
+        bad, scope_epoch=base, implementation_epoch=base,
+        ancestry=ancestry, authoritative=True,
+    )
+    assert calls == [bad]
+    assert any(f.ledger_kind == provenance.MISSING_CODEX_AUTHOR for f in audit.normal_findings)
+
+
+@pytest.mark.parametrize('oracle', [False, True])
+def test_range_and_oracle_keep_legacy_parent_acquisition(tmp_path, monkeypatch, oracle):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    ancestry = provenance._build_ancestry([head])
+    real = provenance._commit_paths
+    calls = []
+
+    def paths(oid, **kwargs):
+        calls.append((oid, kwargs))
+        return real(oid, **kwargs)
+
+    monkeypatch.setattr(provenance, '_commit_paths', paths)
+    provenance._normal_commit_audit(
+        bad, scope_epoch=base, implementation_epoch=base,
+        ancestry=None if oracle else ancestry,
+        nonmerge_paths={bad: []}, merge_parent_paths={bad: []},
+    )
+    assert calls == [(bad, {})]
+
+
+def test_batch_nonmerge_always_emits_empty_headers(tmp_path, monkeypatch):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    root = _batch_raw_commit(tmp_path, b'empty root\n')
+    a = _path_tree_commit(tmp_path, {'a.py': 'a\n'}, CODEX_AUTHOR, (root,))
+    middle = _path_tree_commit(tmp_path, {'a.py': 'a\n'}, 'middle\n', (a,))
+    b = _path_tree_commit(tmp_path, {'a.py': 'a\n', 'b.py': 'b\n'}, CODEX_AUTHOR, (middle,))
+    last = _path_tree_commit(tmp_path, {'a.py': 'a\n', 'b.py': 'b\n'}, 'last\n', (b,))
+    requested = [root, a, middle, b, last]
+    real_run = subprocess.run
+    observed = []
+
+    def recording(command, **kwargs):
+        result = real_run(command, **kwargs)
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            assert command == _PATH_NONMERGE_ARGV
+            assert kwargs['input'] == ''.join(oid + '\n' for oid in requested)
+            observed.append(result.stdout)
+        return result
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    assert provenance._batch_nonmerge_paths(requested + [a]) == {
+        root: [], a: ['a.py'], middle: [], b: ['b.py'], last: [],
+    }
+    assert observed == [f'{root}\0{a}\0a.py\0{middle}\0{b}\0b.py\0{last}\0']
+    assert len([t for t in observed[0].split('\0') if t in requested]) == 5
+    assert provenance._batch_nonmerge_paths([]) == {}
+    assert len(observed) == 1
+
+
+def test_batch_nonmerge_paths_equal_legacy_in_order(tmp_path, monkeypatch):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    files = {'z.py': 'z\n', 'a.py': 'a\n', 'tab\tname': 'tab', 'cr\rname': 'cr',
+             'lf\nname': 'lf', 'crlf\r\nname': 'crlf', 'cr\nname': 'collision',
+             '日本語': 'nonascii'}
+    root = _path_tree_commit(tmp_path, files, CODEX_AUTHOR)
+    second_files = {**files, 'a.py': ('120000', 'z.py'), 'new.py': files['z.py']}
+    del second_files['z.py']
+    second = _path_tree_commit(tmp_path, second_files, CODEX_AUTHOR, (root,))
+    _git(tmp_path, 'config', 'diff.orderFile', str(tmp_path / '.git' / 'order'))
+    (tmp_path / '.git' / 'order').write_text('z.py\nnew.py\na.py\n')
+    # Both diff-tree plumbing paths ignore diff.orderFile; compare their lists
+    # directly so Git's path order (including duplicates after decoding) matters.
+    expected = {oid: provenance._commit_paths(oid) for oid in [root, second]}
+    assert provenance._batch_nonmerge_paths([root, second]) == expected
+
+
+@pytest.mark.parametrize('name', ['forty', 'sixtyfour', 'known', 'unknown'])
+@pytest.mark.parametrize('position', ['first', 'last'])
+def test_batch_nonmerge_hex_paths_discard_entire_batch(tmp_path, monkeypatch, name, position):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    filename = {'forty': '0' * 40, 'sixtyfour': 'a' * 64, 'known': bad, 'unknown': 'f' * 40}[name]
+    hex_commit = _path_tree_commit(tmp_path, {filename: 'hex\n'}, CLAUDE_AUTHOR, (head,))
+    _git(tmp_path, 'update-ref', 'HEAD', hex_commit)
+    selected = [hex_commit, bad] if position == 'first' else [bad, hex_commit]
+    assert provenance._batch_nonmerge_paths(selected) is None
+    calls = []
+    real = provenance._git
+
+    def recording(*args, **kwargs):
+        if args[:4] == ('diff-tree', '--root', '--no-renames', '--no-commit-id'):
+            calls.append(args[-1])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, '_git', recording)
+    audit = provenance._audit_history(selected, authoritative=True, head=hex_commit)
+    assert Counter(calls) == Counter(selected)
+    assert any('Codex role=author' in f for f in audit.findings)
+
+
+@pytest.mark.parametrize('damage', [
+    'empty', 'terminator', 'nul', 'missing', 'duplicate', 'swapped', 'unknown',
+    'rc', 'decode', 'spawn', 'value',
+])
+def test_batch_nonmerge_invalid_output_restores_public_result(tmp_path, monkeypatch, capsys, damage):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    selected = [bad, head]
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        old = _path_public(patch, capsys, selected, head)
+    assert old[0] == 1 and 'Codex role=author' in old[2] and 'trailer がない' in old[2]
+    real_run = subprocess.run
+    legacy = []
+    batches = []
+
+    def broken(command, **kwargs):
+        if command[:6] == ['git', 'diff-tree', '--root', '--no-renames', '--no-commit-id', '--name-only']:
+            legacy.append(command[-1])
+        if command[:3] != ['git', 'diff-tree', '--stdin']:
+            return real_run(command, **kwargs)
+        assert command == _PATH_NONMERGE_ARGV
+        batches.append(kwargs['input'])
+        if damage == 'decode':
+            raise UnicodeDecodeError('utf-8', b'\xff', 0, 1, 'injected')
+        if damage == 'spawn':
+            raise OSError('injected')
+        if damage == 'value':
+            raise ValueError('injected')
+        # First violating commit deliberately lies about having no implementation
+        # paths. A partial return would erase its missing-codex-author finding.
+        raw = {
+            'empty': '', 'terminator': bad + '\0' + head,
+            'nul': bad + '\0' + head + '\0\0', 'missing': bad + '\0',
+            'duplicate': bad + '\0' + head + '\0' + head + '\0',
+            'swapped': head + '\0' + bad + '\0',
+            'unknown': bad + '\0' + 'f' * 40 + '\0', 'rc': bad + '\0',
+        }[damage]
+        return subprocess.CompletedProcess(command, 1 if damage == 'rc' else 0, raw, '')
+
+    monkeypatch.setattr(provenance.subprocess, 'run', broken)
+    assert _path_public(monkeypatch, capsys, selected, head) == old
+    assert batches == [bad + '\n' + head + '\n']
+    assert Counter(legacy) == Counter(selected)
+
+
+def _path_merge_history(root, monkeypatch, count=2):
+    base, _, _ = _path_history(root, monkeypatch)
+    policy = {provenance.POLICY_PATH: 'scope=\n' + provenance.IMPLEMENTATION_POLICY_NEEDLE + '\n'}
+    parents = tuple(_path_tree_commit(
+        root, {**policy, 'tools/shared.py': f'parent {i}\n', f'side{i}.py': 'side\n',
+               'deleted.py': 'gone\n', 'type.py': ('120000', 'deleted.py')},
+        CODEX_AUTHOR, (base,),
+    ) for i in range(count))
+    files = {**policy, 'tools/shared.py': 'resolved\n', 'added.py': 'new\n', 'type.py': 'regular\n'}
+    merge = _path_tree_commit(root, files, CLAUDE_AUTHOR, parents)
+    _git(root, 'update-ref', 'HEAD', merge)
+    return base, parents, merge
+
+
+@pytest.mark.parametrize('count', [2, 4])
+def test_batch_merge_parent_sets_equal_legacy(tmp_path, monkeypatch, count):
+    _, parents, merge = _path_merge_history(tmp_path, monkeypatch, count)
+    table = {merge: parents}
+    expected = [provenance._paths_changed_from(p, merge) for p in parents]
+    assert len({frozenset(paths) for paths in expected}) == count
+    assert all({'added.py', 'deleted.py', 'type.py', 'tools/shared.py'} <= paths for paths in expected)
+    assert provenance._batch_merge_parent_paths([merge], table) == {merge: expected}
+    # A real merge object whose tree is exactly its first parent's tree.
+    tree = _git(tmp_path, 'rev-parse', parents[0] + '^{tree}')
+    empty = _git(tmp_path, 'commit-tree', tree, '-p', parents[0], '-p', parents[1], input_text=CLAUDE_AUTHOR)
+    result = provenance._batch_merge_parent_paths([empty], {empty: parents[:2]})
+    assert result == {empty: [provenance._paths_changed_from(p, empty) for p in parents[:2]]}
+    assert result[empty][0] == set()
+
+
+def test_batch_merge_parent_slots_and_headers(tmp_path, monkeypatch):
+    _, parents, four = _path_merge_history(tmp_path, monkeypatch, 4)
+    two = _path_tree_commit(tmp_path, {'other.py': 'other\n'}, CLAUDE_AUTHOR, parents[:2])
+    table = {four: parents, two: parents[:2]}
+    real_run = subprocess.run
+    observed = []
+
+    def recording(command, **kwargs):
+        result = real_run(command, **kwargs)
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            assert command == _PATH_MERGE_ARGV
+            observed.append((kwargs['input'], result.stdout))
+        return result
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    result = provenance._batch_merge_parent_paths([two, four, two, four], table)
+    assert result == {oid: [provenance._paths_changed_from(p, oid) for p in ps] for oid, ps in table.items()}
+    assert [raw for raw, _ in observed] == [
+        ''.join(f'{oid} {table[oid][slot]}\n' for oid in [two, four] if slot < len(table[oid]))
+        for slot in range(4)
+    ]
+    for slot, (_, raw) in enumerate(observed):
+        # Pin the entire real output, including empty changes and every header.
+        expected = ''
+        for oid in [two, four]:
+            if slot < len(table[oid]):
+                expected += oid + '\0' + provenance._git(
+                    'diff', '--no-renames', '--name-only', '--diff-filter=ACMRDTUXB',
+                    '-z', table[oid][slot], oid, '--',
+                )
+        assert raw == expected
+    assert provenance._batch_merge_parent_paths([], {}) == {}
+    assert len(observed) == 4
+
+
+@pytest.mark.parametrize('fixture', [
+    test_merge_preflight_and_history_ignore_side_only_implementation_path,
+    test_merge_preflight_and_history_ignore_nonconflicting_shared_implementation_path,
+    test_merge_preflight_and_history_count_all_parent_different_resolution,
+    test_combined_diff_uses_raw_bytes_for_invalid_utf8_shared_path,
+    test_octopus_merge_combined_diff_filters_nonconflicting_paths,
+], ids=['side-only', 'automatic', 'manual', 'invalid-utf8', 'octopus'])
+def test_batch_merge_keeps_combined_diff_contract(tmp_path, monkeypatch, capsys, fixture):
+    # Reuse the existing real merge construction and its acceptance assertions.
+    if fixture in (test_merge_preflight_and_history_ignore_side_only_implementation_path,
+                   test_merge_preflight_and_history_count_all_parent_different_resolution):
+        fixture(tmp_path, monkeypatch, capsys)
+    else:
+        fixture(tmp_path, monkeypatch)
+    merge = _git(tmp_path, 'rev-parse', 'HEAD')
+    parents = tuple(provenance._commit_parents(merge))
+    real_run = subprocess.run
+    calls = []
+
+    def recording(command, **kwargs):
+        if '--cc' in command:
+            calls.append((command, kwargs['text'], kwargs['check']))
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    expected = provenance._commit_paths(merge)
+    old_calls = calls[:]
+    calls.clear()
+    batch = provenance._batch_merge_parent_paths([merge], {merge: parents})
+    assert batch is not None
+    assert provenance._commit_paths(merge, parents=parents, parent_paths=batch[merge]) == expected
+    assert calls == old_calls
+    candidates = provenance._intersection_path_set([provenance._paths_changed_from(p, merge) for p in parents])
+    assert calls == [([
+        'git', '--literal-pathspecs', 'diff-tree', '--cc', '--no-renames',
+        '--no-commit-id', '-p', merge, '--', path,
+    ], False, False) for path in candidates]
+
+
+def test_batch_merge_late_failure_discards_all_parent_batches(tmp_path, monkeypatch, capsys):
+    base, parents, merge = _path_merge_history(tmp_path, monkeypatch, 4)
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        old = _path_public(patch, capsys, [merge], merge)
+    assert old[0] == 1 and 'Codex role=author' in old[2]
+    real_run = subprocess.run
+    calls = []
+    batches = []
+
+    def broken(command, **kwargs):
+        if command[:3] == ['git', 'diff', '--no-renames']:
+            calls.append((command[-3], command[-2]))
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            assert command == _PATH_MERGE_ARGV
+            batches.append(kwargs['input'])
+            # Lie about early sets as well, so a partial result loses the finding.
+            raw = merge + ('\0' if len(batches) < 4 else '')
+            return subprocess.CompletedProcess(command, 0, raw, '')
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', broken)
+    assert _path_public(monkeypatch, capsys, [merge], merge) == old
+    assert batches == [f'{merge} {p}\n' for p in parents]
+    assert calls == [(p, merge) for p in parents]
+
+
+def test_batch_merge_ignore_submodules_uses_legacy_verdict(tmp_path, monkeypatch, capsys):
+    base, _, _ = _path_history(tmp_path, monkeypatch)
+    objects = [_batch_raw_commit(tmp_path, f'gitlink {i}\n'.encode()) for i in range(3)]
+    policy = {provenance.POLICY_PATH: provenance.IMPLEMENTATION_POLICY_NEEDLE + '\n'}
+    parents = tuple(_path_tree_commit(tmp_path, {**policy, 'tools/vendor': ('160000', oid)}, CODEX_AUTHOR, (base,)) for oid in objects[:2])
+    merge = _path_tree_commit(tmp_path, {**policy, 'tools/vendor': ('160000', objects[2])}, CLAUDE_AUTHOR, parents)
+    _git(tmp_path, 'update-ref', 'HEAD', merge)
+    _git(tmp_path, 'config', 'diff.ignoreSubmodules', 'all')
+    assert provenance._commit_paths(merge) == []
+    batch = provenance._batch_merge_parent_paths([merge], {merge: parents})
+    assert batch == {merge: [{'tools/vendor'}, {'tools/vendor'}]}
+    assert provenance._commit_paths(merge, parents=parents, parent_paths=batch[merge]) == ['tools/vendor']
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        old = _path_public(patch, capsys, [merge], merge)
+    assert old[0] == 0
+    real_run = subprocess.run
+    seen = Counter()
+
+    def recording(command, **kwargs):
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            seen['batch'] += 1
+        if command[:3] == ['git', 'diff', '--no-renames']:
+            seen['legacy'] += 1
+        if command[:3] == ['git', 'config', '--get']:
+            seen[command[3]] += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    assert _path_public(monkeypatch, capsys, [merge], merge) == old
+    assert seen == Counter({'legacy': 2, 'diff.ignoreSubmodules': 1, 'diff.relative': 1})
+
+
+@pytest.mark.parametrize('key', ['diff.ignoreSubmodules', 'diff.relative'])
+@pytest.mark.parametrize('status', [0, 1, 2, 128])
+def test_merge_path_batch_config_gate(tmp_path, monkeypatch, key, status):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    real_run = subprocess.run
+    seen = []
+
+    def recording(command, **kwargs):
+        if command[:3] == ['git', 'config', '--get']:
+            seen.append(command[3])
+            if command[3] == key:
+                return subprocess.CompletedProcess(command, status, '', '')
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    assert provenance._merge_path_batch_enabled() is (status == 1)
+    assert seen == ['diff.ignoreSubmodules', 'diff.relative']
+
+
+@pytest.mark.parametrize('implementation', [False, True])
+def test_normal_audit_reuses_agent_values_once(tmp_path, monkeypatch, implementation):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    oid = bad if implementation else base
+    ancestry = provenance._build_ancestry([head])
+    real = provenance._ai_agent_values
+    calls = []
+
+    def recording(message):
+        calls.append(message)
+        return real(message)
+
+    monkeypatch.setattr(provenance, '_ai_agent_values', recording)
+    old = provenance._normal_commit_audit(oid, scope_epoch=base, implementation_epoch=base)
+    assert len(calls) == (2 if implementation else 1)
+    calls.clear()
+    assert provenance._normal_commit_audit(oid, scope_epoch=base, implementation_epoch=base, ancestry=ancestry) == old
+    assert len(calls) == 1
+
+
+def test_agent_values_none_and_empty_are_distinct(tmp_path, monkeypatch):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    real = provenance._ai_agent_values
+    calls = []
+
+    def recording(message):
+        calls.append(message)
+        return real(message)
+
+    monkeypatch.setattr(provenance, '_ai_agent_values', recording)
+    assert provenance.validate_message('x', 'missing', values=[])[0]
+    assert provenance.validate_implementation_author('x', 'missing', ['a.py'], values=[]) == ([], False)
+    assert calls == []
+    provenance.validate_message('x', 'missing')
+    provenance.validate_implementation_author('x', 'missing', ['a.py'])
+    assert calls == ['missing', 'missing']
+
+
+@pytest.mark.parametrize('message', [
+    'missing\n', 'none\n\nAI-Agent: none\n', CLAUDE_AUTHOR + 'AI-Agent: none\n',
+    CLAUDE_AUTHOR + CLAUDE_AUTHOR.split('\n\n')[1], MULTI_ROLE_NO_SCOPE,
+    CODEX_AUTHOR, CLAUDE_AUTHOR, CLAUDE_AUTHOR_WAIVED,
+    'divider\n\n---\n\n' + CLAUDE_AUTHOR.split('\n\n')[1],
+], ids=['missing', 'none', 'mixed', 'duplicate', 'scope', 'codex', 'claude', 'waiver', 'divider'])
+@pytest.mark.parametrize('ambient', [False, True])
+def test_shared_agent_values_preserve_validator_results(tmp_path, monkeypatch, message, ambient):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    if ambient:
+        _git(tmp_path, 'config', 'trailer.alias.key', 'AI-Agent')
+        _git(tmp_path, 'config', 'core.commentChar', ';')
+        message += 'alias: none\n'
+    values = provenance._ai_agent_values(message)
+    # Default calls exercise the unchanged legacy parse seam in both validators.
+    assert provenance.validate_message('x', message, values=values) == provenance.validate_message('x', message)
+    for paths in [[], ['a.py']]:
+        for waived in [False, True]:
+            assert provenance.validate_implementation_author('x', message, paths, waived=waived, values=values) == provenance.validate_implementation_author('x', message, paths, waived=waived)
+
+
+def test_shared_agent_values_stay_with_their_commit(tmp_path, monkeypatch, capsys):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    selected = [head, base, bad, head]
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        old = _path_public(patch, capsys, selected, head)
+    new = _path_public(monkeypatch, capsys, selected, head)
+    assert new == old
+    assert new[0] == 1
+    assert new[2].count('AI-Agent trailer がない') == 2
+    assert new[2].count('Codex role=author') == 1
+
+
+@pytest.mark.parametrize('mode', ['normal', 'fallback', 'oracle'])
+def test_path_batch_subprocess_counts_and_selected_order(tmp_path, monkeypatch, mode):
+    base, parents, merge = _path_merge_history(tmp_path, monkeypatch, 4)
+    selected = [merge, parents[0], base, merge]
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        expected = provenance._audit_history(selected, authoritative=True, head=merge)
+    assert len(expected.findings) == 2
+    assert all(f.startswith(merge[:12]) for f in expected.findings)
+    if mode == 'oracle':
+        monkeypatch.setattr(provenance, '_build_ancestry', lambda *a, **k: None)
+    real_run = subprocess.run
+    counts = Counter()
+    batches = []
+
+    def recording(command, **kwargs):
+        if command[:4] == ['git', 'show', '-s', '--format=%P']:
+            counts['parents'] += 1
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            kind = 'nonmerge' if '--root' in command else 'merge'
+            counts[kind] += 1
+            batches.append((kind, kwargs['input']))
+            if mode == 'fallback':
+                return subprocess.CompletedProcess(command, 0, '', '')
+        if command[:4] == ['git', 'diff-tree', '--root', '--no-renames']:
+            counts['legacy_nonmerge'] += 1
+        if command[:3] == ['git', 'diff', '--no-renames']:
+            counts['legacy_merge'] += 1
+        if '--cc' in command:
+            counts['cc'] += 1
+        if command == ['git', 'interpret-trailers', '--parse'] and kwargs.get('cwd') == tmp_path:
+            counts['parser'] += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    assert provenance._audit_history(selected, authoritative=mode != 'oracle', head=merge) == expected
+    common = {'cc': 8, 'parser': 7 if mode == 'oracle' else 4}
+    acquisition = {
+        'normal': {'nonmerge': 1, 'merge': 4},
+        'fallback': {'nonmerge': 1, 'merge': 1, 'legacy_nonmerge': 2, 'legacy_merge': 8},
+        'oracle': {'parents': 4, 'legacy_nonmerge': 2, 'legacy_merge': 8},
+    }[mode]
+    assert counts == Counter({**common, **acquisition})
+    if mode != 'oracle':
+        assert batches[0] == ('nonmerge', parents[0] + '\n' + base + '\n')
+        slots = 4 if mode == 'normal' else 1
+        assert batches[1:] == [('merge', f'{merge} {p}\n') for p in parents[:slots]]
+    else:
+        assert batches == []
+
+
+def test_shared_values_parser_failure_precedes_paths(tmp_path, monkeypatch):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    ancestry = provenance._build_ancestry([head])
+    events = []
+    real_git = provenance._git
+
+    def failing(message):
+        events.append('parser')
+        raise RuntimeError('parse failed')
+
+    def recording(*args, **kwargs):
+        if args[0] == 'diff-tree' or args[:3] == ('show', '-s', '--format=%P'):
+            events.append('paths')
+        return real_git(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, '_ai_agent_values', failing)
+    monkeypatch.setattr(provenance, '_git', recording)
+    for index in [None, ancestry]:
+        with pytest.raises(RuntimeError, match='parse failed'):
+            provenance._normal_commit_audit(bad, scope_epoch=base, implementation_epoch=base, ancestry=index)
+    assert events == ['parser', 'parser']
+
+
+def test_path_batches_follow_receipt_final_selection(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    real_run = subprocess.run
+    seen = Counter()
+
+    def recording(command, **kwargs):
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            seen['batch'] += 1
+        if command[:5] == ['git', '-c', 'trailer.separators=:', 'interpret-trailers', '--parse']:
+            if kwargs.get('input') == b'provenance parser canary\n\nAI-Agent: none\n':
+                seen['canary'] += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2]
+    assert warm[2:] == ([], [[]])
+    assert seen == Counter({'canary': 1})
+
+
+def test_path_batches_follow_correction_full_history_fallback(tmp_path, monkeypatch, capsys):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    old_head = _git(tmp_path, 'rev-parse', 'HEAD')
+    # Same existing directory keeps the attribute binding stable.
+    tip = _commit(tmp_path, {'docs/fold.md': 'correction candidate\n'},
+                  CODEX_AUTHOR + 'AI-Agent-Correction: invalid\n')
+    selected = provenance._commit_range(None, head=tip)
+    assert old_head in selected
+    real_run = subprocess.run
+    messages, paths = [], []
+
+    def recording(command, **kwargs):
+        if command[:3] == ['git', 'log', '--no-walk=unsorted']:
+            messages.append(kwargs['input'].splitlines())
+        if command == _PATH_NONMERGE_ARGV:
+            paths.append(kwargs['input'].splitlines())
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    result = _receipt_run(monkeypatch, capsys)
+    assert result[0] == 1
+    assert messages == [[tip], list(dict.fromkeys(selected))]
+    parents = provenance._build_ancestry([tip]).parents
+    assert paths == [[oid for oid in dict.fromkeys(selected) if len(parents[oid]) <= 1]]
+
+
+@pytest.mark.parametrize('boundary', ['shallow', 'graft', 'replace'])
+def test_range_path_batches_stay_disabled_at_repository_boundaries(tmp_path, monkeypatch, boundary):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    if boundary == 'shallow':
+        (tmp_path / '.git' / 'shallow').write_text(base + '\n')
+    elif boundary == 'graft':
+        (tmp_path / '.git' / 'info' / 'grafts').write_text(head + ' ' + base + '\n')
+    else:
+        replacement = _path_tree_commit(tmp_path, {'tools/replaced.py': 'replacement\n'}, CLAUDE_AUTHOR, (base,))
+        _git(tmp_path, 'replace', bad, replacement)
+    selected = [head, bad]
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, '_normal_commit_audit', _path_oracle_audit)
+        expected = provenance._audit_history(selected)
+    real_run = subprocess.run
+    calls = Counter()
+
+    def recording(command, **kwargs):
+        if command[:3] == ['git', 'diff-tree', '--stdin']:
+            calls['batch'] += 1
+        if command[:4] == ['git', 'show', '-s', '--format=%P']:
+            calls['parents'] += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', recording)
+    assert provenance._audit_history(selected) == expected
+    assert calls == Counter({'parents': 2})
+
+
+def test_path_cache_misses_and_empty_root_keep_distinct_contracts(tmp_path, monkeypatch):
+    base, bad, head = _path_history(tmp_path, monkeypatch)
+    ancestry = provenance._build_ancestry([head])
+    real = provenance._git
+    calls = []
+
+    def recording(*args, **kwargs):
+        if args[:3] == ('show', '-s', '--format=%P'):
+            calls.append(args[3])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, '_git', recording)
+    assert provenance._commit_paths(base, parents=()) == [provenance.POLICY_PATH]
+    assert calls == []
+    ancestry.parents.pop(bad)
+    audit = provenance._normal_commit_audit(
+        bad, scope_epoch=base, implementation_epoch=base, ancestry=ancestry,
+        authoritative=True, nonmerge_paths={}, merge_parent_paths={},
+    )
+    assert calls == [bad]
+    assert any(f.ledger_kind == provenance.MISSING_CODEX_AUTHOR for f in audit.normal_findings)
+
+
+@pytest.mark.parametrize('failure', [OSError, ValueError, UnicodeError, RuntimeError])
+def test_merge_path_batch_config_failure_disables_optimization(tmp_path, monkeypatch, failure):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    real_run = subprocess.run
+
+    def failing(command, **kwargs):
+        if command[:3] == ['git', 'config', '--get']:
+            raise failure('config failure')
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, 'run', failing)
+    assert provenance._merge_path_batch_enabled() is False
+
+
+@pytest.mark.parametrize('helper', ['nonmerge', 'merge'])
+def test_path_batch_does_not_swallow_interrupt(tmp_path, monkeypatch, helper):
+    _, parents, merge = _path_merge_history(tmp_path, monkeypatch)
+
+    def interrupted(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(provenance, '_git', interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        if helper == 'nonmerge':
+            provenance._batch_nonmerge_paths([parents[0]])
+        else:
+            provenance._batch_merge_parent_paths([merge], {merge: parents})
+
+
+def test_shared_values_leave_message_file_and_waiver_calls_unchanged(tmp_path, monkeypatch, capsys):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, 'REPO', tmp_path)
+    (tmp_path / 'new.py').write_text('new\n')
+    _git(tmp_path, 'add', 'new.py')
+    message = tmp_path / '.git' / 'message'
+    message.write_text(CLAUDE_AUTHOR_WAIVED)
+    real = provenance._ai_agent_values
+    calls = []
+
+    def recording(text):
+        calls.append(text)
+        return real(text)
+
+    monkeypatch.setattr(provenance, '_ai_agent_values', recording)
+    assert provenance.main(['--message-file', str(message)], site=site_policy.OTHER) == 0
+    output = capsys.readouterr()
+    assert 'implementation-author-waived=1' in output.out
+    assert calls == [CLAUDE_AUTHOR_WAIVED, CLAUDE_AUTHOR_WAIVED]
+    calls.clear()
+    assert provenance._waiver_audit('waiver', CLAUDE_AUTHOR_WAIVED).exact
+    assert calls == []
+
+
 def _run() -> int:
     """parameterized path matrix を含む同一 node 集合を素の runner からも実行する。"""
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))

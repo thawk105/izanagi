@@ -1,0 +1,140 @@
+{
+ "hostname": "pegasus02",
+ "repo": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-source",
+ "head": "55068f84e9ce516956920b613f9b99f624a6c565",
+ "old_blob": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+ "old_sha256": "5cb709cbca5dd6e2cf2780c99da6a18fe02e1ad0d81fff4edd894125884e0ec6",
+ "new_sha256": "7c02fb2d5fec9d229bf1d4984181150a2b418ce6a473b4172556e53a5fd0b05c",
+ "started_at": "2026-09-20T08:23:26+09:00",
+ "rounds": 2,
+ "runs": [
+  {
+   "round": 1,
+   "version": "old",
+   "public": {
+    "rc": 0,
+    "wall_s": 133.208,
+    "cpu_children_s": 318.125,
+    "loadavg_before": [
+     6.96728515625,
+     11.99755859375,
+     14.9130859375
+    ],
+    "loadavg_after": [
+     44.755859375,
+     25.1064453125,
+     19.3359375
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [
+     "bounded local に与えた予算: 1073741824 bytes。ログインノードで 1073741824 bytes の予算を予約しました（予約控除後の観測余裕=1097640296 bytes、算出予算=1073741824 bytes、現在使用量=14632198144 bytes、回収不能量=9639777944 bytes、判定占有量=9639777944 bytes、実効天井=15032385536 bytes、生存中の予約=2147483648 bytes、前回ピーク=483811328 bytes (scope の raw memory.current peak)、次回見積もり=604764160 bytes）。",
+     "bounded scope の観測ピーク: 732930048 bytes"
+    ],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 1,
+   "version": "new",
+   "public": {
+    "rc": 0,
+    "wall_s": 77.713,
+    "cpu_children_s": 96.573,
+    "loadavg_before": [
+     44.755859375,
+     25.1064453125,
+     19.3359375
+    ],
+    "loadavg_after": [
+     19.34619140625,
+     21.48974609375,
+     18.5302734375
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [
+     "bounded local に与えた予算: 1073741824 bytes。ログインノードで 1073741824 bytes の予算を予約しました（予約控除後の観測余裕=2675789792 bytes、算出予算=1073741824 bytes、現在使用量=15555682304 bytes、回収不能量=10209112096 bytes、判定占有量=10209112096 bytes、実効天井=15032385536 bytes、生存中の予約=0 bytes、前回ピーク=732930048 bytes (scope の raw memory.current peak)、次回見積もり=916162560 bytes）。",
+     "bounded scope の観測ピーク: 625274880 bytes"
+    ],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 2,
+   "version": "old",
+   "public": {
+    "rc": 0,
+    "wall_s": 143.048,
+    "cpu_children_s": 304.794,
+    "loadavg_before": [
+     19.34619140625,
+     21.48974609375,
+     18.5302734375
+    ],
+    "loadavg_after": [
+     25.19189453125,
+     22.93115234375,
+     19.458984375
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [
+     "bounded local に与えた予算: 1073741824 bytes。ログインノードで 1073741824 bytes の予算を予約しました（予約控除後の観測余裕=1652747648 bytes、算出予算=1073741824 bytes、現在使用量=16448479232 bytes、回収不能量=10158412416 bytes、判定占有量=10158412416 bytes、実効天井=15032385536 bytes、生存中の予約=1073741824 bytes、前回ピーク=625274880 bytes (scope の raw memory.current peak)、次回見積もり=781593600 bytes）。",
+     "bounded scope の観測ピーク: 717893632 bytes"
+    ],
+    "stderr_static_head": ""
+   }
+  },
+  {
+   "round": 2,
+   "version": "new",
+   "public": {
+    "rc": 0,
+    "wall_s": 125.865,
+    "cpu_children_s": 95.34,
+    "loadavg_before": [
+     25.19189453125,
+     22.93115234375,
+     19.458984375
+    ],
+    "loadavg_after": [
+     11.3037109375,
+     17.95556640625,
+     18.03955078125
+    ],
+    "stdout_sha256": "dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa",
+    "stderr_static_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": "_ai_provenance: known-violations=56\ncheck_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb\ncheck_ai_provenance: 11770 件、新規違反なし\n",
+    "stderr_dynamic": [
+     "bounded local に与えた予算: 1073741824 bytes。ログインノードで 1073741824 bytes の予算を予約しました（予約控除後の観測余裕=1513450408 bytes、算出予算=1073741824 bytes、現在使用量=15876177920 bytes、回収不能量=10297709656 bytes、判定占有量=10297709656 bytes、実効天井=15032385536 bytes、生存中の予約=1073741824 bytes、前回ピーク=717893632 bytes (scope の raw memory.current peak)、次回見積もり=897367040 bytes）。",
+     "bounded scope の観測ピーク: 604205056 bytes"
+    ],
+    "stderr_static_head": ""
+   }
+  }
+ ],
+ "restored_sha256": "7c02fb2d5fec9d229bf1d4984181150a2b418ce6a473b4172556e53a5fd0b05c",
+ "restored_equals_new": true,
+ "final_status": "",
+ "verdict": {
+  "internal_old_keys": [
+   "None"
+  ],
+  "internal_new_keys": [
+   "None"
+  ],
+  "internal_equal": false,
+  "public_old": [
+   "(0, 'dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')"
+  ],
+  "public_new": [
+   "(0, 'dd58376cbb45f11f1b7a64a1159e3f6cb4b7381aa81b2edb70286edbbb30edfa', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')"
+  ],
+  "public_equal": true
+ },
+ "ended_at": "2026-09-20T08:31:32+09:00"
+}
