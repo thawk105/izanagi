@@ -1,0 +1,1789 @@
+{
+  "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2802-floor-attempt-recovery",
+  "base_module": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2802-floor-attempt-recovery/verbatim/base-module/s8b_holdout_admission_base.py",
+  "base_sha256": "de03d2536bbe69df9138273c8911d75cebbec8b5d72e3435715903102b88c48c",
+  "import_side_effects": "Test module imports campaign/calibrator/evidence modules and evaluates pytest parametrize decorators; its guarded pytest.main is not invoked. Admission import checks scheduler authority, creates separate state registries and RLock; no admission-root write occurs at module top level. Fixture helpers create and commit a disposable git repository only below this script directory. Dependencies are shared from repo-root, so their equivalence to base remains a parent integration precondition.",
+  "import_audit": {
+    "active": false,
+    "writes": [],
+    "processes": []
+  },
+  "exception_correspondence": {
+    "orchestrator.campaign.s8b_holdout_admission": [
+      "HoldoutAdmissionError",
+      "FloorHoldoutEvidenceError"
+    ],
+    "orchestrator.campaign._t2802_base_admission": [
+      "HoldoutAdmissionError",
+      "FloorHoldoutEvidenceError"
+    ]
+  },
+  "states": [
+    {
+      "state": "a-marker-absent",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "b-single-claim-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "c-single-claim-M+A+",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-sequence-2-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-sequence-2-M+A+",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-sequence-3-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq33",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-sequence-3-M+A+",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq33",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-three-consumed-target-0-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-three-consumed-target-1-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "d-three-consumed-target-2-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq33",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq33",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "e-later-nontarget-marker-campaign_run_id",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker differs from claim and ledger"
+          },
+          "root_unchanged": true,
+          "match": false
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker differs from claim and ledger"
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+              "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+              "attempt_id": "rr20::backoff_fixed_best::seq14",
+              "campaign_run_id": "run-a",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": false
+        }
+      ],
+      "match": false
+    },
+    {
+      "state": "e-later-nontarget-marker-extra-key",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker exact shape is invalid"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker exact shape is invalid"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker exact shape is invalid"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker exact shape is invalid"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "e-later-nontarget-marker-rename",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consume marker filename is not canonical"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consume marker filename is not canonical"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consume marker filename is not canonical"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consume marker filename is not canonical"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "e-later-nontarget-marker-unregistered-attempt",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation claim attempt coverage is invalid"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation claim attempt coverage is invalid"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation claim attempt coverage is invalid"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation claim attempt coverage is invalid"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "f-later-A-campaign_run_id",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger differs from its marker"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker differs from claim and ledger"
+          },
+          "root_unchanged": true,
+          "match": false
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation marker differs from claim and ledger"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger differs from its marker"
+          },
+          "root_unchanged": true,
+          "match": false
+        }
+      ],
+      "match": false
+    },
+    {
+      "state": "f-later-A-canonical-duplicate",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger has a duplicate identity"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger has a duplicate identity"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger has a duplicate identity"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger has a duplicate identity"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "f-later-A-missing-marker",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq14",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger row has no consume marker"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger row has no consume marker"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger row has no consume marker"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor attempt ledger row has no consume marker"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "g-completed-journal-session",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": true,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "completed attempt cannot be reissued"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "completed attempt cannot be reissued"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "completed attempt cannot be reissued"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "completed attempt cannot be reissued"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "h-main-ledger-records",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation ledger differs from its claim"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation ledger differs from its claim"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation ledger differs from its claim"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor measurement generation ledger differs from its claim"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "i-noncanonical-claim-bytes",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "durable admission record is not canonical: e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8.claim"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "durable admission record is not canonical: e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8.claim"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "durable admission record is not canonical: e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8.claim"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "durable admission record is not canonical: e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8.claim"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "j-consumed-symlink",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "662c2776393b1e53eeda97af6d68e5459a8b4534d583090887921372c8316eff",
+        "measurement_generation_claim_digest": "e0f09cab4d105f1673fd68475a0886159fa506bcec7d8f6d03513627de9144e8",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-a",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consumed marker directory contains an unsafe entry"
+          },
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consumed marker directory contains an unsafe entry"
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consumed marker directory contains an unsafe entry"
+          },
+          "current": {
+            "kind": "exception",
+            "type": "HoldoutAdmissionError",
+            "message": "floor consumed marker directory contains an unsafe entry"
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "extra-multiple-claims-marker-absent",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+        "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-b",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "extra-multiple-claims-M+A-",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+        "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-b",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+              "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-b",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+              "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-b",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+              "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-b",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "current": {
+            "kind": "return",
+            "value": {
+              "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+              "event": "consume",
+              "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+              "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+              "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+              "attempt_id": "rr20::backoff_fixed_best::seq6",
+              "campaign_run_id": "run-b",
+              "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+              "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+              "cell_id": "rr20::backoff_fixed_best",
+              "freeze_holdout_key": "rr20",
+              "configuration_id": "backoff_fixed_best",
+              "observation_role": "floor_campaign"
+            }
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    },
+    {
+      "state": "extra-multiple-claims-M+A+",
+      "expected_marker": {
+        "schema_version": "s8b-holdout-measurement-generation-attempt-consumption/v1",
+        "event": "consume",
+        "cell_effect_digest": "fd98cc8cc4572143713ee44815934879fb858d38a262e162208f3622d04b13b6",
+        "measurement_generation_digest": "c603b3a041387c1e6904b50959408111353f9fe4cb9e31d019b32b0404c2ccf2",
+        "measurement_generation_claim_digest": "b7ec99834dcbf25fd2cd629bce7b5418004f0aa6f37ca4a6e73f94fedd4d0ba9",
+        "attempt_id": "rr20::backoff_fixed_best::seq6",
+        "campaign_run_id": "run-b",
+        "manifest_sha256": "e22fefae59b0fd7e67b07711785e0a9bff1f75aa996ed6be4ebb5c9640d6e83f",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-b",
+        "cell_id": "rr20::backoff_fixed_best",
+        "freeze_holdout_key": "rr20",
+        "configuration_id": "backoff_fixed_best",
+        "observation_role": "floor_campaign"
+      },
+      "completed_attempt": false,
+      "orders": [
+        {
+          "order": [
+            "current",
+            "base"
+          ],
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        },
+        {
+          "order": [
+            "base",
+            "current"
+          ],
+          "base": {
+            "kind": "return",
+            "value": null
+          },
+          "current": {
+            "kind": "return",
+            "value": null
+          },
+          "root_unchanged": true,
+          "match": true
+        }
+      ],
+      "match": true
+    }
+  ],
+  "state_count": 24,
+  "matched": 22,
+  "mismatches": [
+    "e-later-nontarget-marker-campaign_run_id",
+    "f-later-A-campaign_run_id"
+  ],
+  "positive_control": null,
+  "rc": 1
+}
