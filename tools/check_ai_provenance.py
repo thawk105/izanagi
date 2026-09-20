@@ -10,7 +10,6 @@ hook には配線しない。Izanagi の hook 2 本限定を維持しつつ、�
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import importlib
 import json
@@ -27,7 +26,6 @@ import tempfile
 import threading
 import time
 import unicodedata
-import zlib
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
@@ -2236,7 +2234,7 @@ def _ledger_policy_is_visible(
     )
 
 
-_RECEIPT_SCHEMA = 2
+_RECEIPT_SCHEMA = 1
 _RECEIPT_DIRECTORY = "provenance-audit-receipts"
 _RECEIPT_LIMIT = 64
 
@@ -2268,15 +2266,10 @@ def _system_attributes_path():
     return paths.pop()
 
 
-def _attribute_fingerprint(head):
-    """Bind worktree/index and local/global/system attribute inputs, independent of tip.
-
-    Only non-absent candidates enter the digest: absent paths supply no
-    attribute rule bytes. Candidate-set changes are handled by the receipt
-    attribute_candidates containment check, not by the digest.
-    Untracked directories containing no tracked files are not enumerated for
-    .gitattributes discovery.
-    """
+def _attribute_candidates(head, *, policy=None) -> tuple[bytes, ...]:
+    """Include index ancestors and attribute directories used by audited merges."""
+    if policy is None:
+        policy = _policy_commit(head)
     attribute_paths = {b".gitattributes"}
 
     def add_ancestors(path):
@@ -2285,6 +2278,43 @@ def _attribute_fingerprint(head):
             attribute_paths.add(directory + b"/.gitattributes")
             directory = directory.rpartition(b"/")[0]
 
+    def git_bytes(*args, input=None):
+        result = subprocess.run(
+            ["git", *args], input=input, cwd=REPO,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        if result.returncode:
+            raise RuntimeError("cannot enumerate attribute candidates")
+        return result.stdout
+
+    for entry in git_bytes("ls-files", "--stage", "-z").split(b"\0"):
+        if entry:
+            _, name = entry.split(b"\t", 1)
+            add_ancestors(name)
+            if name.rsplit(b"/", 1)[-1] == b".gitattributes":
+                attribute_paths.add(name)
+    merges = git_bytes("rev-list", "--merges", f"{policy}..{head}")
+    merges += git_bytes("rev-list", "--merges", "--no-walk", policy)
+    # --cc candidates intersect all parent diffs, so the first-parent diff is a superset.
+    # git log --diff-merges=first-parent --no-walk=unsorted --stdin --name-only -z --format= --no-renames
+    paths = b""
+    if merges:
+        paths = git_bytes("log", "--diff-merges=first-parent",
+                          "--no-walk=unsorted", "--stdin", "--name-only", "-z",
+                          "--format=", "--no-renames", input=merges)
+    for name in paths.split(b"\0"):
+        if name:
+            add_ancestors(name)
+    return tuple(sorted(attribute_paths))
+
+
+def _attribute_fingerprint(head, *, policy=None) -> str:
+    """Bind worktree/index and local/global/system attribute inputs.
+
+    Candidates include root, index ancestors, and ancestors of merge paths
+    whose attributes can affect the audit. The history-derived directories
+    grow monotonically with audit history. Absent entries stay out of the digest.
+    """
     def file_bytes(path):
         path = Path(path)
         if not path.is_absolute():
@@ -2331,14 +2361,9 @@ def _attribute_fingerprint(head):
     for entry in index.split(b"\0"):
         if entry:
             metadata, name = entry.split(b"\t", 1)
-            add_ancestors(name)
             if name.rsplit(b"/", 1)[-1] == b".gitattributes":
                 indexed.append([name.hex(), metadata.decode("ascii")])
-                attribute_paths.add(name)
-    # Probe only directories on index paths (plus the repository root). This includes
-    # untracked attributes along those paths without walking ignored outputs or
-    # submodule contents, and follows directory symlinks as Git does.
-    candidates = tuple(sorted(attribute_paths))
+    candidates = _attribute_candidates(head, policy=policy)
     working = []
     for name in candidates:
         source = file_bytes(os.fsdecode(name))
@@ -2347,7 +2372,7 @@ def _attribute_fingerprint(head):
     return _receipt_digest({"info": file_bytes(info),
                             "configured": external, "index": sorted(indexed),
                             "working": working,
-                            "system": file_bytes(_system_attributes_path())}), candidates
+                            "system": file_bytes(_system_attributes_path())})
 
 
 def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
@@ -2372,21 +2397,21 @@ def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
     )
     manifest = [[name, mode.decode("ascii"), oid.decode("ascii")]
                 for name, (mode, oid) in sorted(entries.items())]
-    digest, candidates = _attribute_fingerprint(head)
+    policy = _policy_commit(head)
     bindings = {
         "environment": environment,
         "repository": str(common),
         "object_format": _git("rev-parse", "--show-object-format").strip(),
-        "policy": _policy_commit(head),
+        "policy": policy,
         "scope_epoch": scope_epoch,
         "implementation_epoch": implementation_epoch,
         "cab_hits": sorted(oid for oid, i in ancestry.index.items()
                            if ancestry.cab_policy_mask & (1 << i)),
         "registry_manifest": _receipt_digest(manifest),
-        "attributes": digest,
+        "attributes": _attribute_fingerprint(head, policy=policy),
     }
     return common / _RECEIPT_DIRECTORY / (
-        _receipt_digest(environment)) / (head + ".json"), bindings, candidates
+        _receipt_digest(environment)) / (head + ".json"), bindings
 
 
 def _partition_receipts(path):
@@ -2443,16 +2468,12 @@ def _publish_audit_receipt(state: dict) -> None:
         path, receipt = state["path"], state["receipt"]
         _assert_head_unchanged(receipt["tip"])
         # Do not publish under bindings that changed during the audit.
-        _, current, candidates = _receipt_bindings(
+        _, current = _receipt_bindings(
             receipt["tip"], receipt["bindings"]["scope_epoch"],
             receipt["bindings"]["implementation_epoch"], state["ancestry"],
         )
-        encoded_candidates = base64.b64encode(
-            zlib.compress(b"\0".join(candidates), 9)).decode("ascii")
-        if (current != receipt["bindings"]
-                or candidates != state["attribute_candidates"]):
+        if current != receipt["bindings"]:
             return
-        receipt["attribute_candidates"] = encoded_candidates
         path.parent.parent.mkdir(mode=0o700, exist_ok=True)
         path.parent.mkdir(mode=0o700, exist_ok=True)
         info = path.parent.lstat()
@@ -2484,28 +2505,17 @@ def _registry_specs(registry, selected):
                  for spec in ((value,) if isinstance(value, KnownViolationSpec) else value))
 
 
-def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry, candidates):
+def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry):
     """Validate every saved input and the complete successful prefix result."""
     try:
         if (not isinstance(receipt, dict)
                 or set(receipt) != {"schema", "returncode", "bindings", "tip",
-                                    "selection", "coverage", "candidate_count", "records",
-                                    "attribute_candidates"}
+                                    "selection", "coverage", "candidate_count", "records"}
                 or type(receipt["schema"]) is not int
                 or receipt["schema"] != _RECEIPT_SCHEMA
                 or type(receipt["returncode"]) is not int
                 or receipt["returncode"] != 0
                 or receipt["bindings"] != bindings):
-            return None
-        encoded = receipt["attribute_candidates"]
-        if not isinstance(encoded, str) or not encoded:
-            return None
-        stored = zlib.decompress(base64.b64decode(encoded, validate=True)).split(b"\0")
-        if (stored != sorted(set(stored))
-                or any(not name or (name != b".gitattributes"
-                                    and not name.endswith(b"/.gitattributes"))
-                       for name in stored)
-                or not set(stored) <= set(candidates)):
             return None
         tip = receipt["tip"]
         if (not isinstance(tip, str)
@@ -2554,7 +2564,7 @@ def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry, candid
         if any(record.label not in prefix for record in history.waived):
             return None
         return prefix, [oid for oid in commits if oid in delta_set], history, count
-    except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeError, zlib.error):
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeError):
         return None
 
 
@@ -2590,7 +2600,7 @@ def _audit_history(
     if authoritative and receipt_state is not None:
         receipt_state.clear()
         try:
-            path, bindings, attribute_candidates = _receipt_bindings(
+            path, bindings = _receipt_bindings(
                 head, scope_epoch, implementation_epoch, ancestry)
             # Rank using the existing HEAD closure, before prefix validation.
             selected_mask = 0
@@ -2606,7 +2616,7 @@ def _audit_history(
                 candidates.append((distance, candidate.name, receipt))
             for _, _, receipt in sorted(candidates, key=lambda item: item[:2]):
                 prefix = _receipt_prefix(
-                    receipt, bindings, commits, head, ancestry, registry, attribute_candidates,
+                    receipt, bindings, commits, head, ancestry, registry,
                 )
                 if prefix is not None:
                     reuse = prefix
@@ -2673,8 +2683,7 @@ def _audit_history(
     if receipt_state is not None and path is not None and bindings is not None and not history.findings:
         keys = sorted([list(_known_violation_key(spec))
                        for spec in _registry_specs(registry, set(commits))])
-        receipt_state.update(path=path, ancestry=ancestry,
-                             attribute_candidates=attribute_candidates, receipt={
+        receipt_state.update(path=path, ancestry=ancestry, receipt={
             "schema": _RECEIPT_SCHEMA, "returncode": 0, "bindings": bindings,
             "tip": head,
             "selection": {"digest": _receipt_digest(sorted(commits)), "count": len(commits)},

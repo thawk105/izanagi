@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import base64
 import hashlib
 import importlib.util
 import json
@@ -11,7 +10,6 @@ import sys
 import subprocess
 import threading
 import time
-import zlib
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -8162,13 +8160,13 @@ def test_attribute_candidate_directories_cover_git_paths(tmp_path, monkeypatch, 
             directory.rename(target)
             directory.symlink_to(target, target_is_directory=True)
     head = _git(tmp_path, "rev-parse", "HEAD")
-    before = provenance._attribute_fingerprint(head)[0]
+    before = provenance._attribute_fingerprint(head)
     (directory / ".gitattributes").write_text("* -diff\n")
-    after = provenance._attribute_fingerprint(head)[0]
+    after = provenance._attribute_fingerprint(head)
     assert after != before
-    assert provenance._attribute_fingerprint(head)[0] == after
+    assert provenance._attribute_fingerprint(head) == after
     (tmp_path / "outer/.gitattributes").write_text("* text\n")
-    assert provenance._attribute_fingerprint(head)[0] != after
+    assert provenance._attribute_fingerprint(head) != after
 
 
 def test_configured_attribute_path_with_trailing_newline_falls_back(tmp_path, monkeypatch, capsys):
@@ -8228,7 +8226,7 @@ def test_attribute_fingerprint_is_independent_of_tip(tmp_path, monkeypatch):
         tip = _commit(tmp_path, {f"new-{i}/nested/file.txt": str(i)}, CODEX_AUTHOR)
     assert _git(tmp_path, "diff", "--name-only", f"{old}..{tip}", "--",
                 "*.gitattributes", ".gitattributes") == ""
-    assert provenance._attribute_fingerprint(old)[0] == provenance._attribute_fingerprint(tip)[0]
+    assert provenance._attribute_fingerprint(old) == provenance._attribute_fingerprint(tip)
 
 
 def test_many_commit_delta_warm_hit(tmp_path, monkeypatch, capsys):
@@ -8267,10 +8265,11 @@ def _attribute_receipt_oracle(root, monkeypatch, capsys, actual):
 def test_attribute_absent_directory_addition_warm_hit(tmp_path, monkeypatch, capsys):
     cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
     before = provenance._attribute_fingerprint(_git(tmp_path, "rev-parse", "HEAD"))
+    candidates_before = provenance._attribute_candidates(_git(tmp_path, "rev-parse", "HEAD"))
     tip = _commit(tmp_path, {"output/insights/2026-09-20/t-pos/README.md": "new\n"}, CODEX_AUTHOR)
     after = provenance._attribute_fingerprint(tip)
-    assert before[0] == after[0]
-    assert set(before[1]) < set(after[1])
+    assert before == after
+    assert set(candidates_before) < set(provenance._attribute_candidates(tip))
     warm = _receipt_run(monkeypatch, capsys)
     assert warm[0] == 0
     assert warm[2:] == ([tip], [[tip]])
@@ -8281,11 +8280,12 @@ def test_attribute_absent_directory_addition_warm_hit(tmp_path, monkeypatch, cap
 def test_attribute_new_candidate_file_falls_back(tmp_path, monkeypatch, capsys):
     cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
     before = provenance._attribute_fingerprint(_git(tmp_path, "rev-parse", "HEAD"))
+    candidates_before = provenance._attribute_candidates(_git(tmp_path, "rev-parse", "HEAD"))
     tip = _commit(tmp_path, {"docs/new-candidate/child.md": "child\n"}, CODEX_AUTHOR)
     (tmp_path / "docs/new-candidate/.gitattributes").write_text("* -diff\n")
     after = provenance._attribute_fingerprint(tip)
-    assert before[0] != after[0]
-    assert set(before[1]) < set(after[1])
+    assert before != after
+    assert set(candidates_before) < set(provenance._attribute_candidates(tip))
     actual = _receipt_run(monkeypatch, capsys)
     assert actual[0] == 0
     assert set(actual[2]) == set(cold[2]) | {tip}
@@ -8303,9 +8303,7 @@ def test_attribute_retired_directory_falls_back(tmp_path, monkeypatch, capsys):
     attributes.parent.mkdir(parents=True, exist_ok=True)
     attributes.write_text("shared_lines.py -diff\n")
     after = provenance._attribute_fingerprint(tip)
-    # Only containment can invalidate: the retired attribute is outside C_B.
-    assert before[0] == after[0]
-    assert set(after[1]) < set(before[1])
+    assert before != after
     assert provenance._commit_paths(merge) == [path]
     actual = _receipt_run(monkeypatch, capsys)
     assert actual[0] == 1
@@ -8322,12 +8320,14 @@ def test_attribute_untracked_file_removal_falls_back(tmp_path, monkeypatch, caps
     attributes.write_text("* -diff\n")
     head = _git(tmp_path, "rev-parse", "HEAD")
     before = provenance._attribute_fingerprint(head)
+    candidates_before = provenance._attribute_candidates(head)
     cold = _receipt_run(monkeypatch, capsys)
     assert cold[0] == 0 and len(_receipt_files(tmp_path)) == 1
     assert _receipt_run(monkeypatch, capsys)[2] == []
     attributes.unlink()
     after = provenance._attribute_fingerprint(head)
-    assert before[0] != after[0] and before[1] == after[1]
+    assert before != after
+    assert candidates_before == provenance._attribute_candidates(head)
     actual = _receipt_run(monkeypatch, capsys)
     assert actual[0] == 0 and set(actual[2]) == set(cold[2])
     assert len(actual[3]) == 1
@@ -8338,6 +8338,7 @@ def test_attribute_candidate_lstat_unreadable_falls_back(tmp_path, monkeypatch, 
     cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
     head = _git(tmp_path, "rev-parse", "HEAD")
     before = provenance._attribute_fingerprint(head)
+    candidates_before = provenance._attribute_candidates(head)
     attributes = tmp_path / "tools/.gitattributes"
     real_lstat = Path.lstat
 
@@ -8348,65 +8349,47 @@ def test_attribute_candidate_lstat_unreadable_falls_back(tmp_path, monkeypatch, 
 
     monkeypatch.setattr(Path, "lstat", unreadable)
     after = provenance._attribute_fingerprint(head)
-    assert before[0] != after[0] and before[1] == after[1]
+    assert before != after
+    assert candidates_before == provenance._attribute_candidates(head)
     actual = _receipt_run(monkeypatch, capsys)
     assert actual[0] == 0 and set(actual[2]) == set(cold[2])
     assert len(actual[3]) == 1
     _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
 
 
-def _encode_attribute_candidates(names):
-    return base64.b64encode(zlib.compress(b"\0".join(names), 9)).decode("ascii")
-
-
-@pytest.mark.parametrize("damage", [
-    "base64", "zlib", "unsorted", "duplicate", "suffix", "missing", "empty",
-    "non-string", "empty-payload", "empty-element",
-])
-@pytest.mark.parametrize("damage_nearest", [False, True])
-def test_attribute_candidates_damage_falls_back(tmp_path, monkeypatch, capsys, damage, damage_nearest):
-    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
-    expected = set(cold[2])
-    if damage_nearest:
-        tip = _commit(tmp_path, {"docs/nearest.md": "nearest\n"}, CODEX_AUTHOR)
-        assert _receipt_run(monkeypatch, capsys)[0] == 0
-        path = path.parent / f"{tip}.json"
-        expected = {tip}
-    document = json.loads(path.read_text())
-    names = zlib.decompress(base64.b64decode(document["attribute_candidates"], validate=True)).split(b"\0")
-    assert names == sorted(set(names)) and all(names)
-    values = {
-        "base64": "!invalid!", "zlib": base64.b64encode(b"not zlib").decode("ascii"),
-        "unsorted": _encode_attribute_candidates(list(reversed(names))),
-        "duplicate": _encode_attribute_candidates(sorted(names + [names[0]])),
-        "suffix": _encode_attribute_candidates(sorted(names + [b"tools/invalid"])),
-        "empty": "", "non-string": [], "empty-payload": _encode_attribute_candidates([]),
-        "empty-element": _encode_attribute_candidates([b""] + names),
-    }
-    if damage == "missing":
-        del document["attribute_candidates"]
-    else:
-        document["attribute_candidates"] = values[damage]
-    path.write_text(json.dumps(document))
+def test_attribute_retired_directory_reintroduced_falls_back(tmp_path, monkeypatch, capsys):
+    path = "tools/retired/shared_lines.py"
+    merge, initial = _attribute_merge_repo(tmp_path, monkeypatch, capsys, path=path)
+    _git(tmp_path, "rm", path)
+    deleted = _commit(tmp_path, {}, CODEX_AUTHOR)
+    root_attributes = tmp_path / ".gitattributes"
+    root_attributes.write_text(f"{path} -diff\n")
+    nested = tmp_path / "tools/retired/.gitattributes"
+    nested.parent.mkdir(parents=True, exist_ok=True)
+    nested.write_text("shared_lines.py diff\n")
+    assert b"tools/retired/.gitattributes" in provenance._attribute_candidates(deleted)
+    assert provenance._commit_paths(merge) == []
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    before = provenance._attribute_fingerprint(deleted)
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and len(_receipt_files(tmp_path)) == 1
+    assert set(cold[2]) == set(initial[2]) | {deleted}
+    (tmp_path / "tools/retired/README.md").write_text("returned\n", encoding="utf-8")
+    _git(tmp_path, "add", "tools/retired/README.md")
+    assert ".gitattributes" not in _git(tmp_path, "ls-files")
+    _git(tmp_path, "commit", "-q", "-F", "-", input_text=CODEX_AUTHOR)
+    assert ".gitattributes" not in _git(tmp_path, "ls-files")
+    tip = _git(tmp_path, "rev-parse", "HEAD")
+    nested.unlink()
+    assert root_attributes.read_text() == f"{path} -diff\n"
+    assert provenance._commit_paths(merge) == [path]
+    assert provenance._attribute_fingerprint(tip) != before
     actual = _receipt_run(monkeypatch, capsys)
-    assert actual[0] == 0 and set(actual[2]) == expected
-    assert len(actual[3]) == 1
-    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
-
-
-def test_attribute_candidates_extra_path_falls_back(tmp_path, monkeypatch, capsys):
-    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
-    document = json.loads(path.read_text())
-    stored = zlib.decompress(base64.b64decode(document["attribute_candidates"], validate=True)).split(b"\0")
-    digest, candidates = provenance._attribute_fingerprint(_git(tmp_path, "rev-parse", "HEAD"))
-    assert tuple(stored) == candidates
-    assert document["bindings"]["attributes"] == digest
-    extra = b"never-tracked/.gitattributes"
-    assert extra not in candidates
-    document["attribute_candidates"] = _encode_attribute_candidates(sorted(stored + [extra]))
-    path.write_text(json.dumps(document))
-    actual = _receipt_run(monkeypatch, capsys)
-    assert actual[0] == 0 and set(actual[2]) == set(cold[2])
+    assert actual[0] == 1
+    assert (f"{merge[:12]} change: 実装面に Codex role=author がない — "
+            f"paths={path}\n") in actual[1].err
+    assert set(actual[2]) == set(cold[2]) | {tip}
     assert len(actual[3]) == 1
     _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
 
