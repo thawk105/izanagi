@@ -298,7 +298,10 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
 def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_path):
     """歴史的 node 名。実 repo gate は manifest 検証前の launch 拒否を返す。
 
-    binding schema 拒否の検出力は未発効 tmp repo の補完テストで維持する。
+    standalone gate の binding schema 拒否への翻訳は gate_check 経路の
+    test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal_in_tmp_repo、
+    run_block の集約は
+    test_run_block_broken_binding_manifest_aggregates_refusals_in_tmp_repo で維持する。
     """
     freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
 
@@ -322,6 +325,41 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
     driver_fixtures._assert_exact_refusals(
         decision.refusals, driver_fixtures._ACTIVATED_G1_REFUSALS,
     )
+
+
+def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal_in_tmp_repo(tmp_path):
+    """未発効 tmp repo の standalone gate で binding schema 例外の翻訳を検査する。"""
+    root, _ = driver_fixtures._t080_repo(tmp_path, receipt="never-issued")
+    freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
+
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(
+            driver.s8b_oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+        )
+        patcher.setattr(
+            driver.s8b_oracle_spec, "load_approved_spec",
+            lambda _root: approved.reviewed_spec,
+        )
+        decision = driver.gate_check(
+            freeze_path=freeze_path, manifest_path=broken_path, root=root,
+        )
+
+    assert decision.allowed is False
+    assert len(decision.refusals) == 3, decision.refusals
+    assert any(
+        refusal.startswith("manifest-verify:")
+        and "binding_identity entry schema が不一致" in refusal
+        for refusal in decision.refusals
+    ), decision.refusals
+    assert any(
+        refusal.startswith("freeze-ratify: [no-active]")
+        for refusal in decision.refusals
+    ), decision.refusals
+    # tmp root に known axes source が無い fixture 由来の拒否も standalone core が freeze / known axes / manifest と集約する。
+    assert any(
+        refusal.startswith("known-axes-freeze-verify:")
+        for refusal in decision.refusals
+    ), decision.refusals
 
 
 def test_run_block_broken_binding_manifest_aggregates_refusals_in_tmp_repo(tmp_path):

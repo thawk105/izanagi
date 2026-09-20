@@ -544,10 +544,14 @@ def _commit_message(commit: str, root: Path) -> str:
 
 
 def _is_none_commit(commit: str, root: Path) -> bool:
-    """`AI-Agent: none` を逐語で持つ人間 commit か (C1-6 の二重判定)。
+    """逐語 `AI-Agent: none` の trailer 判定 (raw 行 byte-for-byte + parse 値)。
 
     parse 上の AI-Agent 値が厳密に ["none"] であり、かつ raw message に行として
-    byte-for-byte `AI-Agent: none` がちょうど 1 本存在し他に AI-Agent 系行が無い。"""
+    byte-for-byte `AI-Agent: none` がちょうど 1 本存在し他に AI-Agent 系行が無い。
+    世代導入 commit の none 拒否 (`_assert_candidate_commit`) が使う。
+    approval / pointer 等の導入 commit の trailer 検査は
+    `_user_commit_trailer_problem` が担う。人間 commit の証明ではない。
+    """
     message = _commit_message(commit, root)
     raw_lines = _raw_ai_agent_lines(message)
     if len(raw_lines) != 1 or raw_lines[0] != "AI-Agent: none":
