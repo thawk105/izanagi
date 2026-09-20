@@ -107,12 +107,46 @@ wave `dev-wave-t2810-g1-launch-validation`、着手時 local main `482f19b88` �
 
 ### 6.2 変異 matrix (DW-M08、独立 clone @`083a45ee9`、計算ノード dispatch、probe → final)
 
-probe (全件 SURVIVED 登録で観測 node を集める、`mutation/mutation-spec-probe.json`) を 20:33 JST に投入 (16 走、1 走 ≈ 4.5 分)。**final は未実施 (probe 走行中)。**
-結果は後続の記録 commit で本節へ足す (走行中の欄は作らない)。
+変異は production `s8b_ratified_freeze.py` の M0 (等価 comment、SURVIVED 期待) + M1〜M14 (裁定 §3、M12 の old 文字列は fix2 の新 block へ差替え、追補 1)。runner =
+`tools/run_tests.py --force-dispatch` で `test_s8b_ratified_verify.py` + `test_s8b_oracle_driver.py` + `test_s8b_binding_driftguards.py` (`-q -rf`)。独立 clone
+(`git clone --local` + `update-ref main 083a45ee9`、submodule 再帰初期化、D1009) を `tools/mutation_worktree.py --runner-mode dispatch --detached` で走らせた。
+
+**probe (`mutation/mutation-spec-probe.json`、sha256 `b0f04c2c…`、全件 SURVIVED 登録で観測 node を集める、20:33〜23:15 JST、計算ノード混雑で 1 走 5〜15 分):**
+baseline PASSED、M0 SURVIVED (harness の SURVIVED 検出の正例)、M1〜M14 は全件で赤 node を観測 (`MISMATCH` = SURVIVED 登録に対する赤、probe の設計どおり)。
+観測 node (`mutation/mutation-probe-summary.json`、原本 sha256 `17c624e3…`) は段 6 レビュー A の帰属表と一致:
+
+| 変異 | 観測 node | 帰属 |
+|---|---|---|
+| M1 reservation allowlist 削除 | 53 (reservation を持つ journal test 全部 + 正例 unbound / bound) | 正常 reservation が `journal-event` で拒否される |
+| M2 binding optional 拡張削除 | 26 (binding 付きの test) | 正常 binding が `schema-keys` で拒否される |
+| M3 claim 一致検査削除 | 3 (`binding_one_sided_claim` ×2、`binding_campaign_without_reservation`) | 片側 claim が受理される |
+| M4 binding 型検査削除 | 12 (`binding_invalid_type` 全部) | `both` 4 ケースは受理への転化 (独立 killer)、単独 event 8 ケースは値不一致検査の別 cause (契約差分、RA-1) |
+| M5 値一致検査削除 | 2 (`binding_value_mismatch`) | 値不一致が受理される |
+| M6 reservation 型検査削除 | 24 (`reservation_invalid_integer` 21 + `_other_type` 3) | 型不正が受理される |
+| M7 件数検査削除 | 2 (`reservation_duplicate`) | 2 件が受理される |
+| M8 順序検査削除 | 2 (`reservation_after_campaign`) | campaign 後の reservation が受理される |
+| M9 下限削除 | 1 (`artifact_lineage_rejected[before-cert]`) | C より前の導入が受理される |
+| M10 非 merge 検査削除 | 1 (`[merge]`) | merge 初導入が受理される |
+| M11 一意導入 → 先頭 | 1 (`[multiple]`) | 複数導入が受理される |
+| M12 世代文書 {G} 検査削除 | 2 (新 `generation_introduction_independent` + 既存 `floor_source_introduction_must_be_exact_generation_commit`) | **受理集合の kill ではない**: 段階 7 が `scan-exemption-invalid` / `active-chain-mismatch` で拒否し、cause の exact assertion が赤になる = 拒否段階 / cause の契約検出 (RA-1、DW-M08 の diagnostic sensitivity pin 別枠) |
+| M13 上限削除 | 1 (`artifact_upper_bound_helper`) | 重複検査の helper 単体試験だけが殺す (B-1) |
+| M14 段階 6 を旧 `== {G}` に戻す | 59 (正例 certificate / bound / unbound、interval positive、lineage rejected の cause、journal 負例の対照 (i = C 前提)) | 現物 topology (i = C) が拒否される |
+
+**final (`mutation/mutation-spec-final.json`、sha256 `827324bc…`、probe の観測 node を完全集合として KILLED 登録、M0 は SURVIVED 登録、23:15〜02:55 JST):**
+**baseline PASSED (293 s)、M0 SURVIVED、M1〜M14 = 14/14 KILLED、期待 node 完全一致 15/15、MISMATCH 0** (`mutation/mutation-final-summary.json`、原本 sha256 `49fa7d41…`)。
+1 走の所要は 268〜944 s (計算ノード混雑の queue 待ちを含む、runner 報告値)。集計上の注意 (RA-1、DW-M03 / M08): M12 の KILLED は「拒否段階 / cause の契約」の検出で
+受理集合の防壁の証拠ではない (段階 7 が別 cause で拒否する)。M13 は helper 単体試験による重複検査の KILLED。M4 の受理集合の証拠は `both` 4 node で、単独 event
+8 node は cause の契約差分。独立した受理集合の防壁として数えるのは M1〜M11 (M4 は `both`) と M14。
 
 ### 6.3 受入・provenance・docs 検査
 
-**未実施 (変異 final の後)。** 受入は記録 commit の tip で待ち手経由の全走を門番 loop から投入する。結果は本 README には書かず受領証 (job dir) と land の記録が持つ。
+- provenance range 監査 (`check_ai_provenance.py --range 800178b39..HEAD`、記録 commit 1 の tip): **4 件、違反なし** (実装 3 + 記録 1、`provenance-range-1.log`)。
+  land 時の全史監査は `dev_wave_land.py` が DW-O25 で自ら行う。
+- `check_docs` 違反なし (記録 commit 1 / 2 の前に各 1 回)、`git diff --check` 緑 (統合・fix1・fix2)、`spool_fold.py --dry-run` rc=0。
+- 三軸走査 (`s8b_holdout_freeze search`、記録 commit 1 直前): hit は既知の official 成果物 4 file × 2 holdout のみ (本 wave の docs / insight に新 hit なし、
+  `three-axis-scan-1.log`)。
+- 受入: 記録 commit 2 と段 8 の commit の tip で待ち手経由の全走 (`dev_wave_wait.py acceptance`、3 shard) を門番 loop から投入する。結果は本 README には書かず
+  受領証 (job dir `acceptance-receipt-<tag>.json`) と land の記録が持つ。child-green でなければ land しない。
 
 ## 7. 到達範囲と非保証
 
@@ -134,6 +168,9 @@ probe (全件 SURVIVED 登録で観測 node を集める、`mutation/mutation-sp
    (`output/s1-freeze` + `output/s8b-freeze`) の対象外、G/A/X・floor_source bytes は不変、`_active_chain_exempt_exact` 不変。帰結: `V2_CANDIDATE_REL` の create-only
    存在拒否が消える (再生成されれば hit が復活)、`_ACTIVATED_G1_REFUSALS` の候補を含む hit 列挙が変わる、削除後に load / reverify をやり直す、候補 bytes と来歴は X2 の
    履歴 blob と世代文書で保持。D2077「痕跡を消してよかったことの証明ではない」に照らし、削除の根拠は別裁定 (候補 path の役割終了を認めるか)。
+   **裁定 (第 27 回 /rulings、2026-09-21 00:5x JST「推奨通り」、一次控え `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-09-21-rulings-full27-verdicts.md` 項 5、
+   台帳の D は記録 wave `rulings-all-20260921` の fold 後):** (a) 候補 file だけを削除する commit を本 wave の land 後に別 commit で (scan 除外不変、削除後に load / reverify を
+   再実測)。根拠 = 候補 path の役割が批准済み世代 (D2180) へ移って終了。本 wave では実施しない (worklog の新規 T へ AI 手番として起票)。
 3. **旧 pin 固定 checkout への修正の移植:** 歴史再開に本修正を使うなら移植した別 checkout の検証が要る。
 4. **W-4 spec 承認、W-5 実走・certified 選択:** 不変。
 

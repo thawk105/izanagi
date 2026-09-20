@@ -335,8 +335,9 @@ wrapper からは起動できない。
   X1' 導入) は 2026-09-20 [T-2810] で修復した (受理集合の変化は `output/insights/2026-09-20/t2810-g1-launch-validation/README.md` §3)。
   残る拒否は 2 種: (i) live 経路 (`launch_validate`) は段階 4 の現行 admission policy 照合 (ccbench pin 前進、D2184) で止まる — 移行は [T-2812] 系、
   (ii) historical 経路 (`reverify_published_freeze`) は段階 4〜7 を通過して段階 8 の full scan で未発効候補
-  `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` の未申告 hit で止まる — 候補 file の扱いは別裁定 (同 README §8)。
-- **残る手番:** (i) policy 移行 ([T-2812] 系)、(ii) 未発効候補文書の scan hit の裁定、(c) 床の採否は D2120 項 2 (c) で裁定済み
+  `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` の未申告 hit で止まる — 候補 file だけを削除する commit を [T-2810] の land 後に別 commit で
+  行うことが裁定済み (2026-09-21 第 27 回 /rulings、同 README §8、削除後に load / reverify を再実測)。
+- **残る手番:** (i) policy 移行 ([T-2812] 系)、(ii) 未発効候補文書の削除 commit (AI、裁定済み)、(c) 床の採否は D2120 項 2 (c) で裁定済み
   (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
   [T-750] package の残余 (P-1 pinned literal の恒久形、P-3 批准 proof chain に budget authorization field
   が無い構造) は別管理のまま。
