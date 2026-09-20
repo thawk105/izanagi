@@ -1,0 +1,120 @@
+{
+ "summary": {
+  "KILLED": 4,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 5,
+  "matching": 5,
+  "recorded": 5,
+  "registered": 5
+ },
+ "repo_head": "00d781372433147a35bf1099ececa9dc176e1924",
+ "spec_sha256": "e04dd9cb53305b943b6abcbc37b85bdb38affac167e91552f075d41f330dd3aa",
+ "runner_sha256": "da2ad175f6842389edb7b383129135cb100d27e41ba4e97e5f785eb6991d6820",
+ "tool_sha256": "516bc843b8b00675799952f0f1c3a4337338ea8efbb2381cd534f2fdda347ff8",
+ "date": "2026-09-20T13:58:37.915001+00:00",
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0,
+  "duration_s": 52.77
+ },
+ "mutations": [
+  {
+   "id": "M1-working-empty",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_directories_cover_git_paths[directory-symlink]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_directories_cover_git_paths[index-only]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_lstat_unreadable_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_new_candidate_file_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_reintroduced_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_untracked_file_removal_falls_back"
+   ],
+   "status": "KILLED",
+   "matches_expectation": true,
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_directories_cover_git_paths[directory-symlink]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_directories_cover_git_paths[index-only]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_new_candidate_file_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_lstat_unreadable_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_untracked_file_removal_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_reintroduced_falls_back"
+   ],
+   "duration_s": 53.411
+  },
+  {
+   "id": "M2-include-absent-again",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_absent_directory_addition_warm_hit"
+   ],
+   "status": "KILLED",
+   "matches_expectation": true,
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_absent_directory_addition_warm_hit"
+   ],
+   "duration_s": 52.7
+  },
+  {
+   "id": "M3-drop-unreadable",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_lstat_unreadable_falls_back"
+   ],
+   "status": "KILLED",
+   "matches_expectation": true,
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_candidate_lstat_unreadable_falls_back"
+   ],
+   "duration_s": 52.664
+  },
+  {
+   "id": "M4-drop-history-candidates",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_reintroduced_falls_back"
+   ],
+   "status": "KILLED",
+   "matches_expectation": true,
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_reintroduced_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_retired_directory_falls_back"
+   ],
+   "duration_s": 42.579
+  },
+  {
+   "id": "EQ1-sorted-set-candidates",
+   "category": "positive",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "status": "SURVIVED",
+   "matches_expectation": true,
+   "rc": 0,
+   "failed_nodes": [],
+   "duration_s": 57.8
+  }
+ ]
+}

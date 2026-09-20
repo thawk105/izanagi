@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-working-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        if source != {\"kind\": \"absent\"}:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-include-absent-again",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        if source != {\"kind\": \"absent\"}:\n",
+          "new": "        if True:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-unreadable",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        if source != {\"kind\": \"absent\"}:\n",
+          "new": "        if source != {\"kind\": \"absent\"} and source.get(\"kind\") != \"unreadable\":\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-drop-history-candidates",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    for name in paths.split(b\"\\0\"):\n",
+          "new": "    for name in ():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "EQ1-sorted-set-candidates",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    return tuple(sorted(attribute_paths))\n",
+          "new": "    return tuple(sorted(set(attribute_paths)))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
