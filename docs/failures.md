@@ -351,6 +351,20 @@
   merge は着地時刻ではない)。
 
 - **再発: 2026-09-20 (near miss、2 件)** — [T-2804] wave の親が、(1) 段 4 裁定 `s4-ruling.md` §2 項 5 の終端行 field 名 `deadline_margin_s` を段 5 author の prompt へ**手打ちで再記述**して `deadline_at_margin_s` に書き換え、実装とテストがそのまま裁定と食い違った (段 6 レビュー B が must-fix、A が should として捕捉、fix1 1 巡で裁定の名前へ揃えた。受理集合・値・順序は不変で診断行の名前だけの差)。(2) handoff と brief の見出し時刻 4 件 (21:03 / 21:20 / 21:31 / 21:33) を `date` を叩かず推定で書き、job dir の file mtime (21:01 / 21:08 / 21:17 / 21:18) で訂正した (worklog・insight へ写す前に閉じた)。型はどちらも「一次資料から転写せず手で書き直す」で F1 と同じ。恒久対応は変更なし (memory `timestamps-from-date-or-mtime-not-estimation`) に加え、裁定の literal を子の prompt へ再記述せず「裁定 file が正本」と指し、必要な逐語は file から機械的に切り出す (memory `ruling-literals-in-prompts-point-to-the-file`)。
+
+- **再発: 2026-09-21 (論文ストーリー 2026-09-21 版 `2026-09-21.md` の wave、near-miss 3 件。段 6 の read-only レビューが捕捉し凍結前に
+  訂正、実害なし)** — (1) A-1 attempt-0002 の job と終端時刻の対応を、一次資料 (`t2792-a1-sized-attempt2` §3) でなく worklog entry 1755 の
+  略記から写し、`13220` (write-heavy) / `13221` (balanced) / `13222` (read-heavy) に 18:22:12 / 18:25:34 / 18:28:57 を並べて対応を
+  入れ替えた (正は balanced `13221` 18:22:12 → read-heavy `13222` 18:25:34 → write-heavy `13220` 18:28:57)。(2) pairing 採用 wave
+  ([T-2766]) の A/B を、前 wave (prewarm E/L 対 = 同一 SHA) の条件から転写して「いずれも同一 SHA の隣接対」と書いた (実際は採用前 /
+  採用後で全対の tested_main が動く — `t2766-pairing-adopt` §1・§5・§6)。(3) 「冒頭の訂正 1」の参照を版名なしで前版から運び、§6 導入の
+  「この節は 2026-09-20 版から引き写していない」を時点語の機械置換のまま残した (この版の冒頭は訂正 0 件で、参照先は前版 = 2026-09-20b 版
+  の冒頭と 2026-09-20 版の冒頭に分かれる)。いずれも転写元が一次資料でなく前版本文・略記・前 wave の条件である点で F1 と同型。
+  加えて親の総括 4 件 (「新しい測定は 1 件だけ」が §9 の分類と矛盾、序論稿の未反映を着地順で説明、timeout 3 値を「事前登録自身の数」と
+  一括、[T-1871] の実測範囲の一般化) も同じレビューが捕捉した。一次資料: `output/insights/2026-09-21/paper-story-20260921/README.md` §4、
+  同 `verbatim/review-out.md` 所見 1〜7。恒久対応は変更なし — 版の全面再導出では、時刻・job・SHA・条件の対応表は entry の略記でなく
+  insight の表から写し、時点語の機械置換後は「訂正 N」「この節は…から」型の参照を版名付きで全件再照合し (前 wave の教訓「未裁定・裁定待ち
+  型の状態語は D 台帳で検索」と同じ手順を参照語にも当てる)、前 wave の条件 (同一 SHA 等) を次の wave に継承させない。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
