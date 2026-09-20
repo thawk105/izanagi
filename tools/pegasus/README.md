@@ -383,7 +383,7 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   BUILD_START の `src_token`) のときだけで、同 campaign に stock の terminal record が既にあれば
   `outcome=skipped` (rc 1、復元しない) — 新しい同 job pair を得るには fresh layout が要る。候補 CLI は
   提案が reject されても rc 0 を返しうるので、**pair の成立は両 attempt の WAL outcome で判定し、
-  job rc・campaign id から判定しない**。stock 後に `s4_loop_digest.txt` を再生成する。stock は候補と
+  job rc・campaign id から判定しない**。stock が skip でなく WAL record が存在するとき `s4_loop_digest.txt` を admitted view から再生成する。stock は候補と
   同じ pin の別の使い捨て worktree で評価する (同 tree ではない)。実 compiler で stock の source が
   STOCK token に解決すること (inert) は本結線の実装時点では未測定である。driver の較正動作点
   (`--calibrated-perf --perf-workload {write-heavy,balanced,read-heavy}`) と exact correctness
