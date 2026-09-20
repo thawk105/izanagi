@@ -1,0 +1,63 @@
+nodes=45
+ 10  AssertionError: IZANAGI_FREEZE_HOLD {"check_id": "t080.draft-known-axe
+       test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+       test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+       test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+       test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+       test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+       test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+       test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+       test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+       test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+       test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+  7  AssertionError: assert 'refused' == 'completed'
+       test_v4_marker_fires_across_output_root_change
+       test_oracle_pipeline_contract_keyword_is_mandatory_positive_control
+       test_run_block_reuses_launch_validated_and_legacy_loader_is_dead
+       test_success_wal_order_budget_and_evaluate_contract
+       test_run_block_verifies_manifest_once_and_reuses_object
+       test_v6_freeze_swap_after_verify_is_not_observed
+       test_v7_manifest_swap_after_verify_is_not_observed
+  6  Failed: DID NOT RAISE OracleDriverError
+       test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[complete-json-without-newline]
+       test_atomic_one_shot_lock_rejects_second_start
+       test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[fragment]
+       test_v2_resume_rejected_at_s1_s2_s3_boundaries
+       test_oracle_evaluate_fn_without_condition_records_cannot_complete
+       test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[multibyte-partial]
+  4  AssertionError: assert 'refused' == 'error'
+       test_build_result_contract_mismatch_aborts_campaign_before_measurement
+       test_probe_error_reason_is_fail_closed_unknown_abort[verify-probe-error]
+       test_probe_error_reason_is_fail_closed_unknown_abort[bench-probe-error]
+       test_reservation_envelope_exceeded_is_fail_closed
+  3  orchestrator.campaign.s8b_holdout_freeze.FreezeError: rr80: holdout hi
+       test_public_official_preflight_accepts_versioned_protocol
+       test_real_seal_protocol_to_floor_official_core_e2e
+       test_public_official_preflight_accepts_legacy_protocol
+  3  AssertionError: Expected 'probe_perf_availability' to be called once.
+       test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs
+       test_available_preflight_preserves_call_and_artifact_shape
+       test_probe_error_precedes_claim_marker_wal_and_budget
+  2  KeyError: 'events'
+       test_binding_mismatch_refuses_only_that_row_before_evaluate
+       test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed
+  2  AssertionError: assert 'refused' == 'protocol_violation'
+       test_v3_all_rows_binding_refused_is_protocol_violation
+       test_v3_partial_binding_refused_is_protocol_violation
+  1  assert "launch certi...result.json']" == 'launch certi...d3b706ec.json
+       test_public_official_preflight_rejects_resolved_protocol_byte_drift
+  1  assert "launch certi...result.json']" == 'launch certi...protocol.json
+       test_public_official_preflight_rejects_legacy_byte_drift_after_capture
+  1  AssertionError: assert 'refused' == 'budget_exhau...efore_attempt'
+       test_v8_bulk_reservation_unavailable_runs_nothing
+  1  AssertionError: {'status': 'refused', 'allowed': False, 'refusals': ["
+       test_official_driver_records_returncodes_through_real_producer_flow
+  1  Failed: DID NOT RAISE WalAppendError
+       test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up
+  1  assert 2 == 1
+       test_cli_output_root_default_is_none_and_run_block_refuses_without_root
+  1  Failed: DID NOT RAISE OSError
+       test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver
+  1  AssertionError: ["holdout-freeze-verify: FreezeError: rr80: holdout hi
+       test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+---scan-word present: 18  refused-word present: 18

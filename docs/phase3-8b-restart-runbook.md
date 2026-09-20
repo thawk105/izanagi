@@ -323,6 +323,7 @@ wrapper からは起動できない。
 - **候補の所在:** 保存 branch `freeze-g1-chain-t2724` (base = main、fix commit → 入力 commit →
   候補 commit)。main には載せていない (載せる = D2077 step 4 の打ち切り決定であり人間裁定)。
   一次資料 `output/insights/2026-09-17/t2724-freeze-v2-g1-candidate/README.md`、裁定パッケージは同 `package.md`。
+- **chain 導入後の注意 (2026-09-20、D2120 項 2 (a)(b) の履行):** X1' / X2 / G を main に載せた木では、official 床値の起動証明 (clean scan) は run_dir 3 file + 候補の hit 4 / 4 で赤になる (設計どおり、走査除外は広げない) ので、後続の official 床値 wave は main からでなく別 branch から起動する。B-10 job script の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`) は同じ版で G を含む tree の値へ更新済みで、この版の job script は G を欠く tree・file の追加・bytes の変更を測定前の digest 検査で拒否する (旧 script と旧 tree を備えた旧 checkout の組は失効しない)。
 - **残る手番:** (a) 打ち切り = chain の main 取り込み、(b) 世代導入 commit G → approval A → pointer X の
   人間 commit、(c) 床の採否 (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
   [T-750] package の残余 (P-1 pinned literal の恒久形、P-3 批准 proof chain に budget authorization field
