@@ -227,7 +227,7 @@ def test_t6_publisher_rejects_collision_without_files(overlap_figure, tmp_path):
 
 def _cli(prefix):
     return subprocess.run([sys.executable, str(SCRIPT), "--repo-root", str(REPO), str(prefix)],
-                          capture_output=True, text=True, env={**os.environ, "MPLBACKEND": "Agg"})
+                          capture_output=True, text=True, env={**os.environ, "MPLBACKEND": "Agg", "PYTHONDONTWRITEBYTECODE": "1"})
 
 
 def test_t7_cli_outputs_and_independent_hashes(tmp_path):
@@ -268,3 +268,7 @@ def test_t8_cli_rejects_invalid_prefix(tmp_path):
     assert result.returncode == 2
     assert "[error] FigureDataError: output prefix" in result.stderr
     assert list(tmp_path.iterdir()) == []
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, "-x"]))
