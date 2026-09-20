@@ -25,6 +25,7 @@
 | `fig9_a1_balanced5_sized_attempt1.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` | A-1 balanced5 sized 本走 **attempt-0001** (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`) の**記述図**。3 workload の 30 対の差 (variant − baseline) と、その対差平均 ± 登録済み区間 h を床 ±B と並べる。**非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)** のdescriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再認可は判定しない。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 | `fig3b_arc_status_2026-09-20.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_arc_status.py` | `fig3_` の**後継図**。ストーリー 2026-09-19 版の §0 の 3 幕と §8 の A 系列 5 項目 / B 群 11 項目の**状態** (取得済み / 非認証 / 裁定待ち・人間手番 / 未取得) だけを描いた模式図。**数値・新規判定を含まない** (生成器は JSON を描くだけで判定・値・認証を再計算しない)。入力は状態 JSON `tools/plotting/arc_status_story_2026-09-19.json` (人が同版本文から写した射影) と同版本文。旧 fig3 は凍結のまま |
 | `fig10_b7_fixed5_three_workload_regression.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b7_fixed5_regression.py` | 採用候補 **fixed 5 µs** を 3 workload で同一 attempt `b7f5-20260919a` (study `paper-story-b7-fixed5-regression`、request `10807` / `10808` / `10809`) に測った 6 cell × 5 標本と、各 workload の median 効果を D1639 の between-run 床値と比べた**記述図** (B-7 の材料)。稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の床値判定 (write-heavy / balanced 退行なし、**read-heavy は床値超の退行**) を写す (判定の出所は稿の転記で、生成器は述語 `effect < −floor` との整合だけを検査する)。**B-7 の要件充足・反復 attempt・certification 昇格・有意差は判定しない (D2044 項 3、D2162)。** 既存図の後継ではなく独立した新図。既存材料 (10 / 5 / 2 µs) とプール・比較しない (D1993 項 6)。2 本目の論文と共用しない (D1637)。**追補 (2026-09-20、D2174 項 3): B-7 は図の外で「単一 attempt・descriptive・非認証・反復間安定性は未判定」の限定付きで充足と裁定され、D2044 項 3 の「要件充足へ昇格させない」はこの限定付き充足で supersede された。図・caption・provenance の bytes は不変 (同節の追補)** |
+| `fig12_k2_manual_loop_dataflow.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_k2_loop_flow.py` | K2 手動 loop 3 巡 (稿 `results/2026-09-20-k2-manual-loop-three-rounds.md`、B-6 の材料) の**データフローの説明図** (fig2 系と同じ「説明図」、fig3b と同じ値なしの模式図)。役割 (planner-v4 / coder-v4-autonomous-k2 = role 定義が `tools: []` の構造遮断、critic = Bash を持つ legacy role)、親が射影する入力 key、評価経路 (Pegasus 計算ノード job → trace-enabled verify → trace-disabled bench → WAL)、実測の還流 2 回・診断の還流 1 回 (exact 6 field)、規律 6 の自己申告 marker を描く。**性能値を描かず、3 走を比較せず、知識・診断の因果効果を主張せず、B-6 の充足を判定しない。同 job stock 対照は未達 ([T-2795] 裁定待ち)。** 入力は稿から人が写した流れ JSON `tools/plotting/k2_loop_flow_2026-09-20.json` で、生成器は稿の見出し行の一意性と role frontmatter との一致だけを検査し判定・値を再計算しない。稿を `caption_source` として SHA-256 束縛する (稿は provenance の hash を持たない、F36)。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -1320,3 +1321,126 @@ supersede した。反復 attempt は認可されず (択 (b) 不採用)、certi
   B-7 の充足裁定に付く限定は上の 4 語である (D2174 項 3)。稿・図の既存の限定はそのまま残る。
 - ストーリー版 2026-09-20 版の該当文 (§8 B-7、§6 「言えないこと」) が古くなった扱いは `docs/paper-story/README.md` の stale 注記が持つ (版・claim-evidence 稿は凍結のまま)。
 - 裁定の一次資料 → D2174 項 3。本追補の記録 → `output/insights/2026-09-20/t2610-b7-limited-satisfaction/README.md`。
+
+---
+
+# `fig12_k2_manual_loop_dataflow` — K2 手動 loop 3 巡のデータフロー (稿 `results/2026-09-20-k2-manual-loop-three-rounds.md` の説明図、値なし)
+
+## 何を示す図か
+
+稿 `results/2026-09-20-k2-manual-loop-three-rounds.md` (凍結物、B-6 の材料) が記録した **K2 手動 loop の 3 巡** (§0.1: 1 巡 = 提案 (planner + coder) →
+評価 1 本 → critic) の**データフロー**を、1 枚の模式図にしたものである。fig2 系 (機序の説明図) と同じ「説明図」の扱いで、fig3b と同じく**性能値を 1 つも描かない**。
+横 = 4 列 (巡 1 / 巡 2 / 「巡 2 の後 (巡ではない)」= 未評価の proposal-3 / 巡 3)、縦 = 6 lane (親の射影 → planner → coder → 提案 → 評価 → critic)。描くのは次だけである。
+
+- **役割と遮断の所在** (§1.4): 親 session が型付き JSON を射影して inline で渡す → `planner-v4` (role 定義が `tools: []`、tool access の構造遮断) →
+  `coder-v4-autonomous-k2` (同) → 提案 file (backoff hole の literal 1 つ) → Pegasus 計算ノード job 1 本 (trace-enabled の verify build と trace-disabled の
+  bench build は別 build・別 run、campaign WAL の terminal record) → `critic` (**Bash を持つ legacy role**。tool なしではなく、B-4 の材料にならない理由)。
+  生成器は 3 role の定義 file の frontmatter `tools:` を読み、JSON の宣言 (`tools_none`) と一致することを検査する (不一致は成果物を出さない)。
+- **親が射影する入力の key** (§1.4): planner = `current_perf` / `leading_indicators` / `whiteboard` / `knowledge_input`、coder = `baseline` / `planner_direction` /
+  `whiteboard` / `knowledge_input` / `leakproof_context`。巡 3 だけ両方に `k2_critic_diagnosis` (exact 6 field: `attribution` / `recommend` / `avoid` / `uncertainty` /
+  `data_boundary` / `source_sha256`、D2155) が加わる。K2 知識源 (別機体の測定 WAL 1 件、3 巡とも同一 bytes、受領証は job 内で verified、data boundary 宣言) は全巡共通の帯。
+- **還流の矢印** (§0.1、§2.2、§2.3): 実測の還流 2 回 (巡 1 の評価 → 巡 2 の提案入力 = m1、巡 2 の評価 → proposal-3 と巡 3 の提案入力 = m2a / m2b。還流元の評価で
+  数えて 2 回、描く経路は 3 本)、診断の還流 1 回 (critic-2 → 巡 3 の入力、型付き経路 = d1)。描くべき否定も描く (点線 + ×) — critic-1 → 巡 2 の型付き入力は無い
+  (経路未実装、a1)、proposal-3 は診断 key 無しで既知値 20 を再提案し未評価 (a2)、巡 3 の後に提案は無い (a3)、同 job の stock 対照は未達 ([T-2795] 裁定待ち、破線枠)。
+- **規律 6 の検査点** (§2.4): 各 role cell の右上の盾形 marker と `data boundary: none detected` の 1 行。role の**自己申告**で形式が role ごとに違い
+  (coder = 構造化 field `data_boundary_report.instruction_like_content_detected`、planner = `uncertainty` の散文、critic = 信頼境界検査の節)、機械 gate ではない。
+  JSON は role ごとに typed (`form` は role 固定、`instruction_like_detected` は bool) で、true なら赤 × の marker と `data boundary: detected` に変わる
+  (記録された 12 出力はすべて false)。
+
+図に出る数は backoff の提案 literal (20 / 25 / 20 / 10、提案の同一性で proposal cell に 1 度だけ) と job id (1216 / 4947 / 4954 / 10761) と日付だけで、いずれも結果ではない。
+列見出しの提案日は「各巡の記録による」(per round records)、評価日は job log による。
+
+**この図が言わないこと** (稿の限定 1〜6 と同じ。caption にも逐語で置く): 性能の改善・退行・比較 (3 走は非同時刻の別 tree で、同 job の stock 対照が無い)、
+知識・診断の因果効果 (各条件 1 回の別起動、統制なし。診断は「届いた」「参照したと申告した」までで「効いた」ではない、§2.3)、**B-6 の充足**、B-4 の材料
+(critic が legacy)、`certified` の性能認証 (正しさ gate が `serializable` / anomaly 0 を返した意味だけ、§2.5)、遮断の完備 (tool access の遮断であって
+リーク制御の完備ではない)、起動・送付・生成日・細かな順序の独立確認 (各巡の記録による。保存 prompt は送達証明ではない)。図を variant 採用の根拠にしない (絶対規律 2)。
+
+## 既存図との関係
+
+- 既存図 (fig1〜fig11) のいずれの後継でもない独立した新図。fig2 (機序の説明図) と同じ「説明図」の扱いで、fig3b (状態の模式図) と同じ値なしの JSON 駆動。
+- 稿 §2.1 の表の値 (tps / abort 率 / CV / latency) は描かない。前後比較として読まない (絶対規律 7)。
+- **2 本目の論文 (`docs/paper-story-backoff/`) と共用しない** (D1637)。
+
+## 入力
+
+- **流れ JSON** `tools/plotting/k2_loop_flow_2026-09-20.json` (schema `izanagi-k2-loop-flow/v1`)。稿から人が写した射影で、**意味の正本は稿**である。各要素は
+  `source_anchor` (`§1.4` / `§2.2 巡 1` の形) を持ち、生成器はその見出し行が稿に**ちょうど 1 行**あることだけを検査する (意味の一致は本 wave の段 6 レビュー B が
+  逐語照合で担った。下の proof chain)。JSON は凍結物ではない (凍結物は PNG / PDF / provenance JSON) が、再現入力として残す。
+- **caption_source = 稿** `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md`。path は生成器に固定 (CLI から別の稿を渡せない)。生成器は稿の bytes を
+  1 回読み、anchor の検査と SHA-256 の記録にだけ使う。**値・判定を稿から再計算しない。** 稿は provenance の SHA-256 を持たない (F36 の自己参照回避)。稿は凍結物なので
+  着地後に変わらない。
+- **role 定義 3 file** `.claude/agents/{planner-v4,coder-v4-autonomous-k2,critic}.md`。frontmatter の `tools:` 行だけを読み (`[]` ⇔ `tools_none: true`)、
+  3 file の SHA-256 を provenance `inputs` (kind `role_definition`) と `roles[]` に記録する。**これは生成時点の記録であり、着地後の一致を要求しない**
+  (role 定義は凍結物ではない。着地 test は稿の SHA-256 だけを現物と照合する)。
+- **FIGURE_CONVENTIONS §1 (入力は WAL/dat のみ) との関係:** §1 は数値を描く図の規約である。本図は値を持たない模式図で、入力は「人が凍結稿から写した射影」に限る。
+  fig3b と同型の、本図に限った限定であり、数値図への一般的な免除ではない。
+- **拒否条件 (生成器は成果物を出さない):** schema / key 集合の不一致 (未知・不足・重複 key、NaN / Infinity)、enum 外 (direction / magnitude / kind / verdict / stop /
+  discipline6 の form)、value が整数 1..1000 でない・coder と proposal で不一致、`evaluated` と evaluation / critic / 評価日の不整合、`not-a-round` 列の制約違反、
+  巡 3 以外の `k2_critic_diagnosis`、planner / coder / diagnosis の key 配列の不一致、矢印の端点不在・id 重複、job / instance の重複、anchor の不正・不在・非一意、
+  role frontmatter との不一致、自由文の数量 (`=`、`%`、単位語、数詞、宣言外の数字入り token)、prefix が `fig<N><letters>_` の形でない、既存の 3 出力のいずれかが
+  存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・所属領域内包・相互非交差・兄弟領域非交差・marker の非交差・**矢印線分と Text の非交差**) の違反、
+  描いた矢印と JSON の矢印の不一致。
+
+## 再現
+
+repo root から、**計測機の外** (login node で生成した) で次を実行する。出力 prefix は着地済み file と衝突しないものにする (既存の 3 出力があれば生成器が拒否する)。
+
+```bash
+python3 tools/plotting/plot_k2_loop_flow.py /path/to/reproduction/fig12_k2_manual_loop_dataflow
+```
+
+作成時は `docs/paper-story/figures/fig12_k2_manual_loop_dataflow` を prefix にした (provenance の `argv` に逐語)。図番号は prefix の `fig<N><letters>_` から取る (`12`)。
+`--flow` 省略時の既定は上の JSON、`--repo-root` 省略時は生成器の位置から repo root を決める。
+
+### 再現できるのは「内容」であって「配置」や「バイト列」ではない
+
+再現の対象は、記録された流れ (列・lane・cell の表示文字列 50 件、矢印 7 本の id / kind / 端点、marker の形、caption) である。**配置は描画環境に依存する** —
+折返しと行位置は font の実測幅・高さから決まり、matplotlib の版と font 解決 (DejaVu Sans) が違えば改行や位置が変わりうる (収まらなければ layout check が
+保存前に拒否する)。provenance JSON は生成時刻 (`generated_utc`) を持ち、PDF は matplotlib が生成日時を埋めるので、byte 一致も保証しない。着地 bytes の SHA-256 は
+下に記録し、着地 test が現物と照合する。
+
+## 作図規約への適合
+
+- §1: 値を描かない模式図なので WAL/dat の再計算は無い (上の「入力」の限定)。数値の混入は生成器が自由文検査で拒否する。
+- §2 / §3 / §4: 反復・基準線・二軸を持たない (数値図の項目は該当しない)。
+- §5: 図中ラベルは role 名・入力 key 名・instance 名・job id・固定語だけで、内部識別子は JSON の key 名 (稿 §1.4 と同じ) に限る。凡例と脚注で一度だけ展開する。
+- §6: provenance に入力 5 file (JSON・稿・role 定義 3 本) と生成器・出力 2 file の SHA-256、描いた 50 項目 (`drawn_items`: id・kind・実表示文字列)、
+  描いた矢印 7 本 (`arrows`: id・kind・端点・可視)、role の遮断宣言 (`roles`)、caption、展開済み argv、matplotlib / numpy の版を記録する。
+- §7: login node で生成 (計測機の外)。
+- §8: matplotlib / numpy のみ、自己完結 (既存生成器を import しない)。PNG (200 dpi) と PDF を出す。
+- §9: 保存前に Agg renderer で layout check を走らせ、違反があれば 3 成果物を 1 つも出さない。
+- §10: 単体テスト `orchestrator/tests/test_plot_k2_loop_flow.py` は**実 JSON そのもの**を実寸 fixture として本物の Figure を layout check へ通し、
+  provenance を独立に照合する。実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、`orchestrator/tests/test_plot_k2_loop_flow.py` の着地 test が本 README への収録を検査する。
+英文で書く。回数語 (twice / three times / once) は JSON の矢印から生成器が組み、限定の固定文 8 つ (schematic で性能値なし・3 走を比較しない / certified は正しさ gate の
+意味だけ / planner・coder は tool なし・critic は legacy で B-4 の材料でない / 規律 6 の marker は自己申告 / 知識・診断の因果効果を主張しない / 同 job stock 対照は未達・
+提案値は literal であって結果でない / 手続きは各巡の記録による・保存 prompt は送達証明でない / B-6 を判定しない・遮断は tool access に限る) を逐語で含む。
+
+> Figure 12. Data flow of the K2 manual synthesis loop over three recorded rounds, read from the frozen results note 2026-09-20-k2-manual-loop-three-rounds.md. In each round the parent session projects typed JSON inputs (planner: current_perf, leading_indicators, whiteboard, knowledge_input; coder: baseline, planner_direction, whiteboard, knowledge_input, leakproof_context) to planner-v4 and coder-v4-autonomous-k2; the proposal is one backoff literal evaluated by one Pegasus compute-node job with separate trace-enabled verify and trace-disabled bench builds and a campaign WAL terminal record; critic reads the digest and the WAL. Measurement reflux occurred twice between the recorded rounds (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round), and diagnosis reflux occurred once (the second critic into the third-round inputs as the typed key k2_critic_diagnosis with fields attribution, recommend, avoid, uncertainty, data_boundary, source_sha256, identical for planner and coder). Three measurement arrows are drawn because the second evaluation feeds both the unevaluated proposal and the third-round proposal; three dotted arrows mark absent paths. The unevaluated proposal, generated without a diagnosis key, re-proposed a known value. The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation. Certified means only that the trace-enabled verify run found the observed trace serializable with no anomaly; it is not a performance certification and not a choice among candidates. Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; none is reported in the recorded rounds. Their form differs by role and they are not a mechanical gate. No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control. The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results. This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared. Role launch times, inline delivery, proposal dates, and the fine ordering of steps rest on each round's records; saved prompts and inputs are not proof of delivery. This figure does not judge whether B-6 is met; the tool-less declaration concerns tool access only, and leak control is not complete.
+
+## proof chain
+
+- 図に描いた 50 項目と矢印 7 本 → provenance JSON の `drawn_items` / `arrows` (生成器は JSON から期待される集合と描いた artist を保存前に照合する)
+- 各項目の文字列・還流の端点・role の遮断・日付 → `tools/plotting/k2_loop_flow_2026-09-20.json` (provenance `inputs[kind=flow]` の SHA-256)
+- 写しの出所 → 稿 `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` (provenance `caption_source` の SHA-256。各要素の `source_anchor` が指す
+  見出し行の一意な存在を生成器が検査)
+- 写しが稿の意味と一致すること → 本 wave の段 6 read-only レビュー B (drawn_items 50 件・矢印 label 7 件・caption 全文の逐語照合表、不一致 1 件 = 提案日の留保の
+  脱落を fix1 で是正) と焦点再レビュー。一次資料は `output/insights/2026-09-20/k2-loop-fig12/README.md`
+- role の遮断 → `.claude/agents/{planner-v4,coder-v4-autonomous-k2,critic}.md` の frontmatter (provenance `roles[].sha256`、生成時点の記録)
+- 生成器 → `tools/plotting/plot_k2_loop_flow.py` (provenance `generator.sha256`)
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+- 稿の限定 → 同稿冒頭の限定 1〜6 と §3
+
+- 実走 → login node (pegasus02、計測機の外)、2026-09-20 15:02 JST (provenance `generated_utc` 2026-09-20T06:02:37Z)、rc=0、3 成果物。wave 中の単体 test・焦点走・変異の実測値は一次資料 `output/insights/2026-09-20/k2-loop-fig12/README.md` に置く (本節は着地時点の記録を持たない)
+
+## 着地 bytes の SHA-256
+
+次の 3 行が着地 bytes の正本である。`orchestrator/tests/test_plot_k2_loop_flow.py` の着地 test が、この 3 行の値と着地 file の現物 SHA-256 の一致、
+provenance の `caption_source.sha256` と稿の現物の一致、caption の本 README への収録を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
+
+- `fig12_k2_manual_loop_dataflow.png` SHA-256: `a6f2b550bd67ddfd05db193493736ef388b2a9f24d60916cb8964607dc3df991`
+- `fig12_k2_manual_loop_dataflow.pdf` SHA-256: `c280037fe72fb60c4420864f1de1df1b28bbf5a7b5ed1c104d13244f2493cfcf`
+- `fig12_k2_manual_loop_dataflow.provenance.json` SHA-256: `76c03b92cb106fa0d73417c1f6357d5b0ded1a6e915ca210013fdb509dd1aaea`
