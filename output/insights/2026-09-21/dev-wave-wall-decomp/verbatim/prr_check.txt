@@ -1,0 +1,94 @@
+== dev-wave-t2803-provenance-receipt
+  22:30:55 mutation-probe-results.json.dispatch-evi f7677525ab qsub→compute-visible    0.4 分  receipt queue_wait_s 5.2  RUN@6s END@32s
+  22:31:40 mutation-probe-results.json.dispatch-evi d7b1da8512 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@42s
+  22:32:37 mutation-probe-results.json.dispatch-evi b5ef1cf9e8 qsub→compute-visible   16.7 分  receipt queue_wait_s 5.2  RUN@6s END@1026s
+  22:50:05 mutation-probe-results.json.dispatch-evi 0becbf1131 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@52s
+  22:51:15 mutation-probe-results.json.dispatch-evi 7b59ea8aa8 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:52:12 mutation-probe-results.json.dispatch-evi d1f4ac283d qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:53:10 mutation-probe-results.json.dispatch-evi 240da884f1 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:56:54 mutation-final-results.json.dispatch-evi b4c1e557d9 qsub→compute-visible    1.4 分  receipt queue_wait_s 5.2  RUN@6s END@99s
+  22:58:42 mutation-final-results.json.dispatch-evi 35f687cff3 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:59:40 mutation-final-results.json.dispatch-evi 18d446327e qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@42s
+  23:00:39 mutation-final-results.json.dispatch-evi fa1148ae30 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  23:01:36 mutation-final-results.json.dispatch-evi c2a22b26db qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  23:02:35 mutation-final-results.json.dispatch-evi 2639735da7 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@37s
+  23:03:23 mutation-final-results.json.dispatch-evi 43476ccbdb qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@52s
+  n=14 qsub→compute-visible: 中央値 0.3 分, 最大 16.7 分, ≥5 分 1 件, 合計 21.6 分
+== dev-wave-t2804-provenance-timeout-contract
+  22:10:22 mutation-probe-results.json.dispatch-evi 58384f36b3 qsub→compute-visible    0.2 分  receipt queue_wait_s 10.3  RUN@12s END@27s
+  22:11:00 mutation-probe-results.json.dispatch-evi cd7d255297 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@37s
+  22:11:50 mutation-probe-results.json.dispatch-evi 8c49f47fb7 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@37s
+  22:12:41 mutation-probe-results.json.dispatch-evi 58a07f18ff qsub→compute-visible    5.7 分  receipt queue_wait_s 5.2  RUN@6s END@370s
+  22:19:04 mutation-probe-results.json.dispatch-evi 68743cffc8 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:20:01 mutation-probe-results.json.dispatch-evi 1d95a3395a qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@53s
+  22:21:06 mutation-probe-results.json.dispatch-evi 8d2e11fc01 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:22:02 mutation-probe-results.json.dispatch-evi 57c6a1abe3 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:23:04 mutation-probe-results.json.dispatch-evi c987c2d89d qsub→compute-visible    1.1 分  receipt queue_wait_s 5.2  RUN@6s END@93s
+  22:24:48 mutation-probe-results.json.dispatch-evi 1249db5ea0 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:25:48 mutation-probe-results.json.dispatch-evi c961f48d6e qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@42s
+  22:26:46 mutation-probe-results.json.dispatch-evi f0effe450f qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@53s
+  22:27:50 mutation-probe-results.json.dispatch-evi 218f9d5e1a qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:28:49 mutation-probe-results.json.dispatch-evi 628b1070c5 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@52s
+  22:29:53 mutation-probe-results.json.dispatch-evi a4a051f3bb qsub→compute-visible    0.4 分  receipt queue_wait_s 5.2  RUN@6s END@52s
+  22:36:31 mutation-final-results.json.dispatch-evi f87c85dce2 qsub→compute-visible    1.4 分  receipt queue_wait_s 5.2  RUN@6s END@99s
+  22:38:23 mutation-final-results.json.dispatch-evi 4b501c7b8f qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@42s
+  22:39:17 mutation-final-results.json.dispatch-evi 54a0061e17 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:40:15 mutation-final-results.json.dispatch-evi 09b6c36e9a qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:41:14 mutation-final-results.json.dispatch-evi 1136c5ebc4 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:42:13 mutation-final-results.json.dispatch-evi 43ae4e38da qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:43:13 mutation-final-results.json.dispatch-evi a17a7ccf9b qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@37s
+  22:44:01 mutation-final-results.json.dispatch-evi 9ebab82523 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:45:06 mutation-final-results.json.dispatch-evi fe11fa2e73 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@48s
+  22:46:09 mutation-final-results.json.dispatch-evi 6c5b5bc1c6 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@7s END@48s
+  22:47:11 mutation-final-results.json.dispatch-evi 5a72f3140a qsub→compute-visible    0.1 分  receipt queue_wait_s 5.3  RUN@6s END@37s
+  22:48:04 mutation-final-results.json.dispatch-evi 409b46510e qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:49:06 mutation-final-results.json.dispatch-evi 9d816435ef qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@52s
+  22:50:08 mutation-final-results.json.dispatch-evi 11d955d938 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  22:51:14 mutation-final-results.json.dispatch-evi 29118c17a9 qsub→compute-visible   11.3 分  receipt queue_wait_s 5.2  RUN@6s END@708s
+  n=30 qsub→compute-visible: 中央値 0.3 分, 最大 11.3 分, ≥5 分 2 件, 合計 27.0 分
+== dev-wave-t2813-o26-inventory
+  21:38:22 mutation-probe-results.json.dispatch-evi 85a5417d3d qsub→compute-visible    4.5 分  receipt queue_wait_s 10.4  RUN@12s END@279s
+  21:44:03 mutation-probe-results.json.dispatch-evi 605a4362bd qsub→compute-visible    0.1 分  receipt queue_wait_s 5.3  RUN@6s END@27s
+  21:45:07 mutation-probe-results.json.dispatch-evi 84a78e54b5 qsub→compute-visible    0.3 分  receipt queue_wait_s 8.4  RUN@15s END@41s
+  21:46:07 mutation-probe-results.json.dispatch-evi 700ce0ecae qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@7s END@27s
+  21:46:54 mutation-probe-results.json.dispatch-evi 7d049a0b7b qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@7s END@33s
+  21:47:40 mutation-probe-results.json.dispatch-evi 2f0d7586dd qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  21:52:37 mutation-final-results.json.dispatch-evi 8365c00403 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@17s
+  21:53:05 mutation-final-results.json.dispatch-evi 3e47893aa6 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@7s END@32s
+  21:53:50 mutation-final-results.json.dispatch-evi ec92cff1e3 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@7s END@28s
+  21:54:34 mutation-final-results.json.dispatch-evi a67f540791 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  21:55:14 mutation-final-results.json.dispatch-evi c73ef5cc0b qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@42s
+  21:56:07 mutation-final-results.json.dispatch-evi 725340a950 qsub→compute-visible    0.1 分  receipt queue_wait_s 0.1  RUN@1s END@27s
+  n=12 qsub→compute-visible: 中央値 0.2 分, 最大 4.5 分, ≥5 分 0 件, 合計 6.5 分
+== dev-wave-t2153-witness-requested-us
+  20:20:06 mutation-ledger-probe.json.dispatch-evid 6b35f9e4df qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@17s
+  20:20:32 mutation-ledger-probe.json.dispatch-evid 017f2eec04 qsub→compute-visible    0.6 分  receipt queue_wait_s 30.8  RUN@32s END@52s
+  20:21:34 mutation-ledger-probe.json.dispatch-evid 7c16d105ec qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:22:11 mutation-ledger-probe.json.dispatch-evid 8d4b93b8a2 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:22:47 mutation-ledger-probe.json.dispatch-evid a41a57f370 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:23:24 mutation-ledger-probe.json.dispatch-evid 1bb2f1f779 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:24:06 mutation-ledger-probe.json.dispatch-evid a868211002 qsub→compute-visible    5.7 分  receipt queue_wait_s 5.2  RUN@6s END@359s
+  20:30:16 mutation-ledger-probe.json.dispatch-evid 6ada03435a qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:30:55 mutation-ledger-probe.json.dispatch-evid 7e20413b88 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@7s END@27s
+  20:31:33 mutation-ledger-probe.json.dispatch-evid 9b7aeb90b3 qsub→compute-visible    5.7 分  receipt queue_wait_s 5.2  RUN@6s END@360s
+  20:37:43 mutation-ledger-probe.json.dispatch-evid 94f72b1cd1 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:43:10 mutation-ledger-final.json.dispatch-evid 805a91d1f8 qsub→compute-visible    6.4 分  receipt queue_wait_s 5.3  RUN@7s END@392s
+  20:50:06 mutation-ledger-final.json.dispatch-evid 0aa839f711 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@7s END@22s
+  20:50:57 mutation-ledger-final.json.dispatch-evid 0589c18696 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:51:40 mutation-ledger-final.json.dispatch-evid 676e4e8093 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:52:18 mutation-ledger-final.json.dispatch-evid ee6227b6fc qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:53:05 mutation-ledger-final.json.dispatch-evid 78affed399 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:53:50 mutation-ledger-final.json.dispatch-evid 04f87cbe49 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:54:37 mutation-ledger-final.json.dispatch-evid 3803a1deb4 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:55:28 mutation-ledger-final.json.dispatch-evid df66426ba7 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.2  RUN@6s END@27s
+  20:56:29 mutation-ledger-final.json.dispatch-evid f7c61b85f2 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@22s
+  20:57:37 mutation-ledger-final.json.dispatch-evid 50f96d93e7 qsub→compute-visible    0.2 分  receipt queue_wait_s 5.3  RUN@7s END@27s
+  n=22 qsub→compute-visible: 中央値 0.2 分, 最大 6.4 分, ≥5 分 3 件, 合計 21.5 分
+== dev-wave-t2807-b8-prerun
+  21:23:38 run                                      561eb18231 qsub→compute-visible    0.9 分  receipt queue_wait_s 5.2  RUN@6s END@93s
+  21:23:38 run                                      f486db65a4 qsub→compute-visible    0.1 分  receipt queue_wait_s 5.2  RUN@6s END@47s
+  21:49:22 run                                      b358eaf4b7 qsub→compute-visible    5.4 分  receipt queue_wait_s 10.3  RUN@11s END@365s
+  21:49:22 run                                      f7373652ad qsub→compute-visible    0.2 分  receipt queue_wait_s 10.3  RUN@11s END@52s
+  22:14:30 run                                      3a3314820e qsub→compute-visible    6.3 分  receipt queue_wait_s 5.2  RUN@6s END@416s
+  22:14:30 run                                      9d517b77d3 qsub→compute-visible    0.3 分  receipt queue_wait_s 5.2  RUN@6s END@57s
+  n=6 qsub→compute-visible: 中央値 0.9 分, 最大 6.3 分, ≥5 分 2 件, 合計 13.3 分
