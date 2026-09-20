@@ -105,7 +105,7 @@ _CHARACTERIZATION_GENOME = (
     "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,"
     "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
 )
-_CHARACTERIZATION_PIN = "511c953"
+_CHARACTERIZATION_PIN = "e9e477c"
 _ADMISSION_POLICY_SHA256 = (
     "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
 )
@@ -482,7 +482,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     machine_name = W.candidates(EFF3)[0][0]
     seen = []
     passed = SimpleNamespace(passed=True)
-    expected_pin = "511c953"  # repo policy から逆算しない独立 pin
+    expected_pin = "e9e477c"  # repo policy から逆算しない独立 pin
 
     def evidence_for(genome, commit, source_root):
         assert commit == expected_pin == W.PIN

@@ -3,7 +3,10 @@
 
 なぜ集約するか: 後続段 3 で izanagi-trace ブランチに write_set 被覆 assert を足した
 ため pin が dff0f1e → 028f34d に前進した。段 5 で同ブランチに permutation 保存
-assert (D41) を足し 028f34d → d706650 に再前進した。`ccbench_commit` は campaign-id
+assert (D41) を足し 028f34d → d706650 に再前進した。
+2026-08-12 に d706650 → 511c953、2026-09-20 [T-2304] に D2150 項 1 の
+承認で 511c953 → e9e477c に前進した (mocc trace v2 hook・T-1943 lineage
+witness・TRACE=0 include identity fix の 4 commit)。`ccbench_commit` は campaign-id
 の pre-image (ident.canonical_preimage) に入るので、pin 前進は新 campaign の
 campaign-id を移動させる (decisions.md:327 の ODR-fix gitlink 前進と同型 = 既知・
 正直な content-addressed 挙動、バグではない)。
@@ -12,7 +15,7 @@ campaign-id を移動させる (decisions.md:327 の ODR-fix gitlink 前進と�
 (backoff_sweep を含む)。歴史的 driver (p3_kickoff / p3_s4_red / p2_2 /
 backoff_repro / sanity_silo / demo / s2_verify_calibration) は**自分の literal pin
 (dff0f1e) を保持**する — それぞれの campaign はその pin で凍結・push 済みで、再走するには submodule を
-dff0f1e に checkout してから回す (現 working-tree が 511c953 のとき dff0f1e-pin driver
+dff0f1e に checkout してから回す (現 working-tree が e9e477c のとき dff0f1e-pin driver
 を回すと patchharness の pinned-clean assert が fails-closed で止まる = 正しい安全側
 動作)。一律に全 driver をこの定数に張り替えると歴史的 campaign が現 config で孤立する
 ため **しない** (IDENT-1/IDENT-3 の裁定)。
@@ -20,12 +23,12 @@ dff0f1e に checkout してから回す (現 working-tree が 511c953 のとき 
 push は人間 (この環境に認証なし、D16)。新 izanagi-trace commit (511c953、028f34d も
 同様) は human push まで un-clonable — その pin を指す superproject gitlink も push
 完了まで解決不能。凍結済み歴史的 campaign は push 済みの dff0f1e を指し続けるので
-再現可能。
+再現可能。候補 e9e477ca は 2026-09-20 に GitHub から取得可能と確認済み。
 """
 
-# 現行 pin = izanagi-trace HEAD (write_set 被覆 assert + permutation 保存 assert 込み、
-# 段5, D41)。
-CURRENT_PIN = "511c953"
+# 現行 pin = izanagi-mocc-pin-e9e477ca (izanagi-trace 511c953 の直系子孫)。
+# D2150 項 1、2026-09-20 [T-2304]。
+CURRENT_PIN = "e9e477c"
 
 # 直前の pin (write_set 被覆 assert のみ、後続段 3, D38)。s3_lock_coverage.py など
 # 段3時点の driver はこちらを literal 保持する形にはしていない (pin.CURRENT_PIN を

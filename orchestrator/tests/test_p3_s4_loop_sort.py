@@ -778,7 +778,7 @@ def test_default_cfg_wires_s2_verify():
 def test_default_cfg_axis_is_sort_marker():
     cfg = S.default_cfg()
     assert cfg.search_config.get("axis") == S.MARKER_ID
-    assert cfg.ccbench_commit == S.PIN == "511c953"
+    assert cfg.ccbench_commit == S.PIN == "e9e477c"
 
 
 # ==== drive_iteration (checkpoint 継続、backoff 版と同型) ======================
