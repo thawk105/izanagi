@@ -1,0 +1,8 @@
+FAILED orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[o28_contract_weakened]
+FAILED orchestrator/tests/test_check_docs.py::test_cleanup_command_leading_space_h2_is_rejected
+
+== o28_contract_weakened: fixture 変異の anchor 「次 wave・ユーザー・`/cleanup-branches` へ引き渡さない」が新本文に無い (count == 1 の assert で落ちる)
+== leading_space_h2: 1 byte 追加で 2 件の違反 (予算 7055 超過 + SHA 不一致)、期待は 1 件
+E       AssertionError: check_docs: 2 件の違反
+E           - .claude/commands/cleanup-branches.md: 7056 bytes > 予算 7055 bytes — 安全義務を削らず既存 reference へ統合する。予算増加は独立審査にする
+E           - .claude/commands/cleanup-branches.md: whole-file SHA-256 が契約と不一致

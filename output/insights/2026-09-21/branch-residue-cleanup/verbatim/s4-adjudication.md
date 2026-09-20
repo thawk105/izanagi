@@ -71,3 +71,18 @@
 
 - B-1: 同木の旧 fix branch を manifest に記録して段 9 で消す → `{{T:child-manifest-retired-branches}}` (P3・新規)。
 - 監査のみ 21 件の由来 (2026-08-23〜09-09) の個別 triage → 転記は本 wave、救出/受容の裁定は `/cleanup-branches` §5 型の裁定パッケージ候補として insight に置く。
+
+## 6. 段 6 後の追補 (02:40 JST、review A / B の裁定)
+
+| 所見 | 判定 | 処置 |
+|---|---|---|
+| RA-1 / RB-1 `DW-O28` 本文が「撤去前の拒否に限る」「HEAD が main 祖先なら bundle 不要」「manifest 現行 branch」を書いていない | real must-fix (docs) | 親が本文を v3 (994 bytes) へ置換 (`dw-o28-new-v3.md`)。実装は変えない |
+| RB-2 bundle の実行順が段 4 案 (撤去後) と異なり backup phase (撤去前) になった | real (記録修正) | 安全側の変更として D と worklog に「bundle は撤去前、退避失敗時は木・admin・branch を保持」と明記。コードは変えない |
+| RB-6 M7/create は後続の directory 読込み失敗に mask される、M8 は phase 名の pin (fail-open の検出ではない)、M5 は正常受理の縮小 | real must-fix (変異評価) | M7 は `[verify]` を主証拠とし `[create]` は証拠から外す。M8 は diagnostic sensitivity pin として別枠 (kill 数に入れない)。M5 は「正常受理の縮小の検出」と明記。削除失敗の fail-open は 4 層 (rc・診断 malformed・sha 照合・不在確認) が独立に守るので、累積 4 置換の M8b を DW-M04 に従い 1 変異として登録し probe2 で期待 node を確定 |
+| RB-7 decisions 対応表の漏れ (D2163 の履歴 pack 却下) と D2042 の引用 | real (記録) | fragment 下書きを修正済み |
+| RB-8 「残る 155 本」の母集団混同、「手作業の裁定 26 分」 | real (記録) | 各数字を独立した観測に書き直し、「cleanup session 約 26 分」へ。fragment 修正済み |
+| RB-9 経路 2 と文書 pin は author B 待ちで未実体 | real (完了扱いの留保) | author B 後に f3 で実体を確認してから完了形にする |
+| RA-4 診断解析失敗時の実体 test、RA-5 旧 receipt 正例と bundle 改変拒否 test、RB-3 ref 文法の重複・`deleted_branch_tip` の重複・未使用変数 | nit | 実装しない (DW-G05)。insight §7 に記録 |
+| RA-2 / RA-3 / RA-6 / RA-7 / RB-4 / RB-5 (anchor 一意) / RA-8 / RB-10 | refuted / 確認 | — |
+
+実装面の must-fix は無いので段 6 の fix 子は起動しない。review 2 本とも f2 (1011 passed / 5 skipped) を本 wave 起因の赤 0 と読んだ。
