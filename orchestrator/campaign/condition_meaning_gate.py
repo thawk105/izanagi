@@ -10,7 +10,7 @@ The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 40 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-one
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-two
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -23,6 +23,8 @@ A declared multi-site witness observes exactly the N verbatim directive lines
 its DefineSpec patch adds; conditionals added by overlay patches (for example
 the diagnostic composite ``#if BACKOFF_TRIGGER_GATING && TRACE``) and ``#ifndef``
 supply guards are outside the claim.
+Companion-file evidence is limited to the declared owner TU and the current
+configure's include context; it makes no claim about other TUs using the header.
 ``driver_integration`` on the legacy evidence remains ``"none"``.
 Compiler and CMake path snapshots narrow identity drift around invocations,
 but do not attest a same-UID adversarial process, delegated processes, the
@@ -320,15 +322,34 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "BACKOFF_TRIGGER_GATING": (
         "cc/silo/transaction.cc", "#if BACKOFF_TRIGGER_GATING",
     ),
+    "BACKOFF_REQUESTED_US": (
+        "cc/silo/transaction.cc", "#if BACKOFF_REQUESTED_US",
+    ),
 }
 _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_SILO_LADDER_RUNG1": 2,
     "BACKOFF_TRIGGER_GATING": 12,
+    "BACKOFF_REQUESTED_US": 2,
+}
+_CONDITIONAL_BRANCH_COMPANION_SITES = {
+    "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
 }
 
 
 def _declared_site_count(macro: str) -> int:
     return _CONDITIONAL_BRANCH_SITE_COUNTS.get(macro, 1)
+
+
+def _declared_branch_files(macro: str) -> tuple[tuple[str, str, int], ...]:
+    source_rel, directive = CONDITIONAL_BRANCH_WITNESSES[macro]
+    return (
+        (source_rel, directive, _declared_site_count(macro)),
+        *_CONDITIONAL_BRANCH_COMPANION_SITES.get(macro, ()),
+    )
+
+
+def _declared_total_site_count(macro: str) -> int:
+    return sum(count for _, _, count in _declared_branch_files(macro))
 
 
 def _declared_contrast_is_undefined(macro: str) -> bool:
@@ -375,6 +396,12 @@ _COMPILE_TIME_SELECTED_MARKER = "IZANAGI_COMPILE_TIME_BRANCH_SELECTED"
 _COMPILE_TIME_COMPLETED_MARKER = "IZANAGI_COMPILE_TIME_BRANCH_COMPLETED"
 _COMPILE_TIME_SELECTED_OUTPUT = "IZANAGI_COMPILE_TIME_BRANCH_SELECTED_OBSERVED"
 _COMPILE_TIME_COMPLETED_OUTPUT = "IZANAGI_COMPILE_TIME_BRANCH_COMPLETED_OBSERVED"
+_COMPILE_TIME_SITE_SELECTED_MARKER = "IZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED"
+_COMPILE_TIME_SITE_COMPLETED_MARKER = "IZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED"
+_COMPILE_TIME_SITE_DEFINES = tuple(
+    f"-D{marker}(k)={marker}_OBSERVED_##k"
+    for marker in (_COMPILE_TIME_SITE_SELECTED_MARKER, _COMPILE_TIME_SITE_COMPLETED_MARKER)
+)
 _BITS_RE = re.compile(r"[0-9a-f]{16}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _ROW_RE = re.compile(rb"([0-9]+) ([0-9]+) ([0-9a-f]{16})\Z")
@@ -2991,18 +3018,26 @@ def _capture_compile_time_branch_source(
 def _instrument_declared_owner_source(
     source_text: str,
     declaration: ConditionalBranchMeaningDeclaration,
+    *,
+    source_rel: str | None = None,
 ) -> str:
     """Insert a compiler-evaluated probe at every exact declared site."""
+    source_rel = declaration.source_rel if source_rel is None else source_rel
+    files = _declared_branch_files(declaration.macro)
+    file_index, (_, start_directive, count) = next(
+        (index, row) for index, row in enumerate(files) if row[0] == source_rel
+    )
+    multifile = bool(_CONDITIONAL_BRANCH_COMPANION_SITES.get(declaration.macro))
     lines = source_text.splitlines(keepends=True)
     starts = [
         index for index, line in enumerate(lines)
-        if line.rstrip("\r\n") == declaration.start_directive
+        if line.rstrip("\r\n") == start_directive
     ]
-    count = _declared_site_count(declaration.macro)
-    if len(starts) != count and count != 1:
+    if len(starts) != count and (count != 1 or multifile):
         raise ConditionMeaningGateError(
             "compile-time-branch-site-count-mismatch",
-            "declared start directive count differs from its declared site count",
+            "declared start directive count differs from its declared site count"
+            + (f": {source_rel}" if multifile else ""),
             expected=str(count), observed=str(len(starts)),
         )
     if len(starts) != count:
@@ -3011,20 +3046,26 @@ def _instrument_declared_owner_source(
             "declared start directive must occur exactly once in its owner file",
         )
     if _COMPILE_TIME_SELECTED_OUTPUT in source_text \
-            or _COMPILE_TIME_COMPLETED_OUTPUT in source_text:
+            or _COMPILE_TIME_COMPLETED_OUTPUT in source_text \
+            or (multifile and any(marker in source_text for marker in (
+                _COMPILE_TIME_SITE_SELECTED_MARKER, _COMPILE_TIME_SITE_COMPLETED_MARKER,
+            ))):
         raise ConditionMeaningGateError(
             "compile-time-branch-marker-collision",
             "compile-time branch output marker already exists in source",
         )
-    for start in starts:
+    for site_index, start in enumerate(starts):
+        site_key = f"f{file_index}s{site_index}"
         directive = lines[start]
         if not directive.endswith(("\n", "\r")):
             directive += "\n"
         lines[start] = "".join((
             directive,
             f"{_COMPILE_TIME_SELECTED_MARKER}()\n",
+            f"{_COMPILE_TIME_SITE_SELECTED_MARKER}({site_key})\n" if multifile else "",
             "#endif\n",
             f"{_COMPILE_TIME_COMPLETED_MARKER}()\n",
+            f"{_COMPILE_TIME_SITE_COMPLETED_MARKER}({site_key})\n" if multifile else "",
             directive,
         ))
     return "".join(lines)
@@ -3037,11 +3078,14 @@ def _write_shadow_owner_source(
     shadow_root: Path,
     *,
     owner_tu: str,
+    instrumented_sources: Mapping[str, str] | None = None,
 ) -> Path:
     """Write an instrumented source and return the shadow owner-TU operand."""
     relative = Path(source_rel)
+    sources = {source_rel: instrumented_source} if instrumented_sources is None \
+        else instrumented_sources
     try:
-        if source_rel == owner_tu:
+        if source_rel == owner_tu and len(sources) == 1:
             original_directory = source_root
             shadow_directory = shadow_root
             for component in relative.parent.parts:
@@ -3060,7 +3104,7 @@ def _write_shadow_owner_source(
                         child, target_is_directory=child.is_dir(),
                     )
             instrumented_path = shadow_directory / relative.name
-            instrumented_path.write_text(instrumented_source, encoding="utf-8")
+            instrumented_path.write_text(sources[source_rel], encoding="utf-8")
             return instrumented_path
 
         def traversal_failed(error: OSError) -> None:
@@ -3085,12 +3129,12 @@ def _write_shadow_owner_source(
             for name in file_names:
                 original = original_directory / name
                 file_relative = tree_relative / name
-                if file_relative != relative:
+                if file_relative.as_posix() not in sources:
                     (shadow_directory / name).symlink_to(
                         original, target_is_directory=False,
                     )
-        instrumented_path = shadow_root / relative
-        instrumented_path.write_text(instrumented_source, encoding="utf-8")
+        for file_rel, text in sources.items():
+            (shadow_root / file_rel).write_text(text, encoding="utf-8")
         return shadow_root / owner_tu
     except (OSError, RuntimeError) as exc:
         raise ConditionMeaningGateError(
@@ -3147,12 +3191,14 @@ def _compile_time_observation(
     define_value: str | None,
     compiler: Path,
     dependency_path: Path,
-) -> tuple[CompileTimeBranchSelectionObservation, tuple[str, ...]]:
+) -> tuple[CompileTimeBranchSelectionObservation, tuple[str, ...], str]:
     """Preprocess one instrumented owner TU through its actual compile argv."""
     compile_argv = _replace_owner_compile_input(
         entry, owner, instrumented_owner, source_root=source_root,
         instrumented_root=instrumented_root,
     )
+    if _CONDITIONAL_BRANCH_COMPANION_SITES.get(request.macro):
+        compile_argv += _COMPILE_TIME_SITE_DEFINES
     if _resolve_executable(compile_argv[0], "compile-command-invalid") != compiler:
         raise ConditionMeaningGateError(
             "compiler-identity-drift", "compile command uses a different compiler",
@@ -3197,7 +3243,7 @@ def _compile_time_observation(
             output, _COMPILE_TIME_COMPLETED_OUTPUT,
         ),
         preprocess_argv=preprocess_argv,
-    ), comparable
+    ), comparable, output
 
 
 def _compile_time_marker_count(output: str, marker: str) -> int:
@@ -3212,7 +3258,7 @@ def _assert_compile_time_branch_selection(
     cxx: str,
     cmake: str,
     configured_commands: _ConfiguredDefineCompileCommands | None = None,
-) -> CompileTimeBranchSelectionEvidence:
+) -> tuple[CompileTimeBranchSelectionEvidence, dict[str, Any]]:
     """Observe requested/contrast selection in the complete instrumented owner TU."""
     _validate_captured_define_inputs(captured)
     _spec, requested, default, companions = _validate_define_request(request)
@@ -3229,6 +3275,17 @@ def _assert_compile_time_branch_selection(
         captured, declaration.source_rel,
     )
     instrumented_source = _instrument_declared_owner_source(source_text, declaration)
+    instrumented_sources = {declaration.source_rel: instrumented_source}
+    companion_sources = []
+    for source_rel, directive, count in _CONDITIONAL_BRANCH_COMPANION_SITES.get(request.macro, ()):
+        text, captured_file = _capture_compile_time_branch_source(captured, source_rel)
+        instrumented_sources[source_rel] = _instrument_declared_owner_source(
+            text, declaration, source_rel=source_rel,
+        )
+        companion_sources.append({
+            "source_rel": source_rel, "start_directive": directive, "site_count": count,
+            "source_sha256": captured_file.sha256, "source_file": captured_file,
+        })
     comparison = "1" if requested == "0" else default
     configured_pair: tuple[
         _ConfiguredOwnerCompileCommand, _ConfiguredOwnerCompileCommand,
@@ -3275,6 +3332,7 @@ def _assert_compile_time_branch_selection(
             "compile-time-branch-preprocess-failed", "compiler identity is empty",
         )
 
+    outputs: list[str] = []
     observations: list[CompileTimeBranchSelectionObservation] = []
     configure_evidence: list[
         _CMakeConfigureResult | _ConfiguredOwnerCompileCommand
@@ -3287,6 +3345,7 @@ def _assert_compile_time_branch_selection(
         instrumented_owner = _write_shadow_owner_source(
             source_root, declaration.source_rel, instrumented_source,
             instrumented_root, owner_tu=request.owner_tu,
+            instrumented_sources=instrumented_sources,
         )
         entries: list[tuple[str, Mapping[str, Any], Path, Path]] = []
         if configured_pair is None:
@@ -3325,13 +3384,14 @@ def _assert_compile_time_branch_selection(
         for (label, entry, owner, entry_build_root), value in zip(
             entries, (requested, comparison), strict=True,
         ):
-            observation, comparable = _compile_time_observation(
+            observation, comparable, output = _compile_time_observation(
                 entry=entry, owner=owner, instrumented_owner=instrumented_owner,
                 instrumented_root=instrumented_root,
                 source_root=source_root, build_root=entry_build_root, request=request,
                 companions=companions, define_value=value, compiler=compiler,
                 dependency_path=base / "condition-meaning.d",
             )
+            outputs.append(output)
             observations.append(observation)
             comparables.append(comparable)
             identities.append(_capture_compiler_identity(
@@ -3353,7 +3413,7 @@ def _assert_compile_time_branch_selection(
         default_observation.selected_count,
         default_observation.completed_count,
     )
-    count = _declared_site_count(request.macro)
+    count = _declared_total_site_count(request.macro)
     requested_expected = (count * int(requested), count)
     default_expected = (count * int(comparison or "0"), count)
     expected_observations = (
@@ -3375,6 +3435,42 @@ def _assert_compile_time_branch_selection(
             expected=expected_observations,
             observed=f"requested={requested_counts},default={default_counts}",
         )
+    companion_payload: dict[str, Any] = {}
+    if companion_sources:
+        site_observations = []
+        for file_index, (source_rel, _, site_count) in enumerate(_declared_branch_files(request.macro)):
+            for site_index in range(site_count):
+                key = f"f{file_index}s{site_index}"
+                counts = tuple(
+                    _compile_time_marker_count(output, f"{marker}_OBSERVED_{key}")
+                    for output in outputs
+                    for marker in (_COMPILE_TIME_SITE_SELECTED_MARKER, _COMPILE_TIME_SITE_COMPLETED_MARKER)
+                )
+                expected = (int(requested), 1, int(comparison or "0"), 1)
+                if counts != expected:
+                    raise ConditionMeaningGateError(
+                        "compile-time-branch-site-observation-mismatch",
+                        "declared site observations do not match the declaration",
+                        expected=f"{key}={expected}", observed=f"{key}={counts}",
+                    )
+                site_observations.append(dict(zip(
+                    ("source_rel", "site_index", "requested_selected", "requested_completed",
+                     "default_selected", "default_completed"),
+                    (source_rel, site_index, *counts), strict=True,
+                )))
+        totals = tuple(sum(row[name] for row in site_observations) for name in (
+            "requested_selected", "requested_completed", "default_selected", "default_completed",
+        ))
+        if totals != (*requested_counts, *default_counts):
+            raise ConditionMeaningGateError(
+                "compile-time-branch-site-observation-mismatch",
+                "declared site observation sums differ from total observations",
+                expected=str((*requested_counts, *default_counts)), observed=str(totals),
+            )
+        companion_payload = {
+            "companion_sources": tuple(companion_sources),
+            "site_observations": tuple(site_observations),
+        }
     return CompileTimeBranchSelectionEvidence(
         proof_kind=COMPILE_TIME_BRANCH_SELECTION_PROOF_KIND,
         source_rel=declaration.source_rel,
@@ -3391,7 +3487,7 @@ def _assert_compile_time_branch_selection(
         default_configure_argv=default_configure.configure_argv,
         requested_cmake_identities=requested_configure.cmake_identities,
         default_cmake_identities=default_configure.cmake_identities,
-    )
+    ), companion_payload
 
 
 def evaluate_define_runtime_meaning(
@@ -3424,7 +3520,7 @@ def evaluate_define_runtime_meaning(
                 evidence={"witness_declared": False},
             )
         try:
-            compile_time_observed = _assert_compile_time_branch_selection(
+            compile_time_observed, companion_payload = _assert_compile_time_branch_selection(
                 captured, request, declaration, cxx=cxx, cmake=cmake,
                 configured_commands=configured_commands,
             )
@@ -3450,6 +3546,7 @@ def evaluate_define_runtime_meaning(
             evidence={
                 "witness_id": declaration.witness_id,
                 "proof_kind": compile_time_observed.proof_kind,
+                **companion_payload,
                 "source_rel": compile_time_observed.source_rel,
                 "start_directive": compile_time_observed.start_directive,
                 "source_sha256": compile_time_observed.source_sha256,
@@ -3984,6 +4081,9 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
             "cmake_path", "requested_configure_argv", "default_configure_argv",
             "requested_cmake_identities", "default_cmake_identities",
         }
+        companion_declarations = _CONDITIONAL_BRANCH_COMPANION_SITES.get(record.macro, ())
+        if companion_declarations:
+            required |= {"companion_sources", "site_observations"}
         missing = required - set(evidence)
         unexpected = set(evidence) - common - required
         if missing or unexpected:
@@ -4036,7 +4136,7 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
         requested_value = "1"
         undefined_contrast = _declared_contrast_is_undefined(record.macro)
         default_value = None if undefined_contrast else "0"
-        count = _declared_site_count(record.macro)
+        count = _declared_total_site_count(record.macro)
         if record.macro == "BACKOFF_NOINLINE":
             raw_requested = evidence["requested"]
             raw_default = evidence["default"]
@@ -4061,6 +4161,55 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
             macro=record.macro, define_value=default_value,
             selected_count=count * int(default_value or "0"), completed_count=count,
         )
+        if companion_declarations:
+            rows = evidence["companion_sources"]
+            if type(rows) is not tuple or len(rows) != len(companion_declarations):
+                _invalid_record("green companion sources do not match registry")
+            for row, (source_rel, directive, site_count) in zip(rows, companion_declarations, strict=True):
+                if not isinstance(row, Mapping) or set(row) != {
+                    "source_rel", "start_directive", "site_count", "source_sha256", "source_file",
+                }:
+                    _invalid_record("green companion source row schema differs")
+                if row["source_rel"] != source_rel or row["start_directive"] != directive \
+                        or type(row["site_count"]) is not int or row["site_count"] != site_count:
+                    _invalid_record("green companion source is not registry-bound")
+                source_file = row["source_file"]
+                _require_record_sha256(row["source_sha256"], "companion.source_sha256")
+                if type(source_file) is not CapturedFileEvidence \
+                        or source_file.relative_path != source_rel \
+                        or source_file.sha256 != row["source_sha256"]:
+                    _invalid_record("green companion source file is not digest-bound")
+                for phase in ("before", "after", "path_after"):
+                    _validate_record_file_identity(getattr(source_file, phase), f"companion.{phase}")
+                _require_record_sha256(source_file.sha256, "companion.source_file.sha256")
+                if source_file.before != source_file.after or source_file.after != source_file.path_after:
+                    _invalid_record("green companion source changed during capture")
+            sites = evidence["site_observations"]
+            expected_sites = tuple(
+                (source_rel, index)
+                for source_rel, _, n in _declared_branch_files(record.macro)
+                for index in range(n)
+            )
+            if type(sites) is not tuple or len(sites) != len(expected_sites):
+                _invalid_record("green site observations do not match registry")
+            count_keys = ("requested_selected", "requested_completed", "default_selected", "default_completed")
+            for row, (source_rel, index) in zip(sites, expected_sites, strict=True):
+                if not isinstance(row, Mapping) or set(row) != {"source_rel", "site_index", *count_keys}:
+                    _invalid_record("green site observation row schema differs")
+                if row["source_rel"] != source_rel or type(row["site_index"]) is not int \
+                        or row["site_index"] != index:
+                    _invalid_record("green site observation is not registry-bound")
+                if any(type(row[key]) is not int for key in count_keys) \
+                        or tuple(row[key] for key in count_keys) != (int(requested_value), 1, 0, 1):
+                    _invalid_record("green site observation counts differ")
+            if tuple(sum(row[key] for row in sites) for key in count_keys) != (
+                requested.selected_count, requested.completed_count,
+                default.selected_count, default.completed_count,
+            ):
+                _invalid_record("green site observation sums differ")
+            for observation in (requested, default):
+                if not all(define in observation.preprocess_argv for define in _COMPILE_TIME_SITE_DEFINES):
+                    _invalid_record("green site marker defines are missing")
         if undefined_contrast:
             requested_argv = iter(requested.preprocess_argv)
             normalized = []
