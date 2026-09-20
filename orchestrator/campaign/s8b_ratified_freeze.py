@@ -237,7 +237,14 @@ class _ValidatedManifest:
         yield self.schedule
         yield self.binaries
 
+_JOURNAL_BINDING_KEYS = frozenset({"pbs_jobid", "submission_nonce"})
 _JOURNAL_KEYS = {
+    "reservation-preflight": frozenset({
+        "event", "required_s", "safety_margin_s", "formula",
+        "build_cap_per_cell_s", "shared_dependency_prebuild",
+        "dependency_configure_cap_s", "dependency_target_cap_s",
+        "verify_cap_per_attempt_s", "finalize_reserve_s",
+    }),
     "launch-start": frozenset({
         "event", "schema", "launch_certificate_sha256", "utc",
     }),
@@ -645,6 +652,30 @@ def _unique_introduction(intro: Tuple[str, ...], path: str) -> str:
             "multiple-introduction", f"{path} の導入 commit が一意でない: {intro}"
         )
     return intro[0]
+
+
+def _assert_artifact_introduction_interval(
+        graph: _CommitGraph, path: str, oid: str, *,
+        cert_commit: str, gen_commit: str, root: Path,
+) -> None:
+    """捕捉済み graph と full OID のみで、一意・非 merge 導入を [C, G] に束縛する。"""
+    intro = _unique_introduction(_immutable_introductions(graph, path, oid, root), path)
+    if len(graph.parents.get(intro, ())) > 1:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"{path} の導入 {intro} が merge",
+            cause="artifact-introduction-merge",
+        )
+    if not _git_ok(["merge-base", "--is-ancestor", cert_commit, intro], root):
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"{path}: cert C が導入 i の祖先でない",
+            cause="artifact-introduction-before-cert",
+        )
+    # 段階 3 の G-tree 実在検査と一意導入から従う重複検査。独立保証に数えない。
+    if not _git_ok(["merge-base", "--is-ancestor", intro, gen_commit], root):
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"{path}: 導入 i が G の祖先でない",
+            cause="artifact-introduction-outside-generation",
+        )
 
 
 def _added_paths(commit: str, root: Path) -> Tuple[frozenset, Tuple[Tuple[str, str], ...]]:
@@ -2054,9 +2085,34 @@ def _validate_journal(
                 "journal-state-invalid", f"journal[{index}] event/status が未知: {key!r}",
                 cause="journal-event",
             )
+        claims_binding = (
+            key in {"reservation-preflight", "campaign-start"}
+            and bool(_JOURNAL_BINDING_KEYS & set(record))
+        )
+        if claims_binding:
+            expected = expected | _JOURNAL_BINDING_KEYS
         _exact_keys(
             record, expected, reason="journal-state-invalid", label=f"journal[{index}]/{key}",
         )
+        if claims_binding and any(
+                type(record[field]) is not str or record[field] == ""
+                for field in _JOURNAL_BINDING_KEYS):
+            raise RatifiedFreezeError(
+                "journal-state-invalid", f"journal[{index}] binding 型が不正",
+                cause="journal-binding-type",
+            )
+        if key == "reservation-preflight":
+            integer_fields = _JOURNAL_KEYS[key] - {
+                "event", "formula", "shared_dependency_prebuild",
+            }
+            if (type(record["formula"]) is not str or not record["formula"]
+                    or type(record["shared_dependency_prebuild"]) is not bool
+                    or any(type(record[field]) is not int or record[field] <= 0
+                           for field in integer_fields)):
+                raise RatifiedFreezeError(
+                    "journal-state-invalid", f"journal[{index}] reservation 型が不正",
+                    cause="reservation-preflight-type",
+                )
         if key == "perf-preflight":
             try:
                 _perf_preflight.validate_perf_preflight_receipt(
@@ -2165,6 +2221,33 @@ def _validate_journal(
             cause="terminal-state",
         )
     campaign = starts[0][1]
+    reservations = [(i, r) for i, r in enumerate(records)
+                    if r["event"] == "reservation-preflight"]
+    if len(reservations) > 1:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "reservation-preflight が複数ある",
+            cause="reservation-preflight-count",
+        )
+    if reservations and reservations[0][0] >= starts[0][0]:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "reservation-preflight が campaign-start より前でない",
+            cause="reservation-preflight-order",
+        )
+    # binding は記録内の整合情報であり PBS job の外部認証ではない。
+    campaign_claim = bool(_JOURNAL_BINDING_KEYS & set(campaign))
+    reservation = reservations[0][1] if reservations else {}
+    reservation_claim = bool(_JOURNAL_BINDING_KEYS & set(reservation))
+    if campaign_claim != reservation_claim:
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "campaign/reservation の binding claim が不一致",
+            cause="journal-binding-claim",
+        )
+    if campaign_claim and reservation_claim and any(
+            campaign[key] != reservation[key] for key in _JOURNAL_BINDING_KEYS):
+        raise RatifiedFreezeError(
+            "journal-state-invalid", "campaign/reservation の binding 値が不一致",
+            cause="journal-binding-mismatch",
+        )
     mirrors = {
         "protocol_sha256": _floor_contract.canonical_protocol_sha256(protocol),
         "freeze_sha256": V1_FREEZE_SHA256,
@@ -3158,12 +3241,13 @@ def _launch_validate(
     exemption (active-chain + selector evidence)、(8) occurrence/union/full scan。cert raw hit は到達可能性を保つため cert
     schema より先に検査する。
 
-    保証境界: cert C の一意導入・非 merge・C<G と closure/floor_source の導入集合
-    ``{G}`` は H 内の記録順だけを保証する。実時間順・通常の履歴再構成への耐性は保証しない。
+    保証境界: cert C の一意導入・非 merge・C<G、result / measurement_closure の
+    各 path の一意導入・非 merge・I_entry ⊆ [C, G] (DAG 上の祖先関係、同一を含む)、
+    世代文書 path の導入集合 {G} は捕捉済み H 内の記録順だけを保証する。
+    上限 i ≤ G は段階 3 の G-tree 実在検査と一意導入から従う重複検査で独立保証に数えない。
+    実時間順・履歴再構成への耐性・cert 発行と result 走行の実時間順は保証しない。
     floor_protocol/journal/manifest は raw hash・semantic consistency・G/H/worktree endpoint を検査するが、
     導入 commit や C 後の append chronology を課さない (裁定どおり)。
-    ``∀i in I_entry: C<i`` は I_entry=={G} と C<G から従う defense-in-depth であり、独立保証に
-    数えない。
 
     TOCTOU は component lstat + leaf O_NOFOLLOW、一度捕捉した小 artifact の scan 後再読で
     縮小する。full repository content hash は行わないため、その他の同名 file 内容交換には
@@ -3535,12 +3619,17 @@ def _launch_validate(
         )
     for path in [result_path, *[path for path, _ in measurement]]:
         _mode, oid = _tree_mode_oid(head, path, root)
-        introductions = _immutable_introductions(graph, path, oid, root)
-        if set(introductions) != {gen_commit}:
-            raise RatifiedFreezeError(
-                "binding-chain-mismatch", f"{path} の introduction set != {{G}}",
-                cause="generation-introduction",
-            )
+        _assert_artifact_introduction_interval(
+            graph, path, oid, cert_commit=cert_commit, gen_commit=gen_commit, root=root,
+        )
+    generation_path = _gen_path(ratified.generation_number)
+    _mode, generation_oid = _tree_mode_oid(head, generation_path, root)
+    introductions = _immutable_introductions(graph, generation_path, generation_oid, root)
+    if set(introductions) != {gen_commit}:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"{generation_path} の introduction set != {{G}}",
+            cause="generation-introduction",
+        )
 
     # --- 7: verified exact exemption ---
     _assert_no_untracked_symlink(root)
