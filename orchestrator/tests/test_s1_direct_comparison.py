@@ -716,14 +716,18 @@ def _materialize_requested_condition_macros(source_root: Path, requests) -> None
         for prefix in (Path(), Path("stock")):
             owner = source_root / prefix / request.owner_tu
             assert owner.is_file(), f"promotion fixture owner TU missing: {owner}"
-            variable = f"condition_fixture_{request.macro.lower()}"
-            source_suffixes.setdefault(owner, []).append(
-                f"\n#if {request.macro}\n"
-                f"static int {variable} = 1;\n"
-                "#else\n"
-                f"static int {variable} = 0;\n"
-                "#endif\n"
-            )
+            site_count = condition_meaning_gate._declared_site_count(request.macro)
+            for i in range(site_count):
+                variable = f"condition_fixture_{request.macro.lower()}"
+                if site_count > 1:
+                    variable += f"_{i}"
+                source_suffixes.setdefault(owner, []).append(
+                    f"\n#if {request.macro}\n"
+                    f"static int {variable} = 1;\n"
+                    "#else\n"
+                    f"static int {variable} = 0;\n"
+                    "#endif\n"
+                )
     options_path.write_text(options, encoding="utf-8")
     for owner, suffixes in source_suffixes.items():
         owner.write_text(
@@ -792,8 +796,13 @@ def test_promotion_contract_rejects_red_runtime_meaning():
 
 
 def test_promotion_contract_carries_unestablished_meaning_macro():
+    # Request 0 (= default) takes the stock-inert path, but this fixture's stock/
+    # root lacks FIXED / NOINLINE CMake mappings: only requested retains
+    # -DBACKOFF_FIXED=-1 -DBACKOFF_NOINLINE=0, causing compile-command-drift.
+    # Non-pair value 2 keeps the factory undeclared (#if witnesses require 1/0)
+    # while supply is green for requested=2 vs default=0 in the same root.
     records = _issued_condition_records(
-        (("BACKOFF_TRIGGER_GATING", 1),),
+        (("BACKOFF_TRIGGER_GATING", 2),),
         "test.s1_direct_comparison.unestablished-carryover",
     )
     admission = _assert_promotion_admission_contract(*records)
