@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# T-2817 Job A: invoke only inside the allocated compute job.
+set -u
+WAVE_ROOT="$(pwd -P)"
+PROBE_DIR="$(cd "$(dirname "$0")" && pwd -P)" || exit 2
+export PYTHONDONTWRITEBYTECODE=1 IZANAGI_TASK_RUN_AUTO_RECORD=0 PYTHONPATH="$PROBE_DIR"
+unset PYTEST_ADDOPTS PYTEST_XDIST_TESTRUNUID IZANAGI_TASK_RUN_SIDECAR PYTHONPYCACHEPREFIX
+unset IZANAGI_TEST_RUNNER_EXCLUSIONS_V1 IZANAGI_ACCEPTANCE_SHARDS IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1
+unset PYTEST_PLUGINS PYTEST_DISABLE_PLUGIN_AUTOLOAD IZANAGI_RUN_GROWTH_HELD_TESTS
+unset T2817_PROBE_COLLECT_ONLY T2817_PROBE_OUT
+export LC_ALL=C PYTHONUTF8=1
+OUT_ROOT=${T2817_OUT:-/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/job-out}
+USER=$(id -un)
+if [[ -d /scr && -w /scr ]]; then LOCAL=/scr/$USER/t2817-$$; else LOCAL=/tmp/t2817-$$; fi
+FINAL_RC=0
+mkdir -p "$OUT_ROOT" "$(dirname "$LOCAL")" || exit 2
+OUT_ROOT=$(cd "$OUT_ROOT" && pwd -P) || exit 2
+# Do not merge a fresh run with old cells / a terminal marker.
+if [[ -n $(ls -A "$OUT_ROOT") ]]; then
+    echo 'OUT_ROOT must be empty' >&2
+    exit 2
+fi
+mkdir "$LOCAL" || exit 2
+stop_tree() {
+    local parent=$1 child
+    while read -r child; do
+        [[ -n $child ]] || continue
+        stop_tree "$child"
+        kill -TERM "$child" 2>/dev/null || :
+    done < <(awk -v p="$parent" '$2 == p {print $1}' <<< "$PROCESS_TREE")
+}
+pycache_counts() {
+    printf 'pyc='
+    find "$WAVE_ROOT/orchestrator" "$WAVE_ROOT/tools" -name '*.pyc' | wc -l
+    printf 'pytest_pyc='
+    find "$WAVE_ROOT/orchestrator" "$WAVE_ROOT/tools" -name '*pytest*.pyc' | wc -l
+}
+finish() {
+    local rc=$? PROCESS_TREE
+    trap - EXIT INT TERM HUP
+    if (( rc != 0 )); then
+        FINAL_RC=$rc
+        PROCESS_TREE=$(ps -eo pid=,ppid=)
+        stop_tree "$$"
+        wait 2>/dev/null || :
+    fi
+    if [[ -d $LOCAL/out ]]; then
+        pycache_counts > "$LOCAL/out/pycache-after.txt"
+        rsync -a --exclude tmp "$LOCAL/out/" "$OUT_ROOT/" || FINAL_RC=2
+    fi
+    rm -rf -- "$LOCAL" || FINAL_RC=2
+    printf 'rc=%s\n' "$FINAL_RC" > "$OUT_ROOT/probe.done" || FINAL_RC=2
+    exit "$FINAL_RC"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+mkdir -p "$LOCAL/out" "$LOCAL/tmp" || exit 2
+export TMPDIR=$LOCAL/tmp
+O=$LOCAL/out
+elapsed() { awk -v a="$1" -v b="$2" 'BEGIN {printf "%.9f\n", b-a}'; }
+lustre() {
+    local f seen=0 failed=0
+    for f in /proc/fs/lustre/llite/*/stats /proc/fs/lustre/mdc/*/md_stats; do
+        [[ -e $f ]] || continue
+        seen=1
+        printf '### %s\n' "$f"
+        cat "$f" || failed=1
+    done
+    if (( !seen || failed )); then echo 'lustre_stats=unreadable'; return 1; fi
+}
+singleton() {
+    local dir=$1 short_user
+    ps -eo user,pid,comm --no-headers > "$dir/singleton-before.txt"
+    short_user=$(ps -o user= -p $$ | xargs)
+    awk -v me="$USER" -v short="$short_user" '
+      $1 != me && $1 != short && $1 !~ /^(root|daemon|nqs.*|message.*|systemd.*|syslog|_.*|bin|sys|sync|games|man|lp|mail|news|uucp|proxy|www-data|backup|list|irc|gnats|nobody|sshd|ntp|chrony|rpc|rpcuser|dbus|polkitd|postfix|munge)$/ {n++}
+      END {print "others=" n+0}' "$dir/singleton-before.txt"
+    ps -eo uid=,pid=,comm=,args= > "$dir/process-args-before.txt"
+    awk -v uid="$(id -u)" '$1 == uid && ($3 ~ /^pytest/ || ($3 ~ /^python/ && $0 ~ / -m pytest( |$)/)) {n++}
+      END {print "stale_pytest=" n+0}' "$dir/process-args-before.txt"
+}
+snapshot() {
+    local dir=$1 phase=$2
+    cat /proc/loadavg > "$dir/loadavg-$phase.txt"
+    awk '/^MemAvailable:/' /proc/meminfo > "$dir/mem-$phase.txt"
+    lustre > "$dir/lustre-$phase.txt" 2>&1 || echo 'lustre_stats=unreadable' >> "$dir/cell.txt"
+}
+LUSTRE=readable
+lustre > "$O/lustre-initial.txt" 2>&1 || LUSTRE=unreadable
+{
+    hostname
+    date --iso-8601=seconds
+    uname -r
+    nproc
+    free -g
+    df -h /scr /tmp "$WAVE_ROOT"
+    mount | grep -E ' /scr | /tmp | /work '
+    python3.10 --version
+    python3.10 -m pytest --version
+    python3.10 -c 'import xdist; print(xdist.__version__)'
+    printf 'lustre_stats=%s\nWAVE_ROOT=%s\n' "$LUSTRE" "$WAVE_ROOT"
+    git -C "$WAVE_ROOT" rev-parse HEAD
+    git -C "$WAVE_ROOT" status --porcelain | wc -l
+    pycache_counts
+    taskset -pc $$
+    cat /proc/loadavg
+} > "$O/env.txt" 2>&1
+python3.10 -c 'import t2817_probe_plugin' > "$O/plugin-import.out" 2> "$O/plugin-import.err" || exit 3
+
+run_cell() {
+    local name=$1 stage=${1%-*} half=${1##*-} start end rc=0 i cohort_start cohort_end escaped
+    local CELL=$O/$name
+    local -a command=(python3.10 -m pytest "$WAVE_ROOT/orchestrator/tests") pids=() rcs=()
+    [[ $name == warm ]] && half=warm
+    mkdir -p "$CELL/tmp" || exit 2
+    export TMPDIR=$CELL/tmp
+    unset IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1 T2817_PROBE_COLLECT_ONLY T2817_PROBE_OUT
+    if [[ $stage == warm || $stage == S0 ]]; then
+        command+=(--collect-only -q -p no:cacheprovider)
+    else
+        export T2817_PROBE_COLLECT_ONLY=1 T2817_PROBE_OUT=$CELL/probe.json
+        command+=(-n 48 --dist loadgroup)
+        [[ $stage == S1 || $stage == S2 ]] && command+=(--no-loadscope-reorder)
+        command+=("--junitxml=$CELL/junit.xml")
+        if [[ $stage == S2 || $stage == S3 ]]; then
+            mkdir -p "$CELL/session/shard-0" || exit 2
+            # JSON escaping is done by bash; exactly the three spec keys.
+            escaped=${CELL//\\/\\\\}
+            escaped=${escaped//\"/\\\"}
+            printf -v IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1 '{"session_root":"%s/session","shard_count":3,"shard_index":0}' "$escaped"
+            export IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1
+            command+=(-p tools.acceptance_shards -p no:cacheprovider -p t2817_probe_plugin)
+        else
+            command+=(-p t2817_probe_plugin -p no:cacheprovider)
+        fi
+        command+=(-q)
+    fi
+    start=$(date +%s.%N)
+    {
+        printf 'cell=%s\nstage=%s\nhalf=%s\nstart_epoch=%s\ncwd=%s\nargv=' "$name" "$stage" "$half" "$start" "$WAVE_ROOT"
+        # Child argv is identical across S0 processes; time files are proc-N.time.
+        printf '%q ' "${command[@]}"
+        printf '\n'
+        singleton "$CELL"
+    } > "$CELL/cell.txt"
+    snapshot "$CELL" before
+    if [[ $stage == S0 ]]; then
+        cohort_start=$(date +%s.%N)
+        for ((i=0; i<48; i++)); do
+            (
+                date +%s.%N > "$CELL/proc-$i.start"
+                /usr/bin/time -f '%e %U %S %M' -o "$CELL/proc-$i.time" "${command[@]}" > "$CELL/proc-$i.out" 2> "$CELL/proc-$i.err"
+                process_rc=$?
+                date +%s.%N > "$CELL/proc-$i.end"
+                printf '%s\n' "$process_rc" > "$CELL/proc-$i.rc"
+                exit "$process_rc"
+            ) &
+            pids+=("$!")
+        done
+        for ((i=0; i<48; i++)); do
+            wait "${pids[$i]}"
+            rcs+=("$?")
+        done
+        cohort_end=$(date +%s.%N)
+        for i in "${rcs[@]}"; do (( i == 0 )) || rc=1; done
+        printf 'cohort_start=%s\ncohort_end=%s\nrc_list=%s\n' "$cohort_start" "$cohort_end" "${rcs[*]}" >> "$CELL/cell.txt"
+    else
+        /usr/bin/time -f '%e %U %S %M' -o "$CELL/time.txt" "${command[@]}" > "$CELL/out" 2> "$CELL/err"
+        rc=$?
+    fi
+    end=$(date +%s.%N)
+    snapshot "$CELL" after
+    printf 'end_epoch=%s\nwall=%s\nrc=%s\n' "$end" "$(elapsed "$start" "$end")" "$rc" >> "$CELL/cell.txt"
+    unset IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1 T2817_PROBE_COLLECT_ONLY T2817_PROBE_OUT
+    mkdir -p "$OUT_ROOT/$name" || exit 2
+    rsync -a --exclude tmp "$CELL/" "$OUT_ROOT/$name/" || FINAL_RC=2
+    [[ $stage == warm && $rc != 0 ]] && exit 4
+    return 0
+}
+for cell in warm S0-a S1-a S2-a S3-a S3-b S2-b S1-b S0-b; do
+    run_cell "$cell"
+done
+exit "$FINAL_RC"

@@ -1,0 +1,129 @@
+{
+  "campaigns": [
+    {
+      "campaign_id": "paper-story-a1-write-heavy-paired-ec74e1c8",
+      "campaign_lock": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-ec74e1c8/campaign.lock",
+        "sha256": "0ec558982139d68cbfb03372ee1d854b6236ff497d2d05f36cef8f28d19f6716"
+      },
+      "wal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-ec74e1c8/runs/wal.jsonl",
+        "sha256": "173a0060ccc20ab1092790b193a6e0c805277ae72c1119d57de7590a79f7228e"
+      },
+      "workload": "write-heavy"
+    },
+    {
+      "campaign_id": "paper-story-a1-balanced-paired-fdd1cb88",
+      "campaign_lock": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-fdd1cb88/campaign.lock",
+        "sha256": "e68c85ce44e628b4a6645b1b413cdb5968a399bfc6e4c8e488c036d1c9ed74b6"
+      },
+      "wal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-fdd1cb88/runs/wal.jsonl",
+        "sha256": "8cc4bc23c5c64ea8a992a5d95c734c5863e7335b1a1c0d20c134339968e89065"
+      },
+      "workload": "balanced"
+    },
+    {
+      "campaign_id": "paper-story-a1-read-heavy-paired-9912d892",
+      "campaign_lock": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-9912d892/campaign.lock",
+        "sha256": "b814513dbc274090abc57329864d3a1b197331b5542ade373c8753068319333d"
+      },
+      "wal": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-9912d892/runs/wal.jsonl",
+        "sha256": "eb1f3234ae5ea61326e310b6cfc4b3e292f89f25d6a9bdfebcb4ac83085aed7b"
+      },
+      "workload": "read-heavy"
+    }
+  ],
+  "common_record": {
+    "campaign_ids": [
+      "paper-story-a1-write-heavy-paired-ec74e1c8",
+      "paper-story-a1-balanced-paired-fdd1cb88",
+      "paper-story-a1-read-heavy-paired-9912d892"
+    ],
+    "certifying": false,
+    "environment_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+    "intent_sha256": "6bc38262ad4d309154808c234ad601394e4872c2e87f224c91b684c868c897ea",
+    "mode": "registered-formal-non-certifying",
+    "policy_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a",
+    "preregistration_sha256": "6047eff005fbd94bad8df0313124bd4ca037dedf0f2e3db05224d04ad34fd3c2",
+    "source_binding_sha256": "36d220cb69b34f15defe960ff4b7a3fdfcf0776c62b92425c7f727a2f4043061",
+    "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+    "study_id": "paper-story-a1-20260901-balanced5-sized-v1"
+  },
+  "observation_tag": "eff725368888074478d6b06a843d1e93b4807d453d2ae8314a30fab0a7e3e475",
+  "receipt": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/raw/results/receipt.json",
+    "sha256": "f06a2bc811b55ec720bb0224c673b1b086593cebb554d9d1b844b3834eedb355"
+  },
+  "result": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/raw/results/result.json",
+    "sha256": "c9031faa9442974af344b54c6b700c58f5decb4d1447e4fb6bc16e6373bbee96"
+  },
+  "schema_version": "paper-story-a1-non-certifying-observation/v1",
+  "source_binding": {
+    "artifact_standalone_proof": false,
+    "evidence_level": "source-routed-trace0",
+    "files": {
+      "orchestrator/calibrator/runner.py": {
+        "git_blob_oid": "6ebeb4f7b7ce103dfa8f88937799414ea8865b05",
+        "working_sha256": "afa697ee4527a790c93ea9e77e98a0605a5543645ac064d5eba23f587913d7ed"
+      },
+      "orchestrator/campaign/campaign_lock.py": {
+        "git_blob_oid": "bad8b563644dcc3c6bc40796ad5516b08517e66e",
+        "working_sha256": "4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4"
+      },
+      "orchestrator/campaign/ident.py": {
+        "git_blob_oid": "ec73d3e5da24bba5f9b0f5ffddd23a62481f9d46",
+        "working_sha256": "20c27ef3e06fc8e0f5087a94265c72504d66525c927ea401eff91f188a40278e"
+      },
+      "orchestrator/campaign/loop.py": {
+        "git_blob_oid": "4059b01fd52cb965598e3caea8d6b2f2bc0297fe",
+        "working_sha256": "407fe907f72bb709a5faadc4b3b52642bf66541ca57295db114e103707aa1ec1"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.py": {
+        "git_blob_oid": "47c94e1db0d2922a4364134f724041035ea481b2",
+        "working_sha256": "9e69bae4b82df318233455423c58a4254a47e8d938d99ef12fd0d8e3dedae2e6"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.v3-sized.json": {
+        "git_blob_oid": "2e440c502cefc529bb65a7285d230ddc98a9f362",
+        "working_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a"
+      },
+      "orchestrator/campaign/paper_story_a1_source.py": {
+        "git_blob_oid": "d6d0a2e6f4ab91139111e5d1c71984957fc1be17",
+        "working_sha256": "f7adc8e99afe3d772bfede1b60320f9ef39b15d82335515181b7880b9833db4f"
+      },
+      "orchestrator/campaign/paper_story_a1_source.v2.json": {
+        "git_blob_oid": "8450d7352b5ee6d0bef779f1dac39b4f83b07c91",
+        "working_sha256": "b50a4edf86250033aa0e2b18efa2d7842d7c90025fdb901011fdad7adf052fe1"
+      },
+      "orchestrator/campaign/pipeline.py": {
+        "git_blob_oid": "ff4f3c8ab056571595279e81e9d35724d77647be",
+        "working_sha256": "472cc7a23d1f8d442db8c3a85fb2af03242e55540258ff284c678051a82c11df"
+      },
+      "orchestrator/campaign/trial_registry.py": {
+        "git_blob_oid": "dec33a278f49f4f6d298403eaf57c1e651043bad",
+        "working_sha256": "38f5c1ef942433690bc655dc871cd89441c971389fac1ad96ee1013e7f6b7dfa"
+      },
+      "orchestrator/campaign/wal.py": {
+        "git_blob_oid": "81d84b8ae380d6c6546e8d35fba8bbf38083f552",
+        "working_sha256": "600db758f778194771a1a8f7361919b5eed48ebfb797fa88357fcb1a4c10bb74"
+      },
+      "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md": {
+        "git_blob_oid": "a614b89319fd189bf0247d9074c5d2c9ac3c77ff",
+        "working_sha256": "6093de244e6fc90607094608617032f427db4951ebffc847c7bcaa795309789b"
+      },
+      "patches/silo-backoff-fixed.patch": {
+        "git_blob_oid": "eb319d8fd856de0799b0134d24122ba8f031a438",
+        "working_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a"
+      },
+      "tools/pegasus/paper_story_a1_paired.sh": {
+        "git_blob_oid": "746d474f8909c36b191bbd3daa90851eec3fea4a",
+        "working_sha256": "3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80"
+      }
+    },
+    "measurement_source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280"
+  }
+}

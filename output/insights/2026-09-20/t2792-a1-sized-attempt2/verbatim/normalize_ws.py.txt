@@ -1,0 +1,24 @@
+"""out-review.md の行末 ASCII 空白を可逆に除去し、原文 sha256・byte 数・行ごとの除去 suffix を JSON に記録する (DW-S07)。"""
+import hashlib, json, sys
+src, dst, rec = sys.argv[1:4]
+raw = open(src, "rb").read()
+lines = raw.split(b"\n")
+removed = []
+out = []
+for i, line in enumerate(lines, 1):
+    stripped = line.rstrip(b" \t")
+    if stripped != line:
+        removed.append({"line": i, "suffix": line[len(stripped):].decode("ascii")})
+    out.append(stripped)
+new = b"\n".join(out)
+open(dst, "wb").write(new)
+json.dump({
+    "file": "verbatim/out-review.md",
+    "original_sha256": hashlib.sha256(raw).hexdigest(),
+    "original_bytes": len(raw),
+    "normalized_sha256": hashlib.sha256(new).hexdigest(),
+    "normalized_bytes": len(new),
+    "rule": "各行の LF 直前の ASCII space / tab を除去 (可視文字不変)。復元は各 line の LF 前へ suffix を戻す",
+    "removed": removed,
+}, open(rec, "w"), ensure_ascii=False, indent=1)
+print(f"removed {len(removed)} suffixes; {len(raw)} -> {len(new)} bytes")

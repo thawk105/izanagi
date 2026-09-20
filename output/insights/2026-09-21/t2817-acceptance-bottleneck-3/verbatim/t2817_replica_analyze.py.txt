@@ -1,0 +1,318 @@
+"""One A-run observation, not a median; Python 3.10 standard library only."""
+import argparse
+from collections import Counter, defaultdict
+from datetime import datetime
+import json
+import math
+from pathlib import Path
+import xml.etree.ElementTree as ET
+
+PARTS = ('copy', 'git', 'history', 'runtime', 'issue')
+MAPPING = {
+    'build': '実 builder 全体', 'copy': 'builder 直下の copy 配置 (runtime を除く)',
+    'git': 'builder 直下の _run_git (copy/history/issue 内部を除く)',
+    'history': 'builder 直下 inspect_receipt_history',
+    'runtime': 'builder 直下の t080-current-runtime 配置',
+    'issue': '発行 subprocess の起動/import/発行/検証/終了込み',
+    'residual': 'build から copy/git/history/runtime/issue の排他区間を引いた残り',
+    'key_wait': 'get 内の key lock LOCK_EX 呼び出し (取得即時の builder も含む)',
+    'verify': 'test 実行中の実 verify_receipt 呼び出し (発行子内部は issue)',
+    'base_copy': 'copy→test: helper 直下 copytree',
+    'slot_wait': '未計測: A 条件には slot 制限なし',
+}
+
+
+def read(path):
+    return json.loads(path.read_text())
+
+
+def canonical(node):
+    return node[:node.rfind('@')] if node.rfind('@') > node.rfind(']') else node
+
+
+def seconds(span):
+    return span['end_mono'] - span['begin_mono']
+
+
+def finite(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError('nonfinite or nonnumeric time')
+    return value
+
+
+def validate(spans):
+    ids = set()
+    for span in spans:
+        for clock in ('epoch', 'mono'):
+            if finite(span['end_' + clock]) < finite(span['begin_' + clock]):
+                raise ValueError('reversed span: end < begin')
+        identity = span['extra']['span_id']
+        if identity in ids:
+            raise ValueError('duplicate span id: ' + identity)
+        ids.add(identity)
+        if span['key'] is not None and not isinstance(span['key'], list):
+            raise ValueError('key must be observed JSON tuple/list')
+
+
+def partition(build, children):
+    children = [s for s in children if s['name'] in PARTS]
+    ordered = sorted(children, key=lambda s: s['begin_mono'])
+    previous = build['begin_mono']
+    for s in ordered:
+        if s['begin_mono'] < previous - 1e-9 or s['end_mono'] > build['end_mono'] + 1e-9:
+            raise ValueError('overlapping or out-of-parent build component')
+        previous = s['end_mono']
+    result = {name: sum(seconds(s) for s in children if s['name'] == name) for name in PARTS}
+    result['total'] = seconds(build)
+    result['residual'] = result['total'] - sum(result[n] for n in PARTS)
+    result['other'] = result['history'] + result['runtime'] + result['residual']
+    return result
+
+
+def junit(path, selected):
+    root = ET.parse(path).getroot()
+    suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+    if len(suites) != 1:
+        raise ValueError('expected one pytest JUnit testsuite')
+    suite = suites[0]
+    wall = finite(float(suite.attrib['time']))
+    start = datetime.fromisoformat(suite.attrib['timestamp']).timestamp()
+    addresses = {}
+    for node in selected:
+        address, bracket, parameter = node.partition('[')
+        bits = address.split('::')
+        classname = bits[0].removesuffix('.py').replace('/', '.')
+        if len(bits) > 2:
+            classname += '.' + '.'.join(bits[1:-1])
+        identity = classname, bits[-1] + bracket + parameter
+        if identity in addresses:
+            raise ValueError('ambiguous selected JUnit identity')
+        addresses[identity] = node
+    items = []
+    for case in suite.iter('testcase'):
+        node = addresses[(case.attrib['classname'], canonical(case.attrib['name']))]
+        props = {p.attrib['name']: p.attrib.get('value', '') for p in case.findall('./properties/property')}
+        prefix = 'izanagi_acceptance_pairing_v1_'
+        duration = finite(float(case.attrib['time']))
+        if duration < 0:
+            raise ValueError('negative JUnit duration')
+        items.append({'nodeid': node, 'duration_s': duration,
+                      'worker': props.get(prefix + 'worker'), 'rank': props.get(prefix + 'rank'),
+                      'partner': props.get(prefix + 'partner'),
+                      'outcome': next((n for n in ('failure', 'error', 'skipped') if case.find(n) is not None), 'passed')})
+    if Counter(i['nodeid'] for i in items) != Counter(selected):
+        raise ValueError('JUnit/selected multiset mismatch')
+    return wall, start, items
+
+
+def analyze(directory):
+    missing = []
+    result = {'note': '現行 tip の A 条件 1 走の観測。中央値ではない。',
+              'missing': missing, 'component_mapping': MAPPING}
+    spans = [json.loads(line) for p in sorted(directory.glob('spans-*.jsonl'))
+             for line in p.read_text().splitlines()]
+    validate(spans)
+    if not spans:
+        missing.append('未計測: spans')
+    result['record_errors'] = {p.name: read(p) for p in directory.glob('record-error-*.json')}
+    if result['record_errors']:
+        missing.append('record-error files present')
+    children = defaultdict(list)
+    for s in spans:
+        children[s['extra'].get('parent_span_id')].append(s)
+    installed = [s for s in spans if s['name'] == 'installed']
+    result['installations'] = installed
+    if not installed:
+        missing.append('未計測: wrapper installations')
+    real = [s for s in spans if s['extra'].get('shared_session') is True]
+    keys = sorted({json.dumps(s['key']) for s in real if s['key'] is not None})
+    result['key_count'] = len(keys)
+    if not keys:
+        missing.append('未計測: shared-session keys')
+    result['keys'] = []
+    for encoded in keys:
+        key = json.loads(encoded)
+        events = [s for s in real if s['key'] == key]
+        builds = [s for s in events if s['name'] == 'build']
+        rows = []
+        for b in builds:
+            direct = children[b['extra']['span_id']]
+            parts = partition(b, direct)
+            names = Counter(s['name'] for s in direct)
+            absent = [n for n in ('copy', 'git', 'history') if not names[n]]
+            if len(key) == 5 and key[2]:
+                absent += [n for n in ('issue', 'runtime') if not names[n]]
+            for name in absent:
+                parts[name] = None
+                missing.append(f'未計測: key={encoded} {name}')
+            if absent:
+                parts['residual'] = parts['other'] = None
+            rows.append({'worker': b['worker'], 'pid': b['pid'], 'nodeid': b['extra']['nodeid'],
+                         'begin_epoch': b['begin_epoch'], 'end_epoch': b['end_epoch'],
+                         'ok': b['ok'], 'seconds': parts})
+        waits = []
+        for w in (s for s in events if s['name'] == 'key_wait'):
+            parent_children = children[w['extra']['parent_span_id']]
+            waits.append({'worker': w['worker'], 'pid': w['pid'], 'seconds': seconds(w),
+                          'nodeid': w['extra']['nodeid'],
+                          'builder_request': any(s['name'] == 'build' for s in parent_children)})
+        if not builds:
+            missing.append('未計測: no build for key=' + encoded)
+        if not waits:
+            missing.append('未計測: no flock spans for key=' + encoded)
+        if any(not b['ok'] for b in builds):
+            missing.append('failed build for key=' + encoded)
+        result['keys'].append({'key': key, 'builds': rows, 'flock_waits': waits,
+                               'waiter_seconds': sum(w['seconds'] for w in waits if not w['builder_request'])})
+    result['nonshared_builds'] = [s for s in spans if s['name'] == 'build' and
+                                 not s['extra'].get('shared_session')]
+    result['span_exceptions'] = [s for s in spans if not s['ok']]
+    consumers = defaultdict(lambda: {'verify_count': 0, 'verify_s': 0.0, 'copytree_count': 0, 'copytree_s': 0.0})
+    for s in spans:
+        if s['name'] not in ('verify', 'base_copy'):
+            continue
+        item = consumers[canonical(s['extra']['nodeid'])]
+        prefix = 'verify' if s['name'] == 'verify' else 'copytree'
+        item[prefix + '_count'] += 1
+        item[prefix + '_s'] += seconds(s)
+    result['consumers'] = dict(consumers)
+    result['consumer_totals'] = {k: sum(v[k] for v in consumers.values()) for k in
+                                 ('verify_count', 'verify_s', 'copytree_count', 'copytree_s')}
+    for name in ('verify', 'base_copy'):
+        if not any(s['name'] == name for s in spans):
+            missing.append('未計測: no consumer ' + name + ' spans (zero calls or absent instrumentation)')
+    report = read(directory / 'session/report.json')
+    run = read(directory / 'run.json')
+    controller = read(directory / 'controller.json')
+    result.update(run=run, controller=controller)
+    if (directory.parent / 'incomplete.json').exists():
+        result['incomplete'] = read(directory.parent / 'incomplete.json')
+        missing.append('runner incomplete.json present')
+    if run.get('rc') != 0 or report.get('pytest_rc') != 0 or controller.get('exitstatus') != 0:
+        missing.append('run/report/controller nonzero or missing rc')
+    if Counter(report['selected']) != Counter(report['finished']):
+        missing.append('selected/finished multiset mismatch')
+    wall, start, items = junit(directory / 'session/junit.xml', report['selected'])
+    tests = defaultdict(list)
+    for s in spans:
+        if s['name'] == 'test':
+            tests[canonical(s['extra']['nodeid'])].append(s)
+    if Counter({k: len(v) for k, v in tests.items()}) != Counter(report['selected']):
+        missing.append('test spans/selected multiset mismatch')
+    workers = defaultdict(list)
+    for item in items:
+        matches = tests.get(item['nodeid'], [])
+        test = matches[0] if len(matches) == 1 else None
+        if test:
+            item.update(begin_epoch=test['begin_epoch'], end_epoch=test['end_epoch'],
+                        test_span_s=seconds(test))
+            if item['worker'] is not None and item['worker'] != test['worker']:
+                missing.append('JUnit/span worker mismatch: ' + item['nodeid'])
+        else:
+            item.update(begin_epoch=None, end_epoch=None, test_span_s=None)
+        if item['worker'] is None:
+            missing.append('未計測: pairing worker: ' + item['nodeid'])
+        if item['rank'] is None:
+            missing.append('未計測: pairing rank: ' + item['nodeid'])
+        workers[item['worker'] or 'unobserved'].append(item)
+    occupancy = report['worker_occupancy']
+    for w, entries in workers.items():
+        entries.sort(key=lambda x: (x['begin_epoch'] is None, x['begin_epoch'] or 0, x['nodeid']))
+        observed = occupancy.get(w)
+        if not observed or observed['items'] != len(entries):
+            missing.append('worker occupancy item mismatch: ' + w)
+        elif abs(sum(i['duration_s'] for i in entries) - observed['duration_s']) > .002 * len(entries):
+            missing.append('worker occupancy/JUnit duration mismatch: ' + w)
+    maximum = max(occupancy, key=lambda w: occupancy[w]['duration_s']) if occupancy else None
+    longest = max(items, key=lambda i: i['duration_s']) if items else None
+    om = occupancy[maximum]['duration_s'] if maximum else None
+    length = longest['duration_s'] if longest else None
+    lw = longest['worker'] if longest else None
+    ol = occupancy.get(lw, {}).get('duration_s')
+    timeline = report.get('session_timeline', {})
+    collection = timeline.get('collection_finished_epoch_s')
+    if collection is None:
+        missing.append('未計測: collection_finished_epoch_s')
+    last = max((s['end_epoch'] for entries in tests.values() for s in entries), default=None)
+    pre = collection - start if collection is not None else None
+    post = start + wall - last if last is not None else None
+    fixed = wall - om if om is not None else None
+    result['shard'] = {'W': wall, 'W_start': start, 'W_end': start + wall, 'pre': pre,
+        'O_max': om, 'O_max_worker': maximum, 'L': length, 'L_item': longest,
+        'L_worker': lw, 'O_L': ol, 'O_max_minus_L': om - length if om is not None and length is not None else None,
+        'P_L': ol - length if ol is not None and length is not None else None,
+        'F': fixed, 'post': post,
+        'F_residual': fixed - pre - post if all(v is not None for v in (fixed, pre, post)) else None,
+        'worker_occupancy': occupancy, 'worker_timelines': dict(workers),
+        'O_max_timeline': workers.get(maximum, []), 'L_timeline': workers.get(lw, []),
+        'occupancy_definition': 'report setup/call/teardown duration sum; not elapsed worker wall',
+        'test_bounds_definition': 'worker logstart/logfinish; outside protocol real-repo lock excluded',
+        'junit_timestamp_timezone': 'ISO offset if present; otherwise analyzer local timezone'}
+    # Keep the actual observed component timeline for the two critical workers.
+    result['critical_worker_spans'] = {w: sorted([s for s in spans if s['worker'] == w and
+        s['name'] not in ('test', 'installed', 'sessionfinish')], key=lambda s: s['begin_epoch'])
+        for w in {maximum, lw} if w is not None}
+    log = directory / 'pytest.log'
+    result['scheduler_memo_lines'] = [line for line in log.read_text(errors='replace').splitlines()
+        if 'IZANAGI_EFFECTIVE_SCHEDULER_V1' in line or 'IZANAGI_MEMO_PREWARM_V1' in line] if log.exists() else []
+    result['complete_observation'] = not missing
+    return result
+
+
+def markdown(result):
+    lines = [result['note'], '', '秒は worker 秒。未計測は null。', '',
+             '## 共有 base', '', f"観測 key 数: {result.get('key_count', 0)}", '',
+             '| key | builder worker | build | copy | git | issue | その他 |',
+             '|---|---|---:|---:|---:|---:|---:|']
+    for row in result.get('keys', []):
+        for b in row['builds']:
+            p = b['seconds']
+            lines.append('| ' + ' | '.join([json.dumps(row['key']), b['worker']] +
+                         [str(p[n]) for n in ('total', 'copy', 'git', 'issue', 'other')]) + ' |')
+        lines += ['', 'flock: `' + json.dumps(row['flock_waits'], ensure_ascii=False) + '`', '']
+    lines += ['## Consumer', '', '```json', json.dumps(result.get('consumers', {}), indent=2, ensure_ascii=False), '```']
+    shard = result.get('shard', {})
+    lines += ['', '## Shard', '', '```json', json.dumps({k: v for k, v in shard.items()
+        if k not in ('worker_timelines', 'O_max_timeline', 'L_timeline')}, indent=2, ensure_ascii=False), '```']
+    for worker, entries in shard.get('worker_timelines', {}).items():
+        labels = (' O_max' if worker == shard.get('O_max_worker') else '') + (' L' if worker == shard.get('L_worker') else '')
+        lines += ['', '## Timeline ' + worker + labels, '',
+                  '| nodeid | rank | duration_s | start epoch | end epoch |', '|---|---:|---:|---:|---:|']
+        for item in entries:
+            lines.append('| ' + ' | '.join(str(item.get(k)).replace('|', '\\|') for k in
+                ('nodeid', 'rank', 'duration_s', 'begin_epoch', 'end_epoch')) + ' |')
+    for worker, entries in result.get('critical_worker_spans', {}).items():
+        lines += ['', '## 成分 timeline ' + worker, '',
+                  '| 成分 | nodeid | key | start epoch | end epoch | 秒 |', '|---|---|---|---:|---:|---:|']
+        for s in entries:
+            lines.append('| ' + ' | '.join(str(v).replace('|', '\\|') for v in
+                (s['name'], s['extra']['nodeid'], json.dumps(s['key']),
+                 s['begin_epoch'], s['end_epoch'], seconds(s))) + ' |')
+    lines += ['', '## T-2786 成分対応', '', '| 成分 | 区間 |', '|---|---|']
+    lines += ['| ' + k + ' | ' + v + ' |' for k, v in MAPPING.items()]
+    lines += ['', '## 欠測・record-error', '', '```json', json.dumps({k: result.get(k) for k in
+        ('missing', 'record_errors', 'span_exceptions', 'fatal_error', 'scheduler_memo_lines')}, indent=2, ensure_ascii=False), '```']
+    return '\n'.join(lines) + '\n'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run-dir', required=True)
+    parser.add_argument('--markdown', required=True)
+    parser.add_argument('--json', required=True)
+    args = parser.parse_args()
+    try:
+        result = analyze(Path(args.run_dir))
+    except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as exc:
+        result = {'note': 'A 条件 1 走の観測。中央値ではない。',
+                  'complete_observation': False, 'fatal_error': str(exc)}
+    Path(args.json).write_text(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + '\n')
+    Path(args.markdown).write_text(markdown(result))
+    rc = 0 if result['complete_observation'] else 1
+    print(json.dumps({'rc': rc, 'key_count': result.get('key_count'),
+                      'missing': result.get('missing'), 'fatal_error': result.get('fatal_error')}, ensure_ascii=False))
+    return rc
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

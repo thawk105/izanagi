@@ -1,0 +1,12 @@
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+  "authorization_sha256": "9ccd38c995d225d151e4572c7f878f908f46ff90f0a95b886cc20819e152e40c",
+  "decision": {
+    "decided_on": "2026-09-20",
+    "id": "D2172",
+    "item": 2
+  },
+  "schema_version": "paper-story-a1-paired-rerun-authorization/v1",
+  "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1"
+}

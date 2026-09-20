@@ -1,0 +1,1 @@
+{"worker": "gw31", "pid": 327016, "name": "verify", "key": null, "begin_epoch": 1789923688.9786441, "begin_mono": 404382.523521719, "end_epoch": 1789923688.9874053, "end_mono": 404382.532283075, "ok": true, "error": null, "extra": {"nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_missing_is_refused", "span_id": "327016:5", "parent_span_id": null}}

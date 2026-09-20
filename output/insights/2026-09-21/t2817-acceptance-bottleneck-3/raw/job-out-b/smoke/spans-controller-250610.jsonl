@@ -1,0 +1,1 @@
+{"worker": "controller", "pid": 250610, "name": "sessionfinish", "key": null, "begin_epoch": 1789923499.4503486, "begin_mono": 404192.995226077, "end_epoch": 1789923499.4503527, "end_mono": 404192.99522948, "ok": true, "error": null, "extra": {"exitstatus": 0, "installed": false, "nodeid": "", "span_id": "250610:1", "parent_span_id": null}}

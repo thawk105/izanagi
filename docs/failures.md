@@ -321,6 +321,50 @@
   出所に留め、「未発効」「未確定」「未実施」型の状態語は起草前に当日の worklog entry 見出しを全部読んで grep で反証し、稿の限定を要約するときは
   条件 (検査 mode の内訳・集約方法・実行時刻) を稿の逐語で引く。一次資料から事実を再抽出する docs-only wave に read-only レビュー 1 本を残す
   規則 (D2148 項 11) の適用例が 1 つ増えた。
+
+- **再発: 2026-09-20 (near miss)** — [T-2501] wave (docs のみ) の親が、専用 handoff の段 1 brief と段 4 裁定の見出しに書いた JST 時刻
+  (21:05 / 21:12) を `date` で実測せず推定で書いた。実際はどちらも commit 1 (`git log --format=%ci` で 21:04:51) より前で、brief は開始 gate
+  (`startup-gate.log` の mtime 20:53:36) の後である。段 7 で commit 日時と mtime を採ったときに気づいた。逐語 (insight `verbatim/brief.md` /
+  `verbatim/adjudication.md`) は改変せず、insight README §2 に訂正を書いた。成果物 (runbook / glossary) への影響は無い。
+  原因は 2026-09-18 の再発と同型 — wave 冒頭の `date` 1 回に体感の経過を足した。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
+
+- **再発: 2026-09-20 (論文ストーリー 2026-09-20 第 2 版 `2026-09-20b.md` の wave)** — (1) **実害:** 「『非列挙』の定義をどう置き直すかは
+  未裁定である」という文が、2026-09-02 版 (fold `45994d900` 04:42、当時は真) から 2026-09-05 / 09-14 / 09-17 / 09-19 / 09-20 の 5 版へ
+  付け替えられずに運ばれ、D1441 (2026-09-02、fold `89a551d0e` 07:43) が操作的定義への置き直しを裁定した後も凍結物 5 本に偽が残った。
+  2026-09-20 版は §8 B-5 で D1441 を引きながら §2 (b)・§3 項目 2・§7・§8 B-1 で「未裁定」と書き、版内で矛盾していた。5 版の親と各段 6
+  レビューはいずれも拾わず、今回はユーザーが依頼文で名指しした。転写元が一次資料でなく前版の本文である点で F1 と同型。第 2 版は
+  4 か所を D1441 の裁定内容へ直し、冒頭の訂正 1 と README の訂正一覧に記録した (旧 5 版は凍結物として書き換えない)。
+  (2) **near-miss 3 件 (段 6 の read-only レビューが捕捉、凍結前に訂正、実害なし):** S-1a 単独稿の限定件数を cohort2 稿の「16 件」を写して
+  16 と書いた (現物は 19)、fig8b の PDF SHA-256 を 16 桁の目視で `c5454544…` と写した (現物・provenance は `c5454454…`。P2-4 sweep 稿 wave
+  の教訓「転記 SHA は集合比較で検査する」の再発 — 訂正後に job dir の `check_hashes.py` で版の 8 桁 prefix 43 件を figures / results /
+  provenance の現物と集合比較した)、2026-09-02 版の着地時刻を `git log --first-parent main -- <file>` の結果 (別 wave が main を取り込んだ
+  merge `b664df20c` 07:14) から採り、導入 commit `ad88a391c` 04:22 とその wave の fold `45994d900` 04:42 を見なかった。
+  (3) **near-miss (受入の claim 前に親の自己点検で訂正、実害なし):** 版の §8 B-1 ほか 5 箇所で「非列挙」の実装残件を「起票された項目も無い」と
+  書いたが、次の一手には [T-1871] (D1441 の 4 点を事前登録の追補として置く — 2026-09-02 の entry 1184 で「裁定済み → 実装待ち」) が carry stub
+  `- [T-1871] (N)` で残っていた。親は次の一手を語 (「非列挙」「D1409」) で grep して stub の本文を遡らず、段 6 の 2 レビューも拾わなかった
+  (レビュー 10 は「段階 B の全履歴の不在は証明していない」と自ら限定)。peer の着地通知 (追補 1 の着地 = entry 1752) を契機に直した。
+  **carry stub は本文を持たないので、次の一手の走査は ID を carry 鎖の実体まで遡ってから語で照合する** (第 24〜26 回 /rulings の
+  「carry 鎖の実体まで解決」と同じ手順)。
+  一次資料: `output/insights/2026-09-20/paper-story-20260920b/README.md` §4、同 `verbatim/review-out.md` 所見 1〜3。
+  恒久対応は変更なし — 版の全面再導出では「未裁定」「裁定待ち」「未実施」型の状態語を D 台帳の見出しで検索して裁定の有無を確かめ
+  (前版の判定を継承しない)、転記した SHA は集合比較で検査し、版の着地時刻は file の導入 commit と fold commit から採る (first-parent の
+  merge は着地時刻ではない)。
+
+- **再発: 2026-09-20 (near miss、2 件)** — [T-2804] wave の親が、(1) 段 4 裁定 `s4-ruling.md` §2 項 5 の終端行 field 名 `deadline_margin_s` を段 5 author の prompt へ**手打ちで再記述**して `deadline_at_margin_s` に書き換え、実装とテストがそのまま裁定と食い違った (段 6 レビュー B が must-fix、A が should として捕捉、fix1 1 巡で裁定の名前へ揃えた。受理集合・値・順序は不変で診断行の名前だけの差)。(2) handoff と brief の見出し時刻 4 件 (21:03 / 21:20 / 21:31 / 21:33) を `date` を叩かず推定で書き、job dir の file mtime (21:01 / 21:08 / 21:17 / 21:18) で訂正した (worklog・insight へ写す前に閉じた)。型はどちらも「一次資料から転写せず手で書き直す」で F1 と同じ。恒久対応は変更なし (memory `timestamps-from-date-or-mtime-not-estimation`) に加え、裁定の literal を子の prompt へ再記述せず「裁定 file が正本」と指し、必要な逐語は file から機械的に切り出す (memory `ruling-literals-in-prompts-point-to-the-file`)。
+
+- **再発: 2026-09-21 (論文ストーリー 2026-09-21 版 `2026-09-21.md` の wave、near-miss 3 件。段 6 の read-only レビューが捕捉し凍結前に
+  訂正、実害なし)** — (1) A-1 attempt-0002 の job と終端時刻の対応を、一次資料 (`t2792-a1-sized-attempt2` §3) でなく worklog entry 1755 の
+  略記から写し、`13220` (write-heavy) / `13221` (balanced) / `13222` (read-heavy) に 18:22:12 / 18:25:34 / 18:28:57 を並べて対応を
+  入れ替えた (正は balanced `13221` 18:22:12 → read-heavy `13222` 18:25:34 → write-heavy `13220` 18:28:57)。(2) pairing 採用 wave
+  ([T-2766]) の A/B を、前 wave (prewarm E/L 対 = 同一 SHA) の条件から転写して「いずれも同一 SHA の隣接対」と書いた (実際は採用前 /
+  採用後で全対の tested_main が動く — `t2766-pairing-adopt` §1・§5・§6)。(3) 「冒頭の訂正 1」の参照を版名なしで前版から運び、§6 導入の
+  「この節は 2026-09-20 版から引き写していない」を時点語の機械置換のまま残した (この版の冒頭は訂正 0 件で、参照先は前版 = 2026-09-20b 版
+  の冒頭と 2026-09-20 版の冒頭に分かれる)。いずれも転写元が一次資料でなく前版本文・略記・前 wave の条件である点で F1 と同型。
+  加えて親の総括 4 件 (「新しい測定は 1 件だけ」が §9 の分類と矛盾、序論稿の未反映を着地順で説明、timeout 3 値を「事前登録自身の数」と
+  一括、[T-1871] の実測範囲の一般化) も同じレビューが捕捉した。一次資料: `output/insights/2026-09-21/paper-story-20260921/README.md` §4、
+  同 `verbatim/review-out.md` 所見 1〜7。恒久対応は変更なし — 版の全面再導出では、時刻・job・SHA・条件の対応表は entry の略記でなく
+  insight の表から写し、時点語の機械置換後は「訂正 N」「この節は…から」型の参照を版名付きで全件再照合し (前 wave の教訓「未裁定・裁定待ち
+  型の状態語は D 台帳で検索」と同じ手順を参照語にも当てる)、前 wave の条件 (同一 SHA 等) を次の wave に継承させない。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -450,6 +494,8 @@
   したがって「凍結成果物は記録時の値で検証し、live 適格性は別 API で検査する」の
   族一般化は `DW-G03` の閾値を満たす。設計は
   D437 の裁定パッケージへ返した。
+
+- **再発: 2026-09-20** (near miss、実害なし、[T-2810] で発見・補完) — 同型 (pin 前進で参照が腐る構造) が **実 repo を root にする held test の期待値**で実現した。ccbench pin 前進 ([T-2304]、D2184) は admission policy の epoch を動かし、`test_s8b_oracle_driver._ACTIVATED_G1_REFUSALS` (凍結 v2 g1 の live P3 拒否集合、held 6 node が exact 照合) の第 2 要素を `journal-state-invalid` から `manifest-invalid` (policy 照合) へ静かに変えた。held node は受入全走で走らない (growth hold) ため pin 前進 wave の受入は緑のままで、D2184 の「現行 policy に束縛された test の golden を epoch 1 段進めた」にも含まれなかった。次 wave が `IZANAGI_RUN_GROWTH_HELD_TESTS` の診断焦点走で発見し、live P3 の実測値へ更新した。同型: 値 pin (refusal 文字列など) は path / key 検索の pin 閉包 (DW-O09) に出ず、policy sha 等の間接依存で古くなる。policy epoch を動かす wave は held 真値の再実測を帰結に含める (memory `ccbench-pin-advance-execution-facts` に記載)。
 ### F11. セッション終了定型の漏れ — handoff 削除忘れ [手順漏れ]
 - 事象: 正常終了時に handoff の削除 (worklog への吸収) を落とした
 - 恒久対応: memory `session-close-checklist` — セッション TODO 末尾に worklog → lint →
@@ -5085,6 +5131,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-18** (同日 2 回目、near miss、実害なし) — 隔離 worktree の session が変異 harness の `--plan-only` を打つ前に Bash で `cd <変異 container worktree> && pwd` (読み取りだけ) を実行し、harness の追跡 cwd がその worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰し、以後は container への操作をすべて `.sh` (内部で `cd`) 経由にした。書き込みは発生していない。同型: 他 worktree での command 実行は launcher script に閉じ込め、対話 shell で `cd` しない。
 
 - **再発: 2026-09-18** (同日 3 回目、near miss、実害なし) — [T-2724] 整合 wave の親が `cd <Codex author worktree> && python3 tools/dev_wave_codex.py … --dry-run` (読み取りだけ) を打ち、harness の追跡 cwd が author worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰。以後の dry-run は `cd` を前置せず絶対 path で打った。書き込みは発生していない。
+
+- **再発: 2026-09-20** (near miss、実害なし) — 凍結 v2 g1 の launch validator 修復 wave の親が、段 5 実装子の進捗確認で `cd /work/1/SFC/tanab/izanagi/.codex/worktrees/t2810-unit-impl 2>/dev/null && echo …` (読み取りだけ) を Bash に含め、harness の追跡 cwd が author の子 worktree へ移った。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file を見るときは絶対 path で `ls` / `cat` し、`cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本台帳の 2026-09-18 3 件と同じ手順で復帰)。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -12108,6 +12156,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `state=held` かつ `main_sha` が現行 main と異なれば
   `python3 tools/wave_land_window.py release --lease-dir <dir> --wave <slug>` で解放してから
   投入する。同じ検知手順が F344 の再発検知節に既にある。
+
+- **再発: 2026-09-20** — land を挟まない**同一 wave の連続受入** (採用効果の A/B 再確認で B 木の受入を 3 走) で起きた。02-B の成功後に lease が保持されたまま (記録済み main_sha `4fe49200e`) 他 wave の land で main が進み、03-B の claim が `stage=claim-self-unverified rc=70` で 1 回空振り (子は走らず、17 分の門番待ちを消費)。親が `wave_land_window.py release` で解放し、launcher へ「`lease is held` と告げた走だけ終端で release する」を加えて以後は通った。F344 の恒久対応 (land rc=0 直後の release) と 2026-09-07 の追記 (land 不成功時の release) は「land しない受入の反復」を覆っていない — 同 wave で受入を続けて投げるときは、各走の終端 (または次走の投入前の `status` 確認) で release する。逐語は `output/insights/2026-09-20/t2766-pairing-adopt/README.md` §5・§7。
 ### F345. 生きた成果物から導出した hash の literal pin が path 検索にも値検索にも掛からず、実走でだけ露見した [手順漏れ]
 
 - 事象: 8c 事前登録の証拠契約を改訂する wave で、親は着手前に pin 閉包を取った。成果物 path で
@@ -15465,6 +15515,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   consumer」を探せと定めたのに対し、本件は「値を一度も綴らず enum ごと畳み込む consumer」で
   あり、単一の綴りによる grep はどちら向きにも閉包にならない。不在を主張するときは、
   値を綴る箇所と綴らない箇所 (enum 反復・総なめ・動的解決) の両方を型から引く。
+
+- **再発: 2026-09-20** — 向きの違う同型 (識別子 grep が「値を別の形で持つ consumer」を落とす)。[T-2344] wave は
+  収載 tuple を exact 63 → 85 に進め (certified の受理集合が変わる)、焦点走の file 集合を「変更 test 5 + 変更 production の symbol を参照する
+  consumer test 15 + DW-O26 改訂版の inventory 4 群」で組んだ。しかし `orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_formal_loader_rejects_real_exploration`
+  は `campaign_lock` / `artifact_admission` の symbol を 1 つも参照せず、`b10_backoff_static_tail_formal` 経由で**実在の外部 campaign**
+  (`/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/...`、記録 grammar exact-63) を certified 経路に渡して「not formal」で拒否されることを期待していた。
+  tuple 前進後は decode 段 (exact key 集合不正) で拒否され message が変わるので赤になり、段 6 レビュー 2 本・焦点走 3 本を通って受入全走で初めて出た
+  (受入 1 走 = 約 15 分の損失、fix 2 で test の主張を「実 exact-63 は decode 段拒否」と「not formal は現行 grammar の合成 campaign で検査」に分けて残した)。
+  記録済み成果物は「変更した値を複製した consumer」の一種で、symbol 参照でも literal grep でも掛からない。受理集合 (lock grammar) を変える wave は、
+  実 外部 root (`/work/1/SFC/tanab/` 配下) を読む test (2026-09-20 時点で 14 file) を参照関係に依らず焦点走へ加える (memory `mutation-discipline` /
+  `codex-child-discipline` 系へ記録。DW-O26 は予算 998/1000 bytes で追記不能)。
 ### F475. 差分ゼロの作業ツリーで再現しても環境変数は継承されるので repo 側の性質の証明にならない [計測汚染] [テスト代表性]
 
 - 事象: 親の焦点走で、本 wave の変更と無関係な node が赤になった。subprocess の pytest 出力を
@@ -17605,6 +17666,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   別系統の作業と見なして同時に進めた。**main 取り込みは変異の前に済ませる** — そうすれば
   base digest も同時に確定するため、順序としても自然である。今回は orphan hold も一時的に張られたが
   harness 自身が撤去していた。
+
+- **再発: 2026-09-20** — [T-2803] wave で、変更 test file の単独走 (計算ノード dispatch、`test_check_ai_provenance.py`) の走行中に親が wave worktree で fix commit を作り
+  HEAD を動かした。実 repo の HEAD を読むテスト 23 件が `known provenance violation data HEAD changed while loading: start=4c532aa0b end=00d781372` で赤
+  (非帰属)。固定 tip で単独走を取り直して 555 passed。損失は単独走 1 本 (約 1 分)。変異 harness ではなく dispatch した pytest 走でも同型で、
+  「走行中は tree だけでなく HEAD も動かさない」を dispatch 全種に適用する必要がある。
 ### F559. 防壁の代替として必須化した検査を、本番監査経路へ配線せず test からしか呼んでいなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 逐語 mirror を畳む条件として append-only 履歴検査を必須と裁定し、実装子は
@@ -19852,6 +19918,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   焦点走を投げ、後発が `reason=orphan-hold` で子を起動せずに戻った (rc=16)。焦点走は別 worktree (実装子 A の
   worktree、同じ差分) から投げ直して実害なし。`DW-O26` の「同一 worktree からの dispatch は全種を直列にする」を
   親が投入直前に確かめなかった遵守の失敗。
+
+- **再発: 2026-09-20** — fig13 (B-10 待ち方 grid の forest 図) wave で、親が実装 commit 直後の provenance full 監査を同一 wave worktree から
+  背景 dispatch し (request 13493.nqsv、queue 待ち 12 分)、その待ちの間に段 6 fix1 の実装 commit と docs commit を同じ worktree に作った。
+  監査は起動時に HEAD (`680d6136d`) を固定し、終了時の HEAD (`225d0b311`) と不一致で `実行不能: HEAD が監査中に変化した` (rc=2、違反判定ではない) を返した。
+  後発 dispatch の投入ではなく **HEAD の変更**が原因で、直列化の対象に「dispatch が終わるまで同一 worktree の commit / merge / checkout を作らない」も
+  含めて読む必要がある。実害なし — 全 commit を固めた後に監査を再走して閉じた。qdel も hold の手動削除もしていない。
 ### F657. 環境の偶然への依存を消す是正が、別の環境依存を持ち込んだ [テスト代表性] [恒真ゲート]
 
 - 事象: process 全体の fd 件数比較をやめ、clean な子 process 内で「開始前後の全 fd identity
@@ -21452,6 +21524,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-10** — fixture読取stdoutが非NFCになりauthorが未受理。receiptのevent_invalidを調べ、
   strict_json_loadsのNFC拒否を再現した。原記録を保持し、ASCII escapeで読む新authorを正常受理した。
   DW-O02へ読取ログを含むNFC義務と原文保持を明記した。原fixtureとログ検査器は変更していない。
+
+- **再発: 2026-09-21** — [T-2814] wave の Codex fix 子 2 巡目・3 巡目が `orchestrator/tests/test_check_docs.py` を `cat` / 広い `sed -n` で読み、5749・5772 行の非 NFC fixture が stdout JSONL に乗って `event_invalid` → `evidence_status=invalid` → 未受理 (作業自体は正しく終端 commit 済み、`codex_exit_code=0`)。親の prompt は「全文 cat しない、`sed -n` で読む」と書いたが行番号を名指ししていなかった。4 巡目 (監査子) の prompt に「5749・5772 行を含む出力禁止」を書いて再投入した。恒久対処 [T-2041] (択 (a) 採用、D1216) は見送り台帳のまま — 回避で通り研究実走の blocker ではないので再訪条件に該当しない (見送り追記のみ)。
 ### F729. fix 子への「既存テストの期待値を変更するな」が広すぎて 1 巡を捨てた [手順漏れ]
 
 - 事象: 段 6 fix 子が「実装を変えず報告して止める」を正しく選んで停止し、fix が 1 巡空転した。
@@ -27665,6 +27739,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入全走が検出者である。**走査器 1 本の緑を全 gate の緑と読まない。**
   記録に「走査器 rc=0」と書くときは、その走査器の候補集合が何であるかを併記する。
 
+
+- **再発: 2026-09-20** ([T-2792] A-1 sized attempt-0002 の記録 wave) — DW-S07 の三軸語走査器 (`s8b_holdout_freeze search`) を段 7 で走らせ「本 wave の file に hit なし」を確認したうえで、**その走査器の生出力 (走査の対象・正規表現名・既知 hit の一覧を含む JSON) を insight の `verbatim/three-axis-scan.txt` として repo に写した。** 出力自身が三軸語 conjunction に当たり、受入全走 (attempt 1、25 分) が `test_s8b_oracle_driver` の t080 系 `IZANAGI_FREEZE_HOLD` と `test_s8b_floor_campaign` の `clean scan 拒否` で赤 25 件 (全件がこの file を名指し)。走査は写す前の tree に対して行ったので緑だった。是正: file を削除し (走査結果は insight の要約 1 行で足りる)、走査を再走して hit が既知 4 file に戻ることを確認してから受入を取り直した。**走査器の出力は走査器の候補集合に入る**ので、走査後に足す file にも同じ検査を掛ける。
 ### F1014. 段 1 で採った consumer 列挙を段 5 まで持ち越し、その間に着地した新 consumer を落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 1 で旧 locator の読み手を列挙し (28 file)、段 4 の裁定に写した。段 5 の投入直前に
@@ -27769,6 +27845,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: driver の build 経路を stub する test しか無い gate 統合 commit。段 1 で「その driver は統合後に
   実走したか」を worklog / insight で照合する。
 
+
+- **再発: 2026-09-20** — K2 同 job pair launcher (D2183、job body の stock step + driver `--stock-control`、2026-09-20 land) は、候補と同じ campaign
+  (同 identity・同 out_root) に **2 つ目の driver process** から `run_campaign` を通す設計だったが、Pegasus 契約 (reservation 必須) の実認可経路
+  `loop._authorize_measurement` → `campaign_claim.acquire_claim` (single-process campaign の one-shot claim leaf、同 identity path は所有者の生死を見ず `O_EXCL`
+  で拒否、D464 / D553) との整合を一度も実走で確かめずに land した。初投入 (`13339.nqsv`) で候補は certified、stock は condition gate 正常復帰の直後に
+  `ClaimError` で停止し、build にも到達しなかった (STOCK 性未確認、pair 不成立)。実装 wave の test は実 `run_campaign` を戻すものを含むが site `OTHER`
+  (`single_process=False`) で claim 分岐に入らず、job contract test は代用 python で driver を起動しない (1746 passed + 変異 17/17 KILLED はこの経路を含まない)。
+  実装 wave の insight は「1 job も投入していない」「STOCK 成立は未測定」を正直に明記していたが、未測定の開示は統合欠陥の不存在を保証しない。
+  恒久対応は未実施 (修復 wave が同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査を含める、D2187)。補助参照 F81 / F722。
+  一次資料 `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §2。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と
@@ -27995,3 +28081,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: turn registry は ff の前に ticket を `mutating` にし、`_finish_land_turn` は `landed-postcondition-failed` を「未解決の mutating」として残す。`_observe_dead_land_turn` の回復は「main == main_before (rolled-back)」「main == landing_tip かつ expected_fold == noop (done)」「main^1 == landing_tip の fold commit (done)」の 3 形しか知らず、**「ff 済み・fold 未開始 (expected_fold = planned)・fold state 無し」を解決できない**。D16 経路の test (`test_gitlink_change_lands_but_cannot_report_success_before_d16_sync`) と dead mutating の test (`ff-done`) はいずれも fragment 無し (noop fold) で書かれており、pending fragment との組合せが代表されていなかった。
 - 恒久対応: `tools/dev_wave_land.py` の `_observe_dead_land_turn` にこの形を「landed-fold-pending」として解決する分岐 (同一要求は `waiting` で already-landed 経路へ進み fold を行う、他要求は dead ticket を `waiting` に書き換えて election を塞がない) と、`_finish_land_turn` で同形を `mutating` に残さない分岐を足し、`orchestrator/tests/test_dev_wave_land.py` に pending fragment 付きの D16 変種と `ff-done-fold-pending` 観測 test、不明な mutating が従来どおり raise する負例を固定した (本 wave の fix commit、insight `output/insights/2026-09-20/t2304-pin-advance/README.md` §6)。
 - 再発検知: 上記 test 3 本 (pending fragment 付き D16 の同一要求再実行が `landed` + fold commit、後続要求が塞がれない、不明形は raise)。
+
+### F1034. cleanup 引き渡し script の退避 tar が空のまま worktree 4 本を撤去し、K2 loop の campaign 原本を失った [恒真ゲート] [手順漏れ] [証拠破損]
+
+- 事象: 2026-09-20 19:25 JST、`/cleanup-branches` の裁定候補 1 (unlocked・main 取込済み・非占有だが未追跡 `output/` を抱えた
+  worktree 4 本) を、Claude が repo 外に書いた引き渡し script `/work/1/SFC/tanab/cleanup-20260920/handoff.sh retire` で
+  ユーザーが撤去した。退避 step (`git diff HEAD` + 未追跡 file の tar) を撤去の前に置いていたが、`backup/20260920-192523/*/untracked.tgz`
+  は 4 本とも 0 entry だった。tracked の差分は 0 だったので失ったのは未追跡 file だけで、K2 loop の campaign 原本
+  (`submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` の WAL・`agent_outputs.jsonl`・`loop_state.json`・
+  `s4_loop_digest.txt`・`campaign.lock`・受領証) が round 3 は全部、round 2 は AO と `campaign.lock`、roundtrip (t2588) は全部
+  (sha256 の記録も無し) 消失した。t2698 は wave 自身の `run-backup/` bundle が在り実害なし。Lustre に snapshot は無く復元不能。
+  損失表と写しの照合は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`
+- 根本原因: (1) `tar --null -T - -czf out -C "$w"` の順で書いたため、`-T -` の file 名が script の cwd (repo root) 基準で解決されて
+  全件 stat 不能になり、`2>/dev/null || :` がそれを握り潰した — 退避 step が何もせず「成功」する恒真ゲート。(2) 候補判定で
+  submit-tree の `?? output/exploration/` を「単なる dirty」と見なし、各 wave の insight「証拠の所在」節 (「campaign WAL は repo へ
+  複製していない、原本は submit-tree の下」) と round 3 HANDOFF の「submit-tree は残置」を引かなかった。(3) script を実データで
+  通す前にユーザーへ渡した (読み取り subcommand だけ実走し、退避 step は撤去を伴うため試さなかった)
+- 恒久対応: `handoff.sh` を同日 fail-closed に修正 (`tar -C "$w" --null -T -`、エラー非抑止、`ls-files -o` の list と tar の非 dir entry 数を
+  照合し不足なら撤去せず rc=6。生きている worktree で 72/72 を実測)。memory `cleanup-discipline` に「退避 tar の -C 順・entry 検算・
+  `?? output/exploration/` は原本」を追記。`/cleanup-branches` §2・§3 への反映 (未追跡 `output/` の原本判定に insight「証拠の所在」を
+  引く、退避の検算を撤去の前提にする) は [T-2814] で別 wave が行う
+- 再発検知: 退避 dir の `untracked-list.txt` と `untracked.tgz` の entry 数照合 (修正後の script が rm 前に自動で行う)。
+  worktree 撤去を含む cleanup では、撤去後に `backup/*/untracked.tgz` の entry 数 > 0 を報告に載せる
+- **supersede: 2026-09-21** — 恒久対応末尾の「`/cleanup-branches` §2・§3 への反映は [T-2814] で別 wave が行う」は実施済み: §2 に「未追跡 `output/` (`exploration/`・`env/`) は該当 wave の insight「証拠の所在」節で repo 外原本か確かめ、原本なら候補にせず残置・報告」、§3 に「§5 で引き渡す dirty 撤去 script も本節に従い、退避を撤去の前提にする (tar の `-C` を `-T` の前、`ls-files -o` の list 数を tar の非 dir entry 数が下回れば撤去しない)」、Codex overlay `.agents/skills/cleanup-branches/SKILL.md` にも同 2 項 (一次資料 `output/insights/2026-09-21/t2814-cleanup-command/README.md`)。
+
+### F1035. 既存テストの argv 接頭 pin が、後から足した別目的の git 呼び出しを誤って数え fix が 2 巡増えた [テスト代表性] [手順漏れ]
+
+- 事象: [T-2803] wave で `tools/check_ai_provenance.py` に候補 directory 列挙の git 呼び出しを足したところ、既存テストが D2169 の path batch を
+  `command[:3] == ['git', 'diff-tree', '--stdin']`、D2033 の message batch を `['git', 'log', '--no-walk=unsorted']` という argv 接頭で識別して
+  件数・入力を pin していたため、`diff-tree --stdin` 版 (fix1) と `log --no-walk=unsorted --stdin` 版 (fix2) が順に既存 pin に混入して赤になり、
+  fix3 (識別 flag `--diff-merges=first-parent` を第 3 token に置く argv 順序) まで 3 巡を要した (DW-O16 の上限)。判定・受理集合は変わっていない。
+- 根本原因: 接頭 pin は「特定 batch の識別子」の代理で、同じ command 名の別目的呼び出しを区別しない。実装子と親は段 4/5 で「同 file の既存 subprocess
+  argv pin」を列挙せず、command の意味だけで argv を決めた。
+- 誘発要因: 焦点走が計算ノード dispatch で 1 巡 10〜15 分かかり、静的レビュー (段 6 A/B) も pin の存在を指摘しなかった。
+- 恒久対応: `docs/dev-wave/workers.md` DW-S05-C へ「subprocess 呼び出しを足す前に同 test file の既存 argv 接頭 pin を列挙し、接頭が重ならない argv にする」を
+  収容しようとしたが L1.5 予算 (9,696 bytes) が満杯で入らず、D782 / D730 の手順 (既存記述の削減 → 独立 3 例で例外 → 上限引き上げは最後) に照らして
+  独立 1 例のため「実施しない」へ落とした。実体は本 wave の実装子 prompt (`output/insights/2026-09-20/t2803-receipt-attributes-fingerprint/verbatim/prompt-fix3.md`)
+  と、同 insight §10 の記録。独立 3 例になったら D730 の例外として収容する。
+- 再発検知: 焦点走の赤本文が `seen == Counter(...)` / `messages == [...]` 型の argv 計数 assertion で、変更 file に新しい `subprocess.run(["git", ...])` がある場合。
+- 波及: なし (fix 3 巡分の codex 2 本と焦点走 2 走)。

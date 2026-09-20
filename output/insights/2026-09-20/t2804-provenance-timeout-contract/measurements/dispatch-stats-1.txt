@@ -1,0 +1,67 @@
+provenance receipts: 85  (no receipt: 0)
+kind/rc: Counter({('child', 0): 76, ('child', 1): 4, ('infra', 16): 3, ('child', 2): 2})
+terminal: Counter({'scheduler-end-state': 82, None: 3})
+stage/child_rc: Counter({('child', 0): 76, ('child', 1): 4, (None, None): 3, ('child', 2): 2})
+args: Counter({'[]': 68, '["--range", "72e3800..6de6b2f"]': 2, '["--range", "504ed6d31e147fee04f08a418248041f59e2cab8..846d5a1"]': 2, '["--range", "72e3800..codex/dev-wave-improve"]': 1, '["--range", "846d5a1b9e2b15a87a65b72df6130bfe0224fab9..50db269"]': 1, '["--range", "50db269..fd0039d"]': 1, '["--range", "fd0039d..c642263"]': 1, '["--range", "0199afaa..9c3dee91"]': 1, '["--range", "0199afaa..e38126bb"]': 1, '["--range", "0199afaa..b2e2870d"]': 1, '["--range", "0199afaa..6dcd8fbb"]': 1, '["--range", "0199afaa..f9fe6901"]': 1, '["--range", "d5e61833..3300e5d2"]': 1, '["--range", "30def5d5..3df9b0aa"]': 1, '["--range", "effe6b1e5b2b3f006605e9bdbbebb2db46f96e26..HEAD"]': 1, '["--range", "HEAD~1..HEAD"]': 1})
+queue_wait_s: n=85 min=5.1 med=5.2 p90=7.3 max=716.5
+run_span_s (RUN 初観測→最終観測): n=85 min=10.2 med=30.7 max=475.9
+total_elapsed_s (qsub 後の最終観測): n=85 min=16.6 med=37.1 max=758.6
+
+--- 非 child-0 の全件
+08-09 08:22 child 1 scheduler-end-state child 1 qw=5.229245168855414 span=25.61986484215595 bnode001 None izanagi/output/pegasus-dispatch/0256bcf2272c2a0637b79c9eb117f7ad
+08-09 08:22 child 1 scheduler-end-state child 1 qw=5.226862938841805 span=20.503951251972467 bnode001 None izanagi/output/pegasus-dispatch/ecf1aeaeca2a84bc0e669cbf2cd0b54f
+08-09 08:24 child 1 scheduler-end-state child 1 qw=5.2333301461767405 span=20.49987913481891 bnode001 None izanagi/output/pegasus-dispatch/5a9c8227df21d69941b77417f61fe0a3
+08-21 21:03 child 1 scheduler-end-state child 1 qw=5.2242387239821255 span=30.69961711205542 bnode043 None izanagi/output/pegasus-dispatch/fbe436c820cfa74201320fcfd0304623
+08-25 20:29 infra 16 None None None qw=10.320650395005941 span=102.3241494228132 None None izanagi/output/pegasus-dispatch/42cccc4e3af8ff1944cdc3e6b785159d
+09-08 04:12 infra 16 None None None qw=5.217806141008623 span=291.72399895603303 None None izanagi/output/pegasus-dispatch/504e8d0ad5e127e4d4a0798d0860bb93
+09-08 14:43 child 2 scheduler-end-state child 2 qw=10.342601499985904 span=358.33993315603584 bnode015 None izanagi/output/pegasus-dispatch/f18275904503e33f07dcab04c99c774e
+09-09 10:55 infra 16 None None None qw=138.38697393005714 span=35.83999208500609 None None izanagi/output/pegasus-dispatch/836f16a81dd738558c08005366de5e40
+09-20 20:09 child 2 scheduler-end-state child 2 qw=716.483867516974 span=40.95991978002712 bnode058 None izanagi/.claude/worktrees/dev-wave-fig13-b10-waiting-grid/output/pegasus-dispatch/2183b4c78ad97ed0a86e46c893d2a92b
+
+--- 日別件数 (child-0 / その他)
+('08-01', 'ok') 10
+('08-02', 'ok') 4
+('08-03', 'ok') 3
+('08-04', 'ok') 13
+('08-09', 'ng') 3
+('08-10', 'ok') 2
+('08-11', 'ok') 1
+('08-12', 'ok') 1
+('08-19', 'ok') 2
+('08-21', 'ng') 1
+('08-22', 'ok') 8
+('08-23', 'ok') 2
+('08-24', 'ok') 2
+('08-25', 'ng') 1
+('08-25', 'ok') 3
+('08-27', 'ok') 3
+('08-28', 'ok') 3
+('08-29', 'ok') 1
+('09-01', 'ok') 3
+('09-02', 'ok') 3
+('09-08', 'ng') 2
+('09-08', 'ok') 8
+('09-09', 'ng') 1
+('09-15', 'ok') 1
+('09-16', 'ok') 2
+('09-18', 'ok') 1
+('09-20', 'ng') 1
+
+--- receipt 無しの submission dir
+
+--- 直近 15 件 (時刻, rc, queue_wait, run_span, host)
+09-08 04:23 child 0 qw=5.2 span=51.3 bnode006
+09-08 05:27 child 0 qw=5.2 span=51.2 bnode001
+09-08 14:43 child 2 qw=10.3 span=358.3 bnode015
+09-08 14:53 child 0 qw=5.2 span=475.9 bnode006
+09-08 19:53 child 0 qw=5.2 span=51.2 bnode120
+09-08 19:55 child 0 qw=5.2 span=46.1 bnode120
+09-08 20:38 child 0 qw=278.7 span=51.1 bnode030
+09-08 21:39 child 0 qw=5.2 span=66.5 bnode039
+09-08 22:12 child 0 qw=5.2 span=66.5 bnode027
+09-09 10:55 infra 16 qw=138.4 span=35.8 None
+09-15 16:39 child 0 qw=5.3 span=281.9 bnode003
+09-16 15:16 child 0 qw=5.3 span=15.4 bnode041
+09-16 17:21 child 0 qw=5.2 span=307.2 bnode004
+09-18 06:56 child 0 qw=5.2 span=15.4 bnode107
+09-20 20:09 child 2 qw=716.5 span=41.0 bnode058

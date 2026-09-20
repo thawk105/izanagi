@@ -27,6 +27,10 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
   unknown、棚卸し後の change、新しい residency があれば停止する。
 - `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
   `git worktree prune` を実行せず、preview と残作業を人間へ引き渡す。
+- 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
+  「証拠の所在」節) を経るまで foreign/unknown と同じく保持して報告する。
+- dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・非 dir entry 数照合) を前提にし、
+  検算を欠く撤去手順を人間へ渡さない (F1034)。
 - sandbox または shared Git metadata の権限が不足する場合は権限を拡大しない。安全に実行できた操作、
   対象、未実行操作を人間へ返す。
 

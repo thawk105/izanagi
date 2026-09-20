@@ -1,0 +1,91 @@
+{
+  "drift_core": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_no_commit_campaign",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_certified_report_omits_current_verifier_conformance",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+  ],
+  "excluded_runner_file": "orchestrator/tests/test_layer3_report.py",
+  "per_mutation": {
+    "m1-drop-analyze-from-85": {
+      "observed": 276,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 271
+    },
+    "m2-swap-benchparse-model-production-only": {
+      "observed": 187,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 182
+    },
+    "m3-live-verify-skips-p3-s4-loop": {
+      "observed": 7,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 2
+    },
+    "m5-exact63-branch-routes-to-pre-t733-validator": {
+      "observed": 72,
+      "drift": 5,
+      "layer3_nondrift_dropped": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[63]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[63]"
+      ],
+      "expected": 65
+    },
+    "m7-exact63-literal-replaces-worker-path": {
+      "observed": 74,
+      "drift": 5,
+      "layer3_nondrift_dropped": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[63]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[63]"
+      ],
+      "expected": 67
+    },
+    "m8-exact63-literal-swaps-last-two": {
+      "observed": 10,
+      "drift": 5,
+      "layer3_nondrift_dropped": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[63]"
+      ],
+      "expected": 4
+    },
+    "m9-skip-committed-blob-verify-for-exact63": {
+      "observed": 68,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 63
+    },
+    "m10-both-layers-exact63-epoch-carries-62-scope": {
+      "observed": 11,
+      "drift": 5,
+      "layer3_nondrift_dropped": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[62]"
+      ],
+      "expected": 4
+    },
+    "m11-authority-whitelist-accepts-superset": {
+      "observed": 7,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 2
+    },
+    "m12-exact63-validator-compares-wire-as-set": {
+      "observed": 6,
+      "drift": 5,
+      "layer3_nondrift_dropped": [],
+      "expected": 1
+    },
+    "m13-normal-decoder-unions-exact63": {
+      "observed": 8,
+      "drift": 5,
+      "layer3_nondrift_dropped": [
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_exact_grammar_at_lock[63]"
+      ],
+      "expected": 2
+    }
+  }
+}

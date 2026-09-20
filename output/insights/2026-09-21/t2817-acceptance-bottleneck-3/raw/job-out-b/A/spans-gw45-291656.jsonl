@@ -1,0 +1,1 @@
+{"worker": "gw45", "pid": 291656, "name": "verify", "key": null, "begin_epoch": 1789923609.8026347, "begin_mono": 404303.347512529, "end_epoch": 1789923609.8111398, "end_mono": 404303.356017151, "ok": true, "error": null, "extra": {"nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused", "span_id": "291656:6", "parent_span_id": null}}

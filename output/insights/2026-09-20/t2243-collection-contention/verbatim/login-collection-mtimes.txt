@@ -1,0 +1,10 @@
+observed 2026-09-20T22:24:53+0900 (login node, read-only ls of the acceptance session dirs cited in README section 2b)
+-rw------- 1 tanab SFC 3031353 2026-09-20T19:39:20 /work/1/SFC/tanab/.izanagi-acceptance-shards/04d049fc5c69b446612357e4dd926aa3/login-collection.log
+-rw------- 1 tanab SFC 3031344 2026-09-20T20:48:15 /work/1/SFC/tanab/.izanagi-acceptance-shards/6b5e8983ca6b7936248e68e25b08caee/login-collection.log
+-rw------- 1 tanab SFC 3031353 2026-09-20T20:30:16 /work/1/SFC/tanab/.izanagi-acceptance-shards/8d490116d1b996f0c86a99c2ebbd73c1/login-collection.log
+-rw------- 1 tanab SFC 3031343 2026-09-20T20:28:28 /work/1/SFC/tanab/.izanagi-acceptance-shards/988edc99a121ea287693117d45bf23b2/login-collection.log
+-rw------- 1 tanab SFC 3021821 2026-09-20T17:06:13 /work/1/SFC/tanab/.izanagi-acceptance-shards/b2b19375cdf94574ac2bf9a36c40abc5/login-collection.log
+-rw------- 1 tanab SFC 3031034 2026-09-20T19:03:49 /work/1/SFC/tanab/.izanagi-acceptance-shards/caa3bb01a2f18578025645c0fb236df9/login-collection.log
+-rw------- 1 tanab SFC 3031342 2026-09-20T19:18:25 /work/1/SFC/tanab/.izanagi-acceptance-shards/d4eafc906a223b39515f6f96e28f0a4b/login-collection.log
+-rw------- 1 tanab SFC 3031357 2026-09-20T19:23:21 /work/1/SFC/tanab/.izanagi-acceptance-shards/e337587ccefbdc91ab2b486d2cb1ec9f/login-collection.log
+-rw------- 1 tanab SFC 3031352 2026-09-20T19:53:52 /work/1/SFC/tanab/.izanagi-acceptance-shards/edc9df7c1022ef5783a55a67a4eaedca/login-collection.log

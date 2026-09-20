@@ -1,0 +1,106 @@
+### path pin (tracked, docs 以外の md も含む)
+--- orchestrator/campaign/campaign_lock.py
+orchestrator/campaign/paper_story_a1_paired.py:181:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/acceptance_duration_ledger.json:384:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/campaign_l
+orchestrator/tests/acceptance_duration_ledger.json:12503:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[missing-orchestrator/ca
+orchestrator/tests/acceptance_duration_ledger.json:12512:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[oid-orchestrator/campai
+orchestrator/tests/acceptance_duration_ledger.json:12521:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[working-sha-orchestrato
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54c
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced5
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced
+orchestrator/tests/test_artifact_admission.py:275:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_artifact_admission.py:301:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_artifact_admission.py:539:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_campaign_lock_codec.py:37:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_paper_story_a1_job_contract.py:55:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_paper_story_a1_job_contract.py:3271:            *expected[:4], "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_t671_source_binding.py:55:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_t671_source_binding.py:280:        "orchestrator/campaign/campaign_lock.py",
+tools/pegasus/paper_story_a1_paired.sh:63:  "orchestrator/campaign/campaign_lock.py"
+--- orchestrator/campaign/artifact_admission.py
+orchestrator/campaign/campaign_lock.py:57:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/campaign_lock.py:126:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/campaign_lock.py:154:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/p3_b4_closed_critic.py:636:        ("orchestrator/campaign/artifact_admission.py", ARTIFACT_ADMISSION_FILE),
+orchestrator/campaign/p3_b4_raw_record_producer.py:992:        ("orchestrator/campaign/artifact_admission.py", closed_critic.ARTIFACT_ADMISSION_FILE),
+orchestrator/tests/acceptance_duration_ledger.json:378:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/artifact_a
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54c
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced5
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced
+orchestrator/tests/test_artifact_admission.py:265:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:291:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:529:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:2009:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:2030:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:2169:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:3223:            live = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_campaign_lock_codec.py:27:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_campaign_lock_codec.py:383:        "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_p3_b4_closed_critic.py:620:        "orchestrator/campaign/artifact_admission.py": (
+orchestrator/tests/test_p3_b4_closed_critic.py:621:            repository_root / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_p3_b4_closed_critic.py:1999:        "orchestrator/campaign/artifact_admission.py": (
+orchestrator/tests/test_p3_b4_closed_critic.py:2000:            repository_root / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_s1_9pair_figure_provenance.py:49:ADMISSION_VALIDATOR_REL = Path("orchestrator/campaign/artifact_admission.py")
+orchestrator/tests/test_t671_source_binding.py:31:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_t671_source_binding.py:45:    "orchestrator/campaign/artifact_admission.py",
+--- orchestrator/campaign/contract_loader_binding.py
+orchestrator/campaign/campaign_lock.py:68:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/campaign/campaign_lock.py:137:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/campaign/campaign_lock.py:165:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/acceptance_duration_ledger.json:385:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/contract_l
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54c
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced5
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced
+orchestrator/tests/test_artifact_admission.py:276:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_artifact_admission.py:302:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_artifact_admission.py:540:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_campaign_lock_codec.py:38:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_t671_source_binding.py:56:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_t671_source_binding.py:281:        "orchestrator/campaign/contract_loader_binding.py",
+### sha256 pin (tracked, 変更前 hash)
+--- 4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4
+output/insights/2026-09-18/t1505-a1-sized-attempt1/receipts/attempt-0001.intent.json:104:        "working_sha256": "4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4"
+output/insights/2026-09-18/t1505-a1-sized-attempt1/receipts/non-certifying-observation.json:76:        "working_sha256": "4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4"
+output/insights/2026-09-20/t2792-a1-sized-attempt2/receipts/attempt-0002.intent.json:104:        "working_sha256": "4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4"
+output/insights/2026-09-20/t2792-a1-sized-attempt2/receipts/non-certifying-observation.json:76:        "working_sha256": "4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4"
+--- d70e525dda0c51d385a30d935f7179abfea28f39c7a1a2797b293f68260cdf8b
+output/insights/2026-09-18/t2746-k2-loop-round2/layer3_report.json:1:{"aborts":[],"acceptance_receipt":null,"admission_decision":{"admission_status":"admitted","attempt_receipt_sha256s":["c51464d5a6d6
+output/insights/2026-09-19/k2-loop-round3/layer3_report.json:1:{"aborts":[],"acceptance_receipt":null,"admission_decision":{"admission_status":"admitted","attempt_receipt_sha256s":["6f5e278491538202ed
+--- f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-external.json:65:      "disk_sha256": "f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855",
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-external.json:66:      "pinned_sha256": "f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855",
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-repo.json:75:      "disk_sha256": "f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855",
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-repo.json:76:      "pinned_sha256": "f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855",
+### sha256 pin (output/ untracked 含む)
+--- 4a6b9b89395cc0d5bdba0bea9026d29240eda75040d13c50d0081395f730fab4
+output/insights/2026-09-18/t1505-a1-sized-attempt1/receipts/attempt-0001.intent.json
+output/insights/2026-09-18/t1505-a1-sized-attempt1/receipts/non-certifying-observation.json
+output/insights/2026-09-20/t2792-a1-sized-attempt2/receipts/non-certifying-observation.json
+output/insights/2026-09-20/t2792-a1-sized-attempt2/receipts/attempt-0002.intent.json
+--- d70e525dda0c51d385a30d935f7179abfea28f39c7a1a2797b293f68260cdf8b
+output/insights/2026-09-19/k2-loop-round3/layer3_report.json
+output/insights/2026-09-18/t2746-k2-loop-round2/layer3_report.json
+--- f289e02179d2e41fa308f220ae90db1d7495768fb227cddafb3d190b83a71855
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-repo.json
+output/insights/2026-09-09/t2344-closure-reachability/trace-admission-external.json
+### key 側 pin (identifier 名)
+      6 orchestrator/campaign/artifact_admission.py
+      1 orchestrator/campaign/b10_backoff_shape_sweep.py
+     11 orchestrator/campaign/campaign_lock.py
+      7 orchestrator/tests/test_artifact_admission.py
+      1 orchestrator/tests/test_b10_backoff_shape_sweep.py
+      5 orchestrator/tests/test_campaign_lock_codec.py
+### FROZEN_MANIFEST / generator source hash pin
+orchestrator/campaign/paper_story_a1_headline.py
+orchestrator/campaign/s8b_oracle_manifest.py
+orchestrator/tests/s1_expected_goldens.py
+orchestrator/tests/test_check_docs.py
+orchestrator/tests/test_frozen_artifacts.py
+orchestrator/tests/test_paper_story_a1_headline.py
+orchestrator/tests/test_paper_story_a1_headline_sizing.py
+orchestrator/tests/test_s1_9pair_figure_provenance.py
+orchestrator/tests/test_s8b_oracle_driver.py
+orchestrator/tests/test_s8b_oracle_manifest.py
+orchestrator/tests/test_s8b_oracle_report.py
+tools/verify_paper_story_a1_balanced_sizing.py
+tools/verify_paper_story_a1_headline_sizing.py

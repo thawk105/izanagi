@@ -1,0 +1,5632 @@
+{
+  "schema_version": "t2817-probe/v1",
+  "complete": true,
+  "errors": [],
+  "times": {
+    "t_import": {
+      "epoch": 1789923703.9933515,
+      "monotonic": 404398.650664104
+    },
+    "configure": {
+      "epoch": 1789923704.1159096,
+      "monotonic": 404398.773222452
+    },
+    "sessionstart": {
+      "epoch": 1789923704.1201952,
+      "monotonic": 404398.777507616
+    },
+    "collection_entry": {
+      "epoch": 1789923706.3440776,
+      "monotonic": 404401.00139048
+    },
+    "collection_exit": {
+      "epoch": 1789923706.344134,
+      "monotonic": 404401.001446647
+    },
+    "all_collected": {
+      "epoch": 1789923764.5493774,
+      "monotonic": 404459.206689915
+    },
+    "collection_checked": {
+      "epoch": 1789923764.5531259,
+      "monotonic": 404459.210438756
+    },
+    "first_nodedown": {
+      "epoch": 1789923764.5671465,
+      "monotonic": 404459.224459355
+    },
+    "sessionfinish": {
+      "epoch": 1789923764.9345925,
+      "monotonic": 404459.591906063
+    },
+    "unconfigure": {
+      "epoch": 1789923768.9335885,
+      "monotonic": 404463.590901276
+    }
+  },
+  "workers": {
+    "gw8": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.0054042,
+          "monotonic": 404399.662717105
+        },
+        "configure": {
+          "epoch": 1789923705.0635448,
+          "monotonic": 404399.720857676
+        },
+        "sessionstart": {
+          "epoch": 1789923705.0661361,
+          "monotonic": 404399.723448873
+        },
+        "collection_entry": {
+          "epoch": 1789923705.069539,
+          "monotonic": 404399.726851707
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.2606747,
+          "monotonic": 404399.917987804
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5306954,
+          "monotonic": 404412.188007948
+        },
+        "cf_entry": {
+          "epoch": 1789923763.386788,
+          "monotonic": 404458.044101002
+        },
+        "cf_exit": {
+          "epoch": 1789923763.4215622,
+          "monotonic": 404458.078874963
+        },
+        "collection_exit": {
+          "epoch": 1789923763.4216113,
+          "monotonic": 404458.078923716
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553695,
+          "monotonic": 404459.21100807
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw8",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw8",
+      "collection_finished_epoch_s": 1789923763.421553,
+      "selected_count": 4116
+    },
+    "gw16": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.3057156,
+          "monotonic": 404399.963028249
+        },
+        "configure": {
+          "epoch": 1789923705.363902,
+          "monotonic": 404400.021215059
+        },
+        "sessionstart": {
+          "epoch": 1789923705.3664913,
+          "monotonic": 404400.02380406
+        },
+        "collection_entry": {
+          "epoch": 1789923705.3699925,
+          "monotonic": 404400.027305084
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.5685177,
+          "monotonic": 404400.225831166
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.67213,
+          "monotonic": 404412.32944238
+        },
+        "cf_entry": {
+          "epoch": 1789923763.7639184,
+          "monotonic": 404458.42123156
+        },
+        "cf_exit": {
+          "epoch": 1789923763.786507,
+          "monotonic": 404458.443819634
+        },
+        "collection_exit": {
+          "epoch": 1789923763.7866054,
+          "monotonic": 404458.44391771
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537791,
+          "monotonic": 404459.211092323
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw16",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw16",
+      "collection_finished_epoch_s": 1789923763.7864995,
+      "selected_count": 4116
+    },
+    "gw15": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.2700028,
+          "monotonic": 404399.927315758
+        },
+        "configure": {
+          "epoch": 1789923705.3280258,
+          "monotonic": 404399.985338932
+        },
+        "sessionstart": {
+          "epoch": 1789923705.3306315,
+          "monotonic": 404399.987944048
+        },
+        "collection_entry": {
+          "epoch": 1789923705.3340478,
+          "monotonic": 404399.991360494
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.5313053,
+          "monotonic": 404400.188618128
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5777922,
+          "monotonic": 404412.235104656
+        },
+        "cf_entry": {
+          "epoch": 1789923763.4648514,
+          "monotonic": 404458.122164389
+        },
+        "cf_exit": {
+          "epoch": 1789923763.4890213,
+          "monotonic": 404458.146333973
+        },
+        "collection_exit": {
+          "epoch": 1789923763.4890637,
+          "monotonic": 404458.146376147
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.55378,
+          "monotonic": 404459.211093148
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw15",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw15",
+      "collection_finished_epoch_s": 1789923763.489014,
+      "selected_count": 4116
+    },
+    "gw39": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.2564383,
+          "monotonic": 404400.913751275
+        },
+        "configure": {
+          "epoch": 1789923706.3204546,
+          "monotonic": 404400.977767728
+        },
+        "sessionstart": {
+          "epoch": 1789923706.3234086,
+          "monotonic": 404400.980721634
+        },
+        "collection_entry": {
+          "epoch": 1789923706.3274007,
+          "monotonic": 404400.984713508
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.5450497,
+          "monotonic": 404401.202362533
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.5610557,
+          "monotonic": 404414.218368205
+        },
+        "cf_entry": {
+          "epoch": 1789923764.521427,
+          "monotonic": 404459.178740058
+        },
+        "cf_exit": {
+          "epoch": 1789923764.538392,
+          "monotonic": 404459.195704874
+        },
+        "collection_exit": {
+          "epoch": 1789923764.5384984,
+          "monotonic": 404459.195810861
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538936,
+          "monotonic": 404459.211206283
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw39",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw39",
+      "collection_finished_epoch_s": 1789923764.5383852,
+      "selected_count": 4116
+    },
+    "gw28": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.8387275,
+          "monotonic": 404400.496040414
+        },
+        "configure": {
+          "epoch": 1789923705.9005706,
+          "monotonic": 404400.55788396
+        },
+        "sessionstart": {
+          "epoch": 1789923705.9032621,
+          "monotonic": 404400.560575019
+        },
+        "collection_entry": {
+          "epoch": 1789923705.9068246,
+          "monotonic": 404400.56413766
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.1161916,
+          "monotonic": 404400.773504889
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4481103,
+          "monotonic": 404413.105422817
+        },
+        "cf_entry": {
+          "epoch": 1789923764.0501704,
+          "monotonic": 404458.707483776
+        },
+        "cf_exit": {
+          "epoch": 1789923764.0707884,
+          "monotonic": 404458.728101284
+        },
+        "collection_exit": {
+          "epoch": 1789923764.0708885,
+          "monotonic": 404458.728200975
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538442,
+          "monotonic": 404459.211157223
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw28",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw28",
+      "collection_finished_epoch_s": 1789923764.0707808,
+      "selected_count": 4116
+    },
+    "gw23": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.6575232,
+          "monotonic": 404400.31483601
+        },
+        "configure": {
+          "epoch": 1789923705.7168746,
+          "monotonic": 404400.374187329
+        },
+        "sessionstart": {
+          "epoch": 1789923705.719557,
+          "monotonic": 404400.376869974
+        },
+        "collection_entry": {
+          "epoch": 1789923705.7232718,
+          "monotonic": 404400.380584757
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.9353359,
+          "monotonic": 404400.592648893
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.787933,
+          "monotonic": 404412.445245668
+        },
+        "cf_entry": {
+          "epoch": 1789923763.781512,
+          "monotonic": 404458.438825129
+        },
+        "cf_exit": {
+          "epoch": 1789923763.8205009,
+          "monotonic": 404458.477813443
+        },
+        "collection_exit": {
+          "epoch": 1789923763.8206074,
+          "monotonic": 404458.477920061
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538352,
+          "monotonic": 404459.21114844
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw23",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw23",
+      "collection_finished_epoch_s": 1789923763.8204923,
+      "selected_count": 4116
+    },
+    "gw25": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.729031,
+          "monotonic": 404400.386343956
+        },
+        "configure": {
+          "epoch": 1789923705.788116,
+          "monotonic": 404400.445428821
+        },
+        "sessionstart": {
+          "epoch": 1789923705.7907882,
+          "monotonic": 404400.448100905
+        },
+        "collection_entry": {
+          "epoch": 1789923705.794505,
+          "monotonic": 404400.451817883
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.0165563,
+          "monotonic": 404400.673869276
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.2070467,
+          "monotonic": 404412.864359124
+        },
+        "cf_entry": {
+          "epoch": 1789923763.774166,
+          "monotonic": 404458.43147943
+        },
+        "cf_exit": {
+          "epoch": 1789923763.7981908,
+          "monotonic": 404458.455503428
+        },
+        "collection_exit": {
+          "epoch": 1789923763.798232,
+          "monotonic": 404458.455544475
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538554,
+          "monotonic": 404459.211168875
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw25",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw25",
+      "collection_finished_epoch_s": 1789923763.7981825,
+      "selected_count": 4116
+    },
+    "gw29": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.8760755,
+          "monotonic": 404400.533388248
+        },
+        "configure": {
+          "epoch": 1789923705.938106,
+          "monotonic": 404400.59541911
+        },
+        "sessionstart": {
+          "epoch": 1789923705.940797,
+          "monotonic": 404400.598110188
+        },
+        "collection_entry": {
+          "epoch": 1789923705.9446456,
+          "monotonic": 404400.601958456
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.1540437,
+          "monotonic": 404400.811356552
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4282718,
+          "monotonic": 404413.085584341
+        },
+        "cf_entry": {
+          "epoch": 1789923764.2258916,
+          "monotonic": 404458.883204796
+        },
+        "cf_exit": {
+          "epoch": 1789923764.2444425,
+          "monotonic": 404458.901755066
+        },
+        "collection_exit": {
+          "epoch": 1789923764.2444856,
+          "monotonic": 404458.901797986
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553871,
+          "monotonic": 404459.211183607
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw29",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw29",
+      "collection_finished_epoch_s": 1789923764.2444336,
+      "selected_count": 4116
+    },
+    "gw43": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.4142358,
+          "monotonic": 404401.071548799
+        },
+        "configure": {
+          "epoch": 1789923706.4782166,
+          "monotonic": 404401.135529791
+        },
+        "sessionstart": {
+          "epoch": 1789923706.4811869,
+          "monotonic": 404401.138499777
+        },
+        "collection_entry": {
+          "epoch": 1789923706.492257,
+          "monotonic": 404401.149570124
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.7269769,
+          "monotonic": 404401.384289624
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.0780845,
+          "monotonic": 404413.735396701
+        },
+        "cf_entry": {
+          "epoch": 1789923764.4859986,
+          "monotonic": 404459.143311727
+        },
+        "cf_exit": {
+          "epoch": 1789923764.5031075,
+          "monotonic": 404459.160420323
+        },
+        "collection_exit": {
+          "epoch": 1789923764.5032496,
+          "monotonic": 404459.160562123
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539353,
+          "monotonic": 404459.211248214
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw43",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw43",
+      "collection_finished_epoch_s": 1789923764.5030997,
+      "selected_count": 4116
+    },
+    "gw31": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.9543848,
+          "monotonic": 404400.61169781
+        },
+        "configure": {
+          "epoch": 1789923706.0170891,
+          "monotonic": 404400.674402041
+        },
+        "sessionstart": {
+          "epoch": 1789923706.0199156,
+          "monotonic": 404400.677228387
+        },
+        "collection_entry": {
+          "epoch": 1789923706.023736,
+          "monotonic": 404400.681048933
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.2399867,
+          "monotonic": 404400.897299782
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4292262,
+          "monotonic": 404413.086538665
+        },
+        "cf_entry": {
+          "epoch": 1789923764.161298,
+          "monotonic": 404458.818610683
+        },
+        "cf_exit": {
+          "epoch": 1789923764.183881,
+          "monotonic": 404458.841193782
+        },
+        "collection_exit": {
+          "epoch": 1789923764.1839242,
+          "monotonic": 404458.841236551
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553879,
+          "monotonic": 404459.211192181
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw31",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw31",
+      "collection_finished_epoch_s": 1789923764.1838722,
+      "selected_count": 4116
+    },
+    "gw45": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.5928442,
+          "monotonic": 404401.250157079
+        },
+        "configure": {
+          "epoch": 1789923706.6570423,
+          "monotonic": 404401.314355423
+        },
+        "sessionstart": {
+          "epoch": 1789923706.6598516,
+          "monotonic": 404401.317164182
+        },
+        "collection_entry": {
+          "epoch": 1789923706.6649275,
+          "monotonic": 404401.322240275
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.8770926,
+          "monotonic": 404401.534405619
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.7131965,
+          "monotonic": 404414.370508901
+        },
+        "cf_entry": {
+          "epoch": 1789923764.4529107,
+          "monotonic": 404459.11022363
+        },
+        "cf_exit": {
+          "epoch": 1789923764.4701958,
+          "monotonic": 404459.127508419
+        },
+        "collection_exit": {
+          "epoch": 1789923764.4703436,
+          "monotonic": 404459.12765616
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539553,
+          "monotonic": 404459.211268009
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw45",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw45",
+      "collection_finished_epoch_s": 1789923764.4701877,
+      "selected_count": 4116
+    },
+    "gw47": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.6367092,
+          "monotonic": 404401.294021897
+        },
+        "configure": {
+          "epoch": 1789923706.7018402,
+          "monotonic": 404401.35915313
+        },
+        "sessionstart": {
+          "epoch": 1789923706.704819,
+          "monotonic": 404401.362131848
+        },
+        "collection_entry": {
+          "epoch": 1789923706.7087598,
+          "monotonic": 404401.366072608
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.9648056,
+          "monotonic": 404401.622118592
+        },
+        "last_itemcollected": {
+          "epoch": 1789923720.450351,
+          "monotonic": 404415.107663615
+        },
+        "cf_entry": {
+          "epoch": 1789923764.5030153,
+          "monotonic": 404459.160328198
+        },
+        "cf_exit": {
+          "epoch": 1789923764.5199938,
+          "monotonic": 404459.17730647
+        },
+        "collection_exit": {
+          "epoch": 1789923764.5200338,
+          "monotonic": 404459.177346183
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539756,
+          "monotonic": 404459.211288148
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw47",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw47",
+      "collection_finished_epoch_s": 1789923764.5199878,
+      "selected_count": 4116
+    },
+    "gw36": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.1427588,
+          "monotonic": 404400.80007179
+        },
+        "configure": {
+          "epoch": 1789923706.2102647,
+          "monotonic": 404400.867577454
+        },
+        "sessionstart": {
+          "epoch": 1789923706.213279,
+          "monotonic": 404400.870592177
+        },
+        "collection_entry": {
+          "epoch": 1789923706.2176805,
+          "monotonic": 404400.874993461
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.4332876,
+          "monotonic": 404401.090600841
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.1688175,
+          "monotonic": 404413.826129859
+        },
+        "cf_entry": {
+          "epoch": 1789923764.3615947,
+          "monotonic": 404459.018907676
+        },
+        "cf_exit": {
+          "epoch": 1789923764.3789952,
+          "monotonic": 404459.036307817
+        },
+        "collection_exit": {
+          "epoch": 1789923764.37904,
+          "monotonic": 404459.036352586
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.55392,
+          "monotonic": 404459.211232948
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw36",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw36",
+      "collection_finished_epoch_s": 1789923764.378987,
+      "selected_count": 4116
+    },
+    "gw33": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.0299692,
+          "monotonic": 404400.687282023
+        },
+        "configure": {
+          "epoch": 1789923706.092048,
+          "monotonic": 404400.74936067
+        },
+        "sessionstart": {
+          "epoch": 1789923706.0948167,
+          "monotonic": 404400.752129567
+        },
+        "collection_entry": {
+          "epoch": 1789923706.0984924,
+          "monotonic": 404400.755805319
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.3364458,
+          "monotonic": 404400.993760674
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.6547334,
+          "monotonic": 404413.312045784
+        },
+        "cf_entry": {
+          "epoch": 1789923764.1586542,
+          "monotonic": 404458.81596753
+        },
+        "cf_exit": {
+          "epoch": 1789923764.1837955,
+          "monotonic": 404458.84110854
+        },
+        "collection_exit": {
+          "epoch": 1789923764.1838431,
+          "monotonic": 404458.841155458
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539281,
+          "monotonic": 404459.211240737
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw33",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw33",
+      "collection_finished_epoch_s": 1789923764.1837862,
+      "selected_count": 4116
+    },
+    "gw34": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.060027,
+          "monotonic": 404400.717339736
+        },
+        "configure": {
+          "epoch": 1789923706.127281,
+          "monotonic": 404400.784594092
+        },
+        "sessionstart": {
+          "epoch": 1789923706.1300697,
+          "monotonic": 404400.787382739
+        },
+        "collection_entry": {
+          "epoch": 1789923706.1342273,
+          "monotonic": 404400.791540005
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.3556714,
+          "monotonic": 404401.012984361
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.414362,
+          "monotonic": 404413.071674228
+        },
+        "cf_entry": {
+          "epoch": 1789923764.1510215,
+          "monotonic": 404458.808334801
+        },
+        "cf_exit": {
+          "epoch": 1789923764.1720839,
+          "monotonic": 404458.829396812
+        },
+        "collection_exit": {
+          "epoch": 1789923764.17224,
+          "monotonic": 404458.82955259
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539227,
+          "monotonic": 404459.211235345
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw34",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw34",
+      "collection_finished_epoch_s": 1789923764.172076,
+      "selected_count": 4116
+    },
+    "gw30": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.922615,
+          "monotonic": 404400.579928183
+        },
+        "configure": {
+          "epoch": 1789923705.9873817,
+          "monotonic": 404400.644695014
+        },
+        "sessionstart": {
+          "epoch": 1789923705.9900956,
+          "monotonic": 404400.647408465
+        },
+        "collection_entry": {
+          "epoch": 1789923705.9939067,
+          "monotonic": 404400.651219431
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.2120223,
+          "monotonic": 404400.869335451
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4901211,
+          "monotonic": 404413.147433604
+        },
+        "cf_entry": {
+          "epoch": 1789923764.1709824,
+          "monotonic": 404458.828295787
+        },
+        "cf_exit": {
+          "epoch": 1789923764.206369,
+          "monotonic": 404458.86368218
+        },
+        "collection_exit": {
+          "epoch": 1789923764.2064142,
+          "monotonic": 404458.863726809
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539243,
+          "monotonic": 404459.211237633
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw30",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw30",
+      "collection_finished_epoch_s": 1789923764.2063606,
+      "selected_count": 4116
+    },
+    "gw35": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.0993507,
+          "monotonic": 404400.756663803
+        },
+        "configure": {
+          "epoch": 1789923706.1638517,
+          "monotonic": 404400.821164827
+        },
+        "sessionstart": {
+          "epoch": 1789923706.1667137,
+          "monotonic": 404400.82402662
+        },
+        "collection_entry": {
+          "epoch": 1789923706.1704357,
+          "monotonic": 404400.827748364
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.3972445,
+          "monotonic": 404401.05455739
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.660726,
+          "monotonic": 404413.318038323
+        },
+        "cf_entry": {
+          "epoch": 1789923764.2644465,
+          "monotonic": 404458.921759674
+        },
+        "cf_exit": {
+          "epoch": 1789923764.291665,
+          "monotonic": 404458.948977802
+        },
+        "collection_exit": {
+          "epoch": 1789923764.2917116,
+          "monotonic": 404458.949023897
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553937,
+          "monotonic": 404459.211249795
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw35",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw35",
+      "collection_finished_epoch_s": 1789923764.2916565,
+      "selected_count": 4116
+    },
+    "gw37": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.1889656,
+          "monotonic": 404400.846278469
+        },
+        "configure": {
+          "epoch": 1789923706.2532706,
+          "monotonic": 404400.91058379
+        },
+        "sessionstart": {
+          "epoch": 1789923706.256123,
+          "monotonic": 404400.913436075
+        },
+        "collection_entry": {
+          "epoch": 1789923706.2605789,
+          "monotonic": 404400.917891661
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.509012,
+          "monotonic": 404401.166325079
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.0625153,
+          "monotonic": 404413.719827672
+        },
+        "cf_entry": {
+          "epoch": 1789923764.349461,
+          "monotonic": 404459.006774165
+        },
+        "cf_exit": {
+          "epoch": 1789923764.3669164,
+          "monotonic": 404459.024228898
+        },
+        "collection_exit": {
+          "epoch": 1789923764.3669589,
+          "monotonic": 404459.024271348
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553951,
+          "monotonic": 404459.211263772
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw37",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw37",
+      "collection_finished_epoch_s": 1789923764.366909,
+      "selected_count": 4116
+    },
+    "gw42": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.4037676,
+          "monotonic": 404401.06108059
+        },
+        "configure": {
+          "epoch": 1789923706.4690993,
+          "monotonic": 404401.126412317
+        },
+        "sessionstart": {
+          "epoch": 1789923706.4719615,
+          "monotonic": 404401.129274783
+        },
+        "collection_entry": {
+          "epoch": 1789923706.4758658,
+          "monotonic": 404401.133178947
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.7016478,
+          "monotonic": 404401.358960985
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.5737004,
+          "monotonic": 404414.231012633
+        },
+        "cf_entry": {
+          "epoch": 1789923764.416769,
+          "monotonic": 404459.074082288
+        },
+        "cf_exit": {
+          "epoch": 1789923764.441588,
+          "monotonic": 404459.098900994
+        },
+        "collection_exit": {
+          "epoch": 1789923764.4416316,
+          "monotonic": 404459.098943969
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539663,
+          "monotonic": 404459.211279114
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw42",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw42",
+      "collection_finished_epoch_s": 1789923764.4415793,
+      "selected_count": 4116
+    },
+    "gw41": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.3478765,
+          "monotonic": 404401.005189625
+        },
+        "configure": {
+          "epoch": 1789923706.414335,
+          "monotonic": 404401.071648256
+        },
+        "sessionstart": {
+          "epoch": 1789923706.4173043,
+          "monotonic": 404401.074617483
+        },
+        "collection_entry": {
+          "epoch": 1789923706.4217372,
+          "monotonic": 404401.079050502
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.6304107,
+          "monotonic": 404401.287723926
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.0924754,
+          "monotonic": 404413.749787706
+        },
+        "cf_entry": {
+          "epoch": 1789923764.3227441,
+          "monotonic": 404458.980056957
+        },
+        "cf_exit": {
+          "epoch": 1789923764.345133,
+          "monotonic": 404459.002445829
+        },
+        "collection_exit": {
+          "epoch": 1789923764.3451784,
+          "monotonic": 404459.002490693
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553967,
+          "monotonic": 404459.21127985
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw41",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw41",
+      "collection_finished_epoch_s": 1789923764.345125,
+      "selected_count": 4116
+    },
+    "gw32": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.991217,
+          "monotonic": 404400.648529861
+        },
+        "configure": {
+          "epoch": 1789923706.0542963,
+          "monotonic": 404400.711609345
+        },
+        "sessionstart": {
+          "epoch": 1789923706.0570679,
+          "monotonic": 404400.714380718
+        },
+        "collection_entry": {
+          "epoch": 1789923706.060849,
+          "monotonic": 404400.718161495
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.2701488,
+          "monotonic": 404400.92746186
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4597015,
+          "monotonic": 404413.117013837
+        },
+        "cf_entry": {
+          "epoch": 1789923764.2094097,
+          "monotonic": 404458.866722795
+        },
+        "cf_exit": {
+          "epoch": 1789923764.2281642,
+          "monotonic": 404458.885476852
+        },
+        "collection_exit": {
+          "epoch": 1789923764.228207,
+          "monotonic": 404458.885519496
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539632,
+          "monotonic": 404459.211276276
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw32",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw32",
+      "collection_finished_epoch_s": 1789923764.2281563,
+      "selected_count": 4116
+    },
+    "gw46": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.599475,
+          "monotonic": 404401.256788093
+        },
+        "configure": {
+          "epoch": 1789923706.6641865,
+          "monotonic": 404401.321499634
+        },
+        "sessionstart": {
+          "epoch": 1789923706.6670218,
+          "monotonic": 404401.324334782
+        },
+        "collection_entry": {
+          "epoch": 1789923706.6707575,
+          "monotonic": 404401.328070335
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.896647,
+          "monotonic": 404401.553959926
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.4448647,
+          "monotonic": 404414.102177213
+        },
+        "cf_entry": {
+          "epoch": 1789923764.412529,
+          "monotonic": 404459.06984215
+        },
+        "cf_exit": {
+          "epoch": 1789923764.4300506,
+          "monotonic": 404459.087363198
+        },
+        "collection_exit": {
+          "epoch": 1789923764.4300964,
+          "monotonic": 404459.087408742
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539906,
+          "monotonic": 404459.21130339
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw46",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw46",
+      "collection_finished_epoch_s": 1789923764.4300423,
+      "selected_count": 4116
+    },
+    "gw44": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.4735584,
+          "monotonic": 404401.130871441
+        },
+        "configure": {
+          "epoch": 1789923706.5394542,
+          "monotonic": 404401.196767277
+        },
+        "sessionstart": {
+          "epoch": 1789923706.5422235,
+          "monotonic": 404401.199536128
+        },
+        "collection_entry": {
+          "epoch": 1789923706.5473592,
+          "monotonic": 404401.204672153
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.7681606,
+          "monotonic": 404401.425473679
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.2464275,
+          "monotonic": 404413.90374015
+        },
+        "cf_entry": {
+          "epoch": 1789923764.3733296,
+          "monotonic": 404459.030642869
+        },
+        "cf_exit": {
+          "epoch": 1789923764.3907363,
+          "monotonic": 404459.048049097
+        },
+        "collection_exit": {
+          "epoch": 1789923764.3907769,
+          "monotonic": 404459.048089351
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5539927,
+          "monotonic": 404459.211305546
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw44",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw44",
+      "collection_finished_epoch_s": 1789923764.3907287,
+      "selected_count": 4116
+    },
+    "gw40": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.2935426,
+          "monotonic": 404400.950855497
+        },
+        "configure": {
+          "epoch": 1789923706.3570106,
+          "monotonic": 404401.014323902
+        },
+        "sessionstart": {
+          "epoch": 1789923706.3598273,
+          "monotonic": 404401.017140015
+        },
+        "collection_entry": {
+          "epoch": 1789923706.363928,
+          "monotonic": 404401.021240901
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.5739021,
+          "monotonic": 404401.231215016
+        },
+        "last_itemcollected": {
+          "epoch": 1789923719.0738256,
+          "monotonic": 404413.731138073
+        },
+        "cf_entry": {
+          "epoch": 1789923764.2619867,
+          "monotonic": 404458.919299876
+        },
+        "cf_exit": {
+          "epoch": 1789923764.2801573,
+          "monotonic": 404458.937470257
+        },
+        "collection_exit": {
+          "epoch": 1789923764.2802007,
+          "monotonic": 404458.937513117
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.554045,
+          "monotonic": 404459.211357852
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw40",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw40",
+      "collection_finished_epoch_s": 1789923764.2801497,
+      "selected_count": 4116
+    },
+    "gw38": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923706.2202156,
+          "monotonic": 404400.877528527
+        },
+        "configure": {
+          "epoch": 1789923706.2883837,
+          "monotonic": 404400.945697009
+        },
+        "sessionstart": {
+          "epoch": 1789923706.2912393,
+          "monotonic": 404400.948551969
+        },
+        "collection_entry": {
+          "epoch": 1789923706.295399,
+          "monotonic": 404400.952711653
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.5039542,
+          "monotonic": 404401.161267435
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.7479415,
+          "monotonic": 404413.405253908
+        },
+        "cf_entry": {
+          "epoch": 1789923764.31526,
+          "monotonic": 404458.972572783
+        },
+        "cf_exit": {
+          "epoch": 1789923764.3336046,
+          "monotonic": 404458.990917486
+        },
+        "collection_exit": {
+          "epoch": 1789923764.3336482,
+          "monotonic": 404458.990960646
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5540366,
+          "monotonic": 404459.211349573
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw38",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw38",
+      "collection_finished_epoch_s": 1789923764.3335967,
+      "selected_count": 4116
+    },
+    "gw11": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.1261833,
+          "monotonic": 404399.783496206
+        },
+        "configure": {
+          "epoch": 1789923705.1845038,
+          "monotonic": 404399.841816946
+        },
+        "sessionstart": {
+          "epoch": 1789923705.1870992,
+          "monotonic": 404399.844411925
+        },
+        "collection_entry": {
+          "epoch": 1789923705.1907632,
+          "monotonic": 404399.848076123
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.3812866,
+          "monotonic": 404400.038600122
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5617719,
+          "monotonic": 404412.219084159
+        },
+        "cf_entry": {
+          "epoch": 1789923763.3068047,
+          "monotonic": 404457.964117903
+        },
+        "cf_exit": {
+          "epoch": 1789923763.3347588,
+          "monotonic": 404457.992071747
+        },
+        "collection_exit": {
+          "epoch": 1789923763.334799,
+          "monotonic": 404457.992111498
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537376,
+          "monotonic": 404459.211051384
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw11",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw11",
+      "collection_finished_epoch_s": 1789923763.33475,
+      "selected_count": 4116
+    },
+    "gw6": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.9301927,
+          "monotonic": 404399.587505315
+        },
+        "configure": {
+          "epoch": 1789923704.9883153,
+          "monotonic": 404399.645628272
+        },
+        "sessionstart": {
+          "epoch": 1789923704.9908535,
+          "monotonic": 404399.648166327
+        },
+        "collection_entry": {
+          "epoch": 1789923704.994285,
+          "monotonic": 404399.651597714
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.1848252,
+          "monotonic": 404399.842138017
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.027832,
+          "monotonic": 404411.685144403
+        },
+        "cf_entry": {
+          "epoch": 1789923762.6654506,
+          "monotonic": 404457.322763475
+        },
+        "cf_exit": {
+          "epoch": 1789923762.694745,
+          "monotonic": 404457.35205793
+        },
+        "collection_exit": {
+          "epoch": 1789923762.6947842,
+          "monotonic": 404457.352096736
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5536692,
+          "monotonic": 404459.210981911
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw6",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw6",
+      "collection_finished_epoch_s": 1789923762.694738,
+      "selected_count": 4116
+    },
+    "gw10": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.0768409,
+          "monotonic": 404399.734153805
+        },
+        "configure": {
+          "epoch": 1789923705.1349068,
+          "monotonic": 404399.792220053
+        },
+        "sessionstart": {
+          "epoch": 1789923705.137519,
+          "monotonic": 404399.794831896
+        },
+        "collection_entry": {
+          "epoch": 1789923705.14104,
+          "monotonic": 404399.798352971
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.3291545,
+          "monotonic": 404399.986467541
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5219078,
+          "monotonic": 404412.179220002
+        },
+        "cf_entry": {
+          "epoch": 1789923763.150216,
+          "monotonic": 404457.807529393
+        },
+        "cf_exit": {
+          "epoch": 1789923763.1787546,
+          "monotonic": 404457.836067372
+        },
+        "collection_exit": {
+          "epoch": 1789923763.1787953,
+          "monotonic": 404457.836107725
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537288,
+          "monotonic": 404459.211041762
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw10",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw10",
+      "collection_finished_epoch_s": 1789923763.1787462,
+      "selected_count": 4116
+    },
+    "gw22": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.6197507,
+          "monotonic": 404400.277063536
+        },
+        "configure": {
+          "epoch": 1789923705.6794717,
+          "monotonic": 404400.336784393
+        },
+        "sessionstart": {
+          "epoch": 1789923705.6821125,
+          "monotonic": 404400.33942524
+        },
+        "collection_entry": {
+          "epoch": 1789923705.6856463,
+          "monotonic": 404400.342959024
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.8877475,
+          "monotonic": 404400.545060563
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.0374463,
+          "monotonic": 404412.69475857
+        },
+        "cf_entry": {
+          "epoch": 1789923763.7651422,
+          "monotonic": 404458.422455264
+        },
+        "cf_exit": {
+          "epoch": 1789923763.7980866,
+          "monotonic": 404458.455399358
+        },
+        "collection_exit": {
+          "epoch": 1789923763.7981277,
+          "monotonic": 404458.455439935
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538485,
+          "monotonic": 404459.211161319
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw22",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw22",
+      "collection_finished_epoch_s": 1789923763.7980795,
+      "selected_count": 4116
+    },
+    "gw13": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.197846,
+          "monotonic": 404399.855158774
+        },
+        "configure": {
+          "epoch": 1789923705.2563448,
+          "monotonic": 404399.913658073
+        },
+        "sessionstart": {
+          "epoch": 1789923705.2589512,
+          "monotonic": 404399.916263674
+        },
+        "collection_entry": {
+          "epoch": 1789923705.2625659,
+          "monotonic": 404399.919878466
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.459697,
+          "monotonic": 404400.117009821
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.6937833,
+          "monotonic": 404412.351095685
+        },
+        "cf_entry": {
+          "epoch": 1789923763.3854694,
+          "monotonic": 404458.042782655
+        },
+        "cf_exit": {
+          "epoch": 1789923763.4109552,
+          "monotonic": 404458.068267935
+        },
+        "collection_exit": {
+          "epoch": 1789923763.4110012,
+          "monotonic": 404458.068313478
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537415,
+          "monotonic": 404459.211054888
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw13",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw13",
+      "collection_finished_epoch_s": 1789923763.410946,
+      "selected_count": 4116
+    },
+    "gw4": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.863598,
+          "monotonic": 404399.520910931
+        },
+        "configure": {
+          "epoch": 1789923704.9215703,
+          "monotonic": 404399.578883238
+        },
+        "sessionstart": {
+          "epoch": 1789923704.924137,
+          "monotonic": 404399.581449814
+        },
+        "collection_entry": {
+          "epoch": 1789923704.9275556,
+          "monotonic": 404399.584868285
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.1197093,
+          "monotonic": 404399.777022043
+        },
+        "last_itemcollected": {
+          "epoch": 1789923716.9109313,
+          "monotonic": 404411.568243849
+        },
+        "cf_entry": {
+          "epoch": 1789923762.6088247,
+          "monotonic": 404457.26613786
+        },
+        "cf_exit": {
+          "epoch": 1789923762.6406693,
+          "monotonic": 404457.297982109
+        },
+        "collection_exit": {
+          "epoch": 1789923762.6407077,
+          "monotonic": 404457.298020356
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5536501,
+          "monotonic": 404459.210963514
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw4",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw4",
+      "collection_finished_epoch_s": 1789923762.6406612,
+      "selected_count": 4116
+    },
+    "gw7": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.980093,
+          "monotonic": 404399.637405829
+        },
+        "configure": {
+          "epoch": 1789923705.0411997,
+          "monotonic": 404399.698512564
+        },
+        "sessionstart": {
+          "epoch": 1789923705.0439057,
+          "monotonic": 404399.701218554
+        },
+        "collection_entry": {
+          "epoch": 1789923705.0475538,
+          "monotonic": 404399.704866384
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.246816,
+          "monotonic": 404399.904128873
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.0643256,
+          "monotonic": 404411.721638066
+        },
+        "cf_entry": {
+          "epoch": 1789923762.5039425,
+          "monotonic": 404457.161255394
+        },
+        "cf_exit": {
+          "epoch": 1789923762.5320785,
+          "monotonic": 404457.189391317
+        },
+        "collection_exit": {
+          "epoch": 1789923762.532122,
+          "monotonic": 404457.189434265
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5536811,
+          "monotonic": 404459.210994389
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw7",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw7",
+      "collection_finished_epoch_s": 1789923762.5320706,
+      "selected_count": 4116
+    },
+    "gw17": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.3419247,
+          "monotonic": 404399.999237395
+        },
+        "configure": {
+          "epoch": 1789923705.401198,
+          "monotonic": 404400.058510842
+        },
+        "sessionstart": {
+          "epoch": 1789923705.4037995,
+          "monotonic": 404400.06111229
+        },
+        "collection_entry": {
+          "epoch": 1789923705.4073992,
+          "monotonic": 404400.064711854
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.6067724,
+          "monotonic": 404400.264085355
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.6493735,
+          "monotonic": 404412.306685783
+        },
+        "cf_entry": {
+          "epoch": 1789923763.5358152,
+          "monotonic": 404458.193128099
+        },
+        "cf_exit": {
+          "epoch": 1789923763.559177,
+          "monotonic": 404458.216489495
+        },
+        "collection_exit": {
+          "epoch": 1789923763.559218,
+          "monotonic": 404458.216530364
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537922,
+          "monotonic": 404459.211105074
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw17",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw17",
+      "collection_finished_epoch_s": 1789923763.55917,
+      "selected_count": 4116
+    },
+    "gw2": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.7750425,
+          "monotonic": 404399.432355509
+        },
+        "configure": {
+          "epoch": 1789923704.8322392,
+          "monotonic": 404399.489551802
+        },
+        "sessionstart": {
+          "epoch": 1789923704.8347483,
+          "monotonic": 404399.492060851
+        },
+        "collection_entry": {
+          "epoch": 1789923704.8382044,
+          "monotonic": 404399.495517239
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.0906258,
+          "monotonic": 404399.74793895
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.0638504,
+          "monotonic": 404411.72116292
+        },
+        "cf_entry": {
+          "epoch": 1789923762.477024,
+          "monotonic": 404457.134337119
+        },
+        "cf_exit": {
+          "epoch": 1789923762.5241475,
+          "monotonic": 404457.181460237
+        },
+        "collection_exit": {
+          "epoch": 1789923762.5241919,
+          "monotonic": 404457.181504266
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553649,
+          "monotonic": 404459.210962106
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw2",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw2",
+      "collection_finished_epoch_s": 1789923762.5241394,
+      "selected_count": 4116
+    },
+    "gw9": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.0398176,
+          "monotonic": 404399.697130154
+        },
+        "configure": {
+          "epoch": 1789923705.0978277,
+          "monotonic": 404399.755140572
+        },
+        "sessionstart": {
+          "epoch": 1789923705.1004143,
+          "monotonic": 404399.757727004
+        },
+        "collection_entry": {
+          "epoch": 1789923705.1040072,
+          "monotonic": 404399.761320022
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.2944024,
+          "monotonic": 404399.951715183
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.3224494,
+          "monotonic": 404411.979761909
+        },
+        "cf_entry": {
+          "epoch": 1789923762.854434,
+          "monotonic": 404457.511747088
+        },
+        "cf_exit": {
+          "epoch": 1789923762.8827517,
+          "monotonic": 404457.54006448
+        },
+        "collection_exit": {
+          "epoch": 1789923762.8827922,
+          "monotonic": 404457.540104679
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537224,
+          "monotonic": 404459.211035293
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw9",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw9",
+      "collection_finished_epoch_s": 1789923762.8827448,
+      "selected_count": 4116
+    },
+    "gw5": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.897839,
+          "monotonic": 404399.555151995
+        },
+        "configure": {
+          "epoch": 1789923704.9558113,
+          "monotonic": 404399.613124215
+        },
+        "sessionstart": {
+          "epoch": 1789923704.958353,
+          "monotonic": 404399.615665753
+        },
+        "collection_entry": {
+          "epoch": 1789923704.9618542,
+          "monotonic": 404399.619166868
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.1524682,
+          "monotonic": 404399.809781375
+        },
+        "last_itemcollected": {
+          "epoch": 1789923716.9180079,
+          "monotonic": 404411.575320066
+        },
+        "cf_entry": {
+          "epoch": 1789923762.4665835,
+          "monotonic": 404457.123896601
+        },
+        "cf_exit": {
+          "epoch": 1789923762.5035467,
+          "monotonic": 404457.160859315
+        },
+        "collection_exit": {
+          "epoch": 1789923762.503593,
+          "monotonic": 404457.160905467
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5536695,
+          "monotonic": 404459.21098236
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw5",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw5",
+      "collection_finished_epoch_s": 1789923762.5035372,
+      "selected_count": 4116
+    },
+    "gw3": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.829772,
+          "monotonic": 404399.487084798
+        },
+        "configure": {
+          "epoch": 1789923704.888272,
+          "monotonic": 404399.545584897
+        },
+        "sessionstart": {
+          "epoch": 1789923704.890961,
+          "monotonic": 404399.548273629
+        },
+        "collection_entry": {
+          "epoch": 1789923704.8944914,
+          "monotonic": 404399.551804054
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.092051,
+          "monotonic": 404399.749363893
+        },
+        "last_itemcollected": {
+          "epoch": 1789923716.9032,
+          "monotonic": 404411.560512453
+        },
+        "cf_entry": {
+          "epoch": 1789923762.5886366,
+          "monotonic": 404457.245950052
+        },
+        "cf_exit": {
+          "epoch": 1789923762.6167903,
+          "monotonic": 404457.274103045
+        },
+        "collection_exit": {
+          "epoch": 1789923762.6168337,
+          "monotonic": 404457.27414631
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553647,
+          "monotonic": 404459.210960132
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw3",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw3",
+      "collection_finished_epoch_s": 1789923762.6167746,
+      "selected_count": 4116
+    },
+    "gw12": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.1639605,
+          "monotonic": 404399.821273362
+        },
+        "configure": {
+          "epoch": 1789923705.2223034,
+          "monotonic": 404399.879616343
+        },
+        "sessionstart": {
+          "epoch": 1789923705.2248898,
+          "monotonic": 404399.88220249
+        },
+        "collection_entry": {
+          "epoch": 1789923705.2284966,
+          "monotonic": 404399.885809399
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.4212513,
+          "monotonic": 404400.078564169
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5542746,
+          "monotonic": 404412.211587063
+        },
+        "cf_entry": {
+          "epoch": 1789923763.4696085,
+          "monotonic": 404458.126921496
+        },
+        "cf_exit": {
+          "epoch": 1789923763.500281,
+          "monotonic": 404458.157594009
+        },
+        "collection_exit": {
+          "epoch": 1789923763.5003247,
+          "monotonic": 404458.157636973
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537531,
+          "monotonic": 404459.211066093
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw12",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw12",
+      "collection_finished_epoch_s": 1789923763.5002735,
+      "selected_count": 4116
+    },
+    "gw14": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.2333372,
+          "monotonic": 404399.890650055
+        },
+        "configure": {
+          "epoch": 1789923705.2917566,
+          "monotonic": 404399.949069667
+        },
+        "sessionstart": {
+          "epoch": 1789923705.294329,
+          "monotonic": 404399.951641701
+        },
+        "collection_entry": {
+          "epoch": 1789923705.2978785,
+          "monotonic": 404399.955191354
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.4966123,
+          "monotonic": 404400.153925315
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.474195,
+          "monotonic": 404412.131507213
+        },
+        "cf_entry": {
+          "epoch": 1789923763.6618261,
+          "monotonic": 404458.319139351
+        },
+        "cf_exit": {
+          "epoch": 1789923763.6846957,
+          "monotonic": 404458.34200861
+        },
+        "collection_exit": {
+          "epoch": 1789923763.6847398,
+          "monotonic": 404458.342052234
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537493,
+          "monotonic": 404459.21106292
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw14",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw14",
+      "collection_finished_epoch_s": 1789923763.6846876,
+      "selected_count": 4116
+    },
+    "gw18": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.3781261,
+          "monotonic": 404400.035438794
+        },
+        "configure": {
+          "epoch": 1789923705.4381802,
+          "monotonic": 404400.095493216
+        },
+        "sessionstart": {
+          "epoch": 1789923705.4408555,
+          "monotonic": 404400.098168268
+        },
+        "collection_entry": {
+          "epoch": 1789923705.4444656,
+          "monotonic": 404400.101778402
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.6455364,
+          "monotonic": 404400.302849553
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.5910938,
+          "monotonic": 404412.248406167
+        },
+        "cf_entry": {
+          "epoch": 1789923763.4132571,
+          "monotonic": 404458.070570638
+        },
+        "cf_exit": {
+          "epoch": 1789923763.4427652,
+          "monotonic": 404458.10007819
+        },
+        "collection_exit": {
+          "epoch": 1789923763.442856,
+          "monotonic": 404458.100168756
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538065,
+          "monotonic": 404459.211119359
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw18",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw18",
+      "collection_finished_epoch_s": 1789923763.4427562,
+      "selected_count": 4116
+    },
+    "gw26": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.7638686,
+          "monotonic": 404400.421181602
+        },
+        "configure": {
+          "epoch": 1789923705.824581,
+          "monotonic": 404400.48189394
+        },
+        "sessionstart": {
+          "epoch": 1789923705.8273191,
+          "monotonic": 404400.484631647
+        },
+        "collection_entry": {
+          "epoch": 1789923705.8311384,
+          "monotonic": 404400.488451077
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.0494084,
+          "monotonic": 404400.706721327
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.0435448,
+          "monotonic": 404412.700857172
+        },
+        "cf_entry": {
+          "epoch": 1789923763.8939197,
+          "monotonic": 404458.551232896
+        },
+        "cf_exit": {
+          "epoch": 1789923763.9155726,
+          "monotonic": 404458.572885324
+        },
+        "collection_exit": {
+          "epoch": 1789923763.9156153,
+          "monotonic": 404458.572927726
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538802,
+          "monotonic": 404459.211193657
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw26",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw26",
+      "collection_finished_epoch_s": 1789923763.915566,
+      "selected_count": 4116
+    },
+    "gw21": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.584332,
+          "monotonic": 404400.241644967
+        },
+        "configure": {
+          "epoch": 1789923705.6445644,
+          "monotonic": 404400.301877401
+        },
+        "sessionstart": {
+          "epoch": 1789923705.6472187,
+          "monotonic": 404400.304531546
+        },
+        "collection_entry": {
+          "epoch": 1789923705.650794,
+          "monotonic": 404400.308106662
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.8470378,
+          "monotonic": 404400.504350704
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.654038,
+          "monotonic": 404412.311350512
+        },
+        "cf_entry": {
+          "epoch": 1789923763.736512,
+          "monotonic": 404458.393825734
+        },
+        "cf_exit": {
+          "epoch": 1789923763.7594366,
+          "monotonic": 404458.416749314
+        },
+        "collection_exit": {
+          "epoch": 1789923763.7594807,
+          "monotonic": 404458.416793342
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5538235,
+          "monotonic": 404459.211136606
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw21",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw21",
+      "collection_finished_epoch_s": 1789923763.7594297,
+      "selected_count": 4116
+    },
+    "gw20": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.4509842,
+          "monotonic": 404400.108297196
+        },
+        "configure": {
+          "epoch": 1789923705.5105267,
+          "monotonic": 404400.167839809
+        },
+        "sessionstart": {
+          "epoch": 1789923705.5132027,
+          "monotonic": 404400.170515604
+        },
+        "collection_entry": {
+          "epoch": 1789923705.516803,
+          "monotonic": 404400.174115739
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.7163646,
+          "monotonic": 404400.373677426
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.9906173,
+          "monotonic": 404412.647929801
+        },
+        "cf_entry": {
+          "epoch": 1789923764.0303924,
+          "monotonic": 404458.687705445
+        },
+        "cf_exit": {
+          "epoch": 1789923764.0512547,
+          "monotonic": 404458.708567384
+        },
+        "collection_exit": {
+          "epoch": 1789923764.0512958,
+          "monotonic": 404458.70860829
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5537596,
+          "monotonic": 404459.21107213
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw20",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw20",
+      "collection_finished_epoch_s": 1789923764.0512474,
+      "selected_count": 4116
+    },
+    "gw19": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.415923,
+          "monotonic": 404400.073235993
+        },
+        "configure": {
+          "epoch": 1789923705.4758239,
+          "monotonic": 404400.133136986
+        },
+        "sessionstart": {
+          "epoch": 1789923705.4784684,
+          "monotonic": 404400.135781129
+        },
+        "collection_entry": {
+          "epoch": 1789923705.4822164,
+          "monotonic": 404400.139528992
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.684802,
+          "monotonic": 404400.342114813
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.6432734,
+          "monotonic": 404412.300585908
+        },
+        "cf_entry": {
+          "epoch": 1789923763.4960191,
+          "monotonic": 404458.153332312
+        },
+        "cf_exit": {
+          "epoch": 1789923763.519706,
+          "monotonic": 404458.177018818
+        },
+        "collection_exit": {
+          "epoch": 1789923763.5197463,
+          "monotonic": 404458.177058719
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553816,
+          "monotonic": 404459.211129147
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw19",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw19",
+      "collection_finished_epoch_s": 1789923763.519699,
+      "selected_count": 4116
+    },
+    "gw27": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.799969,
+          "monotonic": 404400.457282075
+        },
+        "configure": {
+          "epoch": 1789923705.8604655,
+          "monotonic": 404400.517778573
+        },
+        "sessionstart": {
+          "epoch": 1789923705.863175,
+          "monotonic": 404400.520487762
+        },
+        "collection_entry": {
+          "epoch": 1789923705.8668308,
+          "monotonic": 404400.524143563
+        },
+        "first_itemcollected": {
+          "epoch": 1789923706.0836253,
+          "monotonic": 404400.740938131
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.4202714,
+          "monotonic": 404413.077583671
+        },
+        "cf_entry": {
+          "epoch": 1789923763.9437435,
+          "monotonic": 404458.601056337
+        },
+        "cf_exit": {
+          "epoch": 1789923763.9650784,
+          "monotonic": 404458.622391048
+        },
+        "collection_exit": {
+          "epoch": 1789923763.9651191,
+          "monotonic": 404458.62243168
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553876,
+          "monotonic": 404459.211189276
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw27",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw27",
+      "collection_finished_epoch_s": 1789923763.9650705,
+      "selected_count": 4116
+    },
+    "gw24": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923705.6926236,
+          "monotonic": 404400.349936515
+        },
+        "configure": {
+          "epoch": 1789923705.753198,
+          "monotonic": 404400.410510762
+        },
+        "sessionstart": {
+          "epoch": 1789923705.755853,
+          "monotonic": 404400.413166158
+        },
+        "collection_entry": {
+          "epoch": 1789923705.7594454,
+          "monotonic": 404400.416758105
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.9790962,
+          "monotonic": 404400.636409147
+        },
+        "last_itemcollected": {
+          "epoch": 1789923718.050963,
+          "monotonic": 404412.7082753
+        },
+        "cf_entry": {
+          "epoch": 1789923763.9571466,
+          "monotonic": 404458.614459819
+        },
+        "cf_exit": {
+          "epoch": 1789923763.9780984,
+          "monotonic": 404458.635411054
+        },
+        "collection_exit": {
+          "epoch": 1789923763.9781396,
+          "monotonic": 404458.635452073
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553851,
+          "monotonic": 404459.211163634
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw24",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw24",
+      "collection_finished_epoch_s": 1789923763.9780912,
+      "selected_count": 4116
+    },
+    "gw1": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.7483704,
+          "monotonic": 404399.405683257
+        },
+        "configure": {
+          "epoch": 1789923704.8086753,
+          "monotonic": 404399.465988201
+        },
+        "sessionstart": {
+          "epoch": 1789923704.811296,
+          "monotonic": 404399.468608588
+        },
+        "collection_entry": {
+          "epoch": 1789923704.8148408,
+          "monotonic": 404399.472153604
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.0929885,
+          "monotonic": 404399.750301502
+        },
+        "last_itemcollected": {
+          "epoch": 1789923716.9078853,
+          "monotonic": 404411.565197578
+        },
+        "cf_entry": {
+          "epoch": 1789923762.4500525,
+          "monotonic": 404457.107365529
+        },
+        "cf_exit": {
+          "epoch": 1789923762.4867592,
+          "monotonic": 404457.144071918
+        },
+        "collection_exit": {
+          "epoch": 1789923762.4868014,
+          "monotonic": 404457.144113773
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.553616,
+          "monotonic": 404459.210929162
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw1",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw1",
+      "collection_finished_epoch_s": 1789923762.486751,
+      "selected_count": 4116
+    },
+    "gw0": {
+      "schema_version": "t2817-probe/v1",
+      "complete": false,
+      "errors": [],
+      "times": {
+        "t_import": {
+          "epoch": 1789923704.706431,
+          "monotonic": 404399.363743834
+        },
+        "configure": {
+          "epoch": 1789923704.763721,
+          "monotonic": 404399.421033806
+        },
+        "sessionstart": {
+          "epoch": 1789923704.7662013,
+          "monotonic": 404399.423514131
+        },
+        "collection_entry": {
+          "epoch": 1789923704.7696998,
+          "monotonic": 404399.427012638
+        },
+        "first_itemcollected": {
+          "epoch": 1789923705.090565,
+          "monotonic": 404399.747877771
+        },
+        "last_itemcollected": {
+          "epoch": 1789923717.0055425,
+          "monotonic": 404411.662854814
+        },
+        "cf_entry": {
+          "epoch": 1789923763.1394627,
+          "monotonic": 404457.796775835
+        },
+        "cf_exit": {
+          "epoch": 1789923763.1654046,
+          "monotonic": 404457.822717411
+        },
+        "collection_exit": {
+          "epoch": 1789923763.165445,
+          "monotonic": 404457.822757467
+        },
+        "sessionfinish": {
+          "epoch": 1789923764.5536072,
+          "monotonic": 404459.210920074
+        }
+      },
+      "workers": {},
+      "nodes": {},
+      "item_count": 26407,
+      "collection_mismatch": null,
+      "exitstatus": 0,
+      "config": {
+        "dist": "no",
+        "loadscopereorder": false,
+        "numprocesses": null,
+        "maxfail": null,
+        "shard_spec": true,
+        "ledger_attr": true,
+        "ledger_entries": 0,
+        "early_memo_attr": false,
+        "effective_scheduler_attr": false,
+        "argv": [
+          "-c"
+        ],
+        "env": {
+          "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+          "T2817_PROBE_COLLECT_ONLY": "1",
+          "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+          "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+          "PYTEST_VERSION": "9.1.1",
+          "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+          "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f",
+          "PYTEST_XDIST_TESTRUNUID": "294e57a8a7064d7799157f2ed0390603",
+          "PYTEST_XDIST_WORKER": "gw0",
+          "PYTEST_XDIST_WORKER_COUNT": "48"
+        },
+        "workerinput_keys": [
+          "_izanagi_oracle_environment_memo_session_id",
+          "_izanagi_receipt_memo_session_id",
+          "izanagi_early_memo_paths",
+          "mainargv",
+          "testrunuid",
+          "workercount",
+          "workerid"
+        ],
+        "ledger_payload_present": false,
+        "ledger_payload_entries": null,
+        "early_memo_paths_present": true
+      },
+      "workerid": "gw0",
+      "collection_finished_epoch_s": 1789923763.1653974,
+      "selected_count": 4116
+    }
+  },
+  "nodes": {
+    "gw0": {
+      "configure": {
+        "epoch": 1789923704.4635823,
+        "monotonic": 404399.120895132
+      },
+      "collection_entry": {
+        "epoch": 1789923763.1714861,
+        "monotonic": 404457.828799088
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.1761982,
+        "monotonic": 404457.833510544
+      },
+      "nodedown": {
+        "epoch": 1789923764.925588,
+        "monotonic": 404459.582901158
+      },
+      "error": null
+    },
+    "gw1": {
+      "configure": {
+        "epoch": 1789923704.4994097,
+        "monotonic": 404399.15672235
+      },
+      "collection_entry": {
+        "epoch": 1789923762.4917574,
+        "monotonic": 404457.149070066
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.496487,
+        "monotonic": 404457.153799367
+      },
+      "nodedown": {
+        "epoch": 1789923764.783102,
+        "monotonic": 404459.44041439
+      },
+      "error": null
+    },
+    "gw2": {
+      "configure": {
+        "epoch": 1789923704.5344815,
+        "monotonic": 404399.19179401
+      },
+      "collection_entry": {
+        "epoch": 1789923762.5267277,
+        "monotonic": 404457.184040327
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.5313869,
+        "monotonic": 404457.188699417
+      },
+      "nodedown": {
+        "epoch": 1789923764.6947594,
+        "monotonic": 404459.352071906
+      },
+      "error": null
+    },
+    "gw3": {
+      "configure": {
+        "epoch": 1789923704.5870035,
+        "monotonic": 404399.244316096
+      },
+      "collection_entry": {
+        "epoch": 1789923762.6222875,
+        "monotonic": 404457.279600223
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.627017,
+        "monotonic": 404457.28432937
+      },
+      "nodedown": {
+        "epoch": 1789923764.7129707,
+        "monotonic": 404459.370283102
+      },
+      "error": null
+    },
+    "gw4": {
+      "configure": {
+        "epoch": 1789923704.6220717,
+        "monotonic": 404399.279384427
+      },
+      "collection_entry": {
+        "epoch": 1789923762.6408696,
+        "monotonic": 404457.298182202
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.6455953,
+        "monotonic": 404457.302907924
+      },
+      "nodedown": {
+        "epoch": 1789923764.6777835,
+        "monotonic": 404459.335096149
+      },
+      "error": null
+    },
+    "gw5": {
+      "configure": {
+        "epoch": 1789923704.6566706,
+        "monotonic": 404399.313983026
+      },
+      "collection_entry": {
+        "epoch": 1789923762.5088923,
+        "monotonic": 404457.166205394
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.513592,
+        "monotonic": 404457.170904469
+      },
+      "nodedown": {
+        "epoch": 1789923764.7067537,
+        "monotonic": 404459.364066228
+      },
+      "error": null
+    },
+    "gw6": {
+      "configure": {
+        "epoch": 1789923704.6910233,
+        "monotonic": 404399.348335806
+      },
+      "collection_entry": {
+        "epoch": 1789923762.696818,
+        "monotonic": 404457.354130639
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.7014775,
+        "monotonic": 404457.358789991
+      },
+      "nodedown": {
+        "epoch": 1789923764.6567657,
+        "monotonic": 404459.314078118
+      },
+      "error": null
+    },
+    "gw7": {
+      "configure": {
+        "epoch": 1789923704.7274647,
+        "monotonic": 404399.384777305
+      },
+      "collection_entry": {
+        "epoch": 1789923762.5381765,
+        "monotonic": 404457.195489017
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.5428207,
+        "monotonic": 404457.200133031
+      },
+      "nodedown": {
+        "epoch": 1789923764.6833122,
+        "monotonic": 404459.340624617
+      },
+      "error": null
+    },
+    "gw8": {
+      "configure": {
+        "epoch": 1789923704.7625139,
+        "monotonic": 404399.419826699
+      },
+      "collection_entry": {
+        "epoch": 1789923763.4275458,
+        "monotonic": 404458.084858212
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.4322498,
+        "monotonic": 404458.089562424
+      },
+      "nodedown": {
+        "epoch": 1789923764.5671465,
+        "monotonic": 404459.224459355
+      },
+      "error": null
+    },
+    "gw9": {
+      "configure": {
+        "epoch": 1789923704.7981126,
+        "monotonic": 404399.455425407
+      },
+      "collection_entry": {
+        "epoch": 1789923762.8859599,
+        "monotonic": 404457.543272416
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923762.8905988,
+        "monotonic": 404457.547911108
+      },
+      "nodedown": {
+        "epoch": 1789923764.7006462,
+        "monotonic": 404459.357958624
+      },
+      "error": null
+    },
+    "gw10": {
+      "configure": {
+        "epoch": 1789923704.8332918,
+        "monotonic": 404399.490604548
+      },
+      "collection_entry": {
+        "epoch": 1789923763.1825273,
+        "monotonic": 404457.839839739
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.187196,
+        "monotonic": 404457.844508394
+      },
+      "nodedown": {
+        "epoch": 1789923764.6618502,
+        "monotonic": 404459.319162635
+      },
+      "error": null
+    },
+    "gw11": {
+      "configure": {
+        "epoch": 1789923704.8826046,
+        "monotonic": 404399.539917491
+      },
+      "collection_entry": {
+        "epoch": 1789923763.3376002,
+        "monotonic": 404457.994912811
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.3422306,
+        "monotonic": 404457.999542961
+      },
+      "nodedown": {
+        "epoch": 1789923764.6518984,
+        "monotonic": 404459.309210844
+      },
+      "error": null
+    },
+    "gw12": {
+      "configure": {
+        "epoch": 1789923704.9209135,
+        "monotonic": 404399.578226255
+      },
+      "collection_entry": {
+        "epoch": 1789923763.5063941,
+        "monotonic": 404458.163706632
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.5110226,
+        "monotonic": 404458.168335182
+      },
+      "nodedown": {
+        "epoch": 1789923764.7194402,
+        "monotonic": 404459.376752643
+      },
+      "error": null
+    },
+    "gw13": {
+      "configure": {
+        "epoch": 1789923704.9559193,
+        "monotonic": 404399.613232268
+      },
+      "collection_entry": {
+        "epoch": 1789923763.4163294,
+        "monotonic": 404458.073641804
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.420992,
+        "monotonic": 404458.078304481
+      },
+      "nodedown": {
+        "epoch": 1789923764.672378,
+        "monotonic": 404459.329690546
+      },
+      "error": null
+    },
+    "gw14": {
+      "configure": {
+        "epoch": 1789923704.9909472,
+        "monotonic": 404399.648260137
+      },
+      "collection_entry": {
+        "epoch": 1789923763.6910765,
+        "monotonic": 404458.34838913
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.695712,
+        "monotonic": 404458.35302436
+      },
+      "nodedown": {
+        "epoch": 1789923764.7259705,
+        "monotonic": 404459.38328286
+      },
+      "error": null
+    },
+    "gw15": {
+      "configure": {
+        "epoch": 1789923705.026446,
+        "monotonic": 404399.683758791
+      },
+      "collection_entry": {
+        "epoch": 1789923763.4950738,
+        "monotonic": 404458.152386178
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.4997823,
+        "monotonic": 404458.157094825
+      },
+      "nodedown": {
+        "epoch": 1789923764.578219,
+        "monotonic": 404459.235531518
+      },
+      "error": null
+    },
+    "gw16": {
+      "configure": {
+        "epoch": 1789923705.0619876,
+        "monotonic": 404399.719300556
+      },
+      "collection_entry": {
+        "epoch": 1789923763.7928736,
+        "monotonic": 404458.450186182
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.7975652,
+        "monotonic": 404458.454877952
+      },
+      "nodedown": {
+        "epoch": 1789923764.5765305,
+        "monotonic": 404459.233842933
+      },
+      "error": null
+    },
+    "gw17": {
+      "configure": {
+        "epoch": 1789923705.0977352,
+        "monotonic": 404399.755048194
+      },
+      "collection_entry": {
+        "epoch": 1789923763.5654376,
+        "monotonic": 404458.222749753
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.5700805,
+        "monotonic": 404458.227392937
+      },
+      "nodedown": {
+        "epoch": 1789923764.6889994,
+        "monotonic": 404459.346312046
+      },
+      "error": null
+    },
+    "gw18": {
+      "configure": {
+        "epoch": 1789923705.1345854,
+        "monotonic": 404399.791898376
+      },
+      "collection_entry": {
+        "epoch": 1789923763.4431107,
+        "monotonic": 404458.100423058
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.4477966,
+        "monotonic": 404458.105108916
+      },
+      "nodedown": {
+        "epoch": 1789923764.7325978,
+        "monotonic": 404459.389910184
+      },
+      "error": null
+    },
+    "gw19": {
+      "configure": {
+        "epoch": 1789923705.1708264,
+        "monotonic": 404399.828139377
+      },
+      "collection_entry": {
+        "epoch": 1789923763.5259914,
+        "monotonic": 404458.183303759
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.5305984,
+        "monotonic": 404458.18791091
+      },
+      "nodedown": {
+        "epoch": 1789923764.7606373,
+        "monotonic": 404459.417949678
+      },
+      "error": null
+    },
+    "gw20": {
+      "configure": {
+        "epoch": 1789923705.2062783,
+        "monotonic": 404399.86359111
+      },
+      "collection_entry": {
+        "epoch": 1789923764.0575154,
+        "monotonic": 404458.714827729
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.0621238,
+        "monotonic": 404458.719436344
+      },
+      "nodedown": {
+        "epoch": 1789923764.753387,
+        "monotonic": 404459.410699588
+      },
+      "error": null
+    },
+    "gw21": {
+      "configure": {
+        "epoch": 1789923705.2732887,
+        "monotonic": 404399.930601626
+      },
+      "collection_entry": {
+        "epoch": 1789923763.7657113,
+        "monotonic": 404458.423023923
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.7703454,
+        "monotonic": 404458.427657847
+      },
+      "nodedown": {
+        "epoch": 1789923764.7463262,
+        "monotonic": 404459.403638808
+      },
+      "error": null
+    },
+    "gw22": {
+      "configure": {
+        "epoch": 1789923705.3709528,
+        "monotonic": 404400.028266285
+      },
+      "collection_entry": {
+        "epoch": 1789923763.8044374,
+        "monotonic": 404458.461749779
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.8091207,
+        "monotonic": 404458.466433308
+      },
+      "nodedown": {
+        "epoch": 1789923764.667104,
+        "monotonic": 404459.324416476
+      },
+      "error": null
+    },
+    "gw23": {
+      "configure": {
+        "epoch": 1789923705.407473,
+        "monotonic": 404400.064785765
+      },
+      "collection_entry": {
+        "epoch": 1789923763.826757,
+        "monotonic": 404458.484069394
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.8313742,
+        "monotonic": 404458.488686613
+      },
+      "nodedown": {
+        "epoch": 1789923764.5838351,
+        "monotonic": 404459.241147673
+      },
+      "error": null
+    },
+    "gw24": {
+      "configure": {
+        "epoch": 1789923705.4436011,
+        "monotonic": 404400.100914149
+      },
+      "collection_entry": {
+        "epoch": 1789923763.984357,
+        "monotonic": 404458.641669646
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.9890363,
+        "monotonic": 404458.646348739
+      },
+      "nodedown": {
+        "epoch": 1789923764.7754333,
+        "monotonic": 404459.432745599
+      },
+      "error": null
+    },
+    "gw25": {
+      "configure": {
+        "epoch": 1789923705.4800515,
+        "monotonic": 404400.137364311
+      },
+      "collection_entry": {
+        "epoch": 1789923763.8154428,
+        "monotonic": 404458.472755172
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.8200748,
+        "monotonic": 404458.477387176
+      },
+      "nodedown": {
+        "epoch": 1789923764.5859516,
+        "monotonic": 404459.243264032
+      },
+      "error": null
+    },
+    "gw26": {
+      "configure": {
+        "epoch": 1789923705.5161104,
+        "monotonic": 404400.173423442
+      },
+      "collection_entry": {
+        "epoch": 1789923763.9219022,
+        "monotonic": 404458.579214464
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.926503,
+        "monotonic": 404458.583815477
+      },
+      "nodedown": {
+        "epoch": 1789923764.739423,
+        "monotonic": 404459.396735567
+      },
+      "error": null
+    },
+    "gw27": {
+      "configure": {
+        "epoch": 1789923705.5519161,
+        "monotonic": 404400.209228872
+      },
+      "collection_entry": {
+        "epoch": 1789923763.9714031,
+        "monotonic": 404458.628715539
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923763.9760847,
+        "monotonic": 404458.633397109
+      },
+      "nodedown": {
+        "epoch": 1789923764.768001,
+        "monotonic": 404459.425313467
+      },
+      "error": null
+    },
+    "gw28": {
+      "configure": {
+        "epoch": 1789923705.58829,
+        "monotonic": 404400.245602828
+      },
+      "collection_entry": {
+        "epoch": 1789923764.0770626,
+        "monotonic": 404458.734375058
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.0816834,
+        "monotonic": 404458.738995938
+      },
+      "nodedown": {
+        "epoch": 1789923764.5818439,
+        "monotonic": 404459.239156383
+      },
+      "error": null
+    },
+    "gw29": {
+      "configure": {
+        "epoch": 1789923705.624764,
+        "monotonic": 404400.282076899
+      },
+      "collection_entry": {
+        "epoch": 1789923764.2507172,
+        "monotonic": 404458.908029702
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.255368,
+        "monotonic": 404458.912680582
+      },
+      "nodedown": {
+        "epoch": 1789923764.5882812,
+        "monotonic": 404459.24559362
+      },
+      "error": null
+    },
+    "gw30": {
+      "configure": {
+        "epoch": 1789923705.6623468,
+        "monotonic": 404400.319659566
+      },
+      "collection_entry": {
+        "epoch": 1789923764.212699,
+        "monotonic": 404458.870011239
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.2173634,
+        "monotonic": 404458.874676012
+      },
+      "nodedown": {
+        "epoch": 1789923764.6111324,
+        "monotonic": 404459.268444791
+      },
+      "error": null
+    },
+    "gw31": {
+      "configure": {
+        "epoch": 1789923705.6990263,
+        "monotonic": 404400.356339349
+      },
+      "collection_entry": {
+        "epoch": 1789923764.2012877,
+        "monotonic": 404458.858600224
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.2059224,
+        "monotonic": 404458.863234668
+      },
+      "nodedown": {
+        "epoch": 1789923764.5931737,
+        "monotonic": 404459.250486223
+      },
+      "error": null
+    },
+    "gw32": {
+      "configure": {
+        "epoch": 1789923705.7347484,
+        "monotonic": 404400.392061285
+      },
+      "collection_entry": {
+        "epoch": 1789923764.2344573,
+        "monotonic": 404458.891769789
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.2390893,
+        "monotonic": 404458.896401624
+      },
+      "nodedown": {
+        "epoch": 1789923764.6298087,
+        "monotonic": 404459.28712122
+      },
+      "error": null
+    },
+    "gw33": {
+      "configure": {
+        "epoch": 1789923705.7709944,
+        "monotonic": 404400.428307407
+      },
+      "collection_entry": {
+        "epoch": 1789923764.1965387,
+        "monotonic": 404458.853851367
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.2011797,
+        "monotonic": 404458.858492488
+      },
+      "nodedown": {
+        "epoch": 1789923764.6046076,
+        "monotonic": 404459.261920005
+      },
+      "error": null
+    },
+    "gw34": {
+      "configure": {
+        "epoch": 1789923705.8073535,
+        "monotonic": 404400.464666517
+      },
+      "collection_entry": {
+        "epoch": 1789923764.1785188,
+        "monotonic": 404458.835831757
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.18322,
+        "monotonic": 404458.840532519
+      },
+      "nodedown": {
+        "epoch": 1789923764.6077878,
+        "monotonic": 404459.265100108
+      },
+      "error": null
+    },
+    "gw35": {
+      "configure": {
+        "epoch": 1789923705.8439434,
+        "monotonic": 404400.501256264
+      },
+      "collection_entry": {
+        "epoch": 1789923764.2979734,
+        "monotonic": 404458.955285964
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.302583,
+        "monotonic": 404458.959895496
+      },
+      "nodedown": {
+        "epoch": 1789923764.6146061,
+        "monotonic": 404459.271918649
+      },
+      "error": null
+    },
+    "gw36": {
+      "configure": {
+        "epoch": 1789923705.8809752,
+        "monotonic": 404400.538288226
+      },
+      "collection_entry": {
+        "epoch": 1789923764.3852866,
+        "monotonic": 404459.042598975
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.3898854,
+        "monotonic": 404459.04719794
+      },
+      "nodedown": {
+        "epoch": 1789923764.6015635,
+        "monotonic": 404459.258875983
+      },
+      "error": null
+    },
+    "gw37": {
+      "configure": {
+        "epoch": 1789923705.9196277,
+        "monotonic": 404400.576940687
+      },
+      "collection_entry": {
+        "epoch": 1789923764.3732119,
+        "monotonic": 404459.030524419
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.3777966,
+        "monotonic": 404459.035109046
+      },
+      "nodedown": {
+        "epoch": 1789923764.6182032,
+        "monotonic": 404459.275515548
+      },
+      "error": null
+    },
+    "gw38": {
+      "configure": {
+        "epoch": 1789923705.956779,
+        "monotonic": 404400.614092024
+      },
+      "collection_entry": {
+        "epoch": 1789923764.339921,
+        "monotonic": 404458.997233394
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.3445284,
+        "monotonic": 404459.001840794
+      },
+      "nodedown": {
+        "epoch": 1789923764.6471949,
+        "monotonic": 404459.304507449
+      },
+      "error": null
+    },
+    "gw39": {
+      "configure": {
+        "epoch": 1789923705.9954584,
+        "monotonic": 404400.65277111
+      },
+      "collection_entry": {
+        "epoch": 1789923764.5446782,
+        "monotonic": 404459.201990587
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.5493133,
+        "monotonic": 404459.206625722
+      },
+      "nodedown": {
+        "epoch": 1789923764.5799842,
+        "monotonic": 404459.237296672
+      },
+      "error": null
+    },
+    "gw40": {
+      "configure": {
+        "epoch": 1789923706.03257,
+        "monotonic": 404400.689882704
+      },
+      "collection_entry": {
+        "epoch": 1789923764.2865365,
+        "monotonic": 404458.943849199
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.2911594,
+        "monotonic": 404458.948471613
+      },
+      "nodedown": {
+        "epoch": 1789923764.6426308,
+        "monotonic": 404459.29994346
+      },
+      "error": null
+    },
+    "gw41": {
+      "configure": {
+        "epoch": 1789923706.0700123,
+        "monotonic": 404400.727325251
+      },
+      "collection_entry": {
+        "epoch": 1789923764.3515072,
+        "monotonic": 404459.008819668
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.3561668,
+        "monotonic": 404459.013479461
+      },
+      "nodedown": {
+        "epoch": 1789923764.6258132,
+        "monotonic": 404459.283125685
+      },
+      "error": null
+    },
+    "gw42": {
+      "configure": {
+        "epoch": 1789923706.1142561,
+        "monotonic": 404400.771569095
+      },
+      "collection_entry": {
+        "epoch": 1789923764.447901,
+        "monotonic": 404459.105213214
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.452542,
+        "monotonic": 404459.109854511
+      },
+      "nodedown": {
+        "epoch": 1789923764.6219175,
+        "monotonic": 404459.279230014
+      },
+      "error": null
+    },
+    "gw43": {
+      "configure": {
+        "epoch": 1789923706.1525397,
+        "monotonic": 404400.809852405
+      },
+      "collection_entry": {
+        "epoch": 1789923764.5095599,
+        "monotonic": 404459.166872225
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.5141873,
+        "monotonic": 404459.171499749
+      },
+      "nodedown": {
+        "epoch": 1789923764.5906599,
+        "monotonic": 404459.247972195
+      },
+      "error": null
+    },
+    "gw44": {
+      "configure": {
+        "epoch": 1789923706.197596,
+        "monotonic": 404400.854909041
+      },
+      "collection_entry": {
+        "epoch": 1789923764.397057,
+        "monotonic": 404459.054369529
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.4016647,
+        "monotonic": 404459.05897713
+      },
+      "nodedown": {
+        "epoch": 1789923764.638215,
+        "monotonic": 404459.295527591
+      },
+      "error": null
+    },
+    "gw45": {
+      "configure": {
+        "epoch": 1789923706.2407026,
+        "monotonic": 404400.89801555
+      },
+      "collection_entry": {
+        "epoch": 1789923764.4765236,
+        "monotonic": 404459.133835895
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.4812374,
+        "monotonic": 404459.13854989
+      },
+      "nodedown": {
+        "epoch": 1789923764.5958447,
+        "monotonic": 404459.253157312
+      },
+      "error": null
+    },
+    "gw46": {
+      "configure": {
+        "epoch": 1789923706.2951727,
+        "monotonic": 404400.952485428
+      },
+      "collection_entry": {
+        "epoch": 1789923764.4364533,
+        "monotonic": 404459.093765951
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.4410796,
+        "monotonic": 404459.098392145
+      },
+      "nodedown": {
+        "epoch": 1789923764.6339324,
+        "monotonic": 404459.291244831
+      },
+      "error": null
+    },
+    "gw47": {
+      "configure": {
+        "epoch": 1789923706.343219,
+        "monotonic": 404401.000532091
+      },
+      "collection_entry": {
+        "epoch": 1789923764.5263877,
+        "monotonic": 404459.183700099
+      },
+      "ids_count": 4116,
+      "collection_exit": {
+        "epoch": 1789923764.531066,
+        "monotonic": 404459.188378401
+      },
+      "nodedown": {
+        "epoch": 1789923764.5986412,
+        "monotonic": 404459.255953722
+      },
+      "error": null
+    }
+  },
+  "item_count": 0,
+  "collection_mismatch": false,
+  "config": {
+    "dist": "loadgroup",
+    "loadscopereorder": false,
+    "numprocesses": 48,
+    "maxfail": null,
+    "shard_spec": true,
+    "ledger_attr": true,
+    "ledger_entries": 0,
+    "early_memo_attr": true,
+    "effective_scheduler_attr": true,
+    "argv": [
+      "/home/SFC/tanab/.local/lib/python3.10/site-packages/pytest/__main__.py",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-joba/orchestrator/tests",
+      "-n",
+      "48",
+      "--dist",
+      "loadgroup",
+      "--no-loadscope-reorder",
+      "--junitxml=/scr/tanab/t2817-2775719/out/S2-a/junit.xml",
+      "-p",
+      "tools.acceptance_shards",
+      "-p",
+      "no:cacheprovider",
+      "-p",
+      "t2817_probe_plugin",
+      "-q"
+    ],
+    "env": {
+      "T2817_PROBE_OUT": "/scr/tanab/t2817-2775719/out/S2-a/probe.json",
+      "T2817_PROBE_COLLECT_ONLY": "1",
+      "TMPDIR": "/scr/tanab/t2817-2775719/out/S2-a/tmp",
+      "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "IZANAGI_ACCEPTANCE_SHARD_PLUGIN_V1": "{\"session_root\":\"/scr/tanab/t2817-2775719/out/S2-a/session\",\"shard_count\":3,\"shard_index\":0}",
+      "PYTEST_VERSION": "9.1.1",
+      "IZANAGI_RECEIPT_MEMO_NONCE": "640d926fec2c4d88965d0dff6f51ee89",
+      "IZANAGI_ORACLE_ENVIRONMENT_MEMO_NONCE": "a9d6e5c17703427caf8324ff7521750f"
+    },
+    "ledger_option_inputs": {
+      "dist": "loadgroup",
+      "maxfail": null,
+      "loadscopereorder": false,
+      "cacheshow": null,
+      "stepwise": false,
+      "stepwise_skip": false,
+      "stepwise_reset": false,
+      "failedfirst": false,
+      "newfirst": false,
+      "lf": false,
+      "collectonly": false,
+      "setuponly": false,
+      "setupplan": false,
+      "showfixtures": false,
+      "show_fixtures_per_test": false,
+      "trace": false
+    },
+    "ledger_should_load": false
+  },
+  "exitstatus": 0
+}

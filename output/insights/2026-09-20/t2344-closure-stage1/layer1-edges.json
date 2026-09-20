@@ -1,0 +1,77 @@
+{
+  "commit": "f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad",
+  "layer1_unenrolled": {
+    "orchestrator/calibrator/analyze.py": [
+      "orchestrator/calibrator/stability.py",
+      "orchestrator/campaign/pipeline.py"
+    ],
+    "orchestrator/calibrator/benchparse.py": [
+      "orchestrator/calibrator/runner.py"
+    ],
+    "orchestrator/calibrator/model.py": [
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/calibrator/stability.py"
+    ],
+    "orchestrator/calibrator/perfparse.py": [
+      "orchestrator/calibrator/runner.py"
+    ],
+    "orchestrator/calibrator/tsc.py": [
+      "orchestrator/campaign/env_attestation.py"
+    ],
+    "orchestrator/campaign/agent_outputs.py": [
+      "orchestrator/campaign/layout.py"
+    ],
+    "orchestrator/campaign/backoff_hole_grammar.py": [
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/durable_root.py": [
+      "orchestrator/campaign/layout.py"
+    ],
+    "orchestrator/campaign/materializer_admission.py": [
+      "orchestrator/campaign/build_admission.py"
+    ],
+    "orchestrator/campaign/p3_b4_admission_record.py": [
+      "orchestrator/campaign/p3_b4_launcher.py"
+    ],
+    "orchestrator/campaign/p3_b4_closed_critic.py": [
+      "orchestrator/campaign/p3_b4_launcher.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop.py": [
+      "orchestrator/campaign/p3_b4_launcher.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop_sort.py": [
+      "orchestrator/campaign/p3_b4_launcher.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py": [
+      "orchestrator/campaign/p3_b4_launcher.py"
+    ],
+    "orchestrator/campaign/paper_story_a1_source.py": [
+      "orchestrator/campaign/pipeline.py"
+    ],
+    "orchestrator/campaign/pin.py": [
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/build_admission.py"
+    ],
+    "orchestrator/campaign/reflux_result_evidence.py": [
+      "orchestrator/campaign/loop.py"
+    ],
+    "orchestrator/campaign/s8b_compiler_input.py": [
+      "orchestrator/campaign/buildcache.py"
+    ],
+    "orchestrator/campaign/s8b_expected_materialization.py": [
+      "orchestrator/campaign/buildcache.py"
+    ],
+    "orchestrator/campaign/silo_ladder_rung1.py": [
+      "orchestrator/qualification/identity.py"
+    ],
+    "orchestrator/campaign/sort_swo_dependency_material.py": [
+      "orchestrator/campaign/buildcache.py"
+    ],
+    "orchestrator/critic/digest.py": [
+      "orchestrator/campaign/search_baselines.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/online_digest.py"
+    ]
+  }
+}

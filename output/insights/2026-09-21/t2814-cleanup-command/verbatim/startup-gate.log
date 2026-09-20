@@ -1,0 +1,8 @@
+# 開始 gate (1 回目、clean tree、2026-09-21 00:45:42 JST) — 逐語
+# command: python3 tools/check_wave_startup.py --mode fresh --forbid-worktree-handoff --external-handoff /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2814-cleanup-command/HANDOFF.md
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+OK: wave startup checks passed (fresh; repo=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2814-cleanup-command; wave identity・branch 所有・--repo の同一性は認証しない)
+rc=0
+
+# 注: 同 command を insight dir (untracked) 作成後に誤って再打し rc=1 (NG: working tree is not clean) を得た。
+# DW-O20 の「gate 成功後の再走は DW-S05-A だけ」に従い、この 2 回目は gate の結果と数えない (1 回目 rc=0 が本 wave の開始 gate)。

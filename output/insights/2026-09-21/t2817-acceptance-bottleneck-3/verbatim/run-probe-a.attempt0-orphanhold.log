@@ -1,0 +1,2 @@
+Pegasus orphan hold があるため scheduler command を起動しません。hold: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-acceptance-bottleneck-3/output/pegasus-dispatch/orphan-hold.json。qstat で対象の不在または終端を確認し、source を復元してから hold を手動削除してください。
+IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,"kind":"infra","reason":"orphan-hold"}

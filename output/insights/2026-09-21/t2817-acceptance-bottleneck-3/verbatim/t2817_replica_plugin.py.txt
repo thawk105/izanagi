@@ -1,0 +1,244 @@
+"""A-only observational wrappers. No selection, scheduling or eager test import."""
+import functools
+import hashlib
+import inspect
+import json
+import os
+from pathlib import Path
+import sys
+import threading
+import time
+
+import pytest
+
+_TARGET = 'orchestrator/tests/test_s8b_oracle_driver.py'
+_REC = None
+
+
+class Recorder:
+    def __init__(self, out, worker):
+        self.out, self.worker = Path(out), worker
+        self.local = threading.local()
+        self.counter = 0
+        self.nodeid = ''
+        self.test = None
+        self.started = None
+        self.installed = False
+        self.undo = []
+        self.errors = []
+
+    def stack(self):
+        if not hasattr(self.local, 'stack'):
+            self.local.stack = []
+        return self.local.stack
+
+    def record_error(self, exc):
+        self.errors.append(repr(exc))
+        try:
+            (self.out / f'record-error-{self.worker}-{os.getpid()}.json').write_text(
+                json.dumps(self.errors) + '\n')
+        except Exception:
+            pass  # Never replace a production exception or write worker stderr.
+
+    def begin(self, name, key=None, extra=None):
+        stack = self.stack()
+        parent = stack[-1] if stack else None
+        self.counter += 1
+        metadata = dict(parent['extra']) if parent else {}
+        metadata.update(extra or {})
+        metadata.update(nodeid=self.nodeid, span_id=f'{os.getpid()}:{self.counter}',
+                        parent_span_id=parent['extra']['span_id'] if parent else None)
+        return dict(worker=self.worker, pid=os.getpid(), name=name,
+                    key=key if key is not None else (parent['key'] if parent else None),
+                    begin_epoch=time.time(), begin_mono=time.monotonic(),
+                    end_epoch=None, end_mono=None, ok=True, error=None, extra=metadata)
+
+    def end(self, event, error=None):
+        event.update(end_epoch=time.time(), end_mono=time.monotonic(),
+                     ok=error is None, error=error)
+        try:
+            # Resolve PID on each write: the real-builder smoke forks after install.
+            with (self.out / f'spans-{self.worker}-{os.getpid()}.jsonl').open('a') as stream:
+                stream.write(json.dumps(event, ensure_ascii=True) + '\n')
+                stream.flush()
+        except Exception as exc:
+            self.record_error(exc)
+
+    def invoke(self, original, name, args, kwargs, key=None, extra=None):
+        event = None
+        try:
+            event = self.begin(name, key, extra)
+            self.stack().append(event)
+        except Exception as exc:
+            self.record_error(exc)
+        error = None
+        try:
+            return original(*args, **kwargs)
+        except BaseException as exc:
+            error = repr(exc)
+            raise
+        finally:
+            if event is not None:
+                self.stack().pop()
+                self.end(event, error)
+
+    def patch(self, owner, attr, classify):
+        original = getattr(owner, attr, None)
+        if not callable(original):
+            self.record_error(RuntimeError('未計測: missing callable ' + attr))
+            return
+
+        @functools.wraps(original)
+        def observed(*args, **kwargs):
+            spec = None
+            try:
+                spec = classify(args, kwargs, sys._getframe(1).f_code)
+            except Exception as exc:
+                self.record_error(exc)
+            if spec is None:
+                return original(*args, **kwargs)
+            name, key, extra = spec
+            return self.invoke(original, name, args, kwargs, key, extra)
+        self.undo.append((owner, attr, original))
+        setattr(owner, attr, observed)
+
+
+def install(rec, module):
+    builder = getattr(module, '_build_t080_stub_free_e2e_repo', None)
+    helper = getattr(module, '_t080_stub_free_e2e_repo', None)
+    bases_class = getattr(module, '_T080SharedBases', None)
+    if not all(callable(x) for x in (builder, helper, bases_class)):
+        rec.record_error(RuntimeError('未計測: builder/helper/shared bases absent'))
+        rec.installed = True
+        return
+    bases = module._T080_SHARED_BASES
+    build_code, helper_code = builder.__code__, helper.__code__
+    get_code = bases_class.get.__code__
+    fields = ('r_trailer', 'extra_r_path', 'issue_receipt',
+              'distinct_basis_blob', 'active_v2_base')
+
+    def arguments(function, args, kwargs):
+        bound = inspect.signature(function).bind(*args, **kwargs)
+        bound.apply_defaults()
+        return [bound.arguments[field] for field in fields]
+
+    def get_spec(args, kwargs, caller):
+        key = args[1] if len(args) > 1 else kwargs['key']
+        return ('get', list(key), {'shared_session': args[0] is bases,
+                                  'base_parent': str(args[0].parent)})
+
+    rec.patch(bases_class, 'get', get_spec)
+    rec.patch(module, '_t080_stub_free_e2e_repo', lambda a, k, c:
+              ('helper', arguments(helper, a, k), {}))
+    rec.patch(module, '_build_t080_stub_free_e2e_repo', lambda a, k, c:
+              ('build', arguments(builder, a, k), {'base_parent': str(a[0])}))
+
+    def direct(name):
+        return lambda a, k, c: (name, None, {}) if c is build_code else None
+
+    for attr in ('_copy_git_visible_output', '_copy_t080_migration_basis_file'):
+        rec.patch(module, attr, direct('copy'))
+    rec.patch(module, '_copy_t080_basis_file', lambda a, k, c:
+              (('runtime' if Path(a[0]).name == 't080-current-runtime' else 'copy'), None, {})
+              if c is build_code else None)
+    rec.patch(module.shutil, 'copytree', lambda a, k, c:
+              ({build_code: 'copy', helper_code: 'base_copy'}[c], None, {})
+              if c in (build_code, helper_code) else None)
+    rec.patch(module, '_run_git', direct('git'))
+    rec.patch(module.migration, 'inspect_receipt_history', direct('history'))
+    rec.patch(module.subprocess, 'run', lambda a, k, c:
+              ('issue', None, {}) if c is build_code and a and
+              list(a[0][:4]) == [sys.executable, '-I', '-B', '-c'] else None)
+
+    def key_lock(args, kwargs, caller):
+        if caller is not get_code or len(args) < 2 or args[1] != module.fcntl.LOCK_EX:
+            return None
+        event = next((e for e in reversed(rec.stack()) if e['name'] == 'get'), None)
+        if event is None:
+            return None
+        key = event['key']
+        digest_key = key if len(key) == 5 and key[4] else key[:4]
+        expected = Path(event['extra']['base_parent']) / (
+            hashlib.sha256(json.dumps(digest_key).encode()).hexdigest() + '.lock')
+        if Path(getattr(args[0], 'name', '')) == expected:
+            return 'key_wait', key, {}
+        return None
+
+    rec.patch(module.fcntl, 'flock', key_lock)
+    rec.patch(module.migration, 'verify_receipt', lambda a, k, c:
+              ('verify', None, {}) if rec.nodeid and
+              not any(e['name'] == 'build' for e in rec.stack()) else None)
+    rec.installed = True
+    event = rec.begin('installed', extra={'module': module.__name__,
+                      'targets': [attr for _, attr, _ in rec.undo]})
+    rec.end(event)
+
+
+def maybe_install():
+    if not _REC or _REC.installed or _REC.worker == 'controller':
+        return
+    # pytest may use a package-qualified or importlib-mode name. Never import it.
+    matches = {id(m): m for m in list(sys.modules.values()) if m is not None and
+               str(getattr(m, '__file__', '')).replace('\\', '/').endswith('/' + _TARGET)}
+    if len(matches) == 1:
+        install(_REC, next(iter(matches.values())))
+    elif len(matches) > 1:
+        _REC.record_error(RuntimeError('ambiguous target module'))
+
+
+def pytest_configure(config):
+    global _REC
+    _REC = None
+    out = os.environ.get('T2817_REPLICA_OUT')
+    if not out:
+        return
+    Path(out).mkdir(parents=True, exist_ok=True)
+    _REC = Recorder(out, getattr(config, 'workerinput', {}).get('workerid', 'controller'))
+
+
+def pytest_sessionstart(session):
+    if _REC:
+        _REC.started = time.time()
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_finish(session):
+    maybe_install()
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    maybe_install()
+
+
+def pytest_runtest_logstart(nodeid, location):
+    if _REC and _REC.worker != 'controller':
+        _REC.nodeid = nodeid
+        _REC.test = _REC.begin('test', extra={'nodeid': nodeid})
+
+
+def pytest_runtest_logfinish(nodeid, location):
+    if _REC and _REC.worker != 'controller':
+        if _REC.test is not None:
+            _REC.end(_REC.test)
+        _REC.test, _REC.nodeid = None, ''
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session, exitstatus):
+    if not _REC:
+        return
+    event = _REC.begin('sessionfinish', extra={'exitstatus': int(exitstatus),
+                       'installed': _REC.installed})
+    _REC.end(event)
+    for owner, attr, original in reversed(_REC.undo):
+        setattr(owner, attr, original)
+    if _REC.worker == 'controller':
+        try:
+            (_REC.out / 'controller.json').write_text(json.dumps({
+                'session_start': _REC.started, 'session_finish': time.time(),
+                'exitstatus': int(exitstatus), 'argv': list(sys.argv),
+                'effective_scheduler': session.config.getoption('dist', default=None),
+                'log_lines_source': 'pytest.log'}, indent=2) + '\n')
+        except Exception as exc:
+            _REC.record_error(exc)

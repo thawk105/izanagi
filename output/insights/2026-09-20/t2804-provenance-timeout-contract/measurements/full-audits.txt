@@ -1,0 +1,6 @@
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-fix1.log:1:2026-09-20T22:06:24+0900 start head=62ed683aba12dd98e17f040d701fe5390cbab4cc
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-fix1.log:76:check_ai_provenance: 12062 件、新規違反なし
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-fix1.log:78:2026-09-20T22:07:27+0900 end rc=0
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-impl.log:1:2026-09-20T21:50:51+0900 start head=aa81e3c64445055dbf8088b47c47f22b39a63571
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-impl.log:76:check_ai_provenance: 12061 件、新規違反なし
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2804-provenance-timeout-contract/audit-impl.log:78:2026-09-20T21:52:06+0900 end rc=0

@@ -1,0 +1,23 @@
+{
+  "session_start": 1789923443.19622,
+  "session_finish": 1789923499.4515367,
+  "exitstatus": 0,
+  "argv": [
+    "/home/SFC/tanab/.local/lib/python3.10/site-packages/pytest/__main__.py",
+    "--dist",
+    "loadgroup",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2817-acceptance-bottleneck-3/orchestrator/tests/test_s8b_oracle_driver.py",
+    "-k",
+    "shared_base_builds_real_builder_once_across_processes",
+    "-n",
+    "2",
+    "--dist",
+    "loadgroup",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "t2817_replica_plugin"
+  ],
+  "effective_scheduler": "loadgroup",
+  "log_lines_source": "pytest.log"
+}

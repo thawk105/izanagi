@@ -1,0 +1,230 @@
+{
+  "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage",
+  "n": 20,
+  "A": [
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-write-heavy/campaigns/t2266-backoff-static-tail-v2-silo-write-heavy-sweep-ba50e41d/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-read-heavy/campaigns/t2266-backoff-static-tail-v2-silo-read-heavy-sweep-8c0d1b59/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-balanced/campaigns/t2266-backoff-static-tail-v2-silo-balanced-sweep-55f67740/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-balanced/campaigns/t2418-backoff-static-explore-v1-silo-balanced-sweep-783ccbe8/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-read-heavy/campaigns/t2418-backoff-static-explore-v1-silo-read-heavy-sweep-a3c44399/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-write-heavy/campaigns/t2418-backoff-static-explore-v1-silo-write-heavy-sweep-c9cea61a/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-9064a9e0/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-1c8d08f7/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-9cda88f0/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-45feee64/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-d7cbfe58/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-ed0b204e/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-99c517a9/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-4172d2ed/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260909b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-a4efd902/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-b7-fixed5-regression-rr5-2b1c7c96/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-b7-fixed5-regression-rr95-78070af2/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-b7-fixed5-regression-rr50-6e2177d3/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-20260917b-official/campaigns/backoff-sweep-silo-write-heavy-sweep-5e637735/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs/t1998-balanced-stock-inline-20260913T132723Z-548740-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "recorded_sha256_match": true,
+      "decoded": "DecodedHistoricalCampaignLock",
+      "grammar_is_exact63": true,
+      "ok": true
+    }
+  ],
+  "B": [
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-d7cbfe58/campaign.lock",
+      "type": "HistoricalCampaignVerifierEpoch",
+      "state": "E1",
+      "reason": "recorded-closure",
+      "epoch": "E1:7198f909dcb2ead7c99adc3bd010bec78a1fb0d37fbe3a03bc05fc023136f703",
+      "identity_scope_is_old63": true,
+      "excluded_scope_is_old63": true,
+      "conformance": "unknown",
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-99c517a9/campaign.lock",
+      "type": "HistoricalCampaignVerifierEpoch",
+      "state": "E1",
+      "reason": "recorded-closure",
+      "epoch": "E1:ca6df4f8c283230333b33573b3a83df425e31cd939aac5eefdc466aeb1b478b5",
+      "identity_scope_is_old63": true,
+      "excluded_scope_is_old63": true,
+      "conformance": "unknown",
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-4172d2ed/campaign.lock",
+      "type": "HistoricalCampaignVerifierEpoch",
+      "state": "E1",
+      "reason": "recorded-closure",
+      "epoch": "E1:ca6df4f8c283230333b33573b3a83df425e31cd939aac5eefdc466aeb1b478b5",
+      "identity_scope_is_old63": true,
+      "excluded_scope_is_old63": true,
+      "conformance": "unknown",
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs/t1998-balanced-stock-inline-20260913T132723Z-548740-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "type": "HistoricalCampaignVerifierEpoch",
+      "state": "E1",
+      "reason": "recorded-closure",
+      "epoch": "E1:0b81a0f01d766e74109a54e84d0ca522eaa6943aa9a01231d74c5c429fc8cfbd",
+      "identity_scope_is_old63": true,
+      "excluded_scope_is_old63": true,
+      "conformance": "unknown",
+      "ok": true
+    }
+  ],
+  "C": [
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-d7cbfe58/campaign.lock",
+      "normal_decoder": "rejected: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_normal": true,
+      "certified_epoch": "rejected: ArtifactAdmissionError: campaign.lock codec validation failed: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_certified": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-99c517a9/campaign.lock",
+      "normal_decoder": "rejected: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_normal": true,
+      "certified_epoch": "rejected: ArtifactAdmissionError: campaign.lock codec validation failed: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_certified": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-4172d2ed/campaign.lock",
+      "normal_decoder": "rejected: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_normal": true,
+      "certified_epoch": "rejected: ArtifactAdmissionError: campaign.lock codec validation failed: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_certified": true,
+      "ok": true
+    },
+    {
+      "path": "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs/t1998-balanced-stock-inline-20260913T132723Z-548740-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "normal_decoder": "rejected: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_normal": true,
+      "certified_epoch": "rejected: ArtifactAdmissionError: campaign.lock codec validation failed: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+      "ok_certified": true,
+      "ok": true
+    }
+  ],
+  "bytes_unchanged": true,
+  "A_ok": 20,
+  "B_ok": 4,
+  "C_ok": 4
+}

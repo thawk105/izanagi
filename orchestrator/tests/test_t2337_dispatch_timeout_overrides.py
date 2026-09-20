@@ -176,6 +176,7 @@ def test_mutation_collection_rejects_short_outer_watchdog_before_launch(
 def test_provenance_dispatch_forwards_both_d612_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, raising=False)
     observed: dict[str, object] = {}
 
     monkeypatch.setenv(QUEUE_ENV, "1800")
@@ -201,6 +202,7 @@ def test_provenance_dispatch_forwards_both_d612_overrides(
 def test_provenance_dispatch_omits_both_overrides_when_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv(provenance._PROVENANCE_OUTER_DEADLINE_ENV, raising=False)
     observed: dict[str, object] = {}
 
     monkeypatch.delenv(QUEUE_ENV, raising=False)

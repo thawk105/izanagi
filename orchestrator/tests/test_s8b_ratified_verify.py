@@ -481,8 +481,11 @@ def _result_document(protocol: dict, cells: list[dict], binaries: dict,
 
 
 def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=None,
-                                   cert_at_generation=False, executable_role=None):
-    """C(cert only)→G(run artifacts+closure+generation)→A(approval)→X(pointer)→H。"""
+                                   cert_at_generation=False, executable_role=None,
+                                   artifacts_at_certificate=False):
+    """C→G→A→X→H。option 有効時は artifacts/closure を C に、世代文書だけを G に置く。"""
+    if artifacts_at_certificate and cert_at_generation:
+        raise ValueError("artifacts_at_certificate conflicts with cert_at_generation")
     root = tmp_path / "launch-repo"
     root.mkdir()
     _lgit(root, "init", "-q")
@@ -535,7 +538,8 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
         c_commit = base_commit
     else:
         _lwrite(root, paths["cert"], cert_raw)
-        c_commit = _lcommit(root, "launch certificate", "fixture")
+        if not artifacts_at_certificate:
+            c_commit = _lcommit(root, "launch certificate", "fixture")
 
     cells = FC.enumerate_cells(freeze, stock_configuration=protocol["stock_configuration"])
     schedule = FC.build_schedule(
@@ -640,6 +644,8 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     if executable_role is not None:
         executable_path = root / paths[executable_role]
         executable_path.chmod(executable_path.stat().st_mode | 0o111)
+    if artifacts_at_certificate:
+        c_commit = _lcommit(root, "certificate and run artifacts", "fixture")
     gen_doc = dict(freeze)
     gen_doc.update({
         "schema_version": "8b-holdout-freeze/v2", "generation_number": 1,
@@ -2823,6 +2829,306 @@ def test_cert_raw_hit_checked_before_cert_schema(tmp_path):
         M.launch_validate(freeze, root)
     assert ei.value.reason == "floor-artifact-invalid"
     assert ei.value.cause == "certificate-holdout-hit"
+
+
+def _t2810_reservation(state, *, binding):
+    """Independent literal grammar from journal-keys-probe and producer records."""
+    record = {
+        "event": "reservation-preflight", "required_s": 100,
+        "safety_margin_s": 10, "formula": "fixture-reservation",
+        "build_cap_per_cell_s": 10, "shared_dependency_prebuild": False,
+        "dependency_configure_cap_s": 10, "dependency_target_cap_s": 10,
+        "verify_cap_per_attempt_s": 10, "finalize_reserve_s": 10,
+    }
+    if binding:
+        claim = {"pbs_jobid": "123.fixture", "submission_nonce": "fixture-nonce"}
+        record.update(claim)
+        for records in (state["journal"], state["result"]["wall_ledger"]):
+            next(r for r in records if r["event"] == "campaign-start").update(claim)
+    state["journal"].insert(1, record)
+
+
+@pytest.mark.parametrize("shape", ["default", "certificate", "bound", "unbound"])
+def test_t2810_launch_positive(tmp_path, shape):
+    """P-a..P-d: public launch core; this does not prove the loader chain."""
+    def mutate(state):
+        if shape in {"bound", "unbound"}:
+            _t2810_reservation(state, binding=shape == "bound")
+
+    root, freeze, topology = _build_independent_launch_repo(
+        tmp_path, artifacts_at_certificate=shape != "default", mutate=mutate,
+    )
+    checked = M.launch_validate(freeze, root)
+    assert isinstance(checked, M.LaunchValidatedFreeze)
+    assert _lgit(root, "rev-parse", topology["G"] + "^") == topology["C"]
+    graph = M._commit_graph(topology["H"], root)
+    for role in ("result", "closure80", "closure20"):
+        path = topology["paths"][role]
+        _, oid = M._tree_mode_oid(topology["H"], path, root)
+        expected = topology["G"] if shape == "default" else topology["C"]
+        assert M._immutable_introductions(graph, path, oid, root) == (expected,)
+    if shape != "default":
+        assert _lgit(root, "diff-tree", "--no-commit-id", "--name-only", "-r",
+                     topology["G"]) == M._gen_path(1)
+
+
+def test_t2810_fixture_conflicting_options(tmp_path):
+    with pytest.raises(ValueError, match="artifacts_at_certificate conflicts"):
+        _build_independent_launch_repo(
+            tmp_path, artifacts_at_certificate=True, cert_at_generation=True,
+        )
+
+
+def _t2810_journal_negative(tmp_path, change, cause, *, binding=True):
+    # Paired public positive control uses the same fixture and hash repair route.
+    for dirname, negative in (("control", False), ("negative", True)):
+        parent = tmp_path / dirname
+        parent.mkdir()
+
+        def mutate(state):
+            _t2810_reservation(state, binding=binding)
+            if negative:
+                change(state)
+            # Preserve the full campaign record, including malformed binding, so
+            # removing a journal guard cannot be masked by result-wall_ledger.
+            campaign = next(r for r in state["journal"] if r["event"] == "campaign-start")
+            state["result"]["wall_ledger"] = [
+                copy.deepcopy(campaign) if r["event"] == "campaign-start" else r
+                for r in state["result"]["wall_ledger"]
+            ]
+
+        root, freeze, _ = _build_independent_launch_repo(
+            parent, artifacts_at_certificate=True, mutate=mutate,
+        )
+        if not negative:
+            assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+        else:
+            with pytest.raises(M.RatifiedFreezeError) as ei:
+                M.launch_validate(freeze, root)
+            assert ei.value.reason == "journal-state-invalid"
+            assert ei.value.cause == cause
+            return ei.value
+
+
+def test_t2810_unknown_journal_event(tmp_path):
+    def change(state):
+        state["journal"].insert(1, {"event": "reservation-preflight-unknown"})
+    _t2810_journal_negative(tmp_path, change, "journal-event")
+
+
+@pytest.mark.parametrize("event", ["campaign-start", "reservation-preflight"])
+def test_t2810_binding_one_sided_claim(tmp_path, event):
+    def change(state):
+        record = next(r for r in state["journal"] if r["event"] == event)
+        del record["pbs_jobid"]
+        del record["submission_nonce"]
+    _t2810_journal_negative(tmp_path, change, "journal-binding-claim")
+
+
+def test_t2810_binding_campaign_without_reservation(tmp_path):
+    def change(state):
+        state["journal"] = [r for r in state["journal"]
+                            if r["event"] != "reservation-preflight"]
+    _t2810_journal_negative(tmp_path, change, "journal-binding-claim")
+
+
+@pytest.mark.parametrize("event", ["campaign-start", "reservation-preflight"])
+@pytest.mark.parametrize("field", ["pbs_jobid", "submission_nonce"])
+def test_t2810_binding_missing_key(tmp_path, event, field):
+    def change(state):
+        del next(r for r in state["journal"] if r["event"] == event)[field]
+    error = _t2810_journal_negative(tmp_path, change, "schema-keys")
+    assert field in str(error)
+
+
+@pytest.mark.parametrize("event", ["campaign-start", "reservation-preflight", "both"])
+@pytest.mark.parametrize("field", ["pbs_jobid", "submission_nonce"])
+@pytest.mark.parametrize("value", ["", 17], ids=["empty", "integer"])
+def test_t2810_binding_invalid_type(tmp_path, event, field, value):
+    def change(state):
+        # Each event is tested independently. The "both" cases also isolate M4:
+        # matching malformed values cannot be rejected by the equality guard.
+        for record in state["journal"]:
+            if record["event"] == event or (
+                    event == "both" and record["event"] in {
+                        "campaign-start", "reservation-preflight"}):
+                record[field] = value
+    _t2810_journal_negative(tmp_path, change, "journal-binding-type")
+
+
+@pytest.mark.parametrize("field", ["pbs_jobid", "submission_nonce"])
+def test_t2810_binding_value_mismatch(tmp_path, field):
+    def change(state):
+        state["journal"][1][field] = "different-valid-string"
+    _t2810_journal_negative(tmp_path, change, "journal-binding-mismatch")
+
+
+@pytest.mark.parametrize("field", [
+    "required_s", "safety_margin_s", "build_cap_per_cell_s",
+    "dependency_configure_cap_s", "dependency_target_cap_s",
+    "verify_cap_per_attempt_s", "finalize_reserve_s",
+])
+@pytest.mark.parametrize("value", [0, True, "10"], ids=["zero", "bool", "string"])
+def test_t2810_reservation_invalid_integer(tmp_path, field, value):
+    def change(state):
+        state["journal"][1][field] = value
+    _t2810_journal_negative(tmp_path, change, "reservation-preflight-type", binding=False)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("formula", ""), ("formula", 17), ("shared_dependency_prebuild", 1),
+], ids=["empty-formula", "integer-formula", "integer-bool"])
+def test_t2810_reservation_invalid_other_type(tmp_path, field, value):
+    def change(state):
+        state["journal"][1][field] = value
+    _t2810_journal_negative(tmp_path, change, "reservation-preflight-type", binding=False)
+
+
+@pytest.mark.parametrize("binding", [False, True], ids=["unbound", "bound"])
+def test_t2810_reservation_duplicate(tmp_path, binding):
+    def change(state):
+        state["journal"].insert(1, copy.deepcopy(state["journal"][1]))
+    _t2810_journal_negative(tmp_path, change, "reservation-preflight-count", binding=binding)
+
+
+@pytest.mark.parametrize("binding", [False, True], ids=["unbound", "bound"])
+def test_t2810_reservation_after_campaign(tmp_path, binding):
+    def change(state):
+        record = state["journal"].pop(1)
+        state["journal"].insert(2, record)
+    _t2810_journal_negative(tmp_path, change, "reservation-preflight-order", binding=binding)
+
+
+def test_t2810_other_event_binding_rejected(tmp_path):
+    def change(state):
+        state["journal"][0]["pbs_jobid"] = "123.fixture"
+    error = _t2810_journal_negative(tmp_path, change, "schema-keys")
+    assert "pbs_jobid" in str(error)
+
+
+def _t2810_commit_tree(root, tree, parents, subject, *, agent="fixture"):
+    args = ["commit-tree", tree]
+    for parent in parents:
+        args.extend(["-p", parent])
+    return _lgit(root, *args, stdin=f"{subject}\n\nAI-Agent: {agent}\n".encode())
+
+
+def _t2810_tree_with_closure(root, tree, path, oid):
+    _lgit(root, "read-tree", tree)
+    _lgit(root, "update-index", "--add", "--cacheinfo", "100644", oid, path)
+    return _lgit(root, "write-tree")
+
+
+def _t2810_rebuild_lineage(root, freeze, topology, case):
+    """Real object DAG; preserve G/A/X/H trees and all working-tree bytes/modes."""
+    old_c = topology["C"]
+    base = _lgit(root, "rev-parse", old_c + "^")
+    trees = {key: _lgit(root, "rev-parse", topology[key] + "^{tree}")
+             for key in ("C", "G", "A", "X", "H")}
+    path = topology["paths"]["closure80"]
+    _, oid = M._tree_mode_oid(topology["H"], path, root)
+    c = old_c
+    if case == "before-cert":
+        base_tree = _t2810_tree_with_closure(root, base, path, oid)
+        base = _t2810_commit_tree(root, base_tree, (), "base with closure")
+        c_tree = _t2810_tree_with_closure(root, trees["C"], path, oid)
+        c = _t2810_commit_tree(root, c_tree, (base,), "certificate")
+        parent = c
+    elif case == "merge":
+        left = _t2810_commit_tree(root, trees["C"], (c,), "left without closure")
+        right = _t2810_commit_tree(root, trees["C"], (c,), "right without closure")
+        merge_tree = _t2810_tree_with_closure(root, trees["C"], path, oid)
+        parent = _t2810_commit_tree(root, merge_tree, (left, right), "merge introduces closure")
+    elif case == "multiple":
+        intro_tree = _t2810_tree_with_closure(root, trees["C"], path, oid)
+        first = _t2810_commit_tree(root, intro_tree, (c,), "first closure")
+        parent = _t2810_commit_tree(root, trees["C"], (first,), "delete closure")
+    elif case in {"intermediate", "branch-join"}:
+        intro_tree = _t2810_tree_with_closure(root, trees["C"], path, oid)
+        parent = _t2810_commit_tree(root, intro_tree, (c,), "intermediate closure")
+        if case == "branch-join":
+            right = _t2810_commit_tree(root, trees["C"], (c,), "branch without closure")
+            parent = _t2810_commit_tree(root, intro_tree, (parent, right), "join existing closure")
+    else:
+        raise AssertionError(case)
+    rebuilt = {"C": c}
+    for key, agent in (("G", "fixture"), ("A", "none"), ("X", "none"), ("H", "fixture")):
+        parent = _t2810_commit_tree(root, trees[key], (parent,), key, agent=agent)
+        rebuilt[key] = parent
+    _lgit(root, "update-ref", "HEAD", rebuilt["H"], topology["H"])
+    _lgit(root, "read-tree", trees["H"])
+    assert not _lgit(root, "diff", "--name-only")
+    assert not _lgit(root, "diff", "--cached", "--name-only")
+    assert M._git_ok(["merge-base", "--is-ancestor", c, rebuilt["G"]], root)
+    assert c != rebuilt["G"]
+    graph = M._commit_graph(rebuilt["H"], root)
+    assert len(graph.parents[c]) == 1
+    for role in ("result", "closure80", "closure20"):
+        artifact = topology["paths"][role]
+        M._capture_g_h_worktree(
+            generation_commit=rebuilt["G"], validation_head=rebuilt["H"],
+            path=artifact, root=root,
+        )
+    return dataclasses.replace(
+        freeze, generation_commit=rebuilt["G"], activation_head=rebuilt["H"],
+    )
+
+
+@pytest.mark.parametrize("case,reason,cause", [
+    ("before-cert", "binding-chain-mismatch", "artifact-introduction-before-cert"),
+    ("merge", "binding-chain-mismatch", "artifact-introduction-merge"),
+    ("multiple", "multiple-introduction", None),
+], ids=["before-cert", "merge", "multiple"])
+def test_t2810_artifact_lineage_rejected(tmp_path, case, reason, cause):
+    # N-1..N-3: independent input histories, not a replacement of the validator.
+    root, freeze, topology = _build_independent_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+    changed = _t2810_rebuild_lineage(root, freeze, topology, case)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(changed, root)
+    assert ei.value.reason == reason
+    assert ei.value.cause == cause
+
+
+@pytest.mark.parametrize("case", ["intermediate", "branch-join"])
+def test_t2810_artifact_interval_positive(tmp_path, case):
+    """The adjudicated interval also accepts intermediate and joined branch introductions."""
+    root, freeze, topology = _build_independent_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+    changed = _t2810_rebuild_lineage(root, freeze, topology, case)
+    assert isinstance(M.launch_validate(changed, root), M.LaunchValidatedFreeze)
+
+
+def test_t2810_generation_introduction_independent(tmp_path):
+    """Additional N-4 control; the existing production-emitter regression stays unchanged."""
+    root, freeze, topology = _build_independent_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+    wrong_g = dataclasses.replace(freeze, generation_commit=topology["A"])
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.launch_validate(wrong_g, root)
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "generation-introduction"
+
+
+def test_t2810_artifact_upper_bound_helper(tmp_path):
+    """N-14: 上限は段階 3 から従う重複検査の単体試験。public 経路の証拠ではない。"""
+    root, freeze, topology = _build_independent_launch_repo(tmp_path)
+    assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
+    path = "after-generation.txt"
+    _lwrite(root, path, b"helper-only artifact\n")
+    head = _lcommit(root, "artifact after G", "fixture")
+    graph = M._commit_graph(head, root)
+    _, oid = M._tree_mode_oid(head, path, root)
+    # Control with the same graph, bytes and lower bound, but an inclusive upper endpoint.
+    M._assert_artifact_introduction_interval(
+        graph, path, oid, cert_commit=topology["C"], gen_commit=head, root=root,
+    )
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_artifact_introduction_interval(
+            graph, path, oid, cert_commit=topology["C"], gen_commit=topology["G"], root=root,
+        )
+    assert ei.value.reason == "binding-chain-mismatch"
+    assert ei.value.cause == "artifact-introduction-outside-generation"
 
 
 def test_certificate_same_commit_as_generation_rejected(tmp_path):

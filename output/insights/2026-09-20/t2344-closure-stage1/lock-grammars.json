@@ -1,0 +1,525 @@
+{
+  "roots": [
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output",
+    "/work/1/SFC/tanab/b10-backoff-grid-runs5",
+    "/work/1/SFC/tanab/b10-backoff-grid-runs6",
+    "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal",
+    "/work/1/SFC/tanab/b10-backoff-grid-t2266-tail",
+    "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore",
+    "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal",
+    "/work/1/SFC/tanab/b10-tail-formal-recheck-20260916",
+    "/work/1/SFC/tanab/b10-backoff-requested-us-runs",
+    "/work/1/SFC/tanab/izanagi-measurements",
+    "/work/1/SFC/tanab/izanagi-task-runs",
+    "/work/1/SFC/tanab/izanagi-job-evidence",
+    "/work/1/SFC/tanab/izanagi-evidence-reports",
+    "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs",
+    "/work/1/SFC/tanab/a5-second-boot-runs",
+    "/work/1/SFC/tanab/t2266-tail-runs",
+    "/work/1/SFC/tanab/izanagi-exploration",
+    "/work/1/SFC/tanab/izanagi-exploration-t2182",
+    "/work/1/SFC/tanab/izanagi-exploration-t2182-run2"
+  ],
+  "by_key_count": {
+    "no-authority": 32,
+    "24": 29,
+    "62": 6,
+    "63": 20,
+    "12": 4,
+    "8": 1
+  },
+  "locks": [
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-sweep-silo-read-heavy-sweep-6f169f90/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/s1-direct-block2-direct-comparison-9645b16a/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/s1-direct-floor-direct-comparison-b82b9229/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p2-2-silo-balanced-enumerate-f1588056/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s6-sort-sweep-balanced-sweep-dd25aa8c/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-kickoff-coder-wiring-cba40400/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-d4552403/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/s1-direct-develop-direct-comparison-d0f495bf/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-sweep-silo-read-heavy-sweep-8ff95955/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s6-sort-sweep-balanced-sweep-1b39095e/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-repro-silo-write-heavy-repro-181607af/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/s1-direct-develop-direct-comparison-7bccdf1a/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-c2d838b8/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/p3-s4-red-s4-red-consumer-9a1897c4/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/campaigns/backoff-repro-silo-balanced-repro-87dbbf50/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/insights/2026-08-04_wave-a-campaign-transport-smoke/evidence/campaign-layout/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-0a11751c/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-closure-stage/output/insights/2026-08-04_wave-a-campaign-transport-smoke/evidence/campaign-layout/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-9785aec6/campaign.lock",
+      "keys": null,
+      "schema": null,
+      "note": "no authority"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T172151Z-81318-write-heavy/campaigns/t2266-backoff-static-tail-silo-write-heavy-sweep-9cce192b/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T172151Z-81318-balanced/campaigns/t2266-backoff-static-tail-silo-balanced-sweep-0ffee20c/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T173602Z-433694-read-heavy/campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-read-heavy/campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-write-heavy/campaigns/t2266-backoff-static-tail-silo-write-heavy-sweep-9cce192b/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T172151Z-81318-read-heavy/campaigns/t2266-backoff-static-tail-silo-read-heavy-sweep-7e90afbe/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T173602Z-433694-write-heavy/campaigns/t2266-backoff-static-tail-silo-write-heavy-sweep-9cce192b/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T173602Z-433694-balanced/campaigns/t2266-backoff-static-tail-silo-balanced-sweep-0ffee20c/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-runs6/b10-backoff-grid-20260906T181718Z-1158057-balanced/campaigns/t2266-backoff-static-tail-silo-balanced-sweep-0ffee20c/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-write-heavy/campaigns/t2266-backoff-static-tail-v2-silo-write-heavy-sweep-ba50e41d/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-read-heavy/campaigns/t2266-backoff-static-tail-v2-silo-read-heavy-sweep-8c0d1b59/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2266-formal/b10-backoff-grid-20260909T135503Z-1669897-balanced/campaigns/t2266-backoff-static-tail-v2-silo-balanced-sweep-55f67740/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-balanced/campaigns/t2418-backoff-static-explore-v1-silo-balanced-sweep-783ccbe8/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-read-heavy/campaigns/t2418-backoff-static-explore-v1-silo-read-heavy-sweep-a3c44399/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2418-explore/b10-backoff-grid-20260908T193601Z-2540578-write-heavy/campaigns/t2418-backoff-static-explore-v1-silo-write-heavy-sweep-c9cea61a/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-9064a9e0/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-1c8d08f7/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260915T061814Z-545445-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-9cda88f0/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-write-heavy/campaigns/t2500-backoff-static-tail-formal-silo-write-heavy-sweep-45feee64/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-balanced/campaigns/t2500-backoff-static-tail-formal-silo-balanced-sweep-d7cbfe58/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/b10-backoff-grid-20260919T131526Z-2235286-read-heavy/campaigns/t2500-backoff-static-tail-formal-silo-read-heavy-sweep-ed0b204e/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2228-20260904a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-285206c2/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2228-20260904a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-bb1f5793/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-99c517a9/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2489-20260918a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-4172d2ed/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260827/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-df07b695/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260827/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-794cfb1a/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-b571889a/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-57427bf5/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-1af9fc2b/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-5efd479e/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-65f2a62b/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-9de5ac16/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828b/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-3ef9add6/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828b/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-b7a7c493/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260909b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-a4efd902/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-1e7d99f2/campaign.lock",
+      "keys": 62,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-b7-fixed5-regression-rr5-2b1c7c96/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-b7-fixed5-regression-rr95-78070af2/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-b7-fixed5-regression-rr50-6e2177d3/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-20260917b-official/campaigns/backoff-sweep-silo-write-heavy-sweep-5e637735/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-write-heavy-formal-e3de15eb/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-read-heavy-trial-6cef7cf6/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-write-heavy-formal-068fd2cd/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-balanced-formal-15e75b3f/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-balanced-formal-143a3f74/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-read-heavy-formal-ed8a676b/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape/official-output/campaigns/b10-backoff-shape-silo-read-heavy-formal-acf840c8/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/t1998-balanced-stock-inline-runs/t1998-balanced-stock-inline-20260913T132723Z-548740-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "keys": 63,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/a5-second-boot-runs/a5-second-boot-backoff-sweep-20260906T171922Z-31812-write-heavy/campaigns/backoff-sweep-silo-write-heavy-sweep-8e82cd3f/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/a5-second-boot-runs/a5-second-boot-backoff-sweep-20260906T171922Z-31812-balanced/campaigns/backoff-sweep-silo-balanced-sweep-0dd37c05/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration/t1112-0817h/exploration/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-ea5aafe9/campaign.lock",
+      "keys": 12,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration/t1112-0817c/exploration/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-a6e7f12d/campaign.lock",
+      "keys": 12,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration/t1112/exploration/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-29944d36/campaign.lock",
+      "keys": 8,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration/t1112-0817e/exploration/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-5683474e/campaign.lock",
+      "keys": 12,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration/t1112-0817i/exploration/campaigns/p3-t178-ycsb-a-workload-conditioned-autonomous-af36f7b9/campaign.lock",
+      "keys": 12,
+      "schema": "campaign-lock/v2"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-exploration-t2182/exploration/campaigns/p3-s4-loop-s4-autonomous-b6dde2ef/campaign.lock",
+      "keys": 24,
+      "schema": "campaign-lock/v2"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+09b6c36e9a RUN@6s END@47s RUN区間 41s  pytest 21.53s  17 failed, 609 passed
+1136c5ebc4 RUN@6s END@47s RUN区間 41s  pytest 21.02s  17 failed, 609 passed
+11d955d938 RUN@6s END@47s RUN区間 41s  pytest 24.35s  1 failed, 625 passed
+29118c17a9 RUN@6s END@708s RUN区間 701s  pytest 21.1s  4 failed, 622 passed
+409b46510e RUN@6s END@47s RUN区間 41s  pytest 20.85s  626 passed
+43ae4e38da RUN@6s END@47s RUN区間 41s  pytest 21.05s  20 failed, 606 passed
+4b501c7b8f RUN@6s END@42s RUN区間 36s  pytest 20.98s  626 passed
+54a0061e17 RUN@6s END@47s RUN区間 41s  pytest 20.91s  13 failed, 613 passed
+5a72f3140a RUN@6s END@37s RUN区間 31s  pytest 20.57s  3 failed, 623 passed
+6c5b5bc1c6 RUN@7s END@48s RUN区間 41s  pytest 20.89s  8 failed, 618 passed
+9d816435ef RUN@6s END@52s RUN区間 46s  pytest 23.78s  2 failed, 624 passed
+9ebab82523 RUN@6s END@47s RUN区間 41s  pytest 20.99s  1 failed, 625 passed
+a17a7ccf9b RUN@6s END@37s RUN区間 31s  pytest 20.99s  21 failed, 605 passed
+f87c85dce2 RUN@6s END@99s RUN区間 92s  pytest Nones  None
+fe11fa2e73 RUN@6s END@48s RUN区間 41s  pytest 21.05s  2 failed, 624 passed
+n=15 pytest 中央値 21.02s, RUN区間 中央値 41s

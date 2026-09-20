@@ -69381,3 +69381,537 @@ D2174 項 6 を維持し、git author identity から推測しない。今回も
   rulings-inbox の `2026-09-20-rulings-full26-verdicts.md` に照合項として控えた。
 - 相談が挙げた land 側 provenance 監査の外側 timeout と dispatch queue 待ちの両立 (第 25 回と同じ) は択が無く、形が提案された時点で諮る。
   dev-wave docs の予算・exact pin の候補 2 件 (DW-O18 の `--force-dispatch`、DW-O26 の range 監査注記) は D782 / D961 で AI が閉じる。
+
+## D2187. K2 同 job pair の初投入で stock が one-shot claim leaf に拒否された — D2183 の 2 process 設計は Pegasus 契約と両立せず、修復方向は 1 回の認可・claim の所有期間で候補と stock を両評価する driver 設計とし、本 wave は実装せず記録に留める (2026-09-20)
+
+**決定:**
+
+- **事実の確定 (D2183 の本文は書き換えない):** D2183 の launcher (job body が候補 driver の後に `--stock-control` の driver を同 job・同 campaign で 1 回起動する) は、
+  Pegasus 計算ノード契約 (`single_process=True`、reservation 必須) の下では成立しない。`loop._authorize_measurement` は `run_campaign` の呼出しごとに
+  `campaign_claim.acquire_claim` を呼び、claim は campaign identity ごとに 1 file・`O_EXCL`・release も stale 判定も無い (single-process campaign の one-shot claim leaf、
+  D464 / D553)。候補 driver が残した同 identity の claim を、同 job の 2 つ目の driver process は所有者の生死に関わらず取れない。初投入 (`13339.nqsv`、2026-09-20) で
+  候補は certified、stock は condition gate 正常復帰の後に `ClaimError` で停止、build 未到達、`src_token == STOCK` 未確認、pair 不成立。
+- **本 wave の処置:** 依頼の停止規則 (成立しなければ認定せず報告して止める、再投入で救済しない、launcher 改修は scope 外) に従い正式停止。claim file を削除・退避しない。
+  4 巡目 (D2172 項 3 (iv)) は「成立したら」の条件が解除できないので投入しない。候補 10 の再評価 (811,956 tps) は当時の判定として保持し (規律 7)、pair・改善の証拠に
+  昇格させない。results 稿は作らない。
+- **修復方向 (別 wave、Codex author + 敵対検証子):** 「1 回の認可・claim の所有期間で候補と stock の両評価を行う driver 設計」。claim leaf (`campaign_claim.py`) は不変。
+  `run_campaign` の認可契約 (取得済み認可の受け渡し) または stock 評価の呼出し形を変える。D553 の sink-local `single_process` と D2183 の CLI 排他 (`--run-iteration` と
+  `--stock-control`) への影響を段 1 で明示し、同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査 (実 `_authorize_measurement` を通す) を必ず含める。
+  修復後の pair 再投入 (1 job) と 4 巡目 (1 job) は D2172 項 3 の予算の再提示 (ユーザー)。D2172 項 3 の元の認可は撤回しない。
+
+**理由:**
+
+- claim leaf の docstring と D464 / D553 は「release・stale 自動削除・期限切れ回収を導入しない」「手動回収だけが裁定済み経路」と定める。同 identity path の永久拒否は
+  D464 の文面には明記されていないが実装はそうなっており、これを変えるのは排他防壁 (受理集合) の変更であって launcher の局所修復ではない。
+- 「同 process にまとめる」だけでは不成立 — `run_campaign` は呼出しごとに認可し、2 回目も同 path の `O_EXCL` で拒否される。認可を 1 度取り、その所有範囲で両評価を行う
+  設計まで具体化して初めて leaf の one-shot と D2183 の「同 identity・同 WAL」を両立できる。
+- 既存経路 (`IZANAGI_EXPLORATION_OUTPUT_ROOT` の切替、reservation 不要契約、record 一致による再取得) は無い、または同 WAL を満たさない (相談 A が code で確認)。
+- 依頼が launcher 改修を scope 外・再投入禁止と明記しており、DW-STOP の「直せる赤で終了しない」より「許可範囲で復旧不能・承認前提を覆す新事実」が当たる。
+
+**却下した選択肢:**
+
+- 同 identity path の DEAD 所有者を再取得可能にする (D464 の生存判定を同 path へ拡張) — one-shot の受理集合を変え、判定と置換の競合を解く必要がある。防壁への影響が
+  局所修復より大きい。
+- job body が候補後に claim を rename / 退避してから stock を起動する — 自動退避は自動回収と同じ効果で claim 不在の窓を作る。「削除していない」は反論にならない。
+- stock を別 out_root (同 job・別 layout) で評価する — D464 の排他保証範囲外、D2183 の同 WAL 条件を破る。root を変えても identity は変わらず「別 campaign = 別 ID」でもない。
+- 本 wave で launcher を直して再投入する — 依頼の scope 外・再投入禁止。
+- stock 未測定を stock の失格・非 STOCK 判定に置き換える — inert は未測定のまま (規律 2 を緩めず、判定も捏造しない)。
+
+## D2188. 受入 shard 内 pairing を既定 on で採用し、property 4 種を残す (2026-09-20)
+
+**決定:** D2172 項 1 (択 (a)) の実装として、受入の collection hook (`orchestrator/tests/conftest.py`) は cost 順の unit 列に無条件で `_pair_initial_distribution_units` (realized order の 49〜96 位を候補中最小 cost の 48 unit に入れ替える) を適用する。環境変数 `IZANAGI_ACCEPTANCE_PAIRING_V1` の opt-in・token・`tests` task の allowlist 行は撤去し、opt-out も設けない。全 item への property 4 種 (`izanagi_acceptance_pairing_v1_{scope,rank,partner,worker}`、pairing 適用走のみ) は残す。unit < 96 の無変更、cardinality 不成立時の `pytest.UsageError` (fail-closed)、受理集合 (selected / hold / group / unit 境界・marker・既存 property・identity) の不変は保つ。
+
+**理由:**
+- 効果の再確認 (待ち手経由 = 本番経路の実受入、A = 採用前 main / B = 採用後の隣接対 3 組) で 3 対とも B が短く、最遅 shard の JUnit wall の対差 145.8 / 86.3 / 57.3 秒、対率中央値 19.6 % で、事前登録した land 条件 (全対 ΔW > 0 かつ対率中央値 ≥ 10 %) を満たした。前 wave (同一 tip の直接投入) の 101.7 / 112.9 / 144.3 秒と同方向。
+- property は本番の毎受入に「発火と実配布の witness」(被覆 100 %、rank 48〜95 = partner 集合、多重集合の独立再計算、worker 別 item 列) を残す唯一の手段で、既定 on の正例 test と変異 M5 の帰属もこれに依る。機序が未同定のまま採るので、後から機序を調べる材料を毎走残す価値がある。
+- opt-out を足さないのは、裁定が「名指しの変更に限定し付随する gate を足さない」と定めるためと、off の経路を残すと A 不変の負例と変異 M3 を維持し続ける費用が要るため。撤去は並べ替えの呼び出し 1 行と property 付与の削除で戻る。
+
+**却下した選択肢:**
+- property を外して順序変更だけ入れる — junit.xml は小さくなる (受入 1 走あたり約 −13 MB) が、本番で pairing が発火した証拠が junit から消え、機序調査の材料も残らない。
+- (b) A 側 witness (機序調査) を採用の前提にする — 裁定が「相乗り可、採用を遅らせない」と定め、A の item → worker 対応は A の code を変えないと取れない (A = 採用前 main でなくなる) ため本 wave では取らない。
+- (c) 見送り — 効果は本 wave でも 3 対同方向で確認された。
+
+**再訪条件:** property の費用は junit.xml が受入 1 走あたり約 +13 MB (A 0.7 / 1.8 / 1.6 MB → B 2.4 / 6.2 / 6.4 MB、3.4 倍) と実測した。session dir の容量が問題になった時点で、property を rank / partner だけに縮約するか外すかを別裁定にする。効果量は regime 依存 (57〜146 秒の観測) で「毎受入 100 秒」と一般化しない。対 3 (docs fold だけの最もきれいな対) が 12.6 % と閾値に近いため、効果の消失が疑われたら同じ事前登録 (隣接対 3 組、閾値 10 %) で再測する。
+
+## D2189. 複数 file に散る directive 箇所群は 1 macro の副 file 宣言として同じ深い鏡像で計装し、複数 file macro に限り箇所ごとの識別 marker で総数の相殺を拒否する (2026-09-20)
+
+**決定:** D1490 / D2182 の compile-time 枝選択 witness に、1 macro が所有 TU 以外の file にも逐語 directive を持つ型を足す。
+(1) 主 entry は既存 2-tuple のまま `_CONDITIONAL_BRANCH_WITNESSES` に置き、副 file は別 mapping
+`_CONDITIONAL_BRANCH_COMPANION_SITES` (macro → (source_rel, start_directive, N) の tuple) に宣言する。`_declared_site_count` は
+主宣言 file の N のまま (S1 fixture helper の consumer 契約)、総数は `_declared_total_site_count` (和) で導出し期待式 (N·v, N) の N に使う。
+(2) 主 + 副を各々 no-follow capture して file ごとに N_i 箇所を計装し (file ごとの箇所数不一致は既存 reason
+`compile-time-branch-site-count-mismatch`、detail に file 名)、副があれば主 == owner TU でも D1613 の深い鏡像を使い、全計装 file を
+symlink 作成対象から除いて同じ shadow に書く。(3) **複数 file macro に限り**、各箇所に固有 marker
+`IZANAGI_COMPILE_TIME_BRANCH_SITE_{SELECTED,COMPLETED}(f<i>s<j>)` を総数 marker の隣に挿入し、preprocess argv に token 貼り付けの
+`-D…(k)=…_OBSERVED_##k` 2 本を足して、総数 (N·v, N) の判定の後に箇所ごとの要求 (1,1) / 対照 (0,1) と和 = 総数を
+`compile-time-branch-site-observation-mismatch` で要求する。(4) 複数 file macro の green evidence にだけ `companion_sources`
+(副 file の登録値と計装に使った capture) と `site_observations` (全箇所 × 両腕) の 2 key を載せ、green 再検証は副宣言の有無を登録簿から
+決め (record の key から決めない)、row の型・順序・登録値・digest・identity・site 集合・各 row の値・和・両腕 argv の site marker define を
+検査する。既存 dataclass に field を足さず、`proof_kind` も変えない。(5) 登録簿へ `BACKOFF_REQUESTED_US` (`cc/silo/transaction.cc` ×2 +
+`include/backoff.hh` ×2、対照 0) を足す (枝選択 21 → 22、対応集合 22 → 23)。driver は配線しない (`backoff_requested_us` /
+`backoff_sweep` / `screening_driver` は admission を成果物へ載せない、D1492)。
+
+**主張の範囲:** 確立するのは「宣言した owner TU を当該 configure で前処理したとき、DefineSpec patch の逐語 N 箇所すべてで define の値が
+枝の選択を決めている」ことまで。副 file の証拠はその owner TU と configure の include 文脈に限り、同 header を include する他 TU や
+header 単体の意味は主張しない。箇所の活性は configure に依存し (abort() 内の箇所は `#if BACK_OFF` の内側)、`BACK_OFF=0` では
+completed 3/4 で red になる (fail-closed、実測)。`BACK_OFF` を companion define にしない (検査する configure を変えてしまう)。
+
+**理由:**
+
+- 所有 TU 2 箇所だけの登録は D2161 (2) の部分登録であり、header 2 箇所が未観測のまま macro 名が未確立一覧から消える (前 wave が退けた過大主張)。
+- 総数一致だけでは全箇所観測を含意しない。静的に構成できる反例 = owner の 2 箇所を外側 `#if 0` で殺し、`#pragma once` の無い header を
+  2 回展開すると、各 file の逐語箇所数は 2 のまま総数は (4,4)/(0,4) になる (段 2 plan が指摘、段 3 の 2 レンズが独立に成立を確認)。
+  箇所識別を足すと `f0s0=(0,0,0,0)` で拒否される (合成 fixture の独立 node と、評価側の直接検査で実測)。単 file macro では
+  .cc の TU は再展開されず、header 単 file は N=1 で重複が総数に出るので総数で足り、既存 21 macro の計装・argv・record を変えない。
+- 箇所固有 marker を `-D` の function-like macro + token 貼り付けで作ると、既存の総数 marker と同じくコメント / raw string 内では展開されず
+  数えられない (D1490 の構造的 fail-closed を保つ)。g++ 11.4.0 で生死実験のうえ採用。
+- header 宣言の既存例 (BACKOFF_NOINLINE) の深い鏡像 (D1613) は 1 file しか書かなかった。副 file を同じ鏡像へ書くとき、計装 file を
+  symlink 作成対象から除かないと symlink 越しの write で元 source を書き換える (段 3 A / 段 2 plan の条件)。
+- 副 file の証拠を record に載せないと、再検証が「主 2 箇所 + header 2 箇所」を裏付けられない (段 3 A の must-fix)。既存 dataclass に
+  field を足すと既定値でも canonical JSON へ出て既存 record の bytes が変わる (D2182) ので、複数 file macro にだけ現れる key にする。
+- 実 TU (pin e9e477ca1、fixed → requested-us、official 同形供給) で login と計算ノードとも (4,4)/(0,4) green / admitted / 未確立 []、
+  `BACK_OFF=0` は (3,3)/(0,3) red。既存 SORT / NOINLINE / RUNG1 の record は変更前後で一時 path 由来の digest 以外同一 (代表 3 cell、
+  他 18 macro の bytes 同一は主張しない)。
+
+**却下した選択肢:**
+
+- **所有 TU の 2 箇所だけで登録する** — 部分登録 (D2161 (2))。
+- **総数 (4,4)/(0,4) だけで判定し、相殺は主張範囲の限定で対応する** — witness の主張「各箇所で値が枝を決める」が一般には偽になる。
+  複数 file の型を足す本題の健全性であり、仮想リスク向けの新 gate ではない (段 3 B の判定)。
+- **登録簿の value を tuple of tuples にする / `_CONDITIONAL_BRANCH_SITE_COUNTS` を file 別にする** — 2-tuple consumer 3 件と
+  `_declared_site_count` の S1 consumer を壊す。別 mapping で持つ。
+- **別 proof_kind / 既存 dataclass の optional field / 副 file 用 dataclass** — 同じ owner-TU 枝選択の主張に validator 分岐を増やすだけ、
+  optional field は canonical JSON へ出る、新 dataclass は過剰 (段 2 / 段 3 B)。
+- **`BACK_OFF=1` を companion にする** — 検査する configure を変え、`BACK_OFF=0` の red (fail-closed) を失う。
+- **単 file の複数箇所 macro (RUNG1 / GATING) にも箇所識別を広げる** — 総数で足りる型に argv と record の変更を持ち込む (I1 違反)。
+- **所有 TU 内の未宣言 directive の走査・include 専用 gate** — 前 wave と同じく裁定パッケージ候補のまま。
+
+## D2190. B-8 の runner は事前登録 v1 の規則を機械適用する v5 とし、期待 identity は発効束 JSON から読む — 案 A の試走で identity を導出し、発効 commit と本走認可はユーザー再提示に委ねる (2026-09-20)
+
+**決定 (2026-09-20 計算ノード試走に基づく親裁定、D2186 項 1 (6) の認可範囲内):**
+
+1. **runner の形。** D2160 の runner v2 (repo 外) を B-8 の規則へ改版した v5 (2103 行、sha256 `4ff6652a365b952cba4deb23e2ae910ba863dabba4a107503c641c7a36863430`、Codex author + fix 2 巡、
+   job dir に保全、repo へ入れない) を、B-8 の校正・本走・再検証・集計に使う runner とする。規則の写像: 校正 {6, 10} s・適格 = verifier wall ≤ 1800.0 s (§4.2)、
+   対象の extime = 3 workload の適格集合の共通部分の最大値・空なら候補なし、予算 B(E) ≤ 14400 s と ∩ 内の段下げ (§7)、§6.1 の順序付き 3 値 (失格 → pass → 未確定)、
+   §5 の bench 不再生成 (保全済み trace の初回 verifier 再開は維持: `verify --resume` は bench 失敗 = 終端 / verifier 起動済み = skip / 保全済み・未開始 = 復元して初回 verifier / 保全未完了 = 規約不適合の 4 分類)、§8 の既知結果台帳 (判定集合外の別節)、`prerun` サブコマンド (試走 = build と identity のみ)。流用機構 (setup / hydrate / toolchain / 単独性 /
+   保全 → verifier / 計時 / 再検証 / 再開) は D2160 のまま。
+2. **束縛。** 期待 identity は runner の定数に埋めず、発効束 JSON (追補 file、`--bundle`、schema `b8-effective-bundle/v1`) から読む。runner は規則 file (`--ruling` = 事前登録 v1 本文) と
+   追補 file の両 sha256 を全 record に束縛し、`summarize` は許可集合で照合する。`calibrate` / `verify` / `reverify` は build 前後の両観測が期待値と一致しなければ fail-closed、
+   `prerun` は期待値照合をせず観測を記録するだけ (build 前後の一致だけ検査)。
+3. **解釈で固定した点 (段 6 の敵対レビュー 2 本 + 焦点 2 本で攻撃済み)。** (a) rc=3 の `indeterminate` verdict は完走した verdict であり §6.1 項 1 の「`serializable` でない」→ 失格 (§8 の明文)。
+   (b) §5 の「bench 失敗が 1 件でもあれば pass にならない」は校正・本走を問わず、開始して失敗した bench に適用する (打ち切りの `not_run` は失敗でない)。校正で bench 失敗が出た cohort は
+   本走を投入しない (pass になれない → §6.4 の新 cohort)。(c) 失格 (§6.1 項 1) は判定集合外 record の混入・ruling / bundle sha 不一致・規約不適合の有無に関わらず先に評価する (規律 2 の向き)。
+   混入・不一致は pass を妨げ未確定へ落とすだけ。(d) job 段の失敗 record (identity 不一致・実行失敗) も規約不適合として開示し pass を妨げる。(e) 適格は certified を要求し、
+   pass は本走 24 に要求して校正 verdict には要求しない (件数と理由を開示)。(f) 校正は anomaly を理由に残 extime を止めない (§7)。
+4. **verifier hard timeout。** 校正 3600 s (§11 が校正の 3600 s timeout を想定)、本走 1800 s (§12 と D2186 項 1 (5) の「上限 1800 s」そのもの)、再検証 3600 s (§6.4、事前登録は値を置かず
+   D2160 を継承)。当初案 (本走 3600 s) は親の追加解釈として改めた。判定の結果は変わらない (本走 1800 s で未完走 → 再検証 1 回で同じ verdict)。
+5. **試走の結果 (既知結果台帳へ、判定集合外)。** template patch `31316713…` は現行 pin `e9e477ca1b55348ab4530de0b1cf663ce4555290` へ `patchharness.applied` (= `git apply`) で厳密に当たり、
+   `p3_s4_loop.quarantine(write=True)` で gate 述語を hole へ書き、trace-enabled build (define 6 個、g++-11 Ubuntu 11.4.0) を計算ノードで通した。identity は
+   **g_rl `src_token` = `source_bytes_sha256` = `b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d`、g_rt `a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833`**
+   (build 前後・login 事前照合・runner v3 / v4 / v5 の 6 record で全桁一致)。これを発効束の期待値にする。07-16 校正の g_rl `4608a96e…` (旧 pin) は期待値にせず履歴として併記する (規律 7)。
+6. **発効束 draft。** §12 の全項目を insight §7.1 と `verbatim/b8-effective-bundle.draft.json` (sha256 `6063d5d8…`) に揃えた。runner が単独で揃えない項目 (pin と gitlink の一致・raw bytes の保存・
+   node 種別 gen_S・保全先 `/work` の空き 81 TB・校正 walltime 03:30:00 の根拠 = 上限式 ≈ 10,340 s と D2160 校正最大 Elapse 4063 S × 3) は親が実測で補い、新しい機械 gate は足さない。
+7. **委ねるもの。** 発効 commit (D 番号・日付・承認 commit、発効束 JSON を `effective` に) と本走の投入認可は、insight §7.2 の 1 行をユーザーが承認してから。発効前に校正・本走を始めない。
+   論文ストーリー §8 B-8 の仕分け (2) の限定明記も発効時 (D2186 項 1 (2))。
+
+**理由:**
+- 期待 identity を runner 定数に埋めると、runner の sha256 自体が発効束の項目なので試走 → 発効で runner を 2 度変える。追補 file へ分けると規則 file (事前登録本文) と値 (発効束) の束縛が独立する (§12 の「規則 file と追補 file を分ける」)。
+- 解釈 3 (a)〜(d) はすべて fail-closed の向きで、D2160 の規則 (rc=3 を数えない・bench attempt-2・混入で未確定) を B-8 へ持ち越すと §6.1 / §5 / §8 の明文に反する。author と 2 本のレビューが独立に指摘した。
+- hard timeout は事前登録自身の数に揃えることで親の解釈を減らした。判定の結果に影響しないことは再検証 1 回の存在から言える。
+- 試走を runner v3・v4・v5 で走らせたのは、fix 2 巡が prepare 経路を変えていないことの実測と、発効束の runner sha256 を最終版に揃えるため (各 36 秒)。
+
+**却下した選択肢:**
+- 期待 identity を runner 定数に埋める (D2160 の形) — 上記のとおり runner を 2 度変える。
+- 本走 hard timeout 3600 s (校正上限の 2 倍) — 親の追加解釈で、事前登録の「上限 1800 s」と整合しない。
+- bench 失敗の attempt-2 (D2160 の規則) — §5 に反する。
+- 校正の bench 失敗を pass の障害にしない読み — §5 の文は verify の種別を限定しないので、緩い読みは結果を見る前でも採らない。
+- 試走を login の事前照合で代替 — D2186 項 1 (6) は計算ノードでの build を含む試走を認可しており、login 値だけでは build 前後の一致を示せない。
+
+## D2191. land の provenance 監査は外側 480 秒を固定し、絶対 monotonic 期限を checker へ渡して dispatcher の締切をそこから導く (契約 C-2804、D2148 項 8 の実装ではない) (2026-09-20)
+
+**決定:** `tools/dev_wave_land.py` の `_run_provenance_checker` は外側 timeout `_PROVENANCE_AUDIT_TIMEOUT_S = 480` (値不変) を持ち、spawn 直前に
+`IZANAGI_PROVENANCE_OUTER_DEADLINE_MONOTONIC = time.monotonic() + 480` を env へ置く (継承値は上書き)。`tools/check_ai_provenance.py` は dispatch 直前
+(`_default_dispatch`) でだけこの env を読み、未設定なら現行と同一の kwargs で dispatcher を呼ぶ。設定済みで有限数以外なら ValueError → 既存の一義化で rc=16。
+設定時は `deadline_at = K − 32`、`queue_wait_timeout_s = min(D612 明示値または既定 900, remaining − 32 − cleanup 90 − 60)` を dispatcher へ渡し、導出 queue 予算が
+16 秒未満なら qsub せず理由行 1 本と rc=16 で返す。dispatcher を呼んだ経路の終端では観測可能値 (残余・queue 締切・`deadline_margin_s`・rc) だけを stderr に 1 行出す。
+queue 待ち・RUN 区間の権威は dispatcher の receipt。dispatcher・`_dispatch_timeout_overrides`・login bounded scope 経路・land の reject reason と分類・D2170 の判定は変えない。
+実装 commit `aa81e3c64445055dbf8088b47c47f22b39a63571`、fix1 `62ed683aba12dd98e17f040d701fe5390cbab4cc` (Codex author)。一次資料
+`output/insights/2026-09-20/t2804-provenance-timeout-contract/README.md`。
+
+**理由:**
+- 起点 (worklog entry 1722、D2170) の「timeout の延長は裁定なしに行わない」により外側 480 秒は動かせない。動かせるのは内側だけで、内側を外側から導けば
+  「queue 待ちだけで外側に SIGKILL され、投入後・pending 解除前なら job と pending hold が残る」構造を、dispatcher 自身の回収 (queue 超過なら cleanup 予算付きの qdel、
+  receipt 保存、rc=16) へ置き換えられる。
+- 絶対 monotonic 期限を渡すのは、land の spawn から checker の main 到達までの遅延 s を式に入れずに済ませるため (相談 A3)。同一 host の CLOCK_MONOTONIC は process 間で
+  共通で、`repr(float)` → `float` は無損失。
+- 定数の根拠 (DW-O13): 60 秒 = 2.87 × (前段 max 15.9 秒 + poll 5.0 秒、T-2484 の receipt 3,849 件、harness regime)、16 秒 = 3 × queue 待ち観測 min 5.1 秒 (n=85、運用閾値)、
+  32 秒 = 後段の代理値 (実走 L1 で h ≈ 0.03 秒)。harness の M_pre=180 秒を写すと queue 待ち 278.7 秒の既知成功例を落とすため採らない (相談 A8 / B6)。
+- 段 1 の受領証 85 件 (残存 worktree に限る) で queue 待ち中央値 5.2 秒・最大 716.5 秒、RUN 中央値 30.7 秒・最大 475.9 秒、合計 480 秒超 2 件。
+- 本契約は D2148 項 8 (外側が前段・queue 待ち・walltime・grace・回収・cleanup を覆い、内側は維持) の実装ではない。dispatcher の定数は不変でも、この呼出しの実効期限は
+  短縮される (相談 A5 / B2)。成功集合は (i) queue 待ちが導出締切を超える帯、(ii) 完了が最後の 32 秒の帯で縮み、retryable (rc=29) 集合がその分増える。同じ返却 rc に対する
+  land の写像 (rc=1 = 違反・release_safe) は不変。RUN / collection 中に `deadline_at` へ達した場合は cleanup 予算 0 で hold latch が残る (dispatcher 不変の限界)。
+  receipt の永続化は保証しない。
+
+**却下した選択肢:**
+- 外側を区間和 (P180 + Q900 + W3,600 + G300 + A60 + C90 = 5,130 秒) や中間値へ延ばす (項 8 型) — 延長は裁定なしに行わない。裁定パッケージ (insight §7) へ。
+- D612 の上書き env (queue 待ち・grace) だけで内側を縮める — walltime 3,600 秒の区間を覆えず、明示上書きの意味 (opt-in) を呼び手が自動選択する形に変える。
+- `M_pre = 180` 秒 (harness の値の写し) — 外側を延ばす側の余裕であり、固定 480 秒から queue 予算を削る側では過大 (Q ≈ 168 秒)。
+- 投入前拒否の閾値を qsub 後合計の観測最小値 16.6 秒に置く — queue 締切の下限に合計所要を流用する区間違い。queue 待ちの観測 min × 3 に置き換えた。
+- `main(dispatch_fn=...)` の注入 seam を `**kwargs` 受けへ改訂して既存テスト 7 箇所を触る — 不要。新規テストは末端 `dispatch_compute.dispatch` を monkeypatch する。
+- 不正 env を無視して既定 900 秒で dispatch する — 外側に殺される job を作る。拒否 (rc=16) が fail-closed。
+
+## D2192. 全史 provenance 監査の受領証の属性 fingerprint は、実在する候補だけを digest にし、候補 directory を「index の祖先」に加えて「監査で属性が効く merge path の祖先 (履歴で単調増加)」から取る (D2045 の改訂) (2026-09-21)
+
+**決定:** `tools/check_ai_provenance.py` の受領証 (D2045) の属性 fingerprint を次のとおり改める。受領証の schema・key 集合・他の 12 束縛・fail-closed の型は変えない。
+
+- **候補 directory** `C(H)` = repo root ∪ index path の祖先 directory ∪ **S(H) の merge 全件について「merge と第 1 親の name-only diff」に現れる path の祖先 directory**。
+  後者は `git rev-list --merges <policy>..<H>` (+ `--no-walk <policy>`) と `git log --diff-merges=first-parent --no-walk=unsorted --stdin --name-only -z --format= --no-renames`
+  で列挙する (受領証の lookup と publish 前の再照合で 1 走 2 回。D2169 の path batch `diff-tree --stdin`、D2033 の message batch `log --no-walk=unsorted` と argv 接頭が
+  重ならない形)。submodule 内・ignored 出力・tracked file の無い directory の走査はしない。
+- **digest** は候補のうち lstat が absent を返した entry を含めない。unreadable (errno)、directory、symlink (link 文字列)、regular (sha256) と regular の読取失敗は残す。
+  `info/attributes`、`core.attributesFile` (未設定時の XDG / HOME 既定)、system、index entry の `.gitattributes` (mode / oid) の束縛は不変。
+- 監査 tip の tree は読まない (履歴 commit 間の name-only diff は読む)。git 失敗は `RuntimeError` のまま呼び手の except に落ち、受領証は使わず発行もしない (cold)。
+
+**論証 (D2045 の「S(A) の判定は 13 項目が一致すれば同一」の属性項目を置き換える):**
+監査で git が属性を読む操作は merge の `diff-tree --cc -p <merge> -- <path>` (候補 path ごとの combined patch の空判定) だけである。non-merge の `diff-tree --name-only`、
+trailer parse、`rev-list`、message 取得は属性の影響を受けず、pickaxe (`log -S`) の結果は policy / scope_epoch / implementation_epoch / cab_hits として別に束縛される。
+`--cc` の候補 = 全親の name-only diff の交わり ⊆ 第 1 親の name-only diff なので、`AttrDirs(S) := {祖先 dir of p | merge m ∈ S, p ∈ diff(parent1(m), m)} ∪ {root}` は
+S の監査で属性が読まれる directory の上位集合であり、S(A) ⊆ S(B) (ff-only、同 policy) から `AttrDirs(S(A)) ⊆ AttrDirs(S(B))`。
+digest `New(H)` を C(H) の absent 以外の entry (+ 他の入力) とすると、`New(A) = New(B)` ⇒ ∀d ∈ AttrDirs(S(A)): `state_A(d) = state_B(d)`
+(実在なら B 側に同じ entry、absent なら B 側に entry が無く d ∈ C_B なので absent)。よって S(A) の再監査で git が読む属性入力は A 時点と同一である。
+index 由来の候補は健全性に不要な過剰近似で、既存テスト (index-only path の祖先が候補) を保つために残す。候補集合の包含検査や受領証への候補集合の保存は不要である。
+
+**理由:**
+- D2045 の属性 fingerprint は index の全 path の祖先 directory ごとに absent を含めて束縛していたため、新 insight directory を足す commit (直近 60 main first-parent
+  commit の 50 %) を跨ぐと失効し、共有 store の直近 8 受領証は同一 checker なのに attributes digest が 8 種すべて異なっていた (land はほぼ毎回 cold、login 88〜113 秒級)。
+- absent 候補を外すだけでは、段 3 相談と段 6 レビューが実 Git で構成した 2 つの反例 (候補 dir が index から脱落した後に untracked `.gitattributes` が現れる / 候補外
+  dir の untracked `.gitattributes` が root の `-diff` を上書きして監査に効き、後で dir が候補入りしつつ file が消える) で、旧形と受領証なし oracle が rc 1 とする履歴を
+  rc 0 で再利用してしまう。候補集合の包含検査 (受領証に候補集合を保存) は前者しか閉じない。監査で属性が効く path の祖先を履歴から加えると両方が digest で cold になる。
+- 実測 (attributes 束縛単独の隣接失効指標、同一 60 遷移、独立 clone、旧 = 改訂前 blob / 新 = 改訂後): 旧 25/60 → 新 0/60。これは cold 率・land wall・時間短縮率ではない。
+  実機正例 (独立 clone、新 checker、login 1 回ずつ): cold 全史 wall 58.4 秒 / CPU 108 秒 → 新 directory 導入 commit で warm 21.9 秒 / 9.5 秒 → `.gitattributes` 変更で
+  cold 62.6 秒 / 96 秒。
+- 費用 (login 実測、4,369 merge): `rev-list --merges` 0.65 秒 + `git log --no-walk` 1.7〜3.5 秒 (path 36,359、祖先 dir 3,704) を bindings 計算ごと (1 走 2 回) に追加。
+  当該 login 環境の参考実測で、一般の値ではない。
+
+**この決定が保証しないこと:**
+- `attr.tree` / `--attr-source`、bare、`GIT_ATTR_*` の全経路は従来どおり束縛しない。errno の揺れは従来どおり不要な失効を生む。
+- 既存テスト `test_attribute_fingerprint_is_independent_of_tip` と `test_many_commit_delta_warm_hit` は緑を保つが absent 候補差への感度を失う。
+- 他の束縛 (checker sha、registry manifest、CAB hit、環境 partition) による cold は減らない。改訂直後の land は checker sha が変わるので cold。
+- 費用は merge 数に比例して増える。混雑時・計算ノード・実 land の wave 間連鎖は未観測。
+
+**却下した選択肢:**
+- absent 候補を外すだけ — 上の反例 1 で旧形が拒んだ再利用を新たに許す。
+- absent 除外 + 受領証に候補集合を保存して包含検査 (本 wave の初版実装) — 反例 2 を閉じない。受領証も 32 KB 増える。
+- 候補列挙を `rev-list --objects` の tree path で取る — 同一 tree oid の path が初出でしか出ず単調でない。
+- 候補列挙を `diff-tree --stdin` の merge 第 1 親 pair で取る — 同じ path 集合だが、既存テストが D2169 の path batch の識別子として pin する argv 接頭と重なる。
+- 全親の diff (`-m`) — 出力 36 MB / 5〜7 秒で第 1 親 diff (22 MB / 1.7〜3.5 秒) より重く、上位集合としての性質は同じ。
+
+## D2193. enforcement source closure の段階実装は現行 tuple の直接 import 先 1 段ずつ進め、tuple を動かす変更単位に同 grammar の歴史収載を含める (2026-09-21)
+
+**決定 (D1884 の段階実装の次段、実装 wave の裁定):** 収載 tuple を推移閉包へ向けて進める単位は、
+**現行 tuple の各 member が直接 import する module とその package 初期化 (probe の 1 段目)** とする。
+本段では 2026-09-20 の着手 commit で数えた 22 本を末尾に path の sorted 順で足し exact 63 → 85 にした。
+既存の宣言順は動かさない (epoch preimage は宣言順)。tuple を動かす変更単位には、**直前の grammar を
+歴史閲覧限定 decoder へ収載する変更 (独立 ordered literal・兄弟 validator・grammar 固有の scope 定数)** を
+同じ commit に含める。収載条件は D1653 のとおり実在 corpus の確認で、exact-63 は記録済み lock 20 本の
+wire key 列と記録 commit 9 件の宣言順を exact 照合して満たした。scope 文言は D2081 の形式で、
+発見集合は「測定 commit の source 木で本版の tuple を起点に辿った集合」として日付・commit・数値を書き、
+収載の内訳は書かない。
+
+**理由:**
+- 1 段目は probe (`ast.walk` + package 初期化、D1650 と同規則) で機械的に再現でき、判断の余地が無い。
+  今回の 22 本は T-2344 一次資料が挙げた 1 段目の drift 2 本と、認証受理 API で関数本体まで実行された
+  未収載 4 本のうち 2 本を含む。
+- exact-62 のときは歴史収載が別 wave (8 日後) になり、その間 3 本の記録済み lock が両経路から読めなかった。
+  同じ穴を tuple の前進ごとに再発させない。
+- 発見集合は tuple が不変でも動く (09-09 の 140 → 09-16 の 162 → 09-20 の 163)。日付・commit 付きの
+  数値だけが将来も偽にならない。「85 / 163 / 78 を着手 commit の実測」と書くと、着手時点の tuple は
+  63 なので偽になる — 本版の tuple を起点に同じ source 木で再測した値であることを文言に書く。
+
+**却下した選択肢:**
+- 1 段目の drift 2 本だけ足す — 推移閉包へ「1 段」進んだとは言えない (T-733 の名乗りの回復に留まる)。
+- 発行器 6 本 (+ 発行器起点にだけ居る 10 本) を先に足す — D1884 の目標内で、発行器自身の穴には
+  より直接効くが、本段の規則 (tuple 起点の閉包を層ごとに閉じる) と混ぜると再現規則が二重になる。
+  次段の順序は裁定パッケージへ返す。
+- 一度に発行器起点を含む和 (173) へ広げる — D1884 が却下済み。
+- 歴史収載を後続 wave に回す — exact-62 の再発になる。
+- 通常 decoder を exact-63 との union にする — D1653 が禁じる (certified の受理集合を広げない)。
+
+**保証しない範囲 (記録):** 「certified 経路が source-bound である」を推移閉包の意味では引き続き
+名乗らない (tuple 起点の未収載 78、発行器起点との和で 88 が残る)。tuple の前進により、記録済み exact-63
+campaign は tuple 前進後の checkout の certified consumer では decode 段で拒否され、歴史閲覧でだけ読める
+(D1653 / D1770 の帰結)。最新 consumer での certified 再解析を続けるかは別途諮る。
+
+## D2194. 全 14 項の裁定 — B-8 は発効と本走を承認、K2 4 巡目は round 3 の派生物から組む、B-4 の耐久 carrier と参照点定義は推奨形で実装、closure の次段は発行器先行、g1 の未発効候補文書は削除、DW-O26 へ 2 test 追加、掃除は候補 2 だけ検査付きで撤去 (2026-09-21)
+
+**決定 (ユーザー裁定):** 索引 14 項 (ユーザー裁定待ち 11 + 人間手番 1 + 収載維持 2) の説明と推奨に対し、ユーザーは
+「推奨通り」と回答した。下の番号は会話の索引番号と一致する。本決定は裁定記録であり、実装・測定・commit・送信が完了したことを
+意味しない。各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 提示時点の main は `285477c00` (T-2344 の着地と fold 後、未 fold fragment なし。収集開始時は `5733c0f08`)、worklog 末尾は
+entry 1770。窓は entry 1747〜1770 (第 26 回 D2186 が提示時点で見た末尾 1746 の次から)。次の一手 599 項を carry 鎖の実体まで解決し
+(鎖の欠落 0)、1746 以後に消えた 12 ID はすべて当該 wave 自身の着地か第 26 回の裁定で閉じたもの (退行なし)。窓内 24 エントリの本文、
+決定台帳 D2184〜D2193 の決定文 (「裁定パッケージへ返す」「別裁定」型の繰延べを含む)、insight 24 本の裁定パッケージ節、failures
+F1033〜F1035、repo 外 rulings-inbox の 09-20 控え 3 本、稼働 wave (T-2810 / T-2797) の handoff と未 land fragment、`docs/phase3.md`
+現行チェックポイント、見送り台帳 (worklog 項 49 件 + phase3 見送り節) の所有 file (項文 + 起点 entry + 項が引く D の本文) と窓内変更
+36 file の照合、時間・件数条件を照合した。並行 /rulings session は無い。
+
+**相談の採否:** 別系統モデル 2 本 (推奨の当否 / 索引漏れ、いずれも read-only、各 6〜8 分で rc=0)。推奨の当否は 10 判定
+(同意 7・反対 1・根拠不足 1・既裁定誤引用 1) で、3 件を書き換えた — 項 4 は D1884 の委任を理由に「追認」としていたが D2193 が
+次段の順序を明示的に返しており裁定として提示、項 8 は「実害は 1 件だけ」が誤りで entry 1629 / 1695 の受入赤を現物で確認して
+据え置きから追加へ、項 10 は候補 2 の list が古く (9 本のうち 3 本は既に無く、残り 6 本の branch は main 未取込) 「clean + 着地済み」だけで
+撤去可と断定せず検査付きへ。根拠の訂正 4 点 (項 2 = 択 B の利点は次系列の依存範囲を減らすこと、A の sha 一致は確認済み data の同一性まで /
+項 5 = 根拠は同 bytes でなく候補 path の役割終了、D2077 を削除許可として引かない / 項 6 = D1993 項 6 は先例であって直接の禁止ではなく
+新規 T は不要 / 項 9 = C-2804 の根拠は D2191、D2170 を延長全般の再訪条件へ広げない) を採用した。索引漏れは高 1 (旧実装 branch の撤去)・
+中 2・低 1 のうち、高と中 1 (再測定用 branch の保存) を項 10 へ、低 (T-1558 の再訪条件) を項 11 へ採用した。中 1 (F1035 の argv 接頭 pin
+事前列挙を DW-S05-C の義務にする案) は**不採用** — wave の「実施しない」は予算 (D782) だけでなく独立 1 例 (D730 の独立 3 例、DW-G03 =
+単発事故の族一般化禁止) を根拠にしており、規則側の既裁定で閉じる。B 節の誤り指摘 2 件 (採用判断と残置物の処分は別問 / 「件数条件は
+Git のみ」は断定過剰) を採用した。
+
+### 項 1 — B-8 事前登録 v1 を案 A の発効束で発効し、校正と本走の投入を認可する
+
+対象: T-2807。資料: `output/insights/2026-09-20/t2807-b8-prerun/README.md` §7.1 / §7.2、`docs/b8-final-candidate-longrun-verify-preregistration.md`
+§4.2 / §7 / §11 / §12、D2186 項 1、D2190。
+
+**決定:** 択 (a) 承認。事前登録 v1 (raw sha256 `6ccb18c7…`) を、対象 = 案 A (identity g_rl `b0f95b21…` / g_rt `a0219ce0…`、pin `e9e477ca`、
+patch `31316713…`、verifier 9 file の sha256 = insight §7.1、runner v5 `4ff6652a…`) の発効束で発効し、校正 3 job (workload 別 {6, 10} s、
+walltime 03:30:00) → §4.2 / §7 の規則が機械的に決める extime での本走 6 job (24 verify、≤ 4 h / 対象、verifier hard timeout 本走 1800 s) の
+投入を認可する。承認後の手順は AI: 発効 commit (発効束 JSON を `effective` にし D 番号・日付・承認 commit を足す) → その固定 checkout で校正 →
+`summarize` → `stage_B_allowed` なら本走 → 3 値判定 → §8 / §6.3 の書き方で results 稿と論文ストーリー §8 へ。発効 commit の wave が story §8
+B-8 の仕分け (2) を「独立 process の自己シード」へ改める限定を書く (D2186 項 1 (2))。
+
+**理由・採らない案:** D2186 項 1 が定めた段階認可の後段そのもので、試走は認可範囲内で完了し発効束が揃った。発効束の前提は提示時点の main
+で不変 — verifier module は試走の HEAD 以降 0 commit (`core.py` の sha256 が §7.1 と一致)、gitlink = `e9e477ca`、事前登録本文と patch も
+0 commit (親の実測、相談が §12 の全項目との対応表で再照合)。runner v5 は敵対レビュー 2 本 + 焦点 2 本で攻撃済みで、規則の解釈は fail-closed
+の向き、hard timeout は事前登録自身の数 (D2190 決定 4)。校正 walltime 03:30:00 は上限式 ≈ 10,340 s を覆うが、外挿を含むので厳密な上限保証
+とは呼ばない。(b) timeout 3 値・walltime だけ変えて再提示 — 変える理由が無い。(c) 据え置き — B-8 未取得のまま。主経路 (CC 自動合成) からは
+遠い (正しさ側の論文主張)。
+
+### 項 2 — K2 4 巡目の入力元は round 3 の派生物から射影を組む
+
+対象: T-2795 (T-2815 が返した択)。資料: `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §1 / §2 / §4、F1034、D2187、
+D2172 項 3 (iv)。
+
+**決定:** 択 A。4 巡目の射影入力 (whiteboard / `current_perf` は round 3 の `materials/run-summary.json`、診断は `verbatim/critic-3.md`、
+knowledge-input は同 `materials/`) を repo 内派生物から組む。round 3 の `loop_state.json` と AO は sha 一致の再構成物を 4 巡目 insight の
+`materials/` に「再構成 (出所・sha256 = 記録値と一致)」と明記して置き、harness には load させない。4 巡目の記録に「round 3 の原本 bytes は
+消失、入力は派生物から組んだ」を書き、sha 一致が示すのは確認済み data の同一性までで、完全入力の組立て・実送付・critic 入力全体の再監査は
+証明しないと限定する。4 巡目の投入そのものは本項の外 — pair 修復 wave (AI、D2187) の後に pair 再投入 (1 job) と 4 巡目 (1 job) の予算を
+再提示する (D2172 項 3 の元の認可は撤回しない)。付随項 (`submit-tree-pair` の lock) は本 wave が実施した。
+
+**理由・採らない案:** 射影に要る round 3 由来の入力は round 3 が round 2 から受け取ったものと同じ型で、whiteboard は sha 一致の再構成物と
+同内容、`current_perf` は canonical 内容同一の WAL と `run-summary.json` の両方に同値、critic-3 逐語は repo tracked。harness が旧 root の
+bytes を要求する経路は無い (段 6 レビューが code で確認)。B-6 の系列 (critic-3 の最優先要望 R0 = 同 job stock に、pair 修復で初めて答える巡)
+を切らない。B (別走) — 次系列が失われた過去証拠に依存する範囲は減るが、critic-3 の還流を捨てる。C (pair 走を直前巡) — 診断の実測と
+`current_perf` の実測の出所が混ざり、harness は走行同一性を照合しない。A の最強の反論 = 派生物に依存する弱い provenance の上に次巡を積む →
+記録の限定文で開示する (規律 7)。主経路に近い。
+
+### 項 3 — B-4 の対応証拠は base driver の harness 書き side channel と参照点の定義で閉じ、呼び手の lock 読取りを直す
+
+対象: T-2632。資料: `output/insights/2026-09-20/t2632-b4-evidence-provenance/README.md` §2.3 / §4 / §7、D2120 項 5、D2100、D39 決定 3、D1846、
+D1936 項 8、D1483、D2150 項 2。
+
+**決定:** (1) 択 (α) — base driver に trigger driver と同型の harness 書き side channel (`reports/<driver>_provenance.json`、iteration ごと、
+`save_loop_state` より前。field = `iteration` / `variant` / `build_attempt_id` / `initial_proposal_sha256` (= `canonical_b4_proposal_sha256`) /
+`wal_refs` / `outcome`。重複解決と dry-pass も行を残す)。whiteboard の 5 field と D39 決定 3 (planner 射影は side channel を読まない) は不変。
+(2) 事前登録 §5.1.1 の解釈の確定 — (i) `reference_snapshot_hash` = 祖先 certified attempt の WAL `commit` record、`reference_receipt_hash` =
+同 `bench_done` record、hash は canonical JSON (`agent_outputs.canonical_bytes`、`allow_nan=False`) の sha256。新 object・新 producer は
+作らない。(ii) 祖先 = ① 同一 campaign 内の時間順 (precursor の iteration より前の最後の `success` に対応する attempt を side channel で引く)。
+祖先が無い・同着・`PerfConfig` / `env_tag` 不一致は §5.1.1 どおり不適格とし別基準へ切り替えない。重複提案は新しい評価を作らず、行順と
+評価の系譜が同一でないことを定義文に書く。(iii) 承認された `PerfConfig` の全 field (records / threads / workload の全 key / extime / reps) と
+`env_tag` の一致を出所を名指して確認し、`reps` と `ycsb_max_ope` は run_cmd から確認できない不足として残す。(3) carrier の実装と定義の発効は
+新規 base campaign の起動前に置く (遡及で埋めない)。(4) `p3_b4_prerun_caller` の `trial` 読取りを既存 codec
+(`campaign_lock.decode_campaign_lock`) 経由へ直す (codec が受理する形だけ。v1 / v2 の独自救済分岐は足さない。test の lock fixture も v2 形へ)。
+実装は Codex author の別 wave (実装面、変異 matrix 込み)。母集合を**作る**基盤ではなく、出た precursor を**結ぶ**記録である
+(D1936 項 8 との線引き)。
+
+**理由・採らない案:** 既存の先例 2 つ (trigger driver の provenance side channel、trigger 系列 supervisor の proposal 保存 + completeness 照合)
+が動いており、(α) は凍結型 (D1846) と leak 防壁 (D39 決定 3) に触れず、赤 precursor (`diffq-*`) も同じ形で残せる。D2100 の「作らない」列挙は
+呼び手の責務の限定で driver 側 carrier を禁じない。(β) 凍結型の改訂 — `project_whiteboard` の射影規則の書き直しになる。(γ) journal 必須化 —
+live 経路は評価前に書くため variant を持てず単独で代替にならない。(δ) 先例移植 — (α) と独立の択でない。(ii) ② は planner / coder が読んだ版の
+記録が無く、③ は現行に記録が無い。(4) を放置すると現行形式の新規 base campaign は赤 precursor が出ても D2100 の「不足報告 + 空 batch 到達」に
+乗らない (実在欠陥)。順序 (3) は D1483 の §5 の 2 欄の順序を解禁しない。主経路に近い (B-4 = base driver = 合成 loop の材料)。
+
+### 項 4 — enforcement source closure の次段は発行器先行、記録済み exact-63 成果物の再解析は現状維持を既定にする
+
+対象: T-2344。資料: `output/insights/2026-09-20/t2344-closure-stage1/README.md` §5 / §8 / §9、D2193、D1884、D1075、D1653、D1770、規律 7。
+
+**決定:** (1) 次段 = 発行器 6 本 (`s8b_oracle_report` / `autonomous_trial_completeness` / `b10_backoff_shape_sweep` / `backoff_extended_sweep` /
+`backoff_extended_sweep_report` / `backoff_overthrottle`) と発行器起点にだけ居る 10 本を先に収載する。tuple 起点の 2 段目 23 本はその後。
+tuple を動かす変更単位には直前 grammar の歴史収載を同 commit で含める (D2193)。(2) 択 (c) 現状維持を既定にする — 記録済み exact-63 成果物
+20 本は HISTORICAL_RAW と記録 commit で読め、判定は当時の consumer で確定している (規律 7)。再解析の需要 (consumer の欠陥を後日修正して
+記録を読み直す T-1998 型) が生じた時点で、その成果物に限り (a) 修正済み exact-63 解析 checkout を用意する。(b) 新 grammar での再測定は採らない。
+
+**理由・採らない案:** (1) D1884 は変更単位の範囲を実装 wave に委任しているが、D2193 が次段の順序を明示的に返したので裁定として決める。
+発行器を先にしないと D1075 / D1884 が名指しした穴 (正しさ防壁自身が束縛されていない) は閉じない。(2) (a) を今用意しない理由は再解析の需要が
+今無いことであって、保守費用の見積りではない (相談が指摘)。(b) は本数を稼ぐ再測定。主経路との距離は中 (certified の意味に効く防壁)。
+
+### 項 5 — 凍結 v2 g1 の未発効候補文書は候補 file だけを削除する commit で扱う
+
+対象: 未採番 (稼働 wave `dev-wave-t2810-g1-launch-validation` の worklog fragment が起票する新規 T「g1 候補文書の scan hit」。同 wave の
+決定 fragment が「候補文書の扱いは別裁定」と定めた項)。資料: 同 wave の job dir `README-draft.md` §8 (2)、D2120 項 2 (a)、D2184、D2180、D2077。
+
+**決定:** 択 (a) — 候補 file `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` だけを削除する commit を、T-2810 wave の land 後に
+別 commit で作る。scan 除外は広げない、B-10 freeze-tree pin の対象外、G / A / X と floor_source の bytes は不変、`_active_chain_exempt_exact`
+不変。削除後に load / reverify を再実測し、held 真値の候補を含む hit 列挙を追随する。候補 bytes と来歴は X2 の履歴 blob と世代文書 (同 bytes)
+で保持する。
+
+**理由・採らない案:** 削除を認める根拠は「同 bytes だから」ではなく、候補 path の役割が批准済み世代 (D2180) へ移って終わったことを認めること。
+D2077 を削除許可としては引かない。scan hit は真陽性 (未申告の holdout 写し) で、除外を広げて通す案は D2120 項 2 (a) が却下済み — 通す経路は
+削除しか無い。再生成で hit が復活するのは fail-closed の向き。(b) 据え置き — historical reverify が段階 8 で止まり続け、系列ごとの policy 移行
+(T-2812、時期未定) に束ねる理由が無い。live 経路の policy 問題は本項で解消しない。主経路からは遠い (床値の凍結 chain)。
+
+### 項 6 — attempt-0001 稿の限定 L-A1S-4 は次版で 2 attempt の観察として書き換え、図は作らない
+
+対象: T-2792 (終端済み)。資料: `output/insights/2026-09-20/t2792-a1-sized-attempt2/README.md` §10、
+`docs/paper-story/results/2026-09-20-a1-balanced5-sized-attempt2-descriptive.md` §2.7、D2172 項 2、D1993 項 6 (先例)。
+
+**決定:** (1) 択 (a) — 次の論文ストーリー版と claim-evidence で、2 attempt の並記 (6 cell とも `resolved-above-floor`、符号 + / + / − が一致、
+`variance_plan_breach` は attempt-0002 の 2 workload で true) を「同一配置の反復で分類と符号が一致した観察」として書き、L-A1S-4 を「2 attempt の
+観察に基づく限定」へ書き換える。プールした推定量・差・比・再現判定は作らない。A-1 の充足・formal 化・非認証 lane (D2172 項 2)・L-A1S-4 の
+解除には触れない。(2) attempt-0002 の図は作らない。必要になれば単独図 (fig9 と同形、`caption_source` = 本稿) を先に作る。新規 T は起票せず、
+次の story 版 wave の依頼文に載せる。
+
+**理由・採らない案:** 事前登録は attempt 間の比較規則を持たず、統計的な再現判定は事前登録なしには作れない — 書けるのは観察まで。(b) 据え置き —
+2 attempt の観察が版に現れず、次版の読者が attempt-0001 稿の限定を古いまま読む。並記図は D1993 項 6 との整合を先に決める費用が立ち、消費者
+(論文本文の図) が今無い。主経路に近い (A-1 は合成候補の性能主張)。
+
+### 項 7 — README の results 表の fig13 行を追補し、後継図は作らない
+
+対象: 未採番 (`output/insights/2026-09-20/fig13-b10-waiting-grid/README.md` §10 の候補)。資料: entry 1738 (fig11 wave が A-6 行を更新した先例)、
+T-2816。
+
+**決定:** 択 (a) — `docs/paper-story/README.md` の results 表の当該行「図は無い」を fig13 の着地に合わせて追補する。T-2816 (README stale 注記に
+K2 原本消失の 1 段落を積む) と同じ wave で 1 行足す (AI、docs のみ)。panel 題の raw p 二重表示と和の数値を caption へ移す後継図は作らない
+(本文幅への縮小時に決める)。
+
+**理由・採らない案:** fig11 wave の先例と同じ形で、表は現在地を書く方が読者の誤読を減らす。後継図は消費者が無い。
+
+### 項 8 — DW-O26 の inventory 群に process 起動一覧と subprocess guard の 2 test を足す
+
+対象: 未採番 (`output/insights/2026-09-20/t2813-o26-inventory/README.md` §7 の候補、T-2292 の残る型) → 新規 T を起票する。資料: D2186 項 5、
+entry 1238 / 1629 / 1695、D782、D961、DW-O25。
+
+**決定:** 択 (a) — `docs/dev-wave/operations.md` DW-O26 の「production file を変えた wave は inventory test 4 群を参照関係に依らず焦点走に
+含める」の集合に `orchestrator/tests/test_ccbench_spawn_sites.py` と `test_check_subprocess_bytecode_guard.py` を足す (4 群 → 6 群、D2186 項 5 の
+集合拡張)。exact pin の更新は Codex author + fixture placeholder (DW-O25)、単節予算 (998/1000 bytes) の超過は D782 / D961 の手順 (既存記述の
+削減 → 独立 3 例 → 最小増分) で AI が閉じ、上限を上げた場合だけ報告する。追加はこの 2 file だけ。
+
+**理由・採らない案:** 実害は entry 1238 (4 件中 3 件) に加え entry 1629 (`test_check_subprocess_bytecode_guard.py::test_real_repo_clean` の
+受入赤) と entry 1695 (`test_ccbench_spawn_sites.py` の受入赤 3 件) で再発しており、発火原因は新規 production module の追加だけではない。
+既存 test を焦点走に載せるだけの局所対応。(b) 据え置き — 同型のたびに受入 1 走の往復を払う。主経路からは遠い (運用)。
+
+### 項 9 — land の provenance 監査の外側予算は 480 秒のまま維持する
+
+対象: T-2804 (終端済み)。資料: `output/insights/2026-09-20/t2804-provenance-timeout-contract/README.md` §7 / §9、D2191、D2170、D2148 項 8、D2192。
+
+**決定:** 択 (a) — 480 秒維持 + 内側導出 (着地済みの契約 C-2804、D2191)。(b) 区間和 5,130 秒、(c) 中間値、(d) dispatch 時だけ延長は採らない。
+延長の要否は改善後 checker の混雑時観測 (T-2805) と queue-wait-timeout 経路の実走証拠 (T-2819) が揃ってから、その wave の裁定パッケージで諮る。
+
+**理由・採らない案:** 受領証 85 件で 480 秒超は旧 checker の 2 件、D2192 の新 checker は warm 22 秒 / cold 58 秒。C-2804 は D2148 項 8 の履行
+ではなく land 固有の限定契約で、D2170 の再訪条件を延長全般へ広げない。証拠なしに 1,280 秒算術の再設計や段階 timeout の構造変更を行わない。
+
+### 項 10 — 掃除は候補 2 だけ検査付きで撤去し、候補 3 は据え置き、旧実装 branch は撤去し再測定用 branch は保存する
+
+対象: 2026-09-20 の /cleanup-branches の残置 (`/work/1/SFC/tanab/cleanup-20260920/`、entry 1759、F1034) → 新規 T を起票する。資料:
+`output/insights/2026-09-20/cleanup-backup-loss-record/README.md` §4、`output/insights/2026-09-20/t2766-pairing-adopt/README.md` §8、
+`output/insights/2026-09-20/t2700-prewarm-ab/README.md` §8、D2185 決定 1、D2163、D204、T-2814。
+
+**決定:** (a) 候補 2 (親 wave 着地済み・unlocked・clean の Codex 子木、list の 9 本のうち現存 6 本 = `witlight-author` / `t2153-author` /
+`t2629-unit-probe` / `t2709-unit-probe` / `t2766-unit-impl` / `t2802-unit-probe`、各 branch は main 未取込 1〜5 commit) は、既存の検査
+(lock・main 祖先・dirty・占有) + fail-closed の退避 (list と tar の entry 数の照合) + 各 wave の insight「証拠の所在」節との照合を通した上で
+AI が worktree を撤去する。branch は残す。(b) 候補 3 (`dev-wave-t1851-c3c-official-floor` (dirty 4 行)、submit-tree 3 本 = t1505 (A-1 sized
+attempt-0001 の原本)・t2288 (床値 pair w1 / w2 / finalize の固定資材)・t2489 (branch が main 未取込)、Codex 子木 locked) は据え置き —
+T-2814 の原本判定を command に入れてから 1 本ずつ扱う。(c) `impl-t2766-pairing-optin` (採用で用途を終えた、未取込 2 commit は opt-in gate だけ)
+は撤去する。(d) `impl-t2700-early-memo-optout` (D2185 決定 1 の再測定の起点) は保存する。
+
+**理由・採らない案:** 候補 2 を「clean + 着地済み」だけで撤去可としない — branch に未取込 commit があり、失う原本が無いことは検査で確かめる
+(相談が指摘)。候補 3 を今撤去する帰結 = F1034 と同型 (unlocked + 未追跡 output/ の worktree が原本だった)。主経路からは遠い (掃除)。
+
+### 項 11 — T-1558 (撤去 tool への所有権証明) は F1034 が再訪条件に文言上当たるが見送り維持
+
+対象: 見送り台帳 T-1558。資料: `docs/phase3.md` 見送り台帳、起点 entry 856、F1034、T-2814。
+
+**決定:** 見送り維持。再訪条件「別セッションによる誤撤去の実害 1 件」に F1034 が文言上当たるが、事故の原因は user 実行の引き渡し script の
+退避検算の欠落で、`dev_wave_cleanup` の同一 invocation 所有権証明では防げない。防壁は T-2814 (原本判定 + 退避検算)。
+
+### 項 12 — mocc G2 観測の上流報告は人間が送信する (実行手番、継続)
+
+対象: T-2791 (active 項ではない)。D2186 項 7 の実行手番の継続確認であり、決めることではない。送信済みなら次回の索引で閉じる。
+
+### 項 13 — 著作権者表示は具体的指定まで据え置く
+
+対象: T-2605。**決定:** 指定が来るまで据え置き。D2044 項 36 / D2104 項 38 / D2120 項 27 / D2150 項 8 / D2148 項 14 / D2172 項 11 /
+D2174 項 6 / D2186 項 9 を維持し、git author identity から推測しない。今回も表示名の指定は無い。
+
+### 項 14 — 収載維持 7 件は変更なし
+
+対象: T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708。**決定:** D1911 が収載を命じ D1936 項 50 で「既裁定と留保維持」とした
+7 件は変更なし。
+
+### 索引外の既裁定・移管済み項の扱い
+
+- 第 26 回の裁定済み未実装 44 のうち窓内で完了した 3 (受入 pairing の採用、A-1 attempt-0002 の投入、DW-O26 の 1 句) と裁定待ちへ移行した 2
+  (B-4 の precheck、B-8 の試走) を除く 39 を追跡する。本回で実装手番が生じた項 (項 1 = 発効と校正・本走、項 3 = carrier と呼び手の修正、
+  項 4 = 発行器先行の次段、項 7 = README の行、項 8 = DW-O26 の 2 file、項 10 = 候補 2 の撤去) を加える。
+- T-1015 (conftest.py の相乗り条件が受入 pairing 採用 wave で再発火、相乗り未実施) は D1780 (相乗り条件の成立は着手命令ではない) で
+  索引外。次に `orchestrator/tests/conftest.py` を触る wave の依頼文に「T-1015 を同時に閉じる」を明記する。
+- 凍結 v2 g1 の W-4 spec 承認 (人間手番) は T-2810 の後で未到達。T-2795 の pair 再投入と 4 巡目の予算再提示は修復 wave の後。T-2797 の本走認可は
+  試走の後 (稼働 wave)。
+- Git: 未 push 17 commit (閾値 20 未満)。第 26 回の承認上限 `482f19b88` はユーザーが 09-20 23:30 に `6305f2d05` まで push 済み。
+- 稼働 wave 所有の項 (T-2724 → T-2810、T-2797) は本 wave から状態差分を書かず、repo 外 rulings-inbox の
+  `2026-09-21-rulings-full27-verdicts.md` に照合項として控えた。項 5 は T-2810 session へ通知する。
+
+## D2195. 変異の期待 node は login self-run で観測し、dispatch probe は適用条件を満たさない test の fallback にする (2026-09-21)
+
+**決定 (ユーザー依頼に基づく、docs のみ):** `DW-M08` の期待 node の観測は login self-run (変異ごとに注入 → test file の自走 harness → `DW-O19` に従い復元し sha256 も照合) を既定とし、dispatch final を 1 回走らせる。適用は自走の node 集合 (FAIL + ERROR) が `--collect-only` と一致し login 実行が許される test file に限り、pytest 専用 allowlist と、parametrize・conftest / autouse fixture・環境変数・import 副作用に依存する test は従来の dispatch probe (初回を probe と明記) へ戻す。KILLED 判定は変えない — dispatch final での期待 node 完全一致 (F33 / F71) が担い、観測誤りは MISMATCH か PARSE_ERROR の fail-closed に落ちる。併せて `DW-M05` に「final の待ちは job dir で確定済み本文と検査の準備に充てる (未測定欄・placeholder 禁止)」を置く。
+
+**理由:**
+- 直近 landed impl 7 wave の実測で、変異 probe の dispatch 走は実施 6 本平均 20.7 分 (13.6〜26.4)、うち qsub→ノードで script 開始までの待ちが 5〜17 分の外れ値として 84 job 中 8 件入る。fig13 wave の login self-run は 20 変異で 2 分、final は 20/20 一致した (1 file の実績)。
+- self-run は観測法であって判定ではない。dispatch final の完全一致を残す限り、gate の受理集合は変わらない。
+- 適用条件を事前に検査可能な形 (`--collect-only` との node 集合一致) で書かないと、自走と pytest で node が食い違う test を login へ投入して観測失敗か実行場所の規律違反を起こす (段 3 相談の所見)。
+
+**却下した選択肢:**
+- 全 test へ無条件に self-run を適用 — 二重 runner 契約 (F42) は harness の存在を検査するだけで pytest との同値性を保証しない。
+- final も login で走らせる — `DW-M07` の dispatch 既定と login 拒否を変える gate の変更で、本 wave の scope 外。
+- 変異 job の batching で probe を短縮 — harness の 1 job = 1 変異 receipt 束縛を変える構造変更で、裁定パッケージへ。
+
+## D2196. 凍結 v2 g1 の launch validator の受理集合を official 成果物の現物形へ広げる — journal は binding 2 形と `reservation-preflight` (任意・高々 1 件・campaign 前)、段階 6 lineage は「各 artifact の一意・非 merge 導入 i について C ≤ i ≤ G」と「G 自身が追加した世代文書 1 file の導入 == {G}」とし、policy 照合・scan 除外・cert 条件は変えない (2026-09-21)
+
+**決定:**
+1. `s8b_ratified_freeze._JOURNAL_KEYS` に `reservation-preflight` (producer `s8b_floor_campaign.py` の 10 key) を足し、`reservation-preflight` と `campaign-start`
+   にだけ binding 2 key (`pbs_jobid` / `submission_nonce`) を optional に許す。受理形は (a) binding 無し campaign + binding 無し reservation 1 件 (campaign 前)、
+   (b) binding 付き campaign + 同値 binding 付き reservation 1 件 (campaign 前) の 2 形だけ。片側 claim・値不一致・key 片欠け・型不正 (binding は非空 str、
+   reservation の 7 数値 field は int > 0 で bool 拒否、`formula` 非空 str、`shared_dependency_prebuild` bool)・reservation 2 件以上・campaign 後の reservation・
+   他 event への binding key は拒否する。binding は記録内の整合情報であり PBS job の外部認証ではない。
+2. `_launch_validate` 段階 6 の「result / measurement_closure の導入集合 == {G}」を、各 path の一意 (`_unique_introduction`)・非 merge 導入 i について
+   「cert C が i の祖先か同一」かつ「i が G の祖先か同一」(DAG 上の祖先関係) へ改める。上限 i ≤ G は段階 3 の G-tree 実在検査と一意導入から従う
+   重複検査で独立保証に数えない。cert C の条件 (一意導入・非 merge・C < G 厳密) は不変。
+3. G 偽装の検出は、G (`ratified.generation_commit`) 自身が追加した path (`_added_paths`) のうち世代文書形 (`_GEN_RE`) がちょうど 1 つあり、その導入集合が {G} で
+   あることで保つ (cause `generation-introduction`)。path を `generation_number` から引かない (段 4 追補 1)。
+4. `test_s8b_oracle_driver._ACTIVATED_G1_REFUSALS` (実 repo を root にする held 6 node の真値) は、ccbench pin 前進 (D2184) 後の live P3 実測値
+   (layer-2 hit + `manifest-invalid` の policy 照合) へ更新する。pin 前進の統合時に本来追随すべきだった期待値の補完であり、成功条件の緩和ではない。
+5. 本 wave の効能は「validator の互換性修復」と「新 main の historical reverify (`reverify_published_freeze`) が段階 4〜7 を通過して段階 8 に到達すること」に
+   限る。live 経路は段階 4 の現行 policy 照合で拒否のまま (D2184、移行は T-2812 系)、historical は段階 8 で未発効候補文書
+   `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` の scan hit で失敗のまま。候補文書の扱い (削除 commit を第一候補とする) は別裁定とし、本 wave は
+   scan 除外を広げない。
+
+**理由:**
+- official run の journal は producer の設計どおり `reservation-preflight` と PBS binding を持ち、validator の allowlist だけが追随していなかった (決定台帳 25569 行付近の
+  allowlist 方式の設計)。現物形に合わせるのは受理集合の最小の拡張で、producer が書き得る 2 形以外は拒否のまま。
+- 現物 topology は cert C = result 導入 = X1' = G^ (D2077 の一方向順序 result → 候補 → G の帰結) で、旧条件は構造的に満たせない。区間受理 [C, G] は
+  現物と既存 fixture (i = G) を同じ述語で受理し、下限・一意・非 merge を追加の制約として残す。相談 2 本 (`sol` / `luna`) は α を条件付きで支持し、条件
+  (上限の重複性の明記、受理集合の一般化の明示、効能の限定、`reservation-preflight` の件数・順序) はすべて採用した。
+- 世代文書 path を `generation_number` から引くと、`generation_number` だけを射影する既存 test (scope 以外の gate が全 green であることを pin する) と衝突する
+  (焦点走 1 の赤 1 件)。G 自身の追加 path から引けば、G 偽装 (A を G と申告) は approval record が世代文書形でないため 0 個で拒否でき、既存の
+  reason / cause と負例の期待を変えずに済む。
+
+**却下した選択肢:**
+- β (G を result と同 commit で作り直す) — D2120 項 2 (b) の再裁定が要り、G / A / X の参照へ波及する。
+- γ (floor_source へ導入条件を課さない) — 同じ残存条件の下で受理集合を最も広げる。
+- δ (`i == frozen_at_head` に束縛) — 独立 fixture の `frozen_at_head` は v1 由来で launch core は V1a を検査しないため fixture の全面変更が要り、D2077 が要求しない
+  保証 (全 closure の初導入 = captured HEAD) を課し、measurement_closure が別 commit で導入される将来形を排除する。
+- binding 必須 (official は PBS 下でのみ走る) — producer が `external_checkpoint_binding` 無しでも書き得る形を validator が拒否することになり、fixture 全更新が要る。
+- 段階 6 で `resolve_active_generation` を呼ぶ — 段階 7 と二重で、段階 6 の H-pure な独立性 (resolver の結果を使わない) を崩す。
+- 世代文書 {G} 検査を外して既存負例の期待 cause を段階 7 のものへ変える — 既存 test の期待値を変える。
+- policy 照合の除去・live 経路への `expected_policy=None`・候補文書の exemption 追加 — D2184 / D2120 項 2 (a) が却下済み (規律 2)。

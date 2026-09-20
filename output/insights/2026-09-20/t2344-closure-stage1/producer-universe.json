@@ -1,0 +1,22 @@
+{
+  "commit": "f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad",
+  "seeds_missing": [],
+  "enrolled": 63,
+  "tuple_rooted_universe": 163,
+  "producer_rooted_universe": 168,
+  "union_universe": 173,
+  "producer_only_not_in_tuple_universe": [
+    "orchestrator/campaign/b10_backoff_shape_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep_report.py",
+    "orchestrator/campaign/backoff_overthrottle.py",
+    "orchestrator/campaign/s8b_abort_reason_contract.py",
+    "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_outcome_stage_contract.py",
+    "orchestrator/reports/__init__.py",
+    "orchestrator/reports/calibration_report.py",
+    "orchestrator/reports/plot.py"
+  ],
+  "producer_only_count": 10,
+  "unenrolled_in_union": 110
+}

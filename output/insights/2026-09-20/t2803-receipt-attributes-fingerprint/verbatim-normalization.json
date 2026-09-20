@@ -1,0 +1,17 @@
+{
+  "purpose": "reviews/ の codex 出力を repo へ写す際、`git diff --check` に抵触する行末空白だけを可逆に除去した記録 (可視文字不変)",
+  "rule": "各行末の ASCII 空白 (半角空白・タブ) を除去。除去した行は markdown の hard line break (半角空白 2 個) のみ",
+  "files": [
+    {
+      "path": "reviews/s6-focus1.md",
+      "original_sha256": "14883bc34b081113a9810437244693e421a9402684446b8060985a7cb860828d",
+      "original_bytes": 7047,
+      "normalized_sha256": "98969dd823e67ca38893214941e87bfa4098be4eabe581e040f53f1ad6e349a6",
+      "normalized_bytes": 7041,
+      "lines_changed": [45, 46, 47],
+      "removed_suffix_per_line": "  ",
+      "restore": "行 45〜47 の末尾に半角空白 2 個を戻すと原文 (sha256 = original_sha256) に一致する"
+    }
+  ],
+  "unchanged": "reviews/ の他 7 file、verbatim/、measurements/ は原本 bytes のまま (行末空白なし)"
+}

@@ -1,0 +1,1 @@
+{"worker": "gw0", "pid": 366558, "name": "verify", "key": null, "begin_epoch": 1789923700.1896048, "begin_mono": 404393.73448246, "end_epoch": 1789923700.1976984, "end_mono": 404393.742575761, "ok": true, "error": null, "extra": {"nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_contract_sha256_mismatch_is_refused", "span_id": "366558:62", "parent_span_id": null}}
