@@ -1,0 +1,23 @@
+{
+  "job_name": "izdw-shard-0",
+  "qdel": {
+    "attempted": false,
+    "exception": null,
+    "gate": {
+      "reason": "state-not-cancellable"
+    },
+    "job_may_remain": true,
+    "returncode": null
+  },
+  "reason": "job-may-remain-without-terminal-evidence",
+  "recovery": {
+    "final-step": "source の clean/HEAD を確認した後だけ hold を手動削除する",
+    "manual-qdel-warning": "手動 qdel は F47 の submission-disabled.json を武装させ、その解除もユーザー手番になる",
+    "qstat-unavailable": "scheduler を確認できるまで source と worktree と hold を保全する",
+    "request-absent-or-terminal": "qstat で対象の不在または終端を確認してから dirty source を復元する",
+    "request-visible-active": "request_id を qstat で確認し、終端まで待つかユーザー自身が手動で対処する"
+  },
+  "request_id": "12235.nqsv",
+  "schema_version": "pegasus-orphan-hold/v1",
+  "submission_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de/shard-0/dispatch/shard-0"
+}
