@@ -1,0 +1,136 @@
+{
+  "started_at": "2026-09-19T22:58:02.125570+00:00",
+  "failures": [],
+  "limitations": [
+    "\u521d\u56de\u79fb\u9001\u30fbmain \u521d\u56de\u3068\u3082 cold \u672a\u4fdd\u8a3c\u3002per-base \u5dee\u306f\u53d7\u5165 wall \u306e\u6539\u5584\u3067\u306f\u306a\u3044\u3002",
+    "C2 \u306f\u53c2\u7167 index \u3092\u7121\u6599\u3067\u4f7f\u3046\u4e0b\u9650\u6a21\u578b\u3067 production \u8a2d\u8a08\u3067\u306f\u306a\u3044\u3002",
+    "C2 \u306f\u8907\u88fd\u6e08\u307f worktree \u3092\u5909\u66f4\u305b\u305a\u7a7a stat \u3092\u901a\u5e38\u8a2d\u5b9a\u3067\u691c\u8a3c\u3059\u308b\u7d4c\u8def\u306e\u53c2\u8003\u8cbb\u7528\u3002",
+    "checkout-index \u7d4c\u8def\u306f\u672a\u6e2c\u5b9a\u3002copy \u5f8c status \u306f\u526f\u6b21\u91cf\u3002",
+    "\u5931\u683c\u30fbtimeout\u30fb\u6b20\u6e2c\u3092\u4fdd\u6301\u3057\u3001\u4e3b\u5224\u5b9a\u306e\u6210\u529f round \u6570\u3092\u660e\u793a\u3059\u308b\u3002",
+    "selftest \u306f\u4ed5\u69d8 v2 \u306b\u5f93\u3044 submodule \u306a\u3057\u3002submodule \u691c\u67fb\u306f\u672c\u8d70\u306e\u307f\u3002"
+  ],
+  "parameters": {
+    "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+    "work_parent": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1",
+    "out": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/result-hold.json",
+    "rounds": 5,
+    "transfer_trials": 3,
+    "subprocess_timeout": 1200,
+    "keep_work": false,
+    "require_local_fs": false,
+    "selftest": false,
+    "hold_session_only": true
+  },
+  "environment": {
+    "hostname": "pegasus02",
+    "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+    "cpu_count": 96,
+    "affinity_count": 96,
+    "loadavg_start": [
+      10.13232421875,
+      12.1328125,
+      11.74365234375
+    ],
+    "probe_sha256": "0e6759231b0e92d082196872288b978ea01ff153cecd77ad701d0de945fcef18",
+    "work_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw",
+    "fstype": "lustre",
+    "temp_environment": {
+      "TMPDIR": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp",
+      "TEMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp",
+      "TMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp"
+    },
+    "git_version": "git version 2.34.1",
+    "source_head": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+    "source_common_dir": "/work/1/SFC/tanab/izanagi/.git",
+    "source_count_objects": {
+      "count": 6088,
+      "size": 172516,
+      "in-pack": 185024,
+      "packs": 21,
+      "size-pack": 480164,
+      "prune-packable": 0,
+      "garbage": 0,
+      "size-garbage": 0
+    },
+    "loadavg_end": [
+      9.5830078125,
+      11.947265625,
+      11.68701171875
+    ]
+  },
+  "build_s": null,
+  "hold_session": {
+    "argv": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost/orchestrator/tests/test_s8b_oracle_driver.py",
+      "--collect-only",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "-k",
+      "t2709_no_such_node_zzz"
+    ],
+    "rc": 5,
+    "elapsed_s": 3.192368736,
+    "temp_environment": {
+      "TMPDIR": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp",
+      "TEMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp",
+      "TMP": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2709-blob-transfer-cost/selftest-1/t2709-qh9xthtw/tmp"
+    },
+    "git_environment_keys": [],
+    "environment_preserved": true,
+    "module_loaded": true,
+    "module_file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost/orchestrator/tests/test_s8b_oracle_driver.py"
+  },
+  "environment_records": [
+    {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "6769742076657273696f6e20322e33342e310a",
+      "elapsed_s": 0.001295414
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "623766393730646661353037353538663766623636396135616233383935386436633736623537630a",
+      "elapsed_s": 0.031505811
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "--git-common-dir"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "2f776f726b2f312f5346432f74616e61622f697a616e6167692f2e6769740a",
+      "elapsed_s": 0.020514945
+    },
+    {
+      "argv": [
+        "git",
+        "count-objects",
+        "-v"
+      ],
+      "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2709-blob-transfer-cost",
+      "rc": 0,
+      "stderr": "",
+      "stdout_hex": "636f756e743a20363038380a73697a653a203137323531360a696e2d7061636b3a203138353032340a7061636b733a2032310a73697a652d7061636b3a203438303136340a7072756e652d7061636b61626c653a20300a676172626167653a20300a73697a652d676172626167653a20300a",
+      "elapsed_s": 3.310938734
+    }
+  ],
+  "ok": true,
+  "work_removed": true,
+  "finished_at": "2026-09-19T22:58:08.865744+00:00"
+}
