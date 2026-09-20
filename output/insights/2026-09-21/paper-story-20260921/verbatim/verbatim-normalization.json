@@ -1,0 +1,21 @@
+{
+  "rule": "行末の空白 (U+0020 / U+0009) だけを除去。改行数・可視文字は不変。復元は原文の receipt (job dir artifacts の output_sha256) と突き合わせる",
+  "files": {
+    "review-out.md": {
+      "original_sha256": "e2c33b17e6d8d84f9d732c9e93c56dda2e4549be47917db523a0030f83c06493",
+      "original_bytes": 10594,
+      "normalized_sha256": "f28465af7e8a369ea21eaec24434ea58770e8d3b3f5dc6ac726376734923508b",
+      "normalized_bytes": 10588,
+      "trailing_whitespace_chars_removed": 6,
+      "lines_touched": 3
+    },
+    "focus-out.md": {
+      "original_sha256": "63a41f53b2b862c7ef6fd4f9a0a157b391636d7aec6df9f16e3c3ea4d48cec9e",
+      "original_bytes": 5223,
+      "normalized_sha256": "913efdc9ee9432b91b0b4ec5f1f64da0e28e44c8f77a8847bf48f84ce4acdc95",
+      "normalized_bytes": 5217,
+      "trailing_whitespace_chars_removed": 6,
+      "lines_touched": 3
+    }
+  }
+}
