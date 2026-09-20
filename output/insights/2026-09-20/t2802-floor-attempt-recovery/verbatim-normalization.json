@@ -1,0 +1,105 @@
+{
+ "rule": "各行の行末の空白 (U+0020 / U+0009) を除去し、file 末尾の連続する空行を 1 個の改行に縮約する。可視文字は不変。復元は removed_suffix を各行末へ戻し、eof_blank_lines_removed 個の空行を末尾へ足す",
+ "files": {
+  "verbatim/probe-source.md": {
+   "original_sha256": "45d50ae1b8e902bf2ab6ec0d8c7407b9cf8d78c4f62d6495c7a9071b1b5fbab8",
+   "original_bytes": 83995,
+   "normalized_sha256": "0b7f51a96e2040b8de919f92c7ed1d35374559049f01c0b2cfb1e29f9303fe6d",
+   "normalized_bytes": 83994,
+   "trailing_whitespace_removed": [],
+   "eof_blank_lines_removed": 1
+  },
+  "verbatim/s2-plan.md": {
+   "original_sha256": "a0b0f0e5c7dc4a662f6dbd7652c1c993fb805021c0b34b8dbbc479432bd9b1f5",
+   "original_bytes": 21728,
+   "normalized_sha256": "cfb462175ab3e7469480bce52214f8474c4790dbd0197e3c943b395551123957",
+   "normalized_bytes": 21714,
+   "trailing_whitespace_removed": [
+    {
+     "line": 144,
+     "removed_suffix": "   "
+    },
+    {
+     "line": 148,
+     "removed_suffix": "   "
+    },
+    {
+     "line": 154,
+     "removed_suffix": "   "
+    },
+    {
+     "line": 160,
+     "removed_suffix": "   "
+    },
+    {
+     "line": 168,
+     "removed_suffix": "   "
+    }
+   ],
+   "eof_blank_lines_removed": 0
+  },
+  "verbatim/s3-consult-A.md": {
+   "original_sha256": "5ec4010070d64e7755407cfd842918269b7f1a846a85e9c8e5b2b4c39e9b5738",
+   "original_bytes": 14438,
+   "normalized_sha256": "2714e7c56252c7d285a06cd141daf008cc6541f7ac9931f3e419648dc12ddab1",
+   "normalized_bytes": 14435,
+   "trailing_whitespace_removed": [
+    {
+     "line": 131,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 132,
+     "removed_suffix": "  "
+    }
+   ],
+   "eof_blank_lines_removed": 0
+  },
+  "verbatim/s3-consult-B.md": {
+   "original_sha256": "ea8ffea659a3262d710f9e7fe642f945cb280c34e594e90e7f458ca0ef986e89",
+   "original_bytes": 16264,
+   "normalized_sha256": "950a51406d2c3bf6c75b72ded574d2d781cef4281683693ba9595b01d99b8e2e",
+   "normalized_bytes": 16257,
+   "trailing_whitespace_removed": [
+    {
+     "line": 148,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 149,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 150,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 151,
+     "removed_suffix": "  "
+    }
+   ],
+   "eof_blank_lines_removed": 0
+  },
+  "verbatim/s6-review-B.md": {
+   "original_sha256": "b027c6aef0fd3333e1faee7b9162c0281286fcdb21c9fb0557c6361603476d06",
+   "original_bytes": 12128,
+   "normalized_sha256": "483d1bef5d855031519c3ac48c93d72b12a0887331345eec89fa52acdc717f9c",
+   "normalized_bytes": 12123,
+   "trailing_whitespace_removed": [
+    {
+     "line": 144,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 145,
+     "removed_suffix": "  "
+    },
+    {
+     "line": 146,
+     "removed_suffix": "  "
+    }
+   ],
+   "eof_blank_lines_removed": 0
+  }
+ }
+}

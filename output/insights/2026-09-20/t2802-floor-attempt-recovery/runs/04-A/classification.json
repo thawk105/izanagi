@@ -1,0 +1,6 @@
+{
+  "kind": "infra",
+  "by": "parent (claude, dev-wave-t2802-floor-attempt-recovery)",
+  "evidence": "child rc=16 'acceptance shard gate failed: dispatch-infrastructure'; every shard dispatcher refused to start (IZANAGI_DISPATCH_OUTCOME_V1 kind=infra reason=orphan-hold, child_started=false) because the root latch t2802-base-a/output/pegasus-dispatch/orphan-hold.json (request 12235 from 03-A) was still present: the parent had removed only the per-request files under orphan-holds/. No compute job was submitted; no test ran. The root latch was removed after qstat showed 12235/12236 absent and base-a HEAD == b7f970dfa and clean (copy kept in runs/03-A/orphan-hold-root.json). Not attributable to the B implementation (A run, nothing executed).",
+  "at": "2026-09-20T11:53:00+09:00"
+}
