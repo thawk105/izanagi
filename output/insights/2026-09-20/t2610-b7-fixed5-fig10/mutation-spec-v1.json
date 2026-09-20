@@ -1,0 +1,252 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\"\"\"\n",
+          "new": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-cert-hash-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n",
+          "new": "        _require(digest == hashes[path] or True, f\"SHA-256 mismatch: {path}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-raw-manifest-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "            _require(_sha256(path) == entry[\"sha256\"], \"raw SHA-256 mismatch\")\n",
+          "new": "            _require(_sha256(path) == entry[\"sha256\"] or True, \"raw SHA-256 mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-median-crosscheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"], \"median mismatch\")\n",
+          "new": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"] or True, \"median mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-effect-crosscheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12), \"effect mismatch\")\n",
+          "new": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12) or True, \"effect mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-judgment-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        _require(computed == RECORDED_JUDGMENT[w], \"judgment mismatch\")\n",
+          "new": "        _require(computed == RECORDED_JUDGMENT[w] or True, \"judgment mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-certified-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        _require(q[\"status\"] == \"certified\", \"uncertified cell\")\n",
+          "new": "        _require(q[\"status\"] == \"certified\" or True, \"uncertified cell\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-drop-trace-disabled-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "            _require(p[\"trace_enabled\"] is False, \"trace-enabled performance samples\")\n",
+          "new": "            _require(p[\"trace_enabled\"] is False or True, \"trace-enabled performance samples\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-drop-adopted-token-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "            _require(token != \"stock\", \"adopted stock token\")\n",
+          "new": "            _require(token != \"stock\" or True, \"adopted stock token\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-bypass-layout-overlap",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "            if _intersection(box, other) > 1:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n",
+          "new": "            if _intersection(box, other) > 1 and False:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-landed-skip-on-missing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_b7_fixed5_regression.py",
+          "old": "    assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'\n",
+          "new": "    if not all(p.is_file() for p in paths):\n        skip('fig10 integration bundle is incomplete')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-drop-caption-literal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.\",\n",
+          "new": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded.\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-drop-floor-genome-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        _require(f[\"genome\"] == FLOOR_GENOME, \"floor genome mismatch\")\n",
+          "new": "        _require(f[\"genome\"] == FLOOR_GENOME or True, \"floor genome mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-strict-to-nonstrict-predicate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "        computed = \"regression\" if effect < -cv else \"no-regression\"\n",
+          "new": "        computed = \"regression\" if effect <= -cv else \"no-regression\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-drop-correctness-trace-enabled-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "old": "                    _require(row[\"certified\"] is True and row[\"trace_enabled\"] is True\n",
+          "new": "                    _require(row[\"certified\"] is True and (row[\"trace_enabled\"] is True or True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

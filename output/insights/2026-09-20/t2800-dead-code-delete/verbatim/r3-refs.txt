@@ -1,0 +1,180 @@
+=== orchestrator/campaign/backoff_counterfactual_analysis.py
+    """Offline analysis for the preregistered adaptive-backoff counterfactual.
+    この解析器は 2026-09-07 に取得した 12 件の cohort 専用であり、v2 束縛の成果物は受理しない。
+    """
+    from __future__ import annotations
+    import hashlib
+    import json
+    import math
+    import re
+  docs-op refs: none
+  decisions.md: 0  failures.md: 1  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py
+    """Offline analysis for adaptive-backoff counterfactual cohort 2.
+    この解析器は count-closed な cohort 2 の固定 12 件だけを扱う。
+    """
+    from __future__ import annotations
+    import hashlib
+    import json
+    import math
+    import re
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/backoff_nonmonotonicity_analysis.py
+    """Descriptive reanalysis of recorded adaptive-backoff artifacts for T-2188.
+    The static curve and T-1941 residence distribution are deliberately kept as
+    separate, decision-ineligible summaries.  This module performs no new
+    measurement and makes no mechanism decision.
+    """
+    from __future__ import annotations
+    import argparse
+    import json
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/backoff_requested_us.py
+    # -*- coding: utf-8 -*-
+    """One-rep balanced diagnostic for Silo adaptive requested backoff microseconds."""
+    from __future__ import annotations
+    import argparse
+    import hashlib
+    import json
+    import os
+    import random
+  docs-op refs: none
+  decisions.md: 1  failures.md: 1  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/backoff_sweep_report.py
+    # -*- coding: utf-8 -*-
+    """backoff sweep の材料レポート — throughput を backoff 量の関数として射影。
+    backoff_sweep.py の WAL を読み、workload ごとに:
+      - 静的 backoff の量 (us) に対する throughput / abort_rate / ipc の曲線 (.dat/.plt/.png)
+      - 無 backoff (BACK_OFF=0) と CCBench 既定 3 定数の adaptive
+        (刻み 100 us / 上限 1000 us / 更新間隔 10 us) の参照線
+      - 静的最良 対 無 backoff の記述的判定を report.md に
+    を campaigns/<id>/reports/ に出す。critic の帰属 (P2-3) を実 sweep で検証する材料。
+  docs-op refs: docs/phase2.md 
+  decisions.md: 2  failures.md: 0  memory: 1
+  prod refs (non-test): 
+=== orchestrator/campaign/floor_liveness.py
+    # -*- coding: utf-8 -*-
+    """Bounded post-submit liveness classification for Pegasus floor jobs."""
+    from __future__ import annotations
+    import argparse
+    import datetime as dt
+    import json
+    import re
+    import subprocess
+  docs-op refs: none
+  decisions.md: 1  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/mocc_trace_pair_anchor.py
+    #!/usr/bin/env python3
+    """Independently anchor a Mocc TRACE pair receipt to caller-held source pins."""
+    from __future__ import annotations
+    import argparse
+    import base64
+    from dataclasses import dataclass
+    import hashlib
+    import json
+  docs-op refs: none
+  decisions.md: 2  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== orchestrator/campaign/s6_canary_rename.py
+    #!/usr/bin/env python3
+    """s6_canary_rename — D52 §3 独立再命名 canary の匿名化 + preprocess 同値の機械検証。
+    trigger-gating 骨格 patch (patches/silo-backoff-trigger-gating-variant.patch) から
+    識別子 rename + コメント除去 + 説明テキスト空化のみを施した匿名化 patch を生成し、
+    その 3 操作以外にコード構造を変えていないことを preprocess 同値 (cpp -fpreprocessed -P)
+    で機械検証する。正本 = docs/phase3-main-experiment.md 2026-07-12 追記 (D52) §3 /
+    output/insights/2026-07-12_s6-headline-system-level-reframe-draft.md §3。
+    匿名化の機械規則 (恣意的なコメント選別を排除するための構文位置ベース定義):
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py
+    """One-shot compute qualification, outside pytest's testpaths.
+    Run via tools/pegasus/dispatch_compute.py --task generic -- python3 -m
+    orchestrator.manual_probes.t1994_readonly_snapshot_qualification.
+    This measures source substitution during build, not poisoned cache reuse.
+    The production capability is a trusted-producer value, not kernel attestation
+    or a signature. Hostile Python process-memory mutation is outside its boundary.
+    clone3 ENOSYS fallback was observed on glibc 2.35, not arbitrary libcs.
+    No replacement session, context, or capability is defined here. Observers call
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== tools/insights_date_layout.py
+    #!/usr/bin/env python3
+    """資料のbytesを保存する一回限りの日付別移行。
+    計算ノードで計画JSONを確認後、そのファイルを --apply に渡す。
+    移動前に全計画を再検査する。同時書込みは禁止。
+    --output で新規JSONファイルへ保存すると、標準出力は件数のみになる。
+    """
+    from __future__ import annotations
+    import argparse
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== tools/migrate_output_gzip.py
+    #!/usr/bin/env python3
+    """Migrate selected tracked output files to deterministic gzip blobs.
+    The file list comes from ``HEAD`` rather than from a filesystem walk.  This is
+    intentional: the migration is for tracked bytes, and the HEAD blob is the
+    identity reference used by the compression self-check.
+    """
+    from __future__ import annotations
+    import argparse
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== tools/mutation_fanout.py
+    #!/usr/bin/env python3
+    """Mutation harness の N-shard fan-out 専用 driver。
+    この tool は汎用の並行投入 gate ではない。親 spec から単位 A の契約で
+    導出した shard 群だけを、事前計測 receipt と login headroom reservation の
+    両方が一致するときに起動する。
+    """
+    from __future__ import annotations
+    import argparse
+  docs-op refs: none
+  decisions.md: 4  failures.md: 1  memory: 0
+  prod refs (non-test): tools/mutation_fanout_contract.py 
+=== tools/plotting/plot_t2266_tail_mechanism.py
+    #!/usr/bin/env python3
+    """Plot a descriptive accounting fit for the T-2266 static-backoff tail.
+    Usage:
+        python tools/plotting/plot_t2266_tail_mechanism.py OUT_PREFIX
+    The three checked-in ``t2266-backoff-static-tail-report/v1`` reports are the
+    only runtime measurements.  Every plotted statistic is recomputed from their
+    five repetition records.  The refuted exponential is deliberately different:
+    its two anchors are pinned transcriptions of ``t2216_model_tail.json``
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 
+=== tools/t1434_t1222_science_slice.py
+    #!/usr/bin/env python3
+    """Verify the frozen T-1434/T-1222 retrospective science slice."""
+    from __future__ import annotations
+    import argparse
+    import hashlib
+    import json
+    import os
+    import re
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 1
+  prod refs (non-test): 
+=== tools/verify_paper_story_a1_balanced_sizing.py
+    #!/usr/bin/env python3
+    """Source-separated replay verifier for balanced A-1 sizing.
+    This is a second source implementation of the registered rules.  It is not an
+    independent statistical oracle and makes no such claim.
+    """
+    from __future__ import annotations
+    import argparse
+    import hashlib
+  docs-op refs: none
+  decisions.md: 0  failures.md: 0  memory: 0
+  prod refs (non-test): 

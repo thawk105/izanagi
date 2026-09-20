@@ -395,6 +395,17 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
 `.claude/worktrees/` 配下は不可)、`THIRDPARTY_SOURCE_ROOT` は §6 の `hydrate` 出力 JSON の
 `.source_root`、`EVIDENCE_ROOT` はどの repository の配下でもない場所とする。同じ attempt directory は
 再利用しない。`-o` / `-e` を省くと標準出力・標準エラーが投入時 directory へ落ちて作業ツリーを汚す。
+**投入前に `REPO_ROOT` の submodule `external/ccbench` を対象 PIN へ checkout しておく (D1777、[T-2407])。**
+job body は CCBench の HEAD と `orchestrator/campaign/p3_s4_loop.py` の `PIN` の exact 一致を検査し、
+submodule が未初期化 (source root 不在) でも、PIN と異なる commit (gitlink を含む) のままでも rc=2 で
+拒否する。手順は (1) `python3 tools/dev_wave_submodule_init.py --worktree "$REPO_ROOT"` で再帰初期化する
+(`REPO_ROOT` は主 repo の `git worktree add --detach` で切った登録 worktree。同 tool は主 repo の submodule URL が
+ローカル `.git/modules` を指す既存設定を利用し、file transport を明示許可して fetch 無しで初期化する。素の
+`submodule update --init` は file transport の拒否で失敗する)、(2) PIN を**投入対象 checkout の** module から読む
+(`(cd "$REPO_ROOT" && python3 -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)')`)、(3)
+`git -C "$REPO_ROOT/external/ccbench" rev-parse HEAD` が PIN と異なれば
+`git -C "$REPO_ROOT/external/ccbench" checkout <PIN>` する。superproject 側は job body の submodule 除外付き
+tracked-clean 検査を満たす状態のままにする (gitlink の差は同検査が見ないので commit しない)。
 **attempt directory は job body が所有する。** 投入側は `mkdir` 以外に何も置かない — `allocation-qstat.*` /
 `reservation.json` / receipt は job body が fresh (不在) を要求し、既存なら driver 起動前に rc=2 で拒否する
 (2026-09-18 に親が投入直後の `qstat -f` の写しを置き、attempt を 7 秒で失った)。

@@ -136,6 +136,19 @@ whiteboardの5field、`delta_pct=None`、AO（報告用agent出力）の非読�
 1. 当該job rootの保存critic逐語を明示選択し、既存 `--emit-planner-context` と正規K2引数へ
    `--k2-critic-diagnosis <保存critic逐語.md>` を追加する。refluxはon。評価・AO取込み口とは併用しない。
    既存campaignのcheckpointとknowledge projectionを使い、別treeの同名campaignから推測して選ばない。
+   **login (`PEGASUS_LOGIN`) ではこのCLIは使えない** — site解決直後の `_admit_env_contract` がemit分岐より前に
+   あり、計測を許すsite以外を拒否する (round 1 / 3 で実測、[T-2796])。loginで組み立てるときは、CLIの
+   emit経路と同じproduction関数 `k2_critic_diagnosis_from_bytes` → `planner_context_payload` でcontextを作り、
+   手順3の `k2_next_generation_inputs` で完全入力2本へ診断を組み込む (round 1 / 3 の形)。**ただしCLIが行う
+   受領証の書込み/照合の代わりを親が必ず行い、次を全部満たした入力だけを送付する。** 前提として、同じ検証済み
+   manifestから受領証と射影を生成し、そのknowledge levelとmanifest SHAを束縛した (= `planner_context_payload`
+   へ渡す) cfgからcampaign identityのpreimageとIDを再計算して、IDが選択したcampaignに対応することを確かめる。
+   そのうえで (i) 受領証の正準bytes (`knowledge_manifest.receipt_bytes`) が当該campaignの
+   `knowledge_manifest_receipt.json` と完全一致、(ii) 再計算したidentityのpreimageが当該campaignの
+   `campaign.lock` と完全一致、(iii) K2射影bytes (`knowledge_manifest.planner_projection`) が前巡insightの
+   `materials/knowledge-input.json` と同bytes、(iv) 組み立てた完全入力2本 (planner / coder) に既存tripwire
+   `assert_no_ability_probe_material` を通す。記録はround 3の形 (照合した各bytesのsha256を当該job rootへ) が例。
+   直呼びはこの照合の省略を許すものではなく、経路の改修でも新gateでもない。
 2. 出力JSONの `k2_critic_diagnosis` は `data_boundary`、逐語bytesの `source_sha256`、文字列の
    `attribution` / `recommend` / `avoid` / `uncertainty` のexact6field。4節は既存抽出器で前後stripし、
    内部内容と留保を保持する。hashは入力元の識別であり、内容の真実性・実送達の証明ではない。

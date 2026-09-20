@@ -132,6 +132,25 @@ provenance の generator SHA-256 は**図を生成した時点の bytes の記�
 現行 source を縛る pin ではない。landed artifact の検査も live generator の再 hash を
 要求せず、生成時記録として扱う。
 
+**A-6 (read-heavy、1 workload × 2 cell) の図 fig11 (2026-09-20):** 同じ生成器が study
+`paper-story-a6-certification` の attempt `a6-20260908b` も描く。受理する study は `STUDY_PROFILES` の
+exact 2 件 (A-2 / A-6)、pin 表 `CANONICAL_SHA256` は 3 leaf (A-2 の 2 attempt + A-6)。workload 数 N は
+embedded policy から導き、外部入力は 6 × N file、request / 時刻の一意検査は N、layout check は 2 行 × N 列
+(A-2 は 12 file・4 axes のまま)。A-6 の caption は稿 `docs/paper-story/results/2026-09-18-a6-certification-reject.md`
+を `caption_source` として SHA-256 束縛する。**着地済み fig5 / fig6 / fig7 の bytes・caption・artist 射影は不変**
+(着地 test が守る)。**再生成する current-full の provenance には top-level `study` が加わる** (A-2 を再生成しても
+同じ。着地済み provenance は key を持たないので読取側は無ければ A-2 と扱う)。
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+    --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b \
+    --certification output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json \
+    --raw-manifest output/insights/2026-09-08_t2411-paper-story-a6-certification/raw-manifest.json \
+    docs/paper-story/figures/fig11_a6_certification_reject
+```
+
+再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig11 節を正本とする。
+
 ## B-10 static-backoff right tail (09-15 formal cohort) figure
 
 `plot_b10_static_tail_formal.py` は、完走済み B-10 右 tail 正式 cohort (group
@@ -203,6 +222,38 @@ repo 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` を `caption_source` として SHA-256 付きで記録する
 (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig9 節を正本とする。
+
+## B-7 fixed 5 µs 三 workload 退行 (床値判定の記述図) figure
+
+`plot_b7_fixed5_regression.py` は、採用候補 fixed 5 µs を 3 workload で同一 attempt に測った study
+`paper-story-b7-fixed5-regression` (attempt `b7f5-20260919a`、3 workload × 2 cell × 5 標本) の標本・median・効果と、
+D1639 の between-run 床値との比較を 2 段 (上段 3 panel の標本、下段 1 panel の効果と −floor) で描く専用生成器である。
+既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_b7_fixed5_regression.py [--repo-root PATH] [--measurement-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の権威 bytes `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json` と
+`raw-manifest.json`、床値 JSON `output/env/pegasus/calibration/between_run_noise_t48_skew0p9_{rr5,rr50,rr95}_rmw0.json`、
+policy `orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json` (6 file、生成器の pin 表で SHA-256 束縛。pin は CLI から渡せない) と、
+raw-manifest が SHA-256 で束縛する repo 外の raw cell JSON 6 本 (`--measurement-root` 配下、既定は durable authority の path)。
+
+- median は raw の 5 標本から再計算し certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、median の比からの
+  再計算と照合する。図に出す判定の出所は稿 `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` §2.1 の転記
+  (定数) で、生成器は述語 `effect < −floor` (床 = 床値 JSON の `between_run.cv` 全桁、strict) を転記との整合検査にだけ使う。
+- SHA-256 不一致、schema / study / attempt / cell 順序の不一致、`source_binding_status` ≠ bound、adopted の `src_token` 不整合、
+  `correctness.status` ≠ certified、raw の verify 記録の不整合、性能標本が trace-enabled、`unstable`、標本数 ≠ 5、median / 効果 / 判定の不一致、
+  床値 JSON の genome / 条件の不一致、caption_source の不在のいずれでも成果物を出さない。
+- 保存前に renderer-backed layout check を実行し、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- caption は英文で、「B-7 の充足判定ではない」「規則 (effect < −floor、strict) と D1639 の床の出自」「退行なしは優越でも差が無いことの証明でもない、
+  有意差判定はしない」「outer status は論理積の出力で研究の判定ではない」「単一 attempt、昇格しない」「正しさは別走行、性能の認証ではない」
+  「CI は標本の記述」「上段 y は workload 別」「既存材料とプール・比較しない」の固定文を逐語で含む。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-b7-fixed5-regression-figure-provenance/v1`。`tracked_inputs` には稿を `caption_source` として SHA-256 付きで記録する
+(稿は provenance の SHA-256 を持たない、F36)。`external_inputs` には raw 6 本の root 相対 path と SHA-256 を記録する。
+論文図の再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig10 節を正本とする。
 
 ## S-1a 9 対 (失敗報告図) command example
 
@@ -372,3 +423,37 @@ JSON の `story_path` が指す凍結本文である。状態語の意味の正�
 `izanagi-arc-status-figure-provenance/v1` で、入力 2 file (JSON・本文) と生成器・出力の SHA-256、描いた項目 (`drawn_items`: ID・
 状態・実表示文字列)、状態定義、caption、展開済み argv、matplotlib / numpy の版を持つ。論文図の再現コマンド、caption、proof chain、
 次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節を正本とする。
+
+## K2 手動 loop 3 巡のデータフロー (説明図、値なし) figure
+
+`plot_k2_loop_flow.py` は、凍結稿 `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` が記録した K2 手動 loop の
+3 巡 (提案 → 評価 → critic) のデータフロー — 役割と遮断の所在、親が射影する入力 key、評価経路、実測の還流 2 回・診断の還流 1 回
+(exact 6 field)、規律 6 の自己申告 marker — を、性能値を 1 つも描かずに 4 列 × 6 lane の模式図にする専用生成器である (`fig12_`)。
+既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_k2_loop_flow.py [--repo-root PATH] [--flow PATH] OUT_PREFIX
+```
+
+入力は流れ JSON (`--flow` 省略時は `tools/plotting/k2_loop_flow_2026-09-20.json`、schema `izanagi-k2-loop-flow/v1`)、
+生成器に path 固定の稿 (caption_source)、role 定義 3 file (`.claude/agents/{planner-v4,coder-v4-autonomous-k2,critic}.md`) である。
+JSON は人が稿から写した射影で、意味の正本は稿である。
+
+- 各要素の `source_anchor` (`§1.4` / `§2.2 巡 1` の形) が稿の見出し行としてちょうど 1 行あることを検査する。意味の一致は検査しない。
+  稿の bytes は anchor の検査と SHA-256 の記録にだけ使い、値・判定を再計算しない。
+- role 定義の frontmatter `tools:` (`[]` ⇔ `tools_none: true`) が JSON の宣言と一致することを検査し、3 file の SHA-256 を記録する
+  (生成時点の記録で、着地後の一致は要求しない)。
+- 提案の literal・job id・日付・入力 key・diagnosis の 6 field 名・規律 6 の自己申告 (`form` は role 固定、`instruction_like_detected` は
+  bool で marker の形が変わる) は typed field から固定 template で描き、自由文に数量が混じると拒否する (`=`、`%`、単位語、数詞、宣言 ID・
+  instance・`job <id>` 以外の数字入り token)。
+- この凍結図の矢印 7 組 (実測の還流 m1 / m2a / m2b、診断の還流 d1、不在 a1 / a2 / a3) は生成器の定数と完全一致を要求し、描いた artist
+  から provenance の `arrows` を組む。caption の回数語は固定文である。
+- key 集合の不一致、enum 外、value の範囲・不一致、未評価列の制約違反、anchor の不正・非一意、role 不一致、prefix が `fig<N><letters>_`
+  でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・所属領域内包・相互非交差・
+  兄弟領域非交差・marker 非交差・**矢印線分と Text の非交差**) の違反、のいずれでも成果物を出さない。
+
+出力は `OUT_PREFIX.png` (200 dpi)、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-k2-loop-flow-figure-provenance/v1` で、入力 5 file (JSON・稿・role 定義 3 本) と生成器・出力の SHA-256、`caption_source`、
+描いた項目 (`drawn_items`: id・kind・実表示文字列)、矢印 (`arrows`)、role の遮断宣言 (`roles`)、caption、展開済み argv、
+matplotlib / numpy の版を持つ (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
+`docs/paper-story/figures/README.md` の fig12 節を正本とする。

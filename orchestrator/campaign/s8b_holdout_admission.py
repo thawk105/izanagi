@@ -4667,14 +4667,46 @@ def _floor_canonical_marker_path(
     return root / "consumed" / f"{claim_digest}-{marker_digest}.json"
 
 
+@dataclass(frozen=True)
+class _FloorAttemptClaimProjection:
+    """Claim/main authority only; never populated from marker fields."""
+
+    attempt_ids: tuple[str, ...]
+    document_fields: Mapping[str, object]
+
+
+class _FloorAttemptRecoveryContext:
+    """One locked candidate call owns this memo and lazy raw main snapshot."""
+
+    def __init__(self) -> None:
+        self.projections: dict[tuple[str, str], _FloorAttemptClaimProjection] = {}
+        self.main_rows: list[dict[str, Any]] | None = None
+
+    def read_main(self, root: Path) -> list[dict[str, Any]]:
+        if self.main_rows is None:
+            self.main_rows = _read_ledger(root / _LEDGER_NAME)
+        return self.main_rows
+
+
 def _canonical_floor_attempt_ledger_row(
     *, root: Path, marker: Mapping[str, object],
 ) -> dict[str, object]:
     """Completely rederive one floor attempt projection from claim and L."""
 
+    return _canonical_floor_attempt_ledger_row_with_context(
+        root=root, marker=marker, context=None,
+    )
+
+
+def _canonical_floor_attempt_ledger_row_with_context(
+    *, root: Path, marker: Mapping[str, object],
+    context: _FloorAttemptRecoveryContext | None,
+) -> dict[str, object]:
+    """Completely rederive one floor attempt projection from claim and L."""
+
     if marker.get("schema_version") == _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:
-        return _canonical_measurement_generation_floor_attempt_ledger_row(
-            root=root, marker=marker,
+        return _canonical_measurement_generation_floor_attempt_ledger_row_with_context(
+            root=root, marker=marker, context=context,
         )
     # T-1670 extends this single exact key source and this helper.
     if not isinstance(marker, Mapping) or set(marker) != set(_FLOOR_ATTEMPT_KEYS):
@@ -4687,6 +4719,32 @@ def _canonical_floor_attempt_ledger_row(
         raise HoldoutAdmissionError("floor consume marker version or role is invalid")
     claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
     attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    memo_key = (_ATTEMPT_SCHEMA, claim_digest)
+    projection = context.projections.get(memo_key) if context is not None else None
+    if projection is None:
+        projection = _derive_floor_attempt_projection(
+            root=root, claim_digest=claim_digest, attempt_id=attempt_id,
+            context=context,
+        )
+    elif attempt_id not in projection.attempt_ids:
+        raise HoldoutAdmissionError("floor consume claim attempt coverage is invalid")
+    expected = _canonical_floor_attempt_document(
+        attempt_id=attempt_id, **projection.document_fields,
+    )
+    # MUT-A2: no marker field is trusted instead of its complete rederivation.
+    if dict(marker) != expected:
+        raise HoldoutAdmissionError("floor consume marker differs from claim and ledger")
+    if context is not None:
+        context.projections[memo_key] = projection
+    return expected
+
+
+def _derive_floor_attempt_projection(
+    *, root: Path, claim_digest: str, attempt_id: str,
+    context: _FloorAttemptRecoveryContext | None,
+) -> _FloorAttemptClaimProjection:
+    """Derive authority in the original claim/coverage/main validation order."""
+
     claim = _read_canonical_document(_claim_path(root, claim_digest))
     claim_schema = claim.get("schema_version")
     expected_claim_keys = (
@@ -4734,7 +4792,10 @@ def _canonical_floor_attempt_ledger_row(
             raise HoldoutAdmissionError("floor consume claim seam list is invalid")
 
     matching_main: list[dict[str, Any]] = []
-    for row in _read_ledger(root / _LEDGER_NAME):
+    for row in (
+        _read_ledger(root / _LEDGER_NAME)
+        if context is None else context.read_main(root)
+    ):
         if row.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
             continue
         if set(row) != set(_FLOOR_LEDGER_KEYS):
@@ -4779,22 +4840,29 @@ def _canonical_floor_attempt_ledger_row(
     }
     if main != expected_main:
         raise HoldoutAdmissionError("floor consume main ledger differs from its claim")
-    expected = _canonical_floor_attempt_document(
-        claim_digest=claim_digest, attempt_id=attempt_id,
+    return _FloorAttemptClaimProjection(tuple(attempt_ids), dict(
+        claim_digest=claim_digest,
         campaign_run_id=claim["campaign_run_id"],
         manifest_sha256=manifest_sha256, run_relpath=claim["run_relpath"],
         cell_id=claim["cell_id"],
         freeze_holdout_key=canonical_key["freeze_holdout_key"],
         configuration_id=canonical_key["configuration_id"],
-    )
-    # MUT-A2: no marker field is trusted instead of its complete rederivation.
-    if dict(marker) != expected:
-        raise HoldoutAdmissionError("floor consume marker differs from claim and ledger")
-    return expected
+    ))
 
 
 def _canonical_measurement_generation_floor_attempt_ledger_row(
     *, root: Path, marker: Mapping[str, object],
+) -> dict[str, object]:
+    """Rederive one current floor attempt without retaining any authority."""
+
+    return _canonical_measurement_generation_floor_attempt_ledger_row_with_context(
+        root=root, marker=marker, context=None,
+    )
+
+
+def _canonical_measurement_generation_floor_attempt_ledger_row_with_context(
+    *, root: Path, marker: Mapping[str, object],
+    context: _FloorAttemptRecoveryContext | None,
 ) -> dict[str, object]:
     """Rederive one current floor attempt from its versioned claim and row."""
 
@@ -4814,6 +4882,35 @@ def _canonical_measurement_generation_floor_attempt_ledger_row(
         "measurement_generation_claim_digest",
     )
     attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    memo_key = (_MEASUREMENT_GENERATION_ATTEMPT_SCHEMA, claim_digest)
+    projection = context.projections.get(memo_key) if context is not None else None
+    if projection is None:
+        projection = _derive_measurement_generation_floor_attempt_projection(
+            root=root, claim_digest=claim_digest, attempt_id=attempt_id,
+            context=context,
+        )
+    elif attempt_id not in projection.attempt_ids:
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim attempt coverage is invalid"
+        )
+    expected = _canonical_measurement_generation_floor_attempt_document(
+        attempt_id=attempt_id, **projection.document_fields,
+    )
+    if dict(marker) != expected:
+        raise HoldoutAdmissionError(
+            "floor measurement generation marker differs from claim and ledger"
+        )
+    if context is not None:
+        context.projections[memo_key] = projection
+    return expected
+
+
+def _derive_measurement_generation_floor_attempt_projection(
+    *, root: Path, claim_digest: str, attempt_id: str,
+    context: _FloorAttemptRecoveryContext | None,
+) -> _FloorAttemptClaimProjection:
+    """Derive authority in the original claim/coverage/main validation order."""
+
     claim = _read_canonical_document(
         _measurement_generation_claim_path(root, claim_digest)
     )
@@ -4879,8 +4976,8 @@ def _canonical_measurement_generation_floor_attempt_ledger_row(
             "floor measurement generation claim attempt coverage is invalid"
         )
 
-    main = _measurement_generation_main_ledger_row(
-        root, claim_digest=claim_digest,
+    main = _measurement_generation_main_ledger_row_with_context(
+        root, claim_digest=claim_digest, context=context,
     )
     if set(main) != set(_MEASUREMENT_GENERATION_LEDGER_KEYS):
         raise HoldoutAdmissionError(
@@ -4918,23 +5015,17 @@ def _canonical_measurement_generation_floor_attempt_ledger_row(
         raise HoldoutAdmissionError(
             "floor measurement generation ledger differs from its claim"
         )
-    expected = _canonical_measurement_generation_floor_attempt_document(
+    return _FloorAttemptClaimProjection(tuple(attempt_ids), dict(
         cell_effect_digest=cell_effect_digest,
         measurement_generation_digest=claim["measurement_generation_digest"],
         measurement_generation_claim_digest=claim_digest,
-        attempt_id=attempt_id,
         campaign_run_id=claim["campaign_run_id"],
         manifest_sha256=manifest_sha256,
         run_relpath=claim["run_relpath"],
         cell_id=claim["cell_id"],
         freeze_holdout_key=canonical_key["freeze_holdout_key"],
         configuration_id=canonical_key["configuration_id"],
-    )
-    if dict(marker) != expected:
-        raise HoldoutAdmissionError(
-            "floor measurement generation marker differs from claim and ledger"
-        )
-    return expected
+    ))
 
 
 def _measurement_generation_main_ledger_row(
@@ -4942,8 +5033,20 @@ def _measurement_generation_main_ledger_row(
 ) -> dict[str, Any]:
     """Return the unique current main-ledger row for one claim digest."""
 
+    return _measurement_generation_main_ledger_row_with_context(
+        root, claim_digest=claim_digest, context=None,
+    )
+
+
+def _measurement_generation_main_ledger_row_with_context(
+    root: Path, *, claim_digest: str,
+    context: _FloorAttemptRecoveryContext | None,
+) -> dict[str, Any]:
     matching_main = [
-        row for row in _read_ledger(root / _LEDGER_NAME)
+        row for row in (
+            _read_ledger(root / _LEDGER_NAME)
+            if context is None else context.read_main(root)
+        )
         if row.get("schema_version") == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
         and row.get("observation_role") == OBSERVATION_ROLE_FLOOR_CAMPAIGN
         and row.get("measurement_generation_claim_digest") == claim_digest
@@ -5233,8 +5336,9 @@ def _floor_attempt_recovery_candidate_locked(
 ) -> dict[str, object] | None:
     """Return only a fully proved cut-6 M+A- candidate, without writing it."""
 
-    canonical_target = _canonical_floor_attempt_ledger_row(
-        root=root, marker=expected_marker,
+    context = _FloorAttemptRecoveryContext()
+    canonical_target = _canonical_floor_attempt_ledger_row_with_context(
+        root=root, marker=expected_marker, context=context,
     )
     target_schema = canonical_target["schema_version"]
     identity_field = (
@@ -5267,7 +5371,9 @@ def _floor_attempt_recovery_candidate_locked(
             or marker.get("schema_version") != target_schema
         ):
             continue
-        canonical = _canonical_floor_attempt_ledger_row(root=root, marker=marker)
+        canonical = _canonical_floor_attempt_ledger_row_with_context(
+            root=root, marker=marker, context=context,
+        )
         if path != _floor_canonical_marker_path(root, canonical):
             raise HoldoutAdmissionError("floor consume marker filename is not canonical")
         identity = (
@@ -5284,7 +5390,9 @@ def _floor_attempt_recovery_candidate_locked(
             or row.get("schema_version") != target_schema
         ):
             continue
-        canonical = _canonical_floor_attempt_ledger_row(root=root, marker=row)
+        canonical = _canonical_floor_attempt_ledger_row_with_context(
+            root=root, marker=row, context=context,
+        )
         identity = (
             str(canonical[identity_field]), str(canonical["attempt_id"]),
         )

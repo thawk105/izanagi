@@ -1,0 +1,64 @@
+"""login probe: 各変異を変異 worktree へ注入 → 自走 harness → FAIL node を記録 → 復元 (HEAD blob と照合)。
+
+usage: python3 probe-mutations.py <spec.json> <mut-worktree> <out.json>
+"""
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+SPEC = Path(sys.argv[1])
+WT = Path(sys.argv[2])
+OUT = Path(sys.argv[3])
+TEST = "orchestrator/tests/test_plot_b7_fixed5_regression.py"
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def head_blob(rel):
+    out = subprocess.run(["git", "-C", str(WT), "show", f"HEAD:{rel}"], check=True, capture_output=True).stdout
+    return hashlib.sha256(out).hexdigest()
+
+
+def porcelain():
+    return subprocess.run(["git", "-C", str(WT), "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"],
+                          check=True, capture_output=True, text=True).stdout
+
+
+def run_selfrun():
+    env = dict(os.environ, PYTHONPATH=str(WT))
+    proc = subprocess.run([sys.executable, str(WT / TEST)], env=env, capture_output=True, text=True, timeout=900)
+    fails = sorted(set(re.findall(r"^(?:FAIL|ERROR) ([^ ]+?): ", proc.stdout, re.M)))
+    summary = proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else ""
+    return proc.returncode, fails, summary
+
+
+spec = json.loads(SPEC.read_text())
+assert porcelain() == "", "mutation worktree must be clean before probe"
+results = {}
+for m in spec["mutations"]:
+    originals = {}
+    for r in m["replacements"]:
+        p = WT / r["file"]
+        text = p.read_text(encoding="utf-8")
+        assert text.count(r["old"]) == 1, f"{m['id']}: old not unique ({text.count(r['old'])})"
+        originals[r["file"]] = head_blob(r["file"])
+        p.write_text(text.replace(r["old"], r["new"]), encoding="utf-8")
+    diff = subprocess.run(["git", "-C", str(WT), "diff", "--stat"], check=True, capture_output=True, text=True).stdout
+    rc, fails, summary = run_selfrun()
+    for rel in originals:
+        subprocess.run(["git", "-C", str(WT), "checkout", "--", rel], check=True)
+        assert sha(WT / rel) == originals[rel], f"{m['id']}: restore mismatch {rel}"
+    assert porcelain() == "", f"{m['id']}: tree dirty after restore"
+    nodes = [f"{TEST}::{f.split('::', 1)[1]}" for f in fails]
+    results[m["id"]] = {"rc": rc, "fail_nodes": nodes, "summary": summary, "diff_stat": diff.strip()}
+    print(f"{m['id']}: rc={rc} fails={len(nodes)} {summary}")
+    for n in nodes:
+        print("   ", n)
+OUT.write_text(json.dumps(results, indent=2) + "\n")
+print("wrote", OUT)

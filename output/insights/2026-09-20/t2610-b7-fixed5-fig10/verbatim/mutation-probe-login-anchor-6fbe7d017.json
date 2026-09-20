@@ -1,0 +1,126 @@
+{
+  "m0-equivalent-docstring": {
+    "rc": 0,
+    "fail_nodes": [],
+    "summary": "42 passed, 0 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 5 ++++-\n 1 file changed, 4 insertions(+), 1 deletion(-)"
+  },
+  "m1-drop-cert-hash-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected"
+    ],
+    "summary": "38 passed, 4 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m2-drop-raw-manifest-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m3-drop-median-crosscheck": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m4-drop-effect-crosscheck": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m5-drop-judgment-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m6-drop-certified-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m7-drop-trace-disabled-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m8-drop-adopted-token-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m9-bypass-layout-overlap": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing"
+    ],
+    "summary": "40 passed, 2 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m10-landed-skip-on-missing": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs"
+    ],
+    "summary": "40 passed, 2 failed, 0 skipped, 0 errors",
+    "diff_stat": "orchestrator/tests/test_plot_b7_fixed5_regression.py | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)"
+  },
+  "m11-drop-caption-literal": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present"
+    ],
+    "summary": "40 passed, 1 failed, 0 skipped, 1 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m12-drop-floor-genome-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m13-strict-to-nonstrict-predicate": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression"
+    ],
+    "summary": "41 passed, 0 failed, 0 skipped, 1 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "m14-drop-correctness-trace-enabled-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected"
+    ],
+    "summary": "41 passed, 1 failed, 0 skipped, 0 errors",
+    "diff_stat": "tools/plotting/plot_b7_fixed5_regression.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  }
+}
