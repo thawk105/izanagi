@@ -1,0 +1,30 @@
+start 2026-09-20 21:53:38 JST name=submit-tree sha=11d46a74a72572ff723c8f196862fa52e76ca489
+step1 worktree add --detach
+Preparing worktree (detached HEAD 11d46a74a)
+HEAD is now at 11d46a74a fix(b5): [T-2797] 段 6 レビューの must-fix 5 件と should 8 件 — 候補起因の前処理拒否は sidecar `proposal-rejected.json` (rc 3) で A のみ消費して系列継続、verify 側の環境故障 (probe / competing-tenant) を機械故障 retry に、subprocess 起動前の `slot-attempt-start` で job 打切り時の B を report が回収、consumer は B-評価件数・fitness-bench median を照合、k ≥ 2 の診断必須、handshake 全終了枝の待機記録、launcher は投入対象 checkout の PIN 行を読む
+step1 rc=0
+step2 submodule init (tool)
+OK: submodules initialized in /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree
+step2 rc=0
+step2b nested submodule status
+ e9e477ca1b55348ab4530de0b1cf663ce4555290 external/ccbench (v1.1.0-130-ge9e477ca)
+ fb14e6597ecf7cc206af8f3424ca22503bb1e17d external/ccbench/third_party/shirakami (heads/master)
+ f8d7d77c06936315286eb55f8de22cd23c188571 external/ccbench/third_party/shirakami/third_party/googletest (release-1.8.0-3335-gf8d7d77c)
+step2d PIN checkout (from the submit-tree's own module)
+PIN=511c9538e4e8efa54b45cda62e72389ed3b706ec
+ccbench HEAD before=e9e477ca1b55348ab4530de0b1cf663ce4555290
+Previous HEAD position was e9e477ca fix(mocc): preserve TRACE=0 include identity
+HEAD is now at 511c9538 feat(silo/trace): trace v2 — C 行に read/write 件数、txn 終端に E 行 (izanagi [T-816], FN-2)
+checkout rc=0
+ccbench HEAD after=511c9538e4e8efa54b45cda62e72389ed3b706ec
+ccbench tracked dirty lines=0
+step3 hydrate
+step3 rc=0
+{"cache_root": "/work/1/SFC/tanab/izanagi-thirdparty-cache", "operation": "hydrate", "schema_version": "pegasus-thirdparty-fetch/v1", "source_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src", "sources": [{"head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "name": "masstree", "pin": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/masstree"}, {"head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "name": "mimalloc", "pin": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/mimalloc"}, {"head": "f8d7d77c06936315286eb55f8de22cd23c188571", "name": "googletest", "pin": "f8d7d77c06936315286eb55f8de22cd23c188571", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/googletest"}, {"head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "name": "gflags", "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/gflags"}, {"head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "name": "glog", "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73", "resolved_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/glog"}]}
+
+step4 clean check (superproject tracked, submodule excluded; and with untracked)
+status-lines(ignore-submodules)=0
+status-lines(all)=1
+HEAD=11d46a74a72572ff723c8f196862fa52e76ca489
+end 2026-09-20 21:54:59 JST
+Updating files: 100% (29592/29592)

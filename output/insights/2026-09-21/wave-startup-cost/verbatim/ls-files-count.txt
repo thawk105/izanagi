@@ -1,0 +1,23 @@
+31699
+  28589 output
+   1698 docs
+   1060 orchestrator
+    252 tools
+     35 patches
+     19 .claude
+     16 .codex
+      8 .agents
+      7 hooks
+      4 .devcontainer
+      2 src
+      1 pytest.ini
+  24420 insights
+   3649 env
+    314 s6-rounds
+    123 campaigns
+     24 task-runs
+     20 s8b-freeze
+     17 s8c-preregistration
+      6 t189-routing-preregistration
+tracked bytes 872.4 MB
+git version 2.34.1

@@ -1,0 +1,6 @@
+2026-09-21T07:35:04+0900 before-EnterWorktree
+2026-09-21T07:36:29+0900 after-EnterWorktree
+2026-09-21T07:39:31+0900 before-submodule-init
+2026-09-21T07:39:38+0900 after-submodule-init
+2026-09-21T07:40:28+0900 before-gate
+2026-09-21T07:40:35+0900 after-gate rc=0

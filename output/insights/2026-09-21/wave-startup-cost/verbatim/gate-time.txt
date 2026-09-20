@@ -1,0 +1,1 @@
+gate wall=6.70 s user=0.10 sys=3.43
