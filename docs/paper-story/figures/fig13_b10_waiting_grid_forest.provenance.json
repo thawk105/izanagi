@@ -744,7 +744,17 @@
       100
     ],
     "reps": 5,
-    "blocks": 3
+    "blocks": 3,
+    "records": 1000000,
+    "zipf_skew": "0.9",
+    "rratios": {
+      "write-heavy": "5",
+      "balanced": "50",
+      "read-heavy": "95"
+    },
+    "rmw": "0",
+    "max_ope": "10",
+    "extime_s": 3
   },
   "tracked_inputs": [
     {
@@ -765,19 +775,19 @@
     }
   ],
   "schema": "izanagi-b10-waiting-grid-forest-figure-provenance/v1",
-  "generated_utc": "2026-09-20T10:45:59.153051+00:00",
+  "generated_utc": "2026-09-20T11:07:19.923454+00:00",
   "generator": {
     "path": "tools/plotting/plot_b10_waiting_grid_forest.py",
-    "sha256": "b520a0452eb79f351bb1badad31fd7958da36141856c5ee55aa122ca76052f40"
+    "sha256": "d9ea9f5745c3933576d5a73b3ac4758ec242464d8b4c51d961b0af11b2778f8b"
   },
   "outputs": [
     {
       "path": "docs/paper-story/figures/fig13_b10_waiting_grid_forest.png",
-      "sha256": "7554777f2e00b6c3d9f01959a0ea545127484efbb5244922b84bcbbc6467d8ad"
+      "sha256": "018bd8e9cbd86268f6e26d7d33b5d5b55bbe2fe7bf043f3832c43e001f23bde6"
     },
     {
       "path": "docs/paper-story/figures/fig13_b10_waiting_grid_forest.pdf",
-      "sha256": "e677b94f82d3d73dadc16518b1e6940a688821e8e4518b061ead6503f396072c"
+      "sha256": "8105d3dc918b85c62fa20c3d6374db8987de69d6c2e7c09f32ec7d8ff04675d5"
     }
   ],
   "artist_series": [
@@ -1322,7 +1332,7 @@
       "marker": "o"
     }
   ],
-  "caption": "Figure 13. B-10 waiting-shape grid, preregistered contrast constant vs symmetric-modulo. write-heavy: different, raw p = 6702/2^18 = 0.02556610107421875, Holm p = 0.02556610107421875, 18 pairs, sum of paired effects +0.11202543669460518 (symmetric-modulo higher); balanced: different, raw p = 70/2^18 = 0.00026702880859375, Holm p = 0.0005340576171875, 18 pairs, sum of paired effects +0.13167898485090257 (symmetric-modulo higher); read-heavy: different, raw p = 2/2^18 = 7.62939453125e-06, Holm p = 2.288818359375e-05, 18 pairs, sum of paired effects +0.087727340019642996 (symmetric-modulo higher). Cell effects and 95% paired-block intervals: 36 estimable, inside 32, overlaps 4, outside 0, indeterminate 0; 1 negative point estimates and 8 positive interval lower bounds. Boundary overlaps: write-heavy mu 2 and 25, balanced mu 2 and 25. Constant cells are constructional references at zero with intervals [0, 0]; gray ticks show the three block-level paired effects. Conditions: Pegasus compute nodes, 48 threads, silo, YCSB write-heavy / balanced / read-heavy, commanded mean wait mu 2, 5, 10, 25, 50, 100 us, 5 reps x 3 blocks, CCBench pin 511c953, report request 978195.nqsv, preregistration commit 77b33e37d, source commit 2a338449b. Each family's outcome is the preregistered procedure's classification and is not a research verdict. Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed. Per-cell intervals are descriptive and no per-cell significance decision is made; the only tests are the three family-level permutation tests with Holm adjustment. The static right-tail cohorts (separate preregistration, grid and driver) are neither pooled nor compared with this grid. official_certification is false; these performance values are not a basis for adopting a variant. Direction and effect sizes are stated for this one contrast only; nothing is claimed about waiting-shape effects in general, about binary, about a dose response of dispersion, or about a general separation of waiting shape from waiting amount. Correctness is recorded from separate trace-enabled runs (135 of 135 cells certified) and is not a performance certification. The three workloads ran as separate jobs on different days and driver versions; absolute throughput is not compared across workloads, and no mechanism is claimed for the direction.",
+  "caption": "Figure 13. B-10 waiting-shape grid, preregistered contrast constant vs symmetric-modulo. write-heavy: different, raw p = 6702/2^18 = 0.02556610107421875, Holm p = 0.02556610107421875, 18 pairs, sum of paired effects +0.11202543669460518 (symmetric-modulo higher); balanced: different, raw p = 70/2^18 = 0.00026702880859375, Holm p = 0.0005340576171875, 18 pairs, sum of paired effects +0.13167898485090257 (symmetric-modulo higher); read-heavy: different, raw p = 2/2^18 = 7.62939453125e-06, Holm p = 2.288818359375e-05, 18 pairs, sum of paired effects +0.087727340019642996 (symmetric-modulo higher). Cell effects and 95% paired-block intervals: 36 estimable, inside 32, overlaps 4, outside 0, indeterminate 0; 1 negative point estimates and 8 positive interval lower bounds. Boundary overlaps: write-heavy mu 2 and 25, balanced mu 2 and 25. Constant cells are constructional references at zero with intervals [0, 0]; gray ticks show the three block-level paired effects. Conditions: Pegasus compute nodes, 48 threads, silo, 1,000,000 records, Zipf skew 0.9, read ratio 5 / 50 / 95 (write-heavy / balanced / read-heavy), read-modify-write disabled, max operations 10, 3 s per repetition, YCSB write-heavy / balanced / read-heavy, commanded mean wait mu 2, 5, 10, 25, 50, 100 us, 5 reps x 3 blocks, CCBench pin 511c953, report request 978195.nqsv, preregistration commit 77b33e37d, source commit 2a338449b. Each family's outcome is the preregistered procedure's classification and is not a research verdict. Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed. Per-cell intervals are descriptive and no per-cell significance decision is made; the only tests are the three family-level permutation tests with Holm adjustment. The static right-tail cohorts (separate preregistration, grid and driver) are neither pooled nor compared with this grid. official_certification is false; these performance values are not a basis for adopting a variant. Direction and effect sizes are stated for this one contrast only; nothing is claimed about waiting-shape effects in general, about binary, about a dose response of dispersion, or about a general separation of waiting shape from waiting amount. Correctness is recorded from separate trace-enabled runs (135 of 135 cells certified) and is not a performance certification. The three workloads ran as separate jobs on different days and driver versions; absolute throughput is not compared across workloads, and no mechanism is claimed for the direction.",
   "reproduction": {
     "cwd": "repository-root",
     "argv": [
