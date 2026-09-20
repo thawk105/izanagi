@@ -36,8 +36,9 @@ title: [T-2791] mocc G2 観測の上流 (ccbench 本家) 向け報告案 — 英
 - **検査:** `python3 tools/check_docs.py` 違反なし (2 回)。三軸語走査 (`s8b_holdout_freeze search`) は本 wave の新規 file に hit 0。**同走査は既存 tracked 4 file
   (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/{journal.jsonl,manifest.json,result.json}`、`output/s8b-freeze-candidates/holdout_freeze.v2.g1.json`)
   に rr80 / rr20 の conjunction hit を出す (rc=1)。** これらは凍結 v2 g1 chain の着地 (`4d8fb93b7` / `cc82edc8c`、entry 1716) で main に入った file で、
-  `orchestrator/tests/test_s8b_repo_scan_invariant.py` の `KNOWN_CONJUNCTION_HITS` (空) と食い違うが、同 test は growth hold で skip されている。本 wave の scope 外
-  (実装面) なので触れず、観測として残す。verbatim の `s6-review-1.md` は末尾空白 15 行を可逆最小正規化 (`verbatim/NORMALIZATION.md` に原文 sha256・byte 数・復元法)。
+  `orchestrator/tests/test_s8b_repo_scan_invariant.py` の `KNOWN_CONJUNCTION_HITS` (空) と食い違うが、同 test は growth hold で skip されている。これは D2120 項 2 (d)
+  が「chain が main に載ると growth hold 2 本が解除時に設計どおり赤になる。帰結を記録して現行 hold のまま」と決めた既知の帰結であり、新しい発見ではない。本 wave の
+  scope 外なので触れない。verbatim の `s6-review-1.md` は末尾空白 15 行を可逆最小正規化 (`verbatim/NORMALIZATION.md` に原文 sha256・byte 数・復元法)。
 - **受入:** docs-only でも land は受入 receipt を要求するので、本 commit の後に `tools/dev_wave_wait.py acceptance` を門番 (他 wave の leader ≤ 1 ∧ load < 60) 経由で投入する。
   結果は job dir の `acceptance-receipt-final-<n>.json` と land の receipt が権威 (本 fragment には書かない)。
 - **後続 (起票しない):** D2174 項 7 (T-2798 見送り) の再訪条件「上流報告への返答」は、人間が本文案を送った後に始まる。送信前の注意 (commit の公開状態、master の進み) は
