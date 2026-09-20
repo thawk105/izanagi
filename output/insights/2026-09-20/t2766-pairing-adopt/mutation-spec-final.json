@@ -1,0 +1,118 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-partner-sort-descending",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            entry[1][\"cost\"] if entry[1][\"known\"] else unknown_cost,\n            entry[0],\n",
+          "new": "            -(entry[1][\"cost\"] if entry[1][\"known\"] else unknown_cost),\n            entry[0],\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-head-width-47",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    width = _ACCEPTANCE_PAIRING_HEAD_UNITS\n",
+          "new": "    width = _ACCEPTANCE_PAIRING_HEAD_UNITS - 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3p-drop-pairing-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    ordered_units = _pair_initial_distribution_units(ordered_units, unknown_cost)\n",
+          "new": "    ordered_units = list(ordered_units)  # M3p: pairing call removed by mutation\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-drop-cardinality-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if scopes(sorted(paired, key=lambda unit: -len(unit[\"items\"]))) != scopes(paired):\n",
+          "new": "    if False and scopes(sorted(paired, key=lambda unit: -len(unit[\"items\"]))) != scopes(paired):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-witness-properties",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            if \"pairing_rank\" in unit:\n",
+          "new": "            if False and \"pairing_rank\" in unit:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
