@@ -1,0 +1,13 @@
+record(s8b): freeze v2 g1 の世代導入 commit G — 候補 (X2 4d8fb93b7) の bytes を output/s8b-freeze/holdout_freeze.v2.g1.json へ導入する (未発効、D2120 項 2 (b))
+
+世代文書は保存 branch freeze-g1-chain-t2724 の候補 commit X2 4d8fb93b7c8d5466e9ad91b1bc5b600a2fdd7ac8 の
+output/s8b-freeze-candidates/holdout_freeze.v2.g1.json (blob 15861416f37f08ba72fac0c69b65c1505296ec88、
+20,737 bytes、sha256 7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06) と byte 同一で、
+裁定済みの候補 bytes を変更せず採用した。親 == X1' cc82edc8c9f90a9ee659c2d27f71b75b19a56490
+(候補の frozen_at_head)。Codex author が blob から作業木へ書き、親が add と commit を行った。
+承認 A と active pointer X (逐語 none trailer の人間 commit) は本 commit に含めない。
+approvals/ と active/ は作っていない (未発効)。
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author; scope=generation-document
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager; scope=wave-manager
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
