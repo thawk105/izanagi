@@ -278,6 +278,13 @@
   一次資料: `output/insights/2026-09-20/paper-story-20260920/README.md` §4、同 `verbatim/review-out.md` 所見 2。
   恒久対応は変更なし — 版の全面再導出では見出し・括弧書きの状態語も一次資料 (D 本文) へ再照合し、handoff の時刻は
   `date` の出力だけを書く。
+
+- **再発: 2026-09-20 (near-miss)** — claim-evidence 稿 2026-09-20 版の wave で、親が専用 handoff の節見出しに時刻を
+  `date` で採らず推定で「08:12 JST」と書き、レビュー子の起動時刻も「08:06 頃」と推定で書いた。直後の `date` (08:05 JST) と
+  `ps` の etime (02:47) で 7〜11 分ずれていることが分かり、同じ turn で実測値へ直した (実害なし。台帳・insight・稿には
+  入っていない)。転写対象は日付・機構の実在・推測の確度に続いて**経過時刻の推定**であり、memory
+  「wave 中の時刻は date/mtime/commit 日時で採る、推定しない」の再発である。恒久対応は同 memory と `DW-S07`
+  (日時は commit / 成果物 field から取る) から変更なし — 時刻を書く行の直前に `date` を打ち、その出力だけを写す。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
