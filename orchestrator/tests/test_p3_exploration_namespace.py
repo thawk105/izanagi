@@ -422,8 +422,9 @@ _DRIVER_CONTRACTS = {
         routing_argv_factory=_coder_argv,
         # B-4 authoritative gate, preflight, and consume-time rebuild add 3 calls.
         # The knowledge receipt site adds 1 call.
-        ast_layout_calls=10,
-        ast_run_campaign_calls=1,
+        # [T-2795] stock control route adds 1 layout call and 1 run_campaign call (both build_context-bound).
+        ast_layout_calls=11,
+        ast_run_campaign_calls=2,
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,
     ),

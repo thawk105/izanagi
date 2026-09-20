@@ -73,6 +73,7 @@ from .p3_b4_protocol import (  # noqa: E402
 )
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
+                                      attest_generator_output,
                                       build_run_context)
 from .artifact_admission import (                         # noqa: E402
     ArtifactAdmissionError,
@@ -92,7 +93,9 @@ from .loop import run_campaign                             # noqa: E402
 from .model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
-from .pipeline import PerfConfig                           # noqa: E402
+from .pipeline import (PerfConfig, variant_id, S2_FLAGS,     # noqa: E402
+                       SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE)
+from . import p2_2, source_digest                           # noqa: E402
 from .projection_guard import (                            # noqa: E402
     CODER_CONTRACT_K2,
     assert_closed_proposal_schema,
@@ -414,23 +417,42 @@ def _persist_condition_gate_record(
 def _require_condition_gate(
         source_root: str, genome: Genome, *,
         configure_args: Tuple[str, ...] = (),
+        stock_root: Optional[str] = None,
 ) -> dict | None:
     """Run the independent supply and meaning arms before any benchmark build."""
     value = genome.flags.get("BACKOFF_FIXED")
     if value is None:
         return None
+    if value == -1 and stock_root is None:
+        raise ValueError("stock condition gate requires stock_root")
     _cc, cxx = buildcache.compilers_for_current_site()
-    captured = condition_meaning_gate.capture_define_inputs(
-        source_root, configure_args=configure_args,
-    )
-    request = condition_meaning_gate.make_define_request(
-        driver_id="orchestrator.campaign.p3_s4_loop",
-        macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
-    )
-    bits = struct.pack(">d", float(value)).hex()
-    declaration = condition_meaning_gate.MeaningWitnessDeclaration(
-        "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
-    )
+    if value == -1:
+        captured = condition_meaning_gate.capture_define_inputs(
+            source_root, stock_root=stock_root, configure_args=configure_args,
+        )
+        request = condition_meaning_gate.make_define_request(
+            driver_id="orchestrator.campaign.p3_s4_loop",
+            macro="BACKOFF_FIXED", requested_value=-1, default_value=-1,
+            stock_comparison=True,
+        )
+        declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+            "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(
+                -1, None,
+                expected_selected_branch=condition_meaning_gate.STOCK_ADAPTIVE_BRANCH,
+            ),),
+        )
+    else:
+        captured = condition_meaning_gate.capture_define_inputs(
+            source_root, configure_args=configure_args,
+        )
+        request = condition_meaning_gate.make_define_request(
+            driver_id="orchestrator.campaign.p3_s4_loop",
+            macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+        )
+        bits = struct.pack(">d", float(value)).hex()
+        declaration = condition_meaning_gate.MeaningWitnessDeclaration(
+            "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(value, (bits, bits)),),
+        )
     supply = condition_meaning_gate.evaluate_define_supply_effectuation(
         captured, request=request, cxx=cxx, cmake="cmake",
     )
@@ -1636,6 +1658,16 @@ def default_perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
+def calibrated_perf(workload_name: str) -> PerfConfig:
+    """Use the approved P2 calibration and the exact four-key workload."""
+    return PerfConfig(
+        records=p2_2.RECORDS, threads=p2_2.THREADS,
+        workload={**dict(p2_2.WORKLOADS)[workload_name],
+                  "ycsb_max_ope": S2_FLAGS["ycsb_max_ope"]},
+        extime=p2_2.EXTIME, reps=p2_2.REPS,
+    )
+
+
 # ==== 帰属整合 (value ↔ hole literal、D39 決定7 の機械強制) ====================
 
 class AttributionMismatch(ValueError):
@@ -1862,6 +1894,127 @@ def _resolve_duplicate(layout: CampaignLayout, planner: PlannerProposal,
         log(f"  重複提案 (既存 aborted variant {dup_v} と同一 genome)")
     return {"outcome": "aborted", "variant": dup_v,
             "verdict": verdict, "records": recs}
+
+
+def _refresh_critic_digest(layout: CampaignLayout, *, reflux: bool) -> CertifiedCampaignView:
+    """Refresh the existing digest from an admitted view for either CLI route."""
+    critic_view = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    digest_txt = make_critic_digest(
+        critic_view,
+        tag="p3-s4",
+        reflux=reflux,
+        identity_projection=make_critic_identity_projection(critic_view),
+    )
+    layout.ensure()
+    with open(os.path.join(layout.root, "s4_loop_digest.txt"), "w", encoding="utf-8") as f:
+        f.write(digest_txt)
+    return critic_view
+
+
+def _stock_capability_resolver(build_context: BuildRunContext):
+    def resolve(evidence):
+        if evidence.src_token == source_digest.STOCK:
+            return attest_generator_output(
+                build_context, evidence,
+                generator_input_sha256=hashlib.sha256(
+                    f"p3-s4-loop-stock-control/v1|{evidence.genome_sha256}".encode("utf-8")
+                ).hexdigest(),
+            )
+        return None
+
+    return resolve
+
+
+def _run_stock_control_resolved(
+        cfg: CampaignConfig, perf: PerfConfig, sub: str,
+        layout: CampaignLayout,
+        contract: env_contract.ExecutionEnvironmentContract,
+        resolved_site: str, *, stock_root: str, cache_root: str = "",
+        build_context: BuildRunContext,
+        dependency_prefix: str = "",
+        fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
+        fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
+) -> Dict:
+    """Evaluate the adaptive control without constructing or advancing LoopState.
+
+    Only the evaluated attempt's WAL source may establish stock success. A
+    terminal skip is not a new control measurement and is never restored here.
+    """
+    from .patchharness import applied
+
+    if type(build_context) is not BuildRunContext:
+        raise TypeError("build_context は build_run_context() 由来の exact value が必要")
+    genome = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    layout.ensure()
+    ident.ensure_resumable_attempts(
+        cfg, layout, admission_policy=build_context.policy,
+    )
+    backoff_grammar_version = _require_backoff_grammar_version(cfg)
+    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+        configure_args = ()
+        if fetchcontent_dependency_receipt is not None:
+            configure_args = _condition_gate_offline_configure_args(
+                dependency_prefix=dependency_prefix,
+                fetchcontent_base_dir=fetchcontent_base_dir,
+                masstree_source_dir=masstree_source_dir,
+                mimalloc_source_dir=mimalloc_source_dir,
+                googletest_source_dir=googletest_source_dir,
+            )
+        condition_gate = _require_condition_gate(
+            sub, genome, stock_root=stock_root, configure_args=configure_args,
+        )
+        campaign_options = {}
+        if resolved_site == site_policy.PEGASUS_COMPUTE:
+            campaign_options["env_contract"] = contract
+            if dependency_prefix:
+                campaign_options["dependency_prefix"] = dependency_prefix
+        if fetchcontent_dependency_receipt is not None:
+            campaign_options.update({
+                "env_contract": contract,
+                "fetchcontent_base_dir": fetchcontent_base_dir,
+                "masstree_source_dir": masstree_source_dir,
+                "mimalloc_source_dir": mimalloc_source_dir,
+                "googletest_source_dir": googletest_source_dir,
+                "fetchcontent_dependency_receipt": fetchcontent_dependency_receipt,
+            })
+        summary = run_campaign(
+            cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
+            numactl=list(contract.numactl), ccbench_dir=sub, cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+            backoff_grammar_version=backoff_grammar_version,
+            capability_resolver=_stock_capability_resolver(build_context),
+            **campaign_options,
+        )
+    out = {"outcome": "identity-skipped", "condition_gate": condition_gate}
+    if summary.results:
+        r = summary.results[0]
+        records = wal.records_by_stage(layout, r.variant)
+        is_stock = (
+            r.variant == variant_id(genome)
+            and records.get(STAGE_BUILD_START, {}).get("src_token") == source_digest.STOCK
+        )
+        outcome = "aborted"
+        if r.certified and not r.aborted:
+            outcome = "certified-stock" if is_stock else "non-stock-source"
+        out.update(outcome=outcome, variant=r.variant,
+                   fitness_tps=r.fitness_tps, verdict=r.verdict, records=records)
+    elif summary.skipped > 0:
+        out["outcome"] = "skipped"
+        if summary.skipped_variants:
+            out["variant"] = summary.skipped_variants[0]
+
+    if out["outcome"] != "skipped" and any(wal.read_records(layout)):
+        _refresh_critic_digest(
+            layout, reflux=cfg.search_config.get("reflux") == "on",
+        )
+    return out
 
 
 def _run_one_iteration_resolved(
@@ -2794,6 +2947,11 @@ def main(
     与えた fixture backoff 値で確認する口。--no-build で build/verify/bench を省く。
     --emit-planner-context は proposal 生成前の planner-v4 入力 JSON を出力する。"""
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
+    ap.add_argument("--calibrated-perf", action="store_true")
+    ap.add_argument("--perf-workload", choices=("write-heavy", "balanced", "read-heavy"))
+    ap.add_argument("--verify-performance", action="store_true")
+    ap.add_argument("--stock-control", action="store_true",
+                    help="同 campaign の適応 backoff stock 対照を評価")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫の配線のみ確認")
     add_registered_coder_build_authority_argument(
@@ -2877,6 +3035,22 @@ def main(
             return 1
     if supplied & ingestion:
         ap.error("agent ingestion options require --record-agent-output")
+    if a.verify_performance and not (a.calibrated_perf and a.perf_workload):
+        ap.error("--verify-performance requires --calibrated-perf and --perf-workload")
+    if a.calibrated_perf != (a.perf_workload is not None):
+        ap.error("--calibrated-perf and --perf-workload must be supplied together")
+    if a.stock_control:
+        for dest, flag in (
+            ("run_iteration", "run-iteration"), ("value", "value"),
+            ("emit_planner_context", "emit-planner-context"),
+            ("no_build", "no-build"), ("coder_role", "coder-role"),
+            ("b4_reflux_ablation", "b4-reflux-ablation"),
+            ("coder_build_authority", "allow-coder-derived-build"),
+        ):
+            if dest in supplied:
+                ap.error(f"--stock-control cannot be combined with --{flag}")
+        if not a.isolate_worktree:
+            ap.error("--stock-control requires --isolate-worktree")
     if a.k2_critic_diagnosis is not None and (
         not a.emit_planner_context or a.run_iteration
         or a.b4_reflux_ablation or a.reflux != "on"
@@ -2970,6 +3144,7 @@ def main(
     knowledge_de_novo_claim = a.knowledge_de_novo_claim == "true"
     if (
         not a.emit_planner_context
+        and not a.stock_control
         and not a.no_build
         and a.coder_build_authority is None
     ):
@@ -2985,6 +3160,16 @@ def main(
         )
     else:
         cfg = default_cfg(reflux=(a.reflux == "on"))
+    perf = calibrated_perf(a.perf_workload) if a.calibrated_perf else default_perf()
+    if a.calibrated_perf:
+        cfg = replace(cfg, search_config={
+            **cfg.search_config, "records": perf.records, "threads": perf.threads,
+            "perf_workload": dict(perf.workload), "extime": perf.extime, "reps": perf.reps,
+        })
+    if a.verify_performance:
+        cfg = replace(cfg, search_config={
+            **cfg.search_config, SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
+        })
     cfg = _campaign_cfg_for_site(cfg, resolved_site, _contract=contract)
     if a.emit_planner_context:
         if a.policy_hint is not None:
@@ -3021,10 +3206,13 @@ def main(
             f"(sources_count={len(resolved_knowledge.manifest.sources)}) "
             "のため --coder-role coder-v4-autonomous-k2 が必要"
         )
-    build_context = build_run_context(
-        generator_id=GeneratorId.BACKOFF_SWEEP,
-        coder_authority=None if a.no_build else a.coder_build_authority,
-    )
+    if a.stock_control:
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    else:
+        build_context = build_run_context(
+            generator_id=GeneratorId.BACKOFF_SWEEP,
+            coder_authority=None if a.no_build else a.coder_build_authority,
+        )
 
     root = _repo_root()
     fixed_sub = os.path.join(root, "external", "ccbench")
@@ -3041,7 +3229,6 @@ def main(
         classification=a.knowledge_classification,
         de_novo_claim=knowledge_de_novo_claim,
     )
-    perf = default_perf()
 
     # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
     # キャッシュだけ固定共有パス配下に据え置く (cache_key は内容キーなので worktree 間で
@@ -3053,6 +3240,21 @@ def main(
     else:
         wt_cm = contextlib.nullcontext(fixed_sub)
         cache_root = ""
+
+    if a.stock_control:
+        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        print(f"=== 段 4 stock control (stock_root={fixed_sub}, isolate_worktree=True) ===")
+        with wt_cm as sub:
+            out = _run_stock_control_resolved(
+                cfg, perf, sub, layout, contract, resolved_site,
+                stock_root=fixed_sub, cache_root=cache_root,
+                build_context=build_context, **fetchcontent_options,
+            )
+        variant_text = f" variant={out['variant']}" if "variant" in out else ""
+        print(f"  outcome={out['outcome']}{variant_text} "
+              f"fitness_tps={out.get('fitness_tps')} verdict={out.get('verdict')}")
+        print(f"  campaign dir: {layout.root}")
+        return 0 if out["outcome"] == "certified-stock" else 1
 
     # === 段 4b 駆動口: 実 proposal を受けて checkpoint 継続で 1 iteration ===
     if a.run_iteration:
@@ -3161,19 +3363,7 @@ def main(
     stop = check_stop(state)
     dqs = []
     if out["outcome"] != "dry-pass":
-        critic_view = require_admitted_campaign(
-            layout.root,
-            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
-        )
-        digest_txt = make_critic_digest(
-            critic_view,
-            tag="p3-s4",
-            reflux=(a.reflux == "on"),
-            identity_projection=make_critic_identity_projection(critic_view),
-        )
-        layout.ensure()
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(digest_txt)
+        critic_view = _refresh_critic_digest(layout, reflux=(a.reflux == "on"))
         # WAL 機械判定 (宣言でなくレコードを gate に — kickoff/D30 様式)。
         dqs = load_diff_rejections(critic_view)
     # iteration の WAL 非依存を **差分**で実証する (1==1 の恒真 assert にしない): loop の

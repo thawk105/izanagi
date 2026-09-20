@@ -1,0 +1,260 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    \"\"\"Refresh the existing digest from an admitted view for either CLI route.\"\"\"\n",
+          "new": "    \"\"\"Refresh the existing digest from an admitted view for either CLI route.\n\n    (equivalent mutation marker: docstring only)\n    \"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-stock-backoff-fixed-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    genome = Genome(\"silo\", {**_BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1})\n",
+          "new": "    genome = Genome(\"silo\", {**_BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": 1})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-stock-back-off-0",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    genome = Genome(\"silo\", {**_BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1})\n",
+          "new": "    genome = Genome(\"silo\", {**_BASE, \"BACK_OFF\": 0, \"BACKOFF_FIXED\": -1})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-stock-writes-checkpoint",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        _refresh_critic_digest(\n            layout, reflux=cfg.search_config.get(\"reflux\") == \"on\",\n        )\n    return out\n",
+          "new": "        _refresh_critic_digest(\n            layout, reflux=cfg.search_config.get(\"reflux\") == \"on\",\n        )\n    save_loop_state(layout, LoopState(start_wall=time.time()))\n    return out\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-run-iteration-exclusion",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            (\"run_iteration\", \"run-iteration\"), (\"value\", \"value\"),\n",
+          "new": "            (\"value\", \"value\"),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-skip-attribution-for-negative-value",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if preflight_rejection is None:\n        _check_attribution_before_quarantine(coder)\n",
+          "new": "    if preflight_rejection is None and coder.value >= 1:\n        _check_attribution_before_quarantine(coder)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-job-stock-drops-identity-argv",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "\"${stock_identity_argv[@]}\" --stock-control || stock_rc=$?\n",
+          "new": "--stock-control || stock_rc=$?\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-stock-success-ignores-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        is_stock = (\n            r.variant == variant_id(genome)\n            and records.get(STAGE_BUILD_START, {}).get(\"src_token\") == source_digest.STOCK\n        )\n",
+          "new": "        is_stock = True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-calibrated-perf-not-in-identity",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            **cfg.search_config, \"records\": perf.records, \"threads\": perf.threads,\n            \"perf_workload\": dict(perf.workload), \"extime\": perf.extime, \"reps\": perf.reps,\n",
+          "new": "            **cfg.search_config,\n            \"perf_workload\": dict(perf.workload), \"extime\": perf.extime, \"reps\": perf.reps,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-default-cli-adds-identity-keys",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if a.calibrated_perf:\n        cfg = replace(cfg, search_config={\n",
+          "new": "    if True:\n        cfg = replace(cfg, search_config={\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-stock-gate-candidate-declaration",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            stock_comparison=True,\n",
+          "new": "            stock_comparison=False,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-job-stock-default-on",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "case \"${IZANAGI_S4_STOCK_CONTROL-0}\" in\n",
+          "new": "case \"${IZANAGI_S4_STOCK_CONTROL-1}\" in\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-job-drops-candidate-rc-capture",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\" || candidate_rc=$?\n",
+          "new": "    --run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-job-returns-stock-rc-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "if [[ $candidate_rc -ne 0 ]]; then\n  exit \"$candidate_rc\"\nfi\nexit \"$stock_rc\"\n",
+          "new": "exit \"$stock_rc\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-verify-opt-in-not-bound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if a.verify_performance:\n        cfg = replace(cfg, search_config={\n            **cfg.search_config, SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,\n        })\n",
+          "new": "    if a.verify_performance:\n        pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15-pipeline-stops-after-first-green-rep",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        for _repetition in range(workload.reps):\n            aborted = _run_one_repetition(tag, workload, pass_numactl)\n            if aborted is not None:\n                return aborted\n        return None\n",
+          "new": "        for _repetition in range(workload.reps):\n            aborted = _run_one_repetition(tag, workload, pass_numactl)\n            if aborted is not None:\n                return aborted\n            return None\n        return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m16-resolver-attests-non-stock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if evidence.src_token == source_digest.STOCK:\n            return attest_generator_output(\n",
+          "new": "        if True:\n            return attest_generator_output(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m17-stock-without-resolver",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            capability_resolver=_stock_capability_resolver(build_context),\n",
+          "new": "            # capability_resolver removed (mutation)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
