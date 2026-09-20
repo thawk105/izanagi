@@ -188,10 +188,10 @@ inventory test 4 群（`test_campaign.py` の certified-writer caller inventory�
 """
 _SYNTHETIC_DW_O28_SECTION = """## DW-O28 — land 後の自己撤去
 
-`landed`/`already-landed` 後、段 9 に main worktree から計算ノード job 終端後に `python3 tools/dev_wave_cleanup.py` で撤去(path は絶対、`--main-worktree <MAIN>` は両方に付ける)。
-先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave 本体を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
-tool は非占有・main 祖先性(子木は所有 path の tree entry 一致でも可)・dirty の退避可能性・manifest 束縛を検査、不成立・判定不能は fail-closed。子 branch は残す。
-F26: `git worktree remove`/`git submodule deinit` 不可。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない子木は親が unlock し理由を次 wave の worklog へ記録。
+land 成功後、段 9 に main worktree から job 終端後 `python3 tools/dev_wave_cleanup.py` で撤去(絶対 path、`--main-worktree <MAIN>` は両方に付ける)。
+先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、他へ引き渡さない。
+tool は非占有・main 祖先性(子木は所有 path の tree 一致でも可)・dirty 退避可否・manifest 束縛を検査。撤去前の不成立・不明は拒否し木と branch を残す(以後は rc=30)。統合証明済みの manifest 現行 branch は履歴を `<D>` へ bundle 後(HEAD が main 祖先なら省く)に `-D`。
+F26: `git worktree remove`/`git submodule deinit` 不可。wave branch は `-d` のみ、手打ち `-D` 禁止。残る子木は unlock し理由を worklog へ。
 """
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
@@ -577,7 +577,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "c8db749bd90fdf3b663eadbb516682472bd489bd57589f2036b972398f7da9c8"
+    "3d675f09e6eea7eb6647e0be78f4843fecd6407662cbbe4e849844f559955c2b"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -638,7 +638,8 @@ argument-hint: [任意: 対象限定 (branch/worktree 名)。省略時は全量�
 検査赤・途中停止を含め、**本節は `CLAUDE.md` の一般クラス 2 規律より優先する**。クラス 2 は
 repo 内容や履歴の変更権限を与えない。対象限定の引数: $ARGUMENTS
 
-状態変更の allowlist は、(1) §2 を満たす既存 local branch の `git branch -d`、(2) §2 を満たし
+状態変更の allowlist は、(1) §2 を満たす既存 local branch の `git branch -d`、(2) §2 の `-D` 条件を
+満たす既存 local branch の repo 外への bundle・rescue JSON 保存と `git branch -D`、(3) §2 を満たし
 所有確認済みの既存 worktree について §3 が定める detach・branch 解放・directory と対応 metadata の
 撤去だけである。Codex はさらに real prune を許さない。§1〜§4 の読み取り検査と final での報告は
 state mutation ではなく許可する。overlay は許可集合を狭めるだけで、本 command は再許可しない。
@@ -669,11 +670,15 @@ final で裁定候補として返し、実装・記録は明示起動された�
 
 - 安い条件: local main / primary worktree、foreign・locked・所有不明は inventory/report のみ。
   worktree: HEAD 直近 (目安 1h) は保持、main 取込済み必須。
-  branch: **ahead=0 (main 取込済み)** のみ `git branch -d` (`-D` 禁止)。
-  -d 拒否は取込漏れの兆候、停止・報告
+  branch: **ahead=0 (main 取込済み)** は `git branch -d`。-d 拒否は取込漏れの兆候、停止・報告。
+  ahead>0 は次を全部満たすときだけ `-D`: 所有 wave の完了 entry が `docs/worklog.md` か
+  `docs/archive/` にある・稼働 wave / locked checkout / 棚卸し後の新規でない・全対象を runbook §7.2 の
+  repo 外 dir へ `git bundle create` + `verify` + `list-heads` 一致で退避済み・§1 の rescue gate の JSON を
+  同 dir に保存済み。台帳転記は §5 で別 dev-wave へ引き渡す。不成立・不明は保持
 - 未追跡 `output/` (`exploration/`・`env/`) は該当 wave の insight「証拠の所在」節で
   repo 外原本か確かめ、原本なら候補にせず残置・報告 (F1034)
-- 高い条件: 削除直前に status 空と非施錠を再確認。§3 の占有・判定不能は保持。
+- 高い条件: 削除直前に status 空と非施錠 (対象 checkout の `.git/worktrees/<name>/locked` 不在) を
+  再確認。§3 の占有・判定不能は保持。
   迷えばユーザー確認。対象内で作業中は先に main checkout へ退出
 
 ## 3. worktree の削除手順 (F26)
@@ -682,7 +687,7 @@ final で裁定候補として返し、実装・記録は明示起動された�
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
 1. `git -C <worktree> checkout --detach`
-2. `git branch -d <branch>`
+2. `git branch -d <branch>` (§2 の `-D` 条件成立時だけ `git branch -D`)
 3. 全対象の 1・2・占有検査の後、dir 撤去は
    `python3 tools/cleanup_remove_dirs.py -- <絶対path>...` を前景 1 回 (setsid・nohup・& 禁止)。
    rc0 (全件 removed) 以外は停止。detach・branch 削除・prune は直列。rc0 後
@@ -710,6 +715,8 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 remote branch 削除と main の push は行わず、対象をユーザーへ列挙。
 削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
+`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の path を示し、損失 commit の
+台帳転記を別 dev-wave へ引き渡す。
 
 ## 6. 自己改善候補の終端
 
@@ -9489,7 +9496,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 995
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 998
-    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 996
+    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 994
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 994
     assert len("- Web検索は必要な段だけ明示して使う。\n".encode("utf-8")) == 54
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
@@ -9686,7 +9693,7 @@ def test_dw_o28_exact_section_pin_accepts_synthetic_fixture():
     try:
         operations = _read(root, "docs/dev-wave/operations.md")
         assert operations.count(_SYNTHETIC_DW_O28_SECTION) == 1
-        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 996
+        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 994
         result = _run_check(root)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "違反なし" in result.stdout
@@ -9948,22 +9955,22 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
-    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_055, 110)
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_055
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_201
+        assert len(original.encode("utf-8")) == 7_055
         oversized = original + "\n" + "x" * 3
-        assert len(oversized.encode("utf-8")) == 6_205
+        assert len(oversized.encode("utf-8")) == 7_059
         _write(root, rel, oversized)
 
         res = _run_check(root)
 
         assert res.returncode == 1, res.stdout
         assert (
-            f"{rel}: 6205 bytes > 予算 6204 bytes" in res.stdout
+            f"{rel}: 7059 bytes > 予算 7055 bytes" in res.stdout
         ), res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)

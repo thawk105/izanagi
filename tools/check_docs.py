@@ -283,7 +283,7 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    ".claude/commands/cleanup-branches.md": TextLimit(6_204, 110),
+    ".claude/commands/cleanup-branches.md": TextLimit(7_055, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
@@ -628,10 +628,10 @@ inventory test 4 群（`test_campaign.py` の certified-writer caller inventory�
 """
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
-`landed`/`already-landed` 後、段 9 に main worktree から計算ノード job 終端後に `python3 tools/dev_wave_cleanup.py` で撤去(path は絶対、`--main-worktree <MAIN>` は両方に付ける)。
-先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave 本体を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
-tool は非占有・main 祖先性(子木は所有 path の tree entry 一致でも可)・dirty の退避可能性・manifest 束縛を検査、不成立・判定不能は fail-closed。子 branch は残す。
-F26: `git worktree remove`/`git submodule deinit` 不可。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない子木は親が unlock し理由を次 wave の worklog へ記録。
+land 成功後、段 9 に main worktree から job 終端後 `python3 tools/dev_wave_cleanup.py` で撤去(絶対 path、`--main-worktree <MAIN>` は両方に付ける)。
+先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、他へ引き渡さない。
+tool は非占有・main 祖先性(子木は所有 path の tree 一致でも可)・dirty 退避可否・manifest 束縛を検査。撤去前の不成立・不明は拒否し木と branch を残す(以後は rc=30)。統合証明済みの manifest 現行 branch は履歴を `<D>` へ bundle 後(HEAD が main 祖先なら省く)に `-D`。
+F26: `git worktree remove`/`git submodule deinit` 不可。wave branch は `-d` のみ、手打ち `-D` 禁止。残る子木は unlock し理由を worklog へ。
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
@@ -786,7 +786,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "c8db749bd90fdf3b663eadbb516682472bd489bd57589f2036b972398f7da9c8"
+    "3d675f09e6eea7eb6647e0be78f4843fecd6407662cbbe4e849844f559955c2b"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
