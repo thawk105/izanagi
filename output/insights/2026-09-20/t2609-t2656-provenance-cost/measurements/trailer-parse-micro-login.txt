@@ -1,0 +1,7 @@
+(a) repo cwd, ambient env (現行 _ai_agent_values)      n=60 med=  4.52 ms  p10=  4.19  p90=  5.22  outputs=1
+(b) repo cwd, GIT_DIR/GIT_WORK_TREE 明示               n=60 med=  3.94 ms  p10=  3.76  p90=  4.26  outputs=1
+(c) 隔離 cwd, 隔離 env (現行 _isolated_parsed_trailers)    n=60 med=  1.07 ms  p10=  1.04  p90=  1.22  outputs=1
+(d) 隔離 cwd, ambient env (discovery だけ止める)            n=60 med=  1.11 ms  p10=  1.09  p90=  1.26  outputs=1
+(e) /tmp cwd, ambient env (discovery が / まで登る)       n=60 med=  1.13 ms  p10=  1.08  p90=  1.80  outputs=1
+outputs equal a==b: True a==c: True a==d: True a==e: True
+sample output: b'AI-Agent: codex/gpt-6-astra/medium/author\nCo-Authored-By: X <x@y>\n'
