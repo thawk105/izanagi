@@ -1,0 +1,15 @@
+observed 2026-09-20T22:25:12+0900 (login node; pyc counts under orchestrator/tests/__pycache__ of each linked worktree; first column = *.pyc, second = *pytest*.pyc; source .py files under orchestrator/tests = 394)
+author-t2243-probe pyc=0 pytest-rewrite=0
+dev-wave-fig13-b10-waiting-grid pyc=395 pytest-rewrite=367
+dev-wave-k2-loop-originals-lost-downstream pyc=394 pytest-rewrite=366
+dev-wave-t1851-c3c-official-floor pyc=1 pytest-rewrite=0
+dev-wave-t2243-collection-diag pyc=0 pytest-rewrite=0
+dev-wave-t2344-closure-stage pyc=3 pytest-rewrite=1
+dev-wave-t2700-prewarm-ab pyc=394 pytest-rewrite=366
+dev-wave-t2796-docs4 pyc=396 pytest-rewrite=368
+dev-wave-t2797-b5-contrast pyc=0 pytest-rewrite=0
+dev-wave-t2803-provenance-receipt pyc=1 pytest-rewrite=0
+dev-wave-t2804-provenance-timeout-contract pyc=0 pytest-rewrite=0
+dev-wave-t2807-b8-prerun pyc=0 pytest-rewrite=0
+dev-wave-t2810-g1-launch-validation pyc=15 pytest-rewrite=0
+dev-wave-t2813-o26-inventory pyc=394 pytest-rewrite=366

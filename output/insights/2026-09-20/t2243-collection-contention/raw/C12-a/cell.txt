@@ -1,0 +1,14 @@
+arm=C
+N=12
+half=a
+cwd=/scr/tanab/t2243-3188720/repo
+prefix=/scr/tanab/t2243-3188720/pycache-C
+others=0
+stale_pytest=0
+nproc=48
+pid 3188720's current affinity list: 0-47
+cohort_start=1789908892.523290880
+cohort_end=1789908903.481691851
+cohort_wall=10.958400965
+rc_list=0 0 0 0 0 0 0 0 0 0 0 0
+expected_rc=0

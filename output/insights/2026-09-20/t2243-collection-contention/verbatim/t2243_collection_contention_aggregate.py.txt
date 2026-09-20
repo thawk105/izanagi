@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""Standalone T-2243 aggregation; no repository imports or third-party packages.
+
+Seconds unless named otherwise. JSON null and Markdown n/a denote unavailable
+observations. Ratios/differences require complete, successful cells. Mean rows
+are arithmetic means of the two independently derived half rows (both required).
+"""
+import argparse
+import csv
+import json
+import math
+from pathlib import Path
+import re
+import statistics
+
+
+def read(path):
+    try:
+        return path.read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+def number(value):
+    try:
+        result = float(value)
+        return result if math.isfinite(result) else None
+    except (ValueError, TypeError):
+        return None
+
+
+def med(values):
+    return statistics.median(values) if values else None
+
+
+def avg(values):
+    return statistics.mean(values) if values and all(v is not None for v in values) else None
+
+
+def sub(a, b):
+    return a - b if a is not None and b is not None else None
+
+
+def ratio(a, b):
+    return a / b if a is not None and b is not None and b != 0 else None
+
+
+def kv(text):
+    # Probe writes one key per line; tolerate hand-authored space-separated data.
+    return dict(re.findall(r"(?:^|\s)([A-Za-z_]+)=(.*?)(?=\s+[A-Za-z_]+=|\n|$)", text))
+
+
+def lustre(path):
+    text = read(path)
+    if not text or "lustre_stats=unreadable" in text:
+        return None
+    result, source = {}, None
+    for line in text.splitlines():
+        if line.startswith("### "):
+            source = line[4:]
+            continue
+        fields = line.split()
+        if source and len(fields) >= 3 and fields[2] == "samples":
+            count = number(fields[1])
+            # Lustre: op count samples [unit] [min max sum [sumsq]].
+            tail = line.split("]", 1)[1].split() if "]" in line else []
+            total = number(tail[2]) if len(tail) >= 3 else None
+            result[source + ":" + fields[0]] = {"count": count, "sum": total}
+    return result or None
+
+
+def lustre_delta(before, after):
+    if before is None or after is None:
+        return None
+    # Keep per-client paths: do not silently merge different mounts/targets.
+    return {key: {field: sub(after.get(key, {}).get(field), before.get(key, {}).get(field))
+                  for field in ("count", "sum")}
+            for key in sorted(before.keys() | after.keys())}
+
+
+def perf(path):
+    result = {}
+    for row in csv.reader(read(path).splitlines()):
+        if len(row) >= 3:
+            result[row[2].strip()] = number(row[0].strip())
+    return result
+
+
+def sample(path, pattern):
+    match = re.search(pattern, read(path))
+    return number(match[1]) if match else None
+
+
+def cell(path):
+    meta = kv(read(path / "cell.txt"))
+    n = number(meta.get("N"))
+    n = int(n) if n is not None else None
+    arm = meta.get("arm")
+    expected = 1 if arm == "X" else n
+    ids = set()
+    for file in path.glob("proc-*.*"):
+        match = re.fullmatch(r"proc-(\d+)\.(?:time|rc|out|err|perf)", file.name)
+        if match:
+            ids.add(int(match[1]))
+    times, rcs, ipcs, misses, collected = [], [], [], [], []
+    for i in sorted(ids):
+        rc = number(read(path / f"proc-{i}.rc").strip())
+        rcs.append(int(rc) if rc is not None else None)
+        # GNU time prepends 'Command exited with non-zero status 5' for X.
+        candidates = []
+        for line in read(path / f"proc-{i}.time").splitlines():
+            fields = [number(x) for x in line.split()]
+            if len(fields) == 8 and all(x is not None for x in fields):
+                candidates.append(fields)
+        if candidates:
+            times.append(candidates[-1])
+        events = perf(path / f"proc-{i}.perf")
+        ipc = ratio(events.get("instructions"), events.get("cycles"))
+        miss = ratio(events.get("cache-misses"), events.get("instructions"))
+        if ipc is not None:
+            ipcs.append(ipc)
+        if miss is not None:
+            misses.append(miss)
+        secs = re.findall(r"(?:collected|no tests collected).*?in\s+([0-9.]+)s", read(path / f"proc-{i}.out"))
+        if secs and number(secs[-1]) is not None:
+            collected.append(number(secs[-1]))
+    columns = list(zip(*times)) if times else [[] for _ in range(8)]
+    good = (not meta.get("skipped") and expected is not None and expected > 0
+            and ids == set(range(expected)) and len(times) == expected
+            and all(rc == (5 if arm == "X" else 0) for rc in rcs))
+    result = dict(cell=path.name, arm=arm, N=n, half=meta.get("half"), n_proc=len(ids),
+                  rc=rcs, all_zero=all(rc == 0 for rc in rcs) if rcs else None,
+                  valid=good, skipped=meta.get("skipped"),
+                  cohort_start=number(meta.get("cohort_start")),
+                  cohort_end=number(meta.get("cohort_end")),
+                  cohort_wall=number(meta.get("cohort_wall")),
+                  wall_min=min(columns[0]) if times else None,
+                  wall_median=med(columns[0]), wall_max=max(columns[0]) if times else None,
+                  user_median=med(columns[1]), user_sum=sum(columns[1]) if times else None,
+                  sys_median=med(columns[2]), sys_sum=sum(columns[2]) if times else None,
+                  cpu_median=med([row[1] + row[2] for row in times]),
+                  maxrss_MB=med([x / 1024 for x in columns[3]]),
+                  major_faults_median=med(columns[4]), minor_faults_median=med(columns[5]),
+                  voluntary_cs_median=med(columns[6]), involuntary_cs_median=med(columns[7]),
+                  ipc_median=med(ipcs), perf_n_proc=len(ipcs),
+                  cache_misses_per_instruction_median=med(misses),
+                  cache_miss_rate=None,  # cache-references is not in the measurement contract
+                  collected_seconds_median=med(collected),
+                  lustre_delta=lustre_delta(lustre(path / "lustre-before.txt"), lustre(path / "lustre-after.txt")),
+                  MHz_median=med([float(x) for x in re.findall(r"MHz\s*:\s*([\d.]+)", read(path / "cpufreq.txt"))]),
+                  others=number(meta.get("others")), stale_pytest=number(meta.get("stale_pytest")))
+    for half in ("before", "after"):
+        result["loadavg_" + half] = read(path / f"loadavg-{half}.txt").strip() or None
+        result["MemAvailable_kB_" + half] = sample(path / f"mem-{half}.txt", r"MemAvailable:\s*(\d+)")
+    return result
+
+
+def classify(wall, cpu):
+    if wall is None or cpu is None:
+        return None
+    if wall < 1.15:
+        return "no-contention"
+    return "wait-dominant" if cpu < 1.15 else "cpu-time-inflation"
+
+
+def hypothesis(delta):
+    if delta is None:
+        return None
+    if 10 <= delta <= 15:
+        return "H-supported"
+    if delta < 5:
+        return "H-not-supported"
+    return "H-inconclusive"
+
+
+def aggregate(root):
+    cells = [cell(p.parent) for p in sorted(root.glob("*/cell.txt"))]
+    index = {c["cell"]: c for c in cells}
+
+    def value(name, metric):
+        c = index.get(name, {})
+        return c.get(metric) if c.get("valid") else None
+
+    response, place, bytecode, calibration, judgments, missing = [], [], [], [], [], []
+    for arm in "RLC":
+        for n in ((1, 48) if arm == "R" else (1, 4, 12, 24, 48)):
+            pair = []
+            for half in ("a", "b"):
+                row = {"arm": arm, "N": n, "half": half}
+                for key, metric in (("wall_ratio", "wall_median"), ("cpu_ratio", "cpu_median")):
+                    row[key] = ratio(value(f"{arm}{n}-{half}", metric), value(f"{arm}1-{half}", metric))
+                response.append(row)
+                pair.append(row)
+            response.append(dict(arm=arm, N=n, half="mean", **{
+                key: avg([r[key] for r in pair]) for key in ("wall_ratio", "cpu_ratio")}))
+    for rows, left, right, ns in ((place, "L", "C", (1, 4, 12, 24, 48)), (bytecode, "R", "L", (1, 48))):
+        for n in ns:
+            pair = []
+            for half in ("a", "b"):
+                row = dict(N=n, half=half, **{metric: sub(value(f"{left}{n}-{half}", metric), value(f"{right}{n}-{half}", metric))
+                                            for metric in ("cohort_wall", "wall_median")})
+                rows.append(row)
+                pair.append(row)
+            rows.append(dict(N=n, half="mean", **{key: avg([r[key] for r in pair]) for key in ("cohort_wall", "wall_median")}))
+    for half in ("a", "b"):
+        calibration.append(dict(comparison="X48-L48", half=half, **{
+            metric: sub(value(f"X48-{half}", metric), value(f"L48-{half}", metric))
+            for metric in ("cohort_wall", "wall_median")}))
+    calibration.append(dict(comparison="X48-L48", half="mean", **{
+        key: avg([r[key] for r in calibration]) for key in ("cohort_wall", "wall_median")}))
+    calibration.append(dict(comparison="ref-L48-post - ref-L48-pre", half="post-pre", **{
+        metric: sub(value("ref-L48-post", metric), value("ref-L48-pre", metric))
+        for metric in ("cohort_wall", "wall_median")}))
+    for row in response:
+        if row["N"] == 48:
+            judgments.append(dict(kind="contention", **row, label=classify(row["wall_ratio"], row["cpu_ratio"])))
+    for row in bytecode:
+        if row["N"] == 48:
+            judgments.append(dict(kind="H", **row, label=hypothesis(row["wall_median"])))
+    residuals = []
+    for half in ("a", "b"):
+        wall_growth = sub(value(f"C48-{half}", "wall_median"), value(f"C1-{half}", "wall_median"))
+        cpu_growth = sub(value(f"C48-{half}", "cpu_median"), value(f"C1-{half}", "cpu_median"))
+        wait = sub(wall_growth, max(0, cpu_growth) if cpu_growth is not None else None)
+        delta = sub(value(f"L48-{half}", "wall_median"), value(f"C48-{half}", "wall_median"))
+        # Only a positive placement effect can explain a positive part of wait.
+        explained = min(max(0, wait), max(0, delta)) if wait is not None and delta is not None else None
+        residuals.append(dict(kind="residual", half=half, wait=wait,
+                              placement_explained=explained, unexplained=sub(wait, explained)))
+    judgments.extend(residuals)
+    judgments.append(dict(kind="residual", half="mean", **{
+        key: avg([r[key] for r in residuals]) for key in ("wait", "placement_explained", "unexplained")}))
+    expected = ([f"{arm}{n}-{h}" for arm in "LC" for n in (1, 4, 12, 24, 48) for h in ("a", "b")]
+                + [f"R{n}-{h}" for n in (1, 48) for h in ("a", "b")]
+                + ["X48-a", "X48-b", "warm-L", "warm-C", "ref-L48-pre", "ref-L48-post"])
+    for name in expected:
+        if name not in index:
+            missing.append(dict(cell=name, field="cell", reason="absent"))
+    for c in cells:
+        if not c["valid"]:
+            missing.append(dict(cell=c["cell"], field="derived metrics", reason=c["skipped"] or "incomplete or unexpected rc"))
+        for key in ("cohort_wall", "ipc_median", "lustre_delta", "MHz_median", "loadavg_before", "loadavg_after",
+                    "MemAvailable_kB_before", "MemAvailable_kB_after", "others", "stale_pytest"):
+            if c[key] is None:
+                missing.append(dict(cell=c["cell"], field=key, reason="unavailable"))
+        if c["perf_n_proc"] < c["n_proc"]:
+            missing.append(dict(cell=c["cell"], field="perf coverage", reason=f'{c["perf_n_proc"]}/{c["n_proc"]}'))
+    missing.append(dict(cell="all", field="cache_miss_rate", reason="cache-references not measured; misses/instruction is reported separately"))
+    return {"cell 表": cells, "並列度応答表": response, "配置効果表": place, "bytecode 効果表": bytecode,
+            "較正表 (X, ref)": calibration, "判定": judgments, "欠測": missing,
+            "notes": ["wall/CPU ratios use process medians; mean is the mean of both half ratios, requiring both halves.",
+                      "All deltas are seconds; Δplace=L-C; Δbc=R-L. H uses process median Δbc(48).",
+                      "wait=C48-C1-max(0,CPU48-CPU1); placement_explained=min(max(0,wait),max(0,Δplace48)); unexplained=wait-placement_explained. Signed residuals are retained.",
+                      "X is a different workload (xdist startup, worker collection, empty ids). Its difference is an observed xdist path cost, not an acceptance controller upper bound.",
+                      "Lustre deltas describe this client, not MDS load; negative counters may indicate a reset.",
+                      "maxrss_MB is MiB (GNU time KiB / 1024). cache miss rate needs cache-references, which was not measured.",
+                      "CPU-time inflation does not identify bandwidth contention; two halves do not estimate statistical error."],
+            "run_metadata": {name: read(root / name) or None for name in
+                             ("env.txt", "stage-C.txt", "setcheck.txt", "pycache-L-count.txt", "pycache-wave-before.txt", "pycache-wave-after.txt", "probe.done")}}
+
+
+def render(value):
+    if value is None:
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False).replace("|", "\\|")
+    return str(value).replace("|", "\\|").replace("\n", "<br>")
+
+
+def markdown(data):
+    lines = ["# T-2243 collection contention", ""]
+    for title, rows in data.items():
+        if title in ("notes", "run_metadata"):
+            continue
+        lines.extend(["## " + title, ""])
+        keys = list(dict.fromkeys(key for row in rows for key in row))
+        if keys:
+            lines.extend(["| " + " | ".join(keys) + " |", "| " + " | ".join("---" for _ in keys) + " |"])
+            lines.extend("| " + " | ".join(render(row.get(key)) for key in keys) + " |" for row in rows)
+        else:
+            lines.append("n/a")
+        lines.append("")
+    lines.extend(["## 読み方", ""] + ["- " + note for note in data["notes"]])
+    lines.extend(["", "## 実行付帯記録", ""])
+    for name, contents in data["run_metadata"].items():
+        lines.extend(["### " + name, "", "```text", contents or "n/a", "```", ""])
+    return "\n".join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", type=Path)
+    parser.add_argument("--markdown", required=True, type=Path)
+    parser.add_argument("--json", required=True, type=Path)
+    args = parser.parse_args()
+    data = aggregate(args.root)
+    args.markdown.write_text(markdown(data))
+    args.json.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
+    print(f"cells={len(data['cell 表'])} missing={len(data['欠測'])}")
+
+
+if __name__ == "__main__":
+    main()

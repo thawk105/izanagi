@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""直近受入 session の shard ごとに pre (session 開始 → collection 終了) と disp を読む (read-only、T-2617 §7 の手順)。
+
+v2 (段 3 所見 8 を反映): universe は report["observed_universe"] (list) の長さ、first-start の有効/欠測数を併記、
+cf 欠落は None のまま出す。加えて shard-0 の request.json から repo_root (走行元 worktree) を読み、
+同じ repo_root の受入を時系列で数えて「その木の何回目の受入か (ordinal)」を出す。
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+from collections import defaultdict
+
+ROOT = "/work/1/SFC/tanab/.izanagi-acceptance-shards"
+N = int(sys.argv[1]) if len(sys.argv) > 1 else 6
+
+
+def epoch_of(ts: str) -> float:
+    out = subprocess.run(["date", "-d", ts, "+%s.%N"], capture_output=True, text=True)
+    return float(out.stdout.strip())
+
+
+rows = []
+all_dirs = sorted(os.listdir(ROOT), key=lambda d: os.path.getmtime(os.path.join(ROOT, d)))
+# ordinal は全 session (N に関係なく) で数える
+ordinal_by_root = defaultdict(int)
+ordinal = {}
+for d in all_dirs:
+    req = os.path.join(ROOT, d, "shard-0", "dispatch", "shard-0", "request.json")
+    root = None
+    if os.path.isfile(req):
+        try:
+            with open(req) as fh:
+                root = json.load(fh).get("repo_root")
+        except Exception:
+            root = None
+    if root:
+        ordinal_by_root[root] += 1
+        ordinal[d] = (root, ordinal_by_root[root])
+    else:
+        ordinal[d] = (None, None)
+
+for d in all_dirs[-N:]:
+    root, ordn = ordinal[d]
+    for s in (0, 1, 2):
+        base = os.path.join(ROOT, d, f"shard-{s}")
+        r = os.path.join(base, "report.json")
+        j = os.path.join(base, "junit.xml")
+        if not (os.path.isfile(r) and os.path.isfile(j)):
+            continue
+        with open(j, "rb") as fh:
+            head = fh.read(800).decode("utf-8", "replace")
+        m_ts = re.search(r'timestamp="([^"]+)"', head)
+        m_host = re.search(r'hostname="([^"]+)"', head)
+        m_time = re.search(r' time="([^"]+)"', head)
+        m_tests = re.search(r' tests="([^"]+)"', head)
+        if not m_ts:
+            continue
+        with open(r) as fh:
+            rep = json.load(fh)
+        tl = rep.get("session_timeline") or {}
+        cf = tl.get("collection_finished_epoch_s")
+        workers = tl.get("workers") or {}
+        wvals = list(workers.values()) if isinstance(workers, dict) else list(workers)
+        firsts = [w.get("first_test_started_epoch_s") for w in wvals if isinstance(w, dict) and w.get("first_test_started_epoch_s")]
+        n_missing = len(wvals) - len(firsts)
+        start = epoch_of(m_ts.group(1))
+        pre = (cf - start) if cf else None
+        disp = (min(firsts) - cf) if (cf and firsts) else None
+        uni = rep.get("observed_universe")
+        uni_n = len(uni) if isinstance(uni, list) else None
+        pre_s = f"{pre:.1f}" if pre is not None else "None"
+        disp_s = f"{disp:.1f}" if disp is None or disp is not None and isinstance(disp, float) else "None"
+        if disp is None:
+            disp_s = "None"
+        rootname = os.path.basename(root) if root else "?"
+        print(f"{d[:8]} shard-{s} {m_ts.group(1)} host={m_host.group(1) if m_host else '?'} wall={m_time.group(1) if m_time else '?'} tests={m_tests.group(1) if m_tests else '?'} workers={len(wvals)} first_missing={n_missing} pre={pre_s} disp={disp_s} universe={uni_n} root={rootname} ordinal={ordn}")

@@ -1,0 +1,11 @@
+
+ Performance counter stats for 'true':
+
+            693883      cycles                                                      
+
+       0.000543842 seconds time elapsed
+
+       0.000597000 seconds user
+       0.000000000 seconds sys
+
+
