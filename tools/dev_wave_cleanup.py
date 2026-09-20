@@ -10,6 +10,13 @@ refs/heads/... または null (detached)。owned_paths は repo 相対 file の�
 rename は旧新両 path を含める。exact path は作成世代を証明しない。
 親は producer の終端と再投入禁止を保証する。
 
+remove-child は統合証明済みの子 branch を専用経路の -D で削除する。
+証明不能は rc=20 で木も branch も残す。wave 本体は -d のみ。
+内容統合 (所有 path の tree 一致) は子 commit の main 祖先性を意味しない。
+所有内容は main、所有外の最終差分は証拠 dir、中間版は同 dir の history.bundle
+が担う。Git object は延命しない。撤去開始後の失敗は rc=30。
+HEAD が main の祖先なら履歴は main にあるため bundle は作らない。
+
 remove-child の argv は次の4組 (path は絶対):
 --main-worktree <MAIN> --manifest <MANIFEST>
 --child-worktree <CHILD> --evidence-dir <EVIDENCE>
@@ -222,7 +229,7 @@ def _validate_path_spelling(raw: str, label: str, *, must_exist: bool) -> Path:
     return path
 
 
-def _validate_git_argv(args: Sequence[str]) -> None:
+def _validate_git_argv(args: Sequence[str], *, evidence: Path | None = None) -> None:
     if not args:
         raise RuntimeError("empty git command")
     argv = tuple(args)
@@ -291,16 +298,29 @@ def _validate_git_argv(args: Sequence[str]) -> None:
         return
     if (
         len(argv) == 4
-        and argv[:3] == ("branch", "-d", "--")
+        and argv[:3] in {("branch", "-d", "--"), ("branch", "-D", "--")}
         and argv[3]
         and not argv[3].startswith("-")
     ):
         return
+    if (len(argv) in {3, 5} and argv[0] == "bundle"
+            and evidence is not None and evidence.is_absolute()
+            and Path(argv[2]) == evidence / "history.bundle"
+            and Path(argv[2]).is_absolute()
+            and os.path.normpath(argv[2]) == argv[2]):
+        if len(argv) == 3 and argv[1] == "verify":
+            return
+        if (len(argv) == 5 and argv[1] == "create"
+                and _SHA_RE.fullmatch(argv[3])
+                and argv[4].startswith("^") and _SHA_RE.fullmatch(argv[4][1:])):
+            return
     raise RuntimeError(f"git argv is not allowlisted: {argv!r}")
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     _validate_git_argv(args)
+    if tuple(args[:3]) == ("branch", "-D", "--"):
+        raise RuntimeError("force deletion is reserved for integrated child removal")
     return subprocess.run(
         ["git", "-C", os.fspath(cwd), *args],
         stdin=subprocess.DEVNULL,
@@ -1752,6 +1772,15 @@ def _child_receipt(args: ChildArgs, common: Path, entry: dict) -> bool:
     for name, digest in data["files"].items():
         if hashlib.sha256((args.evidence / name).read_bytes()).hexdigest() != digest:
             raise ValueError("receipt evidence digest mismatch")
+    if data.get("branch_deleted") is True:
+        if not data["branch"] or _git(args.main, "rev-parse", "--verify",
+                                       data["branch"] + "^{commit}").returncode != 128:
+            raise ValueError("deleted child branch reappeared or absence is unproven")
+    if data.get("history_bundle") is not None:
+        bundle = args.evidence / "history.bundle"
+        if (data["history_bundle"] != os.fspath(bundle)
+                or hashlib.sha256(bundle.read_bytes()).hexdigest() != data["history_bundle_sha256"]):
+            raise ValueError("receipt history bundle digest mismatch")
     return True
 
 
@@ -1801,7 +1830,9 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         proof = ChildProof(head, _resolve_commit(args.main, "refs/heads/main^{commit}"), entry["branch"], tuple(entry["owned_paths"]))
         payload = _child_payload(args.child, proof)
         phase = "integration"
-        _assert_child_integration(args.main, proof, _head_reflog_shas(identity.gitdir))
+        history = tuple(dict.fromkeys((*_head_reflog_shas(identity.gitdir), proof.head)))
+        _assert_child_integration(args.main, proof, history)
+        ancestry = all(_ancestor(args.main, sha, proof.main_tip) for sha in history)
         admin = replace(admin, child_proof=proof)
         phase = "evidence"
         _outside_roots(args.evidence, [common, _REPO, *(r.path for r in records)])
@@ -1814,6 +1845,27 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
     phase = "backup"
     try:
         hashes = _backup_child(args, proof, payload)
+        phase = "history-bundle"
+        bundle = None
+        bundle_digest = None
+        if not _ancestor(args.main, proof.head, proof.main_tip):
+            bundle = args.evidence / "history.bundle"
+            for bundle_argv in (
+                ("bundle", "create", os.fspath(bundle), proof.head, "^" + proof.main_tip),
+                ("bundle", "verify", os.fspath(bundle)),
+            ):
+                _validate_git_argv(bundle_argv, evidence=args.evidence)
+                result = subprocess.run(
+                    ["git", "-C", os.fspath(args.main), *bundle_argv],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, check=False, shell=False,
+                )
+                if result.returncode:
+                    raise GitFailure(bundle_argv, result)
+            with bundle.open("rb") as stream:
+                os.fsync(stream.fileno())
+            bundle_digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+            os.fsync(_open_directory(args.evidence, stack))
         phase = "unlock"
         if record.locked:
             _must_git(args.main, "worktree", "unlock", os.fspath(args.child))
@@ -1844,10 +1896,43 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         _verify_record_state(args.main, args.child, absent=True)
         phase = "postcondition"
         _child_absent(args, common)
-        if proof.branch and _resolve_commit(args.main, proof.branch + "^{commit}") != head:
-            raise ValueError("retained child branch changed")
+        def _delete_integrated_child_branch() -> None:
+            assert proof.branch is not None
+            if _resolve_commit(args.main, "refs/heads/main^{commit}") != proof.main_tip:
+                raise ValueError("main changed since integration proof")
+            if _resolve_commit(args.main, proof.branch + "^{commit}") != proof.head:
+                raise ValueError("child branch changed since integration proof")
+            name = proof.branch[11:]
+            argv = ("branch", "-D", "--", name)
+            _validate_git_argv(argv)
+            result = subprocess.run(
+                ["git", "-C", os.fspath(args.main), *argv], stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, shell=False,
+            )
+            if result.returncode:
+                raise GitFailure(argv, result)
+            output = (result.stdout + result.stderr).decode("utf-8", "replace").strip()
+            match = re.fullmatch(rf"Deleted branch {re.escape(name)} \(was ([0-9a-f]+)\)\.", output)
+            if match is None:
+                raise ValueError("branch deletion diagnostic is malformed")
+            if _resolve_commit(args.main, match.group(1) + "^{commit}") != proof.head:
+                raise ValueError("branch deletion diagnostic sha differs from child HEAD")
+            if _git(args.main, "rev-parse", "--verify", proof.branch + "^{commit}").returncode != 128:
+                raise ValueError("deleted child branch remains or absence is unproven")
+
+        if proof.branch is not None:
+            phase = "branch-delete"
+            _delete_integrated_child_branch()
+        phase = "receipt"
         receipt = {"path": os.fspath(args.child), "branch": proof.branch, "HEAD": head,
-                   "admin_gitdir": os.fspath(identity.gitdir), "files": hashes}
+                   "admin_gitdir": os.fspath(identity.gitdir), "files": hashes,
+                   "branch_deleted": proof.branch is not None,
+                   "deleted_branch_tip": proof.head if proof.branch is not None else None,
+                   "integration_main_tip": proof.main_tip,
+                   "integration_basis": "ancestry" if ancestry else "owned-tree-match",
+                   "history_bundle": os.fspath(bundle) if bundle is not None else None,
+                   "history_bundle_sha256": bundle_digest,
+                   "history_bundle_reason": "child HEAD is a main ancestor" if bundle is None else None}
         temporary = args.evidence / "removed.json.tmp"
         _sync_file(temporary, json.dumps(receipt, sort_keys=True).encode() + b"\n")
         os.link(temporary, args.evidence / "removed.json")
