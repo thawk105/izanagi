@@ -1,0 +1,60 @@
+{
+  "schema": "izanagi-dev-wave-child-worktrees/v1",
+  "wave_worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2700-prewarm-ab",
+  "entries": [
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "author",
+      "branch": "refs/heads/dev-wave-t2700-unit-impl",
+      "owned_paths": [
+        "orchestrator/tests/conftest.py",
+        "tools/pegasus/dispatch_compute.py",
+        "orchestrator/tests/test_real_repo_serialization.py",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py",
+        "probe-t2700/t2700_ab_analyze.py",
+        "probe-t2700/t2700_history_estimate.py"
+      ]
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "fix1",
+      "branch": "refs/heads/dev-wave-t2700-unit-fix1",
+      "owned_paths": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py"
+      ]
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "fix2",
+      "branch": "refs/heads/dev-wave-t2700-unit-fix2",
+      "owned_paths": [
+        "probe-t2700/t2700_ab_analyze.py",
+        "probe-t2700/t2700_history_estimate.py"
+      ]
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "fix3",
+      "branch": "refs/heads/dev-wave-t2700-unit-fix3",
+      "owned_paths": [
+        "probe-t2700/t2700_ab_analyze.py"
+      ]
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "fix4",
+      "branch": "refs/heads/dev-wave-t2700-unit-fix4",
+      "owned_paths": [
+        "probe-t2700/t2700_ab_analyze.py"
+      ]
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2700-unit-impl",
+      "purpose": "fix5",
+      "branch": "refs/heads/dev-wave-t2700-unit-fix5",
+      "owned_paths": [
+        "probe-t2700/t2700_ab_analyze.py"
+      ]
+    }
+  ]
+}
