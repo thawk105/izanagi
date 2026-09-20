@@ -11,9 +11,10 @@
 `output/s1-freeze/measurement_freeze.json`、`output/s8b-freeze/holdout_freeze.json`、
 `output/s8b-freeze/holdout_freeze.v2.g1.json`、`output/s8b-freeze-candidates/holdout_freeze.v2.g1.json`) が
 source として記録しており、現 root を読む直接 verifier `orchestrator/campaign/s1_known_axes_freeze.py` の
-`verify()` と、それを実行する `orchestrator/tests/test_s1_known_axes_freeze.py` の
-`test_historical_current_use_matches_real_reconstruction` は、同文書に 1 行足すだけで
-`source sha256 不一致` になる (2026-09-20 に一時変異で実測、復元済み)。発効後の事前登録を bytes で直さず
+`verify()` は、同文書に 1 行足すだけで `source sha256 不一致` になる (2026-09-20 に一時変異で実測、復元済み)。
+同 verifier を呼ぶ既存 test `orchestrator/tests/test_s1_known_axes_freeze.py` の
+`test_historical_current_use_matches_real_reconstruction` にも静的に波及する (test 自体の変異実走はしていない)。
+発効後の事前登録を bytes で直さず
 別 file で訂正する作法は D1789 の erratum 系列と同じで、先例は
 `docs/backoff-policy-performance-preregistration-erratum-1.md`。同文書の更新契約「元の本文を消さず、
 日付付き改訂だけを append-only で重ねる」(`docs/phase3.md` の分離節) を、本追補は別 file の形で履行する。
@@ -38,16 +39,16 @@ source として記録しており、現 root を読む直接 verifier `orchestr
 3. **レンズ本数の数え方は規則にしない。** (規則化は裁定境界の変更にあたる。)
 4. **段階 A の人間 gate はやり直さない。** (`docs/axis-onboarding.md` 段階 A の人間承認は有効のまま。)
 
-定義変更の根拠は、[T-1871] 軸オンボーディング段階 B (2026-09-01、D1409) が確定した**壁 1 (有限幅の壁)** である —
-C++ の観測はすべて有限幅なので、「非列挙」を厳密な意味的無限と読む限りコード片軸はどれも原理的に不適格になり、
-これは hole の欠陥ではなく条件の書き方の問題だった。一次資料 =
-`output/insights/2026-09-01_t1871-nonenum-axis-stage-b-package.md` §4・§6。性能値・偵察結果は 1 件も見ていない。
+定義変更の根拠は、[T-1871] 軸オンボーディング段階 B (2026-09-01、D1409) が記録した**壁 1 (有限幅の壁)** である
+(一次資料 = `output/insights/2026-09-01_t1871-nonenum-axis-stage-b-package.md` §4・§6)。
+既知結果の開示: 同 insight は既存軸の偵察結果を「3 workload とも floor 超が cross-run 再現済み」という二値としてだけ
+引用している (同 §2 M8)。本追補は新たな性能測定・偵察を報告しない。
 
 D1441 が「定義し直す」と言った意図 (非拘束、出所 = 同 insight §6 裁定 1 択 a): D1067 が主張を
 「固定予算・固定編集面の下で、事前登録した非 LLM 生成器より高い score」へ狭めた時点で意味的無限は不要になり、
 必要なのは「事前登録した生成器の試行予算では到達 truth-vector を覆い尽くせない」ことだけである。
 
-## 3. 本追補が発効させるもの・動かさないもの
+## 3. 本追補が発効させるもの・動かさないもの (状態の記述は発行日 2026-09-20 時点)
 
 - **発効させるのは §2 の語義改訂だけである。** 復活条件のもう一方「偵察が floor 超地形を確認した場合」は不変で、
   本追補は条件の成立を宣言しない。**旧 headline 主張は復活していない。** 同追記の
@@ -60,5 +61,5 @@ D1441 が「定義し直す」と言った意図 (非拘束、出所 = 同 insig
   「候補集合がこの定義を満たすかどうかの判定も行わない」という扱いも不変。
 
 本追補は事前登録と対で読む。事前登録は凍結されたまま変えず、凍結成果物が記録する sha256 も変わらない。
-本追補自体はどの凍結成果物にも pin されていない。定義変更が結果を見た後の後付けでないことを保証するのは、
-Git 履歴と D1409 (2026-09-01) → D1441 (2026-09-02) → 本追補 (2026-09-20) の順序だけである。
+本追補自体はどの凍結成果物にも pin されていない。Git 履歴と D1409 (2026-09-01) → D1441 (2026-09-02) →
+本追補 (2026-09-20) の順序は裁定と追補の記録順序を示すが、結果未見を保証するものではない。
