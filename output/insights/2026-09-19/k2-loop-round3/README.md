@@ -185,3 +185,12 @@ repo 内 (本 dir):
 - 投入・取込みの記録: `qsub-0001.stdout`、`qstat-after-submit-0001.txt`、`setup-submit-tree.log`、`hydrate.json`、`ingest-real.log`
 - 親の glue (repo 外、実装面ではない): `build_round3_inputs.py`、`build_coder_input_4.py`、`build_proposal_4.py`、`project_round3_results.py`、
   `build_critic_input_3.py`、`run-ingest.sh`、`run-layer3.sh`、`qsub-submit.sh`、`setup-submit-tree.sh`
+
+## erratum (2026-09-20 19:25 JST): 「原本は repo 外 job root の下」は現況と異なる — submit-tree は撤去され原本 bytes は消失した
+
+本文「証拠の所在」の repo 外原本 (`submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` の `runs/wal.jsonl`・
+`runs/agent_outputs.jsonl`・`loop_state.json`・`s4_loop_digest.txt`・`campaign.lock`) は、2026-09-20 19:25 JST の cleanup 引き渡し script の
+退避不備 (退避 tar が空のまま撤去) により消失した。受領証 (`c42dc712…`) だけは round 2 と同 bytes が
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/knowledge_manifest_receipt.json` に残る。
+本文に記した各原本の sha256 と派生物 (`materials/`、`layer3_report.json`、`evidence/`) は不変で、本文の値・結論は変えない。
+事故の記録と損失表は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。

@@ -253,3 +253,11 @@ T-1851 §9 が書いた「消費済み slot は recovery でも戻らない」�
 wave worktree 側の原本は撤去まで残す。**v2 candidate 生成時には official result が repo 相対 path に
 在る必要がある** (同 W-2) ので、退避と再配置の順序は後続 (床値 result の退避順序を扱う
 `dev-wave-t2386-floor-evac-order`、本 wave 時点で未着地) の着地規則に従う。
+
+## erratum (2026-09-20 19:25 JST): wave worktree 側の原本は撤去済み — 退避 bundle `run-backup/` が唯一の repo 外原本になった
+
+本文「wave worktree 側の原本は撤去まで残す」の wave worktree (`.claude/worktrees/dev-wave-t2698-official-floor-resubmit`) は
+2026-09-20 19:25 JST の cleanup で撤去された (引き渡し script の退避 tar は空だったが、本 wave が作った
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2698-official-floor-resubmit/run-backup/` (109 file、`MANIFEST.json` に bytes と sha256) が
+run directory・binary store 12 本・submission receipt・job staging・claim を含むため実害なし)。worktree に在った `output/s8b-build-cache/` は
+再生成可能で退避していない。本文の値・結論は変えない。事故の記録は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。
