@@ -5058,3 +5058,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-20","base":"42096593893670a12e1483f17423a207de89dfa6","content_sha256":"871d0040d9ce93bdcb00607ef27126b4fa4510832ee251f90d463d5e9d0c2045","seq":1,"tested_tip":"42096593893670a12e1483f17423a207de89dfa6","wave":"record-t2700-prewarm-ab-record","wave_ref":"refs/heads/record-t2700-prewarm-ab-record"}
 - {"allocations":{"D:early-memo-ab-measurement":"D2185"},"authored":"2026-09-20","base":"42096593893670a12e1483f17423a207de89dfa6","content_sha256":"258577a88e1af6f3385d06a47be1d7c148f28843c683e13c97644a6c3d72213d","seq":2,"tested_tip":"42096593893670a12e1483f17423a207de89dfa6","wave":"record-t2700-prewarm-ab-record","wave_ref":"refs/heads/record-t2700-prewarm-ab-record"}
+
+- {"allocations":{},"authored":"2026-09-20","base":"be0fda703b102ea83a6ff0de8df891b21fb13a9f","content_sha256":"86257e90ae63b9c677a5ee1dae294cda864de096f1aea00806ffffaed3c17bc7","seq":1,"tested_tip":"ee00b2db4ab215e96b63e8dd19c718bbddae81e3","wave":"dev-wave-paper-methods-ja-2026-09-20","wave_ref":"refs/heads/worktree-dev-wave-paper-methods-ja-2026-09-20"}
