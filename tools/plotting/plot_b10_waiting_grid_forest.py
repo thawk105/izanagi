@@ -71,6 +71,11 @@ EQUIVALENCE_MARGIN_PCT = 3.0
 T975_DF2 = 4.302652729911275
 DF = 2
 REPS = 5
+RECORDS_PER_DB = 1_000_000
+THREADS = 48
+ZIPF_SKEW = "0.9"
+RRATIOS = dict(zip(WORKLOADS, ("5", "50", "95")))
+EXTIME_S = 3
 POINTS_PER_BLOCK = 15
 RECORDS = 135
 CELLS = 36
@@ -155,6 +160,17 @@ def _authority_data(root, expected_hashes=None):
     _require(judgement['schema_version'] == JUDGEMENT_SCHEMA, 'judgement schema')
     _require(judgement['alpha'] == ALPHA and judgement['spec_sha256'] == SPEC_SHA256, 'judgement constants')
     spec = source['preregistration']['spec']
+    calibration, execution, workloads = source['calibration'], spec['execution'], spec['workloads']
+    _require(calibration['records'] == RECORDS_PER_DB, 'calibration records')
+    _require(calibration['threads'] == execution['threads'] == THREADS, 'calibration/execution threads')
+    _require(calibration['env_tag'] == 'pegasus', 'calibration env_tag')
+    _require([w['name'] for w in workloads] == list(WORKLOADS), 'spec workload order')
+    for w in workloads:
+        _require(w['ycsb_zipf_skew'] == ZIPF_SKEW, 'spec workload skew')
+        _require(w['ycsb_rratio'] == RRATIOS[w['name']], 'spec workload rratio')
+        _require(w['ycsb_rmw'] == '0' and w['ycsb_max_ope'] == '10', 'spec workload rmw/max_ope')
+    _require(execution['extime_s'] == EXTIME_S, 'spec execution extime_s')
+    _require(execution['performance_reps'] == REPS, 'spec execution repetitions')
     analysis = spec['analysis']
     _require(analysis['alpha'] == ALPHA and analysis['equivalence_margin_pct'] == EQUIVALENCE_MARGIN_PCT, 'spec constants')
     ci = analysis['confidence_interval']
@@ -261,7 +277,11 @@ def _authority_data(root, expected_hashes=None):
                                  intervals=True, holm=True, report_markdown=True),
                 measurement_conditions=dict(environment='Pegasus compute nodes', threads=spec['execution']['threads'],
                                             protocol='silo', workloads=list(WORKLOADS), means_us=list(MEANS_US),
-                                            reps=REPS, blocks=len(BLOCKS)))
+                                            reps=REPS, blocks=len(BLOCKS), records=calibration['records'],
+                                            zipf_skew=workloads[0]['ycsb_zipf_skew'],
+                                            rratios={w['name']: w['ycsb_rratio'] for w in workloads},
+                                            rmw=workloads[0]['ycsb_rmw'], max_ope=workloads[0]['ycsb_max_ope'],
+                                            extime_s=execution['extime_s']))
 
 
 def load_evidence(repo_root, evidence_root, *, expected_hashes=None):
@@ -310,6 +330,10 @@ def _caption(data, prefix):
             f"Boundary overlaps: {', '.join(overlaps) or 'none'}. "
             "Constant cells are constructional references at zero with intervals [0, 0]; gray ticks show the three block-level paired effects. "
             f"Conditions: {conditions['environment']}, {conditions['threads']} threads, {conditions['protocol']}, "
+            f"{conditions['records']:,} records, Zipf skew {conditions['zipf_skew']}, "
+            f"read ratio {' / '.join(conditions['rratios'][w] for w in conditions['workloads'])} "
+            f"({' / '.join(conditions['workloads'])}), read-modify-write { {'0': 'disabled'}[conditions['rmw']]}, "
+            f"max operations {conditions['max_ope']}, {conditions['extime_s']} s per repetition, "
             f"YCSB {' / '.join(conditions['workloads'])}, commanded mean wait mu "
             f"{', '.join(map(str, conditions['means_us']))} us, {conditions['reps']} reps x {conditions['blocks']} blocks, "
             f"CCBench pin {data['ccbench_pin']}, report request {report['request_id']}, "
@@ -368,7 +392,9 @@ def make_figure(data):
                Patch(facecolor='#d9ead3', label='+/-3.0% margin')]
     fig.legend(handles=handles, loc='lower center', bbox_to_anchor=(.5, .135), ncol=5, frameon=False)
     cond = data['measurement_conditions']
-    fig.text(.5, .09, f"{cond['environment']}; {cond['threads']} threads; {cond['protocol']}; YCSB write-heavy / balanced / read-heavy; "
+    fig.text(.5, .09, f"{cond['environment']}; {cond['threads']} threads; {cond['protocol']}; "
+             f"{cond['records']:,} records; Zipf {cond['zipf_skew']}; "
+             f"rratio {'/'.join(cond['rratios'][w] for w in cond['workloads'])}; YCSB write-heavy / balanced / read-heavy\n"
              f"{cond['reps']} reps x {cond['blocks']} blocks; CCBench {data['ccbench_pin']}; official_certification: false", ha='center', fontsize=9)
     fig.text(.5, .045, 'Intervals inside the band are not equivalence; no per-cell significance is decided.', ha='center', fontsize=9)
     fig._b10_artist_series = series

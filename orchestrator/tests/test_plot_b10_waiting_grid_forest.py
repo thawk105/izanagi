@@ -86,7 +86,10 @@ def _fixture(tmp_path):
         permutation=dict(enumeration='all-2^18', pairs_per_family=18, sided='two-sided'),
         holm_families=[dict(workload=w, shape='symmetric-modulo') for w in p.WORKLOADS],
         exposure=dict(minimum_calls_per_cell=10000)),
-        grid=dict(means_us=[2, 5, 10, 25, 50, 100], shapes=[dict(name=s) for s in p.SHAPES]), execution=dict(threads=48))
+        grid=dict(means_us=[2, 5, 10, 25, 50, 100], shapes=[dict(name=s) for s in p.SHAPES]),
+        workloads=[dict(name=w, ycsb_zipf_skew='0.9', ycsb_rratio=r, ycsb_rmw='0', ycsb_max_ope='10')
+                   for w, r in zip(p.WORKLOADS, ('5', '50', '95'))],
+        execution=dict(threads=48, extime_s=3, performance_reps=5))
     records, medians = [], {}
     for wi, w in enumerate(p.WORKLOADS):
         for bi, b in enumerate(p.BLOCKS):
@@ -121,6 +124,7 @@ def _fixture(tmp_path):
         running = max(running, min(1., (3-i)*f['raw_p']))
         f['holm_p'] = running
     doc = dict(schema_version='b10-backoff-shape-provenance/v2', official_certification=False, pin='511c953',
+        calibration=dict(records=1000000, threads=48, env_tag='pegasus'),
         submission=submission, preregistration=dict(spec=spec), records=records,
         judgement=dict(schema_version='b10-backoff-shape-judgement/v1', alpha=.05,
             spec_sha256='9c59411476018d510c8fc5d57f203920ccd3b216e6c5f341ce6b97e45041a7c2', families=families, cell_effects=cells))
@@ -167,6 +171,10 @@ def test_fixture_has_production_shape_and_recomputes_statistics(tmp_path):
     assert any(c['effect'] < 0 for c in data['cells'])
     assert any(c['ci95_low'] > 0 for c in data['cells'])
     assert data['summary']['overlaps'] > 0
+    conditions = data['measurement_conditions']
+    assert {key: conditions[key] for key in ('records', 'zipf_skew', 'rratios', 'rmw', 'max_ope', 'extime_s')} == dict(
+        records=1000000, zipf_skew='0.9', rratios={'write-heavy': '5', 'balanced': '50', 'read-heavy': '95'},
+        rmw='0', max_ope='10', extime_s=3)
     for c in data['cells']:
         assert math.isclose(c['effect'], statistics.mean(c['block_effects']), abs_tol=1e-12)
         half = 4.302652729911275*statistics.stdev(c['block_effects'])/math.sqrt(3)
@@ -244,6 +252,8 @@ def test_layout_failure_publishes_nothing(tmp_path):
 
 def test_caption_contains_fixed_literals(tmp_path):
     caption = PLOT._caption(_data(tmp_path), "fig13_test")
+    assert '1,000,000 records' in caption
+    assert 'Zipf skew 0.9' in caption
     for literal in ["Each family's outcome is the preregistered procedure's classification and is not a research verdict.", 'Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed.', 'Per-cell intervals are descriptive and no per-cell significance decision is made; the only tests are the three family-level permutation tests with Holm adjustment.', 'The static right-tail cohorts (separate preregistration, grid and driver) are neither pooled nor compared with this grid.', 'official_certification is false; these performance values are not a basis for adopting a variant.', 'Direction and effect sizes are stated for this one contrast only; nothing is claimed about waiting-shape effects in general, about binary, about a dose response of dispersion, or about a general separation of waiting shape from waiting amount.', 'Correctness is recorded from separate trace-enabled runs (135 of 135 cells certified) and is not a performance certification.', 'The three workloads ran as separate jobs on different days and driver versions; absolute throughput is not compared across workloads, and no mechanism is claimed for the direction.']:
         assert literal in caption, literal
 def test_caption_figure_number_comes_from_prefix(tmp_path):
@@ -360,6 +370,61 @@ def test_cell_interval_mismatch_is_rejected(tmp_path):
 
 def test_equivalence_relation_mismatch_is_rejected(tmp_path):
     _reject_changed(tmp_path, lambda d: d['judgement']['cell_effects'][6].update(equivalence_relation='inside-equivalence-range'), 'equivalence relation')
+
+
+def test_calibration_records_or_threads_mismatch_is_rejected(tmp_path):
+    for key, value in [('records', 999999), ('threads', 47)]:
+        _reject_changed(tmp_path/key, lambda d: d['calibration'].update({key: value}), key)
+
+
+def test_workload_skew_or_rratio_mismatch_is_rejected(tmp_path):
+    _reject_changed(tmp_path/'skew', lambda d: d['preregistration']['spec']['workloads'][0].update(ycsb_zipf_skew='0.8'), 'skew')
+    def swap(d):
+        workloads = d['preregistration']['spec']['workloads']
+        workloads[0]['ycsb_rratio'], workloads[1]['ycsb_rratio'] = workloads[1]['ycsb_rratio'], workloads[0]['ycsb_rratio']
+    _reject_changed(tmp_path/'rratio', swap, 'rratio')
+
+
+def test_relation_boundaries_match_producer_rule():
+    """Producer L1895–1900 includes both endpoints inside; outside uses strict < / >."""
+    for low, high, expected in [(-.03, .03, 'inside-equivalence-range'),
+                                (-.03, .02, 'inside-equivalence-range'),
+                                (-.031, .02, 'overlaps-equivalence-boundary'),
+                                (.03, .04, 'overlaps-equivalence-boundary'),
+                                (.031, .04, 'outside-equivalence-range'),
+                                (-.05, -.031, 'outside-equivalence-range'),
+                                (-.05, -.03, 'overlaps-equivalence-boundary')]:
+        assert PLOT._relation(low, high) == expected, (low, high)
+
+
+def test_cell_interval_on_margin_edge_is_inside(tmp_path):
+    root, durable, _ = _fixture(tmp_path)
+    doc = json.loads((root/PLOT.PROVENANCE_JSON).read_text())
+    # These binary64 throughput ratios yield a recalculated upper endpoint exactly .03.
+    ratios = (1.00504, 1.01, 1.019638728895882)
+    workload, mean_us = 'write-heavy', 2
+    for record in doc['records']:
+        if record['workload'] == workload and record['mean_us'] == mean_us:
+            value = 1.0 if record['shape'] == 'constant' else ratios[PLOT.BLOCKS.index(record['block_id'])]
+            record.update(median_tps=value, throughputs=[value]*5)
+    values = [ratio-1 for ratio in ratios]
+    family = next(f for f in doc['judgement']['families'] if f['workload'] == workload)
+    for bi, value in enumerate(values):
+        family['differences'][bi*6] = value
+    cell = next(c for c in doc['judgement']['cell_effects']
+                if (c['workload'], c['shape'], c['mean_us']) == (workload, 'symmetric-modulo', mean_us))
+    effect = statistics.mean(values)
+    half = 4.302652729911275*statistics.stdev(values)/math.sqrt(3)
+    assert effect+half == .03
+    cell.update(effect=effect, ci95_low=effect-half, ci95_high=effect+half,
+                equivalence_relation='inside-equivalence-range')
+    _write(root/PLOT.PROVENANCE_JSON, doc)
+    (root/PLOT.REPORT_MD).write_text(_markdown(doc))
+    data = PLOT.load_evidence(root, durable, expected_hashes=_seal(root))
+    actual = next(c for c in data['cells']
+                  if (c['workload'], c['shape'], c['mean_us']) == (workload, 'symmetric-modulo', mean_us))
+    assert actual['ci95_high'] == .03
+    assert actual['equivalence_relation'] == 'inside-equivalence-range'
 
 
 def test_constant_cell_nonzero_is_rejected(tmp_path):
