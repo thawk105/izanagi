@@ -91,6 +91,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Neither site launches a CCBench measurement binary.
     ("campaign/b4_binary_record.py", "<module>._install_dependency"): 1,
     ("campaign/b4_binary_record.py", "<module>.prepare_dependencies"): 1,
+    # B-5 series driver launches the reviewed orchestrator.campaign.p3_s4_loop
+    # CLI with driver-constructed fixed argv, no shell, inherited env plus
+    # PYTHONDONTWRITEBYTECODE=1, and capture_output. CCBench measurements in
+    # the child driver use already inventoried gateway / pipeline sites;
+    # this site itself does not name a CCBench binary.
+    ("campaign/b5_generator_contrast.py", "<module>.default_runner"): 1,
     # Bounded qstat query reads the current job's start and reservation only.
     ("campaign/b10_backoff_static_tail_formal.py", "<module>.scheduler_coordinates"): 1,
     ("calibrator/cli.py", "<module>._assert_trace_disabled_binary"): 1,
