@@ -1,0 +1,626 @@
+{
+  "measurement": "adjacent attributes binding invalidation only; not audit cold rate or wall time",
+  "clone": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2803-provenance-receipt/rate-source",
+  "original_head": "f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad",
+  "old_checker_sha256": "7c02fb2d5fec9d229bf1d4984181150a2b418ce6a473b4172556e53a5fd0b05c",
+  "new_checker_sha256": "2b72e1d543cda1e1337c0ac738e2d8fb3a68d784f0273fc6852a0927e1a00611",
+  "attribute_environment": {
+    "HOME": "/home/SFC/tanab",
+    "LANG": "ja_JP.UTF-8",
+    "GIT_EDITOR": "true"
+  },
+  "git_config": "filter.lfs.smudge=git-lfs smudge -- %f\nfilter.lfs.process=git-lfs filter-process\nfilter.lfs.required=true\nfilter.lfs.clean=git-lfs clean -- %f\ncore.repositoryformatversion=0\ncore.filemode=true\ncore.bare=false\ncore.logallrefupdates=true\nremote.origin.url=/work/1/SFC/tanab/izanagi\nremote.origin.fetch=+refs/heads/*:refs/remotes/origin/*\nbranch.main.remote=origin\nbranch.main.merge=refs/heads/main\n",
+  "transitions": [
+    {
+      "previous": "b730464c76e2d59fae17cf98fc9f22f00ff84907",
+      "commit": "e43f6d8da9a615bbeea6f273778028c4c9b0152c",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "e43f6d8da9a615bbeea6f273778028c4c9b0152c",
+      "commit": "bb3b124ca00a7725cc3302e1bfdbc7f787c2d0d7",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "bb3b124ca00a7725cc3302e1bfdbc7f787c2d0d7",
+      "commit": "b2037abfa1467507cf92c851c83f262239f81641",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "b2037abfa1467507cf92c851c83f262239f81641",
+      "commit": "97fc3aaba8ad6906254f20107e37acbb5a543ade",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "97fc3aaba8ad6906254f20107e37acbb5a543ade",
+      "commit": "7ce5d91742e79c1f3015dfb9996e0abe2cc1bab7",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "7ce5d91742e79c1f3015dfb9996e0abe2cc1bab7",
+      "commit": "b77a5340a997acb15e8031ee77a1a8891b79f6ca",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "b77a5340a997acb15e8031ee77a1a8891b79f6ca",
+      "commit": "0a07673e191fd0cba5630315778d5187d19a9038",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "0a07673e191fd0cba5630315778d5187d19a9038",
+      "commit": "0ae23d96b240b8858d6434f034ff5491f035bc43",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 27,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "0ae23d96b240b8858d6434f034ff5491f035bc43",
+      "commit": "645d52f8732e3f2dc2a9d2e37abe9bf029f751ee",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "645d52f8732e3f2dc2a9d2e37abe9bf029f751ee",
+      "commit": "7975385b55a2e3451f6c80d584a9312f44d5199d",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "7975385b55a2e3451f6c80d584a9312f44d5199d",
+      "commit": "4bd96264353aac50f99a6471ce9a06bc81b2d4d8",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "4bd96264353aac50f99a6471ce9a06bc81b2d4d8",
+      "commit": "423771bb165f831a45530b7014461919318d5088",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "423771bb165f831a45530b7014461919318d5088",
+      "commit": "684ca5c68a8ae398f5b0faa8048ad493641a487c",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "684ca5c68a8ae398f5b0faa8048ad493641a487c",
+      "commit": "8291f476648fc10fc8cf7d3ddb8a1a3683b67aad",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "8291f476648fc10fc8cf7d3ddb8a1a3683b67aad",
+      "commit": "a4e2522c579bacdb1b6c25d8cb57ef5f112e918f",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 3,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "a4e2522c579bacdb1b6c25d8cb57ef5f112e918f",
+      "commit": "2ba4000870c63254132410b3002b5298c0c6a210",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "2ba4000870c63254132410b3002b5298c0c6a210",
+      "commit": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "commit": "c9e4ad77a3437c3b464a17bb3c96be41262166a7",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "c9e4ad77a3437c3b464a17bb3c96be41262166a7",
+      "commit": "dbb8d5b379eefdca2db55b464719d7949025560d",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 3,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "dbb8d5b379eefdca2db55b464719d7949025560d",
+      "commit": "593a72fc97b9b27fcf72d959f81837ae70b859bb",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 43,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "593a72fc97b9b27fcf72d959f81837ae70b859bb",
+      "commit": "b3aed35a4eca6532e23ee2fe7bd0bc8f0fb44309",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "b3aed35a4eca6532e23ee2fe7bd0bc8f0fb44309",
+      "commit": "81ffc26c5cbc5810e6df917b46c6ffde332e6e83",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "81ffc26c5cbc5810e6df917b46c6ffde332e6e83",
+      "commit": "3e2857ea45da24aff6abe1417560931a0d331870",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 8,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "3e2857ea45da24aff6abe1417560931a0d331870",
+      "commit": "00e57182705ec14ed7113d70428eae7b78d0bd25",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 4,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "00e57182705ec14ed7113d70428eae7b78d0bd25",
+      "commit": "baba46bb7ddeb2a928aa40c07dc351d70998549b",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "baba46bb7ddeb2a928aa40c07dc351d70998549b",
+      "commit": "951779aa339c38833d3bcb6880d1787df052b79f",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "951779aa339c38833d3bcb6880d1787df052b79f",
+      "commit": "ca9b1a6fc480ca6a430de3674852976b84938eb8",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "ca9b1a6fc480ca6a430de3674852976b84938eb8",
+      "commit": "86d65761d6bb11055aff5aea6a3ffe68a6a9dc8c",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "86d65761d6bb11055aff5aea6a3ffe68a6a9dc8c",
+      "commit": "c13914d444f18b233ebc9f40c5a3be16f9b4ca40",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "c13914d444f18b233ebc9f40c5a3be16f9b4ca40",
+      "commit": "f749b9ecf993ed79996678836211b1b0c121348c",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "f749b9ecf993ed79996678836211b1b0c121348c",
+      "commit": "dd78ce7f4938ec72a7159ce0f245a6347a128f05",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "dd78ce7f4938ec72a7159ce0f245a6347a128f05",
+      "commit": "65fe36a94064fd4f84737c834cba8df476822ba8",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "65fe36a94064fd4f84737c834cba8df476822ba8",
+      "commit": "5ce77fc6d04ea8e8c5a5561cf23053012999d080",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 12,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "5ce77fc6d04ea8e8c5a5561cf23053012999d080",
+      "commit": "38f39d6521c84128ecaf36a1ed014ea70d0897e5",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "38f39d6521c84128ecaf36a1ed014ea70d0897e5",
+      "commit": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+      "commit": "22b9deb58ca0b8dee386f5bbfb35a36248bf2a5e",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "22b9deb58ca0b8dee386f5bbfb35a36248bf2a5e",
+      "commit": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "commit": "f4e6a2a415edadf7be3e6d874e15414908ce1b37",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "f4e6a2a415edadf7be3e6d874e15414908ce1b37",
+      "commit": "9137ce919bfe9a714dc495e4a31595002ae36ad8",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 24,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "9137ce919bfe9a714dc495e4a31595002ae36ad8",
+      "commit": "222d3c90d42bbf07428643dbc4f29f961dfb523e",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 8,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "222d3c90d42bbf07428643dbc4f29f961dfb523e",
+      "commit": "0e83a8a86304c742c107fef43c2fb160485e9a5f",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 4,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "0e83a8a86304c742c107fef43c2fb160485e9a5f",
+      "commit": "4310980fe180443961291422e35610e896f4e9d8",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "4310980fe180443961291422e35610e896f4e9d8",
+      "commit": "371674ea685ecb11e08dbcc31d4bf4f2bed0b20b",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "371674ea685ecb11e08dbcc31d4bf4f2bed0b20b",
+      "commit": "c6eb77597621b82f7862c1800bb7495dc35ed901",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "c6eb77597621b82f7862c1800bb7495dc35ed901",
+      "commit": "46cc32febd3b52470c4160b5773afb799fbcca62",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "46cc32febd3b52470c4160b5773afb799fbcca62",
+      "commit": "ec7b8f2d4524eb6c1c82d4548732c00f9bc34ea2",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "ec7b8f2d4524eb6c1c82d4548732c00f9bc34ea2",
+      "commit": "906b1c9dd5797e256fcc53b196a409f3b7a8a09a",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "906b1c9dd5797e256fcc53b196a409f3b7a8a09a",
+      "commit": "a03ee469388a20ac86bf096a277b5734265eb5ad",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 40,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "a03ee469388a20ac86bf096a277b5734265eb5ad",
+      "commit": "1673f69e58e08aeec921d4e61d54cad905ff318b",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "1673f69e58e08aeec921d4e61d54cad905ff318b",
+      "commit": "2d9b9a3b6c34da29610acc312cd85d376105b748",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "2d9b9a3b6c34da29610acc312cd85d376105b748",
+      "commit": "82d7206d60cd0ca12a9be7a363ae01475343943a",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 18,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "82d7206d60cd0ca12a9be7a363ae01475343943a",
+      "commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+      "commit": "094ac8a1cd2a4e5a11e2a9f79d5aad55ab7221fc",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 4,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "094ac8a1cd2a4e5a11e2a9f79d5aad55ab7221fc",
+      "commit": "f00b3a900b35adebce34df95eb4452af598e8db9",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 2,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "f00b3a900b35adebce34df95eb4452af598e8db9",
+      "commit": "716004faa224af15c7a8cc2d7f9d7c5d909eb6f6",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 29,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "716004faa224af15c7a8cc2d7f9d7c5d909eb6f6",
+      "commit": "9723f59869609346418cbf37360dd286824ba112",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "9723f59869609346418cbf37360dd286824ba112",
+      "commit": "7f714d6a858d98fc54997abd0667de9c678348d3",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "7f714d6a858d98fc54997abd0667de9c678348d3",
+      "commit": "64120f92e6e1758cd68e1e9e0ba2a5069c673314",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 3,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "64120f92e6e1758cd68e1e9e0ba2a5069c673314",
+      "commit": "a79e72553ec62698d3ca30c6e2e6643dc9dc86a2",
+      "old_changed": true,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 8,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    },
+    {
+      "previous": "a79e72553ec62698d3ca30c6e2e6643dc9dc86a2",
+      "commit": "f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad",
+      "old_changed": false,
+      "new_digest_changed": false,
+      "new_changed": false,
+      "new_directories": 0,
+      "deleted_directories": 0,
+      "gitattributes_touched": false
+    }
+  ],
+  "summary": {
+    "snapshots": 61,
+    "transitions": 60,
+    "initial_snapshot": {
+      "commit": "b730464c76e2d59fae17cf98fc9f22f00ff84907",
+      "count": 1,
+      "included_in_transitions": false
+    },
+    "old_changed": 25,
+    "new_changed": 0
+  }
+}

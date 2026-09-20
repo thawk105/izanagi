@@ -8014,18 +8014,18 @@ sys.exit(rc)
     assert "implementation-author-waived=1" in warm.stdout
 
 
-def _attribute_merge_repo(root, monkeypatch, capsys):
+def _attribute_merge_repo(root, monkeypatch, capsys, path="tools/shared_lines.py"):
     _receipt_repo(root, monkeypatch)
     lines = [f"line {i}\n" for i in range(36)]
-    base = _commit(root, {"tools/shared_lines.py": "".join(lines)}, CODEX_AUTHOR)
+    base = _commit(root, {path: "".join(lines)}, CODEX_AUTHOR)
     branch = _git(root, "branch", "--show-current")
     _git(root, "switch", "-q", "-c", "attribute-side", base)
     side_lines = lines.copy()
     side_lines[4] = "side edit\n"
-    side = _commit(root, {"tools/shared_lines.py": "".join(side_lines)}, CODEX_AUTHOR)
+    side = _commit(root, {path: "".join(side_lines)}, CODEX_AUTHOR)
     _git(root, "switch", "-q", branch)
     lines[31] = "main edit\n"
-    _commit(root, {"tools/shared_lines.py": "".join(lines)}, CODEX_AUTHOR)
+    _commit(root, {path: "".join(lines)}, CODEX_AUTHOR)
     _git(root, "merge", "--no-ff", "--no-commit", side)
     merge = _commit(root, {}, CLAUDE_AUTHOR)
     assert provenance._commit_paths(merge) == []
@@ -8436,6 +8436,148 @@ def test_many_commit_delta_warm_hit(tmp_path, monkeypatch, capsys):
     oracle = _receipt_run(monkeypatch, capsys)
     assert oracle[:2] == warm[:2]
     assert set(delta) < set(oracle[2])
+
+
+
+def _attribute_receipt_oracle(root, monkeypatch, capsys, actual):
+    for receipt in _receipt_files(root):
+        receipt.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[:2] == actual[:2]
+    assert len(oracle[3]) == 1
+    return oracle
+
+
+def test_attribute_absent_directory_addition_warm_hit(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    before = provenance._attribute_fingerprint(_git(tmp_path, "rev-parse", "HEAD"))
+    candidates_before = provenance._attribute_candidates(_git(tmp_path, "rev-parse", "HEAD"))
+    tip = _commit(tmp_path, {"output/insights/2026-09-20/t-pos/README.md": "new\n"}, CODEX_AUTHOR)
+    after = provenance._attribute_fingerprint(tip)
+    assert before == after
+    assert set(candidates_before) < set(provenance._attribute_candidates(tip))
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0
+    assert warm[2:] == ([tip], [[tip]])
+    oracle = _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, warm)
+    assert set(oracle[2]) == set(cold[2]) | {tip}
+
+
+def test_attribute_new_candidate_file_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    before = provenance._attribute_fingerprint(_git(tmp_path, "rev-parse", "HEAD"))
+    candidates_before = provenance._attribute_candidates(_git(tmp_path, "rev-parse", "HEAD"))
+    tip = _commit(tmp_path, {"docs/new-candidate/child.md": "child\n"}, CODEX_AUTHOR)
+    (tmp_path / "docs/new-candidate/.gitattributes").write_text("* -diff\n")
+    after = provenance._attribute_fingerprint(tip)
+    assert before != after
+    assert set(candidates_before) < set(provenance._attribute_candidates(tip))
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0
+    assert set(actual[2]) == set(cold[2]) | {tip}
+    assert len(actual[3]) == 1
+    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
+
+
+def test_attribute_retired_directory_falls_back(tmp_path, monkeypatch, capsys):
+    path = "tools/retired/shared_lines.py"
+    merge, cold = _attribute_merge_repo(tmp_path, monkeypatch, capsys, path=path)
+    before = provenance._attribute_fingerprint(merge)
+    _git(tmp_path, "rm", path)
+    tip = _commit(tmp_path, {}, CODEX_AUTHOR)
+    attributes = tmp_path / "tools/retired/.gitattributes"
+    attributes.parent.mkdir(parents=True, exist_ok=True)
+    attributes.write_text("shared_lines.py -diff\n")
+    after = provenance._attribute_fingerprint(tip)
+    assert before != after
+    assert provenance._commit_paths(merge) == [path]
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1
+    assert (f"{merge[:12]} change: 実装面に Codex role=author がない — "
+            f"paths={path}\n") in actual[1].err
+    assert set(actual[2]) == set(cold[2]) | {tip}
+    assert len(actual[3]) == 1
+    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
+
+
+def test_attribute_untracked_file_removal_falls_back(tmp_path, monkeypatch, capsys):
+    _receipt_repo(tmp_path, monkeypatch)
+    attributes = tmp_path / "tools/.gitattributes"
+    attributes.write_text("* -diff\n")
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    before = provenance._attribute_fingerprint(head)
+    candidates_before = provenance._attribute_candidates(head)
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and len(_receipt_files(tmp_path)) == 1
+    assert _receipt_run(monkeypatch, capsys)[2] == []
+    attributes.unlink()
+    after = provenance._attribute_fingerprint(head)
+    assert before != after
+    assert candidates_before == provenance._attribute_candidates(head)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0 and set(actual[2]) == set(cold[2])
+    assert len(actual[3]) == 1
+    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
+
+
+def test_attribute_candidate_lstat_unreadable_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    before = provenance._attribute_fingerprint(head)
+    candidates_before = provenance._attribute_candidates(head)
+    attributes = tmp_path / "tools/.gitattributes"
+    real_lstat = Path.lstat
+
+    def unreadable(path, *args, **kwargs):
+        if path == attributes:
+            raise PermissionError(13, "fixture attribute unreadable")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", unreadable)
+    after = provenance._attribute_fingerprint(head)
+    assert before != after
+    assert candidates_before == provenance._attribute_candidates(head)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0 and set(actual[2]) == set(cold[2])
+    assert len(actual[3]) == 1
+    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
+
+
+def test_attribute_retired_directory_reintroduced_falls_back(tmp_path, monkeypatch, capsys):
+    path = "tools/retired/shared_lines.py"
+    merge, initial = _attribute_merge_repo(tmp_path, monkeypatch, capsys, path=path)
+    _git(tmp_path, "rm", path)
+    deleted = _commit(tmp_path, {}, CODEX_AUTHOR)
+    root_attributes = tmp_path / ".gitattributes"
+    root_attributes.write_text(f"{path} -diff\n")
+    nested = tmp_path / "tools/retired/.gitattributes"
+    nested.parent.mkdir(parents=True, exist_ok=True)
+    nested.write_text("shared_lines.py diff\n")
+    assert b"tools/retired/.gitattributes" in provenance._attribute_candidates(deleted)
+    assert provenance._commit_paths(merge) == []
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    before = provenance._attribute_fingerprint(deleted)
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and len(_receipt_files(tmp_path)) == 1
+    assert set(cold[2]) == set(initial[2]) | {deleted}
+    (tmp_path / "tools/retired/README.md").write_text("returned\n", encoding="utf-8")
+    _git(tmp_path, "add", "tools/retired/README.md")
+    assert ".gitattributes" not in _git(tmp_path, "ls-files")
+    _git(tmp_path, "commit", "-q", "-F", "-", input_text=CODEX_AUTHOR)
+    assert ".gitattributes" not in _git(tmp_path, "ls-files")
+    tip = _git(tmp_path, "rev-parse", "HEAD")
+    nested.unlink()
+    assert root_attributes.read_text() == f"{path} -diff\n"
+    assert provenance._commit_paths(merge) == [path]
+    assert provenance._attribute_fingerprint(tip) != before
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1
+    assert (f"{merge[:12]} change: 実装面に Codex role=author がない — "
+            f"paths={path}\n") in actual[1].err
+    assert set(actual[2]) == set(cold[2]) | {tip}
+    assert len(actual[3]) == 1
+    _attribute_receipt_oracle(tmp_path, monkeypatch, capsys, actual)
 
 
 # T-2656: path acquisition contracts. All positive data comes from real Git.
