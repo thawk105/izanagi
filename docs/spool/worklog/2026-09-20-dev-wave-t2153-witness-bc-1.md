@@ -54,6 +54,11 @@ title: [T-2153] 意味 witness の残件 (b)(c) — `#ifdef` の定義/未定義
   login から `run_tests.py` を投げると headroom があれば bounded local に落ち S1 24 件が `/tmp/.git` 由来の偽赤 (1 走無駄) →
   `--force-dispatch` で計算ノードへ固定。
 - 公開 driver (coverage / frequency / rung1) の JSON は本 wave では未取得。「未確立一覧が縮む」は CLI cell で実証した範囲。
+- 段 8 (skill 自己改善) の候補 2 件はいずれも本 wave では docs を変えない: (i) `DW-O18` へ「login から投げる焦点走・consumer 走は
+  `--force-dispatch`」の 1 行を足すと L2 単節予算 (1,000 bytes) を 189 bytes 超え、同節は exact pin (Codex + checker fixture が要る)
+  → 予算と pin の裁定パッケージ候補として残す (runbook §7.4 と記憶には既載)。(ii) 前 wave (t2153-witness-6) の Codex 子木
+  `.codex/worktrees/t2153-author` (branch `codex-t2153-author`、gate file は main と同一 bytes、cmdline 走査 0 件) が land 後も残って
+  いる → 本 wave は自分の子木だけ撤去し、この残骸は `/cleanup-branches` へ引き渡す。
 - 受入と land の最終結果は専用 handoff と land 受領証へ集約する。
 
 ## 次の一手差分
