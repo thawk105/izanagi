@@ -1,0 +1,20 @@
+commits: ['4d6e043', '8ba4f15', 'eda302e', '5df7ff2', '06dff0f', '625dbc1']
+--- with --always (-z, --name-only, --root, --stdin)
+b'4d6e0439ea7063d0932095ac4ca6ade6521f8c23\x008ba4f15ce98d3a2935f72950207721f73fda9954\x00a.py\x00eda302eea58537caa76b35201e2a5ee7cb5f7b02\x005df7ff24c0e90c43360b672eb70e81c3f00481b6\x000000000000000000000000000000000000000000\x0006dff0f83c8e56aeddbd48b6f49c443ff5471583\x00b.py\x00625dbc13d212c42e3958ab42ebf76d73c61348dc\x00'
+--- without --always
+b'8ba4f15ce98d3a2935f72950207721f73fda9954\x00a.py\x005df7ff24c0e90c43360b672eb70e81c3f00481b6\x000000000000000000000000000000000000000000\x0006dff0f83c8e56aeddbd48b6f49c443ff5471583\x00b.py\x00'
+--- per-commit current form
+4d6e043 b''
+8ba4f15 b'a.py\x00'
+eda302e b''
+5df7ff2 b'0000000000000000000000000000000000000000\x00'
+06dff0f b'b.py\x00'
+625dbc1 b''
+--- pair rows with --always (c4 c3) and (c2 c1: empty diff between)
+b'06dff0f83c8e56aeddbd48b6f49c443ff5471583\x00b.py\x00eda302eea58537caa76b35201e2a5ee7cb5f7b02\x00'
+--- pair rows without --always
+b'06dff0f83c8e56aeddbd48b6f49c443ff5471583\x00b.py\x00'
+--- path with CR/LF/tab (name-only -z)
+b'cd98c08975613b02e88bf74d30af0e217cd36184\x00we\tird\rname\x00'
+--- text-mode decode of the same (as _git does: text=True)
+'cd98c08975613b02e88bf74d30af0e217cd36184\x00we\tird\nname\x00'

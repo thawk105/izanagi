@@ -1,0 +1,21 @@
+non-merge: ['b7f970df', 'c1bbcdf5', '5ce77fc6'] merge: ['38f39d65', '86d65761']
+--- (1) diff-tree --stdin --root --no-renames -r --name-only -z  (non-merge 3 件、-z)
+rc 0 stderr b''
+b'b7f970dfa507558f7fb669a5ab38958d6c76b57c\x00docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1705.md\x00docs/decisions.md\x00docs/spool/FOLDED.md\x00docs/spool/decisions/2026-09-20-dev-wave-t2766-pairing-ab-2.md\x00docs/spool/worklog/2026-09-20-dev-wave-t2766-pairing-ab-1.md\x00docs/worklog.md\x00c1bbcdf5ccb98f9faa73bd5d82d73e81975f1e14\x00docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1704.md\x00docs/spool/FOLDED.md\x00docs/spool/worklog/2026-09-20-dev-wave-t2778-child-worktree-cleanup-4-1.md\x00docs/worklog.md\x005ce77fc6d04ea8e8c5a5561cf23053012999d080\x00docs/spool/decisions/2026-09-20-dev-wave-t2766-pairing-ab-'
+--- (1b) 同上に --no-commit-id
+rc 0 b'docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1705.md\x00docs/decisions.md\x00docs/spool/FOLDED.md\x00docs/spool/decisions/2026-09-20-dev-wave-t2766-pairing-ab-2.md\x00docs/spool/worklog/2026-09-20-dev-wave-t2766-pairing-ab-1.md\x00docs/worklog.md\x00docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1'
+--- (2) per-commit (現行) と比較
+b7f970df b'docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1705.md\x00docs/decisions.md\x00docs/spool/FOLDED.md\x00docs/spool/decisions/2026-09-20-dev-wave-t2766-pairing-ab-2.md\x00docs/spool/worklog/2026-09-20-dev-'
+c1bbcdf5 b'docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1704.md\x00docs/spool/FOLDED.md\x00docs/spool/worklog/2026-09-20-dev-wave-t2778-child-worktree-cleanup-4-1.md\x00docs/worklog.md\x00'
+5ce77fc6 b'docs/spool/decisions/2026-09-20-dev-wave-t2766-pairing-ab-2.md\x00docs/spool/worklog/2026-09-20-dev-wave-t2766-pairing-ab-1.md\x00output/insights/2026-09-19/t2766-pairing-ab/README.md\x00output/insights/2026-0'
+--- (3) merge を stdin に含めると (-m 無し)
+rc 0 b''
+--- (4) pair 行 '<commit> <parent>' で親との diff (merge の各親)
+rc 0 stderr b''
+b'38f39d6521c84128ecaf36a1ed014ea70d0897e5\x00docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1704.md\x00docs/spool/FOLDED.md\x00docs/worklog.md\x00orchestrator/tests/test_dev_wave_cleanup.py\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/README.md\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/mutation/final-w4.json\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/mutation/final-w4.wrapper-receipt.json\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/mutation/spec-w4.j'
+--- (4b) 現行 diff --name-only <parent> <commit> との比較 (親 1)
+b'docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1704.md\x00docs/spool/FOLDED.md\x00docs/worklog.md\x00orchestrator/tests/test_dev_wave_cleanup.py\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/README.md\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/mutation/final-w4.json\x00output/ins'
+--- (5) tree pair 行の順序 '<parent> <commit>'
+rc 0 b'5ce77fc6d04ea8e8c5a5561cf23053012999d080\x00docs/archive/README.md\x00docs/archive/worklog-phase3-0920-1704.md\x00docs/spool/FOLDED.md\x00docs/worklog.md\x00orchestrator/tests/test_dev_wave_cleanup.py\x00output/insights/2026-09-19/t2778-child-worktree-cleanup/README.md\x00output/insights/2026-09-19/t2778-child-worktree-'
+--- (6) git version
+b'git version 2.34.1\n'
