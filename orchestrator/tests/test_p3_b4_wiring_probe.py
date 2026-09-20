@@ -324,7 +324,9 @@ def test_static_candidate_paths_and_driver_specific_guards(static_runtime):
 def test_source_segment_helper_matches_stdlib_for_all_static_ifs(monkeypatch):
     static = P._load_static_modules()
     # 47 = 46 + orchestrator.campaign.agent_outputs (p3_s4_loop の静的 import 依存、[T-2746])
-    assert len(static) == 47
+    # 49 = 47 + orchestrator.campaign.p2_2 + orchestrator.campaign.genome (p3_s4_loop の静的 import 依存閉包、[T-2795])
+    # Measured against 371674ea6: source_digest was already in the 47-module closure.
+    assert len(static) == 49
 
     stdlib_splitter = ast._splitlines_no_ff
     reference_cache: dict[str, list[str]] = {}

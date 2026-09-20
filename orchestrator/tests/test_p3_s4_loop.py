@@ -9881,6 +9881,96 @@ def test_stock_condition_gate_declares_adaptive_branch(tmp_path, monkeypatch, va
     assert observed == ["supply", "meaning"]
 
 
+@pytest.mark.parametrize("red_arm", ["supply-effectuation", "runtime-meaning"])
+def test_stock_condition_gate_red_rejects_before_campaign(tmp_path, monkeypatch, red_arm):
+    gate = L.condition_meaning_gate
+    _layout, source, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    stock = tmp_path / "external" / "ccbench"
+    stock.mkdir(parents=True)
+    evidence_root = tmp_path / "evidence"
+    evidence_root.mkdir()
+    monkeypatch.setenv("IZANAGI_S4_EVIDENCE_ROOT", str(evidence_root))
+    monkeypatch.setattr(L, "_require_condition_gate", _REAL_CONDITION_GATE)
+    monkeypatch.setattr(L.buildcache, "compilers_for_current_site", lambda: ("cc", "cxx"))
+    records = []
+
+    def supply(captured, *, request, **_kwargs):
+        evidence = {"detail": "injected supply rejection"}
+        reason = "preprocess-failed"
+        status = "red"
+        if red_arm == "runtime-meaning":
+            # Structurally valid evaluator evidence; no compiler is executed.
+            status = "green"
+            is_stock = request.stock_comparison
+            reason = ("stock-inert-preprocess-identical" if is_stock
+                      else "requested-default-preprocess-different")
+            identity = gate.RegularFileIdentity(1, 2, 3, 4, 5)
+            compiler = tuple(gate.CompilerFileEvidence(phase, identity, "a" * 64)
+                             for phase in ("before", "after"))
+            cmake = tuple(gate.CMakeFileEvidence(phase, identity, "b" * 64)
+                          for phase in ("before-configure", "after-configure"))
+            owner = gate.DEFINE_SPECS["BACKOFF_FIXED"].owner_tus[0]
+            closure = ((f"source/{owner}", "c" * 64),)
+            evidence = {
+                "comparison": ("stock-inert-identity" if is_stock
+                               else "requested-default-difference"),
+                "owner_tu": owner, "compiler_path": "cxx",
+                "compiler_version": "test compiler", "cmake_path": "cmake",
+            }
+            for prefix in ("requested", "control"):
+                evidence.update({
+                    f"{prefix}_digest": ("d" if is_stock or prefix == "requested" else "e") * 64,
+                    f"{prefix}_byte_length": 1,
+                    f"{prefix}_replay_argv": ("cxx", "-E"),
+                    f"{prefix}_owner_tu_sha256": "c" * 64,
+                    f"{prefix}_compiler_identities": compiler,
+                    f"{prefix}_configure_argv": ("cmake",),
+                    f"{prefix}_cmake_identities": cmake,
+                    f"{prefix}_dependency_closure": closure,
+                    f"{prefix}_dependency_closure_digest": gate._canonical_digest(closure),
+                    f"{prefix}_root_dependent_builtin_paths": (),
+                })
+        record = gate._issue_arm_record(
+            arm="supply-effectuation", terminal_status=status, reason_code=reason,
+            request=request, request_digest=gate._canonical_digest(request), evidence=evidence)
+        records.append(record)
+        return record
+
+    def meaning(captured, *, request, declaration, **_kwargs):
+        record = gate._issue_arm_record(
+            arm="runtime-meaning",
+            terminal_status="red" if red_arm == "runtime-meaning" else "unestablished",
+            reason_code="decoded-meaning-mismatch" if red_arm == "runtime-meaning" else "meaning-unestablished",
+            request=request, request_digest=gate._canonical_digest(request),
+            evidence={"detail": "injected meaning result"})
+        records.append(record)
+        return record
+
+    monkeypatch.setattr(gate, "evaluate_define_supply_effectuation", supply)
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", meaning)
+    for value in (-1, 20):
+        records.clear()
+        with pytest.raises(RuntimeError, match="condition gate rejected P3 S4 loop") as error:
+            if value == -1:
+                L.main(["--stock-control", "--isolate-worktree"])
+            else:
+                genome = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": value})
+                _REAL_CONDITION_GATE(str(source), genome, stock_root=str(stock))
+        assert calls == []
+        assert "evidence_write_failures" not in str(error.value)
+        supply_record, meaning_record = records
+        assert "supply=" + supply_record.reason_code in str(error.value)
+        assert "meaning=" + meaning_record.reason_code in str(error.value)
+        admission = gate.require_condition_gate_family(
+            [supply_record], [meaning_record], use_class="certified-selection")
+        assert admission.admitted is False
+        for record in (*records, admission):
+            arm = getattr(record, "arm", "admission")
+            digest = record.record_digest if arm != "admission" else record.admission_digest
+            path = evidence_root / f"condition-gate-{arm}-{digest}.json"
+            assert path.read_bytes() == record.canonical_json().encode("ascii")
+
+
 @pytest.mark.parametrize("name", ["write-heavy", "balanced", "read-heavy"])
 def test_calibrated_perf_uses_p2_constants_and_exact_workload(name):
     from orchestrator.campaign import p2_2, pipeline
@@ -9925,6 +10015,21 @@ def test_default_cli_preserves_preimage_bytes(tmp_path, monkeypatch):
     assert L.main(["--stock-control", "--isolate-worktree"]) == 1
     assert ident.canonical_preimage(calls[0][0]) == _DEFAULT_PREIMAGE_BEFORE_PAIR
     assert ident.canonical_preimage(L.default_cfg()) == _DEFAULT_PREIMAGE_BEFORE_PAIR
+    captured = []
+    real = L._run_one_iteration_resolved
+
+    def observe(cfg, *args, **kwargs):
+        captured.append(cfg)
+        return real(cfg, *args, **kwargs)
+
+    # No new options, including no --isolate-worktree: supply the fixed tree.
+    import shutil
+    template = _mk_template_dir(L.SOURCE_REL)
+    shutil.copytree(template, tmp_path / "external" / "ccbench")
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", observe)
+    assert L.main(["--no-build", "--value", "20"]) == 0
+    assert len(captured) == 1
+    assert ident.canonical_preimage(captured[0]) == _DEFAULT_PREIMAGE_BEFORE_PAIR
 
 
 @pytest.mark.parametrize("proposal_mode", [False, True])
@@ -9978,8 +10083,7 @@ def test_perf_cli_rejects_partial_and_invalid_options(capsys, args, message):
     assert message in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verify", [False, True])
-def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch, verify):
+def _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify):
     from orchestrator.campaign import loop, pipeline
     layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
     observed = []
@@ -9999,8 +10103,21 @@ def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch,
     if verify:
         args += ["--verify-performance"]
     assert L.main(args) == 1
+    return layout, observed
+
+
+@pytest.mark.parametrize("verify", [False, True])
+def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch, verify):
+    from orchestrator.campaign import pipeline
+    _layout, observed = _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify)
     assert observed == ([[("performance", pipeline.performance_correctness_workload(
         L.calibrated_perf("balanced")))]] if verify else [None])
+
+
+@pytest.mark.parametrize("verify", [False, True])
+def test_campaign_lock_preimage_reconstructs_performance_correctness(tmp_path, monkeypatch, verify):
+    from orchestrator.campaign import pipeline
+    layout, observed = _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify)
     lock = json.loads(wal.read_lock(layout))
     search = json.loads(lock["identity_preimage"])["search_config"]
     assert search.get("verify") == ("legacy+performance" if verify else None)
@@ -10008,10 +10125,8 @@ def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch,
         reconstructed = pipeline.PerfConfig(records=search["records"], threads=search["threads"],
             workload=search["perf_workload"], extime=search["extime"], reps=search["reps"])
         assert observed[0] == [("performance", pipeline.performance_correctness_workload(reconstructed))]
-
-
-def test_campaign_lock_preimage_reconstructs_performance_correctness(tmp_path, monkeypatch):
-    test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch, True)
+    else:
+        assert observed == [None]
 
 
 def test_stock_digest_refresh_keeps_checkpoint(tmp_path, monkeypatch, capsys):
@@ -10102,6 +10217,13 @@ def test_stock_and_candidate_share_manifest_campaign_identity(tmp_path, monkeypa
     import contextlib
     from orchestrator.campaign import patchharness
     layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    layout_ids = []
+
+    def layout_for(cid):
+        layout_ids.append(cid)
+        return layout
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", layout_for)
     resolved = _resolved_empty_knowledge_fixture(tmp_path)
     manifest = tmp_path / "knowledge.json"
     manifest.write_bytes(resolved.canonical_manifest_bytes)
@@ -10109,6 +10231,10 @@ def test_stock_and_candidate_share_manifest_campaign_identity(tmp_path, monkeypa
     common = ["--knowledge-manifest", str(manifest)]
     assert L.main(common + ["--stock-control", "--isolate-worktree"]) == 1
     stock_cfg, stock_genomes, *_ = calls[0]
+    stock_layout_ids = layout_ids[:]
+    assert stock_layout_ids
+    assert set(stock_layout_ids) == {str(ident.campaign_id(stock_cfg))}
+    layout_ids.clear()
     receipt = Path(layout.root, KM.RECEIPT_FILENAME).read_bytes()
     template = _mk_template_dir(L.SOURCE_REL)
     monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k:
@@ -10123,6 +10249,9 @@ def test_stock_and_candidate_share_manifest_campaign_identity(tmp_path, monkeypa
     monkeypatch.setattr(L, "_run_one_iteration_resolved", observe)
     assert L.main(common + ["--no-build", "--isolate-worktree"]) == 0
     assert ident.canonical_preimage(captured[0][0]) == ident.canonical_preimage(stock_cfg)
+    assert layout_ids
+    assert set(layout_ids) == {str(ident.campaign_id(captured[0][0]))}
+    assert set(layout_ids) == set(stock_layout_ids)
     assert captured[0][1] == 20.0 and stock_genomes[0].flags["BACKOFF_FIXED"] == -1
     assert Path(layout.root, KM.RECEIPT_FILENAME).read_bytes() == receipt
 
