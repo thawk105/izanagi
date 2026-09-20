@@ -37,6 +37,18 @@ PINNED_SHA256 = {
     COMPLETE_JSON: "7192d1da0b4a032251a0e270ec60910a118a5f75844dc9276a6fba00a682d08c",
 }
 INPUT_KINDS = ("group-report-json", "group-report-dat", "completion-record")
+COHORTS = {
+    1: {"role": "primary", "group_id": GROUP_ID, "completed_jst": "2026-09-15",
+        "report_dir": "group-report-20260915", "pinned_sha256": PINNED_SHA256,
+        "results_document": "docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md"},
+    2: {"role": "reproduction", "group_id": "b10-backoff-grid-20260919T131526Z-2235286",
+        "completed_jst": "2026-09-19", "report_dir": "group-report-20260919-cohort2",
+        "pinned_sha256": {
+            "group-report-20260919-cohort2/t2500-backoff-static-tail-formal.json": "932f6cccbf1a4be2ccbd4c11af31fe2a402b26fc352eb05e22b87b14cef504fd",
+            "group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat": "15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6",
+            "group-report-20260919-cohort2/t2500-backoff-static-tail-formal-complete.json": "934211874c779c7bfbffd9a596ef9b7094b7bfa2f7a660203065759abf59420c"},
+        "results_document": "docs/paper-story/results/2026-09-19-b10-static-tail-cohort2.md"},
+}
 WORKLOADS = ("write-heavy", "balanced", "read-heavy")
 RRATIOS = {5, 50, 95}
 TAIL_GRID_US = (1250, 1768, 2500, 3535, 5000, 7070, 9999)
@@ -51,6 +63,13 @@ CLAIM_BOUNDARY = {
 }
 COMPARISON_WARNING = "Panel heights and slopes use workload-local y scales and must not be compared across panels."
 FIXED_WORDING = "Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding."
+SCHEMA_V2 = "izanagi-b10-static-tail-formal-figure-provenance/v2"
+CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, "cohorts_pooled": False, "cohort_roles_fixed_in_generator": True,
+                     "primary_cohort_group_id": COHORTS[1]["group_id"],
+                     "reproduction_cohort_group_id": COHORTS[2]["group_id"]}
+NOT_POOLED_WORDING = "The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement."
+NO_REREAD_WORDING = "The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above."
+BLOCK_COMPARISON_WARNING = "The two cohort blocks also use cohort-local y scales and are not to be compared for shape or slope."
 GENERATOR = Path(__file__).resolve()
 REPO_ROOT = GENERATOR.parents[2]
 GENERATOR_PATH = "tools/plotting/plot_b10_static_tail_formal.py"
@@ -153,28 +172,32 @@ def _validate_dat(path, records):
     # Count + unique membership above establishes the bijection without a second row-count gate.
 
 
-def load_measurements(root, *, expected_hashes=None):
+def load_measurements(root, *, expected_hashes=None, cohort=1):
     """Load pinned evidence; copy decisions, recompute descriptive statistics."""
     try:
-        return _load_measurements(Path(root).resolve(), expected_hashes)
+        return _load_measurements(Path(root).resolve(), expected_hashes, cohort)
     except FigureDataError:
         raise
     except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
         raise FigureDataError(f"malformed measurement evidence: {exc}") from exc
 
 
-def _load_measurements(root, expected_hashes):
-    hashes = PINNED_SHA256 if expected_hashes is None else expected_hashes
-    _require(set(hashes) == set(PINNED_SHA256), "input hash keys mismatch")
+def _load_measurements(root, expected_hashes, cohort):
+    spec = COHORTS[cohort]
+    pins = spec["pinned_sha256"]
+    report_json, report_dat, complete_json = [str(Path(spec["report_dir"]) / Path(p).name)
+                                           for p in (REPORT_JSON, REPORT_DAT, COMPLETE_JSON)]
+    hashes = pins if expected_hashes is None else expected_hashes
+    _require(set(hashes) == set(pins), "input hash keys mismatch")
     external = []
-    for path, kind in zip(PINNED_SHA256, INPUT_KINDS):
+    for path, kind in zip(pins, INPUT_KINDS):
         _require((root / path).is_file(), f"missing input: {path}")
         digest = _sha256(root / path)
         _require(digest == hashes[path], f"SHA-256 mismatch: {path}")
         external.append({"kind": kind, "path": path, "sha256": digest})
-    report = json.loads((root / REPORT_JSON).read_text())
-    complete = json.loads((root / COMPLETE_JSON).read_text())
-    for path in (REPORT_JSON, REPORT_DAT):
+    report = json.loads((root / report_json).read_text())
+    complete = json.loads((root / complete_json).read_text())
+    for path in (report_json, report_dat):
         _require(complete["artifacts"][Path(path).name] == hashes[path], "completion artifact hash mismatch")
     _require(report["schema_version"] == REPORT_SCHEMA, "report schema mismatch")
     _require(report["run_kind"] == RUN_KIND, "run kind mismatch")
@@ -195,7 +218,7 @@ def _load_measurements(root, expected_hashes):
         admission, identity, completion = campaign["admission"], campaign["identity"], campaign["completion"]
         _require(identity["measurement_env"] == "pegasus", "measurement env mismatch")
         _require(admission["admission_status"] in ("admitted", "admitted-new-schema"), "campaign not admitted")
-        _require(f"/{GROUP_ID}-{workload}/campaigns/" in admission["campaign_path"], "campaign group binding mismatch")
+        _require(f"/{spec['group_id']}-{workload}/campaigns/" in admission["campaign_path"], "campaign group binding mismatch")
         for key, expected in (("threads", 48), ("records", 1000000), ("extime_s", 3), ("performance_reps_per_cell", 5)):
             _require(_integer(identity[key]) == expected, f"identity {key} mismatch")
         coords = identity["workload_coordinates"]
@@ -246,8 +269,9 @@ def _load_measurements(root, expected_hashes):
                           "local_flat_intervals": copy.deepcopy(w["local_flat_intervals"]),
                           "intervals": intervals, "cells": cells,
                           "tail_throughput_ratio": cells[-1]["tps_mean"] / cells[1]["tps_mean"]})
-    _validate_dat(root / REPORT_DAT, records)
-    return {"external_root": str(root), "external_inputs": external, "group_id": GROUP_ID,
+    _validate_dat(root / report_dat, records)
+    return {"cohort": cohort, **{k: spec[k] for k in ("role", "completed_jst", "results_document")},
+            "external_root": str(root), "external_inputs": external, "group_id": spec["group_id"],
             "report": {key: copy.deepcopy(report[key]) for key in
                        ("schema_version", "run_kind", "verdict", "performance_certified", "spec_sha256", "failures")},
             "preregistration": prereg, "campaigns": campaigns, "measurement_conditions": conditions,
@@ -255,8 +279,9 @@ def _load_measurements(root, expected_hashes):
             "claim_boundary": dict(CLAIM_BOUNDARY)}
 
 
-def _figure_number(prefix):
-    match = re.match(r"fig([0-9]+)_", Path(prefix).name)
+def _figure_number(prefix, *, letter_suffix=False):
+    pattern = r"fig([0-9]+[a-z]?)_" if letter_suffix else r"fig([0-9]+)_"
+    match = re.match(pattern, Path(prefix).name)
     _require(match is not None, "output prefix basename must start with fig<N>_")
     return match.group(1)
 
@@ -286,6 +311,45 @@ def _caption(data, prefix):
     ])
 
 
+def _caption_v2(data, prefix):
+    cohorts = data["cohorts"]
+    _require(cohorts[0]["report"]["spec_sha256"] == cohorts[1]["report"]["spec_sha256"], "cohort spec mismatch")
+    identities, jobs, classifications, ratios, correctness = [], [], [], [], []
+    for c, role in zip(cohorts, ("primary result, formal", "independent reproduction,")):
+        n = c["cohort"]
+        identities.append(f"{role} cohort {n} of {c['completed_jst']} (group {c['group_id']}; aggregate verdict {c['report']['verdict']}; preregistration commit {c['preregistration']['commit'][:9]})")
+        jobs.append(f"cohort {n}: " + ", ".join(campaign["job_id"] for campaign in c["campaigns"]))
+        intervals = [i for w in c["workloads"] for i in w["intervals"]]
+        bounds = [i["L"] for i in intervals]
+        declining = sum(i["state"] == "declining" for i in intervals)
+        classifications.append(f"In cohort {n}, segments between adjacent tail points are colored by the interval state copied from its group report: {declining}/{len(intervals)} intervals (6 per workload) are declining; simultaneous lower bounds L on the per-doubling decrease range from {min(bounds):.4f} to {max(bounds):.4f} (Bonferroni over 36 one-sided limits, familywise 0.05 within this cohort).")
+        r = [w["tail_throughput_ratio"] for w in c["workloads"]]
+        ratios.append(f"In cohort {n}, from 1250 to 9999 us the mean throughput falls to {r[0]:.3f}, {r[1]:.3f} and {r[2]:.3f} of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing.")
+        correctness.append(f"cohort {n}: all {c['correctness']['certified']} records were certified with {c['correctness']['anomalies']} anomalies")
+    return " ".join([
+        f"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: " + ", and ".join(identities) + "; same spec SHA-256; performance_certified: false for both cohorts.",
+        "The upper block (two rows) draws cohort 1 and the lower block draws cohort 2. Each cohort has separate samples and separate estimates; y scales are cohort-local.",
+        "Columns show write-heavy (rr5), balanced (rr50) and read-heavy (rr95), each an independent campaign (job IDs " + "; ".join(jobs) + ").",
+        "Within each block, the upper row shows means of five trace-disabled repetitions with t-distribution 95% confidence intervals (error bars). M tps means million transactions per second.",
+        "Within each block, the lower row shows abort rates recomputed for each repetition from integer counters as aborts / (aborts + commits), averaged over five repetitions with the same confidence intervals.",
+        "The x axis shows seven tail points (1250, 1768, 2500, 3535, 5000, 7070 and 9999 us; filled markers) and the 1000 us boundary reference (open marker), measured in the same job but excluded from the interval set.",
+        *classifications, "The fixed wording applies to each cohort separately:",
+        FIXED_WORDING, "9999 us is not a physical limit.", NO_REREAD_WORDING,
+        *ratios, NOT_POOLED_WORDING,
+        "This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision.",
+        "Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
+        "Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration (" + "; ".join(correctness) + "); certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification.",
+        COMPARISON_WARNING, BLOCK_COMPARISON_WARNING,
+        "These cohorts use a different grid and are different cohorts from fig2c and are not a continuation of it.",
+        "No samples from the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in each cohort.",
+    ])
+
+
+def _artist_series_v2(data):
+    return [{**row, "cohort": c["cohort"], "role": c["role"]}
+            for c in data["cohorts"] for row in _artist_series(c)]
+
+
 def _direct_label(workload):
     counts = {state: sum(i["state"] == state for i in workload["intervals"]) for state in STATES}
     if counts["declining"] == 6:
@@ -309,11 +373,7 @@ def _artist_series(data):
     return rows
 
 
-def make_figure(data):
-    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7,
-                         "axes.spines.top": False, "axes.spines.right": False})
-    fig, axes = plt.subplots(2, 3, figsize=(7.2, 5.7), squeeze=False)
-    fig.subplots_adjust(left=.095, right=.985, bottom=.20, top=.88, wspace=.38, hspace=.48)
+def _draw_block(fig, axes, data):
     series = _artist_series(data)
     color = "#2166ac"
     styles = {"declining": (color, "-", 1.2), "saturated": ("#d95f02", "-", 2.5),
@@ -359,11 +419,45 @@ def make_figure(data):
                for s in STATES if s in present]
     handles.append(Line2D([], [], color=color, marker="o", markerfacecolor="none", linestyle="none",
                           label="boundary reference (not in the interval set)"))
+    return series, handles
+
+
+def make_figure(data):
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7,
+                         "axes.spines.top": False, "axes.spines.right": False})
+    fig, axes = plt.subplots(2, 3, figsize=(7.2, 5.7), squeeze=False)
+    fig.subplots_adjust(left=.095, right=.985, bottom=.20, top=.88, wspace=.38, hspace=.48)
+    series, handles = _draw_block(fig, axes, data)
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(.5, 1), ncol=2, frameon=False, fontsize=6)
     fig.text(.5, .035, COMPARISON_WARNING.replace(" and must", "\nand must"), ha="center", fontsize=7)
     fig.tight_layout(rect=(0, .09, 1, .93), h_pad=2, w_pad=1.8)
     fig._b10_tail_caption = _caption(data, "fig8_b10_static_tail_not_observed")
     fig._b10_tail_artist_series = series
+    return fig, axes
+
+
+def make_figure_v2(data, prefix):
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7,
+                         "axes.spines.top": False, "axes.spines.right": False})
+    fig, axes = plt.subplots(4, 3, figsize=(7.2, 10.6), squeeze=False)
+    fig.subplots_adjust(left=.095, right=.985, wspace=.38)
+    handles = {}
+    for block, (c, title) in enumerate(zip(data["cohorts"], ("Primary result", "Independent reproduction"))):
+        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], c)
+        handles.update({h.get_label(): h for h in block_handles})
+        fig.text(.5, (.955, .475)[block],
+                 f"{title} — cohort {c['cohort']} ({c['completed_jst']}, group {c['group_id']})",
+                 ha="center", fontsize=7, gid="block-title")
+    for row, bottom in enumerate((.79, .59, .30, .12)):
+        for ax in axes[row]:
+            pos = ax.get_position()
+            ax.set_position([pos.x0, bottom, pos.width, .13])
+    fig.legend(handles=list(handles.values()), loc="upper center", bbox_to_anchor=(.5, 1),
+               ncol=2, frameon=False, fontsize=6)
+    warning = COMPARISON_WARNING.replace(" and must", "\nand must") + "\n" + BLOCK_COMPARISON_WARNING.replace(" and are", "\nand are")
+    fig.text(.5, .005, warning, ha="center", fontsize=7)
+    fig._b10_tail_caption = _caption_v2(data, prefix)
+    fig._b10_tail_artist_series = _artist_series_v2(data)
     return fig, axes
 
 
@@ -375,13 +469,13 @@ def _contains(outer, inner):
     return inner.x0 >= outer.x0 - 1 and inner.y0 >= outer.y0 - 1 and inner.x1 <= outer.x1 + 1 and inner.y1 <= outer.y1 + 1
 
 
-def check_figure_layout(fig, axes):
+def check_figure_layout(fig, axes, *, expected_axes=6):
     from matplotlib.text import Text
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     plot_axes = list(np.asarray(axes).flat)
-    if len(plot_axes) != 6 or set(plot_axes) != set(fig.axes):
-        raise FigureLayoutError("production layout must contain exactly six axes")
+    if len(plot_axes) != expected_axes or set(plot_axes) != set(fig.axes):
+        raise FigureLayoutError(f"production layout must contain exactly {expected_axes} axes")
     boxes = []
     for text in fig.findobj(Text):
         if not text.get_visible() or not text.get_text().strip():
@@ -393,6 +487,8 @@ def check_figure_layout(fig, axes):
             raise FigureLayoutError(f"text leaves figure: {text.get_text()!r}")
         if text.get_gid() == "direct-label" and (text.axes is None or not _contains(text.axes.bbox, box)):
             raise FigureLayoutError("annotation leaves owner axis")
+        if text.get_gid() == "block-title" and any(_intersection(box, ax.bbox) > 1 for ax in plot_axes):
+            raise FigureLayoutError("block title enters panel")
         if text.axes is not None:
             for other in fig.axes:
                 if other is not text.axes and _intersection(box, other.bbox) > 1:
@@ -426,7 +522,61 @@ def build_provenance(data, outputs, argv, *, hash_paths=None, generated_utc=None
     }
 
 
+def build_provenance_v2(data, outputs, argv, *, hash_paths=None, generated_utc=None):
+    hashes = outputs if hash_paths is None else hash_paths
+    _require(len(outputs) == len(hashes) == 2, "two figure outputs required")
+    return {
+        "schema": SCHEMA_V2, "generated_utc": generated_utc or datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "generator": {"path": GENERATOR_PATH, "sha256": _sha256(GENERATOR)},
+        "outputs": [{"path": _display_path(p), "sha256": _sha256(h)} for p, h in zip(outputs, hashes)],
+        "external_source_locator": {"root_at_generation": data["cohorts"][0]["external_root"], "validation_key": "root-relative-path-plus-sha256"},
+        "cohorts": [{k: copy.deepcopy(v) for k, v in c.items() if k != "claim_boundary"} for c in data["cohorts"]],
+        "claim_boundary": dict(CLAIM_BOUNDARY_V2), "artist_series": _artist_series_v2(data),
+        "caption": _caption_v2(data, Path(outputs[0]).with_suffix("")),
+        "reproduction": {"cwd": "repository-root", "argv": list(argv), "command": shlex.join(argv)},
+    }
+
+
+def _validate_repo_closure_v2(provenance, repo_root, *, expected_hashes=None):
+    _require(set(provenance) == {"schema", "generated_utc", "generator", "outputs", "external_source_locator",
+             "cohorts", "claim_boundary", "artist_series", "caption", "reproduction"}, "v2 top-level keys mismatch")
+    _require(provenance["generator"]["path"] == GENERATOR_PATH, "generator mismatch")
+    _require([(c["cohort"], c["role"]) for c in provenance["cohorts"]] == [(1, "primary"), (2, "reproduction")],
+             "cohort order/role mismatch")
+    for c in provenance["cohorts"]:
+        n = c["cohort"]
+        spec = COHORTS[n]
+        hashes = spec["pinned_sha256"] if expected_hashes is None else expected_hashes[n]
+        _require(c["group_id"] == spec["group_id"], "cohort group mismatch")
+        rows = c["external_inputs"]
+        _require(len(rows) == 3 and [r["path"] for r in rows] == list(spec["pinned_sha256"]), "external inputs mismatch")
+        _require([r["kind"] for r in rows] == list(INPUT_KINDS), "external kinds mismatch")
+        _require({r["path"]: r["sha256"] for r in rows} == hashes, "external pins mismatch")
+        _require(c["report"]["verdict"] == EXPECTED_VERDICT, "verdict mismatch")
+        _require(c["report"]["performance_certified"] is False, "performance_certified must be false")
+    _require(provenance["claim_boundary"] == CLAIM_BOUNDARY_V2, "claim boundary mismatch")
+    _require(provenance["claim_boundary"]["cohorts_pooled"] is False, "cohorts must not be pooled")
+    outputs = provenance["outputs"]
+    _require(len(outputs) == 2 and [Path(r["path"]).suffix for r in outputs] == [".png", ".pdf"], "outputs mismatch")
+    prefix = Path(outputs[0]["path"]).with_suffix("")
+    _require(Path(outputs[1]["path"]).with_suffix("") == prefix, "output prefixes mismatch")
+    for row in outputs:
+        _require(_sha256(Path(repo_root) / row["path"]) == row["sha256"], "output closure mismatch")
+    _require(provenance["artist_series"] == _artist_series_v2(provenance), "artist projection mismatch")
+    _require(provenance["caption"] == _caption_v2(provenance, prefix), "caption projection mismatch")
+
+
 def validate_external_sources(provenance, root):
+    if provenance.get("schema") == SCHEMA_V2:
+        for cohort in provenance["cohorts"]:
+            _require([r["path"] for r in cohort["external_inputs"]] == list(COHORTS[cohort["cohort"]]["pinned_sha256"]),
+                     "external input paths mismatch")
+            for row in cohort["external_inputs"]:
+                try:
+                    _require(_sha256(Path(root) / row["path"]) == row["sha256"], "external closure mismatch")
+                except OSError as exc:
+                    raise FigureDataError(str(exc)) from exc
+        return
     rows = provenance["external_inputs"]
     _require([r["path"] for r in rows] == list(PINNED_SHA256), "external input paths mismatch")
     try:
@@ -439,6 +589,8 @@ def validate_external_sources(provenance, root):
 def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):
     """Check landed bytes and projections; optional hashes serve synthetic fixtures only."""
     try:
+        if provenance.get("schema") == SCHEMA_V2:
+            return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)
         hashes = PINNED_SHA256 if expected_hashes is None else expected_hashes
         _require(provenance["schema"] == SCHEMA and provenance["generator"]["path"] == GENERATOR_PATH,
                  "schema/generator mismatch")
@@ -459,9 +611,9 @@ def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):
         raise FigureDataError(f"invalid repo closure: {exc}") from exc
 
 
-def _publish_outputs(fig, axes, prefix, data, argv):
-    fig._b10_tail_caption = _caption(data, prefix)
-    check_figure_layout(fig, axes)
+def _publish_outputs(fig, axes, prefix, data, argv, *, caption=_caption, build=build_provenance):
+    fig._b10_tail_caption = caption(data, prefix)
+    check_figure_layout(fig, axes, expected_axes=12 if build is build_provenance_v2 else 6)
     prefix.parent.mkdir(parents=True, exist_ok=True)
     destinations = [Path(f"{prefix}{suffix}") for suffix in (".png", ".pdf", ".provenance.json")]
     temporary, published = [], []
@@ -472,7 +624,7 @@ def _publish_outputs(fig, axes, prefix, data, argv):
             temporary.append(Path(name))
         for path, fmt in zip(temporary[:2], ("png", "pdf")):
             fig.savefig(path, format=fmt, dpi=200)
-        provenance = build_provenance(data, destinations[:2], argv, hash_paths=temporary[:2])
+        provenance = build(data, destinations[:2], argv, hash_paths=temporary[:2])
         temporary[2].write_text(json.dumps(provenance, indent=2, allow_nan=False) + "\n", encoding="utf-8")
         # Save all bytes before publication; restore existing outputs if a rename fails.
         previous = {p: p.read_bytes() if p.exists() else None for p in destinations}
@@ -497,16 +649,26 @@ def main(argv=None, *, expected_hashes=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--measurement-root", type=Path)
     parser.add_argument("out_prefix", type=Path)
+    parser.add_argument("--reproduction-cohort", type=int, choices=(2,), default=None,
+                        help="show primary result cohort 1 with independent reproduction cohort 2")
     args = parser.parse_args(argv)
     root = Path(args.measurement_root or os.environ.get("IZANAGI_B10_TAIL_MEASUREMENT_ROOT", DEFAULT_ROOT)).resolve()
     prefix = args.out_prefix.resolve()
     figure = None
     try:
-        _figure_number(prefix)
-        data = load_measurements(root, expected_hashes=expected_hashes)
-        figure, axes = make_figure(data)
+        v2 = args.reproduction_cohort == 2
+        _figure_number(prefix, letter_suffix=v2)
         expanded = ["python3", GENERATOR_PATH, "--measurement-root", str(root), _display_path(prefix)]
-        _publish_outputs(figure, axes, prefix, data, expanded)
+        if v2:
+            data = {"cohorts": [load_measurements(root, cohort=n,
+                    expected_hashes=None if expected_hashes is None else expected_hashes[n]) for n in (1, 2)]}
+            figure, axes = make_figure_v2(data, prefix)
+            expanded += ["--reproduction-cohort", "2"]
+            _publish_outputs(figure, axes, prefix, data, expanded, caption=_caption_v2, build=build_provenance_v2)
+        else:
+            data = load_measurements(root, expected_hashes=expected_hashes)
+            figure, axes = make_figure(data)
+            _publish_outputs(figure, axes, prefix, data, expanded)
     except Exception as exc:  # CLI failures must not publish a figure.
         print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2

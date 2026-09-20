@@ -36,20 +36,24 @@ def _hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _seal(root):
+def _seal(root, cohort=1):
     """Rehash synthetic bytes, including completion; never inject production hashes."""
     p = PLOT
-    complete_path = root / p.COMPLETE_JSON
+    paths = list(p.COHORTS[cohort]["pinned_sha256"])
+    complete_path = root / paths[2]
     complete = json.loads(complete_path.read_text())
-    complete["artifacts"] = {Path(key).name: _hash(root / key) for key in (p.REPORT_JSON, p.REPORT_DAT)}
+    complete["artifacts"] = {Path(key).name: _hash(root / key) for key in paths[:2]}
     complete_path.write_text(json.dumps(complete))
-    return {key: _hash(root / key) for key in p.PINNED_SHA256}
+    return {key: _hash(root / key) for key in paths}
 
 
-def _fixture(tmp_path, **overrides):
+def _fixture(tmp_path, cohort=1, **overrides):
     p = PLOT
+    spec = p.COHORTS[cohort]
+    paths = list(spec["pinned_sha256"])
+    shift = cohort - 1
     root = tmp_path / "measurements"
-    (root / p.REPORT_JSON).parent.mkdir(parents=True)
+    (root / paths[0]).parent.mkdir(parents=True)
     report = {"schema_version": p.REPORT_SCHEMA, "run_kind": p.RUN_KIND,
               "verdict": p.EXPECTED_VERDICT, "performance_certified": False,
               "spec_sha256": "a" * 64, "failures": [], "campaigns": [], "workloads": []}
@@ -58,7 +62,7 @@ def _fixture(tmp_path, **overrides):
         lock = str(wi + 1) * 64
         campaign = {"workload": workload, "campaign_id": f"fixture-{workload}", "campaign_lock_digest": lock,
                     "admission": {"admission_status": "admitted",
-                                  "campaign_path": f"/fixture/{p.GROUP_ID}-{workload}/campaigns/test"},
+                                  "campaign_path": f"/fixture/{spec['group_id']}-{workload}/campaigns/test"},
                     "identity": {"threads": 48, "records": 1000000, "extime_s": 3,
                                  "measurement_env": "pegasus",
                                  "workload_coordinates": {"ycsb_rratio": str(sorted(p.RRATIOS)[wi]),
@@ -67,7 +71,7 @@ def _fixture(tmp_path, **overrides):
                                  "performance_reps_per_cell": p.REPS_PER_CELL,
                                  "build_admission": {"repo_stock_pin": "511c953"}},
                     "completion": {"status": "complete", "campaign_lock_sha256": lock,
-                                   "wal_sha256": "b" * 64, "scheduler": {"job_id": f"fixture-{wi}.nqsv"}},
+                                   "wal_sha256": "b" * 64, "scheduler": {"job_id": f"fixture-{wi + shift * 10}.nqsv"}},
                     "points": []}
         stats = {}
         for xi, x in enumerate(p.GRID_US):
@@ -76,6 +80,9 @@ def _fixture(tmp_path, **overrides):
                 aborts = 20000 - xi * 2000 + ri * 3
                 commits = 800000 + wi * 100000 + ri * 100
                 tps = (wi + 1) * 1000000 - xi * 75000 + (ri - 2) * 1000
+                aborts += shift * (700 + ri * 19)
+                commits += shift * (12345 + ri * 211)
+                tps += shift * (12345 + (ri - 2) * 2300)
                 rate = aborts / (aborts + commits)
                 reps.append({"rep_index": ri, "abort_counts_": aborts, "commit_counts_": commits,
                              "throughput_tps": tps, "abort_rate_recomputed": rate})
@@ -92,17 +99,29 @@ def _fixture(tmp_path, **overrides):
         report["campaigns"].append(campaign)
         report["workloads"].append({"workload": workload, "state": "not-observed", "saturation_location": None,
             "local_flat_intervals": [], "statistics": stats,
-            "intervals": [{"left_us": left, "right_us": right, "state": "declining", "qhat": -.5,
-                           "qL": -.6, "qU": -.4, "L": 1 - 2**(-.4), "U": 1 - 2**(-.6), "U_flat": .03}
+            "intervals": [{"left_us": left, "right_us": right, "state": "declining", "qhat": -.5 - shift * .1,
+                           "qL": -.6 - shift * .1, "qU": -.4 - shift * .1,
+                           "L": 1 - 2**(-.4 - shift * .1), "U": 1 - 2**(-.6 - shift * .1), "U_flat": .03}
                           for left, right in zip(p.TAIL_GRID_US, p.TAIL_GRID_US[1:])]})
     report.update(overrides)
-    (root / p.REPORT_JSON).write_text(json.dumps(report))
-    (root / p.REPORT_DAT).write_text("\n".join(dat) + "\n")
-    prereg = {"preregistration_commit": "c" * 40, "preregistration_document_blob_sha256": "d" * 64,
+    (root / paths[0]).write_text(json.dumps(report))
+    (root / paths[1]).write_text("\n".join(dat) + "\n")
+    prereg = {"preregistration_commit": ("c" if cohort == 1 else "e") * 40, "preregistration_document_blob_sha256": "d" * 64,
               "spec_sha256": report["spec_sha256"]}
-    (root / p.COMPLETE_JSON).write_text(json.dumps({"spec_sha256": report["spec_sha256"],
+    (root / paths[2]).write_text(json.dumps({"spec_sha256": report["spec_sha256"],
                                                   "preregistrations": [prereg.copy() for _ in p.WORKLOADS]}))
-    return root, _seal(root)
+    return root, _seal(root, cohort)
+
+
+def _fixture_pair(tmp_path):
+    root, first = _fixture(tmp_path)
+    second_root, second = _fixture(tmp_path, cohort=2)
+    assert second_root == root
+    return root, {1: first, 2: second}
+
+
+def _pair_data(root, hashes):
+    return {"cohorts": [PLOT.load_measurements(root, cohort=n, expected_hashes=hashes[n]) for n in (1, 2)]}
 
 
 def _data(tmp_path):
@@ -421,6 +440,230 @@ def test_landed_fig8_repo_closure_and_caption_when_present():
     prov = json.loads(paths[2].read_text())
     PLOT.validate_repo_closure(prov, REPO)
     assert prov["caption"] in readme
+
+
+def test_cohort2_pinned_hashes_match_cohort2_results_document():
+    spec = PLOT.COHORTS[2]
+    table = (REPO / spec["results_document"]).read_text().split("### 4.1", 1)[1].split("### 4.2", 1)[0]
+    for path, digest in spec["pinned_sha256"].items():
+        rows = [line for line in table.splitlines() if f"`{path}`" in line]
+        assert len(rows) == 1
+        assert re.findall(r"`([0-9a-f]{64})`", rows[0]) == [digest]
+
+
+def test_cohort_roles_are_fixed_literals():
+    assert PLOT.COHORTS[1]["role"] == "primary"
+    assert PLOT.COHORTS[2]["role"] == "reproduction"
+    assert PLOT.CLAIM_BOUNDARY_V2["cohorts_pooled"] is False
+
+
+def test_cohort2_rejects_alternate_verdict_and_certification_failures(tmp_path):
+    mutations = [
+        (lambda r: r.update(verdict="saturated-in-all-workloads"), "verdict"),
+        (lambda r: r.update(performance_certified=True), "performance_certified"),
+        (lambda r: r["campaigns"][0]["points"][0]["correctness"][0]["payload"].update(certified=False), "uncertified"),
+        (lambda r: r["campaigns"][0]["points"][0]["correctness"][0]["payload"].update(anomalies=1), "anomalies"),
+    ]
+    for index, (change, phrase) in enumerate(mutations):
+        root, _ = _fixture(tmp_path / str(index), cohort=2)
+        path = root / next(iter(PLOT.COHORTS[2]["pinned_sha256"]))
+        report = json.loads(path.read_text())
+        change(report)
+        path.write_text(json.dumps(report))
+        hashes = _seal(root, 2)
+        _reject(lambda: PLOT.load_measurements(root, cohort=2, expected_hashes=hashes), phrase)
+
+
+def test_figure_number_suffix_is_v2_only(tmp_path):
+    root, hashes = _fixture_pair(tmp_path)
+    data = _pair_data(root, hashes)
+    assert PLOT._figure_number("fig8b_test", letter_suffix=True) == "8b"
+    assert PLOT._figure_number("fig10_test") == "10"
+    assert PLOT._caption_v2(data, "fig8b_test").startswith("Figure 8b.")
+    _reject(lambda: PLOT._caption(data["cohorts"][0], "fig8b_test"))
+    for prefix in ("figX_test", "fig8bb_test"):
+        _reject(lambda: PLOT._figure_number(prefix, letter_suffix=True))
+
+
+def test_v2_caption_contains_independent_fixed_wording(tmp_path):
+    root, hashes = _fixture_pair(tmp_path)
+    caption = PLOT._caption_v2(_pair_data(root, hashes), "fig8b_test")
+    for literal in (
+        "Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.",
+        "The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.",
+        "The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above.",
+        "performance_certified: false", "Within each block, the upper row", "Within each block, the lower row",
+        "The fixed wording applies to each cohort separately:", "nothing beyond", "same spec SHA-256",
+        "cohort 1: all 120 records were certified with 0 anomalies", "cohort 2: all 120 records were certified with 0 anomalies",
+    ):
+        assert caption.count(literal) == 1, literal
+    for n, commit, job in ((1, "ccccccccc", "fixture-0.nqsv"), (2, "eeeeeeeee", "fixture-10.nqsv")):
+        assert PLOT.COHORTS[n]["group_id"] in caption and commit in caption and job in caption
+    assert caption.count("aggregate verdict not-observed-in-any-workload") == 2
+    for phrase in ("does not saturate", "no saturation point", "never saturates", "saturation-free", "saturates", "240", "share nothing but the grid"):
+        assert phrase not in caption.lower()
+
+
+def test_two_cohort_artists_match_raw_repetitions_and_intervals(tmp_path):
+    root, hashes = _fixture_pair(tmp_path)
+    data = _pair_data(root, hashes)
+    fig, axes = PLOT.make_figure_v2(data, "fig8b_test")
+    try:
+        assert axes.shape == (4, 3) and len(fig.axes) == 12 and len(fig.legends) == 1
+        assert fig.get_size_inches()[0] == 7.2 and fig.get_size_inches()[1] <= 10.6
+        assert [t.get_text() for t in fig.texts if t.get_gid() == "block-title"] == [
+            "Primary result — cohort 1 (2026-09-15, group b10-backoff-grid-20260915T061814Z-545445)",
+            "Independent reproduction — cohort 2 (2026-09-19, group b10-backoff-grid-20260919T131526Z-2235286)"]
+        PLOT.check_figure_layout(fig, axes, expected_axes=12)
+        for block, n in enumerate((1, 2)):
+            raw = json.loads((root / next(iter(PLOT.COHORTS[n]["pinned_sha256"]))).read_text())
+            for col, (campaign, workload) in enumerate(zip(raw["campaigns"], raw["workloads"])):
+                points = sorted(campaign["points"], key=lambda c: c["backoff_us"])
+                for row, metric in enumerate(("tps", "abort")):
+                    ax = axes[2 * block + row, col]
+                    samples = [[r["throughput_tps"] / 1e6 if metric == "tps" else
+                                r["abort_counts_"] / (r["abort_counts_"] + r["commit_counts_"])
+                                for r in point["reps"]] for point in points]
+                    means = [statistics.mean(v) for v in samples]
+                    cis = [2.7764451051977987 * statistics.stdev(v) / math.sqrt(5) for v in samples]
+                    for kind, indices in (("tail", range(1, 8)), ("boundary-reference", range(1))):
+                        container, = [c for c in ax.containers if c.lines[0].get_gid() == kind]
+                        line, caps, bars = container.lines
+                        assert list(line.get_xdata()) == [points[i]["backoff_us"] for i in indices]
+                        PLOT.np.testing.assert_allclose(line.get_ydata(orig=False), [means[i] for i in indices], rtol=1e-12, atol=0)
+                        expected = [[[points[i]["backoff_us"], means[i] - cis[i]],
+                                     [points[i]["backoff_us"], means[i] + cis[i]]] for i in indices]
+                        PLOT.np.testing.assert_allclose(bars[0].get_segments(), expected, rtol=1e-12, atol=0)
+                        for cap, sign in zip(caps, (-1, 1)):
+                            PLOT.np.testing.assert_allclose(cap.get_ydata(orig=False), [means[i] + sign * cis[i] for i in indices], rtol=1e-12, atol=0)
+                        assert line.get_markerfacecolor() == ("none" if kind == "boundary-reference" else "#2166ac")
+                    if row == 1:
+                        lines = [l for l in ax.lines if (l.get_gid() or "").startswith("interval-")]
+                        assert len(lines) == 6
+                        for i, (line, interval) in enumerate(zip(lines, workload["intervals"])):
+                            assert list(line.get_xdata()) == [interval["left_us"], interval["right_us"]]
+                            PLOT.np.testing.assert_allclose(line.get_ydata(orig=False), means[i + 1:i + 3], rtol=1e-12, atol=0)
+                            assert line.get_gid() == "interval-declining" and line.get_linestyle() == "-"
+                        label, = [t.get_text() for t in ax.texts if t.get_gid() == "direct-label"]
+                        assert label == f"6/6 intervals declining\nmin L = {min(i['L'] for i in workload['intervals']):.3f}"
+    finally:
+        PLOT.plt.close(fig)
+
+
+def _v2_layout_failure(tmp_path, intrusion):
+    root, hashes = _fixture_pair(tmp_path)
+    data = _pair_data(root, hashes)
+    fig, axes = PLOT.make_figure_v2(data, "fig8b_layout")
+    prefix = tmp_path / "fig8b_layout"
+    try:
+        PLOT.check_figure_layout(fig, axes, expected_axes=12)
+        if intrusion:
+            title = next(t for t in fig.texts if t.get_gid() == "block-title")
+            title.set_text("intrusion")
+            pos = axes[0, 0].get_position()
+            title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))
+            phrase = "block title enters panel"
+        else:
+            fig.text(.5, .5, "overlap one")
+            fig.text(.5, .5, "overlap two")
+            phrase = "overlap"
+        try:
+            PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)
+        except PLOT.FigureLayoutError as exc:
+            assert phrase in str(exc)
+        else:
+            raise AssertionError("v2 invalid layout was published")
+        assert not list(tmp_path.glob("*fig8b_layout*"))
+    finally:
+        PLOT.plt.close(fig)
+
+
+def test_v2_block_title_intrusion_publishes_nothing(tmp_path):
+    _v2_layout_failure(tmp_path, True)
+
+
+def test_v2_text_overlap_publishes_nothing(tmp_path):
+    _v2_layout_failure(tmp_path, False)
+
+
+def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):
+    root, hashes = _fixture_pair(tmp_path)
+    prefix = tmp_path / "fig8b_fixture"
+    assert PLOT.main(["--measurement-root", str(root), str(prefix), "--reproduction-cohort", "2"], expected_hashes=hashes) == 0
+    paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
+    assert all(p.is_file() for p in paths)
+    prov = json.loads(paths[2].read_text())
+    assert prov["schema"] == "izanagi-b10-static-tail-formal-figure-provenance/v2"
+    assert set(prov) == {"schema", "generated_utc", "generator", "outputs", "external_source_locator",
+                         "cohorts", "claim_boundary", "artist_series", "caption", "reproduction"}
+    assert [(c["cohort"], c["role"]) for c in prov["cohorts"]] == [(1, "primary"), (2, "reproduction")]
+    assert prov["claim_boundary"]["cohorts_pooled"] is False
+    argv = prov["reproduction"]["argv"]
+    assert argv == ["python3", "tools/plotting/plot_b10_static_tail_formal.py", "--measurement-root",
+                    str(root.resolve()), PLOT.os.path.relpath(prefix, REPO), "--reproduction-cohort", "2"]
+    PLOT.validate_external_sources(prov, root)
+    _reject(lambda: PLOT.validate_repo_closure(prov, REPO), "external pins")
+    PLOT.validate_repo_closure(prov, REPO, expected_hashes=hashes)
+    for n, c in enumerate(prov["cohorts"], 1):
+        raw = json.loads((root / next(iter(hashes[n]))).read_text())
+        for w, campaign in zip(c["workloads"], raw["campaigns"]):
+            assert [cell["reps"] for cell in w["cells"]] == [point["reps"] for point in campaign["points"]]
+    for change, phrase in (
+        (lambda p: p["artist_series"][0]["y"].__setitem__(0, -1), "artist"),
+        (lambda p: p.update(caption=p["caption"] + " drift"), "caption"),
+        (lambda p: p["claim_boundary"].update(cohorts_pooled=True), "claim boundary"),
+        (lambda p: p["cohorts"][1].update(group_id=PLOT.GROUP_ID), "group"),
+        (lambda p: p.update(workloads=[]), "top-level"),
+    ):
+        changed = copy.deepcopy(prov)
+        change(changed)
+        _reject(lambda: PLOT.validate_repo_closure(changed, REPO, expected_hashes=hashes), phrase)
+    # Reproject the swapped bundle: only positional identity is now invalid.
+    swapped = copy.deepcopy(prov)
+    swapped["cohorts"].reverse()
+    swapped["artist_series"] = PLOT._artist_series_v2(swapped)
+    swapped["caption"] = PLOT._caption_v2(swapped, prefix)
+    _reject(lambda: PLOT.validate_repo_closure(swapped, REPO, expected_hashes=hashes), "cohort order/role")
+
+
+def test_cli_rejects_reproduction_cohorts_one_and_three(tmp_path):
+    for n in (1, 3):
+        prefix = tmp_path / f"fig8b_reject{n}"
+        try:
+            PLOT.main([str(prefix), "--reproduction-cohort", str(n)])
+        except SystemExit as exc:
+            assert exc.code == 2
+        else:
+            raise AssertionError("invalid reproduction cohort accepted")
+        assert not list(tmp_path.glob(prefix.name + "*"))
+
+
+def test_landed_fig8b_repo_closure_and_both_captions_when_present():
+    prefix = REPO / "docs/paper-story/figures/fig8b_b10_static_tail_cohort2"
+    paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
+    readme = (prefix.parent / "README.md").read_text()
+    if not any(p.exists() for p in paths) and prefix.name not in readme:
+        skip("fig8b integration artifacts are parent-owned and not landed yet")
+    assert all(p.is_file() for p in paths), "fig8b integration bundle is incomplete"
+    prov = json.loads(paths[2].read_text())
+    assert prov["schema"] == PLOT.SCHEMA_V2
+    PLOT.validate_repo_closure(prov, REPO)
+    assert prov["caption"] in readme
+    fig8 = json.loads((prefix.parent / "fig8_b10_static_tail_not_observed.provenance.json").read_text())
+    assert fig8["caption"] in readme
+
+
+def test_real_root_loads_cohort2_and_matches_results_document_when_present():
+    if not PLOT.DEFAULT_ROOT.exists():
+        skip("formal measurement root is unavailable")
+    data = PLOT.load_measurements(PLOT.DEFAULT_ROOT, cohort=2)
+    assert data["report"]["verdict"] == "not-observed-in-any-workload"
+    assert sum(len(w["cells"]) for w in data["workloads"]) == 24
+    assert data["workloads"][0]["cells"][0]["tps_mean"] == 992686.2
+    ratios = [f"{w['tail_throughput_ratio']:.3f}" for w in data["workloads"]]
+    assert ratios == ["0.445", "0.484", "0.398"]
+    text = (REPO / PLOT.COHORTS[2]["results_document"]).read_text().split("### 2.3", 1)[1].split("### 2.4", 1)[0]
+    assert "992,686.2" in text and all(ratio in text for ratio in ratios)
 
 
 def _run():

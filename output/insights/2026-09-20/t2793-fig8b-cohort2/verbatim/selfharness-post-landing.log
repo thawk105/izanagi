@@ -1,0 +1,51 @@
+[error] FigureDataError: output prefix basename must start with fig<N>_
+usage: test_plot_b10_static_tail_formal.py [-h]
+                                           [--measurement-root MEASUREMENT_ROOT]
+                                           [--reproduction-cohort {2}]
+                                           out_prefix
+test_plot_b10_static_tail_formal.py: error: argument --reproduction-cohort: invalid choice: 1 (choose from 2)
+usage: test_plot_b10_static_tail_formal.py [-h]
+                                           [--measurement-root MEASUREMENT_ROOT]
+                                           [--reproduction-cohort {2}]
+                                           out_prefix
+test_plot_b10_static_tail_formal.py: error: argument --reproduction-cohort: invalid choice: 3 (choose from 2)
+PASS test_plot_b10_static_tail_formal.py::test_artist_series_have_exact_x_and_boundary_reference_is_separate
+PASS test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure
+PASS test_plot_b10_static_tail_formal.py::test_boundary_reference_inside_interval_set_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims
+PASS test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal
+PASS test_plot_b10_static_tail_formal.py::test_caption_figure_number_comes_from_prefix
+wrote /tmp/b10-tail-test-6s_5ibrk/fig8b_fixture.png / .pdf / .provenance.json
+PASS test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure
+PASS test_plot_b10_static_tail_formal.py::test_cli_rejects_prefix_without_fig_number
+PASS test_plot_b10_static_tail_formal.py::test_cli_rejects_reproduction_cohorts_one_and_three
+wrote /tmp/b10-tail-test-22bybpq6/fig9_fixture.png / .pdf / .provenance.json
+PASS test_plot_b10_static_tail_formal.py::test_cli_writes_three_outputs_and_provenance_closure
+PASS test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document
+PASS test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures
+PASS test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals
+PASS test_plot_b10_static_tail_formal.py::test_dat_abort_rate_disagreeing_with_counters_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_dat_with_missing_row_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_external_input_hash_drift_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only
+PASS test_plot_b10_static_tail_formal.py::test_fixture_has_production_shape_and_recomputes_statistics
+PASS test_plot_b10_static_tail_formal.py::test_group_id_absent_from_campaign_path_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_interval_states_are_copied_not_recomputed
+PASS test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present
+PASS test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present
+PASS test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing
+PASS test_plot_b10_static_tail_formal.py::test_malformed_fields_and_counterpart_mismatches_are_rejected
+PASS test_plot_b10_static_tail_formal.py::test_performance_certified_true_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_pinned_hashes_are_used_when_no_override
+PASS test_plot_b10_static_tail_formal.py::test_pinned_input_hashes_match_results_document
+PASS test_plot_b10_static_tail_formal.py::test_real_figure_passes_layout_check
+PASS test_plot_b10_static_tail_formal.py::test_real_root_loads_and_matches_results_document_when_present
+PASS test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present
+PASS test_plot_b10_static_tail_formal.py::test_statistics_mismatch_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals
+PASS test_plot_b10_static_tail_formal.py::test_uncertified_correctness_record_is_rejected
+PASS test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing
+PASS test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording
+PASS test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing
+PASS test_plot_b10_static_tail_formal.py::test_verdict_mismatch_is_rejected
+37 passed, 0 failed, 0 skipped, 0 errors

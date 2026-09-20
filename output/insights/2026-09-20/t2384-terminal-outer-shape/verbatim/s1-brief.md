@@ -1,0 +1,25 @@
+# 段 1 brief — [T-2384] 8c formal consumer の terminal record の外枠を exact gate で閉じる (D1730)
+
+- **研究前進 (土台):** 8c 正式系列の certified 選択が依拠する formal consumer (FC01〜FC10) のうち、FC07 は terminal record の外枠を pin しておらず、fixture 由来の flat / root-shadow 形が本番 projection として通る (変異 B-057-M5 が焦点走 11 file で SURVIVED、insight 2026-09-07 t2353 §5)。規律 2 の面の実在欠陥を、D1665 が FC05C へ入れた exact gate と同型で閉じる。完了判定 = 負例 (root shadow / 余分 key / 欠落 key / 型違い / terminal 重複) が FC07、正例 (production commit / abort 形) は P6Unavailable のまま、変異 matrix が事前登録どおり、焦点走 11 file 緑、受入緑、land。certified 選択集合は変わらない (D1730 限界節、`P6Unavailable`)。8c 正式系列の未開通 (D1829) とは独立。
+- **確定済みユーザー裁定:** D1730 (2026-09-07、推奨どおり)。FC07 の受理集合はこの 1 点だけ狭める。他の gate・reason code・判定式は変えない。Codex author (D95)。段 2・3・6 の敵対子は必須 (受理集合が変わる、DW-C00)。
+- **scope:** `orchestrator/campaign/reflux_formal_consumer.py` の `_validate_wal_outcomes()` (現行 1133〜1264 行) に terminal の外枠 gate を足す + `orchestrator/tests/test_reflux_formal_consumer.py` に正例・負例。fixture builder・producer (`pipeline.py` / `wal.py`)・他 gate・`_wal_field` の定義・reason code は触らない。台帳・一般化・別 gate の追加は scope 外。
+- **既存被覆 (純増だけ):** D1665 = trigger 側 (FC05C) の同型 gate (`_wal_trigger`、consumer 993〜1038 行)。D1715 = terminal の `stage` 読取りと fixture の production 形状化 (外枠は閉じず)。純増は terminal の外枠 gate と、その負例・正例・変異だけ。
+- **変更面 (実アンカー):** consumer `_validate_wal_outcomes` 冒頭 (`terminal = wal_records[-1]` 直後、1141〜1144 行) に `_require(FC07, <外枠 gate>)`。参照する既存形: `_wal_trigger` の key 集合 `{variant, stage, env_tag, ts, payload}`、型 (`variant` / `env_tag` は `type(...) is str`、`ts` は `type(ts) in (int, float)` かつ有限、`payload` は `type(...) is dict`)。test は `_projection_records` / `_rewrite_wal` / `_assert_reason` (test 468〜511, 688 行) で FC05C 負例 (1435〜1556 行) と同型に書く。
+- **不変条件:** (i) 正例 `test_exact_fixture_contract_reaches_only_p6_unavailable` と `test_fc07_accepts_production_commit_terminal_shape` は P6Unavailable のまま。(ii) 負例は FC07 で止まり、手前の gate (FC05B / FC05C / FC06 / evidence 解決) で落ちていないことを判定順で示す。(iii) reason code 新設なし。(iv) pin: 変更 2 file の sha256 / blob sha は tracked file・output/ に pin 0 件 (実測)、fixture builder 不変なので `reflux_origin_fixture_baseline.json` / `test_reflux_result_evidence.py` の golden は動かない。`docs/phase3-8c-wiring-design.md` 行 17 は FC07 の説明 (docs、pin でない)。(v) `_wal_field` の定義は変えない。
+- **割れうる前提 (親の provisional 裁定・攻撃対象):**
+  - (P1) 「重複」= projection 内で `stage ∈ {STAGE_COMMIT, STAGE_ABORT}` の record がちょうど 1 件で、それが末尾。JSON の重複 key は上流 (`strict_json_loads` / `parse_line`) が拒否済みなので別読みは採らない。production は attempt ごとに terminal 1 件 (wal.py の active-attempt 閉包、recovery は orphan にだけ ABORT を追記)。
+  - (P2) 外枠 gate は `stage` 比較より**前**に置く。その結果、B-057-M5 の逐語 (`terminal.get("stage")` → `_wal_field(terminal, "stage")`) は gate 後は等価変異になる (exact key 集合の下では両者が同じ値を返す)。「M5 の再現」は (a) gate を無効化 + stage 読取りを fallback へ緩めた合成変異が、新負例「`stage` が payload にしか無い terminal」で KILLED になること、(b) gate 無効化単体が root shadow / 余分 key / 欠落 key / 型 の負例で KILLED になること、で示す。逐語 M5 は等価として登録し理由を書く。
+  - (P3) gate 後は `_wal_field(terminal, ...)` の root→payload fallback は terminal に対して死ぬが、判定式を変えないため置換しない (D1730「他の判定式は変えない」)。
+  - (P4) `type(payload) is dict` と `ts` の有限性は同型のため入れるが、到達不能 (非 dict payload は上流 `_projection_attempt_id` と `_wal_field` の attempt 不一致で既に FC07 以前に落ち、非有限 ts は canonical JSON に乗らない)。これらの変異は等価として登録する。
+  - (P5) 外枠 gate は terminal だけに掛け、他の非 terminal record (build_start 等) には掛けない (D1730 の名指し = terminal、`_wal_trigger` も trigger record だけ)。
+- **成果物:** 実装 commit (Codex author trailer)、insight `output/insights/2026-09-20/t2384-terminal-outer-shape/README.md` (対比表・変異 matrix・実走)、spool fragment (worklog 1 / decisions 1: D1730 の実装記録)、handoff は job dir。
+- **受入・実測環境:** 焦点走は B-057 と同じ 11 file (`test_reflux_formal_consumer`、`test_reflux_origin_fixture_builder`、`test_reflux_result_evidence`、`test_reflux_origin_client`、`test_reflux_origin_artifacts`、`test_reflux_origin_binding`、`test_reflux_origin_topology`、`test_reflux_source_closure`、`test_trial_registry`、`test_p3_autonomous_workload_trial`、`test_reflux_originless_compatibility`) を `tools/run_tests.py --force-dispatch` で計算ノードへ。変異は独立 clone + 計算ノード (`docs/dev-wave/mutation.md`)。受入は `tools/dev_wave_wait.py acceptance`。機体固有は `docs/pegasus-runbook.md`。
+- **並列分割:** 段 2 plan 1 本 (read-only)、段 3 相談 2 レンズ、段 5 author 1 本 (2 file、分割不要)、段 6 レビュー 2 本 + fix。
+- **模擬 / 実:** pin の不在・symbol 参照は tracked file の `git grep` 実測。production 形状は `pipeline.py` 1775〜1779 / 1917〜1926 / 2566〜2580 行と `wal.py` `_record_to_line` の実物。
+
+## 追補 (07:53 JST、DW-O13 の実測)
+
+- gate 入力 (terminal の outer 5 field) の実在と実環境値: `verbatim/o13-measurement.md`。実環境 WAL 32 file・terminal 490 件で outer key 集合 EXACT 490/490、ts float 490/490、variant / env_tag str、payload dict。attempt 世代 (2026-09-06 実走) は attempt ごとに terminal ちょうど 1 件 (16/16)。過剰拒否の実例 0。
+- (P3) の訂正: gate 後に死ぬ fallback は `stage` の root→payload だけ。`build_attempt_id` / `verify_configs` / `reason` / `verify` は exact 外枠に含まれないので payload fallback が必須で残る。`_wal_field` の定義は変えない。
+- (P4) の訂正: 非 dict payload は「root attempt 無し → resolver (`_projection_attempt_id`) で落ちる / root attempt 有り → exact keys で落ちる」の二分。いずれも payload 型述語だけを露出できず、その変異は等価。
+- 焦点走は `test_reflux_campaign_issuer.py` (fixture builder を import) を足して 12 file。

@@ -1,0 +1,39 @@
+{
+ "M1-state-membership-true": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[bogus-state]"
+ ],
+ "M2-keys-superset": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-act-key]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-definition-key]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-group-key]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-item-key]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-top-key]"
+ ],
+ "M3-free-text-early-return": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[assignment]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[group-percent]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[latency]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[percent]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[throughput]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t4_free_text_contract"
+ ],
+ "M4a-intersection-zero": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[overlap]",
+  "orchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files"
+ ],
+ "M4b-contains-true": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[escape]"
+ ],
+ "M5-input-hash-constant": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes"
+ ],
+ "M6-style-all-obtained": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t2_independent_styles_and_changed_state"
+ ],
+ "M7-publisher-skips-layout": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files"
+ ],
+ "M8-prefix-accept-all": [
+  "orchestrator/tests/test_plot_arc_status.py::test_t8_cli_rejects_invalid_prefix"
+ ]
+}

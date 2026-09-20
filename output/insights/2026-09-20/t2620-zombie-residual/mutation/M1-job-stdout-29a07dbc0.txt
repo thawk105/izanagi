@@ -1,0 +1,537 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 33%]
+........................................................................ [ 66%]
+........................................................F...........F.F. [100%]
+=================================== FAILURES ===================================
+_____________________ test_t2620_orphan_zombie_is_rejected _____________________
+[gw12] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_t2620_orphan_zombie_is_re0')
+
+    def test_t2620_orphan_zombie_is_rejected(tmp_path: Path) -> None:
+>       _assert_t2620_residual_case(
+            tmp_path, "orphan_zombie", residual=1, subreaper=True
+        )
+
+orchestrator/tests/test_codex_worker_launch.py:4660: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+orchestrator/tests/test_codex_worker_launch.py:4623: in _assert_t2620_residual_case
+    _run_launcher_subprocess(
+orchestrator/tests/test_codex_worker_launch.py:1148: in _run_launcher_subprocess
+    on_completed(completed)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_t2620_orphan_zombie_is_re0/su...', '0.01'], returncode=0, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 0, "reaped": [[3560824, "Z"]]}\n')
+
+    def observe(completed: subprocess.CompletedProcess[str]) -> None:
+        # Retain stderr even if receipt loading or the single comparison fails.
+        results.append(completed)
+        receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+        attempt = receipt["attempts"][0]
+        diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+        observed = {
+            key: attempt[key]
+            for key in (
+                "process_group_residual", "termination_verified", "accepted",
+                "limit_trigger", "codex_exit_code",
+            )
+        }
+        observed.update({
+            "outcome": receipt["outcome"],
+            "stop_reason": receipt["stop_reason"],
+            "launcher_rc": completed.returncode,
+            "residual_observation": diagnostics["residual_observation"],
+        })
+        limit = "wall_clock_admission_bound_s" if forced else None
+        expected = {
+            "process_group_residual": residual,
+            "termination_verified": False,
+            "accepted": False,
+            "outcome": "not_accepted",
+            "stop_reason": limit or "max_attempts",
+            "launcher_rc": 1,
+            "limit_trigger": limit,
+            "codex_exit_code": -signal.SIGKILL if forced else 0,
+            "residual_observation": {
+                "final_count": residual,
+                "final_unknown_source": None,
+                "unknown_sources_seen": [],
+                "proc_stat_malformed": False,
+            },
+        }
+        if running:
+            pid = int((paths["pid_dir"] / "child.pid").read_text())
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+            state = raw[raw.rfind(")") + 2:].split()[0]
+            # Both runnable and sleeping are live; preserve any other state.
+            observed["child_state"] = "S/R" if state in ("S", "R") else state
+            expected["child_state"] = "S/R"
+        if subreaper:
+            report = json.loads(completed.stderr.splitlines()[-1])
+            zombie_file = "child.pid" if forced else "zombie.pid"
+            zombie = int((paths["pid_dir"] / zombie_file).read_text())
+            observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+            observed["harness"] = report["harness"]
+            observed["harness_launcher_rc"] = report["launcher_rc"]
+            expected.update({
+                "zombie_reaped_as_Z": True,
+                "harness": "subreaper",
+                "harness_launcher_rc": 1,
+            })
+        if forced:
+            observed["termination_signals_sent"] = [
+                item["signal"] for item in diagnostics["termination_signals_sent"]
+            ]
+            expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+>       assert observed == expected
+E       AssertionError: assert {'process_gro...r': None, ...} == {'process_gro...ccepted', ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'termination_verified': True} != {'termination_verified': False}
+E         {'launcher_rc': 0} != {'launcher_rc': 1}
+E         {'outcome': 'accepted'} != {'outcome': 'not_accepted'}
+E         {'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}...
+E         
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2620-zombie-residual/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/runs/pytest-launcher-failures/0-11878.nqsv--bnode024/gw12/d3458d672269c49b--pid3556168--1789857977128232721--7u8xcvs6
+_______________ test_t2620_sigterm_ignore_subreaper_is_rejected ________________
+[gw45] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_t2620_sigterm_ignore_subr0')
+
+    def test_t2620_sigterm_ignore_subreaper_is_rejected(tmp_path: Path) -> None:
+>       _assert_t2620_residual_case(
+            tmp_path, "sigterm_ignore", residual=1, subreaper=True
+        )
+
+orchestrator/tests/test_codex_worker_launch.py:4666: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+orchestrator/tests/test_codex_worker_launch.py:4623: in _assert_t2620_residual_case
+    _run_launcher_subprocess(
+orchestrator/tests/test_codex_worker_launch.py:1148: in _run_launcher_subprocess
+    on_completed(completed)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_t2620_sigterm_ignore_subr0/su...', '0.01'], returncode=1, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 1, "reaped": [[3560662, "Z"]]}\n')
+
+    def observe(completed: subprocess.CompletedProcess[str]) -> None:
+        # Retain stderr even if receipt loading or the single comparison fails.
+        results.append(completed)
+        receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+        attempt = receipt["attempts"][0]
+        diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+        observed = {
+            key: attempt[key]
+            for key in (
+                "process_group_residual", "termination_verified", "accepted",
+                "limit_trigger", "codex_exit_code",
+            )
+        }
+        observed.update({
+            "outcome": receipt["outcome"],
+            "stop_reason": receipt["stop_reason"],
+            "launcher_rc": completed.returncode,
+            "residual_observation": diagnostics["residual_observation"],
+        })
+        limit = "wall_clock_admission_bound_s" if forced else None
+        expected = {
+            "process_group_residual": residual,
+            "termination_verified": False,
+            "accepted": False,
+            "outcome": "not_accepted",
+            "stop_reason": limit or "max_attempts",
+            "launcher_rc": 1,
+            "limit_trigger": limit,
+            "codex_exit_code": -signal.SIGKILL if forced else 0,
+            "residual_observation": {
+                "final_count": residual,
+                "final_unknown_source": None,
+                "unknown_sources_seen": [],
+                "proc_stat_malformed": False,
+            },
+        }
+        if running:
+            pid = int((paths["pid_dir"] / "child.pid").read_text())
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+            state = raw[raw.rfind(")") + 2:].split()[0]
+            # Both runnable and sleeping are live; preserve any other state.
+            observed["child_state"] = "S/R" if state in ("S", "R") else state
+            expected["child_state"] = "S/R"
+        if subreaper:
+            report = json.loads(completed.stderr.splitlines()[-1])
+            zombie_file = "child.pid" if forced else "zombie.pid"
+            zombie = int((paths["pid_dir"] / zombie_file).read_text())
+            observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+            observed["harness"] = report["harness"]
+            observed["harness_launcher_rc"] = report["launcher_rc"]
+            expected.update({
+                "zombie_reaped_as_Z": True,
+                "harness": "subreaper",
+                "harness_launcher_rc": 1,
+            })
+        if forced:
+            observed["termination_signals_sent"] = [
+                item["signal"] for item in diagnostics["termination_signals_sent"]
+            ]
+            expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+>       assert observed == expected
+E       AssertionError: assert {'process_gro...bound_s', ...} == {'process_gro...ccepted', ...}
+E         
+E         Omitting 10 identical items, use -vv to show
+E         Differing items:
+E         {'termination_verified': True} != {'termination_verified': False}
+E         {'process_group_residual': 0} != {'process_group_residual': 1}
+E         {'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}
+E         Use -v to get more diff
+
+orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2620-zombie-residual/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/runs/pytest-launcher-failures/0-11878.nqsv--bnode024/gw45/240ddac85dc851f5--pid3556396--1789857979953540448--vlhy6rf8
+_____________________ test_t2620_orphan_mixed_is_rejected ______________________
+[gw43] linux -- Python 3.10.12 /bin/python3.10
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_t2620_orphan_mixed_is_rej0')
+
+    def test_t2620_orphan_mixed_is_rejected(tmp_path: Path) -> None:
+>       _assert_t2620_residual_case(
+            tmp_path, "orphan_mixed", residual=2, subreaper=True
+        )
+
+orchestrator/tests/test_codex_worker_launch.py:4672: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+orchestrator/tests/test_codex_worker_launch.py:4623: in _assert_t2620_residual_case
+    _run_launcher_subprocess(
+orchestrator/tests/test_codex_worker_launch.py:1148: in _run_launcher_subprocess
+    on_completed(completed)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_t2620_orphan_mixed_is_rej0/su...', '0.01'], returncode=1, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 1, "reaped": [[3560818, "Z"]]}\n')
+
+    def observe(completed: subprocess.CompletedProcess[str]) -> None:
+        # Retain stderr even if receipt loading or the single comparison fails.
+        results.append(completed)
+        receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+        attempt = receipt["attempts"][0]
+        diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+        observed = {
+            key: attempt[key]
+            for key in (
+                "process_group_residual", "termination_verified", "accepted",
+                "limit_trigger", "codex_exit_code",
+            )
+        }
+        observed.update({
+            "outcome": receipt["outcome"],
+            "stop_reason": receipt["stop_reason"],
+            "launcher_rc": completed.returncode,
+            "residual_observation": diagnostics["residual_observation"],
+        })
+        limit = "wall_clock_admission_bound_s" if forced else None
+        expected = {
+            "process_group_residual": residual,
+            "termination_verified": False,
+            "accepted": False,
+            "outcome": "not_accepted",
+            "stop_reason": limit or "max_attempts",
+            "launcher_rc": 1,
+            "limit_trigger": limit,
+            "codex_exit_code": -signal.SIGKILL if forced else 0,
+            "residual_observation": {
+                "final_count": residual,
+                "final_unknown_source": None,
+                "unknown_sources_seen": [],
+                "proc_stat_malformed": False,
+            },
+        }
+        if running:
+            pid = int((paths["pid_dir"] / "child.pid").read_text())
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+            state = raw[raw.rfind(")") + 2:].split()[0]
+            # Both runnable and sleeping are live; preserve any other state.
+            observed["child_state"] = "S/R" if state in ("S", "R") else state
+            expected["child_state"] = "S/R"
+        if subreaper:
+            report = json.loads(completed.stderr.splitlines()[-1])
+            zombie_file = "child.pid" if forced else "zombie.pid"
+            zombie = int((paths["pid_dir"] / zombie_file).read_text())
+            observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+            observed["harness"] = report["harness"]
+            observed["harness_launcher_rc"] = report["launcher_rc"]
+            expected.update({
+                "zombie_reaped_as_Z": True,
+                "harness": "subreaper",
+                "harness_launcher_rc": 1,
+            })
+        if forced:
+            observed["termination_signals_sent"] = [
+                item["signal"] for item in diagnostics["termination_signals_sent"]
+            ]
+            expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+>       assert observed == expected
+E       AssertionError: assert {'process_gro...r': None, ...} == {'process_gro...ccepted', ...}
+E         
+E         Omitting 11 identical items, use -vv to show
+E         Differing items:
+E         {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 2, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}
+E         {'process_group_residual': 1} != {'process_group_residual': 2}
+E         Use -v to get more diff
+
+orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2620-zombie-residual/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/runs/pytest-launcher-failures/0-11878.nqsv--bnode024/gw43/6b6958a5b1ebe2fd--pid3556382--1789857980574489969--lpkdnnd2
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected
+FAILED orchestrator/tests/test_codex_worker_launch.py::test_t2620_sigterm_ignore_subreaper_is_rejected
+FAILED orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected
+3 failed, 213 passed in 11.67s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=4652 retained_bytes=3938 omitted_bytes=714 rendered_excerpt_bytes=4096 sha256=a676c9a360b41285a4f0ca8ae0a78284a66594e03d00e759c2e4f18e6df39611
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+> 
+> completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_t2620_orphan_zombie_is_re0/su...', '0.01'], returncode=0, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 0, "reaped": [[3560824, "Z"]]}\x5cn')
+> 
+>     def observe(completed: subprocess.CompletedProcess[str]) -> None:
+>         # Retain stderr even if receipt loading or the single comparison fails.
+>         results.append(completed)
+>         receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+>         attempt = receipt["attempts"][0]
+>         diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+>         observed = {
+>             key: attempt[key]
+>             for key in (
+>                 "process_group_residual", "termination_verified", "accepted",
+>                 "limit_trigger", "codex_exit_code",
+>             )
+>         }
+>         observed.update({
+>             "outcome": receipt["outcome"],
+>             "stop_reason": receipt["stop_reason"],
+>             "launcher_rc": completed.returncode,
+>             "residual_observation": diagnostics["residual_observation"],
+>         })
+>         limit = "wall_clock_admission_bound_s" if forced else None
+>         expected = {
+>             "process_group_residual": residual,
+>             "termination_verified": False,
+>             "accepted": False,
+>             "outcome": "not_accepted",
+>             "stop_reason": limit or "max_attempts",
+>             "launcher_rc": 1,
+>             "limit_trigger": limit,
+>             "codex_exit_code": -signal.SIGKILL if forced else 0,
+>             "residual_observation": {
+>                 "final_count": residual,
+>                 "final_unknown_source": None,
+>                 "unknown_sources_seen": [],
+>                 "proc_stat_malformed": False,
+>             },
+>         }
+>         if running:
+>             pid = int((paths["pid_dir"] / "child.pid").read_text())
+>             raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+>             state = raw[raw.rfind(")") + 2:].split()[0]
+>             # Both runnable and sleeping are live; preserve any other state.
+>             observed["child_state"] = "S/R" if state in ("S", "R") else state
+>             expected["child_state"] = "S/R"
+>         if subreaper:
+>             report = json.loads(completed.stderr.splitlines()[-1])
+>             zombie_file = "child.pid" if forced else "zombie.pid"
+>             zombie = int((paths["pid_dir"] / zombie_file).read_text())
+>             observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+>             observed["harness"] = report["harness"]
+>             observed["harness_launcher_rc"] = report["launcher_rc"]
+>             expected.update({
+>                 "zombie_reaped_as_Z": True,
+>                 "harness": "subreaper",
+>                 "harness_launcher_rc": 1,
+>             })
+>         if forced:
+>             observed["termination_signals_sent"] = [
+>                 item["signal"] for item in diagnostics["termination_signals_sent"]
+>             ]
+>             expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+> >       assert observed == expected
+> E       AssertionError: assert {'process_gro...r': None, ...} == {'process_gro...ccepted', ...}
+> E         
+> E         Omitting 4 identical items, use -vv to show
+> E         Differing items:
+> E         {'termination_verified': True} != {'termination_verified': False}
+> E         {'launcher_rc': 0} != {'launcher_rc': 1}
+> E         {'outcome': 'accepted'} != {'outcome': 'not_accepted'}
+> E         {'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}...
+> E         
+> E         ...Full output truncated (5 lines hidden), use '-vv' to show
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_sigterm_ignore_subreaper_is_rejected" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=4571 retained_bytes=3938 omitted_bytes=633 rendered_excerpt_bytes=4096 sha256=d30d340355b2311a8dcd89b6378b8678a66a1e1549e8b01d8b7d64faf3851004
+--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+> h.py:1148: in _run_launcher_subprocess
+>     on_completed(completed)
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+> 
+> completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_t2620_sigterm_ignore_subr0/su...', '0.01'], returncode=1, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 1, "reaped": [[3560662, "Z"]]}\x5cn')
+> 
+>     def observe(completed: subprocess.CompletedProcess[str]) -> None:
+>         # Retain stderr even if receipt loading or the single comparison fails.
+>         results.append(completed)
+>         receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+>         attempt = receipt["attempts"][0]
+>         diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+>         observed = {
+>             key: attempt[key]
+>             for key in (
+>                 "process_group_residual", "termination_verified", "accepted",
+>                 "limit_trigger", "codex_exit_code",
+>             )
+>         }
+>         observed.update({
+>             "outcome": receipt["outcome"],
+>             "stop_reason": receipt["stop_reason"],
+>             "launcher_rc": completed.returncode,
+>             "residual_observation": diagnostics["residual_observation"],
+>         })
+>         limit = "wall_clock_admission_bound_s" if forced else None
+>         expected = {
+>             "process_group_residual": residual,
+>             "termination_verified": False,
+>             "accepted": False,
+>             "outcome": "not_accepted",
+>             "stop_reason": limit or "max_attempts",
+>             "launcher_rc": 1,
+>             "limit_trigger": limit,
+>             "codex_exit_code": -signal.SIGKILL if forced else 0,
+>             "residual_observation": {
+>                 "final_count": residual,
+>                 "final_unknown_source": None,
+>                 "unknown_sources_seen": [],
+>                 "proc_stat_malformed": False,
+>             },
+>         }
+>         if running:
+>             pid = int((paths["pid_dir"] / "child.pid").read_text())
+>             raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+>             state = raw[raw.rfind(")") + 2:].split()[0]
+>             # Both runnable and sleeping are live; preserve any other state.
+>             observed["child_state"] = "S/R" if state in ("S", "R") else state
+>             expected["child_state"] = "S/R"
+>         if subreaper:
+>             report = json.loads(completed.stderr.splitlines()[-1])
+>             zombie_file = "child.pid" if forced else "zombie.pid"
+>             zombie = int((paths["pid_dir"] / zombie_file).read_text())
+>             observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+>             observed["harness"] = report["harness"]
+>             observed["harness_launcher_rc"] = report["launcher_rc"]
+>             expected.update({
+>                 "zombie_reaped_as_Z": True,
+>                 "harness": "subreaper",
+>                 "harness_launcher_rc": 1,
+>             })
+>         if forced:
+>             observed["termination_signals_sent"] = [
+>                 item["signal"] for item in diagnostics["termination_signals_sent"]
+>             ]
+>             expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+> >       assert observed == expected
+> E       AssertionError: assert {'process_gro...bound_s', ...} == {'process_gro...ccepted', ...}
+> E         
+> E         Omitting 10 identical items, use -vv to show
+> E         Differing items:
+> E         {'termination_verified': True} != {'termination_verified': False}
+> E         {'process_group_residual': 0} != {'process_group_residual': 1}
+> E         {'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}
+> E         Use -v to get more diff
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=2 END ---
+IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=4481 retained_bytes=3936 omitted_bytes=545 rendered_excerpt_bytes=4096 sha256=f4dadd54b1cb2d5d9550e20370c0c090872db4fdabb4541f5484caeae2d306c6
+--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+> e
+>     _run_launcher_subprocess(
+> orchestrator/tests/test_codex_worker_launch.py:1148: in _run_launcher_subprocess
+>     on_completed(completed)
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+> 
+> completed = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_t2620_orphan_mixed_is_rej0/su...', '0.01'], returncode=1, stdout='', stderr='{"harness": "subreaper", "launcher_rc": 1, "reaped": [[3560818, "Z"]]}\x5cn')
+> 
+>     def observe(completed: subprocess.CompletedProcess[str]) -> None:
+>         # Retain stderr even if receipt loading or the single comparison fails.
+>         results.append(completed)
+>         receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+>         attempt = receipt["attempts"][0]
+>         diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+>         observed = {
+>             key: attempt[key]
+>             for key in (
+>                 "process_group_residual", "termination_verified", "accepted",
+>                 "limit_trigger", "codex_exit_code",
+>             )
+>         }
+>         observed.update({
+>             "outcome": receipt["outcome"],
+>             "stop_reason": receipt["stop_reason"],
+>             "launcher_rc": completed.returncode,
+>             "residual_observation": diagnostics["residual_observation"],
+>         })
+>         limit = "wall_clock_admission_bound_s" if forced else None
+>         expected = {
+>             "process_group_residual": residual,
+>             "termination_verified": False,
+>             "accepted": False,
+>             "outcome": "not_accepted",
+>             "stop_reason": limit or "max_attempts",
+>             "launcher_rc": 1,
+>             "limit_trigger": limit,
+>             "codex_exit_code": -signal.SIGKILL if forced else 0,
+>             "residual_observation": {
+>                 "final_count": residual,
+>                 "final_unknown_source": None,
+>                 "unknown_sources_seen": [],
+>                 "proc_stat_malformed": False,
+>             },
+>         }
+>         if running:
+>             pid = int((paths["pid_dir"] / "child.pid").read_text())
+>             raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+>             state = raw[raw.rfind(")") + 2:].split()[0]
+>             # Both runnable and sleeping are live; preserve any other state.
+>             observed["child_state"] = "S/R" if state in ("S", "R") else state
+>             expected["child_state"] = "S/R"
+>         if subreaper:
+>             report = json.loads(completed.stderr.splitlines()[-1])
+>             zombie_file = "child.pid" if forced else "zombie.pid"
+>             zombie = int((paths["pid_dir"] / zombie_file).read_text())
+>             observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+>             observed["harness"] = report["harness"]
+>             observed["harness_launcher_rc"] = report["launcher_rc"]
+>             expected.update({
+>                 "zombie_reaped_as_Z": True,
+>                 "harness": "subreaper",
+>                 "harness_launcher_rc": 1,
+>             })
+>         if forced:
+>             observed["termination_signals_sent"] = [
+>                 item["signal"] for item in diagnostics["termination_signals_sent"]
+>             ]
+>             expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+> >       assert observed == expected
+> E       AssertionError: assert {'process_gro...r': None, ...} == {'process_gro...ccepted', ...}
+> E         
+> E         Omitting 11 identical items, use -vv to show
+> E         Differing items:
+> E         {'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}} != {'residual_observation': {'final_count': 2, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}}
+> E         {'process_group_residual': 1} != {'process_group_residual': 2}
+> E         Use -v to get more diff
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4620: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=3 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=13704 retained_bytes=11812 omitted_bytes=1892 budget_bytes=49152 rendered_bytes=13869 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

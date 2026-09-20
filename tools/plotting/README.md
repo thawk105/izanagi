@@ -163,6 +163,17 @@ root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `izanagi-b10-static-tail-formal-figure-provenance/v1`。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig8 節を正本とする。
 
+**再現欄付きの後継図 (fig8b、2026-09-20):** `OUT_PREFIX` の後ろに `--reproduction-cohort 2` を付けると、
+**主結果 cohort 1 (上 block) と独立再現 cohort 2** (group `b10-backoff-grid-20260919T131526Z-2235286`、
+`group-report-20260919-cohort2/` の 3 file、下 block) を縦 2 block (4 行 × 3 列、7.2 × 10.6 in) で
+区別して併記する。cohort 2 単独の図は作らない (受理する値は `2` だけ)。役割 (1 = primary、2 = reproduction)
+と順序は生成器の `COHORTS` 表で固定し、CLI からも provenance の改変からも入れ替えられない。拒否条件と
+pin (CLI から渡せない) は両 cohort に同じ。provenance の schema は `.../v2` で、`cohorts[]` に cohort ごとの
+記録を持ち、top-level に cohort をまたぐ統計 field は無い (`claim_boundary.cohorts_pooled: false`)。caption は
+事前登録 §4.5 の固定表現を各 cohort へ独立に適用し、合成・プール・一致度評価をしない旨を含む。省略時は
+上の単 cohort 経路 (fig8 の形) のままで、その受理集合・射影は変えていない。図番号の英字 suffix (`fig8b_`) を
+受理するのは `--reproduction-cohort 2` の経路だけ。正本は同 README の fig8b 節。
+
 ## A-1 balanced5 sized attempt-0001 (対差平均 ± 登録済み区間) figure
 
 `plot_a1_sized_paired.py` は、A-1 balanced5 sized 本走 attempt-0001 (study
@@ -364,3 +375,32 @@ loader が照合し、不一致を fail-closed にする。model 側も元測定
 現行の作図規約に合わせ、prediction 図の水平参照線は raw 反復から再計算した Student-t 95% CI 帯を
 伴う。適応機構との比較用に、no backoff と調整済み adaptive (刻み 1 µs / 更新間隔 2560 µs /
 上限 1000 µs) をともに表示し、10 µs panel は 8 点格子固有の tick も省略しない。
+
+## 論文ストーリーの現況図 (3 幕 + §8 A/B 群の状態、値なし) figure
+
+`plot_arc_status.py` は、論文ストーリー文書の凍結版 (現在は `docs/paper-story/2026-09-19.md`) の §0 の 3 幕の要約と §8 の
+証拠項目 (A 系列 5 + B 群 11) の【状態】だけを、値を 1 つも描かずに 1 枚の模式図にする専用生成器である
+(`fig3_arc_status.png` の後継図 `fig3b_`)。既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_arc_status.py [--repo-root PATH] [--states PATH] OUT_PREFIX
+```
+
+入力は状態 JSON (`--states` 省略時は `tools/plotting/arc_status_story_2026-09-19.json`、schema `izanagi-arc-status/v1`) と、
+JSON の `story_path` が指す凍結本文である。状態語の意味の正本は本文で、JSON は人がそこから写した射影である。
+
+- 4 状態 `obtained` / `uncertified` / `awaiting-ruling` / `not-obtained` を色とマーカー形 (塗り丸 / 中抜き菱形 / 中抜き三角 / ×)
+  で描く。`obtained` は「判定または完了の記録がある」であって主張の支持ではない (B-1 の `not met`、A-6 の `reject` も obtained)。
+- 各項目の `source_anchor` (`§8 A-1` / `§0 item 3` / `§0 act 3`) が本文の該当節にちょうど 1 行の項目見出しとして存在することを
+  検査する。意味の一致は検査しない。
+- 自由文 (label / sublabel / 状態定義文) に数量が混じると拒否する: `=`、`%`、単位語、数詞、および JSON で宣言した証拠項目 ID と
+  `reference_ids` 以外の数字入り token。caption と脚注の節番号・版日付・図番号は構造 field から組み立てる。
+- key 集合の不一致 (未知・不足・重複 key、NaN / Infinity)、4 状態以外の `state`、ID 重複、`story_path` の不一致、prefix が
+  `fig<N><letters>_` でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・
+  所属領域内包・相互非交差・兄弟セル非交差・marker 非交差) の違反、のいずれでも成果物を出さない。
+- 判定・値・認証を再計算しない。図は「記録された状態の要約」であり、採用・認可・certification の根拠にしない。
+
+出力は `OUT_PREFIX.png` (200 dpi)、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-arc-status-figure-provenance/v1` で、入力 2 file (JSON・本文) と生成器・出力の SHA-256、描いた項目 (`drawn_items`: ID・
+状態・実表示文字列)、状態定義、caption、展開済み argv、matplotlib / numpy の版を持つ。論文図の再現コマンド、caption、proof chain、
+次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節を正本とする。

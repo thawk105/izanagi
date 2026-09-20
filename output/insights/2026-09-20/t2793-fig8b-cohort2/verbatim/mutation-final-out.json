@@ -1,0 +1,936 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/930b974c2c035e2642029defae6313f2/izdw-930b974c2c.o12077",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/930b974c2c035e2642029defae6313f2/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................                                    [100%]\n37 passed in 8.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ccd2f35600fa11843b020a89a1ec4a449e3b62562f5bd130d8738fa2a5c31116"
+    },
+    "artifact_error": null,
+    "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+    "duration_s": 32.719,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8bf0786ce44e2daa2d8d6dbdba976eff5dfdc759cdb72d64453da5edfa2a321c",
+    "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+    "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+    "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+    "status": "PASSED",
+    "test_output_sha256": "ccd2f35600fa11843b020a89a1ec4a449e3b62562f5bd130d8738fa2a5c31116",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+  },
+  "date": "2026-09-19T23:59:38.115014+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b464d6ac4ab99ed93434e014cb89356/izdw-9b464d6ac4.o12078",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b464d6ac4ab99ed93434e014cb89356/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................                                    [100%]\n37 passed in 8.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "63c7ae394d490a8e4d9a8bb71b012e9a052f432363755f7d41912023db978d9e"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.558,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-docstring",
+      "injection_diff_sha256": "ad66e2fa23f4c0d35e0728e2ab976340768090506a90d8d4705e6d4d56a941a2",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "14184470c03e4d28305540b47609bb371197a16b0a56f176b779c78ffa416da2",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+          "old": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\"\"\"\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "SURVIVED",
+      "test_output_sha256": "63c7ae394d490a8e4d9a8bb71b012e9a052f432363755f7d41912023db978d9e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/41d27be73b6beae2e07350f5c248af70/izdw-41d27be73b.o12079",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/41d27be73b6beae2e07350f5c248af70/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................F.FF..........                                    [100%]\n=================================== FAILURES ===================================\n__________ test_cohort2_pinned_hashes_match_cohort2_results_document ___________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cohort2_pinned_hashes_match_cohort2_results_document():\n        spec = PLOT.COHORTS[2]\n        table = (REPO / spec[\"results_document\"]).read_text().split(\"### 4.1\", 1)[1].split(\"### 4.2\", 1)[0]\n        for path, digest in spec[\"pinned_sha256\"].items():\n            rows = [line for line in table.splitlines() if f\"`{path}`\" in line]\n            assert len(rows) == 1\n>           assert re.findall(r\"`([0-9a-f]{64})`\", rows[0]) == [digest]\nE           AssertionError: assert ['15b99944b84...838905881fd6'] == ['15b99944b84...838905881fd7']\nE             \nE             At index 0 diff: '15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6' != '15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd7'\nE             Use -v to get more diff\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:451: AssertionError\n____ test_real_root_loads_cohort2_and_matches_results_document_when_present ____\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_root_loads_cohort2_and_matches_results_document_when_present():\n        if not PLOT.DEFAULT_ROOT.exists():\n            skip(\"formal measurement root is unavailable\")\n>       data = PLOT.load_measurements(PLOT.DEFAULT_ROOT, cohort=2)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:659: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:178: in load_measurements\n    return _load_measurements(Path(root).resolve(), expected_hashes, cohort)\ntools/plotting/plot_b10_static_tail_formal.py:196: in _load_measurements\n    _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False\nmessage = 'SHA-256 mismatch: group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: SHA-256 mismatch: group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n________ test_landed_fig8b_repo_closure_and_both_captions_when_present _________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(p.exists() for p in paths) and prefix.name not in readme:\n            skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n        assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == PLOT.SCHEMA_V2\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n    return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\ntools/plotting/plot_b10_static_tail_formal.py:554: in _validate_repo_closure_v2\n    _require({r[\"path\"]: r[\"sha256\"] for r in rows} == hashes, \"external pins mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'external pins mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: external pins mismatch\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\n3 failed, 34 passed in 8.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1602 retained_bytes=1602 omitted_bytes=0 rendered_excerpt_bytes=1661 sha256=8ce05a8a2a9a1a89c45c6c4bf9537a9d700afa6ac16df6ba16fc9a43928fdac3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(p.exists() for p in paths) and prefix.name not in readme:\n>             skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n>         assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == PLOT.SCHEMA_V2\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n>     return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\n> tools/plotting/plot_b10_static_tail_formal.py:554: in _validate_repo_closure_v2\n>     _require({r[\"path\"]: r[\"sha256\"] for r in rows} == hashes, \"external pins mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'external pins mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: external pins mismatch\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1235 retained_bytes=1235 omitted_bytes=0 rendered_excerpt_bytes=1284 sha256=b6af81ae0a1b262657d0db6061eab53e816699c62c13e189be943faba725492e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_root_loads_cohort2_and_matches_results_document_when_present():\n>         if not PLOT.DEFAULT_ROOT.exists():\n>             skip(\"formal measurement root is unavailable\")\n> >       data = PLOT.load_measurements(PLOT.DEFAULT_ROOT, cohort=2)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:659: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:178: in load_measurements\n>     return _load_measurements(Path(root).resolve(), expected_hashes, cohort)\n> tools/plotting/plot_b10_static_tail_formal.py:196: in _load_measurements\n>     _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False\n> message = 'SHA-256 mismatch: group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: SHA-256 mismatch: group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=897 retained_bytes=897 omitted_bytes=0 rendered_excerpt_bytes=928 sha256=180f1f022cd10bce201535901fa63eebcf2e022e79c1bdd18253f21015357dcf\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cohort2_pinned_hashes_match_cohort2_results_document():\n>         spec = PLOT.COHORTS[2]\n>         table = (REPO / spec[\"results_document\"]).read_text().split(\"### 4.1\", 1)[1].split(\"### 4.2\", 1)[0]\n>         for path, digest in spec[\"pinned_sha256\"].items():\n>             rows = [line for line in table.splitlines() if f\"`{path}`\" in line]\n>             assert len(rows) == 1\n> >           assert re.findall(r\"`([0-9a-f]{64})`\", rows[0]) == [digest]\n> E           AssertionError: assert ['15b99944b84...838905881fd6'] == ['15b99944b84...838905881fd7']\n> E             \n> E             At index 0 diff: '15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6' != '15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd7'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3734 retained_bytes=3734 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5536 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7974c4939fe3e92d927e8607377f96b5f9a388b334db5d2b852f8ecc9b675da9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.632,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m1-cohort2-dat-pin-drift",
+      "injection_diff_sha256": "adcde7d42a6c28952ac3ac0c841390d1d6c044624f40709b8d20ab2a50d86aae",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e392770dda1cd88bd8c0df785d33b5e44cdf904f5df56dcfacc5dd46427890a2",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd7\",\n",
+          "old": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6\",\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "7974c4939fe3e92d927e8607377f96b5f9a388b334db5d2b852f8ecc9b675da9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/910ab72122a4f7db1b208a97d11891f6/izdw-910ab72122.o12081",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/910ab72122a4f7db1b208a97d11891f6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F..........F                                    [100%]\n=================================== FAILURES ===================================\n_____________________ test_cohort_roles_are_fixed_literals _____________________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cohort_roles_are_fixed_literals():\n        assert PLOT.COHORTS[1][\"role\"] == \"primary\"\n>       assert PLOT.COHORTS[2][\"role\"] == \"reproduction\"\nE       AssertionError: assert 'primary' == 'reproduction'\nE         \nE         - reproduction\nE         + primary\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:456: AssertionError\n_____________ test_cli_cohort2_writes_three_outputs_and_v2_closure _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n\n    def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        prefix = tmp_path / \"fig8b_fixture\"\n        assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        assert all(p.is_file() for p in paths)\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n        assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n                             \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n>       assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\nE       AssertionError: assert [(1, 'primary...2, 'primary')] == [(1, 'primary...eproduction')]\nE         \nE         At index 1 diff: (2, 'primary') != (2, 'reproduction')\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:599: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/fig8b_fixture.png / .pdf / .provenance.json\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\n2 failed, 35 passed in 8.68s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1306 retained_bytes=1306 omitted_bytes=0 rendered_excerpt_bytes=1349 sha256=5ece70ffdea34d441252ee777087d7671eb6730d21f8061f48cdc92274ef29a6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n> \n>     def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         prefix = tmp_path / \"fig8b_fixture\"\n>         assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         assert all(p.is_file() for p in paths)\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n>         assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n>                              \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n> >       assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\n> E       AssertionError: assert [(1, 'primary...2, 'primary')] == [(1, 'primary...eproduction')]\n> E         \n> E         At index 1 diff: (2, 'primary') != (2, 'reproduction')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:599: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=395 retained_bytes=395 omitted_bytes=0 rendered_excerpt_bytes=418 sha256=67cdcab6647bde9f39ebc0b69448fb84876f18cccb7ba1c71ca56da882ce3d09\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cohort_roles_are_fixed_literals():\n>         assert PLOT.COHORTS[1][\"role\"] == \"primary\"\n> >       assert PLOT.COHORTS[2][\"role\"] == \"reproduction\"\n> E       AssertionError: assert 'primary' == 'reproduction'\n> E         \n> E         - reproduction\n> E         + primary\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:456: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1701 retained_bytes=1701 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2932 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "89fff4fa017a2e37d3741f9c7bd4b114ad64449ce1a18923da84b21ea29a135c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.231,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+      ],
+      "hang_risk": false,
+      "id": "m2-cohort2-role-primary",
+      "injection_diff_sha256": "4f1977d8c2e234af66f8beb1f5c39c9174ee3bb8acf165f0ce9407db8f9ca438",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "86e2fb914f36c22ecc28ba055aa8ac031d8d99231780046c48b30c634bf2d68f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "    2: {\"role\": \"primary\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n",
+          "old": "    2: {\"role\": \"reproduction\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "89fff4fa017a2e37d3741f9c7bd4b114ad64449ce1a18923da84b21ea29a135c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2aa739c79c4ee4e97fd61d615a00f426/izdw-2aa739c79c.o12086",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2aa739c79c4ee4e97fd61d615a00f426/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F...........                                    [100%]\n=================================== FAILURES ===================================\n______ test_cohort2_rejects_alternate_verdict_and_certification_failures _______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_cohort2_rejects_alternate0')\n\n    def test_cohort2_rejects_alternate_verdict_and_certification_failures(tmp_path):\n        mutations = [\n            (lambda r: r.update(verdict=\"saturated-in-all-workloads\"), \"verdict\"),\n            (lambda r: r.update(performance_certified=True), \"performance_certified\"),\n            (lambda r: r[\"campaigns\"][0][\"points\"][0][\"correctness\"][0][\"payload\"].update(certified=False), \"uncertified\"),\n            (lambda r: r[\"campaigns\"][0][\"points\"][0][\"correctness\"][0][\"payload\"].update(anomalies=1), \"anomalies\"),\n        ]\n        for index, (change, phrase) in enumerate(mutations):\n            root, _ = _fixture(tmp_path / str(index), cohort=2)\n            path = root / next(iter(PLOT.COHORTS[2][\"pinned_sha256\"]))\n            report = json.loads(path.read_text())\n            change(report)\n            path.write_text(json.dumps(report))\n            hashes = _seal(root, 2)\n>           _reject(lambda: PLOT.load_measurements(root, cohort=2, expected_hashes=hashes), phrase)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:474: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_cohort2_rejects_alternate_verdict_and_certification_failures.<locals>.<lambda> at 0x1508c5ac3e20>\nphrase = 'verdict'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures\n1 failed, 36 passed in 8.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=1828 retained_bytes=1828 omitted_bytes=0 rendered_excerpt_bytes=1903 sha256=438ca291e50d9a2583a05c60aeb4bc4225d4ec0a124812e3a5a8cf63eb4cfb17\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_cohort2_rejects_alternate0')\n> \n>     def test_cohort2_rejects_alternate_verdict_and_certification_failures(tmp_path):\n>         mutations = [\n>             (lambda r: r.update(verdict=\"saturated-in-all-workloads\"), \"verdict\"),\n>             (lambda r: r.update(performance_certified=True), \"performance_certified\"),\n>             (lambda r: r[\"campaigns\"][0][\"points\"][0][\"correctness\"][0][\"payload\"].update(certified=False), \"uncertified\"),\n>             (lambda r: r[\"campaigns\"][0][\"points\"][0][\"correctness\"][0][\"payload\"].update(anomalies=1), \"anomalies\"),\n>         ]\n>         for index, (change, phrase) in enumerate(mutations):\n>             root, _ = _fixture(tmp_path / str(index), cohort=2)\n>             path = root / next(iter(PLOT.COHORTS[2][\"pinned_sha256\"]))\n>             report = json.loads(path.read_text())\n>             change(report)\n>             path.write_text(json.dumps(report))\n>             hashes = _seal(root, 2)\n> >           _reject(lambda: PLOT.load_measurements(root, cohort=2, expected_hashes=hashes), phrase)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:474: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_cohort2_rejects_alternate_verdict_and_certification_failures.<locals>.<lambda> at 0x1508c5ac3e20>\n> phrase = 'verdict'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1828 retained_bytes=1828 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2652 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1e0f650673560322922bae83de411064df6b2ff931ced6bf3a2c69a8ad7952c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 48.655,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures"
+      ],
+      "hang_risk": false,
+      "id": "m3-verdict-accepts-saturated",
+      "injection_diff_sha256": "cc0ad554cdad658311d5f8db8be4fe5a3db90e32bdd083814158ebc9fe8e7e8c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ae0e176488af51d6e41200b0ed8a77978267117d867eebd8a6fe411be09357bf",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "    _require(report[\"verdict\"] in (EXPECTED_VERDICT, \"saturated-in-all-workloads\"), \"verdict mismatch\")\n",
+          "old": "    _require(report[\"verdict\"] == EXPECTED_VERDICT, \"verdict mismatch\")\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "1e0f650673560322922bae83de411064df6b2ff931ced6bf3a2c69a8ad7952c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc510c911d3092554e6a55f710a34079/izdw-cc510c911d.o12089",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc510c911d3092554e6a55f710a34079/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................F.F..........                                    [100%]\n=================================== FAILURES ===================================\n______________ test_v2_caption_contains_independent_fixed_wording ______________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n\n    def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n        for literal in (\n            \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\",\n            \"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\",\n            \"The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above.\",\n            \"performance_certified: false\", \"Within each block, the upper row\", \"Within each block, the lower row\",\n            \"The fixed wording applies to each cohort separately:\", \"nothing beyond\", \"same spec SHA-256\",\n            \"cohort 1: all 120 records were certified with 0 anomalies\", \"cohort 2: all 120 records were certified with 0 anomalies\",\n        ):\n>           assert caption.count(literal) == 1, literal\nE           AssertionError: The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\nE           assert 0 == 1\nE            +  where 0 = <built-in method count of str object at 0x558b49d98230>(\"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\")\nE            +    where <built-in method count of str object at 0x558b49d98230> = 'Figure 8b. B-10 static-backoff right tail: primary result, formal cohort 1 of 2026-09-15 (group b10-backoff-grid-2026...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in each cohort.'.count\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:499: AssertionError\n________ test_landed_fig8b_repo_closure_and_both_captions_when_present _________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(p.exists() for p in paths) and prefix.name not in readme:\n            skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n        assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == PLOT.SCHEMA_V2\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n    return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\ntools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n    _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'caption projection mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: caption projection mismatch\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\n2 failed, 35 passed in 8.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=2326 retained_bytes=2326 omitted_bytes=0 rendered_excerpt_bytes=2371 sha256=4059fb176a65b67656371b70cef69de265aa85f2f490a17fec59366fb0b15228\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n> \n>     def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n>         for literal in (\n>             \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\",\n>             \"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\",\n>             \"The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above.\",\n>             \"performance_certified: false\", \"Within each block, the upper row\", \"Within each block, the lower row\",\n>             \"The fixed wording applies to each cohort separately:\", \"nothing beyond\", \"same spec SHA-256\",\n>             \"cohort 1: all 120 records were certified with 0 anomalies\", \"cohort 2: all 120 records were certified with 0 anomalies\",\n>         ):\n> >           assert caption.count(literal) == 1, literal\n> E           AssertionError: The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\n> E           assert 0 == 1\n> E            +  where 0 = <built-in method count of str object at 0x558b49d98230>(\"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\")\n> E            +    where <built-in method count of str object at 0x558b49d98230> = 'Figure 8b. B-10 static-backoff right tail: primary result, formal cohort 1 of 2026-09-15 (group b10-backoff-grid-2026...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in each cohort.'.count\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:499: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1625 retained_bytes=1625 omitted_bytes=0 rendered_excerpt_bytes=1684 sha256=be10cb6d430933b1b2af1cc940fbcd55136653e6e7e52fb25e84bf2016f9e637\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(p.exists() for p in paths) and prefix.name not in readme:\n>             skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n>         assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == PLOT.SCHEMA_V2\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n>     return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\n> tools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n>     _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'caption projection mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: caption projection mismatch\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3951 retained_bytes=3951 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5247 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74998237bec3771ce641c6376572b55d9119d877f871ea01b6eb805d09aad36d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.443,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m4-caption-v2-drops-not-pooled",
+      "injection_diff_sha256": "752f0b3d2a4e630b1ec64c529276de0867d4479260411e597f2ca660938f70da",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5cb4038d1cfaed95c98b9e391fac0479bdb9ee8440bb3325754c220d6a7ff7b8",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "        *ratios,\n",
+          "old": "        *ratios, NOT_POOLED_WORDING,\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "74998237bec3771ce641c6376572b55d9119d877f871ea01b6eb805d09aad36d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aabf24b9b541de7f3f7ec1f14f9b831b/izdw-aabf24b9b5.o12091",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aabf24b9b541de7f3f7ec1f14f9b831b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................F.FFFF..........                                    [100%]\n=================================== FAILURES ===================================\n_______ test_caption_contains_fixed_expression_and_certification_literal _______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_caption_contains_fixed_ex0')\n\n    def test_caption_contains_fixed_expression_and_certification_literal(tmp_path):\n        caption = PLOT._caption(_data(tmp_path), \"fig8_test\")\n>       assert \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\" in caption\nE       AssertionError: assert 'Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.' in 'Figure 8. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group b10-backoff-grid-20260915T061814Z-545445...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.'\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:244: AssertionError\n______________ test_v2_caption_contains_independent_fixed_wording ______________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n\n    def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n        for literal in (\n            \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\",\n            \"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\",\n            \"The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above.\",\n            \"performance_certified: false\", \"Within each block, the upper row\", \"Within each block, the lower row\",\n            \"The fixed wording applies to each cohort separately:\", \"nothing beyond\", \"same spec SHA-256\",\n            \"cohort 1: all 120 records were certified with 0 anomalies\", \"cohort 2: all 120 records were certified with 0 anomalies\",\n        ):\n>           assert caption.count(literal) == 1, literal\nE           AssertionError: Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\nE           assert 0 == 1\nE            +  where 0 = <built-in method count of str object at 0x5648a2a93d50>('Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.')\nE            +    where <built-in method count of str object at 0x5648a2a93d50> = 'Figure 8b. B-10 static-backoff right tail: primary result, formal cohort 1 of 2026-09-15 (group b10-backoff-grid-2026...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in each cohort.'.count\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:499: AssertionError\n_______________ test_caption_avoids_forbidden_saturation_claims ________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_caption_avoids_forbidden_0')\n\n    def test_caption_avoids_forbidden_saturation_claims(tmp_path):\n        caption = PLOT._caption(_data(tmp_path), \"fig8_test\")\n        source = PLOT.GENERATOR.read_text()\n        for phrase in (\"does not saturate\", \"no saturation point\", \"never saturates\", \"saturation-free\", \"saturates\"):\n>           assert phrase not in caption.lower()\nE           AssertionError: assert 'does not saturate' not in 'figure 8. b...this cohort.'\nE             \nE             'does not saturate' is contained here:\nE             ?           ^^^^^^^^^^^^^^^^^^^\nE               bort rate does not saturate up to 9999 us, the representable limit of the current encoding. 9999 us is not a physical limit. from 1250 to 9999 us the mean throughput falls to 0.514, 0.766 and 0.846 of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing. this figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision. conditions: pegasus compute nodes, 48 threads, 1,000,000 records, zipf 0.9, read-modify-write disabled, max oper...\nE             \nE             ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:259: AssertionError\n____________ test_landed_fig8_repo_closure_and_caption_when_present ____________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8_repo_closure_and_caption_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8_b10_static_tail_not_observed\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(path.exists() for path in paths) and prefix.name not in readme:\n            skip(\"fig8 integration artifacts are parent-owned and not landed yet\")\n        assert all(path.is_file() for path in paths), \"fig8 integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:441: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:608: in validate_repo_closure\n    _require(provenance[\"caption\"] == _caption(provenance, prefix), \"caption projection mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'caption projection mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: caption projection mismatch\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n________ test_landed_fig8b_repo_closure_and_both_captions_when_present _________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(p.exists() for p in paths) and prefix.name not in readme:\n            skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n        assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == PLOT.SCHEMA_V2\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n    return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\ntools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n    _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'caption projection mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: caption projection mismatch\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\n5 failed, 32 passed in 8.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=2150 retained_bytes=2150 omitted_bytes=0 rendered_excerpt_bytes=2195 sha256=217970980de05b119184504ea477721cf94d7a6ecbad727f1a31a310ab4904df\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n> \n>     def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n>         for literal in (\n>             \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\",\n>             \"The two cohorts are not pooled: no combined estimate, no combined verdict and no cross-cohort significance level are formed, and the closeness of the two cohorts' values is not evaluated as reproduction accuracy or agreement.\",\n>             \"The second cohort returning the same aggregate verdict is reported as such and is not read as anything beyond the fixed wording above.\",\n>             \"performance_certified: false\", \"Within each block, the upper row\", \"Within each block, the lower row\",\n>             \"The fixed wording applies to each cohort separately:\", \"nothing beyond\", \"same spec SHA-256\",\n>             \"cohort 1: all 120 records were certified with 0 anomalies\", \"cohort 2: all 120 records were certified with 0 anomalies\",\n>         ):\n> >           assert caption.count(literal) == 1, literal\n> E           AssertionError: Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\n> E           assert 0 == 1\n> E            +  where 0 = <built-in method count of str object at 0x5648a2a93d50>('Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.')\n> E            +    where <built-in method count of str object at 0x5648a2a93d50> = 'Figure 8b. B-10 static-backoff right tail: primary result, formal cohort 1 of 2026-09-15 (group b10-backoff-grid-2026...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in each cohort.'.count\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:499: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1625 retained_bytes=1625 omitted_bytes=0 rendered_excerpt_bytes=1684 sha256=be10cb6d430933b1b2af1cc940fbcd55136653e6e7e52fb25e84bf2016f9e637\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(p.exists() for p in paths) and prefix.name not in readme:\n>             skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n>         assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == PLOT.SCHEMA_V2\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n>     return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\n> tools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n>     _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'caption projection mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: caption projection mismatch\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1408 retained_bytes=1408 omitted_bytes=0 rendered_excerpt_bytes=1461 sha256=3cee363456067b80850a645b1c5d7c7d2110cda1219e167ec1318f01a108cddf\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8_repo_closure_and_caption_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8_b10_static_tail_not_observed\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(path.exists() for path in paths) and prefix.name not in readme:\n>             skip(\"fig8 integration artifacts are parent-owned and not landed yet\")\n>         assert all(path.is_file() for path in paths), \"fig8 integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:441: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:608: in validate_repo_closure\n>     _require(provenance[\"caption\"] == _caption(provenance, prefix), \"caption projection mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'caption projection mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: caption projection mismatch\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1389 retained_bytes=1389 omitted_bytes=0 rendered_excerpt_bytes=1426 sha256=9af39d72aa06608e5abc835d6b91fa517feca7118ba9721dbc4ba94326e7766c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_caption_avoids_forbidden_0')\n> \n>     def test_caption_avoids_forbidden_saturation_claims(tmp_path):\n>         caption = PLOT._caption(_data(tmp_path), \"fig8_test\")\n>         source = PLOT.GENERATOR.read_text()\n>         for phrase in (\"does not saturate\", \"no saturation point\", \"never saturates\", \"saturation-free\", \"saturates\"):\n> >           assert phrase not in caption.lower()\n> E           AssertionError: assert 'does not saturate' not in 'figure 8. b...this cohort.'\n> E             \n> E             'does not saturate' is contained here:\n> E             ?           ^^^^^^^^^^^^^^^^^^^\n> E               bort rate does not saturate up to 9999 us, the representable limit of the current encoding. 9999 us is not a physical limit. from 1250 to 9999 us the mean throughput falls to 0.514, 0.766 and 0.846 of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing. this figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision. conditions: pegasus compute nodes, 48 threads, 1,000,000 records, zipf 0.9, read-modify-write disabled, max oper...\n> E             \n> E             ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:259: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=946 retained_bytes=946 omitted_bytes=0 rendered_excerpt_bytes=967 sha256=0c22d04693facce64790d0d3fea6e18ef49b3a0a8bc9e6e89e0f6c49516218b8\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_caption_contains_fixed_ex0')\n> \n>     def test_caption_contains_fixed_expression_and_certification_literal(tmp_path):\n>         caption = PLOT._caption(_data(tmp_path), \"fig8_test\")\n> >       assert \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\" in caption\n> E       AssertionError: assert 'Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.' in 'Figure 8. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group b10-backoff-grid-20260915T061814Z-545445...om the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.'\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:244: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=7518 retained_bytes=7518 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10279 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d38672a58d57f224063ffba938343845b314cdf5797dac33c18987fee06fc251"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.995,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m5-fixed-wording-overclaims",
+      "injection_diff_sha256": "df72b2a913490b29cd04db9ce68c8b4c6e19cdf9ab06e42141e356765b4c7add",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0b4efbd5ec906f1d6af46c128a73c75079950e923f991bdd8c17750139b3916e",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "FIXED_WORDING = \"Under the predicates of this preregistration, the abort rate does not saturate up to 9999 us, the representable limit of the current encoding.\"\n",
+          "old": "FIXED_WORDING = \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\"\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "d38672a58d57f224063ffba938343845b314cdf5797dac33c18987fee06fc251",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3bc393d4a733b4f41251eb8851365d2/izdw-b3bc393d4a.o12094",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3bc393d4a733b4f41251eb8851365d2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................F..F.FF                                    [100%]\n=================================== FAILURES ===================================\n________________________ test_bbox_overlap_is_a_failure ________________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_bbox_overlap_is_a_failure0')\n\n    def test_bbox_overlap_is_a_failure(tmp_path):\n        fig, axes = PLOT.make_figure(_data(tmp_path))\n        try:\n            PLOT.check_figure_layout(fig, axes)\n            fig.text(.5, .5, \"overlap alpha\")\n            fig.text(.5, .5, \"overlap beta\")\n            try:\n                PLOT.check_figure_layout(fig, axes)\n            except PLOT.FigureLayoutError as exc:\n                assert \"overlap\" in str(exc)\n            else:\n>               raise AssertionError(\"layout overlap accepted\")\nE               AssertionError: layout overlap accepted\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:237: AssertionError\n____________________ test_layout_failure_publishes_nothing _____________________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_layout_failure_publishes_0')\n\n    def test_layout_failure_publishes_nothing(tmp_path):\n        data = _data(tmp_path)\n        fig, axes = PLOT.make_figure(data)\n        prefix = tmp_path / \"fig8_overlap\"\n        try:\n            fig.text(.5, .5, \"overlap one\")\n            fig.text(.5, .5, \"overlap two\")\n>           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), \"overlap\")\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:394: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x15396c2ce9e0>\nphrase = 'overlap'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n_______________ test_v2_block_title_intrusion_publishes_nothing ________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n\n    def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n>       _v2_layout_failure(tmp_path, True)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\nintrusion = True\n\n    def _v2_layout_failure(tmp_path, intrusion):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n        fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n        prefix = tmp_path / \"fig8b_layout\"\n        try:\n            PLOT.check_figure_layout(fig, axes, expected_axes=12)\n            if intrusion:\n                title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n                title.set_text(\"intrusion\")\n                pos = axes[0, 0].get_position()\n                title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n                phrase = \"block title enters panel\"\n            else:\n                fig.text(.5, .5, \"overlap one\")\n                fig.text(.5, .5, \"overlap two\")\n                phrase = \"overlap\"\n            try:\n                PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n            except PLOT.FigureLayoutError as exc:\n                assert phrase in str(exc)\n            else:\n>               raise AssertionError(\"v2 invalid layout was published\")\nE               AssertionError: v2 invalid layout was published\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n____________________ test_v2_text_overlap_publishes_nothing ____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\n\n    def test_v2_text_overlap_publishes_nothing(tmp_path):\n>       _v2_layout_failure(tmp_path, False)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:586: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\nintrusion = False\n\n    def _v2_layout_failure(tmp_path, intrusion):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n        fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n        prefix = tmp_path / \"fig8b_layout\"\n        try:\n            PLOT.check_figure_layout(fig, axes, expected_axes=12)\n            if intrusion:\n                title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n                title.set_text(\"intrusion\")\n                pos = axes[0, 0].get_position()\n                title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n                phrase = \"block title enters panel\"\n            else:\n                fig.text(.5, .5, \"overlap one\")\n                fig.text(.5, .5, \"overlap two\")\n                phrase = \"overlap\"\n            try:\n                PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n            except PLOT.FigureLayoutError as exc:\n                assert phrase in str(exc)\n            else:\n>               raise AssertionError(\"v2 invalid layout was published\")\nE               AssertionError: v2 invalid layout was published\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing\n4 failed, 33 passed in 8.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1786 retained_bytes=1786 omitted_bytes=0 rendered_excerpt_bytes=1865 sha256=e47943bd4867908f8829d3b0bca28718e07ebfad028ec0c08ef36283c8fdd75a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n> \n>     def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n> >       _v2_layout_failure(tmp_path, True)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n> intrusion = True\n> \n>     def _v2_layout_failure(tmp_path, intrusion):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n>         fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n>         prefix = tmp_path / \"fig8b_layout\"\n>         try:\n>             PLOT.check_figure_layout(fig, axes, expected_axes=12)\n>             if intrusion:\n>                 title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n>                 title.set_text(\"intrusion\")\n>                 pos = axes[0, 0].get_position()\n>                 title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n>                 phrase = \"block title enters panel\"\n>             else:\n>                 fig.text(.5, .5, \"overlap one\")\n>                 fig.text(.5, .5, \"overlap two\")\n>                 phrase = \"overlap\"\n>             try:\n>                 PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n>             except PLOT.FigureLayoutError as exc:\n>                 assert phrase in str(exc)\n>             else:\n> >               raise AssertionError(\"v2 invalid layout was published\")\n> E               AssertionError: v2 invalid layout was published\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1779 retained_bytes=1779 omitted_bytes=0 rendered_excerpt_bytes=1858 sha256=6c19f0edb872b794acac3c894e5304353a3f4c845c34c4f3c71331cdb2fa6429\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\n> \n>     def test_v2_text_overlap_publishes_nothing(tmp_path):\n> >       _v2_layout_failure(tmp_path, False)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:586: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\n> intrusion = False\n> \n>     def _v2_layout_failure(tmp_path, intrusion):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n>         fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n>         prefix = tmp_path / \"fig8b_layout\"\n>         try:\n>             PLOT.check_figure_layout(fig, axes, expected_axes=12)\n>             if intrusion:\n>                 title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n>                 title.set_text(\"intrusion\")\n>                 pos = axes[0, 0].get_position()\n>                 title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n>                 phrase = \"block title enters panel\"\n>             else:\n>                 fig.text(.5, .5, \"overlap one\")\n>                 fig.text(.5, .5, \"overlap two\")\n>                 phrase = \"overlap\"\n>             try:\n>                 PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n>             except PLOT.FigureLayoutError as exc:\n>                 assert phrase in str(exc)\n>             else:\n> >               raise AssertionError(\"v2 invalid layout was published\")\n> E               AssertionError: v2 invalid layout was published\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1180 retained_bytes=1180 omitted_bytes=0 rendered_excerpt_bytes=1241 sha256=6b2c0de09e90b8a19ffb886c3bb413cdde64ac698641d7d922917318770a05bc\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_layout_failure_publishes_0')\n> \n>     def test_layout_failure_publishes_nothing(tmp_path):\n>         data = _data(tmp_path)\n>         fig, axes = PLOT.make_figure(data)\n>         prefix = tmp_path / \"fig8_overlap\"\n>         try:\n>             fig.text(.5, .5, \"overlap one\")\n>             fig.text(.5, .5, \"overlap two\")\n> >           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), \"overlap\")\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:394: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x15396c2ce9e0>\n> phrase = 'overlap'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=777 retained_bytes=777 omitted_bytes=0 rendered_excerpt_bytes=816 sha256=544bb403733bd44ba7e8d3d5c467641f5f856b21b5a4b26d15c1202d9f7ef9d2\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_bbox_overlap_is_a_failure0')\n> \n>     def test_bbox_overlap_is_a_failure(tmp_path):\n>         fig, axes = PLOT.make_figure(_data(tmp_path))\n>         try:\n>             PLOT.check_figure_layout(fig, axes)\n>             fig.text(.5, .5, \"overlap alpha\")\n>             fig.text(.5, .5, \"overlap beta\")\n>             try:\n>                 PLOT.check_figure_layout(fig, axes)\n>             except PLOT.FigureLayoutError as exc:\n>                 assert \"overlap\" in str(exc)\n>             else:\n> >               raise AssertionError(\"layout overlap accepted\")\n> E               AssertionError: layout overlap accepted\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:237: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5522 retained_bytes=5522 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7801 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e84ba87ba5ed24f5de8ab587f0c4a20eb36c71a812a94bc4f2f5320b8b37d067"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.548,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m6-layout-check-returns-early",
+      "injection_diff_sha256": "4e8a82277647a8444f900745f2e400d1b6bd57e36a0576be4145db850b63f1f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "57df709df91303cd574954fc7a0b5764cc2866cafad74ab36768994e0daa1736",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    return None\n    from matplotlib.text import Text\n",
+          "old": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    from matplotlib.text import Text\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "e84ba87ba5ed24f5de8ab587f0c4a20eb36c71a812a94bc4f2f5320b8b37d067",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ac0c5f9487c56aaf70f0984f167f638f/izdw-ac0c5f9487.o12095",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ac0c5f9487c56aaf70f0984f167f638f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F                                    [100%]\n=================================== FAILURES ===================================\n_______________ test_v2_block_title_intrusion_publishes_nothing ________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n\n    def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n>       _v2_layout_failure(tmp_path, True)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\nintrusion = True\n\n    def _v2_layout_failure(tmp_path, intrusion):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n        fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n        prefix = tmp_path / \"fig8b_layout\"\n        try:\n            PLOT.check_figure_layout(fig, axes, expected_axes=12)\n            if intrusion:\n                title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n                title.set_text(\"intrusion\")\n                pos = axes[0, 0].get_position()\n                title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n                phrase = \"block title enters panel\"\n            else:\n                fig.text(.5, .5, \"overlap one\")\n                fig.text(.5, .5, \"overlap two\")\n                phrase = \"overlap\"\n            try:\n                PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n            except PLOT.FigureLayoutError as exc:\n                assert phrase in str(exc)\n            else:\n>               raise AssertionError(\"v2 invalid layout was published\")\nE               AssertionError: v2 invalid layout was published\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\n1 failed, 36 passed in 8.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1786 retained_bytes=1786 omitted_bytes=0 rendered_excerpt_bytes=1865 sha256=e47943bd4867908f8829d3b0bca28718e07ebfad028ec0c08ef36283c8fdd75a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n> \n>     def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n> >       _v2_layout_failure(tmp_path, True)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n> intrusion = True\n> \n>     def _v2_layout_failure(tmp_path, intrusion):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n>         fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n>         prefix = tmp_path / \"fig8b_layout\"\n>         try:\n>             PLOT.check_figure_layout(fig, axes, expected_axes=12)\n>             if intrusion:\n>                 title = next(t for t in fig.texts if t.get_gid() == \"block-title\")\n>                 title.set_text(\"intrusion\")\n>                 pos = axes[0, 0].get_position()\n>                 title.set_position((pos.x0 + pos.width / 2, pos.y0 + pos.height / 2))\n>                 phrase = \"block title enters panel\"\n>             else:\n>                 fig.text(.5, .5, \"overlap one\")\n>                 fig.text(.5, .5, \"overlap two\")\n>                 phrase = \"overlap\"\n>             try:\n>                 PLOT._publish_outputs(fig, axes, prefix, data, [], caption=PLOT._caption_v2, build=PLOT.build_provenance_v2)\n>             except PLOT.FigureLayoutError as exc:\n>                 assert phrase in str(exc)\n>             else:\n> >               raise AssertionError(\"v2 invalid layout was published\")\n> E               AssertionError: v2 invalid layout was published\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:575: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1786 retained_bytes=1786 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2596 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a8037998c62db9cd329e36910256ad73fba6f148207995a85613dfcb21f642dc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.193,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m7-drop-block-title-intrusion-check",
+      "injection_diff_sha256": "05996da8f7be2b66e25de87696f8c5f6913f2deaa054d71783c677f3e5ef3871",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "23dae6fe8e5258d2d7c158b1befad1552117495d0256d79eb2fca00cb32ede1a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "        if text.get_gid() == \"block-title\" and False:\n",
+          "old": "        if text.get_gid() == \"block-title\" and any(_intersection(box, ax.bbox) > 1 for ax in plot_axes):\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "a8037998c62db9cd329e36910256ad73fba6f148207995a85613dfcb21f642dc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b8ed37b698e027ed6e6c163232f74c60/izdw-b8ed37b698.o12150",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b8ed37b698e027ed6e6c163232f74c60/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................F.FFF.FFF.....                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_cli_cohort2_writes_three_outputs_and_v2_closure _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n\n    def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        prefix = tmp_path / \"fig8b_fixture\"\n>       assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\nE       AssertionError: assert 2 == 0\nE        +  where 2 = <function main at 0x14b93318e290>(['--measurement-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/measurements', '/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/fig8b_fixture', '--reproduction-cohort', '2'], expected_hashes={1: {'group-report-20260915/t2500-backoff-static-tail-formal.json': 'cf40740f02c0f2568f0901e8f2dbb7b21f08190eb5def795d...2/t2500-backoff-static-tail-formal-complete.json': 'c72bcd75d71fc4468cd866cb00a9119fdb8d2b4d76394991c507dca4b930eceb'}})\nE        +    where <function main at 0x14b93318e290> = PLOT.main\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:592: AssertionError\n----------------------------- Captured stderr call -----------------------------\n[error] FigureDataError: output prefix basename must start with fig<N>_\n_____________________ test_figure_number_suffix_is_v2_only _____________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_figure_number_suffix_is_v0')\n\n    def test_figure_number_suffix_is_v2_only(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n>       assert PLOT._figure_number(\"fig8b_test\", letter_suffix=True) == \"8b\"\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:480: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n______________ test_v2_caption_contains_independent_fixed_wording ______________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n\n    def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n>       caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:490: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n    f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n________ test_landed_fig8b_repo_closure_and_both_captions_when_present _________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(p.exists() for p in paths) and prefix.name not in readme:\n            skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n        assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == PLOT.SCHEMA_V2\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n    return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\ntools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n    _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\ntools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n    f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n_________ test_two_cohort_artists_match_raw_repetitions_and_intervals __________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_two_cohort_artists_match_0')\n\n    def test_two_cohort_artists_match_raw_repetitions_and_intervals(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n>       fig, axes = PLOT.make_figure_v2(data, \"fig8b_test\")\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:510: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n    fig._b10_tail_caption = _caption_v2(data, prefix)\ntools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n    f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n____________________ test_v2_text_overlap_publishes_nothing ____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\n\n    def test_v2_text_overlap_publishes_nothing(tmp_path):\n>       _v2_layout_failure(tmp_path, False)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:586: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b10_static_tail_formal.py:556: in _v2_layout_failure\n    fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\ntools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n    fig._b10_tail_caption = _caption_v2(data, prefix)\ntools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n    f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n_______________ test_v2_block_title_intrusion_publishes_nothing ________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n\n    def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n>       _v2_layout_failure(tmp_path, True)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b10_static_tail_formal.py:556: in _v2_layout_failure\n    fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\ntools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n    fig._b10_tail_caption = _caption_v2(data, prefix)\ntools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n    f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\ntools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n    _require(match is not None, \"output prefix basename must start with fig<N>_\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'output prefix basename must start with fig<N>_'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\n7 failed, 30 passed in 7.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2074 retained_bytes=2074 omitted_bytes=0 rendered_excerpt_bytes=2141 sha256=51be5dfac8b648de58e33b41f6898f041d050e7a9a91b4a2ad83ac081dc55334\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(p.exists() for p in paths) and prefix.name not in readme:\n>             skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n>         assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == PLOT.SCHEMA_V2\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n>     return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\n> tools/plotting/plot_b10_static_tail_formal.py:566: in _validate_repo_closure_v2\n>     _require(provenance[\"caption\"] == _caption_v2(provenance, prefix), \"caption projection mismatch\")\n> tools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n>     f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1503 retained_bytes=1503 omitted_bytes=0 rendered_excerpt_bytes=1558 sha256=8864e2f4174d2ded148778013e236ee75602abeb0d6f765e4b83684eb70fc8dd\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_v2_block_title_intrusion_0')\n> \n>     def test_v2_block_title_intrusion_publishes_nothing(tmp_path):\n> >       _v2_layout_failure(tmp_path, True)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:582: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:556: in _v2_layout_failure\n>     fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n> tools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n>     fig._b10_tail_caption = _caption_v2(data, prefix)\n> tools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n>     f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1495 retained_bytes=1495 omitted_bytes=0 rendered_excerpt_bytes=1550 sha256=d388171f7ec4d009c5f3590e8c1f394ee1d7e36ab1d0a0d895249b551472b6fa\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_text_overlap_publishes0')\n> \n>     def test_v2_text_overlap_publishes_nothing(tmp_path):\n> >       _v2_layout_failure(tmp_path, False)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:586: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:556: in _v2_layout_failure\n>     fig, axes = PLOT.make_figure_v2(data, \"fig8b_layout\")\n> tools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n>     fig._b10_tail_caption = _caption_v2(data, prefix)\n> tools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n>     f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1479 retained_bytes=1479 omitted_bytes=0 rendered_excerpt_bytes=1534 sha256=d3b370eb72fab46f3c47b0edbbfc053295286da8a46f5df0dee6597f381f8c5b\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_two_cohort_artists_match_0')\n> \n>     def test_two_cohort_artists_match_raw_repetitions_and_intervals(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n> >       fig, axes = PLOT.make_figure_v2(data, \"fig8b_test\")\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:510: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:459: in make_figure_v2\n>     fig._b10_tail_caption = _caption_v2(data, prefix)\n> tools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n>     f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1322 retained_bytes=1322 omitted_bytes=0 rendered_excerpt_bytes=1371 sha256=2ccdb510bcb22d1bacb3e14dc4d33f24c01f67013a2ca4e212564ddbe3d5fab6\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_v2_caption_contains_indep0')\n> \n>     def test_v2_caption_contains_independent_fixed_wording(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n> >       caption = PLOT._caption_v2(_pair_data(root, hashes), \"fig8b_test\")\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:490: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:330: in _caption_v2\n>     f\"Figure {_figure_number(prefix, letter_suffix=True)}. B-10 static-backoff right tail: \" + \", and \".join(identities) + \"; same spec SHA-256; performance_certified: false for both cohorts.\",\n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1167 retained_bytes=1167 omitted_bytes=0 rendered_excerpt_bytes=1194 sha256=387b96fd6e210d405fc8034e88eb122eb05cd1187f52dfce32892c87db2efc49\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n> \n>     def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         prefix = tmp_path / \"fig8b_fixture\"\n> >       assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n> E       AssertionError: assert 2 == 0\n> E        +  where 2 = <function main at 0x14b93318e290>(['--measurement-root', '/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/measurements', '/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/fig8b_fixture', '--reproduction-cohort', '2'], expected_hashes={1: {'group-report-20260915/t2500-backoff-static-tail-formal.json': 'cf40740f02c0f2568f0901e8f2dbb7b21f08190eb5def795d...2/t2500-backoff-static-tail-formal-complete.json': 'c72bcd75d71fc4468cd866cb00a9119fdb8d2b4d76394991c507dca4b930eceb'}})\n> E        +    where <function main at 0x14b93318e290> = PLOT.main\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:592: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1090 retained_bytes=1090 omitted_bytes=0 rendered_excerpt_bytes=1137 sha256=9dfed99c38ee3606fa6ab7fdfc37f7a0b3fa165cc1f20d5b04d9fcea1441f6f8\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_figure_number_suffix_is_v0')\n> \n>     def test_figure_number_suffix_is_v2_only(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n> >       assert PLOT._figure_number(\"fig8b_test\", letter_suffix=True) == \"8b\"\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:480: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:285: in _figure_number\n>     _require(match is not None, \"output prefix basename must start with fig<N>_\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'output prefix basename must start with fig<N>_'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: output prefix basename must start with fig<N>_\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=10130 retained_bytes=10130 omitted_bytes=0 budget_bytes=49152 rendered_bytes=13895 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8f7a876528affc9f14a9b4d8377db55ae429c660fe25f757b3f7ba36f35663e2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 32.169,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m8-figure-number-numeric-only",
+      "injection_diff_sha256": "c6048564e148f07cc704c127dc5a5b527500250510accdfac86fa321b708ecf0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e326686dfa6e228b1bffe563528b66c491a5fa4c7f6074585231ba5b09244a04",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "    pattern = r\"fig([0-9]+)_\"\n",
+          "old": "    pattern = r\"fig([0-9]+[a-z]?)_\" if letter_suffix else r\"fig([0-9]+)_\"\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "8f7a876528affc9f14a9b4d8377db55ae429c660fe25f757b3f7ba36f35663e2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a091ec984abb08ce351531cbf1612aa8/izdw-a091ec984a.o12151",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a091ec984abb08ce351531cbf1612aa8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F....                                    [100%]\n=================================== FAILURES ===================================\n_________ test_two_cohort_artists_match_raw_repetitions_and_intervals __________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_two_cohort_artists_match_0')\n\n    def test_two_cohort_artists_match_raw_repetitions_and_intervals(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        data = _pair_data(root, hashes)\n        fig, axes = PLOT.make_figure_v2(data, \"fig8b_test\")\n        try:\n            assert axes.shape == (4, 3) and len(fig.axes) == 12 and len(fig.legends) == 1\n            assert fig.get_size_inches()[0] == 7.2 and fig.get_size_inches()[1] <= 10.6\n            assert [t.get_text() for t in fig.texts if t.get_gid() == \"block-title\"] == [\n                \"Primary result — cohort 1 (2026-09-15, group b10-backoff-grid-20260915T061814Z-545445)\",\n                \"Independent reproduction — cohort 2 (2026-09-19, group b10-backoff-grid-20260919T131526Z-2235286)\"]\n            PLOT.check_figure_layout(fig, axes, expected_axes=12)\n            for block, n in enumerate((1, 2)):\n                raw = json.loads((root / next(iter(PLOT.COHORTS[n][\"pinned_sha256\"]))).read_text())\n                for col, (campaign, workload) in enumerate(zip(raw[\"campaigns\"], raw[\"workloads\"])):\n                    points = sorted(campaign[\"points\"], key=lambda c: c[\"backoff_us\"])\n                    for row, metric in enumerate((\"tps\", \"abort\")):\n                        ax = axes[2 * block + row, col]\n                        samples = [[r[\"throughput_tps\"] / 1e6 if metric == \"tps\" else\n                                    r[\"abort_counts_\"] / (r[\"abort_counts_\"] + r[\"commit_counts_\"])\n                                    for r in point[\"reps\"]] for point in points]\n                        means = [statistics.mean(v) for v in samples]\n                        cis = [2.7764451051977987 * statistics.stdev(v) / math.sqrt(5) for v in samples]\n                        for kind, indices in ((\"tail\", range(1, 8)), (\"boundary-reference\", range(1))):\n                            container, = [c for c in ax.containers if c.lines[0].get_gid() == kind]\n                            line, caps, bars = container.lines\n                            assert list(line.get_xdata()) == [points[i][\"backoff_us\"] for i in indices]\n>                           PLOT.np.testing.assert_allclose(line.get_ydata(orig=False), [means[i] for i in indices], rtol=1e-12, atol=0)\nE                           AssertionError: \nE                           Not equal to tolerance rtol=1e-12, atol=0\nE                           \nE                           Mismatched elements: 7 / 7 (100%)\nE                           Max absolute difference among violations: 0.012345\nE                           Max relative difference among violations: 0.02533113\nE                            ACTUAL: array([0.925, 0.85 , 0.775, 0.7  , 0.625, 0.55 , 0.475])\nE                            DESIRED: array([0.937345, 0.862345, 0.787345, 0.712345, 0.637345, 0.562345,\nE                                  0.487345])\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:533: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals\n1 failed, 36 passed in 8.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=3041 retained_bytes=3041 omitted_bytes=0 rendered_excerpt_bytes=3132 sha256=f233751e9776c75b21a4e48dd4ad081d88fce31dd2f5ec55db3c225645f971f9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_two_cohort_artists_match_0')\n> \n>     def test_two_cohort_artists_match_raw_repetitions_and_intervals(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         data = _pair_data(root, hashes)\n>         fig, axes = PLOT.make_figure_v2(data, \"fig8b_test\")\n>         try:\n>             assert axes.shape == (4, 3) and len(fig.axes) == 12 and len(fig.legends) == 1\n>             assert fig.get_size_inches()[0] == 7.2 and fig.get_size_inches()[1] <= 10.6\n>             assert [t.get_text() for t in fig.texts if t.get_gid() == \"block-title\"] == [\n>                 \"Primary result \\u2014 cohort 1 (2026-09-15, group b10-backoff-grid-20260915T061814Z-545445)\",\n>                 \"Independent reproduction \\u2014 cohort 2 (2026-09-19, group b10-backoff-grid-20260919T131526Z-2235286)\"]\n>             PLOT.check_figure_layout(fig, axes, expected_axes=12)\n>             for block, n in enumerate((1, 2)):\n>                 raw = json.loads((root / next(iter(PLOT.COHORTS[n][\"pinned_sha256\"]))).read_text())\n>                 for col, (campaign, workload) in enumerate(zip(raw[\"campaigns\"], raw[\"workloads\"])):\n>                     points = sorted(campaign[\"points\"], key=lambda c: c[\"backoff_us\"])\n>                     for row, metric in enumerate((\"tps\", \"abort\")):\n>                         ax = axes[2 * block + row, col]\n>                         samples = [[r[\"throughput_tps\"] / 1e6 if metric == \"tps\" else\n>                                     r[\"abort_counts_\"] / (r[\"abort_counts_\"] + r[\"commit_counts_\"])\n>                                     for r in point[\"reps\"]] for point in points]\n>                         means = [statistics.mean(v) for v in samples]\n>                         cis = [2.7764451051977987 * statistics.stdev(v) / math.sqrt(5) for v in samples]\n>                         for kind, indices in ((\"tail\", range(1, 8)), (\"boundary-reference\", range(1))):\n>                             container, = [c for c in ax.containers if c.lines[0].get_gid() == kind]\n>                             line, caps, bars = container.lines\n>                             assert list(line.get_xdata()) == [points[i][\"backoff_us\"] for i in indices]\n> >                           PLOT.np.testing.assert_allclose(line.get_ydata(orig=False), [means[i] for i in indices], rtol=1e-12, atol=0)\n> E                           AssertionError: \n> E                           Not equal to tolerance rtol=1e-12, atol=0\n> E                           \n> E                           Mismatched elements: 7 / 7 (100%)\n> E                           Max absolute difference among violations: 0.012345\n> E                           Max relative difference among violations: 0.02533113\n> E                            ACTUAL: array([0.925, 0.85 , 0.775, 0.7  , 0.625, 0.55 , 0.475])\n> E                            DESIRED: array([0.937345, 0.862345, 0.787345, 0.712345, 0.637345, 0.562345,\n> E                                  0.487345])\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:533: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3041 retained_bytes=3041 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3875 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ad0935b5327e0ae1858e6dfe934f7e6cd540e2460ec826ef6aed70d411e1d730"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 370.141,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals"
+      ],
+      "hang_risk": false,
+      "id": "m9-lower-block-draws-cohort1",
+      "injection_diff_sha256": "d169aed1889e428c543103d523e635d040a61702459829f463bbcb518ebafa70",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e742e0f6bbe1ebb226da88332b5ff77ef0c79974c66c18dc853c54a692913edc",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], data[\"cohorts\"][0])\n",
+          "old": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], c)\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "ad0935b5327e0ae1858e6dfe934f7e6cd540e2460ec826ef6aed70d411e1d730",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6c77ffc0d46d46b838dcddd7d8346ff5/izdw-6c77ffc0d4.o12156",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6c77ffc0d46d46b838dcddd7d8346ff5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................F.F.........F                                    [100%]\n=================================== FAILURES ===================================\n_____________________ test_cohort_roles_are_fixed_literals _____________________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cohort_roles_are_fixed_literals():\n        assert PLOT.COHORTS[1][\"role\"] == \"primary\"\n        assert PLOT.COHORTS[2][\"role\"] == \"reproduction\"\n>       assert PLOT.CLAIM_BOUNDARY_V2[\"cohorts_pooled\"] is False\nE       assert True is False\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:457: AssertionError\n________ test_landed_fig8b_repo_closure_and_both_captions_when_present _________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        if not any(p.exists() for p in paths) and prefix.name not in readme:\n            skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n        assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == PLOT.SCHEMA_V2\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n    return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\ntools/plotting/plot_b10_static_tail_formal.py:557: in _validate_repo_closure_v2\n    _require(provenance[\"claim_boundary\"] == CLAIM_BOUNDARY_V2, \"claim boundary mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'claim boundary mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b10_tail_under_test.FigureDataError: claim boundary mismatch\n\ntools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n_____________ test_cli_cohort2_writes_three_outputs_and_v2_closure _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n\n    def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        prefix = tmp_path / \"fig8b_fixture\"\n        assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        assert all(p.is_file() for p in paths)\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n        assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n                             \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n        assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\n>       assert prov[\"claim_boundary\"][\"cohorts_pooled\"] is False\nE       assert True is False\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:600: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/fig8b_fixture.png / .pdf / .provenance.json\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\n3 failed, 34 passed in 8.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1606 retained_bytes=1606 omitted_bytes=0 rendered_excerpt_bytes=1665 sha256=17719b3537721bb86cbd79bf9f07117eae42daaeac040e3d6458cfa79b979928\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_landed_fig8b_repo_closure_and_both_captions_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig8b_b10_static_tail_cohort2\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         if not any(p.exists() for p in paths) and prefix.name not in readme:\n>             skip(\"fig8b integration artifacts are parent-owned and not landed yet\")\n>         assert all(p.is_file() for p in paths), \"fig8b integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == PLOT.SCHEMA_V2\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:650: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_b10_static_tail_formal.py:593: in validate_repo_closure\n>     return _validate_repo_closure_v2(provenance, repo_root, expected_hashes=expected_hashes)\n> tools/plotting/plot_b10_static_tail_formal.py:557: in _validate_repo_closure_v2\n>     _require(provenance[\"claim_boundary\"] == CLAIM_BOUNDARY_V2, \"claim boundary mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'claim boundary mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b10_tail_under_test.FigureDataError: claim boundary mismatch\n> \n> tools/plotting/plot_b10_static_tail_formal.py:90: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1194 retained_bytes=1194 omitted_bytes=0 rendered_excerpt_bytes=1233 sha256=69a6e1fc9784222220813ddf518c99798261816e56541104ca47cc9b284b945c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n> \n>     def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         prefix = tmp_path / \"fig8b_fixture\"\n>         assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         assert all(p.is_file() for p in paths)\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n>         assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n>                              \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n>         assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\n> >       assert prov[\"claim_boundary\"][\"cohorts_pooled\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:600: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=374 retained_bytes=374 omitted_bytes=0 rendered_excerpt_bytes=393 sha256=a7ccaa2876df042e590791e7cbbd4db9ee18c0fb236f5fac842f23b8f39e460f\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cohort_roles_are_fixed_literals():\n>         assert PLOT.COHORTS[1][\"role\"] == \"primary\"\n>         assert PLOT.COHORTS[2][\"role\"] == \"reproduction\"\n> >       assert PLOT.CLAIM_BOUNDARY_V2[\"cohorts_pooled\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:457: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3174 retained_bytes=3174 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4914 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "94d55a151fb69643d3d517b5ed579562ca7f5acbb86bd363b8df0f1f7ed7cafc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 42.239,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+      ],
+      "hang_risk": false,
+      "id": "m10-claim-boundary-pooled-true",
+      "injection_diff_sha256": "e73e029e84c10bacd80e533341bc683150967e8400752b930b767442b35c5bbd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc265951d2b7d800277af7c3998edd71107634fbc314b324e4406a8a6b489cfa",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": True, \"cohort_roles_fixed_in_generator\": True,\n",
+          "old": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": False, \"cohort_roles_fixed_in_generator\": True,\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "94d55a151fb69643d3d517b5ed579562ca7f5acbb86bd363b8df0f1f7ed7cafc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/458da1762371905e84e5742f43c06ca3/izdw-458da17623.o12157",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/458da1762371905e84e5742f43c06ca3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_cli_cohort2_writes_three_outputs_and_v2_closure _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n\n    def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n        root, hashes = _fixture_pair(tmp_path)\n        prefix = tmp_path / \"fig8b_fixture\"\n        assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        assert all(p.is_file() for p in paths)\n        prov = json.loads(paths[2].read_text())\n        assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n        assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n                             \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n        assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\n        assert prov[\"claim_boundary\"][\"cohorts_pooled\"] is False\n        argv = prov[\"reproduction\"][\"argv\"]\n        assert argv == [\"python3\", \"tools/plotting/plot_b10_static_tail_formal.py\", \"--measurement-root\",\n                        str(root.resolve()), PLOT.os.path.relpath(prefix, REPO), \"--reproduction-cohort\", \"2\"]\n        PLOT.validate_external_sources(prov, root)\n        _reject(lambda: PLOT.validate_repo_closure(prov, REPO), \"external pins\")\n        PLOT.validate_repo_closure(prov, REPO, expected_hashes=hashes)\n        for n, c in enumerate(prov[\"cohorts\"], 1):\n            raw = json.loads((root / next(iter(hashes[n]))).read_text())\n            for w, campaign in zip(c[\"workloads\"], raw[\"campaigns\"]):\n                assert [cell[\"reps\"] for cell in w[\"cells\"]] == [point[\"reps\"] for point in campaign[\"points\"]]\n        for change, phrase in (\n            (lambda p: p[\"artist_series\"][0][\"y\"].__setitem__(0, -1), \"artist\"),\n            (lambda p: p.update(caption=p[\"caption\"] + \" drift\"), \"caption\"),\n            (lambda p: p[\"claim_boundary\"].update(cohorts_pooled=True), \"claim boundary\"),\n            (lambda p: p[\"cohorts\"][1].update(group_id=PLOT.GROUP_ID), \"group\"),\n            (lambda p: p.update(workloads=[]), \"top-level\"),\n        ):\n            changed = copy.deepcopy(prov)\n            change(changed)\n            _reject(lambda: PLOT.validate_repo_closure(changed, REPO, expected_hashes=hashes), phrase)\n        # Reproject the swapped bundle: only positional identity is now invalid.\n        swapped = copy.deepcopy(prov)\n        swapped[\"cohorts\"].reverse()\n        swapped[\"artist_series\"] = PLOT._artist_series_v2(swapped)\n        swapped[\"caption\"] = PLOT._caption_v2(swapped, prefix)\n>       _reject(lambda: PLOT.validate_repo_closure(swapped, REPO, expected_hashes=hashes), \"cohort order/role\")\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:626: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_cli_cohort2_writes_three_outputs_and_v2_closure.<locals>.<lambda> at 0x147d083403a0>\nphrase = 'cohort order/role'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n----------------------------- Captured stdout call -----------------------------\nwrote /tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0/fig8b_fixture.png / .pdf / .provenance.json\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\n1 failed, 36 passed in 8.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=3559 retained_bytes=3559 omitted_bytes=0 rendered_excerpt_bytes=3680 sha256=31020dec48bb36102b421e945bb0667a853513726e8b59d4976893f02236ae0f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_cli_cohort2_writes_three_0')\n> \n>     def test_cli_cohort2_writes_three_outputs_and_v2_closure(tmp_path):\n>         root, hashes = _fixture_pair(tmp_path)\n>         prefix = tmp_path / \"fig8b_fixture\"\n>         assert PLOT.main([\"--measurement-root\", str(root), str(prefix), \"--reproduction-cohort\", \"2\"], expected_hashes=hashes) == 0\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         assert all(p.is_file() for p in paths)\n>         prov = json.loads(paths[2].read_text())\n>         assert prov[\"schema\"] == \"izanagi-b10-static-tail-formal-figure-provenance/v2\"\n>         assert set(prov) == {\"schema\", \"generated_utc\", \"generator\", \"outputs\", \"external_source_locator\",\n>                              \"cohorts\", \"claim_boundary\", \"artist_series\", \"caption\", \"reproduction\"}\n>         assert [(c[\"cohort\"], c[\"role\"]) for c in prov[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")]\n>         assert prov[\"claim_boundary\"][\"cohorts_pooled\"] is False\n>         argv = prov[\"reproduction\"][\"argv\"]\n>         assert argv == [\"python3\", \"tools/plotting/plot_b10_static_tail_formal.py\", \"--measurement-root\",\n>                         str(root.resolve()), PLOT.os.path.relpath(prefix, REPO), \"--reproduction-cohort\", \"2\"]\n>         PLOT.validate_external_sources(prov, root)\n>         _reject(lambda: PLOT.validate_repo_closure(prov, REPO), \"external pins\")\n>         PLOT.validate_repo_closure(prov, REPO, expected_hashes=hashes)\n>         for n, c in enumerate(prov[\"cohorts\"], 1):\n>             raw = json.loads((root / next(iter(hashes[n]))).read_text())\n>             for w, campaign in zip(c[\"workloads\"], raw[\"campaigns\"]):\n>                 assert [cell[\"reps\"] for cell in w[\"cells\"]] == [point[\"reps\"] for point in campaign[\"points\"]]\n>         for change, phrase in (\n>             (lambda p: p[\"artist_series\"][0][\"y\"].__setitem__(0, -1), \"artist\"),\n>             (lambda p: p.update(caption=p[\"caption\"] + \" drift\"), \"caption\"),\n>             (lambda p: p[\"claim_boundary\"].update(cohorts_pooled=True), \"claim boundary\"),\n>             (lambda p: p[\"cohorts\"][1].update(group_id=PLOT.GROUP_ID), \"group\"),\n>             (lambda p: p.update(workloads=[]), \"top-level\"),\n>         ):\n>             changed = copy.deepcopy(prov)\n>             change(changed)\n>             _reject(lambda: PLOT.validate_repo_closure(changed, REPO, expected_hashes=hashes), phrase)\n>         # Reproject the swapped bundle: only positional identity is now invalid.\n>         swapped = copy.deepcopy(prov)\n>         swapped[\"cohorts\"].reverse()\n>         swapped[\"artist_series\"] = PLOT._artist_series_v2(swapped)\n>         swapped[\"caption\"] = PLOT._caption_v2(swapped, prefix)\n> >       _reject(lambda: PLOT.validate_repo_closure(swapped, REPO, expected_hashes=hashes), \"cohort order/role\")\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:626: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_cli_cohort2_writes_three_outputs_and_v2_closure.<locals>.<lambda> at 0x147d083403a0>\n> phrase = 'cohort order/role'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b10_static_tail_formal.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3559 retained_bytes=3559 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4416 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "16698ca2efad5913196a98cb8c1434feab515170d03a264483fabc1a88eeaa8c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "4d7d88c41aa02544a221437274cd684d58cafdafeb941e168bca445a526297e5",
+      "duration_s": 37.279,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+      ],
+      "hang_risk": false,
+      "id": "m11-drop-positional-role-check",
+      "injection_diff_sha256": "fb74be8d027f2ef68ed5c2c0648df171bbd99ae120e2dcb3b7970847b305c6a5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2960ae996d6ad24ae72692f5fedd98a16664667b44b683249191047dc0689807",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "new": "    _require(len(provenance[\"cohorts\"]) == 2, \"cohort order/role mismatch\")\n",
+          "old": "    _require([(c[\"cohort\"], c[\"role\"]) for c in provenance[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")],\n             \"cohort order/role mismatch\")\n"
+        }
+      ],
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "KILLED",
+      "test_output_sha256": "16698ca2efad5913196a98cb8c1434feab515170d03a264483fabc1a88eeaa8c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/623e026e32c29cd647c360ca0dc75bda/izdw-623e026e32.o12074",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/623e026e32c29cd647c360ca0dc75bda/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_fixture_has_production_shape_and_recomputes_statistics\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_artist_series_have_exact_x_and_boundary_reference_is_separate\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_interval_states_are_copied_not_recomputed\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_figure_passes_layout_check\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_figure_number_comes_from_prefix\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_external_input_hash_drift_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_pinned_hashes_are_used_when_no_override\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_performance_certified_true_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_verdict_mismatch_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_dat_with_missing_row_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_dat_abort_rate_disagreeing_with_counters_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_boundary_reference_inside_interval_set_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_uncertified_correctness_record_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_group_id_absent_from_campaign_path_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_statistics_mismatch_is_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_pinned_input_hashes_match_results_document\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_writes_three_outputs_and_provenance_closure\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_rejects_prefix_without_fig_number\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_malformed_fields_and_counterpart_mismatches_are_rejected\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_and_matches_results_document_when_present\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_rejects_reproduction_cohorts_one_and_three\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present\norchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present\n\n37 tests collected in 0.86s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "0d1397462c9396aaa05d3eb5c7a6ba720213b504646e387d19556cbf4a281f3c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_artist_series_have_exact_x_and_boundary_reference_is_separate",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_interval_states_are_copied_not_recomputed",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_external_input_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_performance_certified_true_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_verdict_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_dat_with_missing_row_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_dat_abort_rate_disagreeing_with_counters_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_boundary_reference_inside_interval_set_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_uncertified_correctness_record_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_group_id_absent_from_campaign_path_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_statistics_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_rejects_prefix_without_fig_number",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_malformed_fields_and_counterpart_mismatches_are_rejected",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_and_matches_results_document_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_rejects_reproduction_cohorts_one_and_three",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present"
+      ],
+      "duration_s": 21.87,
+      "rc": 0,
+      "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+      "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+      "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+      "status": "PASSED",
+      "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ad66e2fa23f4c0d35e0728e2ab976340768090506a90d8d4705e6d4d56a941a2",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+            "old": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\"\"\"\n"
+          }
+        ]
+      },
+      "m1-cohort2-dat-pin-drift": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "adcde7d42a6c28952ac3ac0c841390d1d6c044624f40709b8d20ab2a50d86aae",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd7\",\n",
+            "old": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6\",\n"
+          }
+        ]
+      },
+      "m10-claim-boundary-pooled-true": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e73e029e84c10bacd80e533341bc683150967e8400752b930b767442b35c5bbd",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": True, \"cohort_roles_fixed_in_generator\": True,\n",
+            "old": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": False, \"cohort_roles_fixed_in_generator\": True,\n"
+          }
+        ]
+      },
+      "m11-drop-positional-role-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fb74be8d027f2ef68ed5c2c0648df171bbd99ae120e2dcb3b7970847b305c6a5",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "    _require(len(provenance[\"cohorts\"]) == 2, \"cohort order/role mismatch\")\n",
+            "old": "    _require([(c[\"cohort\"], c[\"role\"]) for c in provenance[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")],\n             \"cohort order/role mismatch\")\n"
+          }
+        ]
+      },
+      "m2-cohort2-role-primary": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f1977d8c2e234af66f8beb1f5c39c9174ee3bb8acf165f0ce9407db8f9ca438",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "    2: {\"role\": \"primary\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n",
+            "old": "    2: {\"role\": \"reproduction\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n"
+          }
+        ]
+      },
+      "m3-verdict-accepts-saturated": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cc0ad554cdad658311d5f8db8be4fe5a3db90e32bdd083814158ebc9fe8e7e8c",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "    _require(report[\"verdict\"] in (EXPECTED_VERDICT, \"saturated-in-all-workloads\"), \"verdict mismatch\")\n",
+            "old": "    _require(report[\"verdict\"] == EXPECTED_VERDICT, \"verdict mismatch\")\n"
+          }
+        ]
+      },
+      "m4-caption-v2-drops-not-pooled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "752f0b3d2a4e630b1ec64c529276de0867d4479260411e597f2ca660938f70da",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "        *ratios,\n",
+            "old": "        *ratios, NOT_POOLED_WORDING,\n"
+          }
+        ]
+      },
+      "m5-fixed-wording-overclaims": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "df72b2a913490b29cd04db9ce68c8b4c6e19cdf9ab06e42141e356765b4c7add",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "FIXED_WORDING = \"Under the predicates of this preregistration, the abort rate does not saturate up to 9999 us, the representable limit of the current encoding.\"\n",
+            "old": "FIXED_WORDING = \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\"\n"
+          }
+        ]
+      },
+      "m6-layout-check-returns-early": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e8a82277647a8444f900745f2e400d1b6bd57e36a0576be4145db850b63f1f2",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    return None\n    from matplotlib.text import Text\n",
+            "old": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    from matplotlib.text import Text\n"
+          }
+        ]
+      },
+      "m7-drop-block-title-intrusion-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "05996da8f7be2b66e25de87696f8c5f6913f2deaa054d71783c677f3e5ef3871",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "        if text.get_gid() == \"block-title\" and False:\n",
+            "old": "        if text.get_gid() == \"block-title\" and any(_intersection(box, ax.bbox) > 1 for ax in plot_axes):\n"
+          }
+        ]
+      },
+      "m8-figure-number-numeric-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c6048564e148f07cc704c127dc5a5b527500250510accdfac86fa321b708ecf0",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "    pattern = r\"fig([0-9]+)_\"\n",
+            "old": "    pattern = r\"fig([0-9]+[a-z]?)_\" if letter_suffix else r\"fig([0-9]+)_\"\n"
+          }
+        ]
+      },
+      "m9-lower-block-draws-cohort1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d169aed1889e428c543103d523e635d040a61702459829f463bbcb518ebafa70",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b10_static_tail_formal.py",
+            "new": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], data[\"cohorts\"][0])\n",
+            "old": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], c)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8bf0786ce44e2daa2d8d6dbdba976eff5dfdc759cdb72d64453da5edfa2a321c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_b10_static_tail_formal.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "864d7135e90549cd3368f9b9e4c5637204b731b5",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_b10_static_tail_formal.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "32aa691de2e1d87de329ba36f8531a5e73b9203c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "20f8d8670b0d627431701d5da4a8cda7ce22923035bde712ae9c5383e76b6407",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "500798956705be5456b04f22de98278e1c5630e2f9b8f806496188ec863ad737",
+  "summary": {
+    "KILLED": 11,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2793-fig8b-cohort2/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "5cf7e10902bf982e976f6be6839a869d1e218868c68ea7a1c3fa62d540acdad8",
+  "updated_at": "2026-09-20T00:15:30.177011+00:00"
+}

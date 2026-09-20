@@ -1,0 +1,1416 @@
+{
+ "_summary_of": {
+  "original_bytes": 1075516,
+  "original_sha256": "06ba841b749de1f0748ed828ed466ed6fde4a1e0400bacd7cf0650e9f202d519",
+  "rule": "mutations[*].artifact.stdout、baseline.artifact.stdout、procedure.collection を bytes/sha256 に置換。他の field は原本と同一。"
+ },
+ "baseline": {
+  "artifact": {
+   "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73935057ba78ccfb03fe04973faac70d/izdw-73935057ba.o12067",
+   "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73935057ba78ccfb03fe04973faac70d/receipt.json",
+   "runner_mode": "dispatch",
+   "stdout": {
+    "bytes": 771,
+    "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+    "omitted": true,
+    "sha256": "0af1ee3f0fd82bb2fe018f78040ef0f4daacb9162dfde6ce4e76060d543554dd"
+   },
+   "stdout_sha256": "0af1ee3f0fd82bb2fe018f78040ef0f4daacb9162dfde6ce4e76060d543554dd"
+  },
+  "artifact_error": null,
+  "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+  "duration_s": 371.065,
+  "failed_nodes": [],
+  "rc": 0,
+  "registration_sha256": "54f0e66be40a3d9b9ab83fee69090c7fd054cd9af97283dabdffad7293383725",
+  "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+  "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+  "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+  "status": "PASSED",
+  "test_output_sha256": "0af1ee3f0fd82bb2fe018f78040ef0f4daacb9162dfde6ce4e76060d543554dd",
+  "test_output_tail": [],
+  "timed_out": false,
+  "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+ },
+ "date": "2026-09-19T23:56:29.771809+00:00",
+ "mutations": [
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3ed35b15698df9364cc51ad2c97b03d6/izdw-3ed35b1569.o12085",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3ed35b15698df9364cc51ad2c97b03d6/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 94627,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "8b72b281007393e44b0b001dc75207c2b31cf5f4045c92e0405e676b94ff85bb"
+    },
+    "stdout_sha256": "8b72b281007393e44b0b001dc75207c2b31cf5f4045c92e0405e676b94ff85bb"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 48.881,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_parent_rows_match_show_parents",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_parent_rows_match_show_parents",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]"
+   ],
+   "hang_risk": false,
+   "id": "M1-parents-first-only",
+   "injection_diff_sha256": "6ef1d96b7a757cf74b96158feed68e3e894be240e9e1fb80c2664e6aba2f9135",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "56dc05380ffd9a6dc234213fbdc274ffb5b1358ef09e6cc962ad64c14c96e7a7",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "    parents = {row[0]: tuple(row[1:2]) for row in rows}\n",
+     "old": "    parents = {row[0]: tuple(row[1:]) for row in rows}\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "8b72b281007393e44b0b001dc75207c2b31cf5f4045c92e0405e676b94ff85bb",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d5840a871e5ee24577ae67616709fb0b/izdw-d5840a871e.o12088",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d5840a871e5ee24577ae67616709fb0b/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 6628,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "f23d7ef2ea7e3cd5b872fc991d3fd67c41ab49388af6dee26610318a29555f14"
+    },
+    "stdout_sha256": "f23d7ef2ea7e3cd5b872fc991d3fd67c41ab49388af6dee26610318a29555f14"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 53.326,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]"
+   ],
+   "hang_risk": false,
+   "id": "M2-accept-outside-closure-parent",
+   "injection_diff_sha256": "30bb22a68472b35e7171d90e06ca1456e8604a2e2316b0b1b68c2a9ca255fc23",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "3770423e87c1e2aa2802eab26b9fc7b19e1feb15e5f824e64955d4f5a45e1f86",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "        or False\n",
+     "old": "        or any(parent not in index or index[parent] >= index[commit]\n               for commit, row_parents in parents.items() for parent in row_parents)\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "f23d7ef2ea7e3cd5b872fc991d3fd67c41ab49388af6dee26610318a29555f14",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ea74e24a3042c791d18195ac007dc420/izdw-ea74e24a30.o12092",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ea74e24a3042c791d18195ac007dc420/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 98737,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "fbc233d7cff5237b86f07805b78fde412c9544b78db3316b61ef86a659f73b4f"
+    },
+    "stdout_sha256": "fbc233d7cff5237b86f07805b78fde412c9544b78db3316b61ef86a659f73b4f"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 405.94,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_always_emits_empty_headers",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_always_emits_empty_headers",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]"
+   ],
+   "hang_risk": false,
+   "id": "M3-drop-always-nonmerge",
+   "injection_diff_sha256": "fd108144d07e8512784ac7f81fefae1781856af8acf8614d4397df6370b22671",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "e264472ef4564806544666f8353efa999add601a8521a0a4055073fd22a5637c",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "            \"--name-only\", \"-z\",\n",
+     "old": "            \"--name-only\", \"-z\", \"--always\",\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "fbc233d7cff5237b86f07805b78fde412c9544b78db3316b61ef86a659f73b4f",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/214e237874b1affd05746c7bf33202bd/izdw-214e237874.o12155",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/214e237874b1affd05746c7bf33202bd/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 61654,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "60d8bafcd4dea38de2e30417e9ec515844ed26fbcd7e0b337d3d1da4d37d945c"
+    },
+    "stdout_sha256": "60d8bafcd4dea38de2e30417e9ec515844ed26fbcd7e0b337d3d1da4d37d945c"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 1054.676,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]"
+   ],
+   "hang_risk": false,
+   "id": "M4-publish-partial-batch",
+   "injection_diff_sha256": "798a3a8ffa4af7cb2da98940e30fb14deeb097b482b3796214ab15177760b51e",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "cb7969985637c4f0335af743fafb8591bc9e35205c5f29185f58fde82892d4fa",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "    if headers != requested or result.keys() != set(requested):\n        return result\n    return result\n",
+     "old": "    if headers != requested or result.keys() != set(requested):\n        return None\n    return result\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "60d8bafcd4dea38de2e30417e9ec515844ed26fbcd7e0b337d3d1da4d37d945c",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74fd93ecf6ba79331639027f9b5d2291/izdw-74fd93ecf6.o12169",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74fd93ecf6ba79331639027f9b5d2291/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 25923,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "02c265cf5258da43711b9845e3c0dff713e06deccc8ff39b1c7d9058ea6659b7"
+    },
+    "stdout_sha256": "02c265cf5258da43711b9845e3c0dff713e06deccc8ff39b1c7d9058ea6659b7"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 52.989,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]"
+   ],
+   "hang_risk": false,
+   "id": "M5-hex-path-as-plain-path",
+   "injection_diff_sha256": "10e140848e44dc08c362af102ab35fc0cecd2b4a16691bc9bafc74616452351c",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "0e2118c697b5583931e3bd1d273b963432ac4e375c7bbaadb08143a3772db181",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "        if token in requested:\n            headers.append(token)\n",
+     "old": "        if re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", token):\n            headers.append(token)\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "02c265cf5258da43711b9845e3c0dff713e06deccc8ff39b1c7d9058ea6659b7",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/991ff93461deff0a2a9cae0391e4b801/izdw-991ff93461.o12170",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/991ff93461deff0a2a9cae0391e4b801/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 27277,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "22d33ea4261c0ac30dbc71f4b39f56464ad229ab1846d7dce9adbc5b02d17578"
+    },
+    "stdout_sha256": "22d33ea4261c0ac30dbc71f4b39f56464ad229ab1846d7dce9adbc5b02d17578"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 52.732,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.ignoreSubmodules]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.relative]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.ignoreSubmodules]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.relative]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.ignoreSubmodules]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.relative]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.relative]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.relative]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.ignoreSubmodules]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.relative]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.ignoreSubmodules]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.ignoreSubmodules]"
+   ],
+   "hang_risk": false,
+   "id": "M6-ignore-config-gate",
+   "injection_diff_sha256": "9c0fa99ea03194cfdf1e8c8642ade57c7b750b29b640be7390bd466d0a0b1d2a",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "313a630b5adcb6cd17815e9da15b87304ac7137b5e7f4d46cce9f796e72c9977",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "        return statuses == statuses\n",
+     "old": "        return statuses == [1, 1]\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "22d33ea4261c0ac30dbc71f4b39f56464ad229ab1846d7dce9adbc5b02d17578",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e04d6f55c20cdd829cabbcd2ea83b76b/izdw-e04d6f55c2.o12171",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e04d6f55c20cdd829cabbcd2ea83b76b/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 13661,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "d5f4a0dc02a65707420a0d355888bff8344d1a4f1de048d9e64820ac4a3ec67d"
+    },
+    "stdout_sha256": "d5f4a0dc02a65707420a0d355888bff8344d1a4f1de048d9e64820ac4a3ec67d"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 52.661,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]"
+   ],
+   "hang_risk": false,
+   "id": "M7-use-earlier-batches-on-late-failure",
+   "injection_diff_sha256": "ce50e88f497cc6ccb25644791724637d0ea029e82eb184b9975e608f7857049c",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "0ef97fc1706bd09f696893e61df9079b51ee9fbf2da53ab746e4ab45067913bb",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "        if parsed is None:\n            break\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n",
+     "old": "        if parsed is None:\n            return None\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "d5f4a0dc02a65707420a0d355888bff8344d1a4f1de048d9e64820ac4a3ec67d",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/790e51017fafb64a0fec4f168f676352/izdw-790e51017f.o12173",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/790e51017fafb64a0fec4f168f676352/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 480362,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "69b5e059bad276a15f6e4c20625bcf93d940c54884eb6a7ad0d2c4d816e094dd"
+    },
+    "stdout_sha256": "69b5e059bad276a15f6e4c20625bcf93d940c54884eb6a7ad0d2c4d816e094dd"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 47.531,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_search_is_bounded_and_unreadable_is_stable",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_findings_follow_input_order_under_skewed_latency",
+    "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_is_identical_across_worker_counts_and_ancestry",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_cab_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_epoch_and_cab_predicates_keep_absent_rules_inactive",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_implementation_epoch_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_scope_epoch_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_forward_correction_public_success",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[decode-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[extra-nul]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[foreign]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[invalid-oid]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[log-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[os-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[terminal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_public_output_and_failure_order[accepted]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_subprocess_counts_and_selected_order[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_default_history_is_nonretroactive_and_rejects_post_policy",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_explicit_ranges_accept_pre_policy_and_reject_post_policy",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_hit_set_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_introduction_commit_itself_rejects_split_cab",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_pre_policy_range_does_not_call_canonical_parser",
+    "orchestrator/tests/test_check_ai_provenance.py::test_checker_bytes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[OTHER]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[PEGASUS_COMPUTE]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_delta_audits_only_new_commits",
+    "orchestrator/tests/test_check_ai_provenance.py::test_delta_correction_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_empty_delta_still_runs_append_only",
+    "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_selected_real_findings",
+    "orchestrator/tests/test_check_ai_provenance.py::test_environment_fingerprint_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_explicit_range_and_message_file_skip_authoritative_repository_guards",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[head-drift]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[parser]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[violation]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[OTHER]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[PEGASUS_COMPUTE]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_acceptance_is_commit_order_invariant",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_ancestry_still_uses_merge_base",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[cab]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[codex-author]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[scope]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_multiple_tip_selected_set_is_accepted",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[cab]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[codex-author]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[format]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[scope]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_suppresses_only_target_missing_not_target_cab",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_without_waiver_is_still_accepted",
+    "orchestrator/tests/test_check_ai_provenance.py::test_git_config_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_history_gate_starts_at_policy_epoch_and_rejects_followup",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_forward_correction",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_waiver",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_outside_range_is_not_stale_end_to_end",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_many_commit_delta_warm_hit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_nonancestor_receipt_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[lf]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[mixed]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[oid]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[root]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parser_canary_runs_even_on_empty_delta",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_receipt_final_selection",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_cache_misses_and_empty_root_keep_distinct_contracts",
+    "orchestrator/tests/test_check_ai_provenance.py::test_prefix_stale_coverage_is_inherited",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_helper_pins_site_and_never_reads_the_ambient_site",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[graft]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[replace]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[shallow]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_real_checker_cold_to_warm_end_to_end",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chain_survives_divergent_tip",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chooses_smallest_delta",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[blob-tip]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[candidate-count]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[coverage]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[directory]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[json]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[missing-tip]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[records]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[selection]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[symlink]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_invalid_schema_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_partition_enumeration_is_local",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_preserves_forward_correction_and_rejects_second",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prefers_current_ancestors",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prunes_oldest",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_save_failure_keeps_warm_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_store_is_shared_across_worktrees",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registered_malformed_finding_uses_normal_commit_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_addition_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_shared_agent_values_stay_with_their_commit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_system_attribute_bytes_invalidate_receipt",
+    "orchestrator/tests/test_check_ai_provenance.py::test_t619_known_violation_is_absorbed_in_authoritative_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_unchanged_attributes_document_commit_warm_hit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_unregistered_malformed_finding_remains_rc1_with_production_registry",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_excludes_docs_only_commits",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_is_reported_on_stdout_on_both_green_and_red",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_disqualified_correction_carrier_explains_the_reason",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_does_not_widen_forward_correction_acceptance",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_is_nonretroactive_before_implementation_policy_epoch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_warm_reuse_matches_full_oracle"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_many_commit_delta_warm_hit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chain_survives_divergent_tip",
+    "orchestrator/tests/test_check_ai_provenance.py::test_delta_audits_only_new_commits",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chooses_smallest_delta",
+    "orchestrator/tests/test_check_ai_provenance.py::test_git_config_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_warm_reuse_matches_full_oracle",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prunes_oldest",
+    "orchestrator/tests/test_check_ai_provenance.py::test_prefix_stale_coverage_is_inherited",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_unchanged_attributes_document_commit_warm_hit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prefers_current_ancestors",
+    "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_real_checker_cold_to_warm_end_to_end",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[directory]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_addition_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_environment_fingerprint_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_delta_correction_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[json]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[candidate-count]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[head-drift]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[records]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_save_failure_keeps_warm_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[coverage]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[oid]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[missing-tip]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_empty_delta_still_runs_append_only",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[rc]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_cab_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[blob-tip]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+    "orchestrator/tests/test_check_ai_provenance.py::test_shared_agent_values_stay_with_their_commit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[symlink]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_receipt_final_selection",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[graft]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_findings_follow_input_order_under_skewed_latency",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+    "orchestrator/tests/test_check_ai_provenance.py::test_path_cache_misses_and_empty_root_keep_distinct_contracts",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[shallow]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[True]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[replace]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_system_attribute_bytes_invalidate_receipt",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[codex-author]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parser_canary_runs_even_on_empty_delta",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[format]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_suppresses_only_target_missing_not_target_cab",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_acceptance_is_commit_order_invariant",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[cab]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[cab]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_disqualified_correction_carrier_explains_the_reason",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[scope]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_scope_epoch_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[lf]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[root]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+    "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[mixed]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_unregistered_malformed_finding_remains_rc1_with_production_registry",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_hit_set_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_forward_correction_public_success",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[codex-author]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_is_identical_across_worker_counts_and_ancestry",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_pre_policy_range_does_not_call_canonical_parser",
+    "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[PEGASUS_COMPUTE]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[scope]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_epoch_and_cab_predicates_keep_absent_rules_inactive",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_introduction_commit_itself_rejects_split_cab",
+    "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[OTHER]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_excludes_docs_only_commits",
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_explicit_range_and_message_file_skip_authoritative_repository_guards",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid",
+    "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_selected_real_findings",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[invalid-oid]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_is_reported_on_stdout_on_both_green_and_red",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[extra-nul]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[duplicate]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[terminal]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[log-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[os-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_history_gate_starts_at_policy_epoch_and_rejects_followup",
+    "orchestrator/tests/test_check_ai_provenance.py::test_attribute_search_is_bounded_and_unreadable_is_stable",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[foreign]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_public_output_and_failure_order[accepted]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_implementation_epoch_predicate_covers_merged_side_branch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[selection]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registered_malformed_finding_uses_normal_commit_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_multiple_tip_selected_set_is_accepted",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_forward_correction",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_ancestry_still_uses_merge_base",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_subprocess_counts_and_selected_order[False]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_outside_range_is_not_stale_end_to_end",
+    "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_partition_enumeration_is_local",
+    "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_without_waiver_is_still_accepted",
+    "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[PEGASUS_COMPUTE]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[decode-error]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_does_not_widen_forward_correction_acceptance",
+    "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_waiver_is_nonretroactive_before_implementation_policy_epoch",
+    "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[OTHER]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_range_helper_pins_site_and_never_reads_the_ambient_site",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_waiver",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[parser]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[missing]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_default_history_is_nonretroactive_and_rejects_post_policy",
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+    "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[violation]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_t619_known_violation_is_absorbed_in_authoritative_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_store_is_shared_across_worktrees",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit",
+    "orchestrator/tests/test_check_ai_provenance.py::test_nonancestor_receipt_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_preserves_forward_correction_and_rejects_second",
+    "orchestrator/tests/test_check_ai_provenance.py::test_receipt_invalid_schema_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_checker_bytes_change_falls_back",
+    "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]",
+    "orchestrator/tests/test_check_ai_provenance.py::test_cab_explicit_ranges_accept_pre_policy_and_reject_post_policy"
+   ],
+   "hang_risk": false,
+   "id": "M8-share-values-of-wrong-text",
+   "injection_diff_sha256": "c9ac6bc02fa6c24b101e6d86fb63b738aecf6e9a2a4134dc5f8b3af82c095d42",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "942e9588a6f58f976e39285e5fd835434f5949caa9723f74eae34ae1e53928db",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(subject)}\n",
+     "old": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(message)}\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "69b5e059bad276a15f6e4c20625bcf93d940c54884eb6a7ad0d2c4d816e094dd",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/29ea1c70d381b59191cc9639aa378118/izdw-29ea1c70d3.o12174",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/29ea1c70d381b59191cc9639aa378118/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 3989,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "26f50932b9cf9427b9a1a6eebc38b978e5eefff037e05ddedbc29e96623f8c09"
+    },
+    "stdout_sha256": "26f50932b9cf9427b9a1a6eebc38b978e5eefff037e05ddedbc29e96623f8c09"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 52.884,
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_agent_values_none_and_empty_are_distinct"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_agent_values_none_and_empty_are_distinct"
+   ],
+   "hang_risk": false,
+   "id": "M9-falsy-values-reparse",
+   "injection_diff_sha256": "ea875d0cfc883467a12fa0ba048bc51d65c2f124f2fc66d7ea236142cb1562f5",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "6a6dabed89481abc4a2dd79775ea6e92c117cf1a0a1b969a488f19c57bb86fe5",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "    if not values:\n        values = _ai_agent_values(message)\n    cab_findings = (\n",
+     "old": "    if values is None:\n        values = _ai_agent_values(message)\n    cab_findings = (\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "KILLED",
+   "test_output_sha256": "26f50932b9cf9427b9a1a6eebc38b978e5eefff037e05ddedbc29e96623f8c09",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/22078bae5f4ef8eb1b54c7737f6b1635/izdw-22078bae5f.o12175",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/22078bae5f4ef8eb1b54c7737f6b1635/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "bytes": 771,
+     "note": "job stdout 全文は job dir の原本 results JSON と job_stdout_path にある (stdout_sha256 と照合できる)。",
+     "omitted": true,
+     "sha256": "4040a9b41cfddae5bfe1966ec495c22ec1b03c3c4f51a22fcff993c16eec8d91"
+    },
+    "stdout_sha256": "4040a9b41cfddae5bfe1966ec495c22ec1b03c3c4f51a22fcff993c16eec8d91"
+   },
+   "artifact_error": null,
+   "category": "positive",
+   "collection_sha256": "27b24087528e5ba4a6f4a34edb6df37d31f61a43068b863bf6eba0e29e007019",
+   "duration_s": 57.687,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "failed_nodes": [],
+   "hang_risk": false,
+   "id": "E0-equivalent-list-copy",
+   "injection_diff_sha256": "36a26a0966a9ce728b3d1fcd5ba93d92006d7bcd5bbb30ae5d4c2da8c92fb284",
+   "matches_expectation": true,
+   "rc": 0,
+   "registration_sha256": "7317ceb6fd7e7da5b64c6a818c4932825fb4509377b43a5f11074f37106341d3",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "new": "    requested = [*dict.fromkeys(merges)]\n",
+     "old": "    requested = list(dict.fromkeys(merges))\n"
+    }
+   ],
+   "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+   "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+   "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+   "status": "SURVIVED",
+   "test_output_sha256": "4040a9b41cfddae5bfe1966ec495c22ec1b03c3c4f51a22fcff993c16eec8d91",
+   "test_output_tail": [],
+   "timed_out": false,
+   "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62"
+  }
+ ],
+ "nonterminal_history": [],
+ "procedure": {
+  "collection": {
+   "bytes": 124767,
+   "note": "collection の node 一覧は job dir の原本 results JSON にある。",
+   "omitted": true,
+   "sha256": "c3429f11bc6e33f8796603bb1a64ad9d0695e7a9c45258c0d842ba9ecac69b22"
+  },
+  "hang_timeout_seconds": 3000.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "E0-equivalent-list-copy": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [],
+    "expected_status": "SURVIVED",
+    "injection_diff_sha256": "36a26a0966a9ce728b3d1fcd5ba93d92006d7bcd5bbb30ae5d4c2da8c92fb284",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "    requested = [*dict.fromkeys(merges)]\n",
+      "old": "    requested = list(dict.fromkeys(merges))\n"
+     }
+    ]
+   },
+   "M1-parents-first-only": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_ancestry_parent_rows_match_show_parents",
+     "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+     "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "6ef1d96b7a757cf74b96158feed68e3e894be240e9e1fb80c2664e6aba2f9135",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "    parents = {row[0]: tuple(row[1:2]) for row in rows}\n",
+      "old": "    parents = {row[0]: tuple(row[1:]) for row in rows}\n"
+     }
+    ]
+   },
+   "M2-accept-outside-closure-parent": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "30bb22a68472b35e7171d90e06ca1456e8604a2e2316b0b1b68c2a9ca255fc23",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "        or False\n",
+      "old": "        or any(parent not in index or index[parent] >= index[commit]\n               for commit, row_parents in parents.items() for parent in row_parents)\n"
+     }
+    ]
+   },
+   "M3-drop-always-nonmerge": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_always_emits_empty_headers",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "fd108144d07e8512784ac7f81fefae1781856af8acf8614d4397df6370b22671",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "            \"--name-only\", \"-z\",\n",
+      "old": "            \"--name-only\", \"-z\", \"--always\",\n"
+     }
+    ]
+   },
+   "M4-publish-partial-batch": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "798a3a8ffa4af7cb2da98940e30fb14deeb097b482b3796214ab15177760b51e",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "    if headers != requested or result.keys() != set(requested):\n        return result\n    return result\n",
+      "old": "    if headers != requested or result.keys() != set(requested):\n        return None\n    return result\n"
+     }
+    ]
+   },
+   "M5-hex-path-as-plain-path": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "10e140848e44dc08c362af102ab35fc0cecd2b4a16691bc9bafc74616452351c",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "        if token in requested:\n            headers.append(token)\n",
+      "old": "        if re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", token):\n            headers.append(token)\n"
+     }
+    ]
+   },
+   "M6-ignore-config-gate": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.ignoreSubmodules]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[0-diff.relative]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.ignoreSubmodules]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[128-diff.relative]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.ignoreSubmodules]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_merge_path_batch_config_gate[2-diff.relative]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "9c0fa99ea03194cfdf1e8c8642ade57c7b750b29b640be7390bd466d0a0b1d2a",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "        return statuses == statuses\n",
+      "old": "        return statuses == [1, 1]\n"
+     }
+    ]
+   },
+   "M7-use-earlier-batches-on-late-failure": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "ce50e88f497cc6ccb25644791724637d0ea029e82eb184b9975e608f7857049c",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "        if parsed is None:\n            break\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n",
+      "old": "        if parsed is None:\n            return None\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n"
+     }
+    ]
+   },
+   "M8-share-values-of-wrong-text": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[home]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[index]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[modified]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[nested]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[untracked]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_additional_attribute_sources_fall_back[xdg]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_attribute_search_is_bounded_and_unreadable_is_stable",
+     "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_attribute_symlink_replaced_by_same_bytes_falls_back[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_findings_follow_input_order_under_skewed_latency",
+     "orchestrator/tests/test_check_ai_provenance.py::test_audit_history_is_identical_across_worker_counts_and_ancestry",
+     "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_cab_predicate_covers_merged_side_branch",
+     "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_epoch_and_cab_predicates_keep_absent_rules_inactive",
+     "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_implementation_epoch_predicate_covers_merged_side_branch",
+     "orchestrator/tests/test_check_ai_provenance.py::test_authoritative_scope_epoch_predicate_covers_merged_side_branch",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_forward_correction_public_success",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_history_matches_old_acquisition_with_nonempty_results[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[decode-error]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[duplicate]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[extra-nul]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[foreign]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[invalid-oid]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[log-error]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[os-error]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_invalid_output_discards_every_record[terminal]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_ignore_submodules_uses_legacy_verdict",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_merge_late_failure_discards_all_parent_batches",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-known]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[first-unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-forty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-known]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-sixtyfour]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_hex_paths_discard_entire_batch[last-unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[decode]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[duplicate]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[empty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[nul]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[rc]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[spawn]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[swapped]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[terminator]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[unknown]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_nonmerge_invalid_output_restores_public_result[value]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_public_output_and_failure_order[accepted]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_batch_subprocess_counts_and_selected_order[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_cab_default_history_is_nonretroactive_and_rejects_post_policy",
+     "orchestrator/tests/test_check_ai_provenance.py::test_cab_explicit_ranges_accept_pre_policy_and_reject_post_policy",
+     "orchestrator/tests/test_check_ai_provenance.py::test_cab_hit_set_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_cab_policy_introduction_commit_itself_rejects_split_cab",
+     "orchestrator/tests/test_check_ai_provenance.py::test_cab_pre_policy_range_does_not_call_canonical_parser",
+     "orchestrator/tests/test_check_ai_provenance.py::test_checker_bytes_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[OTHER]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_compute_and_other_sites_audit_locally[PEGASUS_COMPUTE]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_configured_attribute_path_with_trailing_newline_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_delta_audits_only_new_commits",
+     "orchestrator/tests/test_check_ai_provenance.py::test_delta_correction_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_empty_delta_still_runs_append_only",
+     "orchestrator/tests/test_check_ai_provenance.py::test_empty_registry_restores_all_selected_real_findings",
+     "orchestrator/tests/test_check_ai_provenance.py::test_environment_fingerprint_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_explicit_range_and_message_file_skip_authoritative_repository_guards",
+     "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[head-drift]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[parser]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_failure_never_publishes_receipt[violation]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[OTHER]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_force_dispatch_provenance_compute_and_other_audit_locally[PEGASUS_COMPUTE]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_acceptance_is_commit_order_invariant",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_ancestry_still_uses_merge_base",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[cab]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[codex-author]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[format]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_commit_must_be_normally_green[scope]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_multiple_tip_selected_set_is_accepted",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_merge_side_missing_finding",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[cab]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[codex-author]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[format]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[missing]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_preserves_other_commit_findings[scope]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_rejects_target_without_actual_missing",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_suppresses_only_target_missing_not_target_cab",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_two_parent_target_singleton_ranges",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_unrelated_history_remains_native_valid",
+     "orchestrator/tests/test_check_ai_provenance.py::test_forward_correction_without_waiver_is_still_accepted",
+     "orchestrator/tests/test_check_ai_provenance.py::test_git_config_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_gitattributes_change_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_history_gate_starts_at_policy_epoch_and_rejects_followup",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_forward_correction",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_composes_with_waiver",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_expected_kind_coexists_with_other_new_finding",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_real_commit_findings",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_missing_expected_finding_diagnoses_regression",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_other_kind_does_not_hide_selected_stale",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_outside_range_is_not_stale_end_to_end",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_selected_clean_entry_is_stale_rc2",
+     "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_suppresses_only_one_expected_finding",
+     "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[configured]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_local_attributes_bytes_change_falls_back[info]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[blank]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_malformed_kind_requires_nonblank_note_rc2[empty]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_many_commit_delta_warm_hit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_nonancestor_receipt_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_normal_audit_reuses_agent_values_once[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[duplicate]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[lf]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[mixed]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[oid]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[outside]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parent_cache_invalid_rows_fall_back[root]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_parser_canary_runs_even_on_empty_delta",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[fallback]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batch_subprocess_counts_and_selected_order[normal]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_correction_full_history_fallback",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_batches_follow_receipt_final_selection",
+     "orchestrator/tests/test_check_ai_provenance.py::test_path_cache_misses_and_empty_root_keep_distinct_contracts",
+     "orchestrator/tests/test_check_ai_provenance.py::test_prefix_stale_coverage_is_inherited",
+     "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_matches_one_authoritative_audit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_range_helper_pins_site_and_never_reads_the_ambient_site",
+     "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[graft]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[replace]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_range_path_batches_stay_disabled_at_repository_boundaries[shallow]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_real_checker_cold_to_warm_end_to_end",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chain_survives_divergent_tip",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_chooses_smallest_delta",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[blob-tip]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[candidate-count]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[coverage]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[directory]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[json]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[missing-tip]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[rc]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[records]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[selection]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_damage_falls_back[symlink]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_first_valid_nonempty_delta_stops[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_invalid_schema_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_partition_enumeration_is_local",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[False]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_prefilter_and_zero_delta_stop[True]",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_preserves_forward_correction_and_rejects_second",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prefers_current_ancestors",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_retention_prunes_oldest",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_save_failure_keeps_warm_verdict",
+     "orchestrator/tests/test_check_ai_provenance.py::test_receipt_store_is_shared_across_worktrees",
+     "orchestrator/tests/test_check_ai_provenance.py::test_registered_malformed_finding_uses_normal_commit_audit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_registry_accepts_visible_character_mixed_with_non_descriptive_characters",
+     "orchestrator/tests/test_check_ai_provenance.py::test_registry_addition_falls_back",
+     "orchestrator/tests/test_check_ai_provenance.py::test_shared_agent_values_stay_with_their_commit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_system_attribute_bytes_invalidate_receipt",
+     "orchestrator/tests/test_check_ai_provenance.py::test_t619_known_violation_is_absorbed_in_authoritative_audit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_unchanged_attributes_document_commit_warm_hit",
+     "orchestrator/tests/test_check_ai_provenance.py::test_unregistered_malformed_finding_remains_rc1_with_production_registry",
+     "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_excludes_docs_only_commits",
+     "orchestrator/tests/test_check_ai_provenance.py::test_waived_count_is_reported_on_stdout_on_both_green_and_red",
+     "orchestrator/tests/test_check_ai_provenance.py::test_waiver_disqualified_correction_carrier_explains_the_reason",
+     "orchestrator/tests/test_check_ai_provenance.py::test_waiver_does_not_widen_forward_correction_acceptance",
+     "orchestrator/tests/test_check_ai_provenance.py::test_waiver_is_nonretroactive_before_implementation_policy_epoch",
+     "orchestrator/tests/test_check_ai_provenance.py::test_warm_reuse_matches_full_oracle"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "c9ac6bc02fa6c24b101e6d86fb63b738aecf6e9a2a4134dc5f8b3af82c095d42",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(subject)}\n",
+      "old": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(message)}\n"
+     }
+    ]
+   },
+   "M9-falsy-values-reparse": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_check_ai_provenance.py::test_agent_values_none_and_empty_are_distinct"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "ea875d0cfc883467a12fa0ba048bc51d65c2f124f2fc66d7ea236142cb1562f5",
+    "replacements": [
+     {
+      "file": "tools/check_ai_provenance.py",
+      "new": "    if not values:\n        values = _ai_agent_values(message)\n    cab_findings = (\n",
+      "old": "    if values is None:\n        values = _ai_agent_values(message)\n    cab_findings = (\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "54f0e66be40a3d9b9ab83fee69090c7fd054cd9af97283dabdffad7293383725",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_check_ai_provenance.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 5400.0
+ },
+ "repo_head": "55068f84e9ce516956920b613f9b99f624a6c565",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_check_ai_provenance.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "4accf48d6ff93f98fd690213342752bbcd56f716",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "de28e0ec8708c3cb9e32c7ff60d67eadd5cd54105c5f811140c3689ccbb1e275",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "59e6afd908eef05481d2122611f5889597f4206609b40d91723c2bc7431307b5",
+ "summary": {
+  "KILLED": 9,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 10,
+  "matching": 10,
+  "recorded": 10,
+  "registered": 10
+ },
+ "tool_identity": {
+  "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+  "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2609-t2656-provenance-cost/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+ },
+ "tool_sha256": "db6c071f329a313c7666da8f662e21e5b26f114da2954c95ccdb6d770128bb62",
+ "updated_at": "2026-09-20T00:35:22.889831+00:00"
+}
