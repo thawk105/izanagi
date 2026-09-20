@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "    \"\"\"next-tasks の入口上限・現物・plus-one 拒否を独立 literal で固定する。\"\"\"\n",
+          "new": "    \"\"\"next-tasks の入口上限・現物・plus-one 拒否を独立 literal で固定する。(等価変異の目印: docstring のみ)\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-command-doc-drift-plus-one-byte",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/next-tasks.md",
+          "old": "izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)。\n",
+          "new": "izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)。X\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-pin-literal-off-by-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "    assert len(_read(_REPO, rel).encode(\"utf-8\")) == 27_060\n",
+          "new": "    assert len(_read(_REPO, rel).encode(\"utf-8\")) == 27_061\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -10830,6 +10830,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   3 種類あることが実測された。恒久対応は、段 1 の凍結節で列挙するときに
   識別子 key・編集面 path key・検査値 literal の 3 方向を別々に回し、
   1 方向しか回していない列挙を「全件」と書かないことである。
+
+- **再発: 2026-09-20** — docs-only 想定の wave が branch `worktree-next-tasks-cmd-mergebase-fix` (`.claude/commands/next-tasks.md` を
+  2+/1-、`check_docs` の byte 予算 27,100 と provenance は通過済み) を取り込んだところ、計算ノード焦点走 (request `12472.nqsv`) で
+  `test_check_docs.py::test_next_tasks_command_budget_literal_is_exact` が `assert 27060 == 26950` で赤になった。同 test は command
+  file の**現物 bytes を独立 literal で pin** している (2026-09-17 `e9a4efeae`) が、branch 側の wave も取り込み側の段 1 brief も、
+  編集面 path (`next-tasks.md`) を key に pin している側を検索していなかった (`check_docs.py` の予算表だけを見た)。恒久対応は
+  F301 本体のとおり (段 1 で編集予定 path を key に `grep -rn` し bytes / 件数 pin を全列挙する)。修復は Codex author の literal 追随
+  1 個 + 変異 matrix (M1 command file +1 byte / M2 literal off-by-one が同 node で KILLED)。一次資料は
+  `output/insights/2026-09-20/t2796-docs-carry4/README.md` §2 / §5。
 ### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
 
 - 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。
@@ -11736,6 +11745,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   復旧は hold の `recovery` field どおり — qdel せず、`qstat` 一覧の行頭 RequestID で消滅を
   待ち、submission dir の終端証拠と tree clean / HEAD を確かめてから 2 箇所を job dir へ退避して
   削除した。dispatch 経路の command に呼び出し側 timeout を重ねない。
+
+- **再発: 2026-09-20** — T-2802 の A/B 測定 (直接投入の受入 shard 走) で、03-A の shard-2 が計算ノード側の xdist
+  INTERNALERROR で rc=16 になり、親 `run_tests.py` が shard-0/1 の dispatcher を SIGTERM した後、request 12235 / 12236 が
+  scheduler に残って base worktree に hold が立った。qstat で終端を確認してから `output/pegasus-dispatch/orphan-holds/12235.nqsv.json`
+  と `12236.nqsv.json` の 2 file だけを消し、root の `orphan-hold.json` (dispatcher が参照する単数形) を残したため、次の 04-A は
+  3 shard とも `child_started=false / "reason":"orphan-hold"` で未投入のまま rc=16 になり、測定走 1 走分 (投入上限 12 走のうち 1) を失った。
+  F333 の恒久対応 (`find output/pegasus-dispatch -maxdepth 2 -name "*hold*"` で全 path を列挙し、dispatcher log が名指しする path を読む)
+  を撤去前に実行しておらず、記憶の hook (`runbook §7.6 の hold file は root の単数形`) も無かった。是正は root latch の削除 (写しを
+  `output/insights/2026-09-20/t2802-floor-attempt-recovery/runs/03-A/orphan-hold-root.json` に保存) と裁定 erratum 5、
+  memory `compute-node-discipline` への追記。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の

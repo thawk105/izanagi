@@ -170,7 +170,8 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
   この基準を既存安全規律、ユーザー要求、受入要件の削除・弱化に使わない。
 - **非稼働**: ListAgents の稼働セッション・生きた worktree・handoff のいずれにも
   担当が居ないこと。**task 単位だけでなく file 単位でも見る** — 提案候補の対象 file を稼働中
-  worktree の `git diff main --stat` と照合する。task-ID が別でも編集面が重なれば実質的に
+  worktree の merge-base からの diff (`<tools>/next_tasks_wave_impl_diff.sh`。`git diff main` は
+  main の進行分が混じり読めない) と照合する。task-ID が別でも編集面が重なれば実質的に
   非稼働ではない (2026-08-20 実測: 対象 `layer3_report.py`/`test_layer3_report.py` が task-ID の
   異なる稼働 wave と衝突、`dispatch_compute.py`/`dev_wave_wait.py` も別の稼働 wave 2 本と衝突して
   いた。ListAgents のセッション名一覧だけでは検出できない)。

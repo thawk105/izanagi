@@ -1,0 +1,32 @@
+{
+  "run": "03",
+  "condition": "A",
+  "pair_slot": 1,
+  "condition_worktree": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2802-base-a",
+  "expected_sha": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "tracked_diff_stat_sha256": "b0f872d0ffa5da0214fa2d8ec68693bdfb750e7a80baf8ec3a9595b003335075",
+  "valid_tree": true,
+  "measurement_tip": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "tip_sha": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "tip_sha_after": "b7f970dfa507558f7fb669a5ab38958d6c76b57c",
+  "main_sha_at_launch": "7d0e044f7effc008ea8c3f6b9c0036af523d96df",
+  "submitted_at": "2026-09-20T11:25:34+0900",
+  "finished_at": "2026-09-20T11:34:47+0900",
+  "session_dir": null,
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/0769fae7d734910cb200ab65a509c0de",
+  "copy_ok": false,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 5.22,
+  "rc": 16,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 1,
+    "load1_max_exclusive": 30.0,
+    "leader_query": "ps -eo args | grep '[d]ev_wave_wait.py' | grep ' acceptance' | grep -vc <slug>"
+  }
+}
