@@ -637,7 +637,7 @@ cell ごとに要求した。性能と正しさの独立 (規律 1・2) は、�
     (rr5 `0.009536033056996148`、rr50 `0.00725042525457718`、rr95 `0.0022283754708938273`)、official floor 案は
     `output/insights/2026-09-16/t2698-official-floor-resubmit/README.md` (rr20 35,817.945 / rr80 46,065.78) と D2120 項 2。
 24. **ccbench pin 前進:** `output/insights/2026-09-20/t2304-pin-advance/README.md` ([T-2304]、gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` を
-    同一 commit で `511c9538` → `e9e477ca` へ、main `482f19b88` に着地。worklog fragment は fold 前)。
+    同一 commit で `511c9538` → `e9e477ca` へ、main `482f19b88` に着地)、worklog entry 1747、D2184 (pin 前進の波及の射程)。
 25. **凍結 v2 g1 の批准と launch validation の未達:** worklog entry 1742 ([T-2724]、`docs/worklog.md`)、
     `output/insights/2026-09-20/t2724-ax-delegated/README.md`、D2180。検証相の未完走原因の同定は worklog entry 1744 と
     `output/insights/2026-09-20/verifier-capacity/README.md` §2・§4 (D2181)。
