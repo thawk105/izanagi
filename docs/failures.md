@@ -2448,6 +2448,13 @@
   21530 passed / 赤 0)。
 
 - **再発: 2026-09-10** — 事前登録の束縛のために consumer へ `subprocess.run` を 2 箇所足したが、親の焦点走の集合を「変更した 2 file + 直接の path/basename pin 2 file」から組んだため、repo 全体を AST 走査する `test_ccbench_spawn_sites.py` の reviewed inventory を落とした。2026-08-28 の再発と同じ機構である。今回は最終受入まで行かず段 6 の敵対レビュー B が静的に指摘し、親が当該 file を単独走して 2 failed を現物で確認してから fix へ回したため、費用は焦点走 1 回 + fix 子 1 本に収まった。**新しい process 起動 site を足す wave では、親の焦点走の集合に `test_ccbench_spawn_sites.py` を必ず入れる。** module 名の grep では出ない層である。
+
+- **再発: 2026-09-20** — wave dev-wave-fig3b-arc-status。新設した `orchestrator/tests/test_plot_arc_status.py` が自走 harness も allowlist
+  記載も持たず、受入全走 1 回目 (3 shard) を `test_plain_runner_coverage.py` の 1 件赤にした。親は `DW-O26` (新規 test file を足す走は
+  file 集合列挙のメタテストも焦点走に含める) を段 9 前に読みながら、焦点走 2 回とも新 test file 単独で回した。author とレビュー B は
+  目録型 test を `plotting` / `provenance` の語で検索して「見つからない」と報告した (file 名を列挙する型は語検索で必ず落ちる、
+  [T-2737] と同じ)。fix2 (Codex、`__main__` + `pytest.main` の 2 行) の後に焦点走を新 test + `test_plain_runner_coverage.py` +
+  `test_check_subprocess_bytecode_guard.py` で回して閉じた。費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -16679,6 +16686,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-08** — [T-2401] wave が同じ型を踏んだ。新設 test が Python を明示 `env=` 付きで起動する 4 箇所に bytecode guard が無く、受入全走 (22016 件緑) が `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` 1 件だけで rc=70 になった。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を直接叩けば 1 分で分かる違反である。**恒久対応は既に F521 が書いていたが、受入前の棚卸しをしなかった。** 焦点走 (`DW-O26`) は参照関係で対象を引くため、repo 全体を走査する checker 系 test は今回も対象に入らなかった。
+
+- **再発: 2026-09-20** — wave dev-wave-fig3b-arc-status。新設 test の T7 が `subprocess.run([sys.executable, ...], env={...})` に
+  bytecode guard を持たず、受入全走 1 回目を `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` の赤にした (上の F42 再発と
+  同じ走)。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` は数秒で rc=1 を返したのに、受入前の関門として
+  `check_docs.py` と `check_ai_provenance.py` しか回していなかった。fix2 で env dict literal に `PYTHONDONTWRITEBYTECODE` を足し、
+  checker rc=0 を login で確認してから受入を取り直した。
 ### F522. acceptance 直前に session-start resume gate を再実行し、既存の main 取り込み経路を使わず停止した [手順漏れ] [コンテキスト浪費]
 
 - 事象: [T-1376] の stale-main 再開で固定 main を取り込んだ後、acceptance 直前に local main が
@@ -27898,3 +27911,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 登録された node は test 全体の間 read lock (LOCK_SH) を保持する。ccbench の writer node が gate を握って全 reader の解放を待つ間、後続の reader は gate で 245 秒を超えて待ち、deadline で fail-closed になる。既存の stub-free T-080 e2e 10 node (各約 200 秒) は `_T080SharedBases` で session に 1 回だけ base を組み、各 test はその copy を使うので登録されておらず、この経路を通らない。「実 root を読む test は登録する」は正しいが、**長時間の test をそのまま登録すると lock の保持時間が gate の deadline を食う**。
 - 恒久対応: copy後の親rootへのfallbackをfix-4で除去し、`build_production_emitter_g1`のreceipt接続分岐はcopy内の材料だけを読む。登録簿は既存stub-free e2eと同じ未登録へ戻し、`root=ROOT`を直接渡すseam負例だけ保持する。base構築自体の親root読取りと完全排他の残余は保持する。解消根拠はfix-5後の焦点走（5698: 1211 passed / 12 skipped、5699: 1104 passed / 11 skipped）と回収時の独立静的監査2本 `output/insights/2026-09-18/t2724-t080-defer-active-v2/verbatim/recovery-review-A.md` / `recovery-review-B.md`。旧`s6-rereview.md`のRR-1は修正前NO-GOであり、解消証拠ではない。
 - 再発検知: 既存のcopy内材料欠落7条件の負例とreal-repo serialization検査、焦点走のlock deadline/INTERNALERRORを確認する。一般的な所要閾値や新しいgateは設けない。
+
+### F1031. 40 hex の SHA を `rev-parse` の出力から写さず頭から推測で補完し、存在しない object を指す git 操作を投げた [捏造/幻覚] [手順漏れ]
+
+- 事象: 2026-09-20 に独立 2 例。(1) [T-2790] wave で `git worktree add ... <sha>` の sha を短縮 sha から補完して存在しない object を
+  fetch し、独立 clone を 1 回無駄にした。(2) 本 wave (fig3b) で変異用 clone の `git update-ref refs/heads/main <sha>` に推測の
+  40 hex を書いて `nonexistent object` で失敗し、clone を作り直した。いずれも実害は clone 1 回の再作成で、成果物・判定は変わらない。
+- 根本原因: 短縮 sha を見た後に 40 hex 引数を手で組み立てた (先頭 9 桁だけが本物で残りは埋め文字)。git は短縮 sha を受けるのに
+  「40 hex 必須」という思い込みから補完した。
+- 恒久対応: memory `worktree-discipline` (2026-09-20 追記「worktree add の sha は 40 hex を rev-parse から」) と
+  `mutation-discipline` (update-ref 後の reset --hard)。行動規律: SHA を引数に書く command は、直前の `git rev-parse <ref>` の
+  出力を逐語で写すか、短縮 sha をそのまま渡す (補完しない)。
+- 再発検知: `nonexistent object` / `bad object` の失敗を見たら推測 SHA を疑い、`git rev-parse` の出力と比較する。

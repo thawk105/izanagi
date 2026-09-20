@@ -23,6 +23,7 @@
 | `fig8_b10_static_tail_not_observed.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` | B-10 静的 backoff 右 tail の **09-15 正式 cohort** (group `b10-backoff-grid-20260915T061814Z-545445`、集団判定 `not-observed-in-any-workload`) の**記述図**。事前登録 §4.1 の 8 点 × 3 workload × 5 反復。`fig2c_` とは別格子・別 cohort であり、その続きではない。言い方は事前登録 §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637)。**再現欄付きの後継図 `fig8b_` がある (下記)。本図の bytes は不変** |
 | `fig8b_b10_static_tail_cohort2.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` (`--reproduction-cohort 2`) | `fig8_` の**後継図 (再現欄付き)**。**主結果 cohort 1** (group `b10-backoff-grid-20260915T061814Z-545445`、上 block) と**独立再現 cohort 2** (group `b10-backoff-grid-20260919T131526Z-2235286`、事前登録追記込み commit `8737cacb4` に束縛、下 block) を縦 2 block で**区別して併記**する記述図。両 cohort とも集団判定 `not-observed-in-any-workload`、18/18 区間 `declining`。**合成しない** (プール推定・統合 verdict・cohort をまたぐ有意水準を作らず、近さを一致度として評価しない。事前登録 2026-09-19 追記 項 2〜3・項 7、D2157)。言い方は §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637) |
 | `fig9_a1_balanced5_sized_attempt1.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` | A-1 balanced5 sized 本走 **attempt-0001** (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`) の**記述図**。3 workload の 30 対の差 (variant − baseline) と、その対差平均 ± 登録済み区間 h を床 ±B と並べる。**非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)** のdescriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再認可は判定しない。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
+| `fig3b_arc_status_2026-09-20.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_arc_status.py` | `fig3_` の**後継図**。ストーリー 2026-09-19 版の §0 の 3 幕と §8 の A 系列 5 項目 / B 群 11 項目の**状態** (取得済み / 非認証 / 裁定待ち・人間手番 / 未取得) だけを描いた模式図。**数値・新規判定を含まない** (生成器は JSON を描くだけで判定・値・認証を再計算しない)。入力は状態 JSON `tools/plotting/arc_status_story_2026-09-19.json` (人が同版本文から写した射影) と同版本文。旧 fig3 は凍結のまま |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -1051,3 +1052,128 @@ provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を
 
 provenance が `caption_source` として束縛する results 稿の SHA-256 は `67e8c53cbfe27a33fa51d55744364050cadbd1e83e605c0f9c06477f882d8e2e`
 (稿は凍結物で、着地後に変わらない)。
+
+---
+
+# `fig3b_arc_status_2026-09-20` — 3 幕構成と §8 A/B 群の現在地 (2026-09-19 版の状態だけを描いた模式図、`fig3_` の後継図)
+
+## 何を示す図か
+
+`docs/paper-story/2026-09-19.md` (凍結物) の **§0 の 3 幕の要約**と **§8 の証拠項目 (A 系列 5 項目 = A-1 / A-2 / A-3 / A-5 / A-6、
+B 群 11 項目 = A-4 / B-1〜B-10) の【状態】**を、1 枚の模式図にしたものである。**数値は 1 つも描かない。** 各項目に描くのは
+4 状態のどれか (色とマーカー形。白黒でも形で判別できる) と、項目 ID・短い名前・副ラベル (同版の【状態】が持つ判定語・限定語) だけである。
+
+- **obtained (取得済み)** — 記録された判定または完了がある。**主張を支持するとは限らない** (B-1 は `not met`、A-6 は `reject`、
+  A-3 は規則の決着であって証拠ではない)。
+- **uncertified (非認証)** — 材料はあるが、項目として認証・昇格・閉鎖されていない (A-1 の descriptive 出力、B-7 の材料、B-9 の
+  機序仮説 view、B-10 の記述的 cohort)。項目単位の分類であり、材料の中の個々の認証 (例: A-2 / A-6 の correctness certified) を
+  取り消す意味ではない。
+- **awaiting ruling / human action (裁定待ち・人間手番)** — 裁定または人間の手番が残っていて進めない (A-4: 床の採用は
+  D2120 項 2 で裁定済みだが chain は main に無く、承認 A と active pointer X は人間 commit で未発効)。
+- **not obtained (未取得)** — 当該要件の証拠が未取得 (構造的な閉塞を含む)。**部分的な実走や生値が無いという意味ではない**
+  (A-5 は投入 2 度と balanced 生値 1 走があるが要件を満たさない、B-6 は K2 の 2 巡が閉じたがリーク制御は未完備)。
+
+上段の 3 幕は §0 の要約で、第 1 幕・第 2 幕は `complete`、第 3 幕は `in progress`。第 3 幕の 5 行のうち、Silo 固定スコープの解除
+(D2114) と機構の進展は「証拠の状態」ではないので中立の横線を付け、4 状態のマーカーを付けない。
+
+**この図は判定を作らない。** 状態は人が同版 §8 の各項冒頭【状態】と §0 の実文から読んで JSON に写したもので、生成器は JSON を
+描くだけであり、判定・値・認証を再計算しない (規律 2 は影響を受けない)。A-2 / A-6 の判定は当時の identity 層の下のものとして残り、
+後の identity 修正で遡って強くならない (規律 7)。図を variant 採用や認可の根拠にしない。**「A-1 の値がある」「mocc は第 2 成功例」
+「B-10 を閉じた」「床値が発効した」とは、この図からも読めない** (同版 §0 末尾の 4 つの否定と同じ)。
+
+## 既存図との関係
+
+- **`fig3_arc_status.png` (2026-07-10 版、Phase 3 段 5 時点) の後継図。** 旧図は凍結物で bytes は 1 byte も変えていない。旧図と
+  2026-08-23 版以降の第 3 幕の記述が一致しないことは各版 §0 と入口 README が明記しており、その注記はこの図の追加後も真である
+  (旧図自身は変わらないため)。旧図は値 (利得率・A 値) を含んでいたが、本図は値を持たない。
+- fig1 / fig2 / fig2b / fig2c / fig4〜fig9 の bytes も変わらない。本図は、それらの図が描く測定・判定を要約せず、§8 の【状態】だけを写す。
+- **2 本目の論文 (`docs/paper-story-backoff/`) と共用しない** (D1637)。
+
+## 入力
+
+- **状態 JSON** `tools/plotting/arc_status_story_2026-09-19.json` (schema `izanagi-arc-status/v1`)。状態語の**意味の正本は
+  同版本文**であり、JSON はその射影である。各項目の `source_anchor` は `§8 A-1` / `§0 item 3` / `§0 act 3` の形で本文の
+  項目見出しを指し、生成器はその見出し行が同版本文の該当節に**ちょうど 1 行**あることを検査する (意味の一致は検査しない —
+  それは本 wave の read-only レビューが担った。下の proof chain)。
+- **本文** `docs/paper-story/2026-09-19.md`。`story_path` は `docs/paper-story/<story_version>.md` と一致しなければならない。
+  JSON と本文の SHA-256 を provenance に記録する。
+- **FIGURE_CONVENTIONS §1 (入力は WAL/dat のみ) との関係:** §1 は数値を描く図の規約である。本図は値を持たない模式図で、入力は
+  「人が凍結本文から写した状態の一覧」に限る。この位置づけは本図に限った限定であり、数値図への一般的な免除ではない
+  (fig4 節が凍結 report を権威として読む限定例外を書いたのと同型)。
+- **拒否条件 (生成器は成果物を出さない):** schema / key 集合の不一致 (未知・不足・重複 key、NaN / Infinity)、4 状態以外の
+  `state` (証拠項目)、ID 重複、anchor の不正・不在・非一意、`story_path` の不一致、自由文 (label / sublabel / 状態定義文) に
+  数量が混じる (`=`、`%`、単位語、数詞、JSON で宣言した証拠項目 ID と `reference_ids` 以外の数字入り token)、prefix が
+  `fig<N><letters>_` の形でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・
+  所属領域内包・相互非交差・兄弟セル非交差・marker の非交差) の違反。
+- **JSON は凍結物ではない** (凍結物は PNG / PDF / provenance JSON)。ただし本図の再現入力として残す方針を採り、状態が変わる次の版では
+  上書きせず別 file (例 `arc_status_story_<次の版日付>.json`) を足す。
+
+## 再現
+
+repo root から、**計測機の外** (login node で生成した) で次を実行する。出力 prefix は着地済み file と衝突しないものにする
+(既存の 3 出力があれば生成器が拒否する)。
+
+```bash
+python3 tools/plotting/plot_arc_status.py --states tools/plotting/arc_status_story_2026-09-19.json /path/to/reproduction/fig3b_arc_status_2026-09-20
+```
+
+作成時は `docs/paper-story/figures/fig3b_arc_status_2026-09-20` を prefix にした (provenance の `argv` に逐語)。図番号は prefix の
+`fig<N><letters>_` から取る (`3b`)。`--states` 省略時の既定はこの JSON。
+
+### 再現できるのは「状態と表示内容」であって「配置」や「バイト列」ではない
+
+再現の対象は、記録された状態 (4 状態) と表示内容 (項目 ID・名前・副ラベル・凡例・脚注・caption) である。**配置は描画環境に
+依存する** — 折返しと行位置は font の実測幅・高さから決まり、matplotlib の版と font 解決 (DejaVu Sans) が違えば改行や位置が
+変わりうる (収まらなければ layout check が保存前に拒否する)。provenance JSON は生成時刻 (`generated_utc`) を持ち、PDF は
+matplotlib が生成日時を埋めるので、byte 一致も保証しない。着地 bytes の SHA-256 は下に記録する (記録であり、着地後の一致を
+検査する test は本図には無い — 下の proof chain)。
+
+### 次の版 (2026-09-20 版以降) との整合
+
+本図は **2026-09-19 版の snapshot** であり、稼働中の wave は数えない (同版 §8 冒頭の規則)。次の版が land したら、項目ごとに
+`state` だけでなく副ラベルの事実・限定・未了理由・人間手番まで比較する。変わらなければ本図をそのまま使い、「2026-09-19 版由来」の
+表示も維持する。変わった項目があれば、この JSON と 3 成果物は残したまま、新しい JSON (`arc_status_story_<版日付>.json`) と
+別 filename の後継図 (例 `fig3c_arc_status_<作成日>`) を作る。同 filename への再生成は凍結規則 (本 README 冒頭) に反するので行わない。
+図名の日付 (`2026-09-20`) は作成日、JSON 名と provenance の `story_version` (`2026-09-19`) は状態を読んだ版の日付である。
+
+## 作図規約への適合
+
+- §1: 値を描かない模式図なので WAL/dat の再計算は無い (上の「入力」の限定)。数値の混入は生成器が自由文検査で拒否する。
+- §2 / §3 / §4: 反復・基準線・二軸を持たない (数値図の項目は該当しない)。
+- §5: 図中ラベルは、証拠項目が項目 ID + 短い名前 + 副ラベル、Act の行が短い名前 + 副ラベル (JSON 内部 ID は図に出さず provenance の `drawn_items.id` にだけ残す)、凡例は 4 状態の表示名と JSON の定義文。キャプションで一度だけ展開する。
+- §6: provenance に入力 2 file (JSON・本文) と生成器・出力 2 file の SHA-256、描いた 27 項目 (`drawn_items`: ID・状態・実表示文字列)、
+  状態定義、caption、展開済み argv、matplotlib / numpy の版を記録する。
+- §7: login node で生成 (計測機の外)。
+- §8: matplotlib / numpy のみ、自己完結 (既存生成器を import しない)。PNG (200 dpi) と PDF を出す。
+- §9: 保存前に Agg renderer で layout check を走らせ、違反があれば 3 成果物を 1 つも出さない。
+- §10: 単体テスト `orchestrator/tests/test_plot_arc_status.py` は**実 JSON そのもの**を実寸 fixture として本物の Figure を layout check へ
+  通し、色・マーカーの独立表と provenance を照合する。実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列である (生成器の固定 template に図番号と版日付を差し込む)。英文で書く。
+
+> Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: act summaries from section 0 and evidence-item states from section 8. Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. Obtained records that a judgment or completion exists, not that a claim is supported: B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. B-7, B-9, and B-10 are neither promoted nor closed by this figure. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. A-2 and A-6 retain the judgments made under the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.
+
+## proof chain
+
+- 図に描いた 27 項目 (Act 見出し 3・Act 行 8・証拠項目 16) → provenance JSON の `drawn_items` (ID・状態・実表示文字列。生成器は
+  JSON から期待される集合と保存前に照合する)
+- 各項目の状態と副ラベル → `tools/plotting/arc_status_story_2026-09-19.json` (provenance `inputs[kind=states]` の SHA-256)
+- 状態の出所 → `docs/paper-story/2026-09-19.md` の §8 各項冒頭【状態】と §0 (provenance `inputs[kind=story]` の SHA-256、各項目の
+  `source_anchor` が指す見出し行の一意な存在を生成器が検査)
+- 状態の写しが本文の意味と一致すること → 本 wave の read-only 敵対レビュー (段 3 の逐語照合 16 項目 + Act 3 の 5 行、段 6 の独立
+  レビュー)。一次資料は `output/insights/2026-09-20/fig3b-arc-status/README.md`
+- 生成器 → `tools/plotting/plot_arc_status.py` (実装 commit `14529331c` (段 5 author)、段 6 fix `152c1d99d`、test だけの fix2 `5686eaa2a`、provenance `generator.sha256`)
+- 実走 → login node、2026-09-20 08:25 JST (provenance `generated_utc` 2026-09-19T23:25:08Z)、rc=0、3 成果物。単体テスト `orchestrator/tests/test_plot_arc_status.py` は
+  計算ノード job `11937.nqsv` で 30 passed / 9.03 秒 (段 6 fix 後。fix 前は job `11908.nqsv` で 29 passed / 9.06 秒)。変異 9 系列は独立 clone (commit `152c1d99d`) で probe → final の 2 段、final は 9/9 KILLED・期待 node 完全一致、test だけの fix2 の後の再走 final2 も 9/9 KILLED (一次資料 `output/insights/2026-09-20/fig3b-arc-status/` の `mutation-final-results.json`)
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+## 着地 bytes の SHA-256 (記録)
+
+次の 3 行は着地時点の bytes の記録である。fig9 と違い、着地後の一致を検査する test は**本図には作っていない** (gate の新設は
+本 wave の scope 外)。着地後の同一性は git の履歴が担う。
+
+- `fig3b_arc_status_2026-09-20.png` SHA-256: `831d2fcc0673c4ed1115af89d8e69f69e978bc60ac8583f3239e27426207a65b`
+- `fig3b_arc_status_2026-09-20.pdf` SHA-256: `87018e0879a319a59b0eba426087b332950cc282e08bf12bb400ddf65f4269bd`
+- `fig3b_arc_status_2026-09-20.provenance.json` SHA-256: `4772b3e41a7b4eef29904e7acc8a7583dc526ae5986bfb010665bd48cf99c597`

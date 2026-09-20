@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-state-membership-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "state in STYLES",
+          "new": "True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[bogus-state]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-keys-superset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "set(value) == set(expected.split())",
+          "new": "set(value) >= set(expected.split())"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-act-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-definition-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-group-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-item-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-top-key]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-free-text-early-return",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "def check_display_text(value, declared_ids):\n",
+          "new": "def check_display_text(value, declared_ids):\n    return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[assignment]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[group-percent]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[latency]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[percent]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[throughput]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t4_free_text_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4a-intersection-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "def _intersection(left, right):\n",
+          "new": "def _intersection(left, right):\n    return 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[overlap]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4b-contains-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "def _contains(outer, inner):\n",
+          "new": "def _contains(outer, inner):\n    return True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[escape]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-input-hash-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "hashlib.sha256(raw).hexdigest()",
+          "new": "(\"0\" * 64)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-style-all-obtained",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "return STYLES[state][:2]",
+          "new": "return STYLES[\"obtained\"][:2]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t2_independent_styles_and_changed_state"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-publisher-skips-layout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "    check_figure_layout(fig, layout)\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-prefix-accept-all",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "_require(match is not None, \"output prefix basename must start with fig<N><letters>_\")",
+          "new": "_require(True, \"output prefix basename must start with fig<N><letters>_\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t8_cli_rejects_invalid_prefix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
