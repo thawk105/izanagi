@@ -11,9 +11,11 @@ D2120 項 15 が「paper-story の単独 results 稿は権威 bytes から作る
 **本稿は同系列の既存の稿を改めるものではない。** results 系列にこの 3 campaign を単位とする稿はこれまで無く、
 論文ストーリー 2026-09-20 版 §8 の exact claim (性能) が採る 3 値の執筆材料は、A-3 一本化 insight
 (`output/insights/2026-08-25_paper-story-a3-gain-unification/README.md`。冒頭で `authority: none` を宣言する導出索引) と
-`figures/README.md` の fig2b 節に散在していた。**本稿は版・claim-evidence・insight を数値の出所にせず、一次資料全体
-(3 campaign の `campaign.lock`・`runs/wal.jsonl`・`reports/` の `.dat` と材料レポート、fig2b の provenance JSON、
-同環境の較正記録、裁定) から作った。** 本稿の数値・日付の出所は §5 である。
+`figures/README.md` の fig2b 節に散在していた。**本稿は、論文値と sweep の測定数値 (median・反復・条件・時刻・当時の判定) を
+版・claim-evidence・insight から取らず、一次資料全体 (3 campaign の `campaign.lock`・`runs/wal.jsonl`・`reports/` の `.dat` と
+材料レポート、fig2b の provenance JSON、同環境の較正記録、裁定) から再抽出した。** 混同防止のために載せる参考値 (別分母の利得、
+profile との差、既定 adaptive の 3 定数、D20 の観測者効果) は A-3 insight・`figures/README.md`・D20 からの引用であり、そのことと
+再計算していない範囲を各所と §5.4 に明記する。本稿の数値・日付の出所は §5 である。
 
 **この結果は採否 protocol の出力ではない。** 3 campaign は 2026 年 6 月の Phase 2 ケーススタディ (P2-4) の sweep で、
 事前登録も outer status も持たない。**論文が採る 3 値 (write-heavy +38.3% / balanced +11.3% / read-heavy −6.6%) は、
@@ -68,7 +70,8 @@ provenance JSON が入力として指すのは `610004b9` の 1 本である。�
   横断の結論 (D1993 項 6)。符号の一致も本稿では扱わない (§3 限定 4)。
 - `BACKOFF_NOINLINE=1`・`perf record` 下の機序診断 profile の値 (+38.5%) を headline として扱うこと (§3 限定 5)。
 - 適応 backoff を分母にした利得 (+147.4%)、P2-2 全探索の stock 最良を分母にした値 (+39.0 / +12.9 / −7.1%)、
-  別時刻の repro campaign の値 (+42.2 / +11.7%)。いずれも論文値ではなく、本稿は再計算していない (§3 限定 7・8)。
+  別時刻の repro campaign の値 (+42.2 / +11.7%)。いずれも論文値として扱わない。adaptive 分母の値だけは §3 限定 7 で
+  write-heavy WAL から再計算し、他の参考値は A-3 insight の記載を引くのみで再計算していない (§3 限定 8)。
 - 8 点のうち採用点以外の値から導く命題 (最適量の一般化・機序)。
 - 研究としての成功・失敗・新規性の宣告 (D12)。
 
@@ -376,9 +379,11 @@ write-heavy「静的 backoff が無 backoff を +38.3% 上回る (sweet spot あ
 10. **有意差判定も区間推定も持たない。** 各側 5 反復の median の比である。D19 の採否 floor 3.0% (`BETWEEN_RUN_CV`) は当時の
     `compare` の丸め閾値であり、本稿はそれを使った採否判定を行わない (sweep は採否 protocol ではない)。§1.6 の between-run 変動係数
     (0.67% / 1.07% / 0.11%) は D19 自身が「楽観的下限」と評した fresh 同窓測定で、利得の不確かさの推定にも使わない。
-11. **図 2b は論文の利得率の出所ではない。** 図の点推定は標本平均 (+38.1 / +11.4 / −6.9%)、論文値は median 比 (§2.3)。図は
-    provenance の `not_certified` field と図中の `NOT CERTIFIED` 表示を持ち、variant 採用の根拠にも certified な性能結論にも
-    使わない (`figures/README.md`)。図を「現行契約の測定結果」「headline 適格」と読ませない (2026-09-20 版 §7 の恒久項目)。
+11. **図 2b は論文の利得率の出所ではない。** 図の点推定は標本平均 (+38.1 / +11.4 / −6.9%)、論文値は median 比 (§2.3)。図 2b の
+    provenance は入力の `read_purpose` を `HISTORICAL_RAW`、verifier epoch を `E0` と記録する (§2.3)。図を現行 certification の証拠や
+    「現行契約の測定結果」「headline 適格」として扱わず、variant 採用の根拠にも certified な性能結論にも使わない (`figures/README.md`
+    のキャプション正文、2026-09-20 版 §7 の恒久項目)。同 README の別図 (`t2187_stage2_thread_axis`、調整済み adaptive の実対照) が持つ
+    `not_certified` field と `NOT CERTIFIED` 表示は fig2b のものではなく、fig2b の provenance JSON にその field は無い。
 12. **測定日は同一ではない** (write-heavy / balanced は 2026-06-22、read-heavy は 2026-06-28)。binary は同一 hash だが (§1.4)、
     6 日の間の機体の状態は成果物に無く、3 workload を「同時期の 1 実験」と書かない。
 13. **8 genome の adaptive は CCBench 既定 3 定数の adaptive backoff であり、調整済み adaptive ではない。** 3 定数の値は
@@ -432,7 +437,9 @@ write-heavy「静的 backoff が無 backoff を +38.3% 上回る (sweet spot あ
 
 ### 5.1 権威 bytes (repo 内 tracked) と SHA-256 — 本稿が 2026-09-20 に再計算した値
 
-いずれも fig2b の provenance JSON と A-3 insight の source ledger の記載と byte 一致した。
+以下の SHA-256 は本稿が各実 file から `sha256sum` で再計算した値である。fig2b の provenance JSON (lock / WAL / dat の 9 件) または
+A-3 insight の source ledger (lock / WAL / 材料レポート / profile の 11 件) に収載されている 14 件 (重複を除く) は、その記載とも byte
+一致した。較正記録 4 件はどちらにも収載が無く、今回の再計算値だけである。
 
 | artifact | tracked path | SHA-256 |
 |---|---|---|
@@ -455,7 +462,7 @@ write-heavy「静的 backoff が無 backoff を +38.3% 上回る (sweet spot あ
 | profile JSON (+38.5% の出所。headline ではない) | `output/env/linux-baremetal/profile/backoff_profile_t48_skew0p9_rr5.json` | `e99932213a571561c87f5ac253e19f59a81382718bb0cf08a9c64ea64281d184` |
 | profile md | `output/env/linux-baremetal/profile/backoff_profile_t48_skew0p9_rr5.md` | `7d419391f9e9f8e205d87b5ca5b0b16eb57b5ebc73ce904adf47c8ee64e9e8c8` |
 
-### 5.2 図と導出索引 (本稿の数値の出所ではない。§2.3 の `facts` の転記元は provenance JSON)
+### 5.2 図と導出索引 (論文値と測定数値の出所ではない。§2.3 の `facts` の転記元は provenance JSON、参考値の引用元は §5.4 に示す)
 
 | artifact | path | SHA-256 |
 |---|---|---|
@@ -505,6 +512,10 @@ fig2b の PNG / PDF の SHA-256 は provenance JSON の `outputs[]` の記載と
 | profile の値 1,867,747 / 2,586,112 と +38.5% の未丸め値 | profile JSON の `rows[].tps_median` (`backoff_us` 0 と 10) に §2.1 の式を適用 (本稿の再計算)。A-3 insight の再計算表 (38.461579646%) と一致 |
 | 既定 adaptive 分母の +147.4% | write-heavy WAL の median (2,603,521 / 1,052,528) に §2.1 の式を適用 (本稿の再計算)。A-3 insight の記載と一致 |
 | +39.0 / +12.9 / −7.1%、+42.2 / +11.7% | A-3 insight の参考表の記載。本稿は再計算していない (§4.3) |
+| profile と sweep の利得の差 0.133 パーセントポイント、「4 点の出自差が利得の大きさを変えた実証は無い」 | A-3 insight の「+38.5% と +38.3% はなぜ別の値なのか」節の記載 (差は本稿の未丸め値 38.4616… − 38.3288… とも整合するが、本稿はこの節の論証を再導出していない) |
+| noinline 計装単体の観測者効果 +0.76% (2,623,221 対 2,603,521)、between-run floor 3.0% の内側 | D20 本文の逐語。本稿は再計算していない |
+| `dff0f1ef…` が sweep の 1 commit 後で `Fix ODR violation…` であること、上流の「default (ADD_ANALYSIS=0) … unaffected」 | 前者は pin 済み CCBench repository の `git log`、後者は A-3 insight が引く上流 commit message の記載 (本稿は上流 message を読み直していない) |
+| 既定 adaptive の 3 定数 (刻み 100 µs / 上限 1000 µs / 更新間隔 10 µs) | `figures/README.md` の記載。成果物に無い (§4.2) |
 | 材料レポートの「判定」行 | 各 `_report.md` の逐語 |
 
 ### 5.5 同じ結果についての既存の記述 (本稿の出所ではない)
