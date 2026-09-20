@@ -1,0 +1,6 @@
+{
+  "kind": "infra",
+  "by": "parent (claude, dev-wave-t2802-floor-attempt-recovery)",
+  "evidence": "child rc=16; child.log: 'acceptance shard gate failed: dispatch-infrastructure'. shard-2 (request 12234, node job elapsed 178 s) compute-side child rc=16: pytest-xdist INTERNALERROR 'KeyError: <WorkerController gw30>' in xdist/scheduler/loadscope.py:250 mark_test_complete (known xdist race, not a test of the changed module) plus 1 failed timing-sensitive node orchestrator/tests/test_pegasus_floor_tools.py::test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound[write] ('diagnostic timeout did not interrupt the syscall') on the unmodified base tree (condition A = b7f970dfa). run_tests.py then terminated shard-0/1 dispatchers (signal 15) while requests 12235/12236 stayed on the scheduler (orphan holds in t2802-base-a/output/pegasus-dispatch/orphan-holds/). Not attributable to the B implementation (A run). Whole pair (slot 1) restarts from 04-A per the preregistered rule.",
+  "at": "2026-09-20T11:39:00+09:00"
+}
