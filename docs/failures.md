@@ -28009,3 +28009,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: turn registry は ff の前に ticket を `mutating` にし、`_finish_land_turn` は `landed-postcondition-failed` を「未解決の mutating」として残す。`_observe_dead_land_turn` の回復は「main == main_before (rolled-back)」「main == landing_tip かつ expected_fold == noop (done)」「main^1 == landing_tip の fold commit (done)」の 3 形しか知らず、**「ff 済み・fold 未開始 (expected_fold = planned)・fold state 無し」を解決できない**。D16 経路の test (`test_gitlink_change_lands_but_cannot_report_success_before_d16_sync`) と dead mutating の test (`ff-done`) はいずれも fragment 無し (noop fold) で書かれており、pending fragment との組合せが代表されていなかった。
 - 恒久対応: `tools/dev_wave_land.py` の `_observe_dead_land_turn` にこの形を「landed-fold-pending」として解決する分岐 (同一要求は `waiting` で already-landed 経路へ進み fold を行う、他要求は dead ticket を `waiting` に書き換えて election を塞がない) と、`_finish_land_turn` で同形を `mutating` に残さない分岐を足し、`orchestrator/tests/test_dev_wave_land.py` に pending fragment 付きの D16 変種と `ff-done-fold-pending` 観測 test、不明な mutating が従来どおり raise する負例を固定した (本 wave の fix commit、insight `output/insights/2026-09-20/t2304-pin-advance/README.md` §6)。
 - 再発検知: 上記 test 3 本 (pending fragment 付き D16 の同一要求再実行が `landed` + fold commit、後続要求が塞がれない、不明形は raise)。
+
+### F1034. cleanup 引き渡し script の退避 tar が空のまま worktree 4 本を撤去し、K2 loop の campaign 原本を失った [恒真ゲート] [手順漏れ] [証拠破損]
+
+- 事象: 2026-09-20 19:25 JST、`/cleanup-branches` の裁定候補 1 (unlocked・main 取込済み・非占有だが未追跡 `output/` を抱えた
+  worktree 4 本) を、Claude が repo 外に書いた引き渡し script `/work/1/SFC/tanab/cleanup-20260920/handoff.sh retire` で
+  ユーザーが撤去した。退避 step (`git diff HEAD` + 未追跡 file の tar) を撤去の前に置いていたが、`backup/20260920-192523/*/untracked.tgz`
+  は 4 本とも 0 entry だった。tracked の差分は 0 だったので失ったのは未追跡 file だけで、K2 loop の campaign 原本
+  (`submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` の WAL・`agent_outputs.jsonl`・`loop_state.json`・
+  `s4_loop_digest.txt`・`campaign.lock`・受領証) が round 3 は全部、round 2 は AO と `campaign.lock`、roundtrip (t2588) は全部
+  (sha256 の記録も無し) 消失した。t2698 は wave 自身の `run-backup/` bundle が在り実害なし。Lustre に snapshot は無く復元不能。
+  損失表と写しの照合は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`
+- 根本原因: (1) `tar --null -T - -czf out -C "$w"` の順で書いたため、`-T -` の file 名が script の cwd (repo root) 基準で解決されて
+  全件 stat 不能になり、`2>/dev/null || :` がそれを握り潰した — 退避 step が何もせず「成功」する恒真ゲート。(2) 候補判定で
+  submit-tree の `?? output/exploration/` を「単なる dirty」と見なし、各 wave の insight「証拠の所在」節 (「campaign WAL は repo へ
+  複製していない、原本は submit-tree の下」) と round 3 HANDOFF の「submit-tree は残置」を引かなかった。(3) script を実データで
+  通す前にユーザーへ渡した (読み取り subcommand だけ実走し、退避 step は撤去を伴うため試さなかった)
+- 恒久対応: `handoff.sh` を同日 fail-closed に修正 (`tar -C "$w" --null -T -`、エラー非抑止、`ls-files -o` の list と tar の非 dir entry 数を
+  照合し不足なら撤去せず rc=6。生きている worktree で 72/72 を実測)。memory `cleanup-discipline` に「退避 tar の -C 順・entry 検算・
+  `?? output/exploration/` は原本」を追記。`/cleanup-branches` §2・§3 への反映 (未追跡 `output/` の原本判定に insight「証拠の所在」を
+  引く、退避の検算を撤去の前提にする) は [T-2814] で別 wave が行う
+- 再発検知: 退避 dir の `untracked-list.txt` と `untracked.tgz` の entry 数照合 (修正後の script が rm 前に自動で行う)。
+  worktree 撤去を含む cleanup では、撤去後に `backup/*/untracked.tgz` の entry 数 > 0 を報告に載せる
