@@ -1,0 +1,1212 @@
+{
+ "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2632-evidence-provenance",
+ "campaigns": {
+  "base": {
+   "kind": "base",
+   "dir": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387",
+   "files": [
+    {
+     "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/campaign.lock",
+     "bytes": 537,
+     "sha256": "0b53a3876589a61ae35b318237751015acebb3761e612e4374f9944ffca7f7c9"
+    },
+    {
+     "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/loop_state.json",
+     "bytes": 692,
+     "sha256": "616a5a1d83a7881c90d37469f1fa69a117d72fb5cd6f54f18ff031b63f34279f"
+    },
+    {
+     "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl",
+     "bytes": 6687,
+     "sha256": "2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"
+    },
+    {
+     "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/s4_loop_digest.txt",
+     "bytes": 1674,
+     "sha256": "0eee68f16843e40abec9300a697dd6ffdfe45bc8c52aa5e8cc5a5879b1912e1f"
+    }
+   ],
+   "lock": {
+    "ccbench_commit": "028f34d",
+    "search_config": {
+     "axis": "silo-backoff-magnitude",
+     "records": 100000,
+     "reflux": "on",
+     "scale": "silo",
+     "threads": 4
+    },
+    "search_tag": "s4-autonomous",
+    "spec_content": "P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に 還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない",
+    "trial": "p3-s4-loop"
+   },
+   "whiteboard": [
+    {
+     "iteration": 1,
+     "direction": "decrease",
+     "magnitude": "small",
+     "result": "success",
+     "delta_pct": null
+    },
+    {
+     "iteration": 2,
+     "direction": "decrease",
+     "magnitude": "medium",
+     "result": "success",
+     "delta_pct": null
+    },
+    {
+     "iteration": 3,
+     "direction": "decrease",
+     "magnitude": "medium",
+     "result": "success",
+     "delta_pct": null
+    },
+    {
+     "iteration": 4,
+     "direction": "decrease",
+     "magnitude": "medium",
+     "result": "success",
+     "delta_pct": null
+    }
+   ],
+   "whiteboard_row_count": 4,
+   "whiteboard_keys_union": [
+    "delta_pct",
+    "direction",
+    "iteration",
+    "magnitude",
+    "result"
+   ],
+   "loop_state_keys": [
+    "iteration",
+    "reverse_recommendations",
+    "start_wall",
+    "whiteboard"
+   ],
+   "wal_records": [
+    {
+     "variant": "20bbb4c1a855",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783558138.823315,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:5535e0a8143a8df3343209a4751536b6c6d8f1222220f385738a5ad0cbb4559b",
+     "genome": "silo|BACKOFF_FIXED=40,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+     "src_token": "685728421fd3de9a8a03dde77fabebaf9998f17feb17585269d1143c5f5f88ae"
+    },
+    {
+     "variant": "20bbb4c1a855",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783558183.9680767,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:52c5f3f7cecc3c31609a2106803db26a991bb444493399f4a16be6a3f8083ece"
+    },
+    {
+     "variant": "20bbb4c1a855",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783558202.4627213,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict"
+     ],
+     "wal_ref": "wal:a0eb23d939ee939f48d867496d9be41c469784d4a14c6871e1a2c7c9b0504346",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "20bbb4c1a855",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783558204.9263322,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:ed668200f41871783a098f86cfd8890d35d0b5273a36523dbf7815d858cd6d7c",
+     "median_tps": 491796.5,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "20bbb4c1a855",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783558204.9268441,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable"
+     ],
+     "wal_ref": "wal:9bce3bc47e9d1b603cf39733df061bb41fe8e4704234d239c0f60751cb10d989",
+     "fitness_tps": 491796.5
+    },
+    {
+     "variant": "27d1d016998e",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783559719.507096,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:8b546b624800d750deca2588688c590f41a034ce10e7a4cea36434fbbf1f7db6",
+     "genome": "silo|BACKOFF_FIXED=30,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+     "src_token": "2040cffa0a108d4fe20e42a061c5125a350feae17f7e602677f340111326fb06"
+    },
+    {
+     "variant": "27d1d016998e",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783559764.345194,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:c23bedab5bce5cec075502357b00afd7f8a3b3a9f739aecd7e1a38dadbf064ee"
+    },
+    {
+     "variant": "27d1d016998e",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783559783.087447,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict"
+     ],
+     "wal_ref": "wal:231bb99dd6d637c8132d295c64760f3b26dfee5a51588ca201ec37470673b232",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "27d1d016998e",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783559785.5051172,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:7af368787ff8c55d83b985f43b21906aaaf19730e8c31e7ea574ed63ad35118d",
+     "median_tps": 525721.5,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "27d1d016998e",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783559785.506297,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable"
+     ],
+     "wal_ref": "wal:98af80643f35475046303f0abedfd9dd4e0e2ced77eb353f17181fe888975e60",
+     "fitness_tps": 525721.5
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783560285.982222,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:67fece431034288cf6001df28b319f403dd6fe52f9dbb13c578c2bebe431d07f",
+     "genome": "silo|BACKOFF_FIXED=40,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+     "src_token": "cc549892f7e37886d49c91651124356b640e77eee0a606db97b8cfed0e281b7e"
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783560331.2234688,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:36fa53db38d0efbd7a9847903d5edba3e3d79301235e469a2f0f056aa06dc387"
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783560348.129192,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict"
+     ],
+     "wal_ref": "wal:2dd94c8610f984ad16a1376a8484545e13775c4ce7eb6c78ea013cf0b41c6d34",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783560370.5855775,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:43ee8eba1fe1aad585b50d597312ca9f402a656f58494fe01020c8a7136525f3",
+     "median_tps": 487088.5,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783560370.5857806,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable"
+     ],
+     "wal_ref": "wal:6e598a426dee8bccd7ab65d7f0dc3b522323b064f4b7e9a56c582bc2742d0d47",
+     "fitness_tps": 487088.5
+    }
+   ],
+   "wal_variants": [
+    {
+     "variant": "20bbb4c1a855",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    },
+    {
+     "variant": "27d1d016998e",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    },
+    {
+     "variant": "dad58f9f9000",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    }
+   ],
+   "wal_variant_count": 3,
+   "wal_record_count": 15,
+   "wal_mentions": {
+    "iteration": false,
+    "proposal": false,
+    "attempt_id": false,
+    "parent": false,
+    "ancestor": false,
+    "snapshot": false,
+    "receipt": false
+   },
+   "whiteboard_has_variant_or_hash": false,
+   "order_join_attempt": [
+    {
+     "whiteboard_iteration": 1,
+     "wal_variant_by_order": "20bbb4c1a855"
+    },
+    {
+     "whiteboard_iteration": 2,
+     "wal_variant_by_order": "27d1d016998e"
+    },
+    {
+     "whiteboard_iteration": 3,
+     "wal_variant_by_order": "dad58f9f9000"
+    },
+    {
+     "whiteboard_iteration": 4,
+     "wal_variant_by_order": null
+    }
+   ],
+   "order_join_is_bijective": false,
+   "reference_candidates": [
+    {
+     "variant": "20bbb4c1a855",
+     "certified_all_verify": true,
+     "fitness_tps": 491796.5,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:9bce3bc47e9d1b603cf39733df061bb41fe8e4704234d239c0f60751cb10d989",
+     "bench_wal_ref": "wal:ed668200f41871783a098f86cfd8890d35d0b5273a36523dbf7815d858cd6d7c",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    },
+    {
+     "variant": "27d1d016998e",
+     "certified_all_verify": true,
+     "fitness_tps": 525721.5,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:98af80643f35475046303f0abedfd9dd4e0e2ced77eb353f17181fe888975e60",
+     "bench_wal_ref": "wal:7af368787ff8c55d83b985f43b21906aaaf19730e8c31e7ea574ed63ad35118d",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    },
+    {
+     "variant": "dad58f9f9000",
+     "certified_all_verify": true,
+     "fitness_tps": 487088.5,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:6e598a426dee8bccd7ab65d7f0dc3b522323b064f4b7e9a56c582bc2742d0d47",
+     "bench_wal_ref": "wal:43ee8eba1fe1aad585b50d597312ca9f402a656f58494fe01020c8a7136525f3",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    }
+   ]
+  },
+  "sort": {
+   "kind": "sort",
+   "dir": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d",
+   "files": [
+    {
+     "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/campaign.lock",
+     "bytes": 629,
+     "sha256": "3be89e0ddad8e8b2b37d35168c49affe7889ea580831973dc0d6d9706aaa4f97"
+    },
+    {
+     "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/loop_state.json",
+     "bytes": 255,
+     "sha256": "f89b8b7c1d46f17dd16b25c68069b46f69e9dd638dd9026e7a8e8d3ce1ec6cd8"
+    },
+    {
+     "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/runs/wal.jsonl",
+     "bytes": 2513,
+     "sha256": "b901f23a502e4d3843454de807ca01666c145ee7d9d424a957bb366ef3e793a5"
+    },
+    {
+     "path": "output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d/s5_sort_loop_digest.txt",
+     "bytes": 1291,
+     "sha256": "aed7e85bda1db38b25454c2fbaf145b36ac253d55d16c0370d6af4b2ea624a3f"
+    }
+   ],
+   "lock": {
+    "ccbench_commit": "d706650",
+    "search_config": {
+     "axis": "silo-writeset-sort",
+     "records": 100000,
+     "reflux": "on",
+     "scale": "silo",
+     "threads": 4,
+     "verify": "legacy+s2"
+    },
+    "search_tag": "s5-sort-autonomous",
+    "spec_content": "P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに comparator コードを合成、diff 検疫 (4a 型) + auditor 機械 gate (D41 条件4) を通した hole 変異のみ build/verify(legacy+S2)/bench に 進む。critic 帰属を次 iteration に還流 (LLM ablation の on アーム)",
+    "trial": "p3-s5-sort-loop"
+   },
+   "whiteboard": [
+    {
+     "iteration": 2,
+     "direction": "increase",
+     "magnitude": "medium",
+     "result": "success",
+     "delta_pct": null
+    }
+   ],
+   "whiteboard_row_count": 1,
+   "whiteboard_keys_union": [
+    "delta_pct",
+    "direction",
+    "iteration",
+    "magnitude",
+    "result"
+   ],
+   "loop_state_keys": [
+    "iteration",
+    "reverse_recommendations",
+    "start_wall",
+    "whiteboard"
+   ],
+   "wal_records": [
+    {
+     "variant": "aa32126d769f",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636340.3448756,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:62a6a72f5a44e5445a5052a4c383af68e6874474140f445545bd2e8f44250b37",
+     "genome": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,SORT_VARIANT=1,WAL=0",
+     "src_token": "572ff2d1df9c7589fedb298002894a83907ab7922d64ca27a98bbf02c29d1c10"
+    },
+    {
+     "variant": "aa32126d769f",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636383.5608103,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:b37999739f178178785e4ca7e906a06a511140a63a2eb896cba2906e6e3e2426"
+    },
+    {
+     "variant": "aa32126d769f",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636395.5265934,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:080e41d47b5b81ae94c3b087322a2091f78dae5d266a17d08f50807d06b6c6f0",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "aa32126d769f",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636513.1300936,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:4f9c9033644a984fa372e4207bf9ff7da1a7fc88e3fed0a570776792688f750c",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "aa32126d769f",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636515.593864,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:774ed2731c00c1ec809e892c9a01b268b129af131724782acbaca24737dce093",
+     "median_tps": 274871.5,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "aa32126d769f",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783636515.5944552,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable",
+      "verify_configs"
+     ],
+     "wal_ref": "wal:d3c74339da9f706053a6eaddcd1c0ab9290628495a5abb56526dae08744bcb98",
+     "fitness_tps": 274871.5
+    }
+   ],
+   "wal_variants": [
+    {
+     "variant": "aa32126d769f",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    }
+   ],
+   "wal_variant_count": 1,
+   "wal_record_count": 6,
+   "wal_mentions": {
+    "iteration": false,
+    "proposal": false,
+    "attempt_id": false,
+    "parent": false,
+    "ancestor": false,
+    "snapshot": false,
+    "receipt": false
+   },
+   "whiteboard_has_variant_or_hash": false,
+   "order_join_attempt": [
+    {
+     "whiteboard_iteration": 2,
+     "wal_variant_by_order": "aa32126d769f"
+    }
+   ],
+   "order_join_is_bijective": true,
+   "reference_candidates": [
+    {
+     "variant": "aa32126d769f",
+     "certified_all_verify": true,
+     "fitness_tps": 274871.5,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:d3c74339da9f706053a6eaddcd1c0ab9290628495a5abb56526dae08744bcb98",
+     "bench_wal_ref": "wal:774ed2731c00c1ec809e892c9a01b268b129af131724782acbaca24737dce093",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    }
+   ]
+  },
+  "trigger": {
+   "kind": "trigger",
+   "dir": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5",
+   "files": [
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/campaign.lock",
+     "bytes": 672,
+     "sha256": "3f72ecd58a6df4018d136bcbb8abb276114ba8d302c64aaf792c473ae4b1de0c"
+    },
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/loop_state.json",
+     "bytes": 401,
+     "sha256": "18d5e40bd4b4c8e6a4d09b8d4ac4b94c0ffb173b79092dfc7a6abe7e1aa2c79d"
+    },
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/reports/layer3_report.json",
+     "bytes": 10699,
+     "sha256": "3f97e7694e614bb51f2d7bde9824fea9b79c5bc19614427a0ebed9a927031320"
+    },
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/reports/p3_s8a_trigger_loop_provenance.json",
+     "bytes": 3528,
+     "sha256": "cfbcd1257ac96ff9500f50993938b9f99dceaa36e3e2ca51dea387ff0f72a056"
+    },
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/runs/wal.jsonl",
+     "bytes": 5060,
+     "sha256": "a539648d29afce9be036eba519b53f21fd1f8e1fb7bfe24549f4ec3ceac31ea3"
+    },
+    {
+     "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/s8a_trigger_loop_digest.txt",
+     "bytes": 1506,
+     "sha256": "3825b39824096f97a61d95d89a37bd7d9616e5d40022a1e8182d7c66ce532e7e"
+    }
+   ],
+   "lock": {
+    "ccbench_commit": "d706650",
+    "search_config": {
+     "axis": "silo-backoff-trigger-gating",
+     "records": 100000,
+     "reflux": "on",
+     "scale": "silo",
+     "threads": 4,
+     "verify": "legacy+s2"
+    },
+    "search_tag": "s8a-trigger-autonomous",
+    "spec_content": "P3 段 8a E 段: silo-backoff-trigger-gating (abort 要因別 backoff gate 述語) coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに gate 述語 (代入式 1 行) を合成、diff 検疫 + 構文契約 grep + auditor 機械 gate を通した hole 変異のみ build/verify(legacy+S2)/bench に進む。E 段へ流す偵察由来情報は軸の生死二値のみ (D48 条件 7)",
+    "trial": "p3-s8a-trigger-loop"
+   },
+   "whiteboard": [
+    {
+     "iteration": 1,
+     "direction": "increase",
+     "magnitude": "medium",
+     "result": "success",
+     "delta_pct": null
+    },
+    {
+     "iteration": 2,
+     "direction": "increase",
+     "magnitude": "small",
+     "result": "success",
+     "delta_pct": null
+    }
+   ],
+   "whiteboard_row_count": 2,
+   "whiteboard_keys_union": [
+    "delta_pct",
+    "direction",
+    "iteration",
+    "magnitude",
+    "result"
+   ],
+   "loop_state_keys": [
+    "iteration",
+    "reverse_recommendations",
+    "start_wall",
+    "whiteboard"
+   ],
+   "wal_records": [
+    {
+     "variant": "e1785940172e",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865069.7648733,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:b7ceb4c0a3c648767b675897ae0d45c9c9f0e8c6b47104fb062078174d7ab492",
+     "genome": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+     "src_token": "d42392931cf02bf4c7c9f3882f626fbc94cd3837b0f136a23d3bb05425535a6a"
+    },
+    {
+     "variant": "e1785940172e",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865070.064701,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:1d511c3ec42acb7c788425328f5ff3936c5188bf993e37220c01afd20780590d"
+    },
+    {
+     "variant": "e1785940172e",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865082.0227966,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:2cc158df0c0a140af744700a0e67fd7ce517ad935671719e0703a5edbc5f030a",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "e1785940172e",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865198.299496,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:7d3369f85399fb3191eb14b5f291d1eb6ef9da3659d04846a45984f4cdc429af",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "e1785940172e",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865200.7866974,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:562b9181af2cb7d809c1a355aff94128d7fc88ddcfe68da5d4b23a82ca82d2d6",
+     "median_tps": 275614.5,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "e1785940172e",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865200.7871828,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable",
+      "verify_configs"
+     ],
+     "wal_ref": "wal:4f40b669b157d87ee69a2c7cf2995ae9f1700911513ab7147ac3f9983c111a1e",
+     "fitness_tps": 275614.5
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "build_start",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865937.2554371,
+     "payload_keys": [
+      "genome",
+      "src_token"
+     ],
+     "wal_ref": "wal:3f5f2343b4382de1f46df7cf1e9a161f1ace92c2021f9df5bdc64a477111e1a4",
+     "genome": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+     "src_token": "1d116d99f7db8ef8a044dbac8bb3a5b9182abc04f4ed5c9e992d896bfe0857e0"
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "build_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865982.2836072,
+     "payload_keys": [
+      "perf_bin",
+      "perf_build_cmd",
+      "perf_cached",
+      "perf_configure_cmd",
+      "trace_bin",
+      "trace_cached"
+     ],
+     "wal_ref": "wal:f6b9ea5a1ae3b8b2b692ad539551fe360b84628d1a6fc6321646a001b73d15e1"
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783865994.2114155,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:73c7659d8527a92265af757fd804d8eeea10aeb967c5a371a83aae33faa17c40",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "verify_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783866105.1537921,
+     "payload_keys": [
+      "aborts",
+      "anomalies",
+      "certified",
+      "commits",
+      "verdict",
+      "workload"
+     ],
+     "wal_ref": "wal:a9eec4b74eb97e08cc58973f83bf18aac09bd7c00d4cc6e7afb9cbb5fb269ed9",
+     "certified": true,
+     "verdict": "serializable"
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "bench_done",
+     "env_tag": "linux-baremetal",
+     "ts": 1783866107.6287272,
+     "payload_keys": [
+      "cv",
+      "cv_history",
+      "high_variance",
+      "leading_indicators",
+      "median_tps",
+      "rep_notes",
+      "rounds",
+      "run_cmd",
+      "settled",
+      "tps",
+      "unstable"
+     ],
+     "wal_ref": "wal:308850a3a81b90cf98f476dafec908313646b70330d8c6ce9ae65b215d6c3c31",
+     "median_tps": 276472.0,
+     "run_cmd_perf": {
+      "threads": 4,
+      "records": 100000,
+      "extime": 1,
+      "clocks_per_us": 1800,
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": "0.9",
+      "ycsb_rmw": "false"
+     }
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stage": "commit",
+     "env_tag": "linux-baremetal",
+     "ts": 1783866107.6296353,
+     "payload_keys": [
+      "cv",
+      "fitness_tps",
+      "high_variance",
+      "unstable",
+      "verify_configs"
+     ],
+     "wal_ref": "wal:2d68cc8a15d25fe1bc5cd1d3af27fa8a76ba1bfdd242217442a437d371ff05fa",
+     "fitness_tps": 276472.0
+    }
+   ],
+   "wal_variants": [
+    {
+     "variant": "e1785940172e",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "stages": [
+      "build_start",
+      "build_done",
+      "verify_done",
+      "verify_done",
+      "bench_done",
+      "commit"
+     ]
+    }
+   ],
+   "wal_variant_count": 2,
+   "wal_record_count": 12,
+   "wal_mentions": {
+    "iteration": false,
+    "proposal": false,
+    "attempt_id": false,
+    "parent": false,
+    "ancestor": false,
+    "snapshot": false,
+    "receipt": false
+   },
+   "whiteboard_has_variant_or_hash": false,
+   "order_join_attempt": [
+    {
+     "whiteboard_iteration": 1,
+     "wal_variant_by_order": "e1785940172e"
+    },
+    {
+     "whiteboard_iteration": 2,
+     "wal_variant_by_order": "ca5206c3dac5"
+    }
+   ],
+   "order_join_is_bijective": true,
+   "reference_candidates": [
+    {
+     "variant": "e1785940172e",
+     "certified_all_verify": true,
+     "fitness_tps": 275614.5,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:4f40b669b157d87ee69a2c7cf2995ae9f1700911513ab7147ac3f9983c111a1e",
+     "bench_wal_ref": "wal:562b9181af2cb7d809c1a355aff94128d7fc88ddcfe68da5d4b23a82ca82d2d6",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    },
+    {
+     "variant": "ca5206c3dac5",
+     "certified_all_verify": true,
+     "fitness_tps": 276472.0,
+     "commit_env_tag": "linux-baremetal",
+     "commit_wal_ref": "wal:2d68cc8a15d25fe1bc5cd1d3af27fa8a76ba1bfdd242217442a437d371ff05fa",
+     "bench_wal_ref": "wal:308850a3a81b90cf98f476dafec908313646b70330d8c6ce9ae65b215d6c3c31",
+     "lock_search_config_records_threads": [
+      100000,
+      4
+     ]
+    }
+   ]
+  }
+ },
+ "trigger_provenance": {
+  "file": {
+   "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/reports/p3_s8a_trigger_loop_provenance.json",
+   "bytes": 3528,
+   "sha256": "cfbcd1257ac96ff9500f50993938b9f99dceaa36e3e2ca51dea387ff0f72a056"
+  },
+  "entries": {
+   "1": {
+    "proposal_path": "/home/tanab/tmp/claude-1025/-home-tanab-github-izanagi/c03c25b3-30df-4e42-bbe7-7af0c3ab48fb/scratchpad/prop.json",
+    "auditor_diff_digest": "15ed554aeaaa405fd8eda0099a5d22e7aab1b52fd56041f94453fdeb252c1292",
+    "variant": "e1785940172e",
+    "outcome": "certified"
+   },
+   "2": {
+    "proposal_path": "/home/tanab/tmp/claude-1025/-home-tanab-github-izanagi/c03c25b3-30df-4e42-bbe7-7af0c3ab48fb/scratchpad/prop_it2.json",
+    "auditor_diff_digest": "db820e59654919a327c362d44c65039c5cabafc26736c4a722b8ef945e69e32c",
+    "variant": "ca5206c3dac5",
+    "outcome": "certified"
+   }
+  },
+  "entry_variants_all_in_wal": true,
+  "proposal_paths_exist_now": {
+   "1": false,
+   "2": false
+  },
+  "auditor_diff_digest_is_sha256": true
+ },
+ "trigger_layer3": {
+  "file": {
+   "path": "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5/reports/layer3_report.json",
+   "bytes": 10699,
+   "sha256": "3f97e7694e614bb51f2d7bde9824fea9b79c5bc19614427a0ebed9a927031320"
+  },
+  "runs": [
+   {
+    "variant": "e1785940172e",
+    "source_ref": "wal:562b9181af2cb7d809c1a355aff94128d7fc88ddcfe68da5d4b23a82ca82d2d6",
+    "median_tps": 275614.5
+   },
+   {
+    "variant": "ca5206c3dac5",
+    "source_ref": "wal:308850a3a81b90cf98f476dafec908313646b70330d8c6ce9ae65b215d6c3c31",
+    "median_tps": 276472.0
+   }
+  ],
+  "artifact_refs": [
+   {
+    "path": "campaign.lock",
+    "sha256": "3f72ecd58a6df4018d136bcbb8abb276114ba8d302c64aaf792c473ae4b1de0c"
+   },
+   {
+    "path": "loop_state.json",
+    "sha256": "18d5e40bd4b4c8e6a4d09b8d4ac4b94c0ffb173b79092dfc7a6abe7e1aa2c79d"
+   },
+   {
+    "path": "reports/p3_s8a_trigger_loop_provenance.json",
+    "sha256": "cfbcd1257ac96ff9500f50993938b9f99dceaa36e3e2ca51dea387ff0f72a056"
+   },
+   {
+    "path": "runs/wal.jsonl",
+    "sha256": "a539648d29afce9be036eba519b53f21fd1f8e1fb7bfe24549f4ec3ceac31ea3"
+   },
+   {
+    "path": "s8a_trigger_loop_digest.txt",
+    "sha256": "3825b39824096f97a61d95d89a37bd7d9616e5d40022a1e8182d7c66ce532e7e"
+   }
+  ],
+  "source_refs_match_bench_wal_refs": true
+ },
+ "k2_round3_insight": {
+  "files": [
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/coder-input-4.json",
+    "bytes": 25745,
+    "sha256": "1db9d189892611bfd07e66a68ae3d2e7bced3859da5192a8f6ebdcb6bdb93379"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/coder-prompt-4.md",
+    "bytes": 29347,
+    "sha256": "691a56c2e4f96773d783ec8505fc058668f84a5c558cc617785a1eb10aef54a6"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/critic-input-3.json",
+    "bytes": 4207,
+    "sha256": "10a94095e388f5e25acbcf3a3f45de6ad8d2f607e6fd4b1393979c5f92fe529a"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/critic-prompt-3.md",
+    "bytes": 4854,
+    "sha256": "efe8fcda494334aaf05b3870c6272943753b734da6e7feb41239af27209e2c79"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/diagnosis-4.json",
+    "bytes": 10295,
+    "sha256": "7b742268c8f2243c9fcc00fe6950d54cb75a5560155eac9e0b9ca59f2cf7f724"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/knowledge-input.json",
+    "bytes": 7729,
+    "sha256": "05f2b2673f6769767dab788b187a5a951ff79ab9df1d4795a529b12037fd5808"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/planner-context-4.json",
+    "bytes": 18287,
+    "sha256": "280caa0f6dcd47ccbbdb861689d69d62cfefac14028cb27740c098c4813ed79c"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/planner-input-4.json",
+    "bytes": 18509,
+    "sha256": "87a7fb53da7de332f00f43985de4b8be94ba4f7f6a65ae1729f121835eea7747"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/planner-prompt-4.md",
+    "bytes": 21446,
+    "sha256": "cd5012c3ba0aa91ffb0a6f89ae76dde254683f9f4bad438234f155e8e4442c14"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/proposal-4.json",
+    "bytes": 8184,
+    "sha256": "bd3e5fd2110cc75313a8692f9c6e4c3ba4b20aa5050f0c99a50ab049ea12d53f"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/run-summary.json",
+    "bytes": 3042,
+    "sha256": "245ebeb314b44c95a6c0d68dcb915820508de099b3005ac9d35f7f9993306b18"
+   },
+   {
+    "path": "output/insights/2026-09-19/k2-loop-round3/materials/wal-refs.json",
+    "bytes": 745,
+    "sha256": "c03aa8a6faea7dceed455bce08b50802d4c0bfb7e6de36552886c034d1c782ad"
+   }
+  ],
+  "proposal_raw_sha256": "bd3e5fd2110cc75313a8692f9c6e4c3ba4b20aa5050f0c99a50ab049ea12d53f",
+  "proposal_top_keys": [
+   "coder",
+   "planner",
+   "prior_critic_reverse"
+  ],
+  "proposal_canonical_b4_sha256": "c9b2595a90fc30b0e030e26379cbdfa2dd7d80b7fd35d3d3dee9cc2e55d56f55",
+  "run_summary_variant": "002642c7ac96",
+  "run_summary_wal_refs": [
+   "wal:a31a52264c3ebac3267e24250cbf6cd8186769da99afc67b8424d65381e2d1ba",
+   "wal:d90fc57a80f8ff0177a642982e72d2ce40a555acace1be10e9610813a3c83759",
+   "wal:3a5719d284521deb0be83698b26a70f2aa6db2e5c66b9b118865b963dbf6dd11",
+   "wal:da9e2f95840d8297d6f6d910e7a103185e1ba3993709670d90804d159482b05f",
+   "wal:a8c426920d2137e757445e523fca20027f7cea7a3af06b0777c55e850e9be942"
+  ],
+  "run_summary_whiteboard": [
+   {
+    "delta_pct": null,
+    "direction": "decrease",
+    "iteration": 1,
+    "magnitude": "large",
+    "result": "success"
+   }
+  ],
+  "run_summary_keys": [
+   "bench",
+   "commit",
+   "digest_sha256",
+   "genome",
+   "loop_state",
+   "records",
+   "stop_decision",
+   "variant",
+   "verify",
+   "wal_refs"
+  ],
+  "run_summary_has_proposal_hash": false
+ }
+}
