@@ -21520,6 +21520,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-10** — fixture読取stdoutが非NFCになりauthorが未受理。receiptのevent_invalidを調べ、
   strict_json_loadsのNFC拒否を再現した。原記録を保持し、ASCII escapeで読む新authorを正常受理した。
   DW-O02へ読取ログを含むNFC義務と原文保持を明記した。原fixtureとログ検査器は変更していない。
+
+- **再発: 2026-09-21** — [T-2814] wave の Codex fix 子 2 巡目・3 巡目が `orchestrator/tests/test_check_docs.py` を `cat` / 広い `sed -n` で読み、5749・5772 行の非 NFC fixture が stdout JSONL に乗って `event_invalid` → `evidence_status=invalid` → 未受理 (作業自体は正しく終端 commit 済み、`codex_exit_code=0`)。親の prompt は「全文 cat しない、`sed -n` で読む」と書いたが行番号を名指ししていなかった。4 巡目 (監査子) の prompt に「5749・5772 行を含む出力禁止」を書いて再投入した。恒久対処 [T-2041] (択 (a) 採用、D1216) は見送り台帳のまま — 回避で通り研究実走の blocker ではないので再訪条件に該当しない (見送り追記のみ)。
 ### F729. fix 子への「既存テストの期待値を変更するな」が広すぎて 1 巡を捨てた [手順漏れ]
 
 - 事象: 段 6 fix 子が「実装を変えず報告して止める」を正しく選んで停止し、fix が 1 巡空転した。
@@ -28097,6 +28099,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   引く、退避の検算を撤去の前提にする) は [T-2814] で別 wave が行う
 - 再発検知: 退避 dir の `untracked-list.txt` と `untracked.tgz` の entry 数照合 (修正後の script が rm 前に自動で行う)。
   worktree 撤去を含む cleanup では、撤去後に `backup/*/untracked.tgz` の entry 数 > 0 を報告に載せる
+- **supersede: 2026-09-21** — 恒久対応末尾の「`/cleanup-branches` §2・§3 への反映は [T-2814] で別 wave が行う」は実施済み: §2 に「未追跡 `output/` (`exploration/`・`env/`) は該当 wave の insight「証拠の所在」節で repo 外原本か確かめ、原本なら候補にせず残置・報告」、§3 に「§5 で引き渡す dirty 撤去 script も本節に従い、退避を撤去の前提にする (tar の `-C` を `-T` の前、`ls-files -o` の list 数を tar の非 dir entry 数が下回れば撤去しない)」、Codex overlay `.agents/skills/cleanup-branches/SKILL.md` にも同 2 項 (一次資料 `output/insights/2026-09-21/t2814-cleanup-command/README.md`)。
 
 ### F1035. 既存テストの argv 接頭 pin が、後から足した別目的の git 呼び出しを誤って数え fix が 2 巡増えた [テスト代表性] [手順漏れ]
 
