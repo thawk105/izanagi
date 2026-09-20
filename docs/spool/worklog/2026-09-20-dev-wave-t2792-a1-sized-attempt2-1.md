@@ -42,7 +42,10 @@ title: [T-2792] A-1 balanced5 sized attempt-0002 (D2172 項 2 の認可済み独
 - 受入全走は記録 commit 後の tip で 1 走 (結果は land の受領証)。submit-tree と耐久 base の attempt-0002 は原本として残置 (撤去は別途)。
 - 限界・言わないこと: 図は作っていない (scope 外)。`variance_plan_breach = true` の原因は帰属しない。driver 143 行の差について、測定・統計関数に変更行が無いことを
   静的に確認しただけで実行時の等価性は検証していない。認可 record は署名ではなく「性能値を見た後の選択」を防ぐ装置ではない。
-- 工数: codex 1 本 (review、16 call)、計算ノード job = 3 (workload 別) + 受入。
+- 事故 (自分起因): 三軸語走査の出力を insight の verbatim に写したところ、その file 自身が三軸語を含み holdout hit になって受入 attempt 1 が赤 25 件
+  (t080 系 `IZANAGI_FREEZE_HOLD` / floor campaign の `clean scan 拒否`、全件がその file を名指し) で rc 70。fix commit で file を削除し (走査結果は
+  insight §11 の要約だけ)、走査の再走で hit が既知 4 file に戻ることを確認して受入を取り直した。受入 1 走 (25 分) を無駄にした。
+- 工数: codex 1 本 (review、16 call)、計算ノード job = 3 (workload 別) + 受入 2 走。
 
 ## 次の一手差分
 
