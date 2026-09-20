@@ -574,10 +574,10 @@ _SYNTHETIC_CLEANUP_DESCRIPTION = (
     "deletion needs explicit $cleanup-branches."
 )
 _EXPECTED_CLEANUP_SKILL_SHA256 = (
-    "c7a840a8cd718c26513f74d063392bbb738d9616d33429c589631b5e79b15876"
+    "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "a838dbbccac10c9bb31d14c54357d29941a44ce51efbb1faa5375d9f8a4d264b"
+    "664815dfb3457e0ed8e0de443edeb0c48c75f76bfc382d2993fa17f61de9f09c"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -610,7 +610,7 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
   `git worktree prune` を実行せず、preview と残作業を人間へ引き渡す。
 - 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
   「証拠の所在」節) を経るまで foreign/unknown と同じく保持して報告する。
-- dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・entry 数照合) を前提にし、
+- dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・非 dir entry 数照合) を前提にし、
   検算を欠く撤去手順を人間へ渡さない (F1034)。
 - sandbox または shared Git metadata の権限が不足する場合は権限を拡大しない。安全に実行できた操作、
   対象、未実行操作を人間へ返す。
@@ -690,7 +690,7 @@ rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁�
    `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 §5 で引き渡す dirty 撤去 script も本節に従い、退避を撤去の前提にする: tar は `-C <worktree>`
-を `-T` の前に置き、`ls-files -o` の list と entry 数が一致しなければ撤去しない (F1034)。
+を `-T` の前に置き、`ls-files -o` の list 数を tar の非 dir entry 数が下回れば撤去しない (F1034)。
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
@@ -704,7 +704,7 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 - `git worktree list` / `git branch` が期待どおり
 - `git submodule status` — main checkout の external/ccbench が初期化済み (`-` なし) で pin 一致
-- cleanup 前の status を保存し、surviving worktree・index・repo file に新しい差分が無い
+- §1 の status と比べ、surviving worktree・index・repo file に新しい差分が無い
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
@@ -9949,13 +9949,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_200
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_201
-        oversized = original + "\n" + "x" * 3
+        assert len(original.encode("utf-8")) == 6_200
+        oversized = original + "\n" + "x" * 4
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 
