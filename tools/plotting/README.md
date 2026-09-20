@@ -132,6 +132,25 @@ provenance の generator SHA-256 は**図を生成した時点の bytes の記�
 現行 source を縛る pin ではない。landed artifact の検査も live generator の再 hash を
 要求せず、生成時記録として扱う。
 
+**A-6 (read-heavy、1 workload × 2 cell) の図 fig11 (2026-09-20):** 同じ生成器が study
+`paper-story-a6-certification` の attempt `a6-20260908b` も描く。受理する study は `STUDY_PROFILES` の
+exact 2 件 (A-2 / A-6)、pin 表 `CANONICAL_SHA256` は 3 leaf (A-2 の 2 attempt + A-6)。workload 数 N は
+embedded policy から導き、外部入力は 6 × N file、request / 時刻の一意検査は N、layout check は 2 行 × N 列
+(A-2 は 12 file・4 axes のまま)。A-6 の caption は稿 `docs/paper-story/results/2026-09-18-a6-certification-reject.md`
+を `caption_source` として SHA-256 束縛する。**着地済み fig5 / fig6 / fig7 の bytes・caption・artist 射影は不変**
+(着地 test が守る)。**再生成する current-full の provenance には top-level `study` が加わる** (A-2 を再生成しても
+同じ。着地済み provenance は key を持たないので読取側は無ければ A-2 と扱う)。
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+    --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b \
+    --certification output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json \
+    --raw-manifest output/insights/2026-09-08_t2411-paper-story-a6-certification/raw-manifest.json \
+    docs/paper-story/figures/fig11_a6_certification_reject
+```
+
+再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig11 節を正本とする。
+
 ## B-10 static-backoff right tail (09-15 formal cohort) figure
 
 `plot_b10_static_tail_formal.py` は、完走済み B-10 右 tail 正式 cohort (group
