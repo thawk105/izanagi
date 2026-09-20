@@ -1,0 +1,54 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+          "new": "    # (equivalent mutation marker: comment only)\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-spawn-line-left",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+          "new": "    (\"campaign/s6_canary_rename.py\", \"<module>.export_stock\"): 3,\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-readme-line-left",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/README.md",
+          "old": "- test_env_contract.py\n- test_layer3_report.py\n",
+          "new": "- test_env_contract.py\n- test_insights_date_layout.py\n- test_layer3_report.py\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

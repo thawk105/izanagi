@@ -1,0 +1,372 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/fd7df93d251e187179d117af1387fd52/izdw-fd7df93d25.o12699",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/fd7df93d251e187179d117af1387fd52/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........s..............................s................................ [ 93%]\n.....                                                                    [100%]\n75 passed, 2 skipped in 78.00s (0:01:17)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4a69c48f449b911b0fa708b47bd0d3e43a5c13018fec1e14d069b4102eed2934"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e866ee0d915a5fee753782708557cc7abc7ab72577de3c3db2c8ffb66decc9d2",
+    "duration_s": 114.817,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "99bb4ccf94869f997005d2a4d34a7e9aa09102613600908b0b917817fecef6e7",
+    "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+    "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+    "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+    "status": "PASSED",
+    "test_output_sha256": "4a69c48f449b911b0fa708b47bd0d3e43a5c13018fec1e14d069b4102eed2934",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce"
+  },
+  "date": "2026-09-20T05:34:55.257819+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/f564aee1789f4009b736add395239d74/izdw-f564aee178.o12704",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/f564aee1789f4009b736add395239d74/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................s.s.......................... [ 93%]\n.....                                                                    [100%]\n75 passed, 2 skipped in 77.59s (0:01:17)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "9b566e4ff800bda78dec8b492dd20c74f0042cfea2bbf9ce62d2b4f224dedc5f"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "e866ee0d915a5fee753782708557cc7abc7ab72577de3c3db2c8ffb66decc9d2",
+      "duration_s": 99.749,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-comment",
+      "injection_diff_sha256": "4b00e67da36836b5d82997502af0d0b4479528c2f4b28b722bc58660ba27e94e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "198a75943ede13ec181df3cd7835319f13c2399528dca1c0b8f6850a2da3ea51",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "    # (equivalent mutation marker: comment only)\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+          "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+        }
+      ],
+      "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+      "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+      "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+      "status": "SURVIVED",
+      "test_output_sha256": "9b566e4ff800bda78dec8b492dd20c74f0042cfea2bbf9ce62d2b4f224dedc5f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/71538dccb7d4cf3f5a5106c9f6fbcf7b/izdw-71538dccb7.o12713",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/71538dccb7d4cf3f5a5106c9f6fbcf7b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................s....................s..............F......... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n________ test_reviewed_process_launch_inventory_is_recursive_and_exact _________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reviewed_process_launch_inventory_is_recursive_and_exact():\n        expected = (\n            _GATEWAY\n            + _DIRECT_SAFE_ALLOWLIST\n            + _DIRECT_CCBENCH_DIAGNOSTIC_SITES\n            + _EXPLICIT_NON_CCBENCH_PROCESS_SITES\n        )\n>       assert _process_launch_sites() == expected\nE       AssertionError: assert Counter({('ca...po_head'): 1}) == Counter({('ca...po_head'): 1})\nE         \nE         Omitting 139 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {('campaign/s6_canary_rename.py', '<module>.export_stock'): 3}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2844: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\n1 failed, 74 passed, 2 skipped in 77.20s (0:01:17)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=733 retained_bytes=733 omitted_bytes=0 rendered_excerpt_bytes=770 sha256=0dccc36a1f419dec4beeffff39f35d79180599e228585a545ea8df8e79eb87f6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_reviewed_process_launch_inventory_is_recursive_and_exact():\n>         expected = (\n>             _GATEWAY\n>             + _DIRECT_SAFE_ALLOWLIST\n>             + _DIRECT_CCBENCH_DIAGNOSTIC_SITES\n>             + _EXPLICIT_NON_CCBENCH_PROCESS_SITES\n>         )\n> >       assert _process_launch_sites() == expected\n> E       AssertionError: assert Counter({('ca...po_head'): 1}) == Counter({('ca...po_head'): 1})\n> E         \n> E         Omitting 139 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {('campaign/s6_canary_rename.py', '<module>.export_stock'): 3}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2844: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=733 retained_bytes=733 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1502 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "572967d0b93c261650c2f798a1186a72ca847db09480228d25cdd54801cad841"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e866ee0d915a5fee753782708557cc7abc7ab72577de3c3db2c8ffb66decc9d2",
+      "duration_s": 99.437,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact"
+      ],
+      "hang_risk": false,
+      "id": "m2-spawn-line-left",
+      "injection_diff_sha256": "87ae059a9c34dc6a614d3b3d45cb553f2a190816957b245926cc250ba640c254",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d9beb67c4dd2dd3ecf0b28ca293928f7d9a3d8c8b1153aa8067d8be97fcbda21",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "    (\"campaign/s6_canary_rename.py\", \"<module>.export_stock\"): 3,\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+          "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+        }
+      ],
+      "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+      "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+      "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+      "status": "KILLED",
+      "test_output_sha256": "572967d0b93c261650c2f798a1186a72ca847db09480228d25cdd54801cad841",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/593d50f8d0def03cda89695f2f68edc2/izdw-593d50f8d0.o12716",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/593d50f8d0def03cda89695f2f68edc2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................ss.............F....................... [ 93%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_allowlist_has_no_stale_or_self_runnable_entries _____________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_allowlist_has_no_stale_or_self_runnable_entries():\n        \"\"\"allowlist の陳腐化検出: 存在しないファイル、または自走 harness を後付けしたのに\n        allowlist に残ったファイルを弾く (allowlist が偽緑を覆い隠すのを防ぐ)。\"\"\"\n        allow = _read_allowlist()\n        present = set(_test_files())\n        missing = sorted(allow - present)\n>       assert not missing, f\"allowlist に実在しないファイル (削除漏れ): {missing}\"\nE       AssertionError: allowlist に実在しないファイル (削除漏れ): ['test_insights_date_layout.py']\nE       assert not ['test_insights_date_layout.py']\n\norchestrator/tests/test_plain_runner_coverage.py:83: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries\n1 failed, 74 passed, 2 skipped in 78.00s (0:01:18)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=784 retained_bytes=784 omitted_bytes=0 rendered_excerpt_bytes=1054 sha256=d91377e3322b7ad0cd3397880b697e64f203fb0da7ffcc7854a4a14d725d967c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_allowlist_has_no_stale_or_self_runnable_entries():\n>         \"\"\"allowlist \\u306e\\u9673\\u8150\\u5316\\u691c\\u51fa: \\u5b58\\u5728\\u3057\\u306a\\u3044\\u30d5\\u30a1\\u30a4\\u30eb\\u3001\\u307e\\u305f\\u306f\\u81ea\\u8d70 harness \\u3092\\u5f8c\\u4ed8\\u3051\\u3057\\u305f\\u306e\\u306b\n>         allowlist \\u306b\\u6b8b\\u3063\\u305f\\u30d5\\u30a1\\u30a4\\u30eb\\u3092\\u5f3e\\u304f (allowlist \\u304c\\u507d\\u7dd1\\u3092\\u8986\\u3044\\u96a0\\u3059\\u306e\\u3092\\u9632\\u3050)\\u3002\"\"\"\n>         allow = _read_allowlist()\n>         present = set(_test_files())\n>         missing = sorted(allow - present)\n> >       assert not missing, f\"allowlist \\u306b\\u5b9f\\u5728\\u3057\\u306a\\u3044\\u30d5\\u30a1\\u30a4\\u30eb (\\u524a\\u9664\\u6f0f\\u308c): {missing}\"\n> E       AssertionError: allowlist \\u306b\\u5b9f\\u5728\\u3057\\u306a\\u3044\\u30d5\\u30a1\\u30a4\\u30eb (\\u524a\\u9664\\u6f0f\\u308c): ['test_insights_date_layout.py']\n> E       assert not ['test_insights_date_layout.py']\n> \n> orchestrator/tests/test_plain_runner_coverage.py:83: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=784 retained_bytes=784 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1780 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "77bbc6a829d26cdc1afd19051b071d017d9d9e5697388a0e880d08b3503613cc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e866ee0d915a5fee753782708557cc7abc7ab72577de3c3db2c8ffb66decc9d2",
+      "duration_s": 104.153,
+      "expected_nodes": [
+        "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries"
+      ],
+      "hang_risk": false,
+      "id": "m4-readme-line-left",
+      "injection_diff_sha256": "2b668207a8af0282bfa0f829bfaaf34409ee6c7679a9ec48e48f8286ca1ea61e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bbd71c4de4a06dff2ea2bc10dcf8333c704c9aefd4d18e2481eaca32085579ad",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/README.md",
+          "new": "- test_env_contract.py\n- test_insights_date_layout.py\n- test_layer3_report.py\n",
+          "old": "- test_env_contract.py\n- test_layer3_report.py\n"
+        }
+      ],
+      "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+      "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+      "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+      "status": "KILLED",
+      "test_output_sha256": "77bbc6a829d26cdc1afd19051b071d017d9d9e5697388a0e880d08b3503613cc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/58184f433591e550d6ae2461bd06cf07/izdw-58184f4335.o12697",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/output/pegasus-dispatch/58184f433591e550d6ae2461bd06cf07/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\norchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted\norchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries\norchestrator/tests/test_plain_runner_coverage.py::test_this_metatest_is_itself_self_runnable\n\n77 tests collected in 0.95s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3e37f43a84946d870029236264b73f5b0197ec85111f087211a1b84169354e1a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]",
+        "orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted",
+        "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries",
+        "orchestrator/tests/test_plain_runner_coverage.py::test_this_metatest_is_itself_self_runnable"
+      ],
+      "duration_s": 22.064,
+      "rc": 0,
+      "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+      "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+      "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+      "status": "PASSED",
+      "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4b00e67da36836b5d82997502af0d0b4479528c2f4b28b722bc58660ba27e94e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "    # (equivalent mutation marker: comment only)\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+            "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+          }
+        ]
+      },
+      "m2-spawn-line-left": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "87ae059a9c34dc6a614d3b3d45cb553f2a190816957b245926cc250ba640c254",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "    (\"campaign/s6_canary_rename.py\", \"<module>.export_stock\"): 3,\n    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n",
+            "old": "    (\"campaign/s6_proposal_rounds.py\", \"<module>.call_headless\"): 1,\n"
+          }
+        ]
+      },
+      "m4-readme-line-left": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plain_runner_coverage.py::test_allowlist_has_no_stale_or_self_runnable_entries"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2b668207a8af0282bfa0f829bfaaf34409ee6c7679a9ec48e48f8286ca1ea61e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/README.md",
+            "new": "- test_env_contract.py\n- test_insights_date_layout.py\n- test_layer3_report.py\n",
+            "old": "- test_env_contract.py\n- test_layer3_report.py\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "99bb4ccf94869f997005d2a4d34a7e9aa09102613600908b0b917817fecef6e7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_plain_runner_coverage.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "455b03f36536ddfb75b64278e4164b505518cfef",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_plain_runner_coverage.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dc9ac509a1b737405f0c891366e72a8563562d83",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "e6ada8c717473ef68bf3abc74ec5efffb215038544598e57b6c6fafd3a36c17c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bdf01455b5d06b18550425cf62847662118bb9dd7e0d49d6f1a7c505bce4c44a",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2800-delete/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "e8d661b42f33acd3dbc1ca2dc30cf21fc1f7db7b3667ff90203b0c18b7e15cce",
+  "updated_at": "2026-09-20T05:43:20.420430+00:00"
+}
