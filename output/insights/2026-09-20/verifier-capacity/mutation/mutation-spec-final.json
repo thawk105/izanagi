@@ -1,0 +1,198 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-equivalent-counts-init",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        counts = array(\"Q\")\n",
+          "new": "        counts = array(\"Q\", [])\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-dup-version-keeps-last-writer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                if value != previous:\n                    values[end] = value\n                    writers[end] = writer\n                    end += 1\n                    previous = value\n",
+          "new": "                if value != previous:\n                    values[end] = value\n                    writers[end] = writer\n                    end += 1\n                    previous = value\n                else:\n                    writers[end - 1] = writer\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+        "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+        "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-rw-successor-bisect-left",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        return writer, bisect_right(values, value, lo, hi)\n",
+          "new": "        return writer, bisect_left(values, value, lo, hi)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+        "orchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays",
+        "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+        "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+        "orchestrator/tests/test_verifier.py::test_capacity_workers_1_and_16_match",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_accepts_single_trace_dir",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_mismatch_is_indeterminate_json",
+        "orchestrator/tests/test_verifier.py::test_commit_at_genesis_indeterminate_and_wr_edge_kept",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
+        "orchestrator/tests/test_verifier.py::test_daemon_process_falls_back_to_sequential_verification",
+        "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+        "orchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2",
+        "orchestrator/tests/test_verifier.py::test_green_fixtures",
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity",
+        "orchestrator/tests/test_verifier.py::test_parallel_capability_remains_bound_to_parent_pid",
+        "orchestrator/tests/test_verifier.py::test_parallel_production_path_matches_certified_result_and_runs_workers",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unavailable_source_fails_closed",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unspecified_fail_closed",
+        "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_commit_witness_changes_notes_without_new_keys",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_without_commit_witness_matches_frozen_json_bytes",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+        "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+        "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-wr-writer-without-exact-match",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        writer = index if index < hi and values[index] == value else -1\n",
+          "new": "        writer = index if index < hi else -1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+        "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_cycle3_g2",
+        "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+        "orchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle",
+        "orchestrator/tests/test_verifier.py::test_green_fixtures",
+        "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+        "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+        "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-out-of-range-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                if not (0 <= columns.txn_commit_epoch[row] < _VERSION_LIMIT\n                        and 0 <= columns.txn_commit_tid[row] < _VERSION_LIMIT):\n                    self._build_compact_tuple()\n                    return\n",
+          "new": "                if False and not (0 <= columns.txn_commit_epoch[row] < _VERSION_LIMIT\n                        and 0 <= columns.txn_commit_tid[row] < _VERSION_LIMIT):\n                    self._build_compact_tuple()\n                    return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-worker-uses-mapping-path",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    if isinstance(versions, _PackedVersions):\n        values = versions.versions_flat\n",
+          "new": "    if False and isinstance(versions, _PackedVersions):\n        values = versions.versions_flat\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-broken-pool-no-kill",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                    if failed:\n                        _kill_pool_workers(executor)\n                    executor.shutdown(wait=True, cancel_futures=True)\n                if not failed:\n",
+          "new": "                    if failed:\n                        pass\n                    executor.shutdown(wait=True, cancel_futures=True)\n                if not failed:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_broken_pool_terminates_workers_and_falls_back"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-partial-results-not-released",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        if outcomes is None:\n            received.clear()\n            futures.clear()\n",
+          "new": "        if outcomes is None:\n            futures.clear()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_partial_outcomes_are_released_before_full_fallback"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-ww-drops-last-pair",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                for index in range(offsets[key_id], offsets[key_id + 1] - 1):\n",
+          "new": "                for index in range(offsets[key_id], offsets[key_id + 1] - 2):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+        "orchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays",
+        "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+        "orchestrator/tests/test_verifier.py::test_epoch_version_order_g2",
+        "orchestrator/tests/test_verifier.py::test_lost_update_g2",
+        "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+        "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic",
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

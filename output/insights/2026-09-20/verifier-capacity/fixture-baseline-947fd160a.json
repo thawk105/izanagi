@@ -1,0 +1,310 @@
+{
+ "g1_serial": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "6ad7f8866e63185f8f9ee59a7f6fa3d181ba89a48804a46dbe461ab61787847a",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "6ad7f8866e63185f8f9ee59a7f6fa3d181ba89a48804a46dbe461ab61787847a",
+   "verdict": "serializable"
+  }
+ },
+ "g2_rmw_chain": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "992efbf4dce5edeace363ba442cf1daca8833ec70d06d280a83efd298df29831",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "992efbf4dce5edeace363ba442cf1daca8833ec70d06d280a83efd298df29831",
+   "verdict": "serializable"
+  }
+ },
+ "g3_readonly": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "300c484d617666c8782f6abfb7fac30b32ac2f95d929e6ae11a26bd344ed8af9",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "300c484d617666c8782f6abfb7fac30b32ac2f95d929e6ae11a26bd344ed8af9",
+   "verdict": "serializable"
+  }
+ },
+ "g4_rw_no_cycle": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "1c548ac2f52f066f462e39447a18616f32f072e9db5d3aa98ec53f7e3a94235b",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "1c548ac2f52f066f462e39447a18616f32f072e9db5d3aa98ec53f7e3a94235b",
+   "verdict": "serializable"
+  }
+ },
+ "g5_silo_real_prefix": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 8466,
+   "sha256": "97d177435df8e15ce61f1b915f20fdd0af18702b4b15af530be7c47324d235c8",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 8466,
+   "sha256": "97d177435df8e15ce61f1b915f20fdd0af18702b4b15af530be7c47324d235c8",
+   "verdict": "serializable"
+  }
+ },
+ "g6_silo_serial_1thread": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 931,
+   "sha256": "1727ccdcc182df2aaefe656b0eed6f6d2f60a6812b4000a4361595a3cd88cc1a",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 931,
+   "sha256": "1727ccdcc182df2aaefe656b0eed6f6d2f60a6812b4000a4361595a3cd88cc1a",
+   "verdict": "serializable"
+  }
+ },
+ "g7_mocc_minimal_2thread": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "e42f5c0357452c141e732cb10a2c312075052e588566635e798854e5a1262703",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "e42f5c0357452c141e732cb10a2c312075052e588566635e798854e5a1262703",
+   "verdict": "serializable"
+  }
+ },
+ "integrity_orphan": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "43d3c1de1ca2dc8801a19edac8b796f2ee5ebf574ec0950e52cc20ddede383bb",
+   "verdict": "indeterminate"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "43d3c1de1ca2dc8801a19edac8b796f2ee5ebf574ec0950e52cc20ddede383bb",
+   "verdict": "indeterminate"
+  }
+ },
+ "m1_commit_at_genesis": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "3743cde434c76d687c93168f163d54162d51db24b1fa4537a256d2cd51c53b62",
+   "verdict": "indeterminate"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "3743cde434c76d687c93168f163d54162d51db24b1fa4537a256d2cd51c53b62",
+   "verdict": "indeterminate"
+  }
+ },
+ "m2_version_dup": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "c35948493a15523a48353a52395f18ea64b92aa6e4ae588c642de01aa0e076d1",
+   "verdict": "indeterminate"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "c35948493a15523a48353a52395f18ea64b92aa6e4ae588c642de01aa0e076d1",
+   "verdict": "indeterminate"
+  }
+ },
+ "m3_mocc_lock_coverage": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "fd7fdd8c4752f51d3a7b1d9f796f3f1873a98da2cf52b9fca5e6723c28485149",
+   "verdict": "indeterminate"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "fd7fdd8c4752f51d3a7b1d9f796f3f1873a98da2cf52b9fca5e6723c28485149",
+   "verdict": "indeterminate"
+  }
+ },
+ "m4_mocc_permutation": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "ec9206ae410a63a937ccf083ed987ec11122f444e343360f8716144a56595572",
+   "verdict": "indeterminate"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 1,
+   "sha256": "ec9206ae410a63a937ccf083ed987ec11122f444e343360f8716144a56595572",
+   "verdict": "indeterminate"
+  }
+ },
+ "p1_phantom_skew": {
+  "workers=1": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "edc848576b586b0764b9e75d293c7451bb180c460e92984a4848c593d99f6a88",
+   "verdict": "serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 0,
+   "edges": 0,
+   "sha256": "edc848576b586b0764b9e75d293c7451bb180c460e92984a4848c593d99f6a88",
+   "verdict": "serializable"
+  }
+ },
+ "r1_write_skew": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "9ff85b22f8e09f611ddafd9e965713a36bc95153e673bab4795f99f41fa36135",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "9ff85b22f8e09f611ddafd9e965713a36bc95153e673bab4795f99f41fa36135",
+   "verdict": "non-serializable"
+  }
+ },
+ "r2_lost_update": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "56703559326954eb84a73c9c5d22f3c438b2de01bfae540a97f2a14162f9cd72",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "56703559326954eb84a73c9c5d22f3c438b2de01bfae540a97f2a14162f9cd72",
+   "verdict": "non-serializable"
+  }
+ },
+ "r3_cycle3": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 3,
+   "sha256": "903278a3387fe59d12e57becd25115904c0e37b267d0fa550f49f11ed3614b2c",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 3,
+   "sha256": "903278a3387fe59d12e57becd25115904c0e37b267d0fa550f49f11ed3614b2c",
+   "verdict": "non-serializable"
+  }
+ },
+ "r4_mixed_cycle": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 3,
+   "sha256": "37b07f44e83803b11791d52bca70f49de3ac20faf8aef55617880060bd615520",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 3,
+   "sha256": "37b07f44e83803b11791d52bca70f49de3ac20faf8aef55617880060bd615520",
+   "verdict": "non-serializable"
+  }
+ },
+ "r5_nonlatest_transitive": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 6,
+   "sha256": "a163e7037a18f82bd8771a3ddb0370ad22170901fd224200fb54e7c69ae802fa",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 6,
+   "sha256": "a163e7037a18f82bd8771a3ddb0370ad22170901fd224200fb54e7c69ae802fa",
+   "verdict": "non-serializable"
+  }
+ },
+ "r6_epoch_version_order": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "9db95da142e9a08f8b16a1ca1172d7f1ce8dc24745a73bb1e8691e32a69dc0bf",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 2,
+   "sha256": "9db95da142e9a08f8b16a1ca1172d7f1ce8dc24745a73bb1e8691e32a69dc0bf",
+   "verdict": "non-serializable"
+  }
+ },
+ "r7_epoch_rw_successor": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 4,
+   "sha256": "d54af553d91e3abbbd94bf19777b51bda40ef85deb279a24aca84c16f3bce191",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 4,
+   "sha256": "d54af553d91e3abbbd94bf19777b51bda40ef85deb279a24aca84c16f3bce191",
+   "verdict": "non-serializable"
+  }
+ },
+ "r8_silo_broken_norw": {
+  "workers=1": {
+   "anomaly_count": 4,
+   "edges": 1509,
+   "sha256": "ef947c5498fb3abc313267e5c6fb5e8c33a927872bba17e39198b227b0019b88",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 4,
+   "edges": 1509,
+   "sha256": "ef947c5498fb3abc313267e5c6fb5e8c33a927872bba17e39198b227b0019b88",
+   "verdict": "non-serializable"
+  }
+ },
+ "r9_dense_cycle4": {
+  "workers=1": {
+   "anomaly_count": 1,
+   "edges": 4,
+   "sha256": "d4874d30526e3929ed73b1f9e936f0d8af4ef8d0c735038b9eea3824cfb925bd",
+   "verdict": "non-serializable"
+  },
+  "workers=2": {
+   "anomaly_count": 1,
+   "edges": 4,
+   "sha256": "d4874d30526e3929ed73b1f9e936f0d8af4ef8d0c735038b9eea3824cfb925bd",
+   "verdict": "non-serializable"
+  }
+ }
+}
