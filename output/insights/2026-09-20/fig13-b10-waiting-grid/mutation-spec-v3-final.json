@@ -1,0 +1,387 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m15-drop-calibration-records-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    _require(calibration['records'] == RECORDS_PER_DB, 'calibration records')\n",
+          "new": "    _number(calibration['records'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m17-drop-workload-rratio-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "        _require(w['ycsb_rratio'] == RRATIOS[w['name']], 'spec workload rratio')\n",
+          "new": "        _string(w['ycsb_rratio'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m18-drop-threads-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    _require(calibration['threads'] == execution['threads'] == THREADS, 'calibration/execution threads')\n",
+          "new": "    _number(calibration['threads'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_calibration_records_or_threads_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m16-drop-workload-skew-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "        _require(w['ycsb_zipf_skew'] == ZIPF_SKEW, 'spec workload skew')\n",
+          "new": "        _string(w['ycsb_zipf_skew'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_workload_skew_or_rratio_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "\"\"\"Pinned B-10 waiting grid: recorded family outcomes and paired-block intervals.\"\"\"\n",
+          "new": "\"\"\"Pinned B-10 waiting grid: recorded family outcomes and paired-block intervals.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-provenance-pin-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    PROVENANCE_JSON: \"a4390603f20fbc8fdb74c482a17ae880f292e340e79846c31f5d923d71789fca\",\n",
+          "new": "    PROVENANCE_JSON: \"a4390603f20fbc8fdb74c482a17ae880f292e340e79846c31f5d923d71789fcb\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pins_match_results_document",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-receipt-sha-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    _require(submission['receipt_sha256'] == EXTERNAL_SHA256['report_receipt'], 'submission receipt_sha256')\n",
+          "new": "    _digest(submission['receipt_sha256'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_sha_not_matching_submission_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-differences-order-free",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "                 all(_close(a, b) for a, b in zip(f['differences'], differences[w])), 'family differences order/value')\n",
+          "new": "                 all(_close(a, b) for a, b in zip(sorted(f['differences']), sorted(differences[w]))), 'family differences order/value')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-ci-formula-normal-quantile",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "                    half = T975_DF2 * statistics.stdev(block_values) / math.sqrt(len(BLOCKS))\n",
+          "new": "                    half = 1.96 * statistics.stdev(block_values) / math.sqrt(len(BLOCKS))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_evidence_loads_when_root_present",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-trust-recorded-relation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "                    _require(c['equivalence_relation'] == _relation(mean-half, mean+half), 'cell equivalence relation')\n",
+          "new": "                    _require(c['equivalence_relation'] in RELATIONS, 'cell equivalence relation')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-holm-recalculation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "        _require(_close(f['holm_p'], running, 1e-15), 'Holm recalculation')\n",
+          "new": "        _require(_number(f['holm_p']) <= 1, 'Holm recalculation')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-drop-caption-literal-2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "'Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed.', ",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_fig13_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-layout-overlap-ignored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "            if _intersection(box, other) > 1:\n",
+          "new": "            if _intersection(box, other) > 10**9:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-drop-constant-zero-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "                    _require(c['effect'] == 0 and c['ci95_low'] == 0 and c['ci95_high'] == 0\n                             and c['equivalence_relation'] == RELATIONS[0], 'constant cell zero reference')\n",
+          "new": "                    _require(c['equivalence_relation'] == RELATIONS[0], 'constant cell zero reference')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-accept-official-certification-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    _require(source['official_certification'] is False, 'official_certification must be false')\n",
+          "new": "    _require(source['official_certification'] in (True, False), 'official_certification must be false')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_official_certification_true_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-family-count-at-least",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    _require(len(rows) == FAMILIES, 'family count')\n",
+          "new": "    _require(len(rows) >= FAMILIES, 'family count')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-drop-raw-p-denominator",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "        _require(_close(raw * ENUMERATION, numerator, 1e-9), 'raw p denominator')\n",
+          "new": "        _require(numerator >= 0, 'raw p denominator')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13a-drop-exposure-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "            _require(_number(r['backoff_call_count']) >= minimum, 'registered cell exposure')\n",
+          "new": "            _number(r['backoff_call_count'])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13b-exposure-strict-boundary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "            _require(_number(r['backoff_call_count']) >= minimum, 'registered cell exposure')\n",
+          "new": "            _require(_number(r['backoff_call_count']) > minimum, 'registered cell exposure')\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_effect_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cell_interval_on_margin_edge_is_inside",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_constant_cell_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_order_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_differences_value_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_equivalence_relation_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_count_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_family_outcome_or_pairs_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_above_alpha_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_holm_p_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_driver_rc_nonzero_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_job_result_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_layout_rejects_wrong_axes_count",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_raw_p_not_dyadic_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_receipt_identity_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_report_markdown_holm_line_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_underexposed_registered_cell_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-figure-number-regex-loosened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_waiting_grid_forest.py",
+          "old": "    match = re.match(r'fig([0-9]+)_', Path(prefix).name)\n",
+          "new": "    match = re.match(r'fig?([0-9]*)_', Path(prefix).name)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_waiting_grid_forest.py::test_cli_rejects_prefix_without_fig_number"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -27,6 +27,7 @@
 | `fig10_b7_fixed5_three_workload_regression.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b7_fixed5_regression.py` | 採用候補 **fixed 5 µs** を 3 workload で同一 attempt `b7f5-20260919a` (study `paper-story-b7-fixed5-regression`、request `10807` / `10808` / `10809`) に測った 6 cell × 5 標本と、各 workload の median 効果を D1639 の between-run 床値と比べた**記述図** (B-7 の材料)。稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の床値判定 (write-heavy / balanced 退行なし、**read-heavy は床値超の退行**) を写す (判定の出所は稿の転記で、生成器は述語 `effect < −floor` との整合だけを検査する)。**B-7 の要件充足・反復 attempt・certification 昇格・有意差は判定しない (D2044 項 3、D2162)。** 既存図の後継ではなく独立した新図。既存材料 (10 / 5 / 2 µs) とプール・比較しない (D1993 項 6)。2 本目の論文と共用しない (D1637)。**追補 (2026-09-20、D2174 項 3): B-7 は図の外で「単一 attempt・descriptive・非認証・反復間安定性は未判定」の限定付きで充足と裁定され、D2044 項 3 の「要件充足へ昇格させない」はこの限定付き充足で supersede された。図・caption・provenance の bytes は不変 (同節の追補)** |
 | `fig11_a6_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-6 read-heavy 正式 certification (attempt `a6-20260908b`、request `982234.nqsv`、outer `reject`) の**結果図**。rr95 の exact 2 cell (stock `BACK_OFF=0` 対 採用静的 backoff fixed 2 µs)、median 比 −5.7841%。fig6 (A-2) と同じ生成器・同じ描画契約で描き、`fig5_` / `fig6_` / `fig7_` の後継でも前身でもない別 policy・別 attempt・別 workload の独立した新図 (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない。**性能の `reject` と別走行の正しさ `certified` (2/2) は別の段で、後者は性能の認証ではなく、前者は正しさ証拠を取り消さない (D1993 項 2)。** B-10 の近接条件 3 block ([T-2430]) は履歴的照合であって pool しない。稿 `results/2026-09-18-a6-certification-reject.md` を `caption_source` として SHA-256 束縛 (稿 bytes は不変)。2 本目の論文と共用しない (D1637) |
 | `fig12_k2_manual_loop_dataflow.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_k2_loop_flow.py` | K2 手動 loop 3 巡 (稿 `results/2026-09-20-k2-manual-loop-three-rounds.md`、B-6 の材料) の**データフローの説明図** (fig2 系と同じ「説明図」、fig3b と同じ値なしの模式図)。役割 (planner-v4 / coder-v4-autonomous-k2 = role 定義が `tools: []` の構造遮断、critic = Bash を持つ legacy role)、親が射影する入力 key、評価経路 (Pegasus 計算ノード job → trace-enabled verify → trace-disabled bench → WAL)、実測の還流 2 回・診断の還流 1 回 (exact 6 field)、規律 6 の自己申告 marker を描く。**性能値を描かず、3 走を比較せず、知識・診断の因果効果を主張せず、B-6 の充足を判定しない。同 job stock 対照は未達 ([T-2795] 裁定待ち)。** 入力は稿から人が写した流れ JSON `tools/plotting/k2_loop_flow_2026-09-20.json` で、生成器は稿の見出し行の一意性と role frontmatter との一致だけを検査し判定・値を再計算しない。稿を `caption_source` として SHA-256 束縛する (稿は provenance の hash を持たない、F36)。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
+| `fig13_b10_waiting_grid_forest.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_waiting_grid_forest.py` | B-10 待ち方 grid 正式走 (report phase、request `978195.nqsv`、事前登録 発効版 commit `77b33e37d`) の**結果図**。登録した `constant` 対 `symmetric-modulo` の 1 contrast についての 3 族 Holm 判定 (3 族とも `different`、方向は 3 族とも `symmetric-modulo` が高い側) と、36 cell の効果量・95% paired-block 区間 (df 2)・等価域 ±3.0% との関係 (内側 32 / 境界を跨ぐ 4 / 外側 0) を 1 行 × 3 panel の forest 図に描く。判定は report の provenance JSON から読み、生成器は 135 record から同じ式で再計算して一致を要求するだけで判定を作らない。**区間が帯の内側にあることは等価性の成立ではなく (等価性検定はしていない)、cell ごとの有意差は判定せず、静的右 tail の 2 cohort (fig8 / fig8b) と合成・比較しない。`official_certification` は `false` で、性能値を採用根拠にしない。機序は述べない。** 既存図の後継ではなく独立した新図。稿 `results/2026-09-20-b10-waiting-grid-formal.md` を `caption_source` として SHA-256 束縛 (稿 bytes は不変。稿の限定 11「論文図は無い」は起草時点の事実)。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -1575,3 +1576,127 @@ provenance の `caption_source.sha256` と稿の現物の一致、caption の本
 - `fig12_k2_manual_loop_dataflow.png` SHA-256: `a6f2b550bd67ddfd05db193493736ef388b2a9f24d60916cb8964607dc3df991`
 - `fig12_k2_manual_loop_dataflow.pdf` SHA-256: `c280037fe72fb60c4420864f1de1df1b28bbf5a7b5ed1c104d13244f2493cfcf`
 - `fig12_k2_manual_loop_dataflow.provenance.json` SHA-256: `76c03b92cb106fa0d73417c1f6357d5b0ded1a6e915ca210013fdb509dd1aaea`
+
+---
+
+# `fig13_b10_waiting_grid_forest` — B-10 待ち方 grid 正式走 (report `978195.nqsv`) の 3 族 Holm 判定と 36 cell の効果量・95% 区間・等価域 ±3.0% の forest 図
+
+## 何を示す図か
+
+事前登録 `docs/b10-backoff-shape-preregistration.md` の発効版 (commit `77b33e37d`、blob `ea910de32…`) に対して report phase (request `978195.nqsv`、2026-09-05 JST、解析コード commit `2a338449b`) が出した
+**1 つの判定** — 登録した `constant` 対 `symmetric-modulo` の contrast を write-heavy / balanced / read-heavy の 3 族 × 18 対で検定し、36 cell の効果量と 95% paired-block 区間を等価域 ±3.0% と並べたもの —
+を、単独稿 `results/2026-09-20-b10-waiting-grid-formal.md` (§2.2・§2.4) と同じ一次資料 (report の provenance JSON) から描いた**結果図**である。
+
+- 1 行 × 3 panel (左から write-heavy / balanced / read-heavy)。各 panel の縦軸は登録 grid の μ 6 行 (2 / 5 / 10 / 25 / 50 / 100 µs、上から下)、横軸は `symmetric-modulo` の中央値 throughput ÷ `constant` の中央値 throughput − 1 (%) で、
+  3 panel 共通の範囲。帯は事前登録の等価域 ±3.0%、縦線は 0 (= `constant` 参照)。
+- 各行: 空丸 = `constant` 参照 cell (効果 0、区間 [0, 0]。自分自身との対なので構成上 0。report にそのまま並ぶ 18 cell)。塗り印 + 横線 = `symmetric-modulo` cell の効果 (3 block の対相対効果の平均) と 95% paired-block 区間
+  (student-t、自由度 2、平均 ± 4.302652729911275 × 標本標準偏差 / √3)。灰色の小さい縦 tick = 区間の材料である 3 block の対相対効果 (稿 §2.3 の 54 対のうち当該 cell の 3 つ)。
+  `overlaps-equivalence-boundary` の 4 cell (write-heavy μ 2・μ 25、balanced μ 2・μ 25) は印の形を変えて凡例で区別する。
+- panel 題 = 族の判定 (`outcome` `different`、Holm p、raw p の 2^18 分母の分数表記、対 18、18 対の和の符号)。3 族とも `testable` / `different`、方向は 3 族とも `symmetric-modulo` が高い側 (稿 §2.2)。
+
+**言えるのは事前登録 §3 の「書ける主張」まで**である。登録した 2 つの特定の実装の間で待ち方の違いが throughput を動かすかを事前登録した手続きで検定し、3 族とも `different` だった。
+方向・効果量・区間は**この contrast に限って**述べる。**区間が ±3.0% の帯の内側にあること (32 cell) は「区間の位置」の分類名であって等価性の成立ではなく、等価性検定は行っていない** (稿 §3 限定 16)。
+**36 cell の個別の有意差は判定しない** — 検定は 3 族の族水準の exact 符号反転 permutation + Holm だけで、cell の区間は記述である。境界を跨ぐ 4 cell も外側 0 も同じ意味で読む。
+`different` は protocol の出力であって成否の宣告ではない (D12)。機序 (なぜ `symmetric-modulo` が高い側か) は述べない (D1097、D1678、稿 §3 限定 3)。`binary` / 3 水準 ladder / 用量反応 / 直交切り分けの一般化について何も言わない (事前登録 §3・§8・§9)。
+**`official_certification` は `false` で、この性能値を根拠に variant を採用してはならない** (絶対規律 2)。正しさは trace 有効ビルドの別走行 (135 / 135 cell certified) についてで、性能の認証ではない (稿 §1.6・§3 限定 8)。
+3 workload は別 job・別日・別 driver 版で、workload 間の絶対 throughput は比べない (稿 §3 限定 6)。判定は 2026-09-07 の D1678 で閉じており、本図はそれを改めない。
+
+## 既存図との関係
+
+- **`fig8_` / `fig8b_` (静的右 tail の 2 cohort) と合成・比較しない。** 右 tail は別の事前登録 (`docs/b10-backoff-static-tail-preregistration.md`)・別の格子 (1000〜9999 µs)・別の driver・別の判定述語の事実である (D2157 の精神を待ち方 grid との間にも当てる、稿 §0・§3 限定 10)。
+- **`fig2b_` / `fig2c_` (別系列の backoff sweep) も本判定の図ではない** (稿 §3 限定 11)。A-2 / A-6 / B-7 / [T-1998] の図 (fig5〜fig7、fig10、fig11) の certification・退行判定とも合成しない (絶対規律 7)。
+- 既存図の後継ではなく独立した新図。稿 §3 限定 11「論文図は無い」は起草時点 (2026-09-20) の事実で、本図はその後に作られた。**稿の bytes は変えない** (凍結物。provenance が現 SHA-256 で束縛する)。
+  `docs/paper-story/README.md` の results 表の当該行は触っていない (ユーザー指示。同行の「図は無い」は起草時点の記述)。2 本目の論文と共用しない (D1637)。
+
+## 入力
+
+- 権威 bytes (repo 内、tracked、生成器の pin 表 `PINNED_SHA256` で SHA-256 束縛。pin は CLI から渡せない):
+  `output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_provenance.json` (`b10-backoff-shape-provenance/v2`、SHA-256 `a4390603f20fbc8fdb74c482a17ae880f292e340e79846c31f5d923d71789fca`。
+  判定 `judgement.families[]` / `judgement.cell_effects[]`、135 record、事前登録 spec、submission の束縛を含む) と
+  `output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_report_978195.nqsv-23409962b76b.md` (SHA-256 `e237d17db4f02818ea27049165fa90da4c19adea1bc8bca9b165b73b77e8e768`)。値は稿 §4.1 の表と同じ。
+- 外部入力 (repo 外、稿 §4.2 の report 行): root `/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape` の `submissions/23409962b76be959bb523a0cd5a31bc1/submit-receipt.json` (受領証、SHA-256 `93a1cd74…` = provenance JSON の `submission.receipt_sha256`) と
+  `submissions/23409962b76be959bb523a0cd5a31bc1/job-attempts/978195.nqsv/job-result.json` (job 結果、SHA-256 `d5d4a0ee…`、`driver_rc` 0)。生成器は両 file の SHA-256 を定数で持ち、request / nonce / phase / commit が provenance JSON の `submission` と一致することを要求する。
+- 再計算と照合 (生成器は判定を作らない): 135 record の `median_tps` から 54 対の対相対効果を block-major / μ-minor の順に組み立て `judgement.families[].differences` と一致、Holm p を昇順から再計算して一致、raw p × 2^18 が整数、
+  18 cell の効果 (3 block の平均) と区間 (± 4.302652729911275 × 標本 sd / √3) を再計算して一致、等価域 ±3.0% との関係を区間の位置から再分類して `equivalence_relation` と一致、`constant` 18 cell が 0 / [0, 0]、
+  全 135 record が `correctness_certified` / 非 `missing` / 非 `unstable`、登録 108 cell の曝露 (backoff 呼び出し ≥ 10,000)。report .md については Holm 3 行の値 (outcome / 対 / raw p / Holm p の丸め) の照合と、cell effects 節が 36 行あるという行数の照合だけを行う
+  (cell の値は report .md でなく provenance JSON 側で 135 record から全件再計算する)。**raw p 自体 (全 2^18 列挙) は再計算しない** (report の仕事)。
+- 拒否条件: SHA-256 不一致 (tracked 2 file、外部 2 file)、schema / alpha / spec SHA / 格子 / 族構成 / 受領証 identity の不一致、族数 ≠ 3、対 ≠ 18、`outcome` ≠ `different`、`status` ≠ `testable`、Holm p > α、対差の順序または値の不一致、raw p が 2^18 分母の分数でない、
+  Holm 再計算の不一致、cell 数 ≠ 36、効果 / 区間 / 等価域関係の不一致、`constant` cell が 0 でない、record 数 ≠ 135、median と 5 rep の不一致、未認証 / missing / unstable の record、登録 cell の曝露不足、`official_certification` が `true`、較正 (records / threads / env) と workload 条件 (skew / rratio / rmw / max_ope / extime) の定数不一致、caption_source (稿) の不在。いずれでも成果物を出さない。
+- **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md` の path と SHA-256 を記録する (`authority_scope` = 限定・条件の言い方の出所であって、測定値・判定の一次権威ではない)。
+  稿は provenance の SHA-256 を持たない (F36 の自己参照回避)。稿は凍結物なので着地後に変わらない。
+
+## 再現
+
+```bash
+python3 tools/plotting/plot_b10_waiting_grid_forest.py \
+  --evidence-root /work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape \
+  docs/paper-story/figures/fig13_b10_waiting_grid_forest
+```
+
+図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。生成は login node で行う (計測機の外、FIGURE_CONVENTIONS §7)。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。
+着地したバイト列の同一性は provenance JSON が記録した `outputs[].sha256` と `orchestrator/tests/test_plot_b10_waiting_grid_forest.py` の
+`test_landed_fig13_repo_closure_and_caption_when_present` が守る。`validate_repo_closure` が見るのは provenance の自己整合と hash (repo 内の tracked 入力 = 権威 bytes 2 file + 稿と出力の SHA-256、
+provenance の値から作り直した artist / caption との一致、tracked JSON からの再計算との一致) までで、repo 外の受領証は読まない (root が読めるときは `validate_external_sources` が 2 file の SHA-256 も照合する)。
+生成器の `generator.sha256` は生成時点の記録であり、現行 source を縛る pin ではない (規律 7)。
+
+## 作図規約への適合
+
+- §1: 図の数値は report provenance JSON の判定を写し、135 record の `median_tps` からその場で再計算して一致を要求する (判定は凍結 report を権威として読み、生成器は作らない。fig5 節の限定例外と同型)。
+- §2: 反復の不確かさは cell の 95% paired-block 区間 (3 block、df 2) で描き、区間の材料 (3 block の対相対効果) も点で見せる。
+- §3: 比較対象 `constant` は 0 の縦線 + 各行の空丸 (参照 cell) として、主系列と同じ軸上に置く。
+- §5: 図中ラベルは `constant` / `symmetric-modulo` / workload 名 / μ と判定名だけ。展開は caption で 1 回。
+- §6: provenance に入力の path と SHA-256・測定条件 (スレッド数 48、レコード数 1,000,000、Zipf skew 0.9、read ratio、rmw、max operations、1 rep の秒数、env = Pegasus 計算ノード。report provenance JSON の `calibration` と `preregistration.spec.workloads` / `spec.execution` から読み、定数と一致を要求する)・主要数値 (3 族の p、36 cell の効果と区間、summary)・caption・再現 argv。測定条件は図の脚注と caption の `Conditions:` 文にも出す (段 6 review B の must-fix で追加)。
+- §7: login で生成。§8: matplotlib + numpy のみ。§9: 保存前の renderer-backed layout check (axes ちょうど 3、text の重なり・逸脱・隣 panel 侵入で 3 成果物を 1 つも出さない)。
+- §10: fixture は実寸 (135 record、36 cell、3 族、report .md の Holm 3 行 + cell 36 行) で本物の Figure を検査へ通す。実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+日本語キャプション正文 (論文の結果節に置く文。値は provenance と稿 §2.2 / §2.4 の転記):
+
+> 図 13. B-10 待ち方 grid の正式走 (report phase、request `978195.nqsv`) — 登録した `constant` 対 `symmetric-modulo` の 1 contrast についての 3 族 Holm 判定と 36 cell の効果量。
+> 3 panel は write-heavy / balanced / read-heavy、各行は登録 grid の μ (2 / 5 / 10 / 25 / 50 / 100 µs)。横軸は `symmetric-modulo` の中央値 throughput を `constant` の中央値 throughput で割った比 − 1 (%)。
+> 空丸は `constant` 参照 cell (効果 0、区間 [0, 0])、塗り印と横線は `symmetric-modulo` cell の効果 (3 block の対相対効果の平均) と 95% paired-block 区間 (student-t、自由度 2)、灰色の小さい縦 tick はその 3 block の対相対効果、帯は事前登録の等価域 ±3.0%。
+> 3 族とも事前登録した手続き (18 対の両側 exact 符号反転 permutation、全 2^18 列挙、3 族 Holm、α 0.05) で `different` (write-heavy raw p 6702 / 2^18 = Holm p 0.02557、balanced raw p 70 / 2^18・Holm p 0.000534、read-heavy raw p 2 / 2^18・Holm p 2.29 × 10⁻⁵)、方向は 3 族とも `symmetric-modulo` が高い側。
+> 36 cell の区間は等価域の内側 32・境界を跨ぐ 4 (write-heavy μ 2・μ 25、balanced μ 2・μ 25)・外側 0、判定不能 0。点推定が負なのは write-heavy μ 5 の 1 cell (−0.97%、区間は 0 を含む)。
+> 区間が帯の内側にあることは区間の位置の分類名であって等価性の成立ではなく、等価性検定は行っていない。cell ごとの有意差は判定しない (検定は 3 族の族水準だけ)。`different` は protocol の出力であって成否の宣告ではない。機序は述べない。
+> 静的右 tail の 2 cohort (fig8 / fig8b) と合成・比較しない。`official_certification` は `false` で、この性能値は variant 採用の根拠にならない。正しさは trace 有効ビルドの別走行 (135 / 135 cell certified) で、性能の認証ではない。
+> 条件: Pegasus 計算ノード、48 スレッド、silo、レコード数 1,000,000、Zipf skew 0.9、read ratio 5 / 50 / 95 (write-heavy / balanced / read-heavy)、read-modify-write 無し、max operations 10、1 rep 3 秒、各 cell 5 rep × 3 block、CCBench pin `511c953`、3 workload は別 job・別日・別 driver 版で workload 間の絶対 throughput は比べない。
+
+英文の caption 正文は provenance JSON の `caption` と同一文字列であり、`orchestrator/tests/test_plot_b10_waiting_grid_forest.py` が本 README への収録と生成器の決定的な組み立てとの一致を検査する。
+値 (3 族の p / 対 / 和の符号、36 cell の集計、境界を跨ぐ 4 cell、負の点推定、条件、request、commit、pin) は生成器が provenance JSON から書式化し、限定の固定文 8 文
+(族の outcome は事前登録手続きの分類名で研究判定ではない / 帯の内側は等価性ではなく等価性検定はしていない / cell ごとの有意差は判定せず検定は族水準 3 つだけ / 右 tail cohort と pool も比較もしない /
+`official_certification` false・採用根拠にしない / この 1 contrast に限り一般・`binary`・用量反応・直交切り分けを言わない / 正しさは別走行で性能認証ではない / 3 workload は別 job・別日・別 driver 版、絶対 throughput を比べず機序を言わない) を逐語で含む。
+
+> Figure 13. B-10 waiting-shape grid, preregistered contrast constant vs symmetric-modulo. write-heavy: different, raw p = 6702/2^18 = 0.02556610107421875, Holm p = 0.02556610107421875, 18 pairs, sum of paired effects +0.11202543669460518 (symmetric-modulo higher); balanced: different, raw p = 70/2^18 = 0.00026702880859375, Holm p = 0.0005340576171875, 18 pairs, sum of paired effects +0.13167898485090257 (symmetric-modulo higher); read-heavy: different, raw p = 2/2^18 = 7.62939453125e-06, Holm p = 2.288818359375e-05, 18 pairs, sum of paired effects +0.087727340019642996 (symmetric-modulo higher). Cell effects and 95% paired-block intervals: 36 estimable, inside 32, overlaps 4, outside 0, indeterminate 0; 1 negative point estimates and 8 positive interval lower bounds. Boundary overlaps: write-heavy mu 2 and 25, balanced mu 2 and 25. Constant cells are constructional references at zero with intervals [0, 0]; gray ticks show the three block-level paired effects. Conditions: Pegasus compute nodes, 48 threads, silo, 1,000,000 records, Zipf skew 0.9, read ratio 5 / 50 / 95 (write-heavy / balanced / read-heavy), read-modify-write disabled, max operations 10, 3 s per repetition, YCSB write-heavy / balanced / read-heavy, commanded mean wait mu 2, 5, 10, 25, 50, 100 us, 5 reps x 3 blocks, CCBench pin 511c953, report request 978195.nqsv, preregistration commit 77b33e37d, source commit 2a338449b. Each family's outcome is the preregistered procedure's classification and is not a research verdict. Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed. Per-cell intervals are descriptive and no per-cell significance decision is made; the only tests are the three family-level permutation tests with Holm adjustment. The static right-tail cohorts (separate preregistration, grid and driver) are neither pooled nor compared with this grid. official_certification is false; these performance values are not a basis for adopting a variant. Direction and effect sizes are stated for this one contrast only; nothing is claimed about waiting-shape effects in general, about binary, about a dose response of dispersion, or about a general separation of waiting shape from waiting amount. Correctness is recorded from separate trace-enabled runs (135 of 135 cells certified) and is not a performance certification. The three workloads ran as separate jobs on different days and driver versions; absolute throughput is not compared across workloads, and no mechanism is claimed for the direction.
+
+## proof chain
+
+- 図に描いた 36 cell の効果・区間・等価域との関係・3 block の対相対効果 → provenance JSON (図の) の `cells` と `artist_series`
+- 3 族の判定 (`status` / `outcome` / raw p / Holm p / 対 18 / 対差 18 × 3) → report provenance JSON の `judgement.families[]`。生成器は再計算して一致を記録する (`crosschecks`)
+- 36 cell の効果・区間・等価域関係 → 同 `judgement.cell_effects[]`。135 record の `median_tps` からの再計算との一致を `crosschecks` に記録
+- 等価域 ±3.0%・自由度 2 の臨界値・α・全 2^18 列挙 → 同 `preregistration.spec.analysis` (事前登録 発効版 commit `77b33e37d` §5 の機械可読 spec)
+- report phase の投入と完了 → repo 外の受領証と job 結果 (provenance の `external_inputs` に root 相対 path と SHA-256、`report` に request / nonce / phase / epoch / `driver_rc`)
+- 入力の束縛 → 生成器の pin 表 `PINNED_SHA256` / `EXTERNAL_SHA256`、稿 §4.1・§4.2 の表
+- 正しさの記録 → 135 record の `correctness_certified` (全 true)。性能の認証ではない (稿 §1.6・§3 限定 8)
+- 限定と条件の言い方 → 稿 (provenance の `caption_source`、SHA-256 束縛)、事前登録 発効版 §3・§8・§9
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_b10_waiting_grid_forest.py` (`test_landed_fig13_repo_closure_and_caption_when_present`: 着地 bytes の SHA-256、caption の逐語収録、caption_source の現 SHA-256、
+  `test_document_values_match_report_json`: 稿 §2.2 / §2.4 の値と tracked JSON の一致、`test_pins_match_results_document`: pin 2 値と稿 §4.1 の一致)
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md`
+- 判定の地位と関係の裁定 → D1678 (現行 report で閉じる、§9 の 5 項目は見送り)、D12 (protocol 出力を成否へ拡張しない)、D2157 (右 tail cohort を合成しない)、D1092 / D1094 / D1097 (制約 3 つ)、D1637 (2 本目と共用しない)
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+## 着地 bytes の SHA-256
+
+次の 3 行が着地 bytes の正本である。`orchestrator/tests/test_plot_b10_waiting_grid_forest.py` の着地 test が、この 3 行の値と
+着地 file の現物 SHA-256 の一致を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
+
+- `fig13_b10_waiting_grid_forest.png` SHA-256: `018bd8e9cbd86268f6e26d7d33b5d5b55bbe2fe7bf043f3832c43e001f23bde6`
+- `fig13_b10_waiting_grid_forest.pdf` SHA-256: `8105d3dc918b85c62fa20c3d6374db8987de69d6c2e7c09f32ec7d8ff04675d5`
+- `fig13_b10_waiting_grid_forest.provenance.json` SHA-256: `e5ee8147d8eac46f86359ac3556d739ae43ef64f36fd3fda6e5ae66d8cf5bb6c`
+
+provenance が `caption_source` として束縛する稿の SHA-256 は `8dc6d69538c6785c0e3e56073ccc86c97e82699972265d5c521159a6cf72045a`
+(稿は凍結物で、着地後に変わらない)。
