@@ -1,7 +1,5 @@
 # dev-wave worker 契約
 
-plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
-
 ## DW-S02 — 段 2 プラン起草
 
 brief と関連コードの所在を渡し、codex `reasoning=medium`、`sandbox=read-only` で
@@ -20,9 +18,9 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 
 所有path素集合の単位ごとに別worktree。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録してから起動、fixは同木でbranchを切り再登録。依存完了後、所有path限定patch
 （`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可）だけ展開し並列投入。
-worktreeは`-b`必須(detachedはmidflight rc=1)。
+worktreeは`-b`必須。
 投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
-乖離量は非関門。gate実測NOTE≠0ならanchor再読。
+gate実測NOTE≠0ならanchor再読。
 起動器はauthor/fixの全残差を終端commit、待ち手は`--commit-worktree <abs>`指定。記録のみ(D2044項16)。
 codex は `reasoning=medium`、`sandbox=workspace-write` とする。
 
@@ -62,4 +60,3 @@ fixのpromptに**既存テストの期待値を変更しない**を明記する�
 
 並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。
 親が変異 matrix と受入を再走する。
-成立した条件の operations と `DW-G05` を適用する。
