@@ -1914,6 +1914,65 @@ def _refresh_critic_digest(layout: CampaignLayout, *, reflux: bool) -> Certified
     return critic_view
 
 
+def _write_b5_sidecar(directory, name, payload):
+    """Publish complete bytes once; serialize publishers before no-clobber rename."""
+    root = Path(directory)
+    target = root / name
+    lock = root / (name + ".publishing")
+    lock.mkdir()  # exclusive; interrupted publication fails closed on restart
+    temporary = lock / "payload.tmp"
+    try:
+        if os.path.lexists(target):
+            raise FileExistsError(target)
+        with temporary.open("x", encoding="utf-8") as stream:
+            json.dump(payload, stream, sort_keys=True, allow_nan=False)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.rename(temporary, target)
+        fd = os.open(root, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+        lock.rmdir()
+
+
+def _b5_sidecar_payload(cfg, genome, layout=None):
+    payload = {
+        "schema": "p3-s4-loop-b5-submission/v1",
+        "b5_slot": cfg.search_config["b5_slot"],
+        "campaign_id": str(ident.campaign_id(cfg)),
+        "genome": genome.canonical(),
+        "ts_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    if layout is not None:
+        payload.update(
+            schema="p3-s4-loop-b5-slot-start/v1",
+            campaign_root=str(Path(layout.root).resolve()),
+            identity_preimage_sha256=hashlib.sha256(
+                ident.canonical_preimage(cfg).encode("utf-8")).hexdigest(),
+        )
+    return payload
+
+
+def _machine_proposal_capability_resolver(build_context, proposal_sha256):
+    def resolve(evidence):
+        if evidence.src_token != source_digest.STOCK:
+            return attest_generator_output(
+                build_context, evidence,
+                generator_input_sha256=hashlib.sha256(
+                    (f"p3-s4-loop-machine-proposal/v1|{proposal_sha256}|"
+                     f"{evidence.genome_sha256}").encode("utf-8")
+                ).hexdigest(),
+            )
+        return None
+    return resolve
+
+
 def _stock_capability_resolver(build_context: BuildRunContext):
     def resolve(evidence):
         if evidence.src_token == source_digest.STOCK:
@@ -1940,6 +1999,7 @@ def _run_stock_control_resolved(
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
+        b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
 ) -> Dict:
     """Evaluate the adaptive control without constructing or advancing LoopState.
 
@@ -1952,6 +2012,9 @@ def _run_stock_control_resolved(
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
     layout.ensure()
+    if b5_sidecar_dir is not None:
+        _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
+                          _b5_sidecar_payload(cfg, genome, layout))
     ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
@@ -1983,6 +2046,11 @@ def _run_stock_control_resolved(
                 "googletest_source_dir": googletest_source_dir,
                 "fetchcontent_dependency_receipt": fetchcontent_dependency_receipt,
             })
+        if b5_mode:
+            campaign_options["bench_max_rounds"] = 3
+        if b5_sidecar_dir is not None:
+            _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json",
+                              _b5_sidecar_payload(cfg, genome))
         summary = run_campaign(
             cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), ccbench_dir=sub, cache_root=cache_root,
@@ -2031,7 +2099,8 @@ def _run_one_iteration_resolved(
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
         build_context: Optional[BuildRunContext] = None,
-        _b4_launch_context=None,
+        _b4_launch_context=None, *,
+        b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。
 
@@ -2162,6 +2231,13 @@ def _run_one_iteration_resolved(
                     fetchcontent_dependency_receipt
                 ),
             })
+        if b5_mode:
+            campaign_options["bench_max_rounds"] = 3
+        if b5_sidecar_dir is not None:
+            _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json",
+                              _b5_sidecar_payload(cfg, genome))
+        if capability_resolver is not None:
+            campaign_options["capability_resolver"] = capability_resolver
         summary = run_campaign(
             cfg, [genome], perf, contract.env_tag, contract.clocks_per_us,
             numactl=list(contract.numactl), log=log,
@@ -2172,6 +2248,10 @@ def _run_one_iteration_resolved(
             backoff_grammar_version=backoff_grammar_version,
             **campaign_options,
         )
+    if b5_mode and summary.skipped > 0:
+        project_whiteboard(state, planner, "fail")
+        return {"outcome": "duplicate-skip", "variant": None, "records": {},
+                "condition_gate": condition_gate}
     v = next((r.variant for r in summary.results), None)
     if v is None and summary.skipped > 0:
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
@@ -2604,6 +2684,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
                     b4_proposal_receipt_sha256: str | None = None,
                     _b4_launch_context=None, *,
+                    b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
                     agent_record: dict | None = None,
                     dependency_prefix: str = "",
                     fetchcontent_base_dir: str = "",
@@ -2700,6 +2781,11 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
             raise B4ProtocolError("B-4 receipt inputs require the exact protocol marker")
         state = None
     layout.ensure()
+    if b5_sidecar_dir is not None:
+        genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
+                                 "BACKOFF_FIXED": int(coder.value)})
+        _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
+                          _b5_sidecar_payload(cfg, genome, layout))
     ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
@@ -2733,8 +2819,17 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
         build_context=build_context,
         _b4_launch_context=(_b4_launch_context if b4_mode else None),
+        **({"b5_sidecar_dir": b5_sidecar_dir, "b5_mode": b5_mode,
+            "capability_resolver": capability_resolver}
+           if b5_mode or b5_sidecar_dir is not None or capability_resolver is not None else {}),
     )
     save_loop_state(layout, state)
+
+    if b5_mode and out["outcome"] == "duplicate-skip":
+        post = check_stop(state)
+        out.update(stop_reason=post.reason, iteration=state.iteration, ran=True,
+                   critic_digest_generated=False)
+        return out
 
     if do_build and out["outcome"] != "dry-pass":
         critic_view = require_admitted_campaign(
@@ -2947,6 +3042,9 @@ def main(
     与えた fixture backoff 値で確認する口。--no-build で build/verify/bench を省く。
     --emit-planner-context は proposal 生成前の planner-v4 入力 JSON を出力する。"""
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
+    ap.add_argument("--b5-slot")
+    ap.add_argument("--machine-generated-proposal", action="store_true")
+    ap.add_argument("--b5-sidecar-dir", type=Path)
     ap.add_argument("--calibrated-perf", action="store_true")
     ap.add_argument("--perf-workload", choices=("write-heavy", "balanced", "read-heavy"))
     ap.add_argument("--verify-performance", action="store_true")
@@ -3035,6 +3133,26 @@ def main(
             return 1
     if supplied & ingestion:
         ap.error("agent ingestion options require --record-agent-output")
+    if a.b5_slot is not None:
+        if (not a.b5_slot.isascii() or any(c.isspace() for c in a.b5_slot)
+                or not a.b5_slot.startswith("b5-generator-contrast-v1|")):
+            ap.error("--b5-slot requires nonempty ASCII without whitespace and B-5 prefix")
+        if not (a.calibrated_perf and a.perf_workload and a.verify_performance):
+            ap.error("--b5-slot requires --calibrated-perf --perf-workload --verify-performance")
+        if supplied & {"value", "emit_planner_context", "no_build", "b4_reflux_ablation"}:
+            ap.error("--b5-slot conflicts with fixture, emit, no-build or B-4 options")
+        if not (a.run_iteration or a.stock_control):
+            ap.error("--b5-slot requires --run-iteration or --stock-control")
+    if a.machine_generated_proposal:
+        if not (a.run_iteration and a.b5_slot):
+            ap.error("--machine-generated-proposal requires --run-iteration and --b5-slot")
+        if (a.coder_build_authority is not None or a.coder_role is not None
+                or a.knowledge_manifest is not None
+                or supplied & {"knowledge_classification", "knowledge_de_novo_claim"}):
+            ap.error("--machine-generated-proposal conflicts with coder authority and K2 options")
+    if a.b5_sidecar_dir is not None:
+        if a.b5_slot is None or not a.b5_sidecar_dir.is_dir():
+            ap.error("--b5-sidecar-dir requires --b5-slot and an existing directory")
     if a.verify_performance and not (a.calibrated_perf and a.perf_workload):
         ap.error("--verify-performance requires --calibrated-perf and --perf-workload")
     if a.calibrated_perf != (a.perf_workload is not None):
@@ -3147,6 +3265,7 @@ def main(
         and not a.stock_control
         and not a.no_build
         and a.coder_build_authority is None
+        and not a.machine_generated_proposal
     ):
         raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")
 
@@ -3166,6 +3285,8 @@ def main(
             **cfg.search_config, "records": perf.records, "threads": perf.threads,
             "perf_workload": dict(perf.workload), "extime": perf.extime, "reps": perf.reps,
         })
+    if a.b5_slot is not None:
+        cfg = replace(cfg, search_config={**cfg.search_config, "b5_slot": a.b5_slot})
     if a.verify_performance:
         cfg = replace(cfg, search_config={
             **cfg.search_config, SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
@@ -3206,13 +3327,20 @@ def main(
             f"(sources_count={len(resolved_knowledge.manifest.sources)}) "
             "のため --coder-role coder-v4-autonomous-k2 が必要"
         )
-    if a.stock_control:
+    if a.stock_control or a.machine_generated_proposal:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     else:
         build_context = build_run_context(
             generator_id=GeneratorId.BACKOFF_SWEEP,
             coder_authority=None if a.no_build else a.coder_build_authority,
         )
+
+    b5_options = {}
+    if a.b5_slot is not None:
+        b5_options = {"b5_mode": True, "b5_sidecar_dir": a.b5_sidecar_dir}
+    if a.machine_generated_proposal:
+        b5_options["capability_resolver"] = _machine_proposal_capability_resolver(
+            build_context, hashlib.sha256(Path(a.run_iteration).read_bytes()).hexdigest())
 
     root = _repo_root()
     fixed_sub = os.path.join(root, "external", "ccbench")
@@ -3248,7 +3376,7 @@ def main(
             out = _run_stock_control_resolved(
                 cfg, perf, sub, layout, contract, resolved_site,
                 stock_root=fixed_sub, cache_root=cache_root,
-                build_context=build_context, **fetchcontent_options,
+                build_context=build_context, **b5_options, **fetchcontent_options,
             )
         variant_text = f" variant={out['variant']}" if "variant" in out else ""
         print(f"  outcome={out['outcome']}{variant_text} "
@@ -3324,7 +3452,7 @@ def main(
                                   _resolved_site=resolved_site,
                                   _contract=contract,
                                   **({"agent_record": agent_record} if agent_record is not None else {}),
-                                  **fetchcontent_options)
+                                  **b5_options, **fetchcontent_options)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")
@@ -3335,7 +3463,7 @@ def main(
         ok = (out["stop_reason"] in ("continue", "converged", "reverse-exhausted",
                                      "budget-iterations", "budget-walltime")
               and os.path.exists(loop_state_path(layout)))
-        return 0 if ok else 1
+        return 0 if ok and out["outcome"] != "duplicate-skip" else 1
     state = LoopState(start_ts=time.monotonic())
     state.iteration = 1
 

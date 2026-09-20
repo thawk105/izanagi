@@ -10297,6 +10297,158 @@ def test_stock_perf_cli_ingestion_exclusion(agent_ingest_fixture, capsys, extra)
     assert "--record-agent-output cannot be combined with evaluation options" in capsys.readouterr().err
 
 
+# B-5 seams: actual parser, loader, identity, quarantine and capability issuance.
+def _b5_args():
+    return ["--calibrated-perf", "--perf-workload", "balanced", "--verify-performance",
+            "--b5-slot", "b5-generator-contrast-v1|fixture", "--isolate-worktree"]
+
+
+def test_b5_slot_changes_identity_and_default_kwargs_stay_exact(tmp_path, monkeypatch):
+    _layout, _sub, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    layouts = []
+    def fresh_layout(cid):
+        layout = CampaignLayout(str(tmp_path / cid))
+        layouts.append(cid)
+        return layout
+    monkeypatch.setattr(L, "exploration_campaign_layout", fresh_layout)
+    assert L.main(["--stock-control", "--isolate-worktree"]) == 1
+    default_cfg, _, _, _, default_kwargs = calls[-1]
+    assert ident.canonical_preimage(default_cfg) == _DEFAULT_PREIMAGE_BEFORE_PAIR
+    assert "bench_max_rounds" not in default_kwargs
+    for suffix in ("a", "b"):
+        args = _b5_args()
+        args[args.index("--b5-slot") + 1] += suffix
+        assert L.main(["--stock-control", *args]) == 1
+        assert calls[-1][-1]["bench_max_rounds"] == 3
+    first, second = calls[1][0], calls[2][0]
+    assert str(ident.campaign_id(first)) != str(ident.campaign_id(second))
+    assert {k: v for k, v in first.search_config.items() if k != "b5_slot"} == {
+        k: v for k, v in second.search_config.items() if k != "b5_slot"}
+    assert len(set(layouts)) == 3
+
+
+@pytest.mark.parametrize("args", [
+    ["--b5-slot", ""], ["--b5-slot", "wrong"],
+    ["--b5-slot", "b5-generator-contrast-v1|space here"],
+    ["--b5-slot", "b5-generator-contrast-v1|非ASCII"],
+    ["--machine-generated-proposal"], ["--b5-sidecar-dir", "/tmp"],
+    _b5_args(),
+    ["--stock-control", "--b5-slot", "b5-generator-contrast-v1|x", "--isolate-worktree"],
+])
+def test_b5_cli_invalid_combinations_rejected(args):
+    with pytest.raises(SystemExit) as exc:
+        L.main(args)
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("extra", [
+    ["--value=20"], ["--emit-planner-context", "out"], ["--no-build"],
+    ["--b4-reflux-ablation"], ["--allow-coder-derived-build"],
+    ["--coder-role", "coder-v4-autonomous-k2"], ["--knowledge-manifest", "M"],
+    ["--knowledge-classification", "reproduction_or_selection"],
+    ["--knowledge-de-novo-claim", "false"], ["--b5-sidecar-dir", "/nonexistent-b5-directory"],
+])
+def test_machine_cli_exclusions_before_external_work(extra):
+    with pytest.raises(SystemExit) as exc:
+        L.main([*_b5_args(), "--run-iteration", "missing", "--machine-generated-proposal", *extra])
+    assert exc.value.code == 2
+
+
+def _b5_candidate_fixture(tmp_path, monkeypatch):
+    import contextlib
+    from orchestrator.campaign import patchharness
+    layout, _, calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    template = _mk_template_dir(L.SOURCE_REL)
+    monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k: contextlib.nullcontext(template))
+    proposal = tmp_path / "proposal.json"
+    proposal.write_text(json.dumps({
+        "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},
+        "coder": {"axis": L.MARKER_ID, "value": 20, "implementation": "double now_backoff = 20;"},
+    }))
+    sidecar = tmp_path / "sidecar"
+    sidecar.mkdir()
+    args = [*_b5_args(), "--run-iteration", str(proposal), "--machine-generated-proposal",
+            "--b5-sidecar-dir", str(sidecar)]
+    return layout, template, proposal, sidecar, args
+
+
+def test_machine_no_authority_guard_and_sidecar_before_campaign(tmp_path, monkeypatch):
+    layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+    contexts = []
+    real_context = L.build_run_context
+    def observe_context(**kwargs):
+        contexts.append(kwargs)
+        return real_context(**kwargs)
+    monkeypatch.setattr(L, "build_run_context", observe_context)
+    class CampaignBoundary(Exception):
+        pass
+    def campaign(cfg, genomes, perf, *_a, **kwargs):
+        assert kwargs["bench_max_rounds"] == 3
+        start = json.loads((sidecar / "slot-start.json").read_text())
+        submitted = json.loads((sidecar / "pipeline-submitted.json").read_text())
+        assert start["schema"] == "p3-s4-loop-b5-slot-start/v1"
+        assert submitted["schema"] == "p3-s4-loop-b5-submission/v1"
+        assert start["genome"] == submitted["genome"] == genomes[0].canonical()
+        assert start["campaign_id"] == submitted["campaign_id"] == str(ident.campaign_id(cfg))
+        assert start["campaign_root"] == str(Path(layout.root).resolve())
+        assert start["identity_preimage_sha256"] == hashlib.sha256(ident.canonical_preimage(cfg).encode()).hexdigest()
+        evidence = replace(_prebuild_source_evidence(genomes[0], Path(template), L.PIN), src_token="d" * 64)
+        resolver = kwargs["capability_resolver"]
+        receipt = resolver(evidence).as_receipt()
+        raw_sha = hashlib.sha256(proposal.read_bytes()).hexdigest()
+        assert receipt["generator_input_sha256"] == hashlib.sha256(
+            f"p3-s4-loop-machine-proposal/v1|{raw_sha}|{evidence.genome_sha256}".encode()).hexdigest()
+        assert receipt["generator_id"] == "backoff-sweep"
+        assert resolver(replace(evidence, src_token=source_digest.STOCK)) is None
+        raise CampaignBoundary
+    monkeypatch.setattr(L, "run_campaign", campaign)
+    with pytest.raises(CampaignBoundary):
+        L.main(args)
+    assert contexts and all(context.get("coder_authority") is None for context in contexts)
+    assert (sidecar / "pipeline-submitted.json").exists()
+
+
+def test_b5_duplicate_skip_returns_failure_without_restore(tmp_path, monkeypatch, capsys):
+    layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+                        SimpleNamespace(results=[], skipped=1, skipped_variants=["prior"]))
+    # Real duplicate resolver would need an admitted previous COMMIT. There is
+    # none: the test passes only if B-5 refuses before attempting restoration.
+    assert L.main(args) == 1
+    assert "outcome=duplicate-skip" in capsys.readouterr().out
+    state = L.load_loop_state(layout)
+    assert len(state.whiteboard) == 1 and state.whiteboard[0].result == "fail"
+    assert not Path(layout.root, "s4_loop_digest.txt").exists()
+
+
+def test_b5_stock_submission_precedes_campaign_exception(tmp_path, monkeypatch):
+    layout, _, _ = _stock_cli_fixture(tmp_path, monkeypatch)
+    sidecar = tmp_path / "sidecar"
+    sidecar.mkdir()
+    class CampaignBoundary(Exception):
+        pass
+    def campaign(cfg, genomes, *_a, **kwargs):
+        start = json.loads((sidecar / "slot-start.json").read_text())
+        submitted = json.loads((sidecar / "pipeline-submitted.json").read_text())
+        assert start["genome"] == submitted["genome"] == genomes[0].canonical()
+        assert genomes[0].flags["BACKOFF_FIXED"] == -1
+        assert kwargs["bench_max_rounds"] == 3
+        raise CampaignBoundary
+    monkeypatch.setattr(L, "run_campaign", campaign)
+    with pytest.raises(CampaignBoundary):
+        L.main(["--stock-control", *_b5_args(), "--b5-sidecar-dir", str(sidecar)])
+
+
+def test_b5_sidecar_no_overwrite(tmp_path):
+    payload = {"schema": "test", "value": 1}
+    L._write_b5_sidecar(tmp_path, "slot-start.json", payload)
+    original = (tmp_path / "slot-start.json").read_bytes()
+    with pytest.raises(FileExistsError):
+        L._write_b5_sidecar(tmp_path, "slot-start.json", {"value": 2})
+    assert (tmp_path / "slot-start.json").read_bytes() == original
+    assert list(tmp_path.iterdir()) == [tmp_path / "slot-start.json"]
+
+
 if __name__ == "__main__":
     import traceback
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
