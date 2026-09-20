@@ -778,7 +778,7 @@ def test_default_cfg_wires_s2_verify():
 def test_default_cfg_axis_is_sort_marker():
     cfg = S.default_cfg()
     assert cfg.search_config.get("axis") == S.MARKER_ID
-    assert cfg.ccbench_commit == S.PIN == "511c953"
+    assert cfg.ccbench_commit == S.PIN == "e9e477c"
 
 
 # ==== drive_iteration (checkpoint 継続、backoff 版と同型) ======================
@@ -952,6 +952,10 @@ def _b4_sort_receipt(cfg, *, reverse_recommended: bool) -> SimpleNamespace:
     )
 
 
+_T816_ORDINARY_CAMPAIGN_ID = "p3-s5-sort-loop-s5-sort-autonomous-6f6a8cf1"
+_T2304_ORDINARY_CAMPAIGN_ID = "p3-s5-sort-loop-s5-sort-autonomous-fa3db023"
+
+
 def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
         tmp_path, monkeypatch):
     ordinary = S.default_cfg(reflux=True)
@@ -968,8 +972,10 @@ def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
     assert ordinary == explicit_false
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
-    assert str(ident.campaign_id(ordinary)) == (
-        "p3-s5-sort-loop-s5-sort-autonomous-6f6a8cf1"
+    assert (
+        str(ident.campaign_id(ordinary))
+        == _T2304_ORDINARY_CAMPAIGN_ID
+        != _T816_ORDINARY_CAMPAIGN_ID
     )
     assert ident.campaign_id(marked) != ident.campaign_id(ordinary)
 

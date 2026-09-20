@@ -44,7 +44,10 @@ PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
 CCBENCH = ROOT / "external" / "ccbench"
-PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+PIN_FULL = "e9e477ca1b55348ab4530de0b1cf663ce4555290"
+# The preregistered t2417 producer runs from its historical series checkout.
+T2417_SERIES_PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+T2417_SERIES_PIN = "511c953"
 
 SPEC = importlib.util.spec_from_file_location(
     "t2187_adaptive_const_probe_under_test", DRIVER
@@ -3915,6 +3918,8 @@ def _install_policy_performance_runtime(
     *,
     missing_coordinate: tuple[int, int, str, int] | None = None,
 ) -> tuple[Path, dict[str, int]]:
+    monkeypatch.setattr(probe, "PIN_FULL", T2417_SERIES_PIN_FULL)
+    monkeypatch.setattr(probe, "CURRENT_PIN", T2417_SERIES_PIN)
     dynamic_root = tmp_path / "dynamic"
     policy_root = dynamic_root / "perf" / "t2417-policy"
     checkout = tmp_path / "checkout"
@@ -3927,7 +3932,7 @@ def _install_policy_performance_runtime(
     monkeypatch.setattr(probe.site_policy, "current_site", lambda: "PEGASUS_COMPUTE")
     monkeypatch.setattr(probe.site_policy, "refuses_heavy_work", lambda _site: False)
     monkeypatch.setattr(probe, "_assert_single_tenant", lambda: None)
-    monkeypatch.setattr(probe, "_ccbench_head", lambda _submodule: PIN_FULL)
+    monkeypatch.setattr(probe, "_ccbench_head", lambda _submodule: T2417_SERIES_PIN_FULL)
     monkeypatch.setattr(probe, "assert_pinned_clean", lambda *_args: None)
     monkeypatch.setattr(probe, "_validated_repo_head", lambda _value: "a" * 40)
     monkeypatch.setattr(
