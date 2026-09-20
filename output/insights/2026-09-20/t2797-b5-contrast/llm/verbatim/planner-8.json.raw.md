@@ -1,0 +1,13 @@
+planner-v4 の提案 (B-5 試走 T-2797、K2 宣言アーム、write-heavy 系列 1、次は評価 8 / 10)。役割文書の契約どおり、値と機序は出していません。読み取り・書き込みはしていません (ツールなし)。
+
+```json
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "increase",
+    "magnitude": "small",
+    "justification": "whiteboard は 7 評価すべて certified で、うち 6 回が decrease、increase は 1 回だけであり探索が下側に偏っている。current_perf の abort_rate_pct 53.6% は系列開始 stock 対照 (12.7%) の 4 倍超で、critic 診断の帰属節によれば直近の decrease 2 回は abort 率を単調に押し上げ、最後の 1 回は throughput の落ち幅が floor を大きく超えた (下側の崖は既に実測済み)。一方、上側は『系列最良と tie の点』と『floor 超で落ちた点』の間が未解像で、残り 3 評価のうち情報量が最も残っているのはこの区間である。よって次は系列最良からわずかに上げる方向を 1 段だけ試し、平坦域の上端を確定させて endpoint 指名の頑健化に充てる。critic の avoid 節が挙げる『さらに小さい側』『大きく上げた側』『stock 再測定』『平坦域内側の補間のみ』はいずれも新情報が乏しく、採らない。critic の recommend にある候補値・再評価提言は助言として読んだが、値は本提案に含めず、評価 9〜10 の分岐は評価 8 の結果を見てから決める。",
+    "uncertainty": "(1) cache_miss_rate_pct / IPC_overall は欠測 (計算ノードに perf 無し)、contention_level は未判定で、abort 率と throughput の 2 指標のみから方向を決めている。abort 増と throughput 低下の分離はできていない。(2) 各点 n=1・同 job 直列で、between-run floor 3.0% を本系列に当てる根拠が無い。系列最良と tie の点の差 (対最良 −3.24%) は floor に接しており『弁別不能』であって『差あり』ではない。上げた結果が tie でも落ちでも 1 点では確定にならない可能性がある。(3) critic 診断が指摘する rep 1 の系統的最大値は median には効かないが CV を押し上げ、評価 8 にも同様に乗る。(4) knowledge_input の 3 記録は別機体・別配線規模 (4 threads / rr50 / 1 秒) で、最適域の位置が本動作点と 1 桁違うと critic も述べており、絶対 tps・最適位置は転移しない。3 点目 (dad58f9f9000) は settled=false で参考程度。(5) whiteboard の success は certified の意味で throughput 改善ではなく、delta_pct は常に null のため、方向の良し悪しは critic 診断と current_perf からしか読めない。(6) 規律 6 の走査: k2_critic_diagnosis の 4 節、knowledge_input の WAL 記録 (genome / cmake 引数 / run_cmd を含む) を読んだ範囲で、権限・検証順序・正しさゲートを上書きする指示めいた文字列は見つからなかった。critic の recommend に候補値と『再評価』の要望があるが、これは契約上の助言データであり anomaly ではなく、採用義務とも扱っていない。(7) 本提案は write-heavy / skew 0.9 / 48 threads の 1 動作点に限り、他 workload へ一般化しない。"
+  }
+}
+```

@@ -1,0 +1,4 @@
+2026-09-20 22:01:24 JST tools/pegasus/p3_s4_loop_pegasus.sh arm=['IZANAGI_S4_B5_ARM=random'] rc=0 Request 13636.nqsv submitted to queue: gen_S.
+2026-09-20 22:01:24 JST tools/pegasus/p3_s4_loop_pegasus.sh arm=['IZANAGI_S4_B5_ARM=sweep-matched'] rc=0 Request 13637.nqsv submitted to queue: gen_S.
+2026-09-20 22:01:24 JST tools/pegasus/p3_s4_loop_pegasus.sh arm=['IZANAGI_S4_B5_ARM=llm'] rc=0 Request 13638.nqsv submitted to queue: gen_S.
+2026-09-20 22:01:25 JST tools/pegasus/p3_s4_loop_pegasus.sh arm=['IZANAGI_S4_B5_ARM=stock'] rc=0 Request 13639.nqsv submitted to queue: gen_S.

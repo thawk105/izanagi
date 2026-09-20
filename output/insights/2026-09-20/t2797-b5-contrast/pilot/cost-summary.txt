@@ -1,0 +1,23 @@
+== random: sessions 16
+   subprocess wall: min 568 med 1058 max 1521 sum 17254 s (4.79 h)
+   intrinsic (wall - lock est.): min 217 med 496 max 508 sum 6685 s
+   lock wait est.: verify-pass sum 6473 s (max 630), bench sum 4095 s (max 480)
+   perf rep2..5 median per session: min 34 max 91 s; legacy 7..16 s; build 15..16 s; bench 16.8..16.9 s
+== sweep-matched: sessions 16
+   subprocess wall: min 568 med 1121 max 1518 sum 17235 s (4.79 h)
+   intrinsic (wall - lock est.): min 221 med 475 max 505 sum 6589 s
+   lock wait est.: verify-pass sum 1103 s (max 431), bench sum 9544 s (max 1058)
+   perf rep2..5 median per session: min 35 max 91 s; legacy 7..14 s; build 15..15 s; bench 16.8..17.0 s
+== llm: sessions 16
+   subprocess wall: min 499 med 995 max 1354 sum 13900 s (3.86 h)
+   intrinsic (wall - lock est.): min 245 med 501 max 509 sum 7732 s
+   lock wait est.: verify-pass sum 4517 s (max 829), bench sum 1651 s (max 482)
+   perf rep2..5 median per session: min 40 max 91 s; legacy 7..15 s; build 15..16 s; bench 16.8..16.9 s
+== block-stock: sessions 5
+   subprocess wall: min 856 med 890 max 1521 sum 5416 s (1.50 h)
+   intrinsic (wall - lock est.): min 243 med 244 max 248 sum 1224 s
+   lock wait est.: verify-pass sum 1570 s (max 449), bench sum 2621 s (max 875)
+   perf rep2..5 median per session: min 39 max 40 s; legacy 7..7 s; build 15..17 s; bench 16.8..16.9 s
+== all 53 sessions: wall min 499 med 1024 max 1521 sum 53805 s (14.95 h); intrinsic min 217 med 498 max 509 sum 22230 s (6.18 h)
+   intrinsic by abort: >=30% n=31 med 502 max 509; <30% n=22 med 263 max 475
+   llm uncontended sessions: [('search-9', 505, 1, 0), ('search-10', 499, 1, 0), ('score-1', 510, 1, 0), ('score-2', 508, 0, 0), ('score-3', 500, 1, 0), ('score-4', 503, 1, 0), ('score-5', 503, 2, 0)]

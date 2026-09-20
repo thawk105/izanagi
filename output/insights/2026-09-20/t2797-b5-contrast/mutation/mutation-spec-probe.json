@@ -1,0 +1,414 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "def random_value(w, r, a, weights):\n",
+     "new": "def random_value(w, r, a, weights):\n    # equivalent mutation marker: comment only\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-weights-2pow127",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        return tuple(int((Decimal(2**128) * (Decimal(v + 1) / Decimal(v)).ln())\n",
+     "new": "        return tuple(int((Decimal(2**127) * (Decimal(v + 1) / Decimal(v)).ln())\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-random-preimage-separator",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        preimage = f\"b5-generator-contrast-v1|random|{w}|{r}|{a}|{c}\"\n",
+     "new": "        preimage = f\"b5-generator-contrast-v1/random/{w}/{r}/{a}/{c}\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-random-u-le-l",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if U < L:\n            return bisect_right(cumulative, U % M) + 1, c\n",
+     "new": "        if U <= L:\n            return bisect_right(cumulative, U % M) + 1, c\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-sweep-numeric-order",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return tuple(sorted(grid, key=lambda v: (\n        hashlib.sha256(f\"b5-generator-contrast-v1|sweep|{w}|{r}|{v}\".encode(\"ascii\")).digest(), v)))\n",
+     "new": "    return tuple(sorted(grid, key=lambda v: (\n        v, hashlib.sha256(f\"b5-generator-contrast-v1|sweep|{w}|{r}|{v}\".encode(\"ascii\")).digest())))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-quality-or-to-and",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    if (not isinstance(tps, list) or len(tps) != reps\n            or bench_payload.get(\"unstable\", True) or bench_payload.get(\"settled\") is not True):\n",
+     "new": "    if (not isinstance(tps, list) or (len(tps) != reps\n            and bench_payload.get(\"unstable\", True) and bench_payload.get(\"settled\") is not True)):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-b-only-on-certified",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if observation[\"submitted\"] and not submitted_once:\n            submitted_once = True\n            if kind == \"search\":\n                b += 1\n",
+     "new": "        if observation[\"submitted\"] and not submitted_once and observation.get(\"outcome\") == \"certified\":\n            submitted_once = True\n            if kind == \"search\":\n                b += 1\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-endpoint-tie-value-desc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return min(eligible, key=lambda e: (-e[\"fitness_tps\"], e[\"value\"], e[\"b\"])) if eligible else None\n",
+     "new": "    return min(eligible, key=lambda e: (-e[\"fitness_tps\"], -e[\"value\"], e[\"b\"])) if eligible else None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-score-from-search-max",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return _finish(ledger, reason, a, b, score=statistics.median(scores), score_sessions=scores)\n",
+     "new": "    return _finish(ledger, reason, a, b, score=endpoint[\"fitness_tps\"], score_sessions=scores)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-inheritance-order-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if document.get(\"whiteboard\") != expected[\"expected_whiteboard\"]:\n            raise ValueError(\"whiteboard inheritance mismatch\")\n",
+     "new": "        if sorted(map(json.dumps, document.get(\"whiteboard\") or []), key=str) != sorted(map(json.dumps, expected[\"expected_whiteboard\"]), key=str):\n            raise ValueError(\"whiteboard inheritance mismatch\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-slot-not-in-identity",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if a.b5_slot is not None:\n        cfg = replace(cfg, search_config={**cfg.search_config, \"b5_slot\": a.b5_slot})\n",
+     "new": "    if a.b5_slot is not None:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-machine-guard-exception-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        and a.coder_build_authority is None\n        and not a.machine_generated_proposal\n    ):\n",
+     "new": "        and a.coder_build_authority is None\n    ):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-submitted-marker-not-before-campaign",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if b5_sidecar_dir is not None:\n            _write_b5_sidecar(b5_sidecar_dir, \"pipeline-submitted.json\",\n                              _b5_sidecar_payload(cfg, genome))\n        if capability_resolver is not None:\n",
+     "new": "        if capability_resolver is not None:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-jobbody-fallthrough",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  \"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\" || b5_rc=$?\n  exit \"$b5_rc\"\nfi\n",
+     "new": "  \"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\" || b5_rc=$?\nfi\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m14-jobbody-empty-mode-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    *) refuse \"IZANAGI_S4_B5_MODE must be series or block-stock\" ;;\n",
+     "new": "    *) ;;\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m15-timeout-as-rejected",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if time.monotonic() >= deadline:\n            return finish(\"proposal-wait-timeout\")\n",
+     "new": "        if time.monotonic() >= deadline:\n            return finish(\"proposal-rejected\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m16-holm-family-five",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        running = max(running, min(Fraction(1), (6 - rank) * p[key]))\n",
+     "new": "        running = max(running, min(Fraction(1), (5 - rank) * p[key]))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m17-pilot-judged",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "    if purpose == \"pilot\":\n        report[\"registered_judgment\"] = \"not-applicable-pilot\"\n",
+     "new": "    if purpose == \"pilot-never\":\n        report[\"registered_judgment\"] = \"not-applicable-pilot\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m18-launcher-five-jobs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b5_contrast_launch.py",
+     "old": "    if len(jobs) != 4 or tuple(job.arm for job in jobs) != PILOT_ARMS:\n",
+     "new": "    if len(jobs) > 5 or tuple(job.arm for job in jobs)[:4] != PILOT_ARMS:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m19-duplicate-skip-restored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if b5_mode and summary.skipped > 0:\n        project_whiteboard(state, planner, \"fail\")\n",
+     "new": "    if False and b5_mode and summary.skipped > 0:\n        project_whiteboard(state, planner, \"fail\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m20-no-rejected-sidecar",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            if a.b5_slot is None:\n                raise\n            _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)\n            return 3\n",
+     "new": "            if a.b5_slot is None:\n                raise\n            _b5_proposal_rejected(None, a.b5_slot, exc)\n            return 3\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m21-rejected-treated-as-prestart",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    rejected = sidecar_dir / \"proposal-rejected.json\"\n    if rejected.exists():\n        result.update(outcome=\"rejected-preprocess\", failure_class=\"candidate\")\n        return result\n",
+     "new": "    rejected = sidecar_dir / \"proposal-rejected.json\"\n    if rejected.exists():\n        return result\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m22-verify-reasons-not-machine",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "MACHINE_FAILURE_ABORT_REASONS = frozenset({\"bench-probe-error\", \"bench-competing-tenant\",\n                                          \"verify-probe-error\", \"verify-competing-tenant\"})\n",
+     "new": "MACHINE_FAILURE_ABORT_REASONS = frozenset({\"bench-probe-error\", \"bench-competing-tenant\"})\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m23-attempt-start-after-runner",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        ledger.append(\"slot-attempt-start\", a=a, b=b, n=n, slot_kind=kind,\n                      logical_slot=logical_slot, attempt=attempt, slot_key=key,\n                      sidecar_dir=str(sidecar.relative_to(ledger.root)))\n        started = time.monotonic()\n",
+     "new": "        started = time.monotonic()\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m24-report-no-sidecar-reconcile",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        if (path / \"pipeline-submitted.json\").is_file():\n            reconciled.append(",
+     "new": "        if False and (path / \"pipeline-submitted.json\").is_file():\n            reconciled.append("
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m25-report-b-count-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        if (type(b) is not int or len(evaluations) != b\n",
+     "new": "        if (type(b) is not int or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m26-report-fitness-median-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "                     or e.get(\"fitness_tps\") != e[\"bench_payload\"].get(\"median_tps\"))):\n",
+     "new": "                     or False)):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m27-diagnosis-not-required",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    if next_evaluation >= 2 and diagnosis_key not in planner_input:\n",
+     "new": "    if False and next_evaluation >= 2 and diagnosis_key not in planner_input:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m28-launcher-own-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b5_contrast_launch.py",
+     "old": "    pins = re.findall(r'^PIN = \"([0-9a-f]{40})\"$',\n                      (repo / \"orchestrator/campaign/p3_s4_loop.py\").read_text(), re.MULTILINE)\n",
+     "new": "    pins = [p3_s4_loop.PIN]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

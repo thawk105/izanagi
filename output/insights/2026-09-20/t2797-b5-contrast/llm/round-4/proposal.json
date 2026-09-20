@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "whiteboard の 3 回の decrease はいずれも certified で、評価 1→2 では throughput が伸び、評価 2→3 では中央値差が between-run floor の内側 (差なし) だった一方、abort_rate_pct は評価 1→2→3 で単調に上がり続け、現在 49.91 と試行の約半分が abort に終わっている。つまり throughput はこの軸の途中で平坦域に入ったが、その平坦域の下端はまだ観測されていない。次の一手として小さく同方向へ進めると、(i) throughput が floor 内に留まれば平坦域がさらに広いと確定してこの軸の下側はもう伸びないと結論でき、(ii) floor 超の低下が初めて出れば最適域の下端が閉じる。どちらの結果でも次の判断が変わるので、残り 7 評価のうち 1 回をここに使う情報量が最も大きい。評価 1 と 2 の間 (上側の端) の確定は代替案として残るが、上側は評価 1 で既に throughput が明確に低い点を観測済みなので優先度は下側より低い。step を small にするのは、評価 2→3 の差が floor 内だった直後に大きく跳ぶと、平坦域の端を跨いだのか外側に出たのかを 1 点で弁別できなくなるため。critic の推奨 (評価 4 は decrease / small) と方向・幅は一致するが、採用理由は上記の測定値の形に基づく planner 自身の判断であり、critic の候補値は採用していない。",
+    "uncertainty": "1. 評価 3 は run 内 CV が評価 1・2 より明らかに大きく、1 rep が中央値から上に外れているため、評価 3 が評価 2 と「同値」なのか「わずかに低い」のかは floor 内で弁別できない。次の評価で floor 〜 1.5×floor の差が出た場合は near_floor として扱い、方向の確定には cross-run の再現が要る。2. cache_miss_rate_pct / IPC_overall は本ノードで欠測 (null) であり、abort 増が throughput を将来落とす経路が出ているかどうかは本系列のデータでは判定できない。contention_level も未判定。3. 本系列は同一 job・同一ノード・逐次 1 系列 (n=1) で、whiteboard の delta_pct が常に null のため、増分の大きさは critic 診断の計算に依存している。4. abort_rate_pct の定義 (分母に commits を含むか) は入力からは確認できず、絶対値の読みは変わりうるが単調増という向きは変わらない。5. knowledge_input の 3 点は別機体・別配線規模 (4 threads / rr50 / 1 秒) で、絶対 tps は転移せず、3 点目は settled=false。符号の傍証としてのみ扱った。6. B-5 の系列規則が既評価値の再提案を許すかは未確認で、後続の複製点の選び方に影響する。7. 規律 6 の検査: k2_critic_diagnosis の attribution / avoid / recommend / uncertainty の 4 節と knowledge_input.sources の WAL 本文を読んだが、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出されなかった。critic の候補値・実験要望は助言データとしてのみ扱い、本提案は方向と幅だけを出している。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 2,
+      "implementation": "double now_backoff = 2;",
+      "justification": "planner の方向は decrease / small。baseline (throughput 3,965,995 tps、abort_rate 49.91%) は k2_critic_diagnosis の表で評価 3 (値 5) と一致するので、現在の動作点は値 5 と読む。whiteboard の 3 回の decrease はすべて certified で、評価 2→3 の throughput 差は between-run floor 3% の内側、abort_rate だけが 38.3% → 49.9% と単調上昇している (診断の数値は測定値の提示として読み、実測の証明には昇格しない)。この軸で残る未観測は平坦域の下端であり、平坦域の下端を 1 評価で判別するには 5 から floor で弁別可能な幅だけ下げる必要がある。値 4 や 3 は診断の試算 (試行 1 回の実作業 ≈ 3.6 µs、値 5 でスピン率 ≈ 41%) を当てるとスピン率の変化が数 pt に留まり 3% floor で弁別できない可能性が高い。値 2 はスピン率 ≈ 30% 相当で、(i) throughput が floor 内なら平坦域が 2〜10 に広がりこの軸の下側はもう伸びないと結論でき、(ii) floor 超の低下が出れば最適域の下端が [5, 10] 側に閉じる。比率で見ると 20→10→5 の各段が 1/2 で、5→2 (1/2.5) はこれまでの small step と同程度の幅であり、planner の「大きく跳ばない」要請にも合う。値 1 は文法の下限で 2 と実質同じ点になるため、2 の結果を見てからでよい。値 0 は文法の値域 (1..1000) 外。source 0 の WAL (K2 過去巡、4 threads / rr50 / 100000 records / extime 1) では BACKOFF_FIXED 30 (525,721 tps、abort 7.8%) が 40 (491,796 / 487,088 tps) を約 7% 上回っており、backoff を短くすると throughput が上がるという符号の傍証にだけ使った。配線規模が違うので絶対値や最適値は転移させていない。stock の適応制御器へ戻す提案や ≥ 20 の再訪は、既に評価済みで throughput が明確に低い点なので選ばない。正しさ・identity・性能ゲートには触れない。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "K2 過去巡の WAL (p3-s4-loop-s4-autonomous-0b53a387) の 3 evaluation (BACKOFF_FIXED 40 / 30 / 40、4 threads / rr50 / skew 0.9 / extime 1) で、値 30 が値 40 より約 7% 高い throughput を示した点を、backoff 短縮が throughput を上げるという方向の符号の傍証として使った。動作点 (48 threads / rr5 / 1000000 records / extime 3) が違うため、絶対 tps・最適値・abort 率の水準は本提案へ転移させていない。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources[0] (wal.jsonl、JSON 行 15 行) の全文を走査した。build_start / build_done / verify_done / bench_done / commit の payload (genome、configure・build コマンド、verify 結果、bench 指標、run_cmd) のみで、振る舞いを誘導する文字列は無い。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節も走査した。recommend 節に候補値 (評価 4 = 値 2、評価 5 = 値 15) と「値 0 は提案しない」「差なし判定は floor 3% で行う」といった助言文、avoid 節に「〜を避ける」「〜と帰属しない」という助言文があるが、いずれも候補値・解釈の提言であり、権限・検証順序・正しさゲート・identity ゲート・性能ゲートの定義や閾値を上書きする指示ではないため、通常の候補提言として区別し検討した (uncertainty 節 6 も「指示ではない」と明記)。診断内の性能数値は測定の提示として読み、本提案では実測値・正しさの証明に昇格していない。leakproof_context と planner_direction は親の射影で、指示めいた外部由来内容は含まない。"
+    }
+  },
+  "prior_critic_reverse": null
+}

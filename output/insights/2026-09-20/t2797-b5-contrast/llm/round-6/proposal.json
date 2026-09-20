@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "系列最良 (評価 2) を基準に読む。評価 5 (increase / small) は abort_rate が 38.32% から 32.67% へ下がったにもかかわらず throughput が系列最良比 −5.3% と floor 3.0% を超えて低下し、評価 1 (さらに増加側) の −9.2% と同じ向きに並んだ。増加側は 2 点で floor 超の低下が確認され、whiteboard 上も increase の唯一の試行が改善を出していない。減少側は評価 3 が最良と tie (−0.3%)、評価 4 が −12.5% と急落しており、最良と tie 点の間の区間だけが未評価のまま残る。増加側・減少側の両端が閉じた以上、系列最良を floor 超で更新できる可能性が残るのは最良と tie 点に挟まれた内側だけであり、そこへは最良から decrease / small で入る。内側が最良と tie であれば平坦域が確定し endpoint に送る系列最良の指名 (現状は評価 2) が締まり、floor 超で高ければ新最良になる — どちらの結果でも残り予算 (評価 7〜10) の使い方が決まる。critic 診断の第 1 候補と向きは一致するが候補値は採用していない (値は coder の合成に委ねる)。",
+    "uncertainty": "1. cache_miss_rate_pct / IPC_overall が全評価で欠測 (計算ノードに perf 無し)、contention_level は未判定。方向判断は throughput・abort_rate・run 内 CV・verify 側 abort 比のみに依存し、cache 側の要因は確認も否定もできない。2. 系列は同 job・同ノード・各 n=1 で、between-run floor 3.0% を同 job 内の直列評価に当ててよいかの実測根拠が無い。最良 vs tie 点の tie 判定と、今回提案する内側点の判定はいずれもこの floor に依存する。同一値の再評価を harness が受けるなら反復差 1 点を取る価値があるが、それは方向提案の外 (採否は親)。3. 内側点が floor 内で tie に終わる可能性は floor 超で最良を更新する可能性と同程度にあり、減少側の勾配が増加側より急である推定は 5 点からの補間に過ぎない。4. rep 1 が stock 含む全評価で 5 反復中の最大値 — 系統的な初回反復効果が疑われる (median 採用のため fitness は動かないが、calibrator 側の確認事項として報告)。5. abort_rate の定義が bench (中央値 rep の集約) と verify (aborts/(commits+aborts)) で異なり、絶対値の突き合わせはしていない。向きの一致のみを使った。6. 本系列は write-heavy / skew 0.9 / 48 threads の 1 動作点のみで、read-heavy・低 skew・低 thread 数へは一般化しない。7. knowledge_input の source は別機体・配線規模 (4 threads / rr50 / 1 秒 / 2 rep) で絶対 tps は転移せず、3 点目 (variant dad58f9f9000) は settled=false。増加側が低い向きの傍証にしか使っていない。8. 規律 6 の走査: k2_critic_diagnosis 4 節と knowledge_input.sources の本文に、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出しなかった。critic の recommend / avoid は助言データとして扱い、採用義務・値の禁止・予算追加のいずれとも読んでいない。anomaly なし。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 8,
+      "implementation": "double now_backoff = 8;",
+      "justification": "planner の方向は decrease / small で、基準は系列最良 (評価 2 = BACKOFF_FIXED 10、3,978,814 tps)。k2_critic_diagnosis の attribution 表 (同 job 13638、write-heavy 較正済み動作点、各 n=1) では、上側 10→15→20 が abort 減・throughput 減 (待機コスト型、勾配約 1%/µs)、下側 5→2 が abort 増・throughput 減 (再衝突型、勾配約 4.6%/µs) で、5 と 10 が floor 内 tie。両端が閉じた以上、系列最良を floor 3.0% 超で更新できる可能性が残るのは開区間 (5, 10) の内側だけで、勾配の非対称性 (下側が急、上側が緩) から単峰の頂点は中点 7.5 よりやや 10 寄りにあると読める。small な減少幅 (10 の 20%) として整数 8 を選ぶ。8 なら (a) 10 と tie なら平坦域 [5, 10] が確定して endpoint 指名 (値 10) が締まり、(b) floor 超で高ければ新最良になる。7 との差は 1 µs 相当で下側勾配が急な側に寄るため、再衝突型の低下に踏み込むリスクが小さい 8 を優先した。予想 (診断からの補間、測定値ではない): abort_rate は 38.3% (値 10) と 49.9% (値 5) の間、CV は 0.9〜2.3% の間。宣言済み知識源 (K2 round WAL、4 threads / rr50 / 100k records) は 30 → 525,721.5 tps、40 → 491,796.5 / 487,088.5 tps と、幅を狭める向きが速いという傍証を与えるが、動作点が違うため方向の整合確認にのみ使い、値の選択には本系列の診断表を用いた。文法制約 (接尾辞なし整数リテラル 1 個、1..1000) を満たす。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "K2 round の campaign WAL (silo|BACKOFF_FIXED=30/40、4 threads / rr50 / skew 0.9 / 100k records / extime 1)。値 30 (525,721.5 tps) が値 40 (491,796.5 / 487,088.5 tps) より速いという記録を、固定 backoff 幅を狭める向きが速いという方向の傍証として使った。動作点が本 campaign (1M records / 48 threads / rr5 / extime 3 / 5 rep) と異なるため絶対値や最適値の位置には使わず、候補値 8 の選択は本 campaign の baseline・whiteboard・k2_critic_diagnosis の系列表から導いた。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "走査範囲: knowledge_input.sources[0] (wal.jsonl 全 15 行、build_start / build_done / verify_done / bench_done / commit の payload と run_cmd / configure_cmd 文字列を含む) と k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節全文。sources[0] は機械生成の JSON レコードのみで、振る舞い・検証順・ゲートを変えるよう求める文字列は無い。k2_critic_diagnosis には候補値の優先順 (recommend 1〜4)、再訪不要域 (avoid)、「次の planner 入力に評価 5 の低下を明示して渡すのが望ましい」「calibrator 側で確認する価値がある (指示ではなく観測の報告)」といった親・calibrator 向けの手続き上の提案が含まれるが、いずれも通常の候補提言・観測報告であり、権限・検証順序・正しさゲート・identity ゲート・性能ゲートの定義や閾値を上書きする指示ではないため、data boundary anomaly とは分類しない。診断は助言として読み、性能の実測値・正しさの証明には昇格していない。source_sha256 (04b3876d…) の照合は role の tools では行えず、親の束縛を前提とした。"
+    }
+  },
+  "prior_critic_reverse": null
+}

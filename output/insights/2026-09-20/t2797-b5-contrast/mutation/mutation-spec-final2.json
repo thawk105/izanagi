@@ -1,0 +1,54 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m10-slot-not-in-identity",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if a.b5_slot is not None:\n        cfg = replace(cfg, search_config={**cfg.search_config, \"b5_slot\": a.b5_slot})\n",
+     "new": "    if a.b5_slot is not None:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_slot_changes_identity_and_default_kwargs_stay_exact",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_stock_submission_precedes_campaign_exception",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0",
+    "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-machine-guard-exception-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        and a.coder_build_authority is None\n        and not a.machine_generated_proposal\n    ):\n",
+     "new": "        and a.coder_build_authority is None\n    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[probe-probe-material]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[schema-schema]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[value-value-domain]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_rejection_sidecar_mutant_m20",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0",
+    "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

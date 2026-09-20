@@ -1,0 +1,49 @@
+"""[T-2797 B-5 試走] 親の投入 glue (repo 外)。submit-tree の launcher module (tools/pegasus/b5_contrast_launch.py) を
+import して validate_submit_tree / pilot_jobs / launch を**そのまま**使う。guard_bash は main checkout の登録簿を読むため、
+本 wave が登録した launcher CLI は land まで Bash から直接起動できない — API を import して同一の argv を組む。
+
+使い方: python3 submit_pilot.py <submit-tree> <dry-run|submit> [arms...]
+  arms を省くと 4 job 全部 (random / sweep-matched / llm / stock)。指定すると部分集合 (投入順の制御用)。
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+J = Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast")
+tree_path = Path(sys.argv[1]).resolve()
+mode = sys.argv[2]
+arms = sys.argv[3:]
+sys.path.insert(0, str(tree_path))
+from tools.pegasus import b5_contrast_launch as BL  # noqa: E402
+
+expected_head = subprocess.run(["git", "-C", str(tree_path), "rev-parse", "HEAD"], check=True,
+                               capture_output=True, text=True).stdout.strip()
+thirdparty = tree_path / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+tree = BL.validate_submit_tree(tree_path, expected_head)
+tree = BL.replace(tree, thirdparty_source_root=thirdparty)
+k2 = BL.K2(manifest=Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2182-k2-eval-run/materials/knowledge-manifest-wal-only.json"),
+           classification="known_result_conditioned_derivative", de_novo_claim="false")
+jobs = BL.pilot_jobs("write-heavy", J / "ledgers", J / "evidence", k2)
+cap = BL.validate_pilot_cap(jobs)
+print("pilot logical sessions", cap, "<=", BL.PILOT_LOGICAL_SESSION_CAP)
+if arms:
+    jobs = tuple(j for j in jobs if j.arm in arms)
+    assert len(jobs) == len(arms), (arms, [j.arm for j in jobs])
+
+
+def runner(argv, cwd):
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S %Z")
+    print(stamp, "qsub from", cwd, json.dumps(argv, ensure_ascii=False))
+    result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
+    print("qsub rc", result.returncode, "stdout", result.stdout.strip(), "stderr", result.stderr.strip())
+    with open(J / "qsub-pilot.log", "a", encoding="utf-8") as f:
+        f.write(f"{stamp} {argv[-1]} arm={[k for k in argv[2].split(',') if k.startswith('IZANAGI_S4_B5_ARM=')]} rc={result.returncode} {result.stdout.strip()} {result.stderr.strip()}\n")
+    return result
+
+
+rc = BL.launch(jobs, tree, submit=(mode == "submit"), runner=runner if mode == "submit" else None)
+print("launch rc", rc)
+sys.exit(rc)

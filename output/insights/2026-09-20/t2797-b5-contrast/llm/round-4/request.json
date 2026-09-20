@@ -1,0 +1,41 @@
+{
+  "a": 4,
+  "baseline": {
+    "abort_rate_pct": 49.91,
+    "throughput_tps": 3965995.0
+  },
+  "current_perf": {
+    "abort_rate_pct": 49.91,
+    "throughput_tps": 3965995.0
+  },
+  "current_perf_source": {
+    "b": 3,
+    "campaign_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-0fc8f75d",
+    "kind": "evaluation-result"
+  },
+  "deadline_utc": "2026-09-20T15:48:58Z",
+  "expected_whiteboard": [
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 1,
+      "magnitude": "medium",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 2,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 3,
+      "magnitude": "small",
+      "result": "success"
+    }
+  ],
+  "next_evaluation": 4
+}

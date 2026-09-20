@@ -1,0 +1,694 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "def random_value(w, r, a, weights):\n",
+     "new": "def random_value(w, r, a, weights):\n    # equivalent mutation marker: comment only\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-weights-2pow127",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        return tuple(int((Decimal(2**128) * (Decimal(v + 1) / Decimal(v)).ln())\n",
+     "new": "        return tuple(int((Decimal(2**127) * (Decimal(v + 1) / Decimal(v)).ln())\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_cli_weights_real_subprocess",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_integer_log_weights_independent_floor_and_table_hash",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_registered_thousand_weights_end_to_end_fixed_vector"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-random-preimage-separator",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        preimage = f\"b5-generator-contrast-v1|random|{w}|{r}|{a}|{c}\"\n",
+     "new": "        preimage = f\"b5-generator-contrast-v1/random/{w}/{r}/{a}/{c}\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_random_value_independent_known_vector",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_random_value_rejects_exact_L_without_hash_stub",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_registered_thousand_weights_end_to_end_fixed_vector"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-random-u-le-l",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if U < L:\n            return bisect_right(cumulative, U % M) + 1, c\n",
+     "new": "        if U <= L:\n            return bisect_right(cumulative, U % M) + 1, c\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_random_value_rejects_exact_L_without_hash_stub"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-sweep-numeric-order",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return tuple(sorted(grid, key=lambda v: (\n        hashlib.sha256(f\"b5-generator-contrast-v1|sweep|{w}|{r}|{v}\".encode(\"ascii\")).digest(), v)))\n",
+     "new": "    return tuple(sorted(grid, key=lambda v: (\n        v, hashlib.sha256(f\"b5-generator-contrast-v1|sweep|{w}|{r}|{v}\".encode(\"ascii\")).digest())))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_registered_thousand_weights_end_to_end_fixed_vector",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_sweep_order_independent_hashes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-quality-or-to-and",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    if (not isinstance(tps, list) or len(tps) != reps\n            or bench_payload.get(\"unstable\", True) or bench_payload.get(\"settled\") is not True):\n",
+     "new": "    if (not isinstance(tps, list) or (len(tps) != reps\n            and bench_payload.get(\"unstable\", True) and bench_payload.get(\"settled\") is not True)):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_all_quality_missing_has_no_stock_fallback",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_quality_each_single_condition_is_missing[change0]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_quality_each_single_condition_is_missing[change1]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_quality_each_single_condition_is_missing[change2]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_quality_missing_keeps_budget_without_retry",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_score_quality_missing_is_not_fallback_or_retry",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_stock_unestablished_prevents_proposal[behavior0]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-b-only-on-certified",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if observation[\"submitted\"] and not submitted_once:\n            submitted_once = True\n            if kind == \"search\":\n                b += 1\n",
+     "new": "        if observation[\"submitted\"] and not submitted_once and observation.get(\"outcome\") == \"certified\":\n            submitted_once = True\n            if kind == \"search\":\n                b += 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_machine_retry_exhaustion_is_missing_without_fallback",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_retry_allocation_exhaustion_retains_submitted_evaluation",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_submitted_abort_consumes_B_and_history_does_not_stop_next_slot",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_submitted_unresolved_consumes_B_without_retry",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_subprocess_timeout_is_never_machine_retry[True]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[False-verify-competing-tenant]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[False-verify-probe-error]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[True-verify-competing-tenant]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[True-verify-probe-error]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-endpoint-tie-value-desc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return min(eligible, key=lambda e: (-e[\"fitness_tps\"], e[\"value\"], e[\"b\"])) if eligible else None\n",
+     "new": "    return min(eligible, key=lambda e: (-e[\"fitness_tps\"], -e[\"value\"], e[\"b\"])) if eligible else None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_endpoint_tie_is_lower_value_then_earlier_slot"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-score-from-search-max",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    return _finish(ledger, reason, a, b, score=statistics.median(scores), score_sessions=scores)\n",
+     "new": "    return _finish(ledger, reason, a, b, score=endpoint[\"fitness_tps\"], score_sessions=scores)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_series_scores_fresh_sessions_after_endpoint_fix"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-inheritance-order-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if document.get(\"whiteboard\") != expected[\"expected_whiteboard\"]:\n            raise ValueError(\"whiteboard inheritance mismatch\")\n",
+     "new": "        if sorted(map(json.dumps, document.get(\"whiteboard\") or []), key=str) != sorted(map(json.dumps, expected[\"expected_whiteboard\"]), key=str):\n            raise ValueError(\"whiteboard inheritance mismatch\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_inheritance_order_and_all_fields_checked",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_llm_handshake_valid_inputs_drive_ten_fresh_evaluations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-slot-not-in-identity",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if a.b5_slot is not None:\n        cfg = replace(cfg, search_config={**cfg.search_config, \"b5_slot\": a.b5_slot})\n",
+     "new": "    if a.b5_slot is not None:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_slot_changes_identity_and_default_kwargs_stay_exact",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_stock_submission_precedes_campaign_exception",
+    "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-machine-guard-exception-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        and a.coder_build_authority is None\n        and not a.machine_generated_proposal\n    ):\n",
+     "new": "        and a.coder_build_authority is None\n    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[probe-probe-material]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[schema-schema]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[value-value-domain]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_rejection_sidecar_mutant_m20",
+    "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-submitted-marker-not-before-campaign",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if b5_sidecar_dir is not None:\n            _write_b5_sidecar(b5_sidecar_dir, \"pipeline-submitted.json\",\n                              _b5_sidecar_payload(cfg, genome))\n        if capability_resolver is not None:\n",
+     "new": "        if capability_resolver is not None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-jobbody-fallthrough",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "  \"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\" || b5_rc=$?\n  exit \"$b5_rc\"\nfi\n",
+     "new": "  \"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\" || b5_rc=$?\nfi\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[0-llm]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[0-random]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[0-stock]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[0-sweep-matched]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[7-llm]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[7-random]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[7-stock]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_actual_shell_one_driver_and_trap_rc[7-sweep-matched]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fallthrough_mutant_is_killed_by_shell_call_count",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-arm-series:llm|series:random|series:sweep-matched|block-stock:stock) ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-block-[[ \"$IZANAGI_S4_B5_BLOCK\" =~ ^[1-3]$ ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-command-b5_argv=(\"run-$b5_mode\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-common-argv-b5_argv+=(--workload \"$IZANAGI_S4_B5_WORKLOAD\" --block \"$IZANAGI_S4_B5_BLOCK\"/n    --ledger-root \"$b5_ledger_root\" --fetchcontent-prebuild-receipt \"$prebuild_receipt\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-driver-\"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-exclusive-refuse \"B-5 mode excludes proposal, fixture, and stock-control\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-exit-exit \"$b5_rc\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-ledger-absolute-[[ \"$IZANAGI_S4_B5_LEDGER_ROOT\" == /* ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-ledger-outside-refuse \"B-5 ledger root resolves inside a repository\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-llm-k2-[[ -n \"${!name:-}\" ]] || refuse \"B-5 llm requires K2 environment: $name\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-mode-set-if [[ -v IZANAGI_S4_B5_MODE ]]; then]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-mode-values-*) refuse \"IZANAGI_S4_B5_MODE must be series or block-stock\" ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-non-llm-k2-refuse \"B-5 non-llm arm excludes K2 environment\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-partial-[[ ! -v $name ]] || refuse \"B-5 environment requires IZANAGI_S4_B5_MODE\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-required-[[ -n \"${!name:-}\" ]] || refuse \"missing B-5 environment: $name\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-series-[[ \"$IZANAGI_S4_B5_SERIES\" =~ ^([1-9]|1[0-2])$ ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-series-argv-b5_argv+=(--arm \"$IZANAGI_S4_B5_ARM\" --series \"$IZANAGI_S4_B5_SERIES\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-status-|| b5_rc=$?]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-workload-write-heavy|balanced|read-heavy) ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_stock_off_preserves_single_b5_call[0]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_stock_off_preserves_single_b5_call[None]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_dependency_policy_field_is_rejected",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_prebuild_dependency_prefix_is_rejected",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[c++]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cc]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[g++]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[gcc]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[git]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[make]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[nm]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_CXX_COMPILER_LAUNCHER=/tmp/launcher]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_C_COMPILER_LAUNCHER=/tmp/launcher]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PREFIX_PATH=/tmp/deps]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE_BEFORE=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_TOP_LEVEL_INCLUDES=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[different-prefix-variables]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[partial-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[second-exact-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_job_body_static_contract",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_no_build_mutant_has_one_negative_failure",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[campaign-pin-import-'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'-'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)']",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[claim-root-mkdir -p -m 0700 -- \"$claim_root\"-true # claim root provisioning removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[clean-tree-if ! superproject_status=$(git status --porcelain --untracked-files=no ///n  --ignore-submodules=all); then/n  refuse \"cannot inspect superproject tracked status\"/nfi/n[[ -z \"$superproject_status\" ]] || ///n  refuse \"superproject tracked worktree is not clean\"-true # superproject status gate removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-compilers]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-fields]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-path]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[evidence-outside-repo-if [[ \"$evidence_root\" == \"$repo\" || \"$evidence_root\" == \"$repo/\"* ///n   || \"$evidence_root\" == \"$git_common_repo\" ///n   || \"$evidence_root\" == \"$git_common_repo/\"* ]]; then-if [[ \"$evidence_root\" == \"/impossible\" ]]; then]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[expected-head-\"$observed_head\" != \"$IZANAGI_S4_EXPECTED_HEAD\"-\"$observed_head\" != \"\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[fixture]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-build-argv]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-dirty-all]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-head-exact]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-install-root]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-configure-definitions]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-root]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-timeout]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-proposal-required]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-request-set-detection]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-dependency-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[proposal]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[qstat-jobid-qstat_jobid=${PBS_JOBID#0:}-qstat_jobid=$PBS_JOBID]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[receipt-create-only-with open(receipt_path, \"x\", encoding=\"utf-8\")-with open(receipt_path, \"w\", encoding=\"utf-8\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[reservation-export IZANAGI_RESERVATION_DEADLINE_EPOCH=\"$deadline_epoch\"-true # deadline export removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[fixture-status-capture---value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\" || candidate_rc=$?---value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[pair-status-priority-if [[ $candidate_rc -ne 0 ]]; then/n  exit \"$candidate_rc\"/nfi/nexit \"$stock_rc\"-exit \"$stock_rc\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[proposal-status-capture---run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\" || candidate_rc=$?---run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-default-off-${IZANAGI_S4_STOCK_CONTROL-0}-${IZANAGI_S4_STOCK_CONTROL-1}]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-identity-argv-stock_identity_argv=(--knowledge-manifest \"$IZANAGI_S4_KNOWLEDGE_MANIFEST\")-stock_identity_argv=()]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-mode-\"${stock_identity_argv[@]}\" --stock-control-\"${stock_identity_argv[@]}\" --value -1]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-status-capture-|| stock_rc=$?-]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m14-jobbody-empty-mode-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    *) refuse \"IZANAGI_S4_B5_MODE must be series or block-stock\" ;;\n",
+     "new": "    *) ;;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-arm-series:llm|series:random|series:sweep-matched|block-stock:stock) ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-block-[[ \"$IZANAGI_S4_B5_BLOCK\" =~ ^[1-3]$ ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-command-b5_argv=(\"run-$b5_mode\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-common-argv-b5_argv+=(--workload \"$IZANAGI_S4_B5_WORKLOAD\" --block \"$IZANAGI_S4_B5_BLOCK\"/n    --ledger-root \"$b5_ledger_root\" --fetchcontent-prebuild-receipt \"$prebuild_receipt\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-driver-\"$PY\" -B -m orchestrator.campaign.b5_generator_contrast \"${b5_argv[@]}\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-exclusive-refuse \"B-5 mode excludes proposal, fixture, and stock-control\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-exit-exit \"$b5_rc\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-ledger-absolute-[[ \"$IZANAGI_S4_B5_LEDGER_ROOT\" == /* ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-ledger-outside-refuse \"B-5 ledger root resolves inside a repository\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-llm-k2-[[ -n \"${!name:-}\" ]] || refuse \"B-5 llm requires K2 environment: $name\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-mode-set-if [[ -v IZANAGI_S4_B5_MODE ]]; then]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-mode-values-*) refuse \"IZANAGI_S4_B5_MODE must be series or block-stock\" ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-non-llm-k2-refuse \"B-5 non-llm arm excludes K2 environment\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-partial-[[ ! -v $name ]] || refuse \"B-5 environment requires IZANAGI_S4_B5_MODE\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-required-[[ -n \"${!name:-}\" ]] || refuse \"missing B-5 environment: $name\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-series-[[ \"$IZANAGI_S4_B5_SERIES\" =~ ^([1-9]|1[0-2])$ ]]]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-series-argv-b5_argv+=(--arm \"$IZANAGI_S4_B5_ARM\" --series \"$IZANAGI_S4_B5_SERIES\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-status-|| b5_rc=$?]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_fragment_mutants_have_one_static_failure[b5-workload-write-heavy|balanced|read-heavy) ;;]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_invalid_env_precedes_repository_resolution[random-MODE--IZANAGI_S4_B5_MODE must be]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_invalid_env_precedes_repository_resolution[random-MODE-invalid-IZANAGI_S4_B5_MODE must be]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_set_empty_mode_alone_is_refused_before_paths",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_dependency_policy_field_is_rejected",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_prebuild_dependency_prefix_is_rejected",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[c++]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cc]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[g++]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[gcc]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[git]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[make]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[nm]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_CXX_COMPILER_LAUNCHER=/tmp/launcher]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_C_COMPILER_LAUNCHER=/tmp/launcher]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PREFIX_PATH=/tmp/deps]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE_BEFORE=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_TOP_LEVEL_INCLUDES=/tmp/inject.cmake]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[different-prefix-variables]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[partial-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[second-exact-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_job_body_static_contract",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_no_build_mutant_has_one_negative_failure",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[campaign-pin-import-'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'-'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)']",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[claim-root-mkdir -p -m 0700 -- \"$claim_root\"-true # claim root provisioning removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[clean-tree-if ! superproject_status=$(git status --porcelain --untracked-files=no ///n  --ignore-submodules=all); then/n  refuse \"cannot inspect superproject tracked status\"/nfi/n[[ -z \"$superproject_status\" ]] || ///n  refuse \"superproject tracked worktree is not clean\"-true # superproject status gate removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-compilers]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-fields]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-path]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[evidence-outside-repo-if [[ \"$evidence_root\" == \"$repo\" || \"$evidence_root\" == \"$repo/\"* ///n   || \"$evidence_root\" == \"$git_common_repo\" ///n   || \"$evidence_root\" == \"$git_common_repo/\"* ]]; then-if [[ \"$evidence_root\" == \"/impossible\" ]]; then]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[expected-head-\"$observed_head\" != \"$IZANAGI_S4_EXPECTED_HEAD\"-\"$observed_head\" != \"\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[fixture]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-build-argv]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-dirty-all]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-head-exact]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-install-root]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-configure-definitions]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-root]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-timeout]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-proposal-required]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-request-set-detection]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-dependency-prefix]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[proposal]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[qstat-jobid-qstat_jobid=${PBS_JOBID#0:}-qstat_jobid=$PBS_JOBID]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[receipt-create-only-with open(receipt_path, \"x\", encoding=\"utf-8\")-with open(receipt_path, \"w\", encoding=\"utf-8\")]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[reservation-export IZANAGI_RESERVATION_DEADLINE_EPOCH=\"$deadline_epoch\"-true # deadline export removed]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[fixture-status-capture---value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\" || candidate_rc=$?---value \"${IZANAGI_S4_FIXTURE_VALUE:-20}\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[pair-status-priority-if [[ $candidate_rc -ne 0 ]]; then/n  exit \"$candidate_rc\"/nfi/nexit \"$stock_rc\"-exit \"$stock_rc\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[proposal-status-capture---run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\" || candidate_rc=$?---run-iteration \"$IZANAGI_S4_PROPOSAL_PATH\"]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-default-off-${IZANAGI_S4_STOCK_CONTROL-0}-${IZANAGI_S4_STOCK_CONTROL-1}]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-identity-argv-stock_identity_argv=(--knowledge-manifest \"$IZANAGI_S4_KNOWLEDGE_MANIFEST\")-stock_identity_argv=()]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-mode-\"${stock_identity_argv[@]}\" --stock-control-\"${stock_identity_argv[@]}\" --value -1]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_stock_fragment_mutants_have_one_static_failure[stock-status-capture-|| stock_rc=$?-]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m15-timeout-as-rejected",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        if time.monotonic() >= deadline:\n            return finish(\"proposal-wait-timeout\")\n",
+     "new": "        if time.monotonic() >= deadline:\n            return finish(\"proposal-rejected\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_handshake_all_exit_statuses_record_elapsed[proposal-wait-timeout]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_handshake_timeout_ends_without_retry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m16-holm-family-five",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        running = max(running, min(Fraction(1), (6 - rank) * p[key]))\n",
+     "new": "        running = max(running, min(Fraction(1), (5 - rank) * p[key]))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_holm_fixed_six_kills_m16",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_holm_stage_threshold_and_family_dependence",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_holm_unavailable_holes_and_stepdown_stop",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_registered_mutants_killed_independently[M16]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m17-pilot-judged",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "    if purpose == \"pilot\":\n        report[\"registered_judgment\"] = \"not-applicable-pilot\"\n",
+     "new": "    if purpose == \"pilot-never\":\n        report[\"registered_judgment\"] = \"not-applicable-pilot\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_pilot_json_descriptive_only_kills_m17"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m18-launcher-five-jobs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b5_contrast_launch.py",
+     "old": "    if len(jobs) != 4 or tuple(job.arm for job in jobs) != PILOT_ARMS:\n",
+     "new": "    if len(jobs) > 5 or tuple(job.arm for job in jobs)[:4] != PILOT_ARMS:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_contrast_launch.py::test_pilot_cap_is_literal_60_and_four_jobs_53_sessions"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m19-duplicate-skip-restored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    if b5_mode and summary.skipped > 0:\n        project_whiteboard(state, planner, \"fail\")\n",
+     "new": "    if False and b5_mode and summary.skipped > 0:\n        project_whiteboard(state, planner, \"fail\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m20-no-rejected-sidecar",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            if a.b5_slot is None:\n                raise\n            _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)\n            return 3\n",
+     "new": "            if a.b5_slot is None:\n                raise\n            _b5_proposal_rejected(None, a.b5_slot, exc)\n            return 3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[k2-k2-semantic]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[k2-reference-k2-semantic]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[k2-schema-schema]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[probe-probe-material]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[schema-schema]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[value-value-domain]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m21-rejected-treated-as-prestart",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    rejected = sidecar_dir / \"proposal-rejected.json\"\n    if rejected.exists():\n        result.update(outcome=\"rejected-preprocess\", failure_class=\"candidate\")\n        return result\n",
+     "new": "    rejected = sidecar_dir / \"proposal-rejected.json\"\n    if rejected.exists():\n        return result\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_rejected_sidecar_advances_without_retry_m21[False]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_rejected_sidecar_advances_without_retry_m21[True]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m22-verify-reasons-not-machine",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "MACHINE_FAILURE_ABORT_REASONS = frozenset({\"bench-probe-error\", \"bench-competing-tenant\",\n                                          \"verify-probe-error\", \"verify-competing-tenant\"})\n",
+     "new": "MACHINE_FAILURE_ABORT_REASONS = frozenset({\"bench-probe-error\", \"bench-competing-tenant\"})\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[False-verify-competing-tenant]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[False-verify-probe-error]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[True-verify-competing-tenant]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_verify_machine_retry_and_exhaustion_m22[True-verify-probe-error]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m23-attempt-start-after-runner",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        ledger.append(\"slot-attempt-start\", a=a, b=b, n=n, slot_kind=kind,\n                      logical_slot=logical_slot, attempt=attempt, slot_key=key,\n                      sidecar_dir=str(sidecar.relative_to(ledger.root)))\n        started = time.monotonic()\n",
+     "new": "        started = time.monotonic()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_attempt_start_durable_before_runner_exception_m23",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_fix2_producer_mutants_killed[M23]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m24-report-no-sidecar-reconcile",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        if (path / \"pipeline-submitted.json\").is_file():\n            reconciled.append(",
+     "new": "        if False and (path / \"pipeline-submitted.json\").is_file():\n            reconciled.append("
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_fix2_consumer_mutants_killed[M24]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_incomplete_attempt_sidecar_consumes_budget_m24",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_reconcile_retry_counts_B_once"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m25-report-b-count-unchecked",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        if (type(b) is not int or len(evaluations) != b\n",
+     "new": "        if (type(b) is not int or False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m25b-report-b-count-and-sequence-unchecked",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        if (type(b) is not int or len(evaluations) != b\n                or [e[\"b\"] for e in evaluations] != list(range(1, b + 1))):\n",
+     "new": "        if (type(b) is not int or False\n                or False):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_one_evaluation_cannot_claim_B10_m25"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m26-report-fitness-median-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "                     or e.get(\"fitness_tps\") != e[\"bench_payload\"].get(\"median_tps\"))):\n",
+     "new": "                     or False)):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_fitness_median_mismatch_invalid_m26[evaluation-result]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_fitness_median_mismatch_invalid_m26[score-session]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_fitness_median_mismatch_invalid_m26[stock-start]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m27-diagnosis-not-required",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "    if next_evaluation >= 2 and diagnosis_key not in planner_input:\n",
+     "new": "    if False and next_evaluation >= 2 and diagnosis_key not in planner_input:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_both_critic_diagnoses_required_m27"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m28-launcher-own-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/b5_contrast_launch.py",
+     "old": "    pins = re.findall(r'^PIN = \"([0-9a-f]{40})\"$',\n                      (repo / \"orchestrator/campaign/p3_s4_loop.py\").read_text(), re.MULTILINE)\n",
+     "new": "    pins = [p3_s4_loop.PIN]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_contrast_launch.py::test_target_checkout_pin_m28",
+    "orchestrator/tests/test_b5_contrast_launch.py::test_validate_submit_tree_accepts_fixed_clean_heads",
+    "orchestrator/tests/test_b5_contrast_launch.py::test_validate_submit_tree_rejects_tracked_dirty[ccbench]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

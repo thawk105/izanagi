@@ -1,0 +1,43 @@
+file mutation-final-results.json bytes 1718336 sha256 2579d6fe6f886e6864aad71daf3cd1bb2aee515cfed17cd2758ad43813d1e3b0
+repo_head 65272f3c8d80dd2fdc03b87aab6168f0626ea549 spec_sha256 cef75afe76f4122b481e47eae720308ae9d30076365209081771131b0ee6d305
+runner_sha256 39d62b5c48718c08ead9fd30593c2c59e511552e908dc36cc66a98b6fd64a771 tool_identity {'head_blob_sha256': '4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8', 'path': '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py', 'repo_path': 'tools/mutation_harness.py', 'sha256': '4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8'}
+summary {"KILLED": 26, "MISMATCH": 2, "PARSE_ERROR": 0, "SURVIVED": 2, "TIMEOUT": 0, "completed": 30, "matching": 28, "recorded": 30, "registered": 30}
+baseline {'status': 'PASSED', 'rc': 0, 'expected_status': None, 'duration_s': 37.32, 'matches_expectation': None}
+status counts {'SURVIVED': 2, 'KILLED': 26, 'MISMATCH': 2}
+MISMATCH m10-slot-not-in-identity rc 1 expected 6 observed 7
+   observed - expected: ['orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0']
+   expected - observed: []
+MISMATCH m11-machine-guard-exception-removed rc 1 expected 8 observed 9
+   observed - expected: ['orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0']
+   expected - observed: []
+schema izanagi-dev-wave-mutation/v4 keys ['baseline', 'date', 'mutations', 'nonterminal_history', 'procedure', 'repo_head', 'runner_identity', 'runner_sha256', 'schema', 'spec_sha256', 'summary', 'tool_identity']
+m0-equivalent-comment                         SURVIVED   expected=SURVIVED rc=0 failed=0
+m1-weights-2pow127                            KILLED     expected=KILLED rc=1 failed=3
+m2-random-preimage-separator                  KILLED     expected=KILLED rc=1 failed=3
+m3-random-u-le-l                              KILLED     expected=KILLED rc=1 failed=1
+m4-sweep-numeric-order                        KILLED     expected=KILLED rc=1 failed=2
+m5-quality-or-to-and                          KILLED     expected=KILLED rc=1 failed=7
+m6-b-only-on-certified                        KILLED     expected=KILLED rc=1 failed=9
+m7-endpoint-tie-value-desc                    KILLED     expected=KILLED rc=1 failed=1
+m8-score-from-search-max                      KILLED     expected=KILLED rc=1 failed=1
+m9-inheritance-order-ignored                  KILLED     expected=KILLED rc=1 failed=2
+m10-slot-not-in-identity                      MISMATCH   expected=KILLED rc=1 failed=7
+m11-machine-guard-exception-removed           MISMATCH   expected=KILLED rc=1 failed=9
+m12-submitted-marker-not-before-campaign      KILLED     expected=KILLED rc=1 failed=1
+m13-jobbody-fallthrough                       KILLED     expected=KILLED rc=1 failed=84
+m14-jobbody-empty-mode-accepted               KILLED     expected=KILLED rc=1 failed=76
+m15-timeout-as-rejected                       KILLED     expected=KILLED rc=1 failed=2
+m16-holm-family-five                          KILLED     expected=KILLED rc=1 failed=4
+m17-pilot-judged                              KILLED     expected=KILLED rc=1 failed=1
+m18-launcher-five-jobs                        KILLED     expected=KILLED rc=1 failed=1
+m19-duplicate-skip-restored                   KILLED     expected=KILLED rc=1 failed=1
+m20-no-rejected-sidecar                       KILLED     expected=KILLED rc=1 failed=6
+m21-rejected-treated-as-prestart              KILLED     expected=KILLED rc=1 failed=2
+m22-verify-reasons-not-machine                KILLED     expected=KILLED rc=1 failed=4
+m23-attempt-start-after-runner                KILLED     expected=KILLED rc=1 failed=2
+m24-report-no-sidecar-reconcile               KILLED     expected=KILLED rc=1 failed=3
+m25-report-b-count-unchecked                  SURVIVED   expected=SURVIVED rc=0 failed=0
+m25b-report-b-count-and-sequence-unchecked    KILLED     expected=KILLED rc=1 failed=1
+m26-report-fitness-median-unchecked           KILLED     expected=KILLED rc=1 failed=3
+m27-diagnosis-not-required                    KILLED     expected=KILLED rc=1 failed=1
+m28-launcher-own-pin                          KILLED     expected=KILLED rc=1 failed=3

@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 9,
+    "implementation": "double now_backoff = 9;",
+    "justification": "planner の方向は increase・small。直前評価 (評価 9) は値 6 で throughput 3,996,828 tps・abort 46.82% であり、k2_critic_diagnosis によれば固定 backoff 5〜10 は throughput が between-run floor (3.0%) 内で連続した平坦域、abort 率は系列 9 点で値に対し厳密に単調減少、run 内 CV は低値側 (4〜6) で荒れ 8〜10 側で 1% 未満と安定、最良見込み点は 8 である。この状態で「増加・小」に該当し、かつ未採取で情報量が残る点は 8 と 10 の間の 9 のみである (7 は両隣 6・8 が 0.40% 差の tie で新情報が乏しく、11 以上は 12 が −2.96% と floor 際の待機支配域に接する)。9 を測ることで endpoint 見込み点 8 の近傍が同じ高さかが確認でき、8 と floor 内なら平坦域 5〜10 が閉じる。値 4 以下 (崖: 4 で −3.24%、2 で −13.2%) と 12 以上 (−2.96% 〜 −10.0%) には踏み込まない。knowledge_input の WAL (K2 round 配線規模、4 threads / 100000 records / rr50 / extime 1) では BACKOFF_FIXED=30 が 40 より高く (525,721 vs 491,796 / 487,088 tps)、大きい固定値側で throughput が落ちる向きは本系列の高値側の低下と整合するが、動作点が異なるため絶対値の比較には使わず方向の整合確認にだけ用いた。期待される結果は改善ではなく tie であり、性能の予測値は主張しない。value 9 と implementation の literal 9 は数値一致、接尾辞なし、コメント・backslash なし。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 round campaign (p3-s4-loop-s4-autonomous-0b53a387) の WAL。BACKOFF_FIXED=30 (525,721 tps) > 40 (491,796 / 487,088 tps) と、固定値を大きくすると throughput が下がる向きを示しており、本系列の高値側 (12 以上) の低下傾向と整合する方向確認として使った。動作点 (4 threads / 100000 records / rr50 / extime 1 / 2 rep) が本 campaign (48 threads / 1M records / rr5 / extime 3 / 5 rep) と異なるため絶対 tps や具体値の根拠には使っていない。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "knowledge_input.sources[0] (WAL jsonl、genome / build / verify / bench / commit の 5 stage × 3 variant) を全行走査し、ゲート・検証順序・振る舞いを誘導する文字列は検出しなかった (cmake / run_cmd の文字列は記録された測定手順であり指示として扱っていない)。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty 各節も走査した。recommend / avoid 節に候補値の助言 (9 を第一候補、4 以下・12 以上・7・stock 再測定・他軸変更を避ける) があるが、これは通常の候補提言であり、権限・検証順序・正しさゲート・性能ゲートの上書きを求める記述ではないため anomaly とせず、データとして検討したうえで採否を自分で判断した。診断が引用する過去 critic の助言形の文も同様に候補助言として扱った。診断に対して knowledge_use.source_index は付与していない。"
+  }
+}

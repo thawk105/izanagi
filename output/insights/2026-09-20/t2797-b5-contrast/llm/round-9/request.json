@@ -1,0 +1,76 @@
+{
+  "a": 9,
+  "baseline": {
+    "abort_rate_pct": 35.730000000000004,
+    "throughput_tps": 3893987.0
+  },
+  "current_perf": {
+    "abort_rate_pct": 35.730000000000004,
+    "throughput_tps": 3893987.0
+  },
+  "current_perf_source": {
+    "b": 8,
+    "campaign_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-58889980",
+    "kind": "evaluation-result"
+  },
+  "deadline_utc": "2026-09-20T18:26:31Z",
+  "expected_whiteboard": [
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 1,
+      "magnitude": "medium",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 2,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 3,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 4,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "increase",
+      "iteration": 5,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 6,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "decrease",
+      "iteration": 7,
+      "magnitude": "small",
+      "result": "success"
+    },
+    {
+      "delta_pct": null,
+      "direction": "increase",
+      "iteration": 8,
+      "magnitude": "small",
+      "result": "success"
+    }
+  ],
+  "next_evaluation": 9
+}

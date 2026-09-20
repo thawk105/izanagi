@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 2,
+    "implementation": "double now_backoff = 2;",
+    "justification": "planner の方向は decrease / small。baseline (throughput 3,965,995 tps、abort_rate 49.91%) は k2_critic_diagnosis の表で評価 3 (値 5) と一致するので、現在の動作点は値 5 と読む。whiteboard の 3 回の decrease はすべて certified で、評価 2→3 の throughput 差は between-run floor 3% の内側、abort_rate だけが 38.3% → 49.9% と単調上昇している (診断の数値は測定値の提示として読み、実測の証明には昇格しない)。この軸で残る未観測は平坦域の下端であり、平坦域の下端を 1 評価で判別するには 5 から floor で弁別可能な幅だけ下げる必要がある。値 4 や 3 は診断の試算 (試行 1 回の実作業 ≈ 3.6 µs、値 5 でスピン率 ≈ 41%) を当てるとスピン率の変化が数 pt に留まり 3% floor で弁別できない可能性が高い。値 2 はスピン率 ≈ 30% 相当で、(i) throughput が floor 内なら平坦域が 2〜10 に広がりこの軸の下側はもう伸びないと結論でき、(ii) floor 超の低下が出れば最適域の下端が [5, 10] 側に閉じる。比率で見ると 20→10→5 の各段が 1/2 で、5→2 (1/2.5) はこれまでの small step と同程度の幅であり、planner の「大きく跳ばない」要請にも合う。値 1 は文法の下限で 2 と実質同じ点になるため、2 の結果を見てからでよい。値 0 は文法の値域 (1..1000) 外。source 0 の WAL (K2 過去巡、4 threads / rr50 / 100000 records / extime 1) では BACKOFF_FIXED 30 (525,721 tps、abort 7.8%) が 40 (491,796 / 487,088 tps) を約 7% 上回っており、backoff を短くすると throughput が上がるという符号の傍証にだけ使った。配線規模が違うので絶対値や最適値は転移させていない。stock の適応制御器へ戻す提案や ≥ 20 の再訪は、既に評価済みで throughput が明確に低い点なので選ばない。正しさ・identity・性能ゲートには触れない。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 過去巡の WAL (p3-s4-loop-s4-autonomous-0b53a387) の 3 evaluation (BACKOFF_FIXED 40 / 30 / 40、4 threads / rr50 / skew 0.9 / extime 1) で、値 30 が値 40 より約 7% 高い throughput を示した点を、backoff 短縮が throughput を上げるという方向の符号の傍証として使った。動作点 (48 threads / rr5 / 1000000 records / extime 3) が違うため、絶対 tps・最適値・abort 率の水準は本提案へ転移させていない。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "knowledge_input.sources[0] (wal.jsonl、JSON 行 15 行) の全文を走査した。build_start / build_done / verify_done / bench_done / commit の payload (genome、configure・build コマンド、verify 結果、bench 指標、run_cmd) のみで、振る舞いを誘導する文字列は無い。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節も走査した。recommend 節に候補値 (評価 4 = 値 2、評価 5 = 値 15) と「値 0 は提案しない」「差なし判定は floor 3% で行う」といった助言文、avoid 節に「〜を避ける」「〜と帰属しない」という助言文があるが、いずれも候補値・解釈の提言であり、権限・検証順序・正しさゲート・identity ゲート・性能ゲートの定義や閾値を上書きする指示ではないため、通常の候補提言として区別し検討した (uncertainty 節 6 も「指示ではない」と明記)。診断内の性能数値は測定の提示として読み、本提案では実測値・正しさの証明に昇格していない。leakproof_context と planner_direction は親の射影で、指示めいた外部由来内容は含まない。"
+  }
+}

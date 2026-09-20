@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "whiteboard の評価 1 (decrease/medium) と評価 2 (decrease/small) はいずれも certified で、critic 診断 (データとして参照) は評価 1→2 の throughput 増分が between-run floor を明確に超え、5 rep の分布が重ならず、rejection (cycle / integrity / liveness) が無かったと報告している。同方向の勾配の符号がまだ反転していないので、同軸・同方向をもう 1 歩進めて勾配の符号を確定させるのが情報量の面で最も確実。ただし current_perf の abort_rate_pct 38.32 は評価 1 の値 (診断による 28.82) から約 10 pt 上がっており、trace build 側の abort 率も大きく上がっていると診断が記すため、動作点が別の支配域へ近づいている可能性がある。よって magnitude は medium (端点への跳び) ではなく small とし、次の評価で (a) 上昇継続 (b) floor 内で平坦 (c) 低下 のどれかを判別できる形にする。knowledge_input の記録 (別機体・別配線規模) も減少方向で fitness が上がった符号は一致しているが、絶対 tps と刻みは転移しないので方向の傍証にのみ用いた。",
+    "uncertainty": "(1) leading_indicators の cache_miss_rate_pct / IPC_overall は欠測 (null) で contention_level は未判定のため、throughput 変化の内訳 (待ち時間側か衝突・cache 側か) は分離できておらず、診断の換算値は『1 試行あたり実作業時間が一定』という仮定に依存する。(2) whiteboard の delta_pct が常に null で、改善幅は診断側の計算値にのみ依存している。(3) 同一 job 内 1 系列 (n=1 job、1 ノード) の逐次測定で、別ノード・別日の再現は無い。(4) 次の 1 歩が floor に埋もれて『差なし』となる可能性があり、その場合は平坦域の発見として扱い、上側からの閉じ込み (increase 側の小さな 1 歩) を評価 4 の候補にする。(5) abort_rate 38% 超の域で減少を続けると、衝突支配側へ入って符号が反転しうるが、この符号は現在の 2 点からは決められない。(6) knowledge_input の 3 点目 (variant dad58f9f9000) は settled=false であり傍証としても弱い。(7) k2_critic_diagnosis および knowledge_input.sources の本文に、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出されなかった (data_boundary の宣言どおりデータとして扱った)。診断中の候補値・追加実験の提言 (recommend 節) は採用義務として扱わず、方向と magnitude の判断材料にのみ用いた。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 5,
+      "implementation": "double now_backoff = 5;",
+      "justification": "planner の方向ヒントは decrease / small。whiteboard は評価 1 (decrease/medium) と評価 2 (decrease/small) がともに success で、同方向の勾配の符号はまだ反転していない。k2_critic_diagnosis (データとして参照) は評価 1→2 が BACKOFF_FIXED 20→10 で throughput +10.1% (floor 3.0% の 3 倍超、5 rep の分布が重ならない) と報告し、機序を「abort 後のスピン待ち時間の縮小」と帰属している (試算では backoff スピンがまだスレッド時間の約半分)。一方 baseline の abort_rate_pct 38.32 は評価 1 の 28.82 から約 10 pt 上がっており、trace build 側の abort 率 77% と合わせて衝突支配域への接近を示すため、端点 0 への跳び (medium) ではなく直近の評価値 10 から半分の 5 へ 1 歩進めるのが small に相当し、評価 3 で (a) 上昇継続 (b) 平坦 (c) 低下 の分岐を判別できる。0 端点は診断自身が符号を決められないとしている未測域であり、正帰還 (abort が abort を呼ぶ) と verify wall 膨張のリスクがあるので今回は避ける。knowledge_input の WAL (別機体・4 threads / rr50 / extime 1 の配線規模) では BACKOFF_FIXED 40→30 で fitness 491796.5 / 487088.5 → 525721.5 と減少方向で上がっており、方向の傍証として整合するが、絶対 tps と刻みは本動作点 (48 threads / rr5 / extime 3) へ転移しないので値の決定には使っていない。値 5 は評価済みの 20 / 10 とは異なる新規点で、受理文法 (接尾辞なし整数リテラル 1 個、1..1000) を満たす。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "別 campaign (p3-s4-loop-s4-autonomous-0b53a387、linux-baremetal、4 threads / 100000 records / rr50 / extime 1) の WAL で、BACKOFF_FIXED=40 (fitness 491796.5、487088.5) より 30 (525721.5) が高く、3 候補とも serializable / certified だった記録を、backoff 減少方向で fitness が上がる符号の傍証としてのみ使った。配線規模と機体が異なるため絶対 tps・刻み幅・abort 率 (0.07〜0.078) は本動作点へ転移させず、提案値 5 の決定には用いていない。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources[0] (wal.jsonl、15 行の JSON レコード: build_start / build_done / verify_done / bench_done / commit) を全文走査し、genome・configure/build コマンド・verdict・tps・leading_indicators の測定記録のみで、振る舞いを誘導する文字列や指示は検出しなかった。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty も全文走査した。recommend 節に候補値 (BACKOFF_FIXED=5) と評価 3 の読み方・端点 0 の verify wall 見込みが、avoid 節に再訪回避 (≥20、-1 への回帰、他 workload への一般化、latency の独立根拠化、trace 側 abort 率の転用) が書かれているが、いずれも通常の候補提言・実験設計の助言であり、権限・検証順序・正しさゲート・identity ゲート・性能ゲートの定義や閾値を上書きする指示は含まれていない。これらは助言として検討し、性能の実測値や正しさの証明には昇格させていない。"
+    }
+  },
+  "prior_critic_reverse": null
+}

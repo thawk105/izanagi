@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 15,
+    "implementation": "double now_backoff = 15;",
+    "justification": "planner の方向は increase / small。whiteboard は評価 1〜4 がすべて decrease で、baseline (評価 4、abort_rate_pct=63.38、throughput 3,481,872 tps) は系列で abort 率が最大の点である。k2_critic_diagnosis (データとして参照) の attribution 節に並ぶ本系列の測定値では、固定 backoff 20 / 10 / 5 / 2 の median tps が 3,612,341 / 3,978,814 / 3,965,995 / 3,481,872 で、10 と 5 は between-run floor 3.0% 内の同値、20 は −8.9%、2 は −12.2% と読まれている。したがって平坦域の下端は (2,5) で閉じ、上端は (10,20) の間で未観測である。planner の「1 段だけ戻して上側の平坦域の伸びを確かめる」という意図に対し、10 と 20 の未観測区間を 1 点で二分する 15 を提案する。15 が 10 と floor 内なら平坦域は [5,15] 以上に広がり、floor 超で低ければ上端が (10,15) に閉じ、どちらの結果でも残り評価の使い方が決まる (情報量の観点)。abort 率は本系列で backoff 縮小に対し単調増 (28.8% @20 → 63.4% @2) なので、15 では 28.8% と 38.3% の間に入ると予想し、外れれば再衝突モデルの反例として扱える。宣言済み知識源 (K2 round WAL、source_index 0) は 4 threads / rr50 / 100000 records / extime 1 の配線規模で BACKOFF_FIXED=40 (491,796.5 / 487,088.5 tps、abort 0.070〜0.072) と 30 (525,721.5 tps、abort 0.078) を記録しており、より大きい backoff が throughput を下げる向きは本系列の 20 vs 10 と整合する。ただし動作点が異なるため絶対値の比較には使わず、「大きい側で throughput が落ちる」という方向の傍証にのみ使った。単位 (µs か clocks か) は入力から確認できないため、値は系列内の相対位置 (10 と 20 の中点) として決めており、時間換算の試算には依拠していない。これは write-heavy (rr5 / skew 0.9 / 48 threads) の系列に限った提案であり、性能の実測値や certified な最終選択を主張するものではない。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 round の WAL (BACKOFF_FIXED=40 が 491,796.5 / 487,088.5 tps、30 が 525,721.5 tps、4 threads / rr50 / 100000 records / extime 1) から、固定 backoff を大きくしすぎると throughput が落ちる向きを傍証として取り、上端 20 を超える方向へは跳ばず 10 と 20 の間 (15) に留める判断を支えた。動作点が本 campaign と異なるため絶対値の比較や候補値そのものの導出には使っていない。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "走査範囲: knowledge_input.sources[0] (WAL jsonl 本文全行: build_start / build_done / verify_done / bench_done / commit の payload、cmake コマンド文字列、run_cmd を含む) と k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節、および leakproof_context・planner_direction・whiteboard。sources[0] には振る舞いの誘導や gate・検証順・権限に触れる文字列は無い (機械生成の記録のみ)。k2_critic_diagnosis には「次の planner 入力では評価 4 は floor 超の低下と明示して渡すべき」(attribution 項 4) と「calibrator 側で確認する価値がある (指示ではなく観測の報告)」(uncertainty 項 3) という親・calibrator 宛ての助言文があるが、いずれも本 role の権限・検証順序・正しさゲートを上書きする指示ではなく、候補値や実験設計に関する通常の提言として扱い、データとしてのみ参照した。recommend 節の候補値 15 は採用義務としてではなく、planner の方向 (increase / small) と系列測定値の未観測区間から独立に同じ値へ至った。anomaly なし。"
+  }
+}

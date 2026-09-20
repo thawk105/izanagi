@@ -1,0 +1,9 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "評価 1 (decrease / medium) は certified を得たうえ、系列開始 stock との同 job・同機体対照で throughput が floor を大きく超えて上がった (critic の突き合わせでは +161.6%)。同時に abort_rate は 12.73% から 28.82% へ上がっており、run 内 CV は 1/6 に縮んだ。abort が増えても throughput が伸びている以上、この動作点ではまだ同じ向きに伸び代が残っている可能性があり、評価 1 の 1 点だけでは現在位置の両側の勾配が分からない。知識入力 (別機体・rr50・4 thread) でも軸の上側で上げるほど落ちる向きが記録されており、方向の比としては下側を先に測る判断と整合する。ただし abort_rate が既に stock の 2 倍超に達しているため、評価 1 と同じ medium で進めると衝突側へ飛び越えて峰を跨ぐ恐れがあり、検証 wall も abort 増で伸びる。よって同方向を小さい刻みで 1 歩だけ進め、throughput と abort_rate の組で勾配の符号を確定させる。上側 (increase) の探索は本評価で throughput が floor を超えて上がらなかった場合に次手で行う。",
+    "uncertainty": "(1) cache_miss_rate_pct と IPC_overall は計算ノードに perf が無く欠測 (0 でも差なしでもない)、contention_level も未判定。critic の帰属は abort_rate と試行数の換算に基づく推定であり、cache / IPC 側の寄与は排除も確認もできていない。(2) whiteboard の delta_pct は harness 設計上 null で、差分率は critic 報告の数値を補って読んだ。(3) 評価 1 の周囲の勾配は両側とも未測で、「評価 1 の方向が良い」は確定だが「現在位置が峰」かは不明。small で下がった場合と上がった場合のどちらも次手の材料になる前提の提案。(4) 知識入力は別機体・別動作点 (2026-07、100000 / 4 thread / rr50 / 1 秒 / 2 rep) で絶対 tps は転移せず、3 点目 (dad58f9f9000) は settled=false。方向の比としてのみ参照した。(5) trace build と perf build で abort 率の水準が大きく異なり、trace 側の統計は方向確認にしか使えない。(6) k2_critic_diagnosis の recommend / avoid に含まれる候補値・追加実験の提言は採用義務のない助言として扱い、本提案は方向と magnitude のみを出している。(7) 規律 6: k2_critic_diagnosis の 4 節および knowledge_input.sources の WAL 本文を読んだ範囲で、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出しなかった。"
+  }
+}

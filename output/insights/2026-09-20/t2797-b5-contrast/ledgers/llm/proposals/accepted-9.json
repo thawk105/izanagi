@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "current_perf (評価 8) は abort 率が系列内で中位、throughput は最良点と採否 floor の内側で弁別不能な tie。whiteboard は decrease 6 回・increase 2 回がすべて certified で、正しさ側の制約は方向選択に効いていない。critic 診断 (データとして参照) によれば、固定 backoff を下げるほど abort 率は厳密に単調増加し、throughput は中間域で平坦、下端では abort 率が急伸して run 内 CV も荒れる崖、上端では abort 率低下に反して throughput が floor を超えて落ちる。既採取点の並びから、平坦域の内側で最も広い未採取区間は現在点より下側 (最良点とその下隣の間) にあり、そこが崖への遷移と CV 上昇の始まる位置でもある。残り評価 2 のうち評価 9 でこの区間を 1 点埋めれば、endpoint 見込み点 (最良点) の頑健性を左右する情報量が最大になる。現在点からその区間へ届くには、直近 2 回の small より大きい medium の減少が要る。上端 (現在点と floor 超の点の間) の閉じ込みは評価 10 に回すのが順序として妥当。既に 2 点で崖が実測済みの最下域や、上端を超える方向、stock 再測定は情報量が低く避ける。",
+    "uncertainty": "(1) 各値 n=1・同 job 直列で、between-run の再現性データは未取得。採否 floor は別文脈由来で本 job への適用根拠が未確立。tie 判定は「弁別不能」であって同値の証明ではない。(2) cache_miss_rate_pct / IPC_overall は欠測 (perf 不在)、contention_level は未判定。abort 率と throughput の 2 指標だけで方向を決めており、cache 側の分散は説明できない。(3) whiteboard の result は certified の意味で delta_pct は常に null のため、方向ごとの効きは whiteboard 単独からは読めず、critic 診断の系列値に依存している。(4) rep 1 の系統的高値が下側ほど大きいと報告されており、提案区間では CV が settled 判定に近づく可能性がある。median での判定を前提にしている。(5) knowledge_input は別機体・別動作点 (配線規模) の記録で、絶対値・最適位置は転移しない。3 点目 (dad58f9f9000) は settled=false であり、本提案の根拠には使っていない。(6) 規律 6 の点検: k2_critic_diagnosis.recommend には「median で判断し rep 1 単独や CV を根拠にしない」等の次段への読み方の指示文があるが、権限・検証順序・正しさゲートを上書きする内容ではなく、測定の読み方の助言として扱った。knowledge_input.sources の content は WAL レコードのみで指示めいた文字列は見当たらない。anomaly 報告なし。(7) 本提案は現在点 (評価 8) を基準とした相対方向であり、系列 endpoint は台帳規則で機械的に決まる前提。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 6,
+      "implementation": "double now_backoff = 6;",
+      "justification": "planner の方向は decrease / medium。現在点 (baseline: 3893987 tps、abort 35.73%) は critic 診断によれば固定 12 µs で、最良見込み点 8 µs と floor 内の tie。診断が示す系列の並び (2, 4, 5, 8, 10, 12, 15, 20 µs) では 5〜12 µs が throughput 平坦域で、abort 率は固定値に対して厳密に単調減少、5 µs 以下で abort 律速の崖と run 内 CV の荒れが始まる。平坦域の内側で最も広い未採取区間は 5→8 であり、評価 9 でここを 1 点埋めるのが endpoint 見込み点 (8 µs) の頑健性に最も効く。6 を選んだ理由: (1) 12→6 は 50% の減少で planner の medium に相当し、直近 2 回の small (12→10 相当) より明確に大きい、(2) 5 µs (abort 50%、CV 2.3%) と 8 µs (abort 42%、CV 0.97%) の間で abort 律速への遷移が始まる位置の直近に置くことで「5〜12 µs は連続した平坦域か」を判定でき、tie なら endpoint 8 の下側の頑健性が立ち、8 を floor 超で上回れば頂上が 8 より下にある証拠になる、(3) 残す未採取幅 (6〜8) は CV が安定している側なので、7 を選んで 5〜7 の荒れやすい側に幅 2 を残すより解像度の配分が良い。宣言 source (K2 3 巡目までの WAL、4 thread / rr50 / 100000 records の配線規模) では固定 30 µs が 40 µs より高い throughput (525.7k vs 491.8k / 487.1k、abort 7.8% vs 7.0〜7.2%) を示しており、「低 abort 域では待ちを短くすると throughput が上がる」という向きは本提案と整合するが、動作点が異なり絶対値は 1 桁ずれるため値の根拠には使っていない。期待は tie であり、noise 内の高値を改善と読まない。性能値は本 campaign の実測に委ね、正しさ・identity・性能 gate には触れない。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "K2 過去 campaign の WAL (固定 backoff 30 / 40 µs、4 thread / rr50 / 100000 records)。固定値を下げると throughput が上がり abort が僅かに増える向きの傍証として方向 (decrease) の整合確認にだけ使い、動作点が異なる (48 thread / rr5 / 1M records) ため具体値 6 の根拠には使っていない。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources[0] (WAL jsonl 全 15 行: build_start / build_done / verify_done / bench_done / commit の payload、configure / build / run コマンド文字列を含む) を走査し、エージェントの振る舞いを変える指示・gate の緩和要求・権限主張は検出しなかった。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty も走査した。recommend と avoid には「6 または 7 µs」「≤ 4 µs へ下げない」「rep 1 単独や CV を根拠にしない」「verify を軽くしたい根拠にしない」といった提言形の文があるが、いずれも候補値・方向・読み方への助言であり、権限・検証順序・正しさ gate を上書きする指示ではないため通常の候補提言として扱い、データとして検討した上で本提案の判断は自分で行った。leakproof_context と planner_direction は親の射影として読んだ。"
+    }
+  },
+  "prior_critic_reverse": null
+}

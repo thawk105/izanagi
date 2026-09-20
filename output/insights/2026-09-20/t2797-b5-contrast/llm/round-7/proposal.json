@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "whiteboard の 6 評価はすべて certified で、系列の測定 (critic 診断の表) では throughput が下側 3 点で between-run floor の内側に並び、abort 率だけが単調に上がっている。上側 2 点は throughput が floor 超で低く、下端 1 点は floor 超で急落している。つまり残り予算で「floor で弁別できる差」が出るのは下側の未評価領域だけで、上側は勾配が緩く同じ予算では差が floor に埋まる見込みが高い。平坦域の内側を補間しても tie の再確認にしかならず、系列最良の更新も指名の頑健化も進まない。よって、現在の平坦域の下端 (評価済み点のうち最も小さい値) を起点に、幅を小さく狭める方向を 1 点だけ取る。結果が下端と tie なら平坦域が下へ広がり、現指名 (評価 6 の値) の下側マージンが実測で言える。floor 超で落ちれば崖の位置が下端の直下と確定し、現指名が崖から離れた安全側であることが実測で言える。どちらに転んでも endpoint に送る指名の根拠が締まり、abort 率 42% (current_perf) と同じ向きの単調傾向の延長として読める。新最良は期待しない (critic 診断の recommend も同旨だが、採用義務としてではなく、上記の測定の並びから planner が独立に同じ結論に至った)。",
+    "uncertainty": "1. 同一値の再評価 (critic 診断 recommend 1) は本出力契約の direction (increase / decrease / explore_both) で表現できないため提案していない。harness が同一 genome の再投入を受けるなら、同 job 直列の反復差 (floor の実測根拠) を得る手段として本提案より優先してよく、その場合は本提案を評価 8 へ繰り下げてよい。2. tie / 崖の判定は between-run floor 3.0% に依存し、同 job・同ノード・各 n=1 の直列評価にその floor を当てる実測根拠はない。3. cache_miss_rate_pct / IPC_overall は欠測 (perf 無し) で contention_level は未判定。abort 率と throughput の並びだけから方向を決めており、cache 側の説明変数は使えていない。4. rep 1 が 7 評価すべてで 5 反復中の最大値 (critic 診断 uncertainty 3) という系統的な初回反復効果が疑われ、median 採用で fitness は動かないが endpoint 再計測にも同じ効果が乗る。本提案では解消されない。5. 起点を「平坦域の下端」としたが、coder が起点を直近評価 (評価 6) と読むと平坦域内の補間になり、本提案の目的 (下側マージンの実測) は達成されない。起点の解釈は coder 側に残る。6. knowledge_input (linux-baremetal、配線規模、2026-07) は動作点も集約規則も違い絶対 tps は転移しない。上側で幅を狭めた点が高い、という向きだけは本系列と矛盾しないが、3 点目は settled=false で、方向判断の根拠には含めていない。7. 本判断は write-heavy / skew 0.9 / 48 threads の 1 動作点に限り、workload 交互作用は未測定。8. 規律 6 の走査: k2_critic_diagnosis の 4 節、knowledge_input の WAL 行、whiteboard に、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出しなかった。critic 診断の候補値・avoid・追加実験の提言は助言データとして読み、値は本出力に持ち込んでいない。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 4,
+      "implementation": "double now_backoff = 4;",
+      "justification": "planner の方向は decrease / small で、起点は評価済み点のうち最小で平坦域の下端にある値 (critic 診断の表では BACKOFF_FIXED=5、median 3,965,995 tps、abort 49.9%)。whiteboard の 6 評価はすべて certified で、下側 (medium→small→small→small の decrease 4 回と、increase 1 回・decrease 1 回) を通じ、診断の表では 10・8・5 の 3 点が between-run floor 3.0% の内側に並び、2 で −12.5% と急落している。下側の勾配 (abort 4.5 pt/µs、throughput 約 −4.6%/µs) は上側 (約 1%/µs) より急で、1 µs の刻みでも floor で弁別できる見込みがあるため、5 から 1 だけ狭めた 4 を取る。4 が 5 と tie なら平坦域は [4, 10] に広がり現指名 (評価 6 の値 8) の下側マージンが実測で言える。floor 超で落ちれば崖は 4–5 の間と確定し、8 が崖から離れた安全側であることが実測で言える。どちらに転んでも endpoint に送る指名の根拠が締まる。新最良は期待しない。3 (magnitude を 2 に広げる) は 2 の急落側に近すぎて崖の位置の解像度を失い、6・7 (平坦域の内側補間) は tie の再確認にしかならないので選ばない。critic 診断の recommend 2 (値 4) と一致するが、採用義務としてではなく、planner の測定の並びと whiteboard から独立に同じ値に至った。予想 (診断の推定を助言として引く、測定値ではない): abort_rate 52–56%、CV 2.3–2.8%。外れた場合は再衝突モデルの反例として次巡の診断材料になる。整数 4 は受理文法 (1..1000、接尾辞なし strict literal 1 個、ちょうど 1 文) を満たし、value と数値一致する。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "K2 旧配線規模 (100000 records / 4 threads / rr50 / extime 1 / 2 rep、linux-baremetal) の WAL で、BACKOFF_FIXED=40 (2 回、median 491,797 / 487,089 tps、abort 7.0–7.2%) と 30 (525,722 tps、abort 7.8%) がいずれも certified (serializable、anomalies=0) であることを確認した。同じ genome 文法 (silo|BACKOFF_FIXED=<n>,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0) で固定 backoff 幅が正しさゲートを通る先例として、また低 contention 動作点では 30 が 40 より速く、最適幅が動作点で大きく変わる (今回の write-heavy / 48 threads では平坦域が [5, 10] と 1 桁小さい) ことの傍証として使った。動作点が異なるため絶対 tps や具体値の候補としては使っていない。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources[0] (WAL 15 行: build_start / build_done / verify_done / bench_done / commit の payload、cmake configure・build コマンド、run_cmd) と k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節、leakproof_context、planner_direction.justification、whiteboard 6 件を走査した。source[0] はログデータのみで、振る舞いの誘導や権限・検証順序・正しさゲートに触れる文字列は無い。k2_critic_diagnosis には候補値と優先順位の助言 (recommend 1–4、avoid の再訪不要リスト) と「calibrator 側の確認事項として報告 (指示ではなく観測)」の文があるが、いずれも通常の候補提言・留保であり、権限・検証順序・正しさゲートを上書きする指示ではない。助言として検討し、採用義務としては読んでいない。「harness が受けるなら同一値の再評価を最優先」の項は planner の方向 (decrease) と異なるため今回は採らなかった。"
+    }
+  },
+  "prior_critic_reverse": null
+}

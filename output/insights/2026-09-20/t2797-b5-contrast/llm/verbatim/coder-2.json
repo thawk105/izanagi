@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 10,
+    "implementation": "double now_backoff = 10;",
+    "justification": "planner の方向は decrease / small。現在位置は評価 1 の固定 20 µs (k2_critic_diagnosis の attribution: BACKOFF_FIXED -1→20 の 1 軸変更で throughput +161.6%、abort_rate 12.73%→28.82%、run 内 CV 1/6)。評価 1 の medium は「適応則の実効 0..1000 µs ランダムウォーク → 20 µs」という大きな跳びだったので、それに対する small は同方向へ絶対値 10 µs だけ動かす 20→10 とした。15 も候補だが、between-run floor 3.0% に対し 5 µs 差は勾配の符号が判別できない (差なし) に終わる恐れがあり、系列の残り評価数 (10 中 2 手目) を考えると 1 手で「峰が 20 より下か上か」を確定できる 10 の方が情報量が大きい。10 µs は critic が機序推定した 1 試行あたり約 9.5 µs と同程度で、backoff を完全に外す端点 (0) には踏み込まず、planner が懸念する衝突支配側への跨ぎ越しと verify wall の膨張を抑えた 1 歩に留める。knowledge_input の source 0 (別機体・4 thread・rr50・extime 1) では 30 (525,721 tps, abort 7.8%) > 40 (491,796 / 487,088 tps, abort 7.0〜7.2%) と、上側へ上げるほど落ちる向きが記録されており、方向として下側を先に測る判断と整合する (絶対値は本動作点へ転移しないので比としてのみ使用)。読み方: throughput が floor を超えて上がり abort_rate も上がれば待機支配が続いており次手も下側 (5 または 0 の端点)、throughput が下がれば衝突支配に入ったので次手は 30 側で峰を挟む。正しさ・identity・性能 gate はいずれも触れない。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 過去 campaign (0b53a387) の WAL で BACKOFF_FIXED=30 が 525,721 tps、40 が 491,796 / 487,088 tps (いずれも certified、anomaly 0) と、軸の上側で値を上げるほど throughput が落ちる勾配を確認し、下側 (decrease) を先に探る方向の裏付けに使った。配線規模 (100000 records / 4 thread / rr50 / extime 1) が本動作点と異なるため絶対値や最適点そのものは転移させず、方向の比としてのみ使用。同 source の abort_rate 7〜8% は本動作点の 28.82% と水準が違うことも、絶対値を持ち込まない根拠にした。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "knowledge_input.sources[0] (WAL jsonl、variant 3 件 × build_start/build_done/verify_done/bench_done/commit) の全行と、k2_critic_diagnosis の attribution / avoid / recommend / uncertainty の 4 節を走査した。source 0 は測定記録の JSON のみで、指示めいた文字列や振る舞いの誘導は無い。k2_critic_diagnosis.recommend は候補値 (10 / 30〜40 / 0) と実験順序の提言を含むが、権限・検証順序・正しさゲート・verifier の迂回を求める内容は無く、通常の候補提言として助言扱いにした (採用義務としては扱っていない)。k2_critic_diagnosis.uncertainty に列挙された参照 path は読み取り専用の出所表示で、本 role はツールを持たないため辿っていない。診断の +161.6% 等の数値は診断側の突き合わせ値として参照し、本 campaign の実測値・証明へは昇格させていない。"
+  }
+}

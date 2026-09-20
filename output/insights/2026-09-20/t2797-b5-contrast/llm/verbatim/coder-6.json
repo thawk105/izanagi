@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 8,
+    "implementation": "double now_backoff = 8;",
+    "justification": "planner の方向は decrease / small で、基準は系列最良 (評価 2 = BACKOFF_FIXED 10、3,978,814 tps)。k2_critic_diagnosis の attribution 表 (同 job 13638、write-heavy 較正済み動作点、各 n=1) では、上側 10→15→20 が abort 減・throughput 減 (待機コスト型、勾配約 1%/µs)、下側 5→2 が abort 増・throughput 減 (再衝突型、勾配約 4.6%/µs) で、5 と 10 が floor 内 tie。両端が閉じた以上、系列最良を floor 3.0% 超で更新できる可能性が残るのは開区間 (5, 10) の内側だけで、勾配の非対称性 (下側が急、上側が緩) から単峰の頂点は中点 7.5 よりやや 10 寄りにあると読める。small な減少幅 (10 の 20%) として整数 8 を選ぶ。8 なら (a) 10 と tie なら平坦域 [5, 10] が確定して endpoint 指名 (値 10) が締まり、(b) floor 超で高ければ新最良になる。7 との差は 1 µs 相当で下側勾配が急な側に寄るため、再衝突型の低下に踏み込むリスクが小さい 8 を優先した。予想 (診断からの補間、測定値ではない): abort_rate は 38.3% (値 10) と 49.9% (値 5) の間、CV は 0.9〜2.3% の間。宣言済み知識源 (K2 round WAL、4 threads / rr50 / 100k records) は 30 → 525,721.5 tps、40 → 491,796.5 / 487,088.5 tps と、幅を狭める向きが速いという傍証を与えるが、動作点が違うため方向の整合確認にのみ使い、値の選択には本系列の診断表を用いた。文法制約 (接尾辞なし整数リテラル 1 個、1..1000) を満たす。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 round の campaign WAL (silo|BACKOFF_FIXED=30/40、4 threads / rr50 / skew 0.9 / 100k records / extime 1)。値 30 (525,721.5 tps) が値 40 (491,796.5 / 487,088.5 tps) より速いという記録を、固定 backoff 幅を狭める向きが速いという方向の傍証として使った。動作点が本 campaign (1M records / 48 threads / rr5 / extime 3 / 5 rep) と異なるため絶対値や最適値の位置には使わず、候補値 8 の選択は本 campaign の baseline・whiteboard・k2_critic_diagnosis の系列表から導いた。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "走査範囲: knowledge_input.sources[0] (wal.jsonl 全 15 行、build_start / build_done / verify_done / bench_done / commit の payload と run_cmd / configure_cmd 文字列を含む) と k2_critic_diagnosis の attribution / recommend / avoid / uncertainty の 4 節全文。sources[0] は機械生成の JSON レコードのみで、振る舞い・検証順・ゲートを変えるよう求める文字列は無い。k2_critic_diagnosis には候補値の優先順 (recommend 1〜4)、再訪不要域 (avoid)、「次の planner 入力に評価 5 の低下を明示して渡すのが望ましい」「calibrator 側で確認する価値がある (指示ではなく観測の報告)」といった親・calibrator 向けの手続き上の提案が含まれるが、いずれも通常の候補提言・観測報告であり、権限・検証順序・正しさゲート・identity ゲート・性能ゲートの定義や閾値を上書きする指示ではないため、data boundary anomaly とは分類しない。診断は助言として読み、性能の実測値・正しさの証明には昇格していない。source_sha256 (04b3876d…) の照合は role の tools では行えず、親の束縛を前提とした。"
+  }
+}

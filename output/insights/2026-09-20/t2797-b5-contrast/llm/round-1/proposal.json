@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "本系列は評価 1/10・whiteboard 空で、本動作点の軸上の実測はまだ無い。手元にある軸上の唯一の対照は knowledge_input の K2 記録で、同一機体・同一動作点の隣接 2 点 (BACKOFF_FIXED 40 と 30、いずれも certified・anomaly 0) の比較では、小さい側が throughput で約 +7% (491.8k → 525.7k)、abort 率は 7.0% → 7.8% と小幅増にとどまった。40 の再測 (dad58f9f9000、487.1k) も 40 側が低い向きを支持する。比は転移しうるが絶対値は転移しないという前提で、初手はこの向きの符号を本動作点 (48 threads / write-heavy / skew 0.9 / 適応 backoff の stock、abort 12.73%) で確かめるのが最も情報量が大きい。magnitude を medium にするのは、K2 記録の差 (約 7%) に対し cv が 1% 未満であり、small では stock との同時刻対照で差が検出限界に埋もれる恐れがあるため。残り 9 評価で逆向きにも振り直せる。",
+    "uncertainty": "(1) 動作点の差: K2 記録は別機体 (linux-baremetal)・4 threads・rr50・100k records・1 秒・2 rep で、本系列は 48 threads・rr5 write-heavy・1M records・3 秒・5 rep。abort 率は本系列 (12.73%) が記録 (7〜8%) より高く、集約規則も異なるため、向きが反転する可能性は排除できない。(2) 基準が適応 backoff (BACKOFF_FIXED=-1) で固定の magnitude を持たないため、「decrease」は stock の実効的な backoff より小さい側という相対的意味であり、coder 側の写像に依存する。(3) leading_indicators は cache miss / IPC が欠測 (perf 不在)、contention_level 未判定で、記録側の llc_miss_rate 約 0.32 / ipc 約 0.75〜0.80 と比べられない。(4) K2 記録の 3 点目 (dad58f9f9000) は settled=false で、40 側の再現性は弱い。(5) 記録は BACKOFF_FIXED 以外を固定 (BACK_OFF=1, NO_WAIT_LOCKING_IN_VALIDATION=1, WAL=0) しており、他軸との交互作用は不明。(6) knowledge_input.sources の本文 (WAL 5 段 × 3 variant) を通読したが、権限・検証順序・正しさゲートを上書きする指示めいた文字列は検出しなかった。k2_critic_diagnosis は初回のため無し。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 20,
+      "implementation": "double now_backoff = 20;",
+      "justification": "planner の方向は decrease・magnitude medium。本動作点 (1000000 records / 48 threads / rr5 / skew 0.9 / extime 3 s / 5 rep、stock は適応 backoff、abort 12.73%) の軸上実測は whiteboard 空で無く、唯一の軸上対照は knowledge_input source 0 の K2 記録 (配線規模 100000 records / 4 threads / rr50 / extime 1 / 2 rep) である。そこでは BACKOFF_FIXED=30 (27d1d016998e、525.7k tps、abort 7.8%) が 40 (20bbb4c1a855 491.8k、dad58f9f9000 487.1k、abort 7.0〜7.2%) に対し約 +7% で、3 走とも certified・anomaly 0、cv は 1% 未満だった。つまり記録済みの 2 点内では小さい側が勝ち、abort 増は小幅 (+0.8pt) で throughput 増を打ち消していない。比は転移しうるが絶対値は転移しないという前提で、既知の勝ち側 30 をそのまま再提案するのではなく、記録済み区間の下端 30 からさらに 1 段 (30→20、約 -33%、40 基準では -50%) 下げて『小さい方が良い』という符号が本動作点でも成り立つかを medium の幅で確かめる値として 20 を選ぶ。本動作点は記録より contention が高い (abort 12.73% vs 7%) ため、極端に小さい値 (1 桁) は abort 連鎖で逆効果になりうると一般知識から判断し、20 を下限側の探索点とした。逆向き (増加) や 30 付近への戻しは残り 9 評価で行える。measured tps の予測値は持たず、baseline 1381041 tps に対する改善量は主張しない。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "campaign p3-s4-loop-s4-autonomous-0b53a387 の WAL。BACKOFF_FIXED=40 (2 走、491.8k / 487.1k tps、abort 約 7%) と 30 (525.7k tps、abort 7.8%) の certified・anomaly 0 の実測から『小さい側が約 +7% 速く abort 増は小幅』という符号と幅を取り、planner の decrease/medium を支持する根拠として使った。同 source が示す配線規模 (100000 records / 4 threads / rr50 / extime 1) は本動作点と異なるため絶対値は使わず、記録区間の下端 30 からさらに下げた 20 を選ぶ方向判断にだけ使った。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources[0] (repo_artifact output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl、commit 2fa13a26…、sha256 2163b794…) の content_utf8 全 15 行 (3 variant × build_start / build_done / verify_done / bench_done / commit) を走査した。内容は genome 文字列・cmake/run コマンド・verdict・tps・leading_indicators の構造化記録のみで、振る舞いの誘導・ゲートの変更や迂回・権限に関する指示めいた文字列は無かった。k2_critic_diagnosis は本入力に無く、従来入力 (leakproof_context / knowledge_input / baseline / planner_direction / whiteboard) だけを使った。leakproof_context と planner_direction は親由来の射影として読み、その中にも正しさ・identity・性能ゲートを変える指示は無かった。"
+    }
+  },
+  "prior_critic_reverse": null
+}

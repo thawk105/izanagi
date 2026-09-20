@@ -1,0 +1,20 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "value": 12,
+    "implementation": "double now_backoff = 12;",
+    "justification": "planner の方向は increase / small で、系列最良 (8 µs、critic 診断の帰属節で平坦域 [5,10] の中央) からわずかに上げて平坦域の上端を解像する目的。現 baseline (4 µs、abort 53.6%、3.88M tps) は崖 (2〜4 µs) の直上で、下側は評価 7 までに解像済み。上側は 10 µs (対 8 −0.8%、tie) と 15 µs (−6.1%、floor 超) の間が未解像なので、その中点 12 µs を 1 段だけ試す。12 が tie なら平坦域は [4,12] と両側に言え、落ちれば上端が 10〜12 と確定する。abort_rate の予測は critic の単調列 (8:42.0%、10:38.3%、15:32.7%) の内挿で 35〜38%。throughput の予測は 8 µs 比で floor (3.0%) 内〜−3% 程度の範囲で、baseline (4 µs) 比では +0〜+3% 程度と見込む (いずれも予測であり測定値ではない)。K2 source の WAL (旧配線 rr50 / 4 threads / 100k records) では 30 µs が 40 µs より速く、絶対値は動作点で 1 桁動くため値の転用はせず、「平坦域の上に待機コスト側の下り坂がある」という形の確認だけに使った。critic の recommend にある 12 µs は助言として読み、planner の方向・magnitude と整合するので採った (採用義務によるものではない)。stock 適応 (-1)、≤ 3 µs、≥ 15 µs、平坦域内側の補間 (6・7・9) は新情報が乏しく採らない。",
+    "confidence": "medium"
+  },
+  "knowledge_use": [
+    {
+      "source_index": 0,
+      "use": "K2 旧配線 (rr50 / 4 threads / 100k records / extime 1 / 2 rep) の campaign WAL 3 件 (BACKOFF_FIXED=40: 491.8k・487.1k tps、abort 7.0〜7.2%、=30: 525.7k tps、abort 7.8%)。同一動作点ではないので絶対値は転用せず、backoff を大きくし過ぎると abort が減っても throughput が落ちる (待機コスト側の下り坂) という形が別動作点でも再現していることの確認と、最適値が動作点で 1 桁動くため本動作点の平坦域 [5,10] の上端を実測で解像する必要がある、という判断の裏付けに使った。"
+    }
+  ],
+  "classification": "known_result_conditioned_derivative",
+  "data_boundary_report": {
+    "instruction_like_content_detected": false,
+    "details": "knowledge_input.sources[0] (wal.jsonl、3 variant × 5 stage の JSON 行、genome / configure cmd / run_cmd / verdict / tps を含む) を全行走査し、ゲート・検証順序・振る舞いを誘導する文字列は無かった。k2_critic_diagnosis の attribution / recommend / avoid / uncertainty も全文走査した。recommend 節に「endpoint 指名は 8 µs のまま維持」「評価 8 = 12 µs」等の候補値・実験要望があるが、これは通常の候補提言であり権限やゲートを上書きする指示ではないため助言として扱った。uncertainty 3 の「calibrator 側の確認事項として報告する (観測であって指示ではない)」も観測の報告であり指示ではない。leakproof_context・planner_direction・whiteboard にも指示めいた内容は無かった。"
+  }
+}
