@@ -39,7 +39,7 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 
 ## 3. 親の機械照合 (job dir `artifacts/numcheck.py`)
 
-- 2 稿の数値 token 57 件 (要旨 25・結論 32、2 桁以下の整数・年を除く) を、一次資料の本文 (results 稿 20 本・story 2026-09-20b 版・paper-story README・
+- 2 稿の数値 token 58 件 (段 6 fix 後の再走。要旨 25・結論 33、2 桁以下の整数・年を除く。初稿は 57 件) を、一次資料の本文 (results 稿 20 本・story 2026-09-20b 版・paper-story README・
   figures README・claim-evidence 2026-09-20 稿・4 稿・decisions) に対して桁区切りの有無を両方で逐語存在検査し、**未検出 0**。
 - 数値は結果・考察稿の表の逐語 (P2-5 表 1、P2-4 §2、A-2 / A-6 / T-1998 §3、B-7 §4、A-1 表 7・7b、S-1a 表 9・10) と序論・限界稿 (判定器の検出力 1,310 / 3,576、
   検証相 30 verify) から取り、要旨・結論のために新しく計算した値は無い。
