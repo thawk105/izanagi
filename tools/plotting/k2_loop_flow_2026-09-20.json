@@ -15,7 +15,7 @@
       "definition_path": ".claude/agents/planner-v4.md",
       "tools_none": true,
       "label": "Planner",
-      "sublabel": "tools: [] (structural blockade); outputs direction and magnitude, no value, no mechanism",
+      "sublabel": "no tool access (structural blockade of tool use); outputs direction and magnitude, no value, no mechanism",
       "source_anchor": "§1.4"
     },
     {
@@ -24,7 +24,7 @@
       "definition_path": ".claude/agents/coder-v4-autonomous-k2.md",
       "tools_none": true,
       "label": "Coder",
-      "sublabel": "tools: [] (structural blockade); outputs a backoff literal and self-reports knowledge use and data boundary",
+      "sublabel": "no tool access (structural blockade of tool use); outputs a backoff literal and self-reports knowledge use and data boundary",
       "source_anchor": "§1.4"
     },
     {
@@ -41,19 +41,15 @@
     {
       "id": "parent",
       "label": "Parent session: typed projection",
-      "sublabel": "builds input JSON; full inline sending and login preflight checks according to round records",
+      "sublabel": "builds the planner and coder input JSON, sends the full JSON inline, runs preflight checks on the login node (per round records)",
       "source_anchor": "§1.4"
     },
     {
       "id": "planner",
-      "label": "Planner",
-      "sublabel": "tools: [] (structural blockade); outputs direction and magnitude, no value, no mechanism",
       "source_anchor": "§1.4"
     },
     {
       "id": "coder",
-      "label": "Coder",
-      "sublabel": "tools: [] (structural blockade); outputs a backoff literal and self-reports knowledge use and data boundary",
       "source_anchor": "§1.4"
     },
     {
@@ -70,8 +66,6 @@
     },
     {
       "id": "critic",
-      "label": "Critic",
-      "sublabel": "legacy role with Bash; reads digest and WAL; not B-4 material",
       "source_anchor": "§1.4"
     }
   ],
@@ -105,7 +99,6 @@
     {
       "id": "round-1",
       "kind": "round",
-      "label": "Initial round",
       "date_proposal": "2026-09-16",
       "date_evaluation": "2026-09-16",
       "source_anchor": "§2.2 巡 1",
@@ -118,19 +111,25 @@
           "instance": "planner-1",
           "direction": "decrease",
           "magnitude": "medium",
-          "discipline6": "uncertainty prose: no instruction-like strings"
+          "discipline6": {
+            "form": "uncertainty-prose",
+            "instruction_like_detected": false
+          }
         },
         "coder": {
           "instance": "coder-1",
           "value": 20,
-          "discipline6": "structured field: no instruction-like content"
+          "discipline6": {
+            "form": "structured-field",
+            "instruction_like_detected": false
+          }
         },
         "proposal": {
           "instance": "proposal-1",
           "value": 20,
           "known_value": true,
           "evaluated": true,
-          "sublabel": "known value re-proposal, evaluated under the round authorization"
+          "sublabel": "re-proposal of a known literal, evaluated under the round authorization"
         },
         "evaluation": {
           "job": "1216",
@@ -139,20 +138,23 @@
           "certified": true,
           "anomalies_none": true,
           "stop": "continue",
-          "sublabel": "bnode host; legacy verify condition"
+          "sublabel": "legacy verify condition"
         },
         "critic": {
           "instance": "critic-1",
           "attribution": "not attributable to any design choice",
-          "recommend": "same-campaign stock control first ( R0 )",
-          "discipline6": "trust-boundary section: no instruction-like strings"
+          "recommend": "same-campaign stock control first (R0)",
+          "discipline6": {
+            "form": "trust-boundary-section",
+            "instruction_like_detected": false
+          }
         }
-      }
+      },
+      "number": 1
     },
     {
       "id": "round-2",
       "kind": "round",
-      "label": "Next round",
       "date_proposal": "2026-09-16",
       "date_evaluation": "2026-09-18",
       "source_anchor": "§2.2 巡 2",
@@ -165,19 +167,25 @@
           "instance": "planner-2",
           "direction": "decrease",
           "magnitude": "small",
-          "discipline6": "uncertainty prose: no instruction-like strings"
+          "discipline6": {
+            "form": "uncertainty-prose",
+            "instruction_like_detected": false
+          }
         },
         "coder": {
           "instance": "coder-2",
           "value": 25,
-          "discipline6": "structured field: no instruction-like content"
+          "discipline6": {
+            "form": "structured-field",
+            "instruction_like_detected": false
+          }
         },
         "proposal": {
           "instance": "proposal-2",
           "value": 25,
           "known_value": false,
           "evaluated": true,
-          "sublabel": "outside the known set"
+          "sublabel": "submitted for evaluation"
         },
         "evaluation": {
           "job": "4954",
@@ -193,15 +201,18 @@
         "critic": {
           "instance": "critic-2",
           "attribution": "not attributable; runs are not contemporaneous",
-          "recommend": "decrease, large; same-job stock control first ( R0 )",
-          "discipline6": "trust-boundary section: no instruction-like strings"
+          "recommend": "decrease, large; same-job stock control first (R0)",
+          "discipline6": {
+            "form": "trust-boundary-section",
+            "instruction_like_detected": false
+          }
         }
-      }
+      },
+      "number": 2
     },
     {
       "id": "after-round-2",
       "kind": "not-a-round",
-      "label": "After evaluation (not a round)",
       "date_proposal": "2026-09-18",
       "date_evaluation": null,
       "source_anchor": "§2.2 巡 2",
@@ -214,28 +225,34 @@
           "instance": "planner-3",
           "direction": "decrease",
           "magnitude": "medium",
-          "discipline6": "uncertainty prose: no instruction-like strings"
+          "discipline6": {
+            "form": "uncertainty-prose",
+            "instruction_like_detected": false
+          }
         },
         "coder": {
           "instance": "coder-3",
           "value": 20,
-          "discipline6": "structured field: no instruction-like content"
+          "discipline6": {
+            "form": "structured-field",
+            "instruction_like_detected": false
+          }
         },
         "proposal": {
           "instance": "proposal-3",
           "value": 20,
           "known_value": true,
           "evaluated": false,
-          "sublabel": "known value re-proposal; not evaluated by ruling"
+          "sublabel": "re-proposal of a known literal; not evaluated by ruling"
         },
         "evaluation": null,
         "critic": null
-      }
+      },
+      "number": 2
     },
     {
       "id": "round-3",
       "kind": "round",
-      "label": "Final round",
       "date_proposal": "2026-09-19",
       "date_evaluation": "2026-09-19",
       "source_anchor": "§2.2 巡 3",
@@ -248,19 +265,25 @@
           "instance": "planner-4",
           "direction": "decrease",
           "magnitude": "large",
-          "discipline6": "uncertainty prose: no instruction-like strings"
+          "discipline6": {
+            "form": "uncertainty-prose",
+            "instruction_like_detected": false
+          }
         },
         "coder": {
           "instance": "coder-4",
           "value": 10,
-          "discipline6": "structured field: no instruction-like content"
+          "discipline6": {
+            "form": "structured-field",
+            "instruction_like_detected": false
+          }
         },
         "proposal": {
           "instance": "proposal-4",
           "value": 10,
           "known_value": false,
           "evaluated": true,
-          "sublabel": "outside the known set; matches diagnosis candidate (self-reported advice, not causation)"
+          "sublabel": "matches diagnosis candidate (self-reported advice, not causation)"
         },
         "evaluation": {
           "job": "10761",
@@ -274,10 +297,14 @@
         "critic": {
           "instance": "critic-3",
           "attribution": "not attributable again",
-          "recommend": "same-job stock control first ( R0 )",
-          "discipline6": "trust-boundary section: no instruction-like strings"
+          "recommend": "same-job stock control first (R0)",
+          "discipline6": {
+            "form": "trust-boundary-section",
+            "instruction_like_detected": false
+          }
         }
-      }
+      },
+      "number": 3
     }
   ],
   "arrows": [
@@ -333,11 +360,11 @@
   ],
   "stock_control": {
     "label": "same-job stock control",
-    "sublabel": "not achieved; ruling pending ( T-2795 )",
+    "sublabel": "not achieved; ruling pending (T-2795)",
     "source_anchor": "§2.2 巡 3"
   },
   "discipline6": {
     "label": "data-boundary check",
-    "definition": "role self-report that external input contained no instruction-like strings; coder as a structured field, planner in uncertainty prose, critic in a trust-boundary section; not a mechanical gate"
+    "definition": "role self-report; planner in uncertainty prose, critic in a trust-boundary section; not a mechanical gate"
   }
 }

@@ -1,5 +1,6 @@
 """Recorded flow: real-size fixture, fail-closed layout, independent hashes."""
 from __future__ import annotations
+from contextlib import contextmanager
 import copy
 import hashlib
 import importlib.util
@@ -117,23 +118,60 @@ def test_t3_unknown_key_is_rejected(tmp_path,location):
 
 @pytest.mark.parametrize('case',['missing-key','non-int','bool-value','low-value','high-value','value-mismatch',
     'evaluated','not-a-round-evaluation','arrow-from','arrow-to','anchor','absent-anchor',
-    'diagnosis_fields','planner_keys','coder_keys','caption-source','percent','throughput','latency','assignment'])
+    'diagnosis_fields','planner_keys','coder_keys','caption-source','percent','throughput','latency','assignment',
+    'discipline6-form','discipline6-bool','schema','iso-date','reference-format','reference-duplicate',
+    'reference-unused','roles-order','definition-path','lanes-order','columns-order','column-number',
+    'certified','anomalies-none','job-duplicate','instance-duplicate','arrow-id-duplicate',
+    'arrow-null','evaluated-null','not-a-round-kind','round-critic-null','round-date-null','diagnosis-column',
+    'arrow-count-four'])
 def test_t3_invalid_json_without_drawing(tmp_path,case):
     raw=_raw()
     c=raw['columns'][0]['cells']
+    reason=None
     if case=='missing-key': del c['planner']['direction']
     elif case in ('non-int','bool-value','low-value','high-value'):
         c['coder']['value']={'non-int':20.0,'bool-value':True,'low-value':0,'high-value':1001}[case]
     elif case=='value-mismatch': c['proposal']['value']=21
     elif case=='evaluated': c['proposal']['evaluated']=False
     elif case=='not-a-round-evaluation': raw['columns'][2]['cells']['evaluation']=copy.deepcopy(c['evaluation'])
-    elif case.startswith('arrow-'): raw['arrows'][0][case[6:]]='missing.parent'
+    elif case in ('arrow-from','arrow-to'): raw['arrows'][0][case[6:]]='missing.parent'
     elif case=='anchor': raw['knowledge']['source_anchor']='section 1.2'
     elif case=='absent-anchor': raw['knowledge']['source_anchor']='§999'
     elif case in ('diagnosis_fields','planner_keys','coder_keys'): raw[case]=raw[case][:-1]
     elif case=='caption-source': raw['caption_source']='wrong.md'
+    elif case=='discipline6-form':
+        c['planner']['discipline6']['form']='structured-field'; reason='discipline6 form mismatch'
+    elif case=='discipline6-bool':
+        c['coder']['discipline6']['instruction_like_detected']='false'; reason='bool required'
+    elif case=='schema': raw['schema']='other'; reason='schema mismatch'
+    elif case=='iso-date': raw['figure_created']='20/09/2026'; reason='ISO date required'
+    elif case=='reference-format': raw['reference_ids'].append('bad_id'); reason='reference_ids format'
+    elif case=='reference-duplicate': raw['reference_ids'].append('K2'); reason='duplicate reference_ids'
+    elif case=='reference-unused': raw['reference_ids'].append('Z999'); reason='unused reference_ids'
+    elif case=='roles-order': raw['roles'].reverse(); reason='role order/name mismatch'
+    elif case=='definition-path': raw['roles'][0]['definition_path']='wrong.md'; reason='definition_path mismatch'
+    elif case=='lanes-order': raw['lanes'][1],raw['lanes'][2]=raw['lanes'][2],raw['lanes'][1]; reason='lane order mismatch'
+    elif case=='columns-order': raw['columns'].reverse(); reason='column order mismatch'
+    elif case=='column-number': raw['columns'][0]['number']=True; reason='column number mismatch'
+    elif case in ('certified','anomalies-none'):
+        c['evaluation'][case.replace('-','_')]=False; reason='correctness flags must be true'
+    elif case=='job-duplicate': c['evaluation']['refused_jobs']=[c['evaluation']['job']]; reason='duplicate job'
+    elif case=='instance-duplicate': raw['columns'][1]['cells']['planner']['instance']=c['planner']['instance']; reason='duplicate instance'
+    elif case=='arrow-id-duplicate': raw['arrows'][1]['id']=raw['arrows'][0]['id']; reason='duplicate arrow id'
+    elif case=='arrow-null': raw['arrows'][0]['to']=None; reason='arrow to missing'
+    elif case=='evaluated-null':
+        raw['columns'][2]['cells']['proposal']['evaluated']=True
+        reason='evaluated mismatch'
+    elif case=='not-a-round-kind':
+        raw['columns'][2]['kind']='round'; reason='evaluation kind mismatch'
+    elif case=='round-critic-null': c['critic']=None; reason='evaluation kind mismatch'
+    elif case=='round-date-null': raw['columns'][0]['date_evaluation']=None; reason='evaluation kind mismatch'
+    elif case=='diagnosis-column': c['parent']['has_diagnosis']=True; reason='diagnosis column mismatch'
+    elif case=='arrow-count-four':
+        extra=copy.deepcopy(raw['arrows'][0]); extra['id']='extra'; raw['arrows'].append(extra)
+        reason='arrow kind count must be between one and three'
     else: raw['knowledge']['label']={'percent':'38%','throughput':'10 tps','latency':'2 µs','assignment':'A=0.58'}[case]
-    _load_bad(tmp_path,raw)
+    _load_bad(tmp_path,raw,reason)
 
 
 @pytest.mark.parametrize('case',['duplicate','nan','infinity','negative-infinity'])
@@ -169,61 +207,58 @@ def test_t4_declared_identifiers_are_accepted():
     PLOT.check_display_text('K2 / planner-1; job 1216',{'K2','planner-1'},{'1216'})
 
 
+@contextmanager
+def _moved_text(production, kind):
+    data,fig,layout=production
+    items={r['id']:r['texts'][0] for r in layout['items']}
+    text=items['after-round-2.evaluation'] if kind=='arrow-crossing' else items['arrow-a3']
+    old=(text.get_position(),layout['owners'][text])
+    # Preserve every registered string; canvas ownership isolates geometry.
+    layout['owners'][text]='canvas'
+    if kind=='overlap':
+        text.set_position(items['arrow-a2'].get_position())
+    elif kind=='escape':
+        text.set_position((1.2,1.2))
+    else:
+        arrow=next(a for a in layout['arrows'] if a['id']=='m1')['artist']
+        text.set_position((arrow.get_xdata()[1]-.004,.520))
+    try:
+        assert PLOT._drawn_items(data,layout)==PLOT._display_items(data['flow'])
+        yield data,fig,layout
+    finally:
+        text.set_position(old[0]); layout['owners'][text]=old[1]
+
+
 @pytest.fixture
 def collision(production):
-    data,fig,layout=production
-    item=next(r for r in layout['items'] if r['id']=='round-1.planner')
-    first=item['texts'][0]
-    old=first.get_text()
-    first.set_text('planner-1')
-    second=fig.text(*first.get_position(),'decrease / medium',va='top',fontsize=7.5)
-    layout['owners'][second]=layout['owners'][first]
-    yield data,fig,layout
-    second.remove()
-    del layout['owners'][second]
-    first.set_text(old)
+    with _moved_text(production,'overlap') as result:
+        yield result
 
 
-def test_t5_overlap_is_a_layout_error(collision,tmp_path):
+def test_t5_overlap_is_a_layout_error(collision):
     _,fig,layout=collision
     with pytest.raises(PLOT.FigureLayoutError,match='text overlap'):
         PLOT.check_figure_layout(fig,layout)
-    assert not list(tmp_path.iterdir())
 
 
-def test_t5_escape_is_a_layout_error(production,tmp_path):
-    _,fig,layout=production
-    text=layout['items'][0]['texts'][0]
-    old=text.get_position()
-    text.set_position((1.2,1.2))
-    try:
+def test_t5_escape_is_a_layout_error(production):
+    with _moved_text(production,'escape') as (_,fig,layout):
         with pytest.raises(PLOT.FigureLayoutError,match='text escape'):
             PLOT.check_figure_layout(fig,layout)
-    finally: text.set_position(old)
-    assert not list(tmp_path.iterdir())
 
 
-def test_t5_arrow_crossing_text_is_a_layout_error(production,tmp_path):
-    _,fig,layout=production
-    arrow=next(a for a in layout['arrows'] if a['id']=='m1')['artist']
-    text=next(r for r in layout['items'] if r['id']=='arrow-m1')['texts'][0]
-    old=(text.get_position(),text.get_text(),layout['owners'][text])
-    x=arrow.get_xdata()[1]
-    text.set_text('crossing')
-    text.set_position((x-.004,.55))
-    layout['owners'][text]='canvas'
-    try:
+def test_t5_arrow_crossing_text_is_a_layout_error(production):
+    with _moved_text(production,'arrow-crossing') as (_,fig,layout):
         with pytest.raises(PLOT.FigureLayoutError,match='arrow crossing text'):
             PLOT.check_figure_layout(fig,layout)
-    finally:
-        text.set_position(old[0]); text.set_text(old[1]); layout['owners'][text]=old[2]
-    assert not list(tmp_path.iterdir())
 
 
-def test_t6_publish_runs_layout_check(collision,tmp_path):
-    data,fig,layout=collision
-    with pytest.raises(PLOT.FigureLayoutError,match='text overlap'):
-        PLOT._publish_outputs(fig,layout,tmp_path/'new'/'fig12_collision',data,[])
+@pytest.mark.parametrize('kind',['overlap','escape','arrow-crossing'])
+def test_t6_publish_runs_layout_check(production,tmp_path,kind):
+    with _moved_text(production,kind) as (data,fig,layout):
+        reason={'overlap':'text overlap','escape':'text escape','arrow-crossing':'arrow crossing text'}[kind]
+        with pytest.raises(PLOT.FigureLayoutError,match=reason):
+            PLOT._publish_outputs(fig,layout,tmp_path/'new'/'fig12_collision',data,[])
     assert not list(tmp_path.iterdir())
 
 
@@ -259,7 +294,7 @@ def test_t7_cli_outputs_and_independent_hashes(bundle):
         assert role['sha256']==hashlib.sha256(raw).hexdigest()
         tools=re.search(r'^tools: (.+)$',raw.decode().split('---')[1],re.M)[1]
         assert role['tools_none']==(json.loads(tools)==[])
-    assert prov['arrows']==_raw()['arrows']
+    assert prov['arrows']==[{**{k:a[k] for k in ('id','kind','from','to')},'visible':True} for a in _raw()['arrows']]
     assert prov['argv']==['python3','tools/plotting/plot_k2_loop_flow.py','--repo-root',str(REPO),str(prefix)]
     assert set(prov['versions'])=={'matplotlib','numpy'}
     before=[p.read_bytes() for p in paths]
@@ -283,8 +318,9 @@ def test_t7_drawn_items_match_flow(production,bundle):
     for lane in raw['lanes']:
         ident='lane-'+lane['id']
         expected_ids.add(ident)
-        roles={r['id']:r['name'] for r in raw['roles']}
-        assert items[ident]==' '.join([roles.get(lane['id'],lane['label']),lane['sublabel']])
+        roles={r['id']:r for r in raw['roles']}
+        source=roles.get(lane['id'],lane)
+        assert items[ident]==' '.join([source.get('name',source['label']),source['sublabel']])
     for key in ('knowledge','stock_control'):
         assert items[key]==' '.join([raw[key]['label'],raw[key]['sublabel']])
     for a in raw['arrows']:
@@ -296,13 +332,16 @@ def test_t7_drawn_items_match_flow(production,bundle):
         assert items[ident]==expected
     for col in raw['columns']:
         expected_ids.add(col['id'])
-        assert items[col['id']]==' '.join([col['label'],'proposal:',col['date_proposal'],'evaluation:',col['date_evaluation'] or 'none'])
+        heading=f"Round {col['number']}" if col['kind']=='round' else f"After round {col['number']} (not a round)"
+        evaluation='evaluation '+col['date_evaluation']+' (job log)' if col['date_evaluation'] else 'evaluation: none'
+        assert items[col['id']]==' '.join([heading,'proposal',col['date_proposal'],'(per round records) ·',evaluation])
         for lane,c in col['cells'].items():
             expected_ids.add(col['id']+'.'+lane)
             text=items[col['id']+'.'+lane]
+            boundary='' if not c or lane not in ('planner','coder','critic') else (' data boundary: detected' if c['discipline6']['instruction_like_detected'] else ' data boundary: none detected')
             if c is None: assert text==('not evaluated' if lane=='evaluation' else 'no critic')
-            elif lane=='planner': assert text==f"{c['instance']} {c['direction']} / {c['magnitude']}"
-            elif lane=='coder': assert text==f"{c['instance']} value {c['value']}"
+            elif lane=='planner': assert text==f"{c['instance']} {c['direction']} / {c['magnitude']}"+boundary
+            elif lane=='coder': assert text==f"{c['instance']} synthesizes one backoff literal"+boundary
             elif lane=='parent':
                 keys=[]
                 for role in ('planner','coder'):
@@ -310,8 +349,8 @@ def test_t7_drawn_items_match_flow(production,bundle):
                     if c['has_diagnosis']: keys += ['+ k2_critic_diagnosis']
                 assert text==' '.join(keys+[c['sublabel']])
             elif lane=='proposal':
-                assert text==' '.join([c['instance'],f"value {c['value']}",'known value' if c['known_value'] else 'outside the known set','evaluated' if c['evaluated'] else 'not evaluated',c['sublabel']])
-            elif lane=='critic': assert text==' '.join([c['instance'],c['attribution'],c['recommend']])
+                assert text==' '.join([c['instance'],f"backoff literal {c['value']}",'known' if c['known_value'] else 'not known','evaluated' if c['evaluated'] else 'not evaluated',c['sublabel']])
+            elif lane=='critic': assert text==' '.join([c['instance'],c['attribution'],c['recommend']])+boundary
             else:
                 parts=['job '+c['job']]
                 if c['refused_jobs']: parts+=['refused at preflight: '+', '.join('job '+j for j in c['refused_jobs'])]
@@ -321,9 +360,9 @@ def test_t7_drawn_items_match_flow(production,bundle):
     assert len(items)==len(bundle[2]['drawn_items'])
     assert items['title']=='K2 manual loop: data flow over three recorded rounds (schematic; no performance values)'
     basename=Path(raw['caption_source']).name
-    assert items['subtitle']==basename+' | '+raw['figure_created']
+    assert items['subtitle']=='Source: frozen results note '+basename+' (SHA-256 in provenance); figure created '+raw['figure_created']
     assert items['legend-arrows']=='Solid: measurement reflux; dashed: diagnosis reflux; dotted with cross: absent path; thin: within-column flow; dashed box: not a round.'
-    assert items['legend-r6']=='R6: no instruction-like content (self-reported). '+raw['discipline6']['label']+': '+raw['discipline6']['definition']
+    assert items['legend-r6']=='R6: self-reported; shield: none detected; red X: detected. '+raw['discipline6']['label']+': '+raw['discipline6']['definition']+'; coder: structured field data_boundary_report.instruction_like_content_detected; false in all recorded rounds'
     assert items['footnote-source']=='Read from the frozen results note '+basename+'; no performance values are drawn and the three runs are not compared.'
     assert items['footnote-certified']=='Certified means the trace-enabled verify run found the trace serializable with no anomaly; it is not a performance certification.'
     assert items['footnote-discipline']=='Discipline-six marks are role self-reports, not a mechanical gate; causal effects of knowledge or diagnosis are not claimed.'
@@ -342,12 +381,89 @@ def test_t7_caption_verbatim_and_limits(bundle):
         'The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation.',
         'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; their form differs by role and they are not a mechanical gate.',
         'No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control.',
-        'The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results.']
+        'The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results.',
+        "Role launch times, inline delivery, proposal dates, and the fine ordering of steps rest on each round's records; saved prompts and inputs are not proof of delivery.",
+        'This figure does not judge whether B-6 is met; the tool-less declaration concerns tool access only, and leak control is not complete.']
     for clause in clauses: assert clause in caption
     for word in ['improvement','better','faster','converge','optimal','performance certified','causal effect of the diagnosis was','%',' tps']:
         assert word not in caption
     for key in ('planner_keys','coder_keys','diagnosis_fields'):
         assert ', '.join(_raw()[key]) in caption
+
+
+def test_t7_arrows_bind_artists_and_caption(production,bundle):
+    data,fig,layout=production
+    raw=_raw()
+    expected=[{**{k:a[k] for k in ('id','kind','from','to')},'visible':True} for a in raw['arrows']]
+    drawn=[a for a in layout['arrows'] if a['kind']!='flow']
+    assert len(drawn)==len(expected)
+    for a,row in zip(drawn,expected):
+        assert {k:a[k] for k in ('id','kind','from','to')}=={k:row[k] for k in ('id','kind','from','to')}
+        assert a['artist'].get_visible() and a['artist'] in fig.artists
+        assert a['head'].get_visible() and a['head'] in fig.artists
+        source=layout['regions'][row['from']]
+        assert tuple(a['artist'].get_xydata()[0])==(source.x1,source.y0+.007)
+        end=a['artist'].get_xydata()[-1]
+        if row['to'] is None:
+            assert tuple(end)==(source.x1+.02,source.y0+.007)
+            assert a['head'].get_marker()=='x'
+        else:
+            dest=layout['regions'][row['to']]
+            assert end[0]==dest.x0-.001 and dest.y0 < end[1] < dest.y1
+    assert bundle[2]['arrows']==expected
+    words={1:'once',2:'twice',3:'three times'}
+    counts={kind:sum(a['kind']==kind for a in raw['arrows']) for kind in ('measurement-reflux','diagnosis-reflux','absent')}
+    caption=bundle[2]['caption']
+    source_count=len({a['from'] for a in raw['arrows'] if a['kind']=='measurement-reflux'})
+    assert 'Measurement reflux occurred '+words[source_count]+' when counted by distinct source evaluation.' in caption
+    assert 'Measurement reflux paths are drawn '+words[counts['measurement-reflux']] in caption
+    assert 'diagnosis reflux '+words[counts['diagnosis-reflux']] in caption
+    assert 'Absent paths are marked '+words[counts['absent']] in caption
+    for count in (1,2,3):
+        changed=copy.deepcopy(data)
+        arrows=[a for a in raw['arrows'] if a['kind']!='measurement-reflux']
+        changed['flow']['arrows']=arrows+[a for a in raw['arrows'] if a['kind']=='measurement-reflux'][:count]
+        assert 'Measurement reflux paths are drawn '+words[count] in PLOT._caption(changed,'12')
+    artist=drawn[0]['artist']
+    artist.set_visible(False)
+    try:
+        with pytest.raises(PLOT.FigureDataError,match='drawn arrows disagree'):
+            PLOT.build_provenance(data,layout,[],[])
+    finally: artist.set_visible(True)
+    index=layout['arrows'].index(drawn[0])
+    removed=layout['arrows'].pop(index)
+    try:
+        with pytest.raises(PLOT.FigureDataError,match='drawn arrows disagree'):
+            PLOT.build_provenance(data,layout,[],[])
+    finally: layout['arrows'].insert(index,removed)
+
+
+def test_t7_discipline6_flip_changes_marker_and_items(production,tmp_path):
+    original,_,original_layout=production
+    raw=_raw()
+    raw['columns'][0]['cells']['coder']['discipline6']['instruction_like_detected']=True
+    path=tmp_path/'flow.json'
+    path.write_text(json.dumps(raw))
+    changed=PLOT.load_flow(REPO,path)
+    fig,layout=PLOT.make_figure(changed)
+    try:
+        PLOT.check_figure_layout(fig,layout)
+        before={r['id']:r['text'] for r in PLOT._drawn_items(original,original_layout)}
+        after={r['id']:r['text'] for r in PLOT._drawn_items(changed,layout)}
+        assert after['round-1.coder']=='coder-1 synthesizes one backoff literal data boundary: detected'
+        assert before['round-1.coder']=='coder-1 synthesizes one backoff literal data boundary: none detected'
+        assert 'detected in at least one recorded round' in after['legend-r6']
+        for col in raw['columns']:
+            for role in ('planner','coder','critic'):
+                cell=col['cells'][role]
+                if cell is None: continue
+                key=col['id']+'.'+role
+                marker=next(m for m,owner in layout['markers'] if owner==key)
+                expected={False:('p','#476b55'),True:('X','#b52222')}[cell['discipline6']['instruction_like_detected']]
+                assert (marker.get_marker(),marker.get_color())==expected
+                assert marker.get_markersize()==7
+                assert marker.get_ydata()[0]==layout['regions'][key].y1-.009
+    finally: PLOT.plt.close(fig)
 
 
 def test_t8_cli_rejects_invalid_prefix(tmp_path):

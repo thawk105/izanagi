@@ -81,6 +81,7 @@ def check_display_text(value, declared_ids, job_ids=()):
     _require(not re.search(r"[=%]|\b(?:" + "|".join(words) + r")\b", value, re.I),
              "quantity in free text")
     for token in re.split(r"[\s;,/]+", value):
+        token = token.strip("()[].:")
         _require(not any(c.isdigit() for c in token) or token in declared_ids,
                  f"undeclared numeric token: {token}")
 
@@ -147,7 +148,7 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
 
         def descriptive(obj, keys):
             _keys(obj, keys)
-            for field in ('label', 'sublabel', 'definition', 'discipline6', 'attribution', 'recommend'):
+            for field in ('label', 'sublabel', 'definition', 'attribution', 'recommend'):
                 if field in obj:
                     free.append(obj[field])
             if 'source_anchor' in obj:
@@ -164,20 +165,17 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
             inputs.append(('role_definition', r['definition_path'], role_raw))
         _require(type(d['lanes']) is list and len(d['lanes']) == 6, 'six lanes required')
         for lane, ident in zip(d['lanes'], LANES):
-            descriptive(lane, 'id label sublabel source_anchor')
+            descriptive(lane, 'id source_anchor' if ident in ('planner', 'coder', 'critic') else 'id label sublabel source_anchor')
             _require(lane['id'] == ident, 'lane order mismatch')
-            for role in d['roles']:
-                if role['id'] == ident:
-                    _require(all(lane[k] == role[k] for k in ('label', 'sublabel')), 'role lane mismatch')
         for field in ('knowledge', 'stock_control'):
             descriptive(d[field], 'label sublabel source_anchor')
         descriptive(d['discipline6'], 'label definition')
         _require(type(d['columns']) is list and len(d['columns']) == 4, 'four columns required')
         for i, col in enumerate(d['columns']):
-            descriptive(col, 'id kind label date_proposal date_evaluation source_anchor cells')
+            descriptive(col, 'id kind number date_proposal date_evaluation source_anchor cells')
             _require(col['id'] == COLUMNS[i], 'column order mismatch')
             _enum(col['kind'], ('round', 'not-a-round'))
-            _require((col['kind'] == 'not-a-round') == (i == 2), 'column kind mismatch')
+            _require(type(col['number']) is int and col['number'] == (1, 2, 2, 3)[i], 'column number mismatch')
             _date(col['date_proposal'])
             if col['date_evaluation'] is not None:
                 _date(col['date_evaluation'])
@@ -199,7 +197,7 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
                 _bool(cells['proposal'][k])
             evaluated = cells['evaluation'] is not None
             _require(cells['proposal']['evaluated'] == evaluated, 'evaluated mismatch')
-            _require(evaluated == (col['kind'] == 'round') and evaluated == (cells['critic'] is not None)
+            _require(evaluated == (col['kind'] == 'round') and (col['kind'] == 'not-a-round') == (i == 2) and evaluated == (cells['critic'] is not None)
                      and evaluated == (col['date_evaluation'] is not None), 'evaluation kind mismatch')
             if evaluated:
                 e = cells['evaluation']
@@ -216,6 +214,12 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
             for role in ('planner', 'coder', 'proposal', 'critic'):
                 if cells[role] is None:
                     continue
+                if role != 'proposal':
+                    report = cells[role]['discipline6']
+                    _keys(report, 'form instruction_like_detected')
+                    form = {'planner': 'uncertainty-prose', 'coder': 'structured-field', 'critic': 'trust-boundary-section'}[role]
+                    _require(report['form'] == form, 'discipline6 form mismatch')
+                    _bool(report['instruction_like_detected'])
                 instance = cells[role]['instance']
                 _require(type(instance) is str and re.fullmatch(role+r'-[1-9][0-9]*', instance), 'invalid instance')
                 _require(instance not in instances, 'duplicate instance')
@@ -232,9 +236,10 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
             _require(type(a['from']) is str and a['from'] in endpoints, 'arrow from missing')
             _require((a['kind'] == 'absent' and a['to'] is None) or
                      (type(a['to']) is str and a['to'] in endpoints), 'arrow to missing')
+        _arrow_count_words(d)
         for value in free:
             check_display_text(value, set(refs) | instances, jobs)
-        tokens = {t for value in free for t in re.split(r'[\s;,/]+', value)}
+        tokens = {t.strip('()[].:') for value in free for t in re.split(r'[\s;,/]+', value)}
         _require(set(refs) <= tokens, 'unused reference_ids')
         return dict(flow=d, repo_root=root, input_bytes=inputs)
     except FigureDataError:
@@ -259,14 +264,16 @@ def _display_items(d):
     def add(ident, kind, *parts):
         rows.append(dict(id=ident, kind=kind, text=_normalized(parts)))
     add('title', 'title', 'K2 manual loop: data flow over three recorded rounds (schematic; no performance values)')
-    add('subtitle', 'subtitle', Path(d['caption_source']).name, '|', d['figure_created'])
+    add('subtitle', 'subtitle', 'Source: frozen results note', Path(d['caption_source']).name, '(SHA-256 in provenance); figure created', d['figure_created'])
     add('knowledge', 'knowledge', d['knowledge']['label'], d['knowledge']['sublabel'])
     roles = {r['id']:r for r in d['roles']}
     for lane in d['lanes']:
-        add('lane-'+lane['id'], 'lane', roles[lane['id']]['name'] if lane['id'] in roles else lane['label'], lane['sublabel'])
+        add('lane-'+lane['id'], 'lane', roles[lane['id']]['name'] if lane['id'] in roles else lane['label'], roles.get(lane['id'], lane)['sublabel'])
     for col in d['columns']:
         cid = col['id']
-        add(cid, 'column', col['label'], 'proposal:', col['date_proposal'], 'evaluation:', col['date_evaluation'] or 'none')
+        heading = f"Round {col['number']}" if col['kind'] == 'round' else f"After round {col['number']} (not a round)"
+        evaluation = 'evaluation '+col['date_evaluation']+' (job log)' if col['date_evaluation'] else 'evaluation: none'
+        add(cid, 'column', heading, 'proposal', col['date_proposal'], '(per round records) ·', evaluation)
         for lane, cell in col['cells'].items():
             parts = []
             if lane == 'parent':
@@ -280,9 +287,9 @@ def _display_items(d):
             elif lane == 'planner':
                 parts = [cell['instance'], cell['direction']+' / '+cell['magnitude']]
             elif lane == 'coder':
-                parts = [cell['instance'], f"value {cell['value']}"]
+                parts = [cell['instance'], 'synthesizes one backoff literal']
             elif lane == 'proposal':
-                parts = [cell['instance'], f"value {cell['value']}", 'known value' if cell['known_value'] else 'outside the known set',
+                parts = [cell['instance'], f"backoff literal {cell['value']}", 'known' if cell['known_value'] else 'not known',
                          'evaluated' if cell['evaluated'] else 'not evaluated', cell['sublabel']]
             elif lane == 'evaluation':
                 parts = ['job '+cell['job']]
@@ -291,13 +298,17 @@ def _display_items(d):
                 parts += ['verdict '+cell['verdict']+'; certified; no anomaly; stop: '+cell['stop'], cell['sublabel']]
             else:
                 parts = [cell['instance'], cell['attribution'], cell['recommend']]
+            if lane in ('planner', 'coder', 'critic') and cell is not None:
+                parts += ['data boundary: detected' if cell['discipline6']['instruction_like_detected'] else 'data boundary: none detected']
             add(cid+'.'+lane, 'cell', *parts)
     for a in d['arrows']:
         extra = (DIAGNOSIS_KEY+': '+', '.join(d['diagnosis_fields'])) if a['kind']=='diagnosis-reflux' else ''
         add('arrow-'+a['id'], 'arrow', a['id']+':', a['from'], '→', a['to'] or 'no destination', a['label'], extra)
     add('stock_control', 'stock_control', d['stock_control']['label'], d['stock_control']['sublabel'])
     add('legend-arrows', 'legend', 'Solid: measurement reflux; dashed: diagnosis reflux; dotted with cross: absent path; thin: within-column flow; dashed box: not a round.')
-    add('legend-r6', 'legend', 'R6: no instruction-like content (self-reported).', d['discipline6']['label']+':', d['discipline6']['definition'])
+    detected = any(cell['discipline6']['instruction_like_detected'] for col in d['columns'] for role, cell in col['cells'].items() if role in ('planner', 'coder', 'critic') and cell is not None)
+    summary = 'detected in at least one recorded round' if detected else 'false in all recorded rounds'
+    add('legend-r6', 'legend', 'R6: self-reported; shield: none detected; red X: detected.', d['discipline6']['label']+':', d['discipline6']['definition']+';', 'coder: structured field data_boundary_report.instruction_like_content_detected;', summary)
     add('footnote-source', 'footnote', 'Read from the frozen results note', Path(d['caption_source']).name+'; no performance values are drawn and the three runs are not compared.')
     add('footnote-certified', 'footnote', 'Certified means the trace-enabled verify run found the trace serializable with no anomaly; it is not a performance certification.')
     add('footnote-discipline', 'footnote', 'Discipline-six marks are role self-reports, not a mechanical gate; causal effects of knowledge or diagnosis are not claimed.')
@@ -326,7 +337,12 @@ def make_figure(data):
         x,y,w,h = bounds
         prop = FontProperties(family='DejaVu Sans', size=size)
         line, lines = '', []
-        for word in rows[key]['text'].split():
+        text = rows[key]['text']
+        if rows[key]['kind'] == 'column':
+            heading, dates = text.split(' proposal ', 1)
+            lines.append(heading)
+            text = 'proposal '+dates
+        for word in text.split():
             candidate = (line+' '+word).strip()
             if line and renderer.get_text_width_height_descent(candidate, prop, False)[0] > (w-2*pad)*fig.bbox.width:
                 lines.append(line)
@@ -339,7 +355,7 @@ def make_figure(data):
         layout['items'].append(dict(id=key, kind=rows[key]['kind'], texts=[artist]))
         return artist
 
-    def arrow(ident, kind, points):
+    def arrow(ident, kind, points, source=None, destination=None):
         style = {'flow':('-',.7,'#777777'), 'measurement-reflux':('-',1.3,'#28628a'),
                  'diagnosis-reflux':('--',1.3,'#804b8c'), 'absent':(':',1,'#999999')}[kind]
         xs,ys = zip(*points)
@@ -351,8 +367,8 @@ def make_figure(data):
         head = Line2D([xs[-1]], [ys[-1]], transform=fig.transFigure, linestyle='none',
                       marker=shape, markersize=3, color=style[2])
         fig.add_artist(head)
-        layout['markers'].append((head, 'canvas', False))
-        layout['arrows'].append(dict(id=ident, kind=kind, artist=artist))
+        layout['markers'].append((head, 'canvas'))
+        layout['arrows'].append(dict(id=ident, kind=kind, artist=artist, head=head, **{'from': source, 'to': destination}))
 
     layout['regions']['canvas'] = Bbox.from_bounds(0,0,1,1)
     label('title', (.02,.957,.96,.033), 13)
@@ -361,35 +377,36 @@ def make_figure(data):
     # Extra width for the unevaluated column keeps the typed keys readable.
     xs = [.195,.395,.595,.795]
     width = .172
-    spans = [( .666,.159),(.614,.043),(.568,.037),(.472,.087),(.367,.096),(.282,.076)]
+    spans = [(.664,.115),(.592,.063),(.520,.063),(.443,.068),(.351,.083),(.263,.079)]
     for lane,(y,h) in zip(d['lanes'],spans):
         label('lane-'+lane['id'], (.02,y,.166,h), 7.5, color='#f2f2f2')
     for ci,col in enumerate(d['columns']):
         x = xs[ci]
         pale = col['kind']=='not-a-round'
-        label(col['id'], (x,.839,width,.049), 8, dashed=pale, color='#f6f6f6' if pale else '#e3edf5')
+        label(col['id'], (x,.800,width,.088), 8, dashed=pale, color='#f6f6f6' if pale else '#e3edf5')
         for li,(lane,(y,h)) in enumerate(zip(LANES,spans)):
             key = col['id']+'.'+lane
             bounds = (x,y,width,h)
             if ci == 3 and lane == 'evaluation':
-                bounds = (x,y+.032,width,h-.032)
-            label(key, bounds, 7.5, dashed=pale, color='#fafafa' if pale else '#ffffff')
+                bounds = (x,y+.029,width,h-.029)
+            label(key, bounds, 7.5, pad=.009 if lane in ('planner','coder','critic') else .004, dashed=pale, color='#fafafa' if pale else '#ffffff')
             cell = col['cells'][lane]
             if lane in ('planner','coder','critic') and cell is not None:
-                marker = Line2D([x+width-.008],[y+.009],transform=fig.transFigure,
-                                marker='p',markersize=4,linestyle='none',color='#476b55')
+                marker = Line2D([x+width-.008],[y+h-.009],transform=fig.transFigure,
+                                marker='X' if cell['discipline6']['instruction_like_detected'] else 'p',
+                                markersize=7,linestyle='none',color='#b52222' if cell['discipline6']['instruction_like_detected'] else '#476b55')
                 fig.add_artist(marker)
-                layout['markers'].append((marker,key,False))
+                layout['markers'].append((marker,key))
             if li and not (pale and li>=4):
                 prev_y = spans[li-1][0]
                 arrow('flow-'+key,'flow',[(x+width/2,prev_y-.0015),(x+width/2,y+h+.0015)])
-        arrow('knowledge-'+col['id'],'flow',[(x-.012,.895),(x-.012,.827),
-              (x+width/2,.827),(x+width/2,.826)])
+        arrow('knowledge-'+col['id'],'flow',[(x-.012,.895),(x-.012,.785),
+              (x+width/2,.785),(x+width/2,.781)])
     # Cross-column paths turn upward through blank gutters. The label bank
     # below the grid keeps the long typed diagnosis fields off the arrow lines.
     for ai,a in enumerate(d['arrows']):
         key='arrow-'+a['id']
-        top=.274-ai*.022
+        top=.255-ai*.019
         if a['kind']=='diagnosis-reflux':
             label(key,(.025,top-.019,.945,.019),6.6,pad=.001)
         else:
@@ -397,15 +414,15 @@ def make_figure(data):
         source=layout['regions'][a['from']]
         start=(source.x1,source.y0+.007)
         gutter=source.x1+.004+ai*.0007
-        track=.830+ai*.001
+        track=.788+ai*.001
         if a['to'] is not None:
             dest=layout['regions'][a['to']]
             left=dest.x0-.005-ai*.0007
             points=[start,(gutter,start[1]),(gutter,track),(left,track),(left,dest.y1-.002-ai*.004),(dest.x0-.001,dest.y1-.002-ai*.004)]
         else:
-            points=[start,(gutter,start[1]),(gutter,track)]
-        arrow(a['id'],a['kind'],points)
-    label('stock_control',(.795,.367,.172,.03),7,pad=.002,dashed=True,color='#fff7eb')
+            points=[start,(start[0]+.02,start[1])]
+        arrow(a['id'],a['kind'],points,a['from'],a['to'])
+    label('stock_control',(.795,.351,.172,.027),7,pad=.002,dashed=True,color='#fff7eb')
     # The stock box occupies the reserved lower part of the evaluation lane.
     label('legend-arrows',(.02,.101,.96,.019),7,pad=.001)
     label('legend-r6',(.02,.067,.96,.033),7,pad=.001)
@@ -472,12 +489,9 @@ def check_figure_layout(fig, layout):
         for left, right in itertools.combinations(keys, 2):
             if _intersection(regions[left], regions[right]) > 1:
                 raise FigureLayoutError(f"sibling overlap: {left} / {right}")
-    for artist, owner, neutral in layout["markers"]:
+    for artist, owner in layout["markers"]:
         box = artist.get_window_extent(renderer)
-        if not neutral:
-            positive(box)
-        elif not np.isfinite(box.extents).all() or box.width <= 0:
-            raise FigureLayoutError("invalid neutral line")
+        positive(box)
         box = box.padded(fig.dpi/72)
         if not _contains(regions[owner], box):
             raise FigureLayoutError("marker escape")
@@ -503,9 +517,32 @@ def _drawn_items(data, layout):
     return actual
 
 
+def _arrow_count_words(d):
+    words = {1: 'once', 2: 'twice', 3: 'three times'}
+    counts = {kind: sum(a['kind'] == kind for a in d['arrows']) for kind in ('measurement-reflux', 'diagnosis-reflux', 'absent')}
+    _require(all(n in words for n in counts.values()), 'arrow kind count must be between one and three')
+    return {kind: words[n] for kind, n in counts.items()}
+
+
+def _drawn_arrows(data, layout):
+    actual = []
+    for a in layout['arrows']:
+        if a['kind'] == 'flow':
+            continue
+        artists = (a['artist'], a['head'])
+        visible = all(t.get_visible() and t.figure is not None and t in t.figure.artists for t in artists)
+        actual.append({**{key: a[key] for key in ('id', 'kind', 'from', 'to')}, 'visible': visible})
+    expected = [{**{key: a[key] for key in ('id', 'kind', 'from', 'to')}, 'visible': True} for a in data['flow']['arrows']]
+    _require(actual == expected, 'drawn arrows disagree with flow')
+    return actual
+
+
 def _caption(data, number):
     d=data['flow']
-    return CAPTION.format(number=number, basename=Path(d['caption_source']).name,
+    counts = _arrow_count_words(d)
+    source_count = len({a['from'] for a in d['arrows'] if a['kind'] == 'measurement-reflux'})
+    events = {1: 'once', 2: 'twice', 3: 'three times'}[source_count]
+    return CAPTION.format(measurement_events=events, measurement=counts['measurement-reflux'], diagnosis=counts['diagnosis-reflux'], absent=counts['absent'], number=number, basename=Path(d['caption_source']).name,
                           planner_keys=', '.join(d['planner_keys']), coder_keys=', '.join(d['coder_keys']),
                           diagnosis_key=DIAGNOSIS_KEY, diagnosis_fields=', '.join(d['diagnosis_fields']))
 
@@ -520,7 +557,7 @@ def build_provenance(data, layout, outputs, argv, *, hash_paths=None, figure_num
                 caption_source=dict(path=SOURCE,sha256=by_path[SOURCE]), inputs=inputs,
                 generator=dict(path=GENERATOR_PATH,sha256=hashlib.sha256(GENERATOR.read_bytes()).hexdigest()),
                 outputs=[dict(path=os.path.relpath(p,data['repo_root']),sha256=hashlib.sha256(Path(h).read_bytes()).hexdigest()) for p,h in zip(outputs,hashes)],
-                drawn_items=_drawn_items(data,layout), arrows=data['flow']['arrows'],
+                drawn_items=_drawn_items(data,layout), arrows=_drawn_arrows(data,layout),
                 roles=[dict(name=r['name'],definition_path=r['definition_path'],tools_none=r['tools_none'],sha256=by_path[r['definition_path']]) for r in data['flow']['roles']],
                 caption=_caption(data,figure_number),argv=list(argv),versions=dict(matplotlib=matplotlib.__version__,numpy=np.__version__))
 
@@ -539,6 +576,8 @@ def _publish_outputs(fig, layout, prefix, data, argv):
     destinations = _destinations(prefix)
     check_figure_layout(fig, layout)
     _drawn_items(data, layout)
+    _drawn_arrows(data, layout)
+    _caption(data, number)
     prefix.parent.mkdir(parents=True, exist_ok=True)
     temporary, published = [], []
     try:
@@ -592,14 +631,17 @@ def main(argv=None):
 CAPTION = ('Figure {number}. Data flow of the K2 manual synthesis loop over three recorded rounds, read from the frozen results note {basename}. '
 'In each round the parent session projects typed JSON inputs (planner: {planner_keys}; coder: {coder_keys}) to planner-v4 and coder-v4-autonomous-k2; '
  'the proposal is one backoff literal evaluated by one Pegasus compute-node job with separate trace-enabled verify and trace-disabled bench builds and a campaign WAL terminal record; critic reads the digest and the WAL. '
-'Measurement reflux occurred twice (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round) and diagnosis reflux once (the second critic into the third-round inputs as the typed key {diagnosis_key} with fields {diagnosis_fields}, identical for planner and coder). '
+'Measurement reflux occurred {measurement_events} when counted by distinct source evaluation. Measurement reflux paths are drawn {measurement} (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round) and diagnosis reflux {diagnosis} (the second critic into the third-round inputs as the typed key {diagnosis_key} with fields {diagnosis_fields}, identical for planner and coder). '
+'Absent paths are marked {absent}. '
 'The unevaluated proposal, generated without a diagnosis key, re-proposed a known value. '
 'The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation. '
 'Certified means only that the trace-enabled verify run found the observed trace serializable with no anomaly; it is not a performance certification and not a choice among candidates. '
 'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; their form differs by role and they are not a mechanical gate. '
 'No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control. '
 'The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results. '
-'This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared.')
+'This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared. '
+"Role launch times, inline delivery, proposal dates, and the fine ordering of steps rest on each round's records; saved prompts and inputs are not proof of delivery. "
+'This figure does not judge whether B-6 is met; the tool-less declaration concerns tool access only, and leak control is not complete.')
 
 if __name__ == '__main__':
     raise SystemExit(main())
