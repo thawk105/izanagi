@@ -174,6 +174,8 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読�
 
 **campaign (キャンペーン)** — 1 回の探索実験のまとまり。その入力・WAL・レポートを 1 つのディレクトリに束ねる単位。*izanagi:* 出力レイアウトの軸。入力依存の成果物 (WAL + レポート) を `output/campaigns/<id>/` に置く。id は内容から決まる (D13)。
 
+**exploration / 探索 (エクスプロレーション、2 義)** — 一般には「未知の候補を試して情報を集める」段階。*izanagi:* 同じ語が 2 つの別物を指す。(a) campaign の **use class** `exploration` — producer が `declared_use_class` で宣言する利用意図の 1 値 (閉表は `official` / `exploration` / `qualification` / `dry`、D528)。campaign root の namespace (`<base>/exploration/campaigns/<id>/`、base の既定は `output/`) と出力先の解決規則を決めるだけで、その測定値が正式標本に入るかは決めない。(b) D1813 の**探索** — 静的 backoff の 1000 マイクロ秒超を測る 2 段構成の第 1 段。探索値は正式標本へ混ぜず、開示だけする (実装は `run_kind = t2418-explore`、D1848)。(b) の探索走は (a) では `official` であり、逆に (a) が `exploration` の campaign (例: A-1 対測定) の標本帰属は (a) の宣言では決まらない。環境変数・job script との対応表は `pegasus-runbook.md` §7.9。
+
 **certify / certified (認証・認証済み)** — variant が特定の workload/config で正しさゲート (直列化検証) を通ったことを確定させること。*izanagi:* certified でない variant は性能に関わらず reject。判定は `(variant, workload/config)` ごとで、同じ binary でも別 workload へ横流ししない。COMMIT を書ける唯一の経路は `pipeline.evaluate()` (phase3.md §kickoff タスク, roadmap.md §6)。
 
 **機序帰属 (きじょきぞく, attribution)** — 観測された性能差を「どの設計選択がなぜ効いた可能性があるか」という機序仮説へ結ぶこと。*izanagi:* critic/profiler の仕事で、単なる数値でなく diff と指標の対応を層3へ渡す。アブレーションなしには因果と断定しない (roadmap.md §2 層3)。
