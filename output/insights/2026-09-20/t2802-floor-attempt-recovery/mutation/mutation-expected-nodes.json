@@ -1,0 +1,35 @@
+{
+ "M1-hit-trusts-marker-campaign-run-id": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_later_attempt_row_rejected[claim-mismatch]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_later_marker_rejected[claim-mismatch]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_recovery_requires_exact_marker_rederived_from_claim[claim-mismatch]"
+ ],
+ "M3-hit-skips-coverage": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_later_marker_rejected[attempt-not-covered]"
+ ],
+ "M4-skip-canonical-filename": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_later_marker_rejected[noncanonical-filename]"
+ ],
+ "M5-skip-attempt-ledger-duplicate-identity": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_later_attempt_row_rejected[duplicate]"
+ ],
+ "M6g-skip-main-equality-generation": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_main_validation_scope[records-generation]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_projection_once_per_claim_per_call[main]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_requires_exactly_one_matching_main_row[mismatch]"
+ ],
+ "M6v-skip-main-equality-v1": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_legacy_projection_once_per_claim_per_call[main]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_main_validation_scope[records-v1]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_main_validation_scope[records-v2]"
+ ],
+ "M7-skip-completed-rejection": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_completed_session_forbids_reissue_of_same_attempt"
+ ],
+ "M8-memo-survives-across-calls": [
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_legacy_projection_once_per_claim_per_call[claim]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_legacy_projection_once_per_claim_per_call[main]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_projection_once_per_claim_per_call[claim]",
+  "orchestrator/tests/test_s8b_holdout_admission.py::test_cut6_projection_once_per_claim_per_call[main]"
+ ]
+}

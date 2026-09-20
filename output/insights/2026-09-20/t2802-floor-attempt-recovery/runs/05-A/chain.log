@@ -1,0 +1,10 @@
+2026-09-20T11:53:04+0900 launch: cond=A slot=1 tip=b7f970dfa507558f7fb669a5ab38958d6c76b57c main=371674ea685ecb11e08dbcc31d4bf4f2bed0b20b leaders=0 load1=4.30
+2026-09-20T12:06:52+0900 finished: child_rc=0 session_root=/work/1/SFC/tanab/.izanagi-acceptance-shards/10f827bc51b613008e057255055dc070 dirty_after=0 tip_after=b7f970dfa507558f7fb669a5ab38958d6c76b57c
+shard-0/junit.xml: OK
+shard-0/report.json: OK
+shard-1/junit.xml: OK
+shard-1/report.json: OK
+shard-2/junit.xml: OK
+shard-2/report.json: OK
+junit.xml: OK
+2026-09-20T12:06:52+0900 copy_ok=1
