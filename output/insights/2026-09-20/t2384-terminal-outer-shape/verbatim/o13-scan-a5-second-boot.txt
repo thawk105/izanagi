@@ -1,0 +1,8 @@
+files=2 terminal_records=16 bad_lines=0
+outer key sets:
+  EXACT ['env_tag', 'payload', 'stage', 'ts', 'variant'] x16
+ts types: {'float': 16}
+variant types: {'str': 16}
+env_tag types: {'str': 16}
+payload types: {'dict': 16}
+attempts with build_attempt_id: 16; terminal count per attempt histogram: {1: 16}

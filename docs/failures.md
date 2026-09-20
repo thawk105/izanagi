@@ -2783,6 +2783,13 @@
   実害なし。v1 の所見は v2 brief の provisional 裁定へ取り込んだ)。2026-08-21 の再発と同じ `DW-O13` の判定漏れで、
   前回は巻き戻さなかったが今回は契約どおり巻き戻した。根本原因は同じ — 条件表の「可能性が生じた時点」を、参照節の
   冒頭 2 文を読んで判定していない。
+
+- **再発: 2026-09-20** — 8c formal consumer の terminal 外枠 gate の wave (D1730 実装) で、条件 dispatch 13 (`DW-O13`、gate 新設時、
+  最遅 = 段 2 前) を段 1 brief に「gate を足す」と書いた時点で辿らず、段 3 の後に気づいた (near miss、実害なし)。契約どおり段 2〜4 の成果物を無効化し、
+  実環境 log で gate 入力の到達性 (outer 5 key exact 490/490、attempt ごとに terminal 1 件 = 16/16) を実測してから段 2〜4 をやり直した
+  (codex 子 3 本の再投入、約 15 分)。型は同じ「L2 節の読了が発火より遅れる」。段 1 brief を書き終えた直後に条件表 08/09/10/13 を
+  一括再評価する手順を memory へ置いた。`DW-S01` へ同旨の 1 文 (76 bytes) を足す案は `check_docs` の L1 予算
+  (10701 > 10625 bytes) に当たり、D782 / D730 に従い docs 側へは入れていない。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
