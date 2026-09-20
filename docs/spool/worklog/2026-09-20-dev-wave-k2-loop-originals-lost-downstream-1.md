@@ -4,14 +4,14 @@ ledger: worklog
 authored: 2026-09-20
 wave: dev-wave-k2-loop-originals-lost-downstream
 seq: 1
-title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の主張ごとの対応表を実測で定め、round 3 の loop_state と round 2/3 の AO は repo 派生物から byte 一致で再構成でき WAL は内容同一まで、4 巡目の入力元の択 (round 3 派生物 / 別走 / pair 走) を裁定パッケージへ返した (docs のみ、実装差分ゼロ、branch worktree-dev-wave-k2-loop-originals-lost-downstream)
+title: [T-2815] K2 loop 原本消失 (2026-09-20 19:25 JST、F1034) の下流影響 — 3 巡の主張ごとの対応表を実測で定め、round 3 の loop_state と round 2/3 の AO は repo 派生物から byte 一致で再構成でき WAL は内容同一まで、4 巡目の入力元の択 (round 3 派生物 / 別走 / pair 走) を裁定パッケージへ返した (docs のみ、実装差分ゼロ、branch worktree-dev-wave-k2-loop-originals-lost-downstream)
 ---
 
 ## 本文
 
-- 起票は記録 wave `dev-wave-cleanup-backup-loss-record` の worklog fragment の新規 T「K2 loop 原本消失の下流影響」(本 wave 着手 20:52 JST〜land 時点で
-  未 land、branch tip `f43322f8a`)。他 wave の placeholder は参照できないので本 entry は番号を書かない。**同 T が採番された後は、本 entry を根拠に完了へ置く**
-  (残件なし: 対応表と裁定パッケージは `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §2・§4 に着地)。
+- 起票は記録 wave `dev-wave-cleanup-backup-loss-record` の worklog fragment の新規 T「K2 loop 原本消失の下流影響」(本 wave 着手 20:52 JST 時点では未 land、
+  branch tip `f43322f8a`)。同 wave は本 wave の段 7 中に main `3262aad82` へ着地し [T-2815] / F1034 と採番された (entry 1759) ので、本 entry で [T-2815] を完了に置く
+  (残件なし: 対応表と裁定パッケージは `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §2・§4 に着地。裁定そのものはユーザー)。
 - ユーザー依頼 (dev-wave 引数) の範囲で 1 wave。起点 local main `7baf3f375` (fresh worktree、開始 gate rc=0)、記録前に `f94b61fc8` ([T-2792] の記録と fold) を固定 SHA で
   取り込み。軽量版 (DW-C00): 段 2・3 省略、実装面ゼロ、段 6 は一次資料から事実を再抽出する docs-only なので read-only レビュー 1 本。
 - **ListAgents (20:55 JST): 稼働 17 session に [T-2795] wave は無い** (entry 1754 で着地済み、job dir の `submit-tree-pair` だけ残存)。編集面の重複:
@@ -48,6 +48,14 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
 
 ## 次の一手差分
 
+### 完了
+
+- [T-2815] K2 loop 原本消失 (F1034) の下流影響を照合し、主張ごとの対応表 (story §8 B-6 / B-9、fig12、[T-2808] fig12b、層 3 材料レポート、[T-2795] 4 巡目) と
+  4 巡目の入力元の裁定パッケージ (択 A 推奨 / B / C + 付随項) を `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §2・§4 に置いた。
+  checkpoint の択の裁定はユーザー ([T-2795] の更新項で運ぶ)。README stale 注記の追記は {{T:k2-originals-lost-readme-stale-note}} へ。
+  remaining: none
+  base: 990cdda6642cdb4032fe6415655a595517991a759fe03149f043d0b35d534024
+
 ### 更新
 
 - [T-2795] **P1・裁定済み (D2172 項 3、択 (i) + (iv)) → launcher 実装済み (D2183) → pair 初投入 (2026-09-20、`13339.nqsv`) で stock が one-shot claim leaf に
@@ -59,7 +67,7 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
   同 identity path の DEAD 再取得 (one-shot の受理集合変更)、claim の rename (防壁を外す)、別 out_root (同 WAL を破る)。保留も択。修復 wave は
   同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査 (F1019 再発の恒久対応) を必ず含める。B-5 (β、[T-2797]) の job body 設計も同じ制約を受ける。
   記録: `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`、3 巡目 README の追記節。(ii) 単独・(iii) 単独は不採用のまま。
-  **2026-09-20 追記 (原本消失の下流):** round 3 の campaign 原本は 19:25 JST に消失 (記録 wave の F)。4 巡目の射影入力 (whiteboard・current_perf・critic-3 逐語・
+  **2026-09-20 追記 (原本消失の下流):** round 3 の campaign 原本は 19:25 JST に消失 (F1034)。4 巡目の射影入力 (whiteboard・current_perf・critic-3 逐語・
   knowledge-input・受領証・identity の lock) は全部 repo 派生物か無傷の写しにあり、入力元の択 A (推奨、round 3 派生物から組む) / B (別走) / C (pair 走を直前巡) と
   やらない理由は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §4。修復 wave の段 1 で `dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair`
   (pair 走の原本 5 file + claim、unlocked。byte 複製は同 job dir `originals-copy-20260920/` に 2026-09-20 21:24 JST 作成済み) を `git worktree lock` する。
@@ -69,5 +77,5 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
 ### 新規
 
 - {{T:k2-originals-lost-readme-stale-note}} **P3・新規**: `docs/paper-story/README.md` の stale 注記に「K2 手動 loop 3 巡の campaign 原本の消失 (2026-09-20 19:25 JST)」の
-  1 段落を積む (文面 = `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §5、記録 wave の F 番号を実番号で)。story 20260920b 版の land 後に
+  1 段落を積む (文面 = `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §5、F1034)。story 20260920b 版の land 後に
   同版の注記へ足す (同 wave は「未着地 wave の内容は書かない」規律で書かないと返答、2026-09-20 21:2x JST)。稿・図の bytes は変えない。

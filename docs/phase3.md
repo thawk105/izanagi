@@ -477,7 +477,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      certified、stockは同campaignの2起動目がone-shot claim leaf (D464) に認可前で拒否され pair 不成立
      (STOCK性未確認、再投入なし、4巡目未投入)。修復方向は裁定パッケージ。記録は
      `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
-   - [x] K2 loop 3巡の campaign 原本消失 (2026-09-20 19:25 JST、cleanup 事故) の下流影響を照合した (docs のみ、実装差分ゼロ)。
+   - [x] [T-2815] K2 loop 3巡の campaign 原本消失 (2026-09-20 19:25 JST、cleanup 事故 F1034) の下流影響を照合した (docs のみ、実装差分ゼロ)。
      3巡の値・判定・稿・図は不変。round 3 の `loop_state.json` と round 2/3 の AO は repo 派生物から byte 一致で再構成でき、
      WAL は内容同一 (canonical ref 5/5) まで、roundtrip は転記値のみ。4巡目の入力元 (round 3 派生物からの射影 / 別走 /
      pair 走) は裁定パッケージ。記録は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md`。

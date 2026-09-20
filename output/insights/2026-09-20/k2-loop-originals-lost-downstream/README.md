@@ -5,8 +5,9 @@ authority: none / default_effect: no-state-change (照合結果と裁定パッ�
 一次資料 (wave `dev-wave-k2-loop-originals-lost-downstream`、基準 HEAD = local main `7baf3f375`、2026-09-20 20:52〜 JST、docs-only、実装差分ゼロ)。
 段 1 brief は `reviews/s1-brief.md`、段 6 レビューは `reviews/`、実測の生 stdout の逐語は `materials/reconstruction-stdout.txt`、その抜粋・要約と照合の説明は
 `materials/reconstruction-log.md`。
-job dir (repo 外) は `/home/SFC/tanab/.claude/jobs/cc931155/`。起票 = 記録 wave `dev-wave-cleanup-backup-loss-record` (本 wave 着手時点で未 land、
-branch tip `f43322f8a`) の worklog fragment の新規 T「K2 loop 原本消失の下流影響」(採番は fold が行う。本 wave は番号を書かない)。
+job dir (repo 外) は `/home/SFC/tanab/.claude/jobs/cc931155/`。起票 = 記録 wave `dev-wave-cleanup-backup-loss-record` (本 wave 着手時点 20:52 JST は未 land、
+branch tip `f43322f8a`) の worklog fragment の新規 T「K2 loop 原本消失の下流影響」。同 wave は本 wave の段 7 中 (21:5x JST 確認) に main `3262aad82` へ着地し、
+**T = [T-2815]、事故 = F1034** (entry 1759) と採番された。本 README の「記録 wave (未 land)」の記述は着手時点の事実として残す。
 
 ## 0. 一行で・主張すること・しないこと
 
@@ -143,7 +144,7 @@ digest と `campaign.lock` の bytes は無い (sha256 の記録のみ)。sha �
 story 20260920b wave (`dev-wave-paper-story-20260920b`) が同じ節を編集中 (README mtime 20:57 JST、「5 件」へ書き換え済み) なので、衝突を避けて本 wave は README に触れず、
 文面をここに置く。積む先は 20260920b 版の land 後の stale 注記 (または同版が吸収)。
 
-> - **K2 手動 loop 3 巡の campaign 原本 (WAL・AO・loop_state・digest・lock・受領証) は 2026-09-20 19:25 JST の cleanup 事故で消失した (F 番号は記録 wave の fold が採番、記録 wave の insight
+> - **K2 手動 loop 3 巡の campaign 原本 (WAL・AO・loop_state・digest・lock・受領証) は 2026-09-20 19:25 JST の cleanup 事故で消失した (F1034、記録 wave の insight
 >   `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`)。** 同版 §8 の B-6 / B-9 と B-6 稿 §5.1 が「権威 bytes (repo 外) … job root」と書く箇所は執筆時点では真であった。
 >   3 巡稿 §5.1 は消失前に全原本の sha256 と bytes を再計算しており、round 2 は job dir の写しが bytes 一致、round 3 の `loop_state.json` と round 2 / 3 の AO は repo の派生物から
 >   bytes 一致で再構成でき、round 2 / 3 の WAL は材料レポートの record と内容同一 (canonical ref 5/5)、roundtrip は転記値と job 出力のみ。**変わらないこと:** 3 巡の値・判定・
@@ -172,7 +173,7 @@ story 20260920b wave (`dev-wave-paper-story-20260920b`) が同じ節を編集中
 
 ## 8. 一次資料・工数
 
-- 記録 wave: `output/insights/2026-09-20/cleanup-backup-loss-record/README.md` (未 land、branch `worktree-dev-wave-cleanup-backup-loss-record` tip `f43322f8a`)、
+- 記録 wave: `output/insights/2026-09-20/cleanup-backup-loss-record/README.md` (着手時は未 land、branch tip `f43322f8a`。段 7 中に main `3262aad82` へ着地、entry 1759、T-2815 / F1034)、
   同 wave の spool fragment (worklog seq 1、failures seq 1)。
 - 3 巡稿 `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` §2.1・§4・§5.1・§5.2、story `docs/paper-story/2026-09-20.md` §8 B-6・B-9、
   `docs/paper-story/README.md` stale 注記 (4 件)、fig12 `output/insights/2026-09-20/k2-loop-fig12/README.md` + `figures/fig12_k2_manual_loop_dataflow.provenance.json`。
