@@ -68265,3 +68265,99 @@ D2044 項 24 の「限界として閉じる」形を採り、到達条件・確�
   「成果物不変」ではない。必要性も未確認。
 - **計算ノードでの旧分岐を明示拒否する新 gate** — 依頼が scope 外と明示。compiler の有無に依存しない拒否になるが、
   到達する呼び手が無い現状では発火経路が無い。
+
+## D2166. B-10 の freeze-tree 起動契約を D2120 項 2 (b) で導入した世代 G を含む tree へ更新する — 旧測定の解釈は不変で、新 phase の事前登録成立ではない (2026-09-20)
+
+**決定 (親の裁定、entry 1688 の設計 §7 と本依頼「Codex author が literal を再計算値へ更新」に従う):**
+`tools/pegasus/b10_backoff_grid.sh` の `EXPECTED_FREEZE_TREES_SHA256` と
+`orchestrator/tests/test_backoff_extended_sweep.py` の同 literal 2 箇所 (job script の文字列検査、実 tree digest の固定 pin) を、
+旧値 `c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3` (19 file、G 無し) から
+新値 `6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415` (20 file、G 有り) へ更新する。
+新値は保存枝 chain/X2/G を merge した木で着手時に再計算した値で、G (`output/s8b-freeze/holdout_freeze.v2.g1.json`、
+blob `15861416f`、sha256 `7e1114068433…`、20,737 byte) の追加だけが旧値との差分である。
+
+- **変わるもの:** 本更新を含む版の job script が要求する起動条件 (`B10_RUN_KIND` を問わず)。この版の job script は
+  G を含む現在の 20 file の tree だけを受理し、G を欠く tree、別 file の追加、既存 file の 1 byte の変更、G の削除を
+  測定前の digest 検査 (`fail 2`) と test で拒否する (算法上の性質。実測は一次資料に記録する)。旧 script と旧 tree を備えた
+  旧 checkout の組はこの更新で失効しない (旧版を失効させる機構は無く、本決定はそれを足さない)。
+  算法・完全一致比較・対象 dir 集合 (`output/s1-freeze` + `output/s8b-freeze`)・job 前後の一致検査・`completion.json` の記録は不変。
+- **変わらないもの (規律 7):** cohort 1 (group `b10-backoff-grid-20260915T061814Z-545445`) と cohort 2 (D2157) の
+  `freeze_trees_sha256` = 旧値の記録 (results 稿 2 本、`completion.json` 6 件、insight、archive) は測定時点の事実として書き換えない。
+  当時の判定も変えない。旧値と新値の対応 (G の追加だけ) は本決定と一次資料に残す。
+- **成立しないもの:** 本更新は B-10 の新 phase の事前登録成立でも本走許可でもない。事前登録 `cad6f46d8` の bytes は不変で、
+  次の cohort・帯・phase は従来どおり別途の登録 commit と裁定を要する (D1789 / D2050 / D2157 の枠組みのまま)。
+
+**授権根拠:**
+- D2120 項 2 (b) (ユーザー裁定 2026-09-17) は G の導入を授権し、G の path は `s8b_ratified_freeze.FREEZE_DIR = "output/s8b-freeze"`
+  と `resolve_active_generation` が要求する固定 path で、pin の対象 dir から外せない。G を main に載せる (項 2 (a)) と
+  pin の旧値は必ず不一致になるので、G の取り込み・現行の全 file 完全一致検査・B-10 の継続利用を保つ条件下で、規律 2
+  (hold / 除外 / 条件付き assert は不採用) と両立する形は pin を G 込みの値へ
+  更新することだけである。
+- pin が守るのは「将来の B-10 job が要求する凍結 tree の同一性」(job script 595 / 647 行) であり、過去の成果物との対応は
+  各 job の `completion.json` が記録する (定数に依存しない)。よって更新は発効済み事前登録の書き換え (D1789 の対象) に当たらない。
+- 前 wave (entry 1688) は「赤を見た同じ主体が同じ wave で期待値を変える」形を避け、更新を別 context・独立レビュー・
+  変異 2 件・負例 3 件付きの本 wave へ送った。本 wave はその条件で更新を行い、実測 (焦点走・変異・負例・受入全走) の結果と
+  証拠の所在は一次資料 `output/insights/2026-09-20/t2724-b10-pin-update/README.md` に記録する (本 fragment は land の fold で
+  台帳に載るので、記録時点で実測が済んでいなければ一次資料に「未実施」と書く)。
+
+**却下した選択肢:**
+- 複数値受理 (旧値と新値のいずれかを受理) — 「新旧どちらか」は G の有無を検査しなくなり、pin の意味 (tree の同一性) を失う。規律 2。
+- prefix 除外 (G の path を digest から外す) — G を含む tree を凍結対象から外すことになり、世代文書の改竄を pin が見なくなる。
+- hold / skip / 条件付き assert — D532 / DW-O18 に反する検出力の削除。
+- test だけ更新し job 定数を旧値のまま (前 wave の択 2) — test と job の束縛が切れ、実投入が旧 pin で止まる (両レンズが refuted)。
+- pin を撤去して `completion.json` の記録だけに頼る — 起動前の fail-closed 検査を失う。
+
+## D2167. 凍結 v2 g1 の chain + G の取り込みは、T-080 receipt の未知性層 2 を承認済み active v2 の full launch validation へ委譲する整合修正 (A-3) と 4 経路の test 修正を 1 つの実装 wave で先に着地させてから行う (2026-09-20)
+
+**決定 (ユーザー委任「codex に相談して決めて」2026-09-18、read-only codex 2 レンズの一致に基づき親が裁定):**
+D2120 項 2 (a) の chain 取り込みは維持するが、実行順序に前提を足す。
+
+1. **production の整合 (設計候補 A-3)。** T-080 (v1 移行 receipt) の解決 `t080_freeze_migration.verify_receipt` が持つ
+   receipt の履歴・静的検証 (artifact bytes / closure / derivation / ccbench gitlink)・epoch 束縛、oracle driver の
+   `_make_gate_decision` による refusal 集約と `_campaign_t080_value` による invalid 拒否は**維持**する。そのうえで、
+   **承認済み active v2 世代の full launch validation (`s8b_ratified_freeze.launch_validate`) が同一 root・同一 HEAD・
+   同一世代で成功した場合に限り**、receipt 検査列の未知性層 2 (`_verify_holdout_live_scan` の zero-hit 判定) を、その
+   validation の closure 由来 hit との完全一致検証 (C2-4) へ委譲する。候補集合・候補 ID・検索式・照合規約の凍結文書との
+   束縛は失わない。active v2 が無い木 (未発効、A / X 前) は従来どおり拒否し、`never-issued` / `active-valid` の意味は変えない。
+   official 床値の起動証明 (`clean_scan_digest`、D2077 step 7) は変えない。走査除外集合・growth hold・G と入力 chain の
+   bytes と履歴・人間 A / X の境界は変えない。`static_gate_adapter` と campaign-start 前の receipt 再解決にも同じ条件を適用する。
+2. **test の実 root 切り離し (4 経路 45 node)。** T-080 fixture の実 root output 複製 (draft の live scan)、実 committed
+   HEAD の clone (official clean scan)、`run_block(root=ROOT)` の receipt 解決を共有する契約 test、公開 gate の exact refusal
+   集合を、実 checkout の現在の成果物に依存しない合成履歴 / fixture へ移す。「official 成果物を持つ tree では clean scan が拒否
+   する」「未発効 + hit は拒否」「active v2 + 期待 hit 完全一致だけ受理」の負例・正例を残し、既存テストの期待値を緩めない。
+3. **変更単位。** 1 と 2、新 D、境界 test (発効境界・receipt 境界・走査境界・束縛境界・経路境界)、変異 matrix (完全一致を
+   包含へ、receipt refusal 無視、承認前委譲、検索規約照合削除、開始前再検査削除を負例が捕まえる)、段階別 preflight (runbook §2
+   P3 の「拒否 2 件 exact」は chain 導入後の oracle 段階に適用できない) の文書を、Codex author の 1 つの実装 wave に収める
+   (D96)。設計 wave と再裁定を分けない。A-3 の同等性を境界 test で確認できることを着地条件とし、不一致なら検査を省略して
+   通さず停止する。
+4. **順序。** (i) 上の実装 wave を chain の無い main へ land → (ii) 世代導入 G の wave が保存 branch の候補 commit X2 と
+   fold 後の main を固定 SHA で通常 merge し、X1' + X2 + G を 1 wave で受入・land (merge-base を 1 つに保つ) →
+   (iii) 人間が A → X を連続 commit して批准を検証 → (iv) W-4 の spec 承認 (別管理) → (v) W-5。
+
+**理由:**
+- 実測 (世代導入 G の wave): X1' を含む木では受入の非 held 45 node が赤、runbook P3 `gate-check` が
+  `holdout-freeze-verify: [holdout.unknownness_layer2]` で refuse。A / X を作っても消えない (driver は v2 処理に先立って
+  receipt を解決し、`_make_gate_decision` が refusal を集約する)。v2 の `launch_validate` は closure 由来 hit を期待集合と
+  して完全一致を要求するのに対し、T-080 の live scan は zero-hit を要求する — 段階間の整合欠落であり、D2077 が意図した拒否は
+  official 床値の再起動であって批准後の oracle までではない (レンズ B)。
+- A-3 は receipt の fail-closed と epoch 束縛を残し、衝突する live scan の責務だけを既存の full validation へ移すので、
+  変更範囲が最小で検出力を保てる (両レンズ)。委譲先は「承認・出所・occurrence・完全一致」を検証済みの経路であり、gate を
+  緩めない (規律 2)。候補 data を期待集合の authority にしない (規律 6)。
+- 過去の裁定 (D2120 項 2 (a)) は撤回しない。未認識だった実行上の前提を満たしてから取り込む順序の補足である (規律 7)。
+- test 修正を同じ wave に入れないと、未発効の木 (A / X 前) では受入が成立せず、chain + G を land できない (レンズ B CB-2)。
+
+**却下した選択肢:**
+- A-1 (承認済み世代の artifact から occurrence 検証で期待集合を導出) — `launch_validate` の C2-4 と二重実装になり、
+  検証ロジックの乖離を招く。安全に共有単位を広げると A-3 に近づく。
+- A-2 (active v2 なら receipt を要求しない) — receipt 履歴・欠落・改変検出・campaign epoch の代替まで設計対象が広がる。
+- E (bytes 束縛した official run_dir を `exempt_exact` で免除) — 走査免除の拡大であり、occurrence と消失検出を継承しない。
+- B 単独 (test 側だけ) — production の拒否が残り oracle に届かない。
+- C (45 node を growth hold) — 検出力の削除。DW-O18 は再赤でも hold 登録しないと定める。
+- D (chain を main に載せず別 branch で oracle) — X1' を含む checkout なら branch を問わず同じ拒否が出る。既裁定の変更も要る。
+- 設計 wave → 再裁定 → 実装 wave の分離 — 余分な直列工程と発効前の受入問題を残す (レンズ B)。
+
+**現況 (2026-09-19、取り込み wave による追記):** 本決定は G wave の branch に fragment として保全され、fold は取り込み wave で行われた。
+項 1・2 の実装形は D2154 (chain の無い main へ着地済み)。項 4 (ii) の X1' + X2 + G の取り込みは取り込み wave
+(`worktree-dev-wave-t2724-chain-land-2`) が実施し、(iii) 以降は人間手番のまま。
+
+**現況 (2026-09-20、pin 更新 wave による追記):** 取り込み wave (2 回目) は受入全走が B-10 の freeze-tree byte pin 1 node で赤になり chain を land しなかった (entry 1688)。本 fragment の fold と X1' / X2 / G の main 着地は、pin を G を含む tree の値へ更新する 3 回目の wave (`worktree-dev-wave-t2724-b10-pin-update`) が行う。

@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m1-test-literal-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_backoff_extended_sweep.py",
+          "old": "    assert digest.hexdigest() == (\n        \"6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415\"\n    )\n",
+          "new": "    assert digest.hexdigest() == (\n        \"c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3\"\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-job-constant-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "EXPECTED_FREEZE_TREES_SHA256=6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415\n",
+          "new": "EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n2-freeze-one-byte",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/s1-freeze/measurement_freeze.json",
+          "old": "\"ccbench_pin\": \"d706650\"",
+          "new": "\"ccbench_pin\": \"d706651\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
