@@ -1,0 +1,218 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "\"\"\"Render recorded paper-story statuses without recomputing judgments.\"\"\"\n",
+          "new": "\"\"\"Render recorded paper-story statuses without recomputing judgments.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-enum-membership-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "type(value) is str and value in choices",
+          "new": "type(value) is str and True"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-keys-superset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "set(value) == set(expected.split())",
+          "new": "set(value) >= set(expected.split())"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-free-text-early-return",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    value = unicodedata.normalize(\"NFKC\", _string(value))\n",
+          "new": "    return\n    value = unicodedata.normalize(\"NFKC\", _string(value))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4a-intersection-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    return max(0, min(left.x1",
+          "new": "    return 0 * max(0, min(left.x1"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4b-contains-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    return inner.x0 >= outer.x0-1",
+          "new": "    return True or inner.x0 >= outer.x0-1"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4c-segment-never-intersects",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    low, high = 0., 1.\n",
+          "new": "    return False\n    low, high = 0., 1.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-caption-source-hash-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "caption_source=dict(path=SOURCE,sha256=by_path[SOURCE])",
+          "new": "caption_source=dict(path=SOURCE,sha256='a'*64)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-tools-none-check-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(r['tools_none'] == _tools_none(role_raw), 'tools_none mismatch')",
+          "new": "_require(True, 'tools_none mismatch')"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-publish-skips-layout-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    destinations = _destinations(prefix)\n    check_figure_layout(fig, layout)\n",
+          "new": "    destinations = _destinations(prefix)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-prefix-predicate-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(match is not None, 'output prefix basename",
+          "new": "_require(True, 'output prefix basename"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-anchor-at-least-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "source, re.M)) == 1,",
+          "new": "source, re.M)) >= 1,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-drawn-items-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "    _require(actual == _display_items(data['flow']), 'drawn_items disagree with flow')\n",
+          "new": "    pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11a-discipline6-form-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "_require(report['form'] == form, 'discipline6 form mismatch')",
+          "new": "_require(True, 'discipline6 form mismatch')"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11b-marker-ignores-detected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_k2_loop_flow.py",
+          "old": "marker='X' if cell['discipline6']['instruction_like_detected'] else 'p',",
+          "new": "marker='p',"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
