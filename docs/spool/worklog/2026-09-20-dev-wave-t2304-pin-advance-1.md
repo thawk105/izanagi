@@ -18,7 +18,9 @@ title: [T-2304] ccbench pin を 511c9538 から候補 e9e477ca へ前進した �
 - 旧系列 (K2 の巡・A-1 sized v3・凍結 g1 chain・B-4 床値の旧 binary) は pin 前進前の superproject と対応 submodule・旧契約の固定 checkout から走る。新 main への移行は系列ごとに ② ③ ⑤ と source / admission の整合が要り、旧 binary の再 admission だけでは足りない ({{T:pin-epoch-series-migration}})。
 - 素材: 材料 §4.1 ①④⑦ の実体、pin 前進で動く identity の層 (campaign ID・cache key・builder bytes・receipt) と動かない層 (較正 record・凍結 protocol・比較 policy・歴史 golden) の区別は `output/insights/2026-09-20/t2304-pin-advance/README.md` §1〜§4。
 - **変異 matrix (独立 clone、main = 225eba818):** MUT-1 (`CCBENCH_FULL_SHA` 退行) KILLED 13 node、MUT-2 (`CURRENT_PIN` 退行) KILLED 21 node、MUT-3 (等価 comment) SURVIVED、baseline PASSED。事前登録の killer は部分列挙だったので初回を probe と明記して観測 node で final を再登録 (DW-M08)。
-- 工数: codex 子 8 本 (author 1・review 2・consult 2・fix 3)。計算ノード job: generic 1・焦点走 3・変異 2 (probe2 + final)・受入。受入・land の結果は job dir の receipt (insight §6 に手順)。
+- **受入全走 pre-1 で焦点走の集合外の赤 24 件** (policy epoch golden の残り 11、`test_between_run_floor` 2 = 候補が mocc に trace hook を足したため「mocc は hook 無し」の前提が反転、`test_b10_backoff_shape_sweep` 11 = 記録済み B-10 formal 系列の report が歴史 lock を動く現行 PIN で照合 → `LEGACY_REPORT_CCBENCH_PIN` へ束縛、⑨ 保持)。fix4〜6 の後、main 前方 merge 3 回 (最後は Codex merge author が 2 file を 3 版から書き、[T-2795] の新 golden の `repo_stock_pin` も新 epoch へ) → 受入 final3-1 child-green。
+- **land の欠陥 ({{F:land-gitlink-fold-pending-deadlock}}):** gitlink 変更 tip の land は設計どおり ff 後に `landed-postcondition-failed` (D16) を返したが、pending fragment がある場合は turn ticket が `mutating` のまま残り、D16 同期後の同一要求も他 wave の land も `unresolved mutating turn` (rc=27) で止まった (18:23〜)。peer 6 session へ advisory。`tools/dev_wave_land.py` の回復経路 (landed-fold-pending) を Codex author で直し、test 3 本を足して、本 wave の tip で受入・land を取り直した。
+- 工数: codex 子 15 本 (author 1・review 2・consult 2・fix 7・merge author 2 (1 本は矛盾検出で停止))。計算ノード job: generic 1・焦点走 6・変異 2 (probe2 + final)・受入 4 (pre-1 / final-1 / final2-1 / final3-1、後 2 つは merge 段で即時拒否) + 修正後の受入。受入・land の結果は job dir の receipt (insight §6)。
 
 ## 次の一手差分
 
