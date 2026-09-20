@@ -79,7 +79,7 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-remote branch の削除と main の push は行わず、対象をユーザーへ列挙。
+remote branch 削除と main の push は行わず、対象をユーザーへ列挙。
 削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
 
 ## 6. 自己改善候補の終端
