@@ -61,7 +61,7 @@ rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁�
    `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 §5 で引き渡す dirty 撤去 script も本節に従い、退避を撤去の前提にする: tar は `-C <worktree>`
-を `-T` の前に置き、`ls-files -o` の list と entry 数が一致しなければ撤去しない (F1034)。
+を `-T` の前に置き、`ls-files -o` の list 数を tar の非 dir entry 数が下回れば撤去しない (F1034)。
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
@@ -75,7 +75,7 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 - `git worktree list` / `git branch` が期待どおり
 - `git submodule status` — main checkout の external/ccbench が初期化済み (`-` なし) で pin 一致
-- cleanup 前の status を保存し、surviving worktree・index・repo file に新しい差分が無い
+- §1 の status と比べ、surviving worktree・index・repo file に新しい差分が無い
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
