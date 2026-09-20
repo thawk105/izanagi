@@ -1,0 +1,76 @@
+{
+ "s3-consult.md": {
+  "source": "codex/s3-consult.md",
+  "source_sha256": "2b2e492d7bab33f32b12ac5a0e2d3084f5f584c0e30b2d245e4b9ef2d4ce1e73",
+  "nfc_changed": false,
+  "combining_marks_removed": 0,
+  "trailing_whitespace_normalization": {
+   "before_sha256": "2b2e492d7bab33f32b12ac5a0e2d3084f5f584c0e30b2d245e4b9ef2d4ce1e73",
+   "before_bytes": 23169,
+   "after_sha256": "1c5124cdf3f5491a9c49a3e3ca37421cd863affab9215e6fe0fb11b4e4bba3b2",
+   "after_bytes": 23167,
+   "changes": [
+    {
+     "line": 36,
+     "removed_bytes": 2,
+     "removed": "  "
+    }
+   ],
+   "restore": "\u5404 line \u306e\u672b\u5c3e\u306b removed \u306e\u6587\u5b57\u5217\u3092\u623b\u3059\u3068 before_sha256 \u306b\u4e00\u81f4\u3059\u308b (\u53ef\u8996\u6587\u5b57\u4e0d\u5909)"
+  }
+ },
+ "s5-author.md": {
+  "source": "codex/s5-author.md",
+  "source_sha256": "058a7d32dee9a54f5aaec13f911882f3d3214aab7ebb174f3a43e17642a53db3",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-fix1.md": {
+  "source": "codex/s6-fix1.md",
+  "source_sha256": "1354e8a00b39039d2c35084ee2794f1794b2c8fe8264e01f970a5de35895ae75",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-reviewA.md": {
+  "source": "codex/s6-reviewA2.md",
+  "source_sha256": "809e3a0ba74f5263a623de643102f18deeec12665dcc7d186ccc88b30608bee1",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-reviewB.md": {
+  "source": "codex/s6-reviewB2.md",
+  "source_sha256": "bf2c93f0cb86d46db85650a50b4bac62ca9a4603cc17b2f9485e429618608161",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-fix2.md": {
+  "source": "codex/s6-fix2.md",
+  "source_sha256": "d674067f612ca7779e18be94c097e296bbeff5c4e376af036e74998271b8f108",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-focus.md": {
+  "source": "codex/s6-focus.md",
+  "source_sha256": "c19b77faa4df95631b4200e42458b8f989c707491be29b32a2e52e910073bd0e",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-fix3.md": {
+  "source": "codex/s6-fix3.md",
+  "source_sha256": "e10dab4bdd140d9e1912a0477859b4b17c50084de5cfbae4ebf44816fb41f49c",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-fix4.md": {
+  "source": "codex/s6-fix4.md",
+  "source_sha256": "f30efce7ad0ba14b285ac42fdbf94686de5b3a99aea3218f2d5741f255a2ffdf",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-fix5.md": {
+  "source": "codex/s6-fix5.md",
+  "source_sha256": "24e9966c5a96659dd0b930da0caedfd7c3712bafd28e49dd19fd7cda1d9240fa",
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ }
+}

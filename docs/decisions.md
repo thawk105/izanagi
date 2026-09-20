@@ -69176,3 +69176,49 @@ define の値 (または定義の有無) が枝の選択を決めている」こ
   artifact / 計測 ID が無い (DW-G04)。設計メモに留める。
 - `build_admission.py` の pin 比較を full / short 両受理にする — admission gate の受理集合変更で、本 wave の scope 外 (裁定パッケージ候補)。
 - 較正・verify の job body env を今回配線する — K2 pair 投入に不要で、TJ の pin 更新を増やすだけ。B-5 (β) の launcher 設計で足す。
+
+## D2184. ccbench pin 前進 (D2150 項 1) の実装で判明した波及を事実として追記し、「主経路は影響を受けない」の射程を固定 checkout での継続と旧証拠の保持に限定する — 承認対象・実装範囲・②③⑤の時期は変えない (2026-09-20)
+
+**決定 (親の実施判断、2026-09-20。ユーザーの再裁定ではない):** D2150 項 1 の承認対象 (候補 `e9e477ca1b55348ab4530de0b1cf663ce4555290` を新 pin とする)、実装範囲 (材料 §4.1 の ①④⑦)、② 登録・identity / ③ driver 移行 / ⑤ floor protocol の新版 / ⑥ 較正 / ⑧ 性能事前登録を「各新系列の着手時」とする順序は変更しない。同項の理由欄「主経路の現行 pin 系列 (K2 次巡・A-1 sized・凍結 g1) は独立 full OID の driver と旧凍結の保持で影響を受けない」は、**pin 前進前の superproject と対応する submodule・旧契約を固定した checkout (submit-tree) で系列を継続すること、および旧証拠 (較正 record・凍結 protocol・凍結 binary・lock・登録) の bytes を保持すること**についてだけ成立し、**新 main の code でそれらを live 消費すること**には成立しない。次の 2 点を新事実として記録する。
+
+1. `orchestrator/campaign/build_admission.py` の admission policy preimage は `repo_stock_pin = pin.CURRENT_PIN` を含むため、pin 前進で policy sha が `949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44` から `db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a` へ移る。現行 policy を要求する経路 (`s8b_binary_admission` の receipt 照合、`s8b_ratified_freeze` の launch 検証 (`LaunchValidatedFreeze`)、`s8b_floor_campaign` の旧 binary 再利用・resume、`ident` の旧 lock 拒否、`p3_s4_loop` / `paper_story_a1_paired` の policy 束縛) は、旧 policy で admission された binary・lock を新 main から消費できない。独立 full OID (`p3_s4_loop.PIN` 等) は source pin を固定するだけで policy 束縛を免れない。現行 policy に束縛された test の golden (campaign ID・cache key・builder canonical bytes・synthetic receipt) は前回の pin 前進 (T-816) と同型で epoch を 1 段進めた。
+2. `s8b_floor_campaign.resolve_current_floor_protocol()` は新 gitlink の checkout で現行 env 契約の候補が 2 件 (legacy anchor `d706650…` と versioned `511c9538…`) あり head gitlink exact が 0 件になるため fail-closed で raise する。新 pin の successor protocol は AI reseal 経路で発行できる (材料 ⑤、新系列の着手時)。
+
+帰結の書き方は次に固定する: **旧系列 (K2 の巡、A-1 sized v3、凍結 v2 g1 の chain、B-4 床値の旧 binary) を続けるときは、pin 前進前の superproject commit と対応する submodule・旧契約の固定 checkout から走る。新 main へ移行するときは系列ごとに ② (新登録・新 identity) ③ (driver の pin) ⑤ (successor protocol) と source / admission の整合を揃える。** 旧 binary の再 admission だけでは、旧 lock の継続 (identity に policy が入る) も source pin の不一致 (receipt の source commit 照合) も解消しない。
+
+land の順序: 本 wave は tested tip まで完成させ、並行 wave (凍結 v2 g1 の承認 A と active pointer X) の land 完了 tip が local main に含まれることを確認してから、その main を取り込んだ tip の受入を経て land する。待機は policy 問題の解決ではなく「旧 pin + A/X を含む pin 前進前の commit を歴史再開の起点として先に確定する」ための順序である。
+
+**理由:**
+- 相談 2 本 (設計・決定 / 最強の反論、いずれも read-only) が独立に同じ結論に達した: 候補の正しさは否定されていない、稼働中 attempt (固定 submit-tree) は止まらない、今日〜数日で新 main を必要とする測定は名指しできない、一方で並行 wave の残工程 (実 repo の真値・gate-check・受入) に新しい拒否原因を持ち込む危険は具体的。
+- 「裁定へ返す」で止めない (ユーザーの恒久指示 2026-09-14)。新事実は real と認め、承認範囲を維持して続行する理由を明示し、D2150 の逐語は書き換えない。
+- 規律 7: 旧測定・凍結 bytes・当時の判定を保持し、新 main での拒否を過去測定の無効化と読まない。規律 2: policy 照合の除去、resolver の曖昧 fallback、receipt の張り替え、live 経路への `expected_policy=None` の導入は行わない。
+
+**却下した選択肢:**
+- 停止してユーザー再裁定へ返す — DW-S04 / DW-STOP の文面では最も保守的だが、恒久指示の下では事実訂正と順序調整で処理でき、pin 前進を待つ mocc の certified 系列を遅らせる。
+- 並行 wave を待たず今すぐ land — 待ち時間は無くなるが、並行 wave の統合後検証に protocol 解決不能と policy 不一致が加わり、既存の lineage 矛盾との切り分けが増える。
+- policy preimage から `repo_stock_pin` を切り離す — 受理集合と identity の設計変更で、本 wave の範囲外。必要なら別の裁定。
+
+## D2185. 早期 memo prewarm の効果測定は同一 SHA の測定用 opt-out (config 属性経由) で E/L 隣接対を取り、推定対象を成功走の速度差と腕別失敗件数の 2 つに分け、早期起動は現行維持とする (2026-09-20)
+
+**決定:**
+
+1. **測定用の切替は既定 off の opt-out (env の exact token) とし、判定は `pytest_configure` で読んで config 属性に置き、発火判定 (`_early_memo_selected`) は属性だけを見る。** helper が env を直接読む形にすると、synthetic config を使う既存の早期 memo 検査 (`pytest_configure` を通らない) が L 腕の受入で赤になる。属性経由なら両腕とも同一 SHA で既存検査が緑のまま、E 腕 (未設定 / 空) の経路は現行と hunk 単位で同一。E 腕は env を空文字で明示 export し、request の overlay で計算ノード側の残留を消す。切替は main に入れず impl branch に保存する (D2164 決定 3 の型)。
+2. **必要走数は事前に「仮定依存で確定できない」と記録し、判定規則そのもの (Wilcoxon 符号順位 exact 片側 p ≤ 0.05 ∧ 標本中央値 ≥ 探索閾値 15 秒) の検出力を効果 δ・対差 SD σ_d・裾 model の感度表で示したうえで、有効 8 対 (上限 20 走) の固定予算を事前登録する。** 逐次検定・有意になるまでの追加はしない。上限到達時は達成対数で判定し未達と明記する。15 秒は便宜的な探索閾値であり母効果の証明ではない。片側は機序が改善方向を予測することを根拠に事前固定し、両側 p と t を併記する。
+3. **推定対象を 2 つに分ける: (1) 成功走に条件付きの速度差 (隣接有効対の対統計)、(2) 全投入の腕別成功 / 失敗件数と失敗種別。** treatment 固有の失敗 (早期待ちの `memo publication timeout` 型) を無効走として捨てるだけでは E に有利な選択バイアスになるため、失敗走は attempt として全件残し、slot は同順序で取り直し、結論には腕別失敗件数を必ず併記する。失敗を符号上の敗北に数える符号検定は別枠の感度分析とし、対統計に ∞ を混ぜない。
+4. **系列の進行 (次の走番号・slot・腕・締切) は集計器 `--series-state` が唯一の判定主体で、launcher はそれに従うだけにする。** slot 内のどちらかが無効 (単走検算・系列検算とも) なら同 slot を同順序で直ちに取り直す。投入前 abort は走番号を消費せず系列を止める。解析締切 (目標対数到達 or 上限走) の後の走は監査表に残すが対統計・失敗件数・感度分析・結論から除く。走の束縛は SHA・clean・worktree・warm tip・複製 hash・receipt の job 番号 / child_rc / outcome / request 引数・request.json の sha256・junit 時刻の区間で検算する。
+5. **結果: 有効 7 対とも早期起動あり (E) が短く (対差中央値 +33.5 秒、対率 6.9 %、片側 p = 1/128、配布開始の遅れ +25〜+41 秒で機序と整合)。早期起動 (T-2616) は現行 main の挙動として維持する。義務化・launcher の自動検査・追加計装は行わない (D1936 項 35)。** 8 対には未達 (無効 3 走の取り直しで上限 20 走に達した)。
+
+**理由:**
+
+- 早期起動を止める切替が現行コードに無く、既存検査が発火を pin していたため、無条件に止める変異は L 腕の受入自体を赤にした。属性経由の opt-out は同一 SHA の両腕を成立させる最小差分だった。
+- 過去 session (L 経路 122 shard、E 経路 17 shard) からの機序予測 δ ≈ 27 秒に対し、同一 tip 隣接走の対差 SD は 22 秒 (T-2766 の 3 対) で、6 対では検出力 0.76、裾があれば 0.5 前後 — 「何走必要か」は仮定で動くので、確定できないことを記録し固定予算で測るのが正直な設計だった。実測の σ_d は 35.1 秒 (1 対の regime 差が押し上げ) で、7 対で p = 1/128 が出たのは効果が一貫して同方向だったためである。
+- 段 3 相談と段 6 レビューが、E 固有失敗の除外による選択バイアス、系列制御を単走判定で代用する不整合、締切後の走の混入、束縛検算の欠落を指摘し、いずれも結果を見る前に規則へ組み込んだ。
+
+**却下した選択肢:**
+
+- helper が env を直接読む opt-out — 既存の synthetic config 検査が L 腕で赤になる。
+- 別 worktree の revert commit で L 腕を作る — 同一 SHA を破り、pyc warm も 2 本要る。
+- 6 対で「検出力 0.75〜0.87 の必要数」と登録する — 検出力が t 検定の正規近似で判定規則と対応しておらず、σ_d の根拠も 3 対の A/B 差から移植できない (段 3 相談 A2)。
+- E の失敗走を捨てて件数だけ脚注に残す — 今回の treatment 自体が早期待ちの timeout を起こしうるため、成功走だけの推定と運用上の効果を区別できない (A4)。
+- 門番の他 wave 受入待ち手の上限 1 を保つ — 混雑時に 63 分開かず、測定を始められない。投入前に 2 へ緩め、対照は隣接対と同時刻の記述的対照で担保した。
+- 早期起動の義務化・launcher の自動検査 — 依頼と D1936 項 35 の範囲外。現行維持で足りる。

@@ -307,6 +307,20 @@
   (`verbatim-projection-cut-by-heading-not-line-range` / `timestamps-from-date-or-mtime-not-estimation` と同じ族) から変更なし —
   散文の量化 (「すべて」「単調」「別 X」「上」) は書く前に表・record から機械で確かめ、要約文は一次資料の field 名 (`equivalence_relation`
   の値、`execution_host` の有無) で言い直す。段 6 の独立レビューは docs-only でも省かない (`DW-C00`)。
+
+- **再発: 2026-09-20 (near-miss、結果・考察草稿の再導出 wave `dev-wave-paper-results-ja-2026-09-20`)** — 本体論文の結果・考察草稿を
+  09-10 以後の results 稿 15 本から再導出した際、(1) §12 の official floor 案を「未発効」、(2) §6 の検証相の 10 s 未完走の原因を「原因は未確定」と
+  書いた。どちらも論文ストーリー 2026-09-20 版 §6 / §8 と results 稿 (凍結物) の文面からの転写で、起草起点の local main に既に含まれていた
+  当日の worklog entry 1742 (凍結 v2 g1 は承認 A / active pointer X で批准済み、批准 loader は成功、P3 の launch validation は未達) と
+  entry 1744 (未完走 2 型を fixed-5 の保全 trace で同定) を読まずに書いた。数表 15 の数値は稿の表から機械照合 (逐語存在 360 token) で守れたが、
+  **「未」型の状態語は機械照合の射程外**で、段 6 の独立 read-only レビュー (must-fix) が捕まえ、凍結前に「批准と launch validation 未達を分ける」
+  「記録時点では未確定 → 後続で同定、当時の記録・判定集合・extime は不変」へ直した (実害なし。稿・README に残っていない)。
+  同じレビューは、条件の帰属 (S-1a の 324 verify を全部 `legacy` と書いた。実は legacy 306 + s2 18)・集約方法の一律化 (abort 率を「代表 rep 1 点」と
+  書いたが右 tail は 5 反復平均)・実行時刻 (mocc の 4 block を「別時刻」と書いたが軽量 witness の 4 block は同時刻) も捕まえた。転写対象が
+  「二次資料 (版) の状態語と、稿の限定を要約する際の条件の括り」へ広がった顕在化。恒久対応は memory から変更なし — 版・stale 注記は「言い方」の
+  出所に留め、「未発効」「未確定」「未実施」型の状態語は起草前に当日の worklog entry 見出しを全部読んで grep で反証し、稿の限定を要約するときは
+  条件 (検査 mode の内訳・集約方法・実行時刻) を稿の逐語で引く。一次資料から事実を再抽出する docs-only wave に read-only レビュー 1 本を残す
+  規則 (D2148 項 11) の適用例が 1 つ増えた。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -27974,3 +27988,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: `concurrent.futures` の管理 thread は壊れた pool の worker を `Process.terminate()` (SIGTERM) で殺そうとするが、Pegasus の job 配下 (`dispatch_compute.py --task generic`) では子 process が SIGTERM を無視する (別 wave [T-2778] の実測と同じ環境事実) ため殺せず、`join` で永久に待つ。worker が結果 pipe を待って眠るので CPU も進まず、親の rusage だけを見ると「親 CPU が少ない」= 原因不明に見える。上流の記憶量増大 (copy-on-write) は D2181 項 1。
 - 恒久対応: `orchestrator/verifier/parse.py` の `_kill_pool_workers` (SIGKILL) を parse / edge の pool 破綻経路で `shutdown` の前に呼び、部分結果・Future・executor の参照を解放してから全件を逐次再計算する (D2181 項 3)。`orchestrator/tests/test_verifier.py::test_capacity_broken_pool_terminates_workers_and_falls_back` / `::test_capacity_parse_broken_pool_terminates_workers` が SIGTERM 無視 + worker `os._exit` の条件で 120 s 以内の復帰 (fix 前は timeout) を固定する。
 - 再発検知: 計算ノードの profile probe (`/proc/<pid>/stat` の state と `/proc/vmstat` の `oom_kill` の時系列、job dir `run/profile/wh10/samples.jsonl`) で「oom_kill 増分 + 残 worker の S 状態 + node 使用量不変」の 3 点が揃えば同型。dispatch 下で `Popen.terminate()` に頼る終端処理は同じ穴を持つ。
+
+### F1033. gitlink を変える tip の land が、pending fragment があると D16 postcondition で `mutating` の turn ticket を残し、同一要求の再実行と全 wave の land を `unresolved mutating turn` で止めた [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-20 18:22、ccbench pin 前進 wave の land が main を landing tip へ ff した後、設計どおり `landed-postcondition-failed` (D16 post-land submodule synchronization remains required) を返した。main checkout の submodule を新 gitlink へ同期して同一要求を再実行すると rc=27 `unresolved mutating turn: main=<landing tip>, main_before=<前 main>, landing_tip=<landing tip>` になり、以後の他 wave の land も同じ理由で止まる状態になった (18:23〜、親が peer 6 session へ advisory)。
+- 根本原因: turn registry は ff の前に ticket を `mutating` にし、`_finish_land_turn` は `landed-postcondition-failed` を「未解決の mutating」として残す。`_observe_dead_land_turn` の回復は「main == main_before (rolled-back)」「main == landing_tip かつ expected_fold == noop (done)」「main^1 == landing_tip の fold commit (done)」の 3 形しか知らず、**「ff 済み・fold 未開始 (expected_fold = planned)・fold state 無し」を解決できない**。D16 経路の test (`test_gitlink_change_lands_but_cannot_report_success_before_d16_sync`) と dead mutating の test (`ff-done`) はいずれも fragment 無し (noop fold) で書かれており、pending fragment との組合せが代表されていなかった。
+- 恒久対応: `tools/dev_wave_land.py` の `_observe_dead_land_turn` にこの形を「landed-fold-pending」として解決する分岐 (同一要求は `waiting` で already-landed 経路へ進み fold を行う、他要求は dead ticket を `waiting` に書き換えて election を塞がない) と、`_finish_land_turn` で同形を `mutating` に残さない分岐を足し、`orchestrator/tests/test_dev_wave_land.py` に pending fragment 付きの D16 変種と `ff-done-fold-pending` 観測 test、不明な mutating が従来どおり raise する負例を固定した (本 wave の fix commit、insight `output/insights/2026-09-20/t2304-pin-advance/README.md` §6)。
+- 再発検知: 上記 test 3 本 (pending fragment 付き D16 の同一要求再実行が `landed` + fold commit、後続要求が塞がれない、不明形は raise)。
