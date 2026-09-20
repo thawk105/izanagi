@@ -1,6 +1,16 @@
-# 本体論文 (日本語) の結果・考察草稿の再導出 (2026-09-20 版) — 09-10 の前稿を supersede し、09-10 以後の results 稿 15 本 (単独稿 13 + B-7 併記稿 2) と図 fig4〜fig12・fig8b を主張ごとに束ねた (docs のみ、台帳 ID 未起票の新規執筆依頼)
+# 本体論文 (日本語) の結果・考察草稿の再導出 (2026-09-20 版) — 09-10 の前稿を supersede し、09-10 以後の results 稿 15 本 (単独稿 13 + B-7 併記稿 2) と図 fig4〜fig12・fig8b を主張ごとに束ねた (docs のみ、台帳 ID 未起票の新規執筆依頼) — **2026-09-21 版に supersede された**
 
 authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾と現行 phase doc)
+
+## 前方 pointer (2026-09-21 に追加)
+
+- **本 dir の `results-discussion.md` (2026-09-20 版、worklog entry 1750) は、2026-09-21 に
+  `output/insights/2026-09-21/paper-results-ja/results-discussion.md` (2026-09-21 版) に置き換えられた (supersede)。** 本稿の bytes は変えない (凍結)。
+  新版は本稿の骨格 (12 節・表 15) と本文を継承し、本稿の採用時点 (`482f19b88`) より後に main へ着地した事実のうち本稿の記述に触るものだけを
+  現在地へ揃えた — A-1 sized の attempt-0002 (認可済み独立再現、entry 1755) の完走と登録済み解析の出力 (本稿 §5 / §12 が「gate 拒否・測定値なし」と
+  書く箇所は執筆時点では真であり、新版 §5 の表 7b に attempt-0001 稿と並記、プールしない)、K2 同 job pair の初投入と不成立 (D2187)、B-10 待ち方 grid の
+  結果図 fig13、B-8 事前登録 v1 の試走認可と発効前試走 (D2186 / D2190)、K2 3 巡の campaign 原本の消失 (F1034) の provenance 注記。
+- 執筆材料には新版を使い、本稿は当時の採用時点の記録として残す。本 README の以下の節は 2026-09-20 版の wave の記録であり、変えていない。
 
 - 成果物: `results-discussion.md` (本 dir)。**前稿 `output/insights/2026-09-10/paper-results-ja/results-discussion.md` (worklog entry 1436) を
   supersede する。前稿の bytes は変えず、前稿 dir に前方 pointer の `README.md` を新規に置いた。**

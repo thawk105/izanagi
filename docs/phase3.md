@@ -18,6 +18,14 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 本体論文の日本語結果・考察草稿を 2026-09-21 版として更新し (09-20 の前稿 entry 1750 を supersede)、要旨・結論の草稿を
+  新規起草した (2026-09-21 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-21/paper-results-ja/results-discussion.md`
+  は A-1 sized attempt-0002 (認可済み独立再現、entry 1755) の登録済み解析の出力を凍結稿の表の逐語で attempt-0001 と並記し (プールしない、
+  充足・formal 化・再現は判定しない)、採用時点 `285477c00` までに動いた状態語 4 件 (K2 pair 初投入の不成立、fig13、B-8 の試走認可と
+  発効前試走、K2 原本消失の provenance 注記) を最小限に揃えた。`output/insights/2026-09-21/paper-abstract-conclusion-ja/{abstract,conclusion}.md`
+  は story 2026-09-20b 版 §6 + README stale 注記 5 件と 4 稿から起草し、数値は稿の表の逐語、状態語は D 台帳、位置づけは 1 文の逐語引用だけ。
+  前稿本文・版・凍結物は不変 (前稿 dir の README に前方 pointer を追記)。文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
+
 - [x] 本体論文の日本語関連研究節を新規起草した (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。
   `output/insights/2026-09-20/paper-related-work-ja/related-work.md`。正典 `docs/related-work/README.md` と
   `claim-survey/` の範囲だけで書き (新規の文献取得は 0 件、D1760 / D1931 の停止を「調査不要」へ広げない)、差別化の核 3 点
