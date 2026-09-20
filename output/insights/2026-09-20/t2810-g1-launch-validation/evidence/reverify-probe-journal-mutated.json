@@ -1,0 +1,25 @@
+{
+ "root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2810-g1-launch-validation",
+ "loader": {
+  "ok": true,
+  "generation_number": 1,
+  "sha256": "7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06",
+  "generation_commit": "32ba8cae45001697f050bee377413153e6d798a5",
+  "activation_head": "6a3e1580903434c734f050ed31738ade76d187e9",
+  "elapsed_s": 19.56
+ },
+ "reverify_published_freeze": {
+  "ok": false,
+  "reason": "binding-chain-mismatch",
+  "cause": "generation-introduction",
+  "detail": "[binding-chain-mismatch] output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json の introduction set != {G}",
+  "elapsed_s": 11.61
+ },
+ "launch_validate": {
+  "ok": false,
+  "reason": "manifest-invalid",
+  "cause": "binary-admission",
+  "detail": "[manifest-invalid] binaries[rr20::backoff_fixed_best] admission receipt が不正: receipt admission policy が現行 policy と不一致",
+  "elapsed_s": 0.3
+ }
+}

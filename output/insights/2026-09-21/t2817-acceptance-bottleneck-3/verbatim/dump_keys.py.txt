@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import json, sys
+a = json.load(open(sys.argv[1]))
+for k in a["keys"]:
+    if isinstance(k, dict):
+        row = {}
+        for kk, vv in k.items():
+            if kk in ("key", "builder_worker", "build", "copy", "git", "issue", "other", "waiters", "flock", "build_begin_epoch", "begin_epoch"):
+                row[kk] = round(vv, 1) if isinstance(vv, float) else vv
+        print(row)
+    else:
+        print(k)
+print("shard:", {kk: (round(vv, 2) if isinstance(vv, float) else vv) for kk, vv in a["shard"].items() if kk not in ("worker_occupancy", "L_item")})

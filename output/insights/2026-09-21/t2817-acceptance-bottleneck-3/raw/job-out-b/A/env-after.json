@@ -1,0 +1,32 @@
+{
+  "epoch": 1789923858.8242419,
+  "loadavg": [
+    7.39013671875,
+    13.64697265625,
+    7.99853515625
+  ],
+  "others": 0,
+  "stale_pytest": 0,
+  "other_processes": [],
+  "stale_pytest_processes": [],
+  "system_users_excluded": [
+    "bin",
+    "chrony",
+    "daemon",
+    "dbus",
+    "mail",
+    "nobody",
+    "nscd",
+    "ntp",
+    "postfix",
+    "root",
+    "rpc",
+    "rpcuser",
+    "sshd",
+    "sync",
+    "sys"
+  ],
+  "residues": [
+    "/tmp/t2817b-92lojivl/tmp/izanagi-t080-e2e-session-3d246cd554d1000a0505e012161913f92f7a32d56ed59182e931987afc43c78c"
+  ]
+}

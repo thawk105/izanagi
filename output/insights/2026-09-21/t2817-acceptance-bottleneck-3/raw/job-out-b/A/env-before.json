@@ -1,0 +1,30 @@
+{
+  "epoch": 1789923504.0420878,
+  "loadavg": [
+    0.4931640625,
+    0.53564453125,
+    0.82470703125
+  ],
+  "others": 0,
+  "stale_pytest": 0,
+  "other_processes": [],
+  "stale_pytest_processes": [],
+  "system_users_excluded": [
+    "bin",
+    "chrony",
+    "daemon",
+    "dbus",
+    "mail",
+    "nobody",
+    "nscd",
+    "ntp",
+    "postfix",
+    "root",
+    "rpc",
+    "rpcuser",
+    "sshd",
+    "sync",
+    "sys"
+  ],
+  "residues": []
+}

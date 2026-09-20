@@ -1,0 +1,7 @@
+02:09:15 gate: load=4.40/4.83/4.88 leaders=0 workers=4 pigz=0 (cond leaders<=1 l1<=60 pigz<=2)
+02:11:26 gate: load=2.92/4.16/4.63 leaders=0 workers=8 pigz=0 (cond leaders<=1 l1<=60 pigz<=2)
+02:11:26 gate open twice -> jitter 42s then recount
+02:12:08 gate: load=4.24/4.33/4.67 leaders=0 workers=8 pigz=0 (cond leaders<=1 l1<=60 pigz<=2)
+02:12:08 attempt 1: tip=2afb3976822dc0e3d8591c139f6ab607278b9276 main=b880449bbbbc7c986d0b512b551c1ccc4ed8bba8
+02:23:47 attempt 1: rc=0 tip-after=9ad14946ee00b53dc78ccc9917a12c1afdd85a23
+02:23:47 child-green with receipt -> stop

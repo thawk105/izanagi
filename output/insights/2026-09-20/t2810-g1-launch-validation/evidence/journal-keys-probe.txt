@@ -1,0 +1,15 @@
+records: 213
+first 6: [(0, 'launch-start'), (1, 'reservation-preflight'), (2, 'perf-preflight'), (3, 'campaign-start'), (4, 'round-start'), (5, 'session-start')]
+launch-start: n_variants=1 status=OK
+reservation-preflight: n_variants=1 status=UNKNOWN
+   actual  : ['build_cap_per_cell_s', 'dependency_configure_cap_s', 'dependency_target_cap_s', 'event', 'finalize_reserve_s', 'formula', 'pbs_jobid', 'required_s', 'safety_margin_s', 'shared_dependency_prebuild', 'submission_nonce', 'verify_cap_per_attempt_s']
+   expected: None
+perf-preflight: n_variants=1 status=OK
+campaign-start: n_variants=1 status=KEYSET-DIFF
+   actual  : ['boot_id', 'cpuset', 'event', 'execution_receipt', 'execution_uuid', 'freeze_sha256', 'hostname', 'job_id', 'launch_certificate_sha256', 'manifest_sha256', 'pbs_jobid', 'pid', 'protocol_sha256', 'schema', 'starttime', 'submission_nonce', 'utc']
+   expected: ['boot_id', 'cpuset', 'event', 'execution_receipt', 'execution_uuid', 'freeze_sha256', 'hostname', 'job_id', 'launch_certificate_sha256', 'manifest_sha256', 'pid', 'protocol_sha256', 'schema', 'starttime', 'utc']
+round-start: n_variants=1 status=OK
+session-start: n_variants=1 status=OK
+session: n_variants=1 status=OK
+round-complete: n_variants=1 status=OK
+terminal-completed: n_variants=1 status=OK

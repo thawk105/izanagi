@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""read_shards_v1 の拡張: pairing session の shard-0 について L の worker の占有 (O_L) と
+その worker の item 一覧 (上位 3)、開始前 / 終了後の区間を出す (read-only)。"""
+import json, re, sys
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from pathlib import Path
+ROOT = Path("/work/1/SFC/tanab/.izanagi-acceptance-shards")
+LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+def sessions():
+    d=[x for x in ROOT.iterdir() if x.is_dir()]; d.sort(key=lambda x:x.stat().st_mtime, reverse=True); return d[:LIMIT]
+def junit_items(path):
+    items=[]; attrs=None
+    for _e,el in ET.iterparse(path, events=("end",)):
+        if el.tag=="testsuite" and attrs is None:
+            attrs=dict(el.attrib)
+        if el.tag=="testcase":
+            w=None; rank=None; partner=None
+            for p in el.iter("property"):
+                n=p.get("name","")
+                if n=="izanagi_acceptance_pairing_v1_worker": w=p.get("value")
+                elif n=="izanagi_acceptance_pairing_v1_rank": rank=p.get("value")
+                elif n=="izanagi_acceptance_pairing_v1_partner": partner=p.get("value")
+            items.append((float(el.get("time") or 0.0), el.get("classname","")+"::"+el.get("name",""), w, rank, partner))
+            el.clear()
+    return attrs, items
+out=[]
+for s in sessions():
+    sh=s/"shard-0"
+    if not (sh/"report.json").is_file() or not (sh/"junit.xml").is_file(): continue
+    r=json.load(open(sh/"report.json"))
+    attrs,items=junit_items(sh/"junit.xml")
+    if not any(i[2] for i in items): continue  # pairing property 無し
+    t0=datetime.fromisoformat(attrs["timestamp"]).timestamp()
+    W=float(attrs["time"]); st=r["session_timeline"]; cf=st["collection_finished_epoch_s"]
+    workers=st["workers"]
+    occ=r["worker_occupancy"]
+    L,Lnode,Lw,Lrank,Lpartner=max(items,key=lambda i:i[0])
+    by_w={}
+    for it in items: by_w.setdefault(it[2],[]).append(it)
+    lw_items=sorted(by_w.get(Lw,[]),key=lambda i:-i[0])
+    O_L=occ.get(Lw,{}).get("duration_s")
+    Omax_w,Omax=max(((k,v["duration_s"]) for k,v in occ.items()),key=lambda kv:kv[1])
+    first=min(v["first_test_started_epoch_s"] for v in workers.values() if v.get("first_test_started_epoch_s"))
+    last=max(v["last_test_finished_epoch_s"] for v in workers.values() if v.get("last_test_finished_epoch_s"))
+    out.append(dict(session=s.name[:8], host=attrs.get("hostname"), ts=attrs["timestamp"][5:19], W=W, pre=cf-t0, gap_cf_first=first-cf, post=(t0+W)-last,
+        O_max=Omax, O_max_w=Omax_w, O_L=O_L, L=L, L_w=Lw, L_rank=Lrank, P_L=(O_L-L) if O_L else None,
+        Lw_items=[(round(i[0],1), i[1].replace("orchestrator.tests.","")[:55], i[3]) for i in lw_items[:3]], n_Lw=len(lw_items),
+        Omax_items=[(round(i[0],1), i[1].replace("orchestrator.tests.","")[:55], i[3]) for i in sorted(by_w.get(Omax_w,[]),key=lambda i:-i[0])[:3]]))
+json.dump(out, sys.stdout, ensure_ascii=False, indent=1); print()

@@ -1,0 +1,1566 @@
+{
+ "per_node": {
+  "test_t080_active_v2_delegation_accepts_full_receipt": {
+   "n": 21,
+   "median": 193.5,
+   "min": 179.9,
+   "max": 333.3
+  },
+  "test_t080_active_v2_preserves_nonlayer2_receipt_refusal": {
+   "n": 21,
+   "median": 185.9,
+   "min": 144.4,
+   "max": 334.4
+  },
+  "test_t080_delegated_campaign_start_rechecks_receipt[changed]": {
+   "n": 21,
+   "median": 36.9,
+   "min": 34.8,
+   "max": 331.3
+  },
+  "test_t080_delegated_campaign_start_rechecks_receipt[missing]": {
+   "n": 21,
+   "median": 182.0,
+   "min": 36.2,
+   "max": 319.2
+  },
+  "test_t080_delegated_campaign_start_rejects_late_hit_file": {
+   "n": 21,
+   "median": 188.3,
+   "min": 40.1,
+   "max": 337.8
+  },
+  "test_t080_failed_launch_preserves_receipt_refusal": {
+   "n": 21,
+   "median": 46.2,
+   "min": 45.2,
+   "max": 278.8
+  },
+  "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity": {
+   "n": 21,
+   "median": 0.0,
+   "min": 0.0,
+   "max": 0.0
+  },
+  "test_v1_gate_does_not_delegate_with_active_v2": {
+   "n": 21,
+   "median": 39.2,
+   "min": 38.0,
+   "max": 337.6
+  }
+ },
+ "rows": [
+  {
+   "session": "b292af15",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw35",
+   "rank": "422",
+   "worker_items": 13,
+   "worker_sum": 284.9
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 184.052,
+   "worker": "gw35",
+   "rank": "423",
+   "worker_items": 13,
+   "worker_sum": 284.9
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 186.421,
+   "worker": "gw33",
+   "rank": "428",
+   "worker_items": 4,
+   "worker_sum": 278.5
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 191.461,
+   "worker": "gw32",
+   "rank": "430",
+   "worker_items": 43,
+   "worker_sum": 261.3
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 185.878,
+   "worker": "gw44",
+   "rank": "427",
+   "worker_items": 81,
+   "worker_sum": 243.2
+  },
+  {
+   "session": "b292af15",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 39.04,
+   "worker": "gw47",
+   "rank": "426",
+   "worker_items": 30,
+   "worker_sum": 277.7
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.844,
+   "worker": "gw35",
+   "rank": "424",
+   "worker_items": 13,
+   "worker_sum": 284.9
+  },
+  {
+   "session": "b292af15",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.558,
+   "worker": "gw33",
+   "rank": "429",
+   "worker_items": 4,
+   "worker_sum": 278.5
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 319.168,
+   "worker": "gw44",
+   "rank": "423",
+   "worker_items": 29,
+   "worker_sum": 441.2
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw43",
+   "rank": "422",
+   "worker_items": 28,
+   "worker_sum": 553.5
+  },
+  {
+   "session": "29430742",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 324.644,
+   "worker": "gw43",
+   "rank": "426",
+   "worker_items": 28,
+   "worker_sum": 553.5
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 326.185,
+   "worker": "gw42",
+   "rank": "430",
+   "worker_items": 28,
+   "worker_sum": 416.4
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 319.178,
+   "worker": "gw37",
+   "rank": "429",
+   "worker_items": 48,
+   "worker_sum": 398.4
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 37.351,
+   "worker": "gw45",
+   "rank": "428",
+   "worker_items": 8,
+   "worker_sum": 432.2
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 46.184,
+   "worker": "gw44",
+   "rank": "424",
+   "worker_items": 29,
+   "worker_sum": 441.2
+  },
+  {
+   "session": "29430742",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 153.112,
+   "worker": "gw43",
+   "rank": "427",
+   "worker_items": 28,
+   "worker_sum": 553.5
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw36",
+   "rank": "422",
+   "worker_items": 19,
+   "worker_sum": 277.0
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 194.791,
+   "worker": "gw35",
+   "rank": "424",
+   "worker_items": 18,
+   "worker_sum": 286.3
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 185.489,
+   "worker": "gw33",
+   "rank": "429",
+   "worker_items": 4,
+   "worker_sum": 283.1
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 181.536,
+   "worker": "gw47",
+   "rank": "423",
+   "worker_items": 35,
+   "worker_sum": 237.6
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 149.254,
+   "worker": "gw29",
+   "rank": "427",
+   "worker_items": 4,
+   "worker_sum": 203.7
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.978,
+   "worker": "gw36",
+   "rank": "426",
+   "worker_items": 19,
+   "worker_sum": 277.0
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 42.436,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 4,
+   "worker_sum": 283.1
+  },
+  {
+   "session": "e637a58c",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.937,
+   "worker": "gw35",
+   "rank": "428",
+   "worker_items": 18,
+   "worker_sum": 286.3
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 193.524,
+   "worker": "gw32",
+   "rank": "423",
+   "worker_items": 145,
+   "worker_sum": 293.1
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw36",
+   "rank": "422",
+   "worker_items": 16,
+   "worker_sum": 286.6
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 195.25,
+   "worker": "gw37",
+   "rank": "427",
+   "worker_items": 32,
+   "worker_sum": 287.0
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 193.045,
+   "worker": "gw35",
+   "rank": "429",
+   "worker_items": 33,
+   "worker_sum": 247.8
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 197.657,
+   "worker": "gw47",
+   "rank": "430",
+   "worker_items": 25,
+   "worker_sum": 254.0
+  },
+  {
+   "session": "daa50127",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 39.614,
+   "worker": "gw36",
+   "rank": "426",
+   "worker_items": 16,
+   "worker_sum": 286.6
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 46.165,
+   "worker": "gw32",
+   "rank": "424",
+   "worker_items": 145,
+   "worker_sum": 293.1
+  },
+  {
+   "session": "daa50127",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.921,
+   "worker": "gw37",
+   "rank": "428",
+   "worker_items": 32,
+   "worker_sum": 287.0
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw47",
+   "rank": "422",
+   "worker_items": 9,
+   "worker_sum": 295.5
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 191.024,
+   "worker": "gw47",
+   "rank": "423",
+   "worker_items": 9,
+   "worker_sum": 295.5
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 194.23,
+   "worker": "gw37",
+   "rank": "427",
+   "worker_items": 24,
+   "worker_sum": 291.4
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 193.689,
+   "worker": "gw33",
+   "rank": "429",
+   "worker_items": 9,
+   "worker_sum": 294.8
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 195.926,
+   "worker": "gw45",
+   "rank": "426",
+   "worker_items": 9,
+   "worker_sum": 268.8
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.335,
+   "worker": "gw47",
+   "rank": "424",
+   "worker_items": 9,
+   "worker_sum": 295.5
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 41.726,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 9,
+   "worker_sum": 294.8
+  },
+  {
+   "session": "4e63a0b3",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.837,
+   "worker": "gw37",
+   "rank": "428",
+   "worker_items": 24,
+   "worker_sum": 291.4
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw43",
+   "rank": "422",
+   "worker_items": 8,
+   "worker_sum": 333.3
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 228.067,
+   "worker": "gw43",
+   "rank": "423",
+   "worker_items": 8,
+   "worker_sum": 333.3
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 239.706,
+   "worker": "gw36",
+   "rank": "424",
+   "worker_items": 16,
+   "worker_sum": 350.6
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 230.693,
+   "worker": "gw37",
+   "rank": "427",
+   "worker_items": 56,
+   "worker_sum": 340.5
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 230.654,
+   "worker": "gw40",
+   "rank": "429",
+   "worker_items": 17,
+   "worker_sum": 345.1
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 37.68,
+   "worker": "gw37",
+   "rank": "428",
+   "worker_items": 56,
+   "worker_sum": 340.5
+  },
+  {
+   "session": "408dd532",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 42.663,
+   "worker": "gw40",
+   "rank": "430",
+   "worker_items": 17,
+   "worker_sum": 345.1
+  },
+  {
+   "session": "408dd532",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 39.213,
+   "worker": "gw36",
+   "rank": "426",
+   "worker_items": 16,
+   "worker_sum": 350.6
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw34",
+   "rank": "422",
+   "worker_items": 16,
+   "worker_sum": 277.8
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 182.535,
+   "worker": "gw34",
+   "rank": "423",
+   "worker_items": 16,
+   "worker_sum": 277.8
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 181.958,
+   "worker": "gw36",
+   "rank": "428",
+   "worker_items": 43,
+   "worker_sum": 233.8
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 181.962,
+   "worker": "gw37",
+   "rank": "429",
+   "worker_items": 77,
+   "worker_sum": 233.9
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 188.406,
+   "worker": "gw35",
+   "rank": "430",
+   "worker_items": 7,
+   "worker_sum": 243.2
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 148.062,
+   "worker": "gw29",
+   "rank": "427",
+   "worker_items": 4,
+   "worker_sum": 199.3
+  },
+  {
+   "session": "026f448e",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 39.182,
+   "worker": "gw32",
+   "rank": "426",
+   "worker_items": 116,
+   "worker_sum": 271.0
+  },
+  {
+   "session": "026f448e",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.869,
+   "worker": "gw34",
+   "rank": "424",
+   "worker_items": 16,
+   "worker_sum": 277.8
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 194.72,
+   "worker": "gw42",
+   "rank": "423",
+   "worker_items": 110,
+   "worker_sum": 298.6
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw32",
+   "rank": "422",
+   "worker_items": 48,
+   "worker_sum": 294.0
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 197.622,
+   "worker": "gw32",
+   "rank": "428",
+   "worker_items": 48,
+   "worker_sum": 294.0
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 196.483,
+   "worker": "gw14",
+   "rank": "427",
+   "worker_items": 35,
+   "worker_sum": 297.5
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.783,
+   "worker": "gw47",
+   "rank": "426",
+   "worker_items": 7,
+   "worker_sum": 291.2
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.988,
+   "worker": "gw42",
+   "rank": "424",
+   "worker_items": 110,
+   "worker_sum": 298.6
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 41.763,
+   "worker": "gw14",
+   "rank": "430",
+   "worker_items": 35,
+   "worker_sum": 297.5
+  },
+  {
+   "session": "7d7bdcff",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 37.192,
+   "worker": "gw32",
+   "rank": "429",
+   "worker_items": 48,
+   "worker_sum": 294.0
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw33",
+   "rank": "422",
+   "worker_items": 65,
+   "worker_sum": 320.3
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 201.489,
+   "worker": "gw33",
+   "rank": "423",
+   "worker_items": 65,
+   "worker_sum": 320.3
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 205.73,
+   "worker": "gw37",
+   "rank": "426",
+   "worker_items": 16,
+   "worker_sum": 427.5
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 205.643,
+   "worker": "gw36",
+   "rank": "430",
+   "worker_items": 43,
+   "worker_sum": 295.9
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 202.476,
+   "worker": "gw44",
+   "rank": "429",
+   "worker_items": 65,
+   "worker_sum": 279.8
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.587,
+   "worker": "gw40",
+   "rank": "428",
+   "worker_items": 25,
+   "worker_sum": 312.5
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.294,
+   "worker": "gw33",
+   "rank": "424",
+   "worker_items": 65,
+   "worker_sum": 320.3
+  },
+  {
+   "session": "2770dc5f",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 145.938,
+   "worker": "gw37",
+   "rank": "427",
+   "worker_items": 16,
+   "worker_sum": 427.5
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 333.293,
+   "worker": "gw43",
+   "rank": "423",
+   "worker_items": 42,
+   "worker_sum": 464.5
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 337.589,
+   "worker": "gw37",
+   "rank": "426",
+   "worker_items": 15,
+   "worker_sum": 464.4
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 334.361,
+   "worker": "gw47",
+   "rank": "427",
+   "worker_items": 8,
+   "worker_sum": 422.4
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 337.672,
+   "worker": "gw46",
+   "rank": "430",
+   "worker_items": 16,
+   "worker_sum": 428.4
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw36",
+   "rank": "422",
+   "worker_items": 246,
+   "worker_sum": 231.4
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.878,
+   "worker": "gw0",
+   "rank": "428",
+   "worker_items": 66,
+   "worker_sum": 450.0
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 46.336,
+   "worker": "gw43",
+   "rank": "424",
+   "worker_items": 42,
+   "worker_sum": 464.5
+  },
+  {
+   "session": "721a2e80",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.907,
+   "worker": "gw37",
+   "rank": "429",
+   "worker_items": 15,
+   "worker_sum": 464.4
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 187.937,
+   "worker": "gw46",
+   "rank": "423",
+   "worker_items": 43,
+   "worker_sum": 290.1
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw44",
+   "rank": "422",
+   "worker_items": 37,
+   "worker_sum": 282.5
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 187.399,
+   "worker": "gw33",
+   "rank": "428",
+   "worker_items": 8,
+   "worker_sum": 285.2
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 187.39,
+   "worker": "gw47",
+   "rank": "429",
+   "worker_items": 129,
+   "worker_sum": 258.4
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 149.631,
+   "worker": "gw40",
+   "rank": "427",
+   "worker_items": 10,
+   "worker_sum": 216.9
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.891,
+   "worker": "gw44",
+   "rank": "426",
+   "worker_items": 37,
+   "worker_sum": 282.5
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.362,
+   "worker": "gw46",
+   "rank": "424",
+   "worker_items": 43,
+   "worker_sum": 290.1
+  },
+  {
+   "session": "83d3c964",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 40.118,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 8,
+   "worker_sum": 285.2
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 331.637,
+   "worker": "gw43",
+   "rank": "423",
+   "worker_items": 24,
+   "worker_sum": 452.5
+  },
+  {
+   "session": "28509d29",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 335.585,
+   "worker": "gw40",
+   "rank": "426",
+   "worker_items": 15,
+   "worker_sum": 464.3
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 331.263,
+   "worker": "gw47",
+   "rank": "428",
+   "worker_items": 38,
+   "worker_sum": 434.1
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 332.295,
+   "worker": "gw44",
+   "rank": "427",
+   "worker_items": 29,
+   "worker_sum": 422.1
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 337.812,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 42,
+   "worker_sum": 429.5
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw41",
+   "rank": "422",
+   "worker_items": 384,
+   "worker_sum": 289.7
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 254.261,
+   "worker": "gw37",
+   "rank": "424",
+   "worker_items": 14,
+   "worker_sum": 437.7
+  },
+  {
+   "session": "28509d29",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.3,
+   "worker": "gw40",
+   "rank": "429",
+   "worker_items": 15,
+   "worker_sum": 464.3
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw41",
+   "rank": "422",
+   "worker_items": 8,
+   "worker_sum": 287.7
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 179.872,
+   "worker": "gw41",
+   "rank": "423",
+   "worker_items": 8,
+   "worker_sum": 287.7
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 181.501,
+   "worker": "gw40",
+   "rank": "427",
+   "worker_items": 24,
+   "worker_sum": 280.0
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 184.717,
+   "worker": "gw14",
+   "rank": "430",
+   "worker_items": 9,
+   "worker_sum": 263.6
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 88.05,
+   "worker": "gw0",
+   "rank": "429",
+   "worker_items": 61,
+   "worker_sum": 166.6
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.171,
+   "worker": "gw41",
+   "rank": "424",
+   "worker_items": 8,
+   "worker_sum": 287.7
+  },
+  {
+   "session": "808646bf",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.864,
+   "worker": "gw32",
+   "rank": "426",
+   "worker_items": 57,
+   "worker_sum": 281.5
+  },
+  {
+   "session": "808646bf",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 34.804,
+   "worker": "gw40",
+   "rank": "428",
+   "worker_items": 24,
+   "worker_sum": 280.0
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw43",
+   "rank": "422",
+   "worker_items": 92,
+   "worker_sum": 355.7
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 242.328,
+   "worker": "gw43",
+   "rank": "423",
+   "worker_items": 92,
+   "worker_sum": 355.7
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 243.644,
+   "worker": "gw42",
+   "rank": "427",
+   "worker_items": 26,
+   "worker_sum": 349.6
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 245.681,
+   "worker": "gw45",
+   "rank": "426",
+   "worker_items": 45,
+   "worker_sum": 351.3
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 245.867,
+   "worker": "gw37",
+   "rank": "430",
+   "worker_items": 22,
+   "worker_sum": 319.6
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.616,
+   "worker": "gw43",
+   "rank": "424",
+   "worker_items": 92,
+   "worker_sum": 355.7
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.646,
+   "worker": "gw42",
+   "rank": "428",
+   "worker_items": 26,
+   "worker_sum": 349.6
+  },
+  {
+   "session": "0f973e64",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.231,
+   "worker": "gw45",
+   "rank": "429",
+   "worker_items": 45,
+   "worker_sum": 351.3
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 265.926,
+   "worker": "gw40",
+   "rank": "423",
+   "worker_items": 12,
+   "worker_sum": 486.6
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 277.642,
+   "worker": "gw42",
+   "rank": "424",
+   "worker_items": 48,
+   "worker_sum": 388.4
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 270.433,
+   "worker": "gw36",
+   "rank": "426",
+   "worker_items": 10,
+   "worker_sum": 360.9
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 273.467,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 30,
+   "worker_sum": 351.7
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw43",
+   "rank": "422",
+   "worker_items": 14,
+   "worker_sum": 146.3
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 144.537,
+   "worker": "gw40",
+   "rank": "427",
+   "worker_items": 12,
+   "worker_sum": 486.6
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.514,
+   "worker": "gw44",
+   "rank": "428",
+   "worker_items": 70,
+   "worker_sum": 376.8
+  },
+  {
+   "session": "0a32f822",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.268,
+   "worker": "gw42",
+   "rank": "429",
+   "worker_items": 48,
+   "worker_sum": 388.4
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw43",
+   "rank": "422",
+   "worker_items": 82,
+   "worker_sum": 284.0
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 196.152,
+   "worker": "gw43",
+   "rank": "424",
+   "worker_items": 82,
+   "worker_sum": 284.0
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 189.22,
+   "worker": "gw33",
+   "rank": "426",
+   "worker_items": 4,
+   "worker_sum": 389.2
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 184.08,
+   "worker": "gw40",
+   "rank": "423",
+   "worker_items": 10,
+   "worker_sum": 276.4
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 191.27,
+   "worker": "gw14",
+   "rank": "430",
+   "worker_items": 13,
+   "worker_sum": 249.4
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 186.169,
+   "worker": "gw45",
+   "rank": "429",
+   "worker_items": 8,
+   "worker_sum": 244.9
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.943,
+   "worker": "gw40",
+   "rank": "428",
+   "worker_items": 10,
+   "worker_sum": 276.4
+  },
+  {
+   "session": "9ef5b469",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 145.399,
+   "worker": "gw33",
+   "rank": "427",
+   "worker_items": 4,
+   "worker_sum": 389.2
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 190.636,
+   "worker": "gw47",
+   "rank": "423",
+   "worker_items": 34,
+   "worker_sum": 281.2
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw37",
+   "rank": "422",
+   "worker_items": 110,
+   "worker_sum": 398.3
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 195.84,
+   "worker": "gw37",
+   "rank": "426",
+   "worker_items": 110,
+   "worker_sum": 398.3
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 193.902,
+   "worker": "gw42",
+   "rank": "428",
+   "worker_items": 8,
+   "worker_sum": 288.1
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 201.895,
+   "worker": "gw36",
+   "rank": "424",
+   "worker_items": 27,
+   "worker_sum": 301.1
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.727,
+   "worker": "gw42",
+   "rank": "429",
+   "worker_items": 8,
+   "worker_sum": 288.1
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 144.362,
+   "worker": "gw37",
+   "rank": "427",
+   "worker_items": 110,
+   "worker_sum": 398.3
+  },
+  {
+   "session": "72c6a7ca",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 40.972,
+   "worker": "gw36",
+   "rank": "430",
+   "worker_items": 27,
+   "worker_sum": 301.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 278.756,
+   "worker": "gw43",
+   "rank": "424",
+   "worker_items": 26,
+   "worker_sum": 393.0
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw44",
+   "rank": "422",
+   "worker_items": 55,
+   "worker_sum": 382.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 269.344,
+   "worker": "gw44",
+   "rank": "427",
+   "worker_items": 55,
+   "worker_sum": 382.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 266.374,
+   "worker": "gw33",
+   "rank": "423",
+   "worker_items": 25,
+   "worker_sum": 384.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 41.394,
+   "worker": "gw33",
+   "rank": "430",
+   "worker_items": 25,
+   "worker_sum": 384.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 37.184,
+   "worker": "gw37",
+   "rank": "429",
+   "worker_items": 10,
+   "worker_sum": 381.4
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 37.093,
+   "worker": "gw44",
+   "rank": "428",
+   "worker_items": 55,
+   "worker_sum": 382.1
+  },
+  {
+   "session": "c895e77d",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.363,
+   "worker": "gw43",
+   "rank": "426",
+   "worker_items": 26,
+   "worker_sum": 393.0
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.004,
+   "worker": "gw44",
+   "rank": "420",
+   "worker_items": 37,
+   "worker_sum": 327.0
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 223.156,
+   "worker": "gw44",
+   "rank": "421",
+   "worker_items": 37,
+   "worker_sum": 327.0
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 224.786,
+   "worker": "gw43",
+   "rank": "425",
+   "worker_items": 40,
+   "worker_sum": 320.5
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 225.066,
+   "worker": "gw46",
+   "rank": "426",
+   "worker_items": 12,
+   "worker_sum": 327.3
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.704,
+   "worker": "gw47",
+   "rank": "424",
+   "worker_items": 8,
+   "worker_sum": 319.8
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 45.799,
+   "worker": "gw44",
+   "rank": "422",
+   "worker_items": 37,
+   "worker_sum": 327.0
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 36.846,
+   "worker": "gw43",
+   "rank": "427",
+   "worker_items": 40,
+   "worker_sum": 320.5
+  },
+  {
+   "session": "fd6825ad",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 41.838,
+   "worker": "gw46",
+   "rank": "428",
+   "worker_items": 12,
+   "worker_sum": 327.3
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 203.51,
+   "worker": "gw47",
+   "rank": "376",
+   "worker_items": 8,
+   "worker_sum": 283.1
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 191.797,
+   "worker": "gw14",
+   "rank": "375",
+   "worker_items": 29,
+   "worker_sum": 277.3
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw44",
+   "rank": "374",
+   "worker_items": 32,
+   "worker_sum": 278.2
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 194.623,
+   "worker": "gw44",
+   "rank": "379",
+   "worker_items": 32,
+   "worker_sum": 278.2
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 190.966,
+   "worker": "gw46",
+   "rank": "381",
+   "worker_items": 8,
+   "worker_sum": 255.4
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 153.04,
+   "worker": "gw41",
+   "rank": "382",
+   "worker_items": 6,
+   "worker_sum": 247.9
+  },
+  {
+   "session": "29a24093",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.032,
+   "worker": "gw14",
+   "rank": "378",
+   "worker_items": 29,
+   "worker_sum": 277.3
+  },
+  {
+   "session": "29a24093",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.632,
+   "worker": "gw44",
+   "rank": "380",
+   "worker_items": 32,
+   "worker_sum": 278.2
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+   "time": 0.005,
+   "worker": "gw32",
+   "rank": "374",
+   "worker_items": 142,
+   "worker_sum": 277.8
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_failed_launch_preserves_receipt_refusal",
+   "time": 194.143,
+   "worker": "gw32",
+   "rank": "376",
+   "worker_items": 142,
+   "worker_sum": 277.8
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_active_v2_delegation_accepts_full_receipt",
+   "time": 182.511,
+   "worker": "gw45",
+   "rank": "375",
+   "worker_items": 38,
+   "worker_sum": 271.3
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+   "time": 184.106,
+   "worker": "gw43",
+   "rank": "379",
+   "worker_items": 8,
+   "worker_sum": 272.0
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+   "time": 188.32,
+   "worker": "gw47",
+   "rank": "382",
+   "worker_items": 8,
+   "worker_sum": 253.6
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+   "time": 183.231,
+   "worker": "gw46",
+   "rank": "381",
+   "worker_items": 9,
+   "worker_sum": 237.9
+  },
+  {
+   "session": "8e174826",
+   "node": "test_v1_gate_does_not_delegate_with_active_v2",
+   "time": 38.327,
+   "worker": "gw45",
+   "rank": "378",
+   "worker_items": 38,
+   "worker_sum": 271.3
+  },
+  {
+   "session": "8e174826",
+   "node": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+   "time": 36.417,
+   "worker": "gw43",
+   "rank": "380",
+   "worker_items": 8,
+   "worker_sum": 272.0
+  }
+ ]
+}

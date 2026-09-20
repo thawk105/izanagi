@@ -128,9 +128,10 @@ _NO_ACTIVE_REFUSAL = (
     "freeze-ratify: [no-active] [no-active] live active pointer が無い "
     "(v2 未発効)"
 )
-# g1 発効後の実 repo の真値 (T-2724 A/X wave で記録)。launch validation が
-# _JOURNAL_KEYS 未登録の reservation-preflight で止まる既存の不整合が
-# 解消されたら再実測して更新する。
+# T-2304 / D2184 の ccbench pin 前進で policy epoch が db6bc9ea… へ移った後の
+# 実 repo live P3 真値。T-2304 統合時の追随を T-2810 で補完する。
+# journal / lineage 修復後も live は段階 4 の現行 policy 照合で拒否される。
+# historical reverify は段階 8 の未発効候補 hit まで到達する。
 _ACTIVATED_G1_REFUSALS = frozenset({
     "holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 4 件: "
     "['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', "
@@ -141,8 +142,9 @@ _ACTIVATED_G1_REFUSALS = frozenset({
     "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', "
     "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', "
     "'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']",
-    "v2-execution: launch-validate: [journal-state-invalid] [journal-state-invalid] "
-    "journal[1] event/status が未知: 'reservation-preflight'",
+    "v2-execution: launch-validate: [manifest-invalid] [manifest-invalid] "
+    "binaries[rr20::backoff_fixed_best] admission receipt が不正: "
+    "receipt admission policy が現行 policy と不一致",
 })
 _APPROVED_BY_PATH: dict[Path, spec_fixture.ReviewedSpecFixture] = {}
 _ACTIVE_APPROVED: spec_fixture.ReviewedSpecFixture | None = None

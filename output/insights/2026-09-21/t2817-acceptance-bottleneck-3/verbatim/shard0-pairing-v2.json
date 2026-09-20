@@ -1,0 +1,968 @@
+[
+ {
+  "session": "b292af15",
+  "host": "bnode011",
+  "ts": "09-21T00:03:45",
+  "W": 357.033,
+  "pre": 61.27787184715271,
+  "gap_cf_first": 0.022278785705566406,
+  "post": 10.060550212860107,
+  "O_max": 284.905281168,
+  "O_max_w": "gw35",
+  "O_L": 222.251870619,
+  "L": 222.252,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": -0.0001293810000220219,
+  "Lw_items": [
+   [
+    222.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    184.1,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    50.2,
+    "test_s8b_floor_campaign::test_public_official_preflight",
+    "35"
+   ],
+   [
+    45.8,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ]
+  ]
+ },
+ {
+  "session": "29430742",
+  "host": "bnode010",
+  "ts": "09-20T23:52:39",
+  "W": 648.167,
+  "pre": 81.84905433654785,
+  "gap_cf_first": 0.12389540672302246,
+  "post": 10.03592562675476,
+  "O_max": 553.511794414,
+  "O_max_w": "gw43",
+  "O_L": 383.67939875,
+  "L": 383.679,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0003987500000448563,
+  "Lw_items": [
+   [
+    383.7,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    324.6,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    153.1,
+    "test_s8b_oracle_driver::test_t080_active_v2_preserves_n",
+    "427"
+   ],
+   [
+    40.5,
+    "test_codex_reasoning_ab::test_schedule_authenticated_by",
+    "43"
+   ]
+  ]
+ },
+ {
+  "session": "e637a58c",
+  "host": "bnode008",
+  "ts": "09-20T23:37:25",
+  "W": 365.739,
+  "pre": 68.6301941871643,
+  "gap_cf_first": 0.022532939910888672,
+  "post": 10.062134981155396,
+  "O_max": 286.291562071,
+  "O_max_w": "gw35",
+  "O_L": 221.002928105,
+  "L": 221.003,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": -7.189499999071813e-05,
+  "Lw_items": [
+   [
+    221.0,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    194.8,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    48.2,
+    "test_s8b_floor_campaign::test_public_official_preflight",
+    "35"
+   ],
+   [
+    36.9,
+    "test_s8b_oracle_driver::test_t080_delegated_campaign_st",
+    "428"
+   ]
+  ]
+ },
+ {
+  "session": "daa50127",
+  "host": "bnode012",
+  "ts": "09-20T23:19:18",
+  "W": 364.749,
+  "pre": 61.34095358848572,
+  "gap_cf_first": 0.02213907241821289,
+  "post": 10.0321626663208,
+  "O_max": 293.129382075,
+  "O_max_w": "gw32",
+  "O_L": 228.040123289,
+  "L": 228.04,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00012328900001534748,
+  "Lw_items": [
+   [
+    228.0,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    193.5,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    46.2,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    39.7,
+    "test_s8b_oracle_driver::test_t080_output_snapshot_exclu",
+    "32"
+   ]
+  ]
+ },
+ {
+  "session": "4e63a0b3",
+  "host": "bnode086",
+  "ts": "09-20T23:19:54",
+  "W": 374.315,
+  "pre": 67.41615056991577,
+  "gap_cf_first": 0.1220560073852539,
+  "post": 10.03002405166626,
+  "O_max": 295.463168177,
+  "O_max_w": "gw47",
+  "O_L": 236.671527036,
+  "L": 236.671,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.000527035999994041,
+  "Lw_items": [
+   [
+    236.7,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    191.0,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    45.3,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    25.8,
+    "test_codex_reasoning_ab::test_supervisor_launches_pair_",
+    "47"
+   ]
+  ]
+ },
+ {
+  "session": "408dd532",
+  "host": "bnode052",
+  "ts": "09-20T22:59:05",
+  "W": 484.921,
+  "pre": 123.89263534545898,
+  "gap_cf_first": 0.022111177444458008,
+  "post": 10.031891345977783,
+  "O_max": 350.608322393,
+  "O_max_w": "gw36",
+  "O_L": 288.324453998,
+  "L": 288.324,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00045399800001177937,
+  "Lw_items": [
+   [
+    288.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    239.7,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    39.2,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    21.6,
+    "test_real_repo_serialization::test_real_repo_writers_do",
+    "36"
+   ]
+  ]
+ },
+ {
+  "session": "026f448e",
+  "host": "bnode085",
+  "ts": "09-20T22:34:35",
+  "W": 349.642,
+  "pre": 61.35723423957825,
+  "gap_cf_first": 0.02183818817138672,
+  "post": 10.058316707611084,
+  "O_max": 277.770338876,
+  "O_max_w": "gw34",
+  "O_L": 215.263404995,
+  "L": 215.263,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0004049949999966884,
+  "Lw_items": [
+   [
+    215.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    182.5,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    45.9,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    44.8,
+    "test_s8b_floor_campaign::test_public_official_preflight",
+    "34"
+   ]
+  ]
+ },
+ {
+  "session": "7d7bdcff",
+  "host": "bnode052",
+  "ts": "09-20T22:25:19",
+  "W": 372.64,
+  "pre": 62.541239738464355,
+  "gap_cf_first": 0.18712282180786133,
+  "post": 10.05670690536499,
+  "O_max": 298.637706815,
+  "O_max_w": "gw42",
+  "O_L": 233.739780608,
+  "L": 233.739,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00078060799998525,
+  "Lw_items": [
+   [
+    233.7,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    194.7,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    46.0,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    35.9,
+    "test_s8b_floor_campaign::test_real_seal_protocol_to_flo",
+    "42"
+   ]
+  ]
+ },
+ {
+  "session": "2770dc5f",
+  "host": "bnode022",
+  "ts": "09-20T22:16:32",
+  "W": 518.522,
+  "pre": 80.78877019882202,
+  "gap_cf_first": 0.03809213638305664,
+  "post": 10.037875890731812,
+  "O_max": 427.471019795,
+  "O_max_w": "gw37",
+  "O_L": 263.30245856,
+  "L": 263.302,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0004585599999700207,
+  "Lw_items": [
+   [
+    263.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    205.7,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    145.9,
+    "test_s8b_oracle_driver::test_t080_active_v2_preserves_n",
+    "427"
+   ],
+   [
+    50.3,
+    "test_s8c_preregistration_invariant::test_s8c_living_doc",
+    "37"
+   ]
+  ]
+ },
+ {
+  "session": "721a2e80",
+  "host": "bnode074",
+  "ts": "09-20T21:58:58",
+  "W": 569.32,
+  "pre": 90.31067037582397,
+  "gap_cf_first": 0.20755243301391602,
+  "post": 10.032119989395142,
+  "O_max": 464.527045314,
+  "O_max_w": "gw43",
+  "O_L": 401.808933334,
+  "L": 401.809,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": -6.666600000926337e-05,
+  "Lw_items": [
+   [
+    401.8,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    333.3,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    46.3,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    41.1,
+    "test_codex_reasoning_ab::test_schedule_authenticated_by",
+    "43"
+   ]
+  ]
+ },
+ {
+  "session": "83d3c964",
+  "host": "bnode052",
+  "ts": "09-20T21:54:40",
+  "W": 378.314,
+  "pre": 77.73801898956299,
+  "gap_cf_first": 0.021558046340942383,
+  "post": 10.036328792572021,
+  "O_max": 290.132688237,
+  "O_max_w": "gw46",
+  "O_L": 226.532230573,
+  "L": 226.532,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00023057299998185954,
+  "Lw_items": [
+   [
+    226.5,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    187.9,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    45.4,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    18.0,
+    "test_acceptance_schedule_order::test_g5_real_ledger_cov",
+    "102"
+   ]
+  ]
+ },
+ {
+  "session": "28509d29",
+  "host": "bnode058",
+  "ts": "09-20T21:37:11",
+  "W": 556.991,
+  "pre": 81.96829986572266,
+  "gap_cf_first": 0.17412590980529785,
+  "post": 10.027902364730835,
+  "O_max": 464.274619204,
+  "O_max_w": "gw40",
+  "O_L": 405.614062984,
+  "L": 405.614,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 6.29840000101467e-05,
+  "Lw_items": [
+   [
+    405.6,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    335.6,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    36.3,
+    "test_s8b_oracle_driver::test_t080_delegated_campaign_st",
+    "429"
+   ],
+   [
+    23.1,
+    "test_calibration_freeze_stage6_candidate_gate::test_sta",
+    "117"
+   ]
+  ]
+ },
+ {
+  "session": "808646bf",
+  "host": "bnode053",
+  "ts": "09-20T21:36:38",
+  "W": 381.262,
+  "pre": 83.43036723136902,
+  "gap_cf_first": 0.03743934631347656,
+  "post": 10.028302192687988,
+  "O_max": 287.707681571,
+  "O_max_w": "gw41",
+  "O_L": 224.579149733,
+  "L": 224.579,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00014973300000065137,
+  "Lw_items": [
+   [
+    224.6,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    179.9,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    45.2,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    33.8,
+    "test_campaign::test_certified_writer_authorization_call",
+    "41"
+   ]
+  ]
+ },
+ {
+  "session": "0f973e64",
+  "host": "bnode074",
+  "ts": "09-20T21:21:55",
+  "W": 443.906,
+  "pre": 74.65064072608948,
+  "gap_cf_first": 0.15253853797912598,
+  "post": 10.029630184173584,
+  "O_max": 355.677715788,
+  "O_max_w": "gw43",
+  "O_L": 300.638604969,
+  "L": 300.638,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0006049690000509145,
+  "Lw_items": [
+   [
+    300.6,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    242.3,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    45.6,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    36.2,
+    "test_codex_reasoning_ab::test_schedule_authenticated_by",
+    "43"
+   ]
+  ]
+ },
+ {
+  "session": "0a32f822",
+  "host": "bnode072",
+  "ts": "09-20T21:19:26",
+  "W": 559.443,
+  "pre": 62.151904582977295,
+  "gap_cf_first": 0.022001028060913086,
+  "post": 10.030544757843018,
+  "O_max": 486.644578506,
+  "O_max_w": "gw40",
+  "O_L": 328.650442681,
+  "L": 328.65,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.000442681000038192,
+  "Lw_items": [
+   [
+    328.6,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    265.9,
+    "test_s8b_oracle_driver::test_t080_active_v2_delegation_",
+    "423"
+   ],
+   [
+    144.5,
+    "test_s8b_oracle_driver::test_t080_active_v2_preserves_n",
+    "427"
+   ],
+   [
+    22.3,
+    "test_real_repo_serialization::test_shard_assignment_pre",
+    "122"
+   ]
+  ]
+ },
+ {
+  "session": "9ef5b469",
+  "host": "bnode068",
+  "ts": "09-20T20:42:47",
+  "W": 461.794,
+  "pre": 61.62106108665466,
+  "gap_cf_first": 0.02239060401916504,
+  "post": 10.028329372406006,
+  "O_max": 389.1584198,
+  "O_max_w": "gw33",
+  "O_L": 220.781709113,
+  "L": 220.781,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0007091129999992063,
+  "Lw_items": [
+   [
+    220.8,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    189.2,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    145.4,
+    "test_s8b_oracle_driver::test_t080_active_v2_preserves_n",
+    "427"
+   ],
+   [
+    54.5,
+    "test_codex_reasoning_ab::test_verify_replays_complete_f",
+    "33"
+   ]
+  ]
+ },
+ {
+  "session": "72c6a7ca",
+  "host": "bnode060",
+  "ts": "09-20T19:06:47",
+  "W": 469.395,
+  "pre": 60.91548991203308,
+  "gap_cf_first": 0.022298097610473633,
+  "post": 10.036374807357788,
+  "O_max": 398.281783681,
+  "O_max_w": "gw37",
+  "O_L": 228.321431638,
+  "L": 228.321,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0004316380000091158,
+  "Lw_items": [
+   [
+    228.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    195.8,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    144.4,
+    "test_s8b_oracle_driver::test_t080_active_v2_preserves_n",
+    "427"
+   ],
+   [
+    43.2,
+    "test_s8c_preregistration_invariant::test_s8c_living_doc",
+    "37"
+   ]
+  ]
+ },
+ {
+  "session": "c895e77d",
+  "host": "bnode040",
+  "ts": "09-20T18:34:22",
+  "W": 466.49,
+  "pre": 61.89872360229492,
+  "gap_cf_first": 0.03310203552246094,
+  "post": 10.074537754058838,
+  "O_max": 392.972597935,
+  "O_max_w": "gw43",
+  "O_L": 332.836019722,
+  "L": 332.836,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 1.9721999990451877e-05,
+  "Lw_items": [
+   [
+    332.8,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    278.8,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "424"
+   ],
+   [
+    38.4,
+    "test_s8b_oracle_driver::test_v1_gate_does_not_delegate_",
+    "426"
+   ],
+   [
+    38.2,
+    "test_codex_reasoning_ab::test_schedule_authenticated_by",
+    "43"
+   ]
+  ]
+ },
+ {
+  "session": "fd6825ad",
+  "host": "bnode017",
+  "ts": "09-20T18:03:50",
+  "W": 398.629,
+  "pre": 60.65473246574402,
+  "gap_cf_first": 0.022576093673706055,
+  "post": 10.063153505325317,
+  "O_max": 327.285192007,
+  "O_max_w": "gw46",
+  "O_L": 266.331010723,
+  "L": 266.331,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 1.0723000002599292e-05,
+  "Lw_items": [
+   [
+    266.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    225.1,
+    "test_s8b_oracle_driver::test_t080_delegated_campaign_st",
+    "426"
+   ],
+   [
+    41.8,
+    "test_s8b_oracle_driver::test_t080_delegated_campaign_st",
+    "428"
+   ],
+   [
+    18.6,
+    "test_acceptance_schedule_order::test_g5_real_ledger_cov",
+    "102"
+   ]
+  ]
+ },
+ {
+  "session": "29a24093",
+  "host": "bnode005",
+  "ts": "09-20T15:46:11",
+  "W": 353.767,
+  "pre": 59.930203914642334,
+  "gap_cf_first": 0.02195262908935547,
+  "post": 10.030887126922607,
+  "O_max": 283.065288754,
+  "O_max_w": "gw47",
+  "O_L": 223.275316679,
+  "L": 223.275,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.00031667900000798,
+  "Lw_items": [
+   [
+    223.3,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    203.5,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "376"
+   ],
+   [
+    32.9,
+    "test_s8b_oracle_driver::test_t080_unactivated_chain_hit",
+    "377"
+   ],
+   [
+    22.8,
+    "test_codex_reasoning_ab::test_supervisor_launches_pair_",
+    "47"
+   ]
+  ]
+ },
+ {
+  "session": "8e174826",
+  "host": "bnode001",
+  "ts": "09-20T15:17:19",
+  "W": 355.134,
+  "pre": 66.98308992385864,
+  "gap_cf_first": 0.04332470893859863,
+  "post": 10.02940583229065,
+  "O_max": 277.814883026,
+  "O_max_w": "gw32",
+  "O_L": 217.949651881,
+  "L": 217.949,
+  "L_w": "gw5",
+  "L_rank": "5",
+  "P_L": 0.0006518809999818131,
+  "Lw_items": [
+   [
+    217.9,
+    "test_s8b_oracle_driver::test_t080_stub_free_e2e_single_",
+    "5"
+   ],
+   [
+    0.0,
+    "test_codex_reasoning_ab::test_forbidden_commits_are_unr",
+    "49"
+   ]
+  ],
+  "n_Lw": 2,
+  "Omax_items": [
+   [
+    194.1,
+    "test_s8b_oracle_driver::test_t080_failed_launch_preserv",
+    "376"
+   ],
+   [
+    41.8,
+    "test_s8b_oracle_driver::test_t080_output_snapshot_exclu",
+    "32"
+   ],
+   [
+    32.8,
+    "test_s8b_oracle_driver::test_t080_unactivated_chain_hit",
+    "377"
+   ]
+  ]
+ }
+]

@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""ledger と shard-0 の選択集合から conftest の並び順 (cost 降順、未収載は 96 番目の既知 cost) を offline 再現する (read-only)。"""
+import json
+import sys
+
+LEDGER = sys.argv[1]
+REPORT = sys.argv[2]
+led = json.load(open(LEDGER))["duration_seconds_by_nodeid"]
+r = json.load(open(REPORT))
+sel = r["selected"]  # sorted alphabetically (collection order の近似)
+uni = {u["nodeid"]: u for u in r["observed_universe"]}
+
+
+def scope(n):
+    return n.split("@")[-1] if n.rfind("@") > n.rfind("]") else n
+
+
+def base(n):
+    return n[: n.rfind("@")] if n.rfind("@") > n.rfind("]") else n
+
+
+units = {}
+order = []
+for n in sel:
+    s = scope(n)
+    if s not in units:
+        units[s] = {"items": [], "index": len(order)}
+        order.append(s)
+    units[s]["items"].append(n)
+known = []
+for s, u in units.items():
+    cost = 0.0
+    k = True
+    for n in u["items"]:
+        b = base(n)
+        d = led.get(b)
+        if d is None:
+            g = uni.get(n, {}).get("group")
+            if g:
+                d = led.get(f"{b}@{g}")
+        if d is None:
+            k = False
+            break
+        cost += d
+    u["known"] = k
+    u["cost"] = cost
+    if k:
+        known.append(cost)
+known.sort(reverse=True)
+unk = known[min(96, len(known)) - 1]
+print("units", len(units), "known", len(known), "unknown", len(units) - len(known),
+      "unknown_cost (96th largest known)=", unk)
+print("ties at unknown_cost among known:", sum(1 for c in known if c == unk),
+      " known > unk:", sum(1 for c in known if c > unk))
+ordered = sorted(units.items(), key=lambda kv: (-(kv[1]["cost"] if kv[1]["known"] else unk), kv[1]["index"]))
+for i, (s, u) in enumerate(ordered):
+    if any(t in s for t in ("active_v2", "v1_gate_does_not", "failed_launch_preserves",
+                            "delegated_campaign_st", "stub_free_e2e_single_defects")):
+        print(i, "known" if u["known"] else "UNKNOWN", u["cost"], s.replace("orchestrator/tests/", "")[:100])
+unknowns = [s for s, u in units.items() if not u["known"]]
+print("unknown units:", len(unknowns))
+for s in unknowns[:80]:
+    print("   ", s.replace("orchestrator/tests/", "")[:120])

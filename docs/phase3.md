@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2810] 凍結 v2 g1 の launch validator を official 成果物の現物形へ整合した (2026-09-20)。
+  journal allowlist に `reservation-preflight` と binding 2 key を足し、段階 6 lineage を「一意・非 merge 導入 i について C ≤ i ≤ G」+
+  「G 自身が追加した世代文書の導入 == {G}」へ改めた。実 repo の historical reverify は段階 8 (未発効候補の scan hit) まで到達、
+  live は現行 policy 照合で拒否のまま。全 gate 受理・W-4 / W-5 は未達。記録 = `output/insights/2026-09-20/t2810-g1-launch-validation/README.md`。
+
 - [x] 本体論文の日本語結果・考察草稿を 2026-09-21 版として更新し (09-20 の前稿 entry 1750 を supersede)、要旨・結論の草稿を
   新規起草した (2026-09-21 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-21/paper-results-ja/results-discussion.md`
   は A-1 sized attempt-0002 (認可済み独立再現、entry 1755) の登録済み解析の出力を凍結稿の表の逐語で attempt-0001 と並記し (プールしない、
