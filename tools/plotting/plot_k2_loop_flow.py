@@ -36,6 +36,18 @@ PLANNER_KEYS = "current_perf leading_indicators whiteboard knowledge_input".spli
 CODER_KEYS = "baseline planner_direction whiteboard knowledge_input leakproof_context".split()
 DIAGNOSIS_KEY = "k2_critic_diagnosis"
 DIAGNOSIS_FIELDS = "attribution recommend avoid uncertainty data_boundary source_sha256".split()
+# Frozen paths transcribed from the results note §§0.1, 2.2, 2.3.
+EXPECTED_ARROWS = (
+    ('m1', 'measurement-reflux', 'round-1.evaluation', 'round-2.parent'),
+    ('m2a', 'measurement-reflux', 'round-2.evaluation', 'after-round-2.parent'),
+    ('m2b', 'measurement-reflux', 'round-2.evaluation', 'round-3.parent'),
+    ('d1', 'diagnosis-reflux', 'round-2.critic', 'round-3.parent'),
+    ('a1', 'absent', 'round-1.critic', 'round-2.parent'),
+    ('a2', 'absent', 'round-2.critic', 'after-round-2.parent'),
+    ('a3', 'absent', 'round-3.critic', None),
+)
+
+
 class FigureDataError(ValueError):
     """Input violates the recorded-status schema."""
 
@@ -236,7 +248,10 @@ def load_flow(repo_root=REPO_ROOT, flow=DEFAULT_FLOW):
             _require(type(a['from']) is str and a['from'] in endpoints, 'arrow from missing')
             _require((a['kind'] == 'absent' and a['to'] is None) or
                      (type(a['to']) is str and a['to'] in endpoints), 'arrow to missing')
-        _arrow_count_words(d)
+        counts = [sum(a['kind'] == kind for a in d['arrows']) for kind in ('measurement-reflux', 'diagnosis-reflux', 'absent')]
+        _require(all(1 <= n <= 3 for n in counts), 'arrow kind count must be between one and three')
+        _require(tuple(tuple(a[k] for k in ('id', 'kind', 'from', 'to')) for a in d['arrows']) == EXPECTED_ARROWS,
+                 'frozen arrow paths mismatch')
         for value in free:
             check_display_text(value, set(refs) | instances, jobs)
         tokens = {t.strip('()[].:') for value in free for t in re.split(r'[\s;,/]+', value)}
@@ -289,7 +304,7 @@ def _display_items(d):
             elif lane == 'coder':
                 parts = [cell['instance'], 'synthesizes one backoff literal']
             elif lane == 'proposal':
-                parts = [cell['instance'], f"backoff literal {cell['value']}", 'known' if cell['known_value'] else 'not known',
+                parts = [cell['instance'], f"backoff literal {cell['value']}", 'in the run-card known set' if cell['known_value'] else 'outside the run-card known set',
                          'evaluated' if cell['evaluated'] else 'not evaluated', cell['sublabel']]
             elif lane == 'evaluation':
                 parts = ['job '+cell['job']]
@@ -299,16 +314,17 @@ def _display_items(d):
             else:
                 parts = [cell['instance'], cell['attribution'], cell['recommend']]
             if lane in ('planner', 'coder', 'critic') and cell is not None:
-                parts += ['data boundary: detected' if cell['discipline6']['instruction_like_detected'] else 'data boundary: none detected']
+                parts += ['instruction-like content: detected (self-report)' if cell['discipline6']['instruction_like_detected'] else 'instruction-like content: none detected (self-report)']
             add(cid+'.'+lane, 'cell', *parts)
     for a in d['arrows']:
         extra = (DIAGNOSIS_KEY+': '+', '.join(d['diagnosis_fields'])) if a['kind']=='diagnosis-reflux' else ''
         add('arrow-'+a['id'], 'arrow', a['id']+':', a['from'], '→', a['to'] or 'no destination', a['label'], extra)
     add('stock_control', 'stock_control', d['stock_control']['label'], d['stock_control']['sublabel'])
     add('legend-arrows', 'legend', 'Solid: measurement reflux; dashed: diagnosis reflux; dotted with cross: absent path; thin: within-column flow; dashed box: not a round.')
-    detected = any(cell['discipline6']['instruction_like_detected'] for col in d['columns'] for role, cell in col['cells'].items() if role in ('planner', 'coder', 'critic') and cell is not None)
-    summary = 'detected in at least one recorded round' if detected else 'false in all recorded rounds'
-    add('legend-r6', 'legend', 'R6: self-reported; shield: none detected; red X: detected.', d['discipline6']['label']+':', d['discipline6']['definition']+';', 'coder: structured field data_boundary_report.instruction_like_content_detected;', summary)
+    coder_detected = _reported_detection(d, ('coder',))
+    summary = 'true in at least one coder output' if coder_detected else 'false in all four coder outputs'
+    role_summary = 'at least one role reported detection' if _reported_detection(d) else 'no role reported detection'
+    add('legend-r6', 'legend', 'R6: self-reported; shield: none detected; red X: detected.', d['discipline6']['label']+':', d['discipline6']['definition']+';', 'coder: structured field data_boundary_report.instruction_like_content_detected:', summary+';', role_summary)
     add('footnote-source', 'footnote', 'Read from the frozen results note', Path(d['caption_source']).name+'; no performance values are drawn and the three runs are not compared.')
     add('footnote-certified', 'footnote', 'Certified means the trace-enabled verify run found the trace serializable with no anomaly; it is not a performance certification.')
     add('footnote-discipline', 'footnote', 'Discipline-six marks are role self-reports, not a mechanical gate; causal effects of knowledge or diagnosis are not claimed.')
@@ -342,9 +358,10 @@ def make_figure(data):
             heading, dates = text.split(' proposal ', 1)
             lines.append(heading)
             text = 'proposal '+dates
+        marker_space = .008 if key.rsplit('.', 1)[-1] in ('planner', 'coder', 'critic') and rows[key]['kind'] == 'cell' else 0
         for word in text.split():
             candidate = (line+' '+word).strip()
-            if line and renderer.get_text_width_height_descent(candidate, prop, False)[0] > (w-2*pad)*fig.bbox.width:
+            if line and renderer.get_text_width_height_descent(candidate, prop, False)[0] > (w-2*pad-marker_space)*fig.bbox.width:
                 lines.append(line)
                 line = word
             else:
@@ -517,13 +534,6 @@ def _drawn_items(data, layout):
     return actual
 
 
-def _arrow_count_words(d):
-    words = {1: 'once', 2: 'twice', 3: 'three times'}
-    counts = {kind: sum(a['kind'] == kind for a in d['arrows']) for kind in ('measurement-reflux', 'diagnosis-reflux', 'absent')}
-    _require(all(n in words for n in counts.values()), 'arrow kind count must be between one and three')
-    return {kind: words[n] for kind, n in counts.items()}
-
-
 def _drawn_arrows(data, layout):
     actual = []
     for a in layout['arrows']:
@@ -537,12 +547,15 @@ def _drawn_arrows(data, layout):
     return actual
 
 
+def _reported_detection(d, roles=('planner', 'coder', 'critic')):
+    return any(col['cells'][role]['discipline6']['instruction_like_detected']
+               for col in d['columns'] for role in roles if col['cells'][role] is not None)
+
+
 def _caption(data, number):
     d=data['flow']
-    counts = _arrow_count_words(d)
-    source_count = len({a['from'] for a in d['arrows'] if a['kind'] == 'measurement-reflux'})
-    events = {1: 'once', 2: 'twice', 3: 'three times'}[source_count]
-    return CAPTION.format(measurement_events=events, measurement=counts['measurement-reflux'], diagnosis=counts['diagnosis-reflux'], absent=counts['absent'], number=number, basename=Path(d['caption_source']).name,
+    detection = 'at least one recorded output reports detection' if _reported_detection(d) else 'none is reported in the recorded rounds'
+    return CAPTION.format(detection=detection, number=number, basename=Path(d['caption_source']).name,
                           planner_keys=', '.join(d['planner_keys']), coder_keys=', '.join(d['coder_keys']),
                           diagnosis_key=DIAGNOSIS_KEY, diagnosis_fields=', '.join(d['diagnosis_fields']))
 
@@ -631,12 +644,12 @@ def main(argv=None):
 CAPTION = ('Figure {number}. Data flow of the K2 manual synthesis loop over three recorded rounds, read from the frozen results note {basename}. '
 'In each round the parent session projects typed JSON inputs (planner: {planner_keys}; coder: {coder_keys}) to planner-v4 and coder-v4-autonomous-k2; '
  'the proposal is one backoff literal evaluated by one Pegasus compute-node job with separate trace-enabled verify and trace-disabled bench builds and a campaign WAL terminal record; critic reads the digest and the WAL. '
-'Measurement reflux occurred {measurement_events} when counted by distinct source evaluation. Measurement reflux paths are drawn {measurement} (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round) and diagnosis reflux {diagnosis} (the second critic into the third-round inputs as the typed key {diagnosis_key} with fields {diagnosis_fields}, identical for planner and coder). '
-'Absent paths are marked {absent}. '
+'Measurement reflux occurred twice between the recorded rounds (the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round), and diagnosis reflux occurred once (the second critic into the third-round inputs as the typed key {diagnosis_key} with fields {diagnosis_fields}, identical for planner and coder). '
+'Three measurement arrows are drawn because the second evaluation feeds both the unevaluated proposal and the third-round proposal; three dotted arrows mark absent paths. '
 'The unevaluated proposal, generated without a diagnosis key, re-proposed a known value. '
 'The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation. '
 'Certified means only that the trace-enabled verify run found the observed trace serializable with no anomaly; it is not a performance certification and not a choice among candidates. '
-'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; their form differs by role and they are not a mechanical gate. '
+'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; {detection}. Their form differs by role and they are not a mechanical gate. '
 'No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control. '
 'The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results. '
 'This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared. '

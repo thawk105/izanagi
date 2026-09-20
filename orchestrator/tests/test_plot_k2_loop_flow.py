@@ -25,6 +25,23 @@ PLOT = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(PLOT)
 
 
+# Independent transcription from the frozen note §§0.1, 2.2, 2.3;
+# never derive this oracle from the input JSON or generator constants.
+RECORDED_PATHS = (
+    ('m1', 'measurement-reflux', 'round-1.evaluation', 'round-2.parent'),
+    ('m2a', 'measurement-reflux', 'round-2.evaluation', 'after-round-2.parent'),
+    ('m2b', 'measurement-reflux', 'round-2.evaluation', 'round-3.parent'),
+    ('d1', 'diagnosis-reflux', 'round-2.critic', 'round-3.parent'),
+    ('a1', 'absent', 'round-1.critic', 'round-2.parent'),
+    ('a2', 'absent', 'round-2.critic', 'after-round-2.parent'),
+    ('a3', 'absent', 'round-3.critic', None),
+)
+
+
+def _expected_arrows():
+    return [dict(zip(('id', 'kind', 'from', 'to'), row), visible=True) for row in RECORDED_PATHS]
+
+
 def _raw():
     return json.loads(FLOW.read_bytes())
 
@@ -61,6 +78,7 @@ def test_t1_real_flow_at_production_size(production):
     d = data['flow']
     assert (len(d['lanes']),len(d['columns']),len(d['roles'])) == (6,4,3)
     assert len(d['arrows']) == 7
+    assert tuple(tuple(a[k] for k in ('id','kind','from','to')) for a in d['arrows']) == RECORDED_PATHS
     assert [sum(a['kind']==k for a in d['arrows']) for k in ['measurement-reflux','diagnosis-reflux','absent']] == [3,1,3]
     texts = ' '.join(t.get_text().replace('\n',' ') for t in fig.findobj(Text))
     for col in d['columns']:
@@ -187,6 +205,18 @@ def test_t3_json_parser_rejects_noncanonical_values(tmp_path,case):
         PLOT.load_flow(REPO,path)
 
 
+@pytest.mark.parametrize('case', ['destination', 'missing', 'reordered'])
+def test_t3_frozen_arrow_paths_are_required(tmp_path,case):
+    raw=_raw()
+    if case=='destination':
+        raw['arrows'][0]['to']='round-3.parent'
+    elif case=='missing':
+        raw['arrows'].pop(0)
+    else:
+        raw['arrows'][0],raw['arrows'][1]=raw['arrows'][1],raw['arrows'][0]
+    _load_bad(tmp_path,raw,'frozen arrow paths mismatch')
+
+
 def test_t3_non_unique_anchor_is_rejected(tmp_path):
     root=_root(tmp_path)
     path=root/_raw()['caption_source']
@@ -294,7 +324,7 @@ def test_t7_cli_outputs_and_independent_hashes(bundle):
         assert role['sha256']==hashlib.sha256(raw).hexdigest()
         tools=re.search(r'^tools: (.+)$',raw.decode().split('---')[1],re.M)[1]
         assert role['tools_none']==(json.loads(tools)==[])
-    assert prov['arrows']==[{**{k:a[k] for k in ('id','kind','from','to')},'visible':True} for a in _raw()['arrows']]
+    assert prov['arrows']==_expected_arrows()
     assert prov['argv']==['python3','tools/plotting/plot_k2_loop_flow.py','--repo-root',str(REPO),str(prefix)]
     assert set(prov['versions'])=={'matplotlib','numpy'}
     before=[p.read_bytes() for p in paths]
@@ -338,7 +368,7 @@ def test_t7_drawn_items_match_flow(production,bundle):
         for lane,c in col['cells'].items():
             expected_ids.add(col['id']+'.'+lane)
             text=items[col['id']+'.'+lane]
-            boundary='' if not c or lane not in ('planner','coder','critic') else (' data boundary: detected' if c['discipline6']['instruction_like_detected'] else ' data boundary: none detected')
+            boundary='' if not c or lane not in ('planner','coder','critic') else (' instruction-like content: detected (self-report)' if c['discipline6']['instruction_like_detected'] else ' instruction-like content: none detected (self-report)')
             if c is None: assert text==('not evaluated' if lane=='evaluation' else 'no critic')
             elif lane=='planner': assert text==f"{c['instance']} {c['direction']} / {c['magnitude']}"+boundary
             elif lane=='coder': assert text==f"{c['instance']} synthesizes one backoff literal"+boundary
@@ -349,7 +379,7 @@ def test_t7_drawn_items_match_flow(production,bundle):
                     if c['has_diagnosis']: keys += ['+ k2_critic_diagnosis']
                 assert text==' '.join(keys+[c['sublabel']])
             elif lane=='proposal':
-                assert text==' '.join([c['instance'],f"backoff literal {c['value']}",'known' if c['known_value'] else 'not known','evaluated' if c['evaluated'] else 'not evaluated',c['sublabel']])
+                assert text==' '.join([c['instance'],f"backoff literal {c['value']}",'in the run-card known set' if c['known_value'] else 'outside the run-card known set','evaluated' if c['evaluated'] else 'not evaluated',c['sublabel']])
             elif lane=='critic': assert text==' '.join([c['instance'],c['attribution'],c['recommend']])+boundary
             else:
                 parts=['job '+c['job']]
@@ -362,7 +392,7 @@ def test_t7_drawn_items_match_flow(production,bundle):
     basename=Path(raw['caption_source']).name
     assert items['subtitle']=='Source: frozen results note '+basename+' (SHA-256 in provenance); figure created '+raw['figure_created']
     assert items['legend-arrows']=='Solid: measurement reflux; dashed: diagnosis reflux; dotted with cross: absent path; thin: within-column flow; dashed box: not a round.'
-    assert items['legend-r6']=='R6: self-reported; shield: none detected; red X: detected. '+raw['discipline6']['label']+': '+raw['discipline6']['definition']+'; coder: structured field data_boundary_report.instruction_like_content_detected; false in all recorded rounds'
+    assert items['legend-r6']=='R6: self-reported; shield: none detected; red X: detected. '+raw['discipline6']['label']+': '+raw['discipline6']['definition']+'; coder: structured field data_boundary_report.instruction_like_content_detected: false in all four coder outputs; no role reported detection'
     assert items['footnote-source']=='Read from the frozen results note '+basename+'; no performance values are drawn and the three runs are not compared.'
     assert items['footnote-certified']=='Certified means the trace-enabled verify run found the trace serializable with no anomaly; it is not a performance certification.'
     assert items['footnote-discipline']=='Discipline-six marks are role self-reports, not a mechanical gate; causal effects of knowledge or diagnosis are not claimed.'
@@ -379,7 +409,7 @@ def test_t7_caption_verbatim_and_limits(bundle):
         'This is a schematic of recorded data flow; no performance values are drawn and the three runs are not compared.',
         'Certified means only that the trace-enabled verify run found the observed trace serializable with no anomaly; it is not a performance certification and not a choice among candidates.',
         'The planner and coder role definitions declare no tools (structural blockade); critic is a legacy role with Bash access, so these rounds are not material for the B-4 leak-control ablation.',
-        'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; their form differs by role and they are not a mechanical gate.',
+        'Discipline-six marks are role self-reports that external inputs contained no instruction-like strings; none is reported in the recorded rounds. Their form differs by role and they are not a mechanical gate.',
         'No causal effect of the knowledge source or of the diagnosis on the proposed values is claimed: each condition was launched once, without a control.',
         'The same-job stock control was not achieved and awaits a ruling; proposal values are backoff literals, not results.',
         "Role launch times, inline delivery, proposal dates, and the fine ordering of steps rest on each round's records; saved prompts and inputs are not proof of delivery.",
@@ -394,7 +424,8 @@ def test_t7_caption_verbatim_and_limits(bundle):
 def test_t7_arrows_bind_artists_and_caption(production,bundle):
     data,fig,layout=production
     raw=_raw()
-    expected=[{**{k:a[k] for k in ('id','kind','from','to')},'visible':True} for a in raw['arrows']]
+    expected=_expected_arrows()
+    assert tuple(tuple(a[k] for k in ('id','kind','from','to')) for a in raw['arrows']) == RECORDED_PATHS
     drawn=[a for a in layout['arrows'] if a['kind']!='flow']
     assert len(drawn)==len(expected)
     for a,row in zip(drawn,expected):
@@ -411,19 +442,13 @@ def test_t7_arrows_bind_artists_and_caption(production,bundle):
             dest=layout['regions'][row['to']]
             assert end[0]==dest.x0-.001 and dest.y0 < end[1] < dest.y1
     assert bundle[2]['arrows']==expected
-    words={1:'once',2:'twice',3:'three times'}
-    counts={kind:sum(a['kind']==kind for a in raw['arrows']) for kind in ('measurement-reflux','diagnosis-reflux','absent')}
     caption=bundle[2]['caption']
-    source_count=len({a['from'] for a in raw['arrows'] if a['kind']=='measurement-reflux'})
-    assert 'Measurement reflux occurred '+words[source_count]+' when counted by distinct source evaluation.' in caption
-    assert 'Measurement reflux paths are drawn '+words[counts['measurement-reflux']] in caption
-    assert 'diagnosis reflux '+words[counts['diagnosis-reflux']] in caption
-    assert 'Absent paths are marked '+words[counts['absent']] in caption
-    for count in (1,2,3):
-        changed=copy.deepcopy(data)
-        arrows=[a for a in raw['arrows'] if a['kind']!='measurement-reflux']
-        changed['flow']['arrows']=arrows+[a for a in raw['arrows'] if a['kind']=='measurement-reflux'][:count]
-        assert 'Measurement reflux paths are drawn '+words[count] in PLOT._caption(changed,'12')
+    assert ('Measurement reflux occurred twice between the recorded rounds '
+            '(the first evaluation into the second proposal inputs; the second evaluation into the inputs of an unevaluated proposal and of the third round), '
+            'and diagnosis reflux occurred once (the second critic into the third-round inputs as the typed key k2_critic_diagnosis '
+            'with fields attribution, recommend, avoid, uncertainty, data_boundary, source_sha256, identical for planner and coder). '
+            'Three measurement arrows are drawn because the second evaluation feeds both the unevaluated proposal and the third-round proposal; '
+            'three dotted arrows mark absent paths.') in caption
     artist=drawn[0]['artist']
     artist.set_visible(False)
     try:
@@ -438,10 +463,11 @@ def test_t7_arrows_bind_artists_and_caption(production,bundle):
     finally: layout['arrows'].insert(index,removed)
 
 
-def test_t7_discipline6_flip_changes_marker_and_items(production,tmp_path):
+@pytest.mark.parametrize('flipped_role', ['coder', 'planner', 'critic'])
+def test_t7_discipline6_flip_changes_marker_and_items(production,tmp_path,flipped_role):
     original,_,original_layout=production
     raw=_raw()
-    raw['columns'][0]['cells']['coder']['discipline6']['instruction_like_detected']=True
+    raw['columns'][0]['cells'][flipped_role]['discipline6']['instruction_like_detected']=True
     path=tmp_path/'flow.json'
     path.write_text(json.dumps(raw))
     changed=PLOT.load_flow(REPO,path)
@@ -450,9 +476,17 @@ def test_t7_discipline6_flip_changes_marker_and_items(production,tmp_path):
         PLOT.check_figure_layout(fig,layout)
         before={r['id']:r['text'] for r in PLOT._drawn_items(original,original_layout)}
         after={r['id']:r['text'] for r in PLOT._drawn_items(changed,layout)}
-        assert after['round-1.coder']=='coder-1 synthesizes one backoff literal data boundary: detected'
-        assert before['round-1.coder']=='coder-1 synthesizes one backoff literal data boundary: none detected'
-        assert 'detected in at least one recorded round' in after['legend-r6']
+        key='round-1.'+flipped_role
+        assert before[key].endswith('instruction-like content: none detected (self-report)')
+        assert after[key]==before[key].replace('none detected (self-report)', 'detected (self-report)')
+        coder_summary='true in at least one coder output' if flipped_role=='coder' else 'false in all four coder outputs'
+        assert 'data_boundary_report.instruction_like_content_detected: '+coder_summary+';' in after['legend-r6']
+        assert after['legend-r6'].endswith('at least one role reported detection')
+        assert before['legend-r6'].endswith('no role reported detection')
+        before_caption=PLOT.build_provenance(original,original_layout,[],[])['caption']
+        after_caption=PLOT.build_provenance(changed,layout,[],[])['caption']
+        assert 'none is reported in the recorded rounds.' in before_caption
+        assert after_caption==before_caption.replace('none is reported in the recorded rounds.', 'at least one recorded output reports detection.')
         for col in raw['columns']:
             for role in ('planner','coder','critic'):
                 cell=col['cells'][role]

@@ -55,7 +55,7 @@
     {
       "id": "proposal",
       "label": "Proposal file",
-      "sublabel": "a backoff hole literal; known-value re-proposals are recorded, not counted as new values",
+      "sublabel": "a backoff hole literal; run-card known-value re-proposals are recorded, not counted as new values",
       "source_anchor": "§1.5"
     },
     {
