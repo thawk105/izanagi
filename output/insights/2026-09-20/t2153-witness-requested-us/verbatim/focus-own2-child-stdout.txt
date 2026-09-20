@@ -1,0 +1,259 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 33%]
+........................................................................ [ 66%]
+........................................................................ [ 99%]
+..                                                                       [100%]
+==================================== PASSES ====================================
+_ test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[IZANAGI_BREAK_PERMUTATION] _
+[gw40] linux -- Python 3.10.12 /bin/python3.10
+----------------------------- Captured stderr call -----------------------------
+usage: condition-meaning-gate [-h] --source-root SOURCE_ROOT
+                              [--stock-root STOCK_ROOT] --driver-id DRIVER_ID
+                              --macro
+                              {BACKOFF_COUNT_CAP_US,BACKOFF_COUNT_WINDOW,BACKOFF_DYN_CEILING,BACKOFF_FIXED,BACKOFF_INCR_MILLI,BACKOFF_MAX_US,BACKOFF_NOINLINE,BACKOFF_REQUESTED_US,BACKOFF_STEP_ADAPT,BACKOFF_STEP_MAX_MILLI,BACKOFF_STEP_MIN_MILLI,BACKOFF_STEP_POLICY,BACKOFF_STEP_POLICY_SEED,BACKOFF_TRACE,BACKOFF_TRACE_TERMINAL_US,BACKOFF_TRIGGER_GATING,BACKOFF_UPDATE_US,IZANAGI_BREAK_EARLY_UNLOCK,IZANAGI_BREAK_HIGHKEY_VALIDATION,IZANAGI_BREAK_LOCK_COVERAGE,IZANAGI_BREAK_MOCC_EARLY_UNLOCK,IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK,IZANAGI_BREAK_MOCC_LOCK_COVERAGE,IZANAGI_BREAK_MOCC_PERMUTATION,IZANAGI_BREAK_NOREAD_VALIDATION,IZANAGI_BREAK_PERMUTATION,IZANAGI_BREAK_PERMUTATION_SWAP,IZANAGI_BREAK_TRIGGER_MISATTR,IZANAGI_BREAK_WRITE_INTENT_ERASE,IZANAGI_BREAK_WRITE_INTENT_FORGE,IZANAGI_BREAK_WRITE_INTENT_OPSWAP,IZANAGI_BREAK_WRITE_INTENT_PTRSWAP,IZANAGI_SILO_LADDER_RUNG1,IZANAGI_SILO_LADDER_RUNG1_REPORT,MOCC_TEMP_PREDICATE,SORT_VARIANT,SS2PL_DLR,SS2PL_LOCK_IMPL,SS2PL_LOCK_KIND,SS2PL_WFG_DIAG}
+                              --requested-value REQUESTED_VALUE
+                              [--default-value DEFAULT_VALUE]
+                              [--stock-comparison]
+                              [--configure-arg CONFIGURE_ARG]
+                              [--meaning-case MEANING_CASE] --cxx CXX
+                              [--cmake CMAKE]
+                              [--use-class {certified-selection,floor,oracle,paper,raw,raw-measurement}]
+condition-meaning-gate: error: cli-contract-invalid: legacy meaning cases are unsupported for macro: IZANAGI_BREAK_PERMUTATION
+_ test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[BACKOFF_REQUESTED_US] _
+[gw16] linux -- Python 3.10.12 /bin/python3.10
+----------------------------- Captured stderr call -----------------------------
+usage: condition-meaning-gate [-h] --source-root SOURCE_ROOT
+                              [--stock-root STOCK_ROOT] --driver-id DRIVER_ID
+                              --macro
+                              {BACKOFF_COUNT_CAP_US,BACKOFF_COUNT_WINDOW,BACKOFF_DYN_CEILING,BACKOFF_FIXED,BACKOFF_INCR_MILLI,BACKOFF_MAX_US,BACKOFF_NOINLINE,BACKOFF_REQUESTED_US,BACKOFF_STEP_ADAPT,BACKOFF_STEP_MAX_MILLI,BACKOFF_STEP_MIN_MILLI,BACKOFF_STEP_POLICY,BACKOFF_STEP_POLICY_SEED,BACKOFF_TRACE,BACKOFF_TRACE_TERMINAL_US,BACKOFF_TRIGGER_GATING,BACKOFF_UPDATE_US,IZANAGI_BREAK_EARLY_UNLOCK,IZANAGI_BREAK_HIGHKEY_VALIDATION,IZANAGI_BREAK_LOCK_COVERAGE,IZANAGI_BREAK_MOCC_EARLY_UNLOCK,IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK,IZANAGI_BREAK_MOCC_LOCK_COVERAGE,IZANAGI_BREAK_MOCC_PERMUTATION,IZANAGI_BREAK_NOREAD_VALIDATION,IZANAGI_BREAK_PERMUTATION,IZANAGI_BREAK_PERMUTATION_SWAP,IZANAGI_BREAK_TRIGGER_MISATTR,IZANAGI_BREAK_WRITE_INTENT_ERASE,IZANAGI_BREAK_WRITE_INTENT_FORGE,IZANAGI_BREAK_WRITE_INTENT_OPSWAP,IZANAGI_BREAK_WRITE_INTENT_PTRSWAP,IZANAGI_SILO_LADDER_RUNG1,IZANAGI_SILO_LADDER_RUNG1_REPORT,MOCC_TEMP_PREDICATE,SORT_VARIANT,SS2PL_DLR,SS2PL_LOCK_IMPL,SS2PL_LOCK_KIND,SS2PL_WFG_DIAG}
+                              --requested-value REQUESTED_VALUE
+                              [--default-value DEFAULT_VALUE]
+                              [--stock-comparison]
+                              [--configure-arg CONFIGURE_ARG]
+                              [--meaning-case MEANING_CASE] --cxx CXX
+                              [--cmake CMAKE]
+                              [--use-class {certified-selection,floor,oracle,paper,raw,raw-measurement}]
+condition-meaning-gate: error: cli-contract-invalid: legacy meaning cases are unsupported for macro: BACKOFF_REQUESTED_US
+=========================== short test summary info ============================
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_EARLY_UNLOCK]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NOREAD_VALIDATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_NOINLINE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_success_returns_completed_process_unchanged
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_semantic_difference_on_root_line_is_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_preserves_directory_symlinks_and_git_link
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_shaped_literal_outside_closure_is_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_prefixed_by_path_byte_is_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_difference_without_code_owned_file_builtin_is_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_NOINLINE=0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_FIXED=-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_evidence_binds_configure_source_roots
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_requested_one_supply_and_meaning_are_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_HIGHKEY_VALIDATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_NOREAD_VALIDATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_raw_3000_is_observed_as_static_1000
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_factory_and_supply_reject_one_vs_zero
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TRIGGER_MISATTR]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SORT_VARIANT]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[MOCC_TEMP_PREDICATE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_REQUESTED_US]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-None]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_real_cmake_wrapper_replacement_during_configure_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-None]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[owner]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-None]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[IZANAGI_BREAK_PERMUTATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[BACKOFF_REQUESTED_US]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_counterfactual_defaults
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-0-True]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-0-True]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-1-False]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-1-False]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-None-False]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_counterfactual_specs_are_exact
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_module_claim_names_the_exact_38_define_supply_domain
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_shadow_instruments_all_files
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[header-verbatim]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[undef]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_PERMUTATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_HIGHKEY_VALIDATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TRIGGER_MISATTR]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_owner_site_inactive
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[twice]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[inactive-outer]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[pragma-once]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens0]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[duplicate]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_rejects_compensated_missing_sites
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens2]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[bool-count]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[identity]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_sort_undef_rejects_family_with_supply_still_green
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[path]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[digest]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_run_process_timeout_and_execution_failures_report_exact_argv
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[missing]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[False]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-path]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-companion]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[empty]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_if_macro_none_contrast_keeps_cmake_default_supply_behavior
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[count]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-None]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-sites]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[directive]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-index]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-type]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-path]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-count]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-extra]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-empty]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-duplicate]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-type]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[rows-type]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-index]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-completed-define]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-row-type]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-extra]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-count]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-type]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-completed-define]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-selected-define]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_field_and_existing_evidence_keys_are_unchanged
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[companion_sources]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-selected-define]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_supply_meaning_and_admission
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[BACKOFF_TRIGGER_GATING]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-order]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_cli_establishes_multifile_meaning
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[site_observations]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[True]
+PASSED orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TRIGGER_MISATTR]
+218 passed in 6.32s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
