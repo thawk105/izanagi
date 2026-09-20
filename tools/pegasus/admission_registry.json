@@ -31,6 +31,12 @@
       "primary_gate": "PBS allocation and job-body compute-host preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/b5_contrast_launch.py": {
+      "class": "local-ok",
+      "reason": "login-side PBS B-5 generator-contrast pilot submitter (4 fixed jobs)",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",

@@ -3166,6 +3166,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/acceptance_nproc_study.sh": "dispatch-required",
     "tools/pegasus/b10_backoff_grid.sh": "dispatch-required",
     "tools/pegasus/b10_backoff_shape_campaign.sh": "dispatch-required",
+    "tools/pegasus/b5_contrast_launch.py": "local-ok",
     "tools/pegasus/certify_calibration.sh": "dispatch-required",
     "tools/pegasus/collect_receipt.py": "unknown",
     "tools/pegasus/collect_t126_qualification.py": "unknown",
@@ -3268,6 +3269,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "PBS B10 backoff-shape measurement campaign job body",
         "primary_gate": "PBS allocation and job-body compute-host preflight",
         "evidence": "static job-body classification"
+    },
+    "tools/pegasus/b5_contrast_launch.py": {
+        "class": "local-ok",
+        "reason": "login-side PBS B-5 generator-contrast pilot submitter (4 fixed jobs)",
+        "primary_gate": "qsub submission; compute work stays in independent job bodies",
+        "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/certify_calibration.sh": {
         "class": "dispatch-required",
@@ -4110,6 +4117,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
                 f"Pegasus admission の {field} が空: {path}"
 
     expected_local_evidence = {
+        "tools/pegasus/b5_contrast_launch.py":
+            "static login-side submitter classification",
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
         "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh":
