@@ -1,0 +1,31 @@
+{
+  "schema": "izanagi-verbatim-whitespace-normalization/v1",
+  "files": [
+    {
+      "file": "s5-author.md",
+      "original_sha256": "ad883ac27638bd71fb4dc485b3dc9cc4054f48f2f4d843d30fe9e50bd903f6a3",
+      "original_bytes": 6065,
+      "normalized_sha256": "4b59be938c0a4f3591522229ae5990e12f178245d3385a314cceef073a7fb2c1",
+      "normalized_bytes": 6057,
+      "removed": [
+        {
+          "line": 81,
+          "removed_suffix": "  "
+        },
+        {
+          "line": 82,
+          "removed_suffix": "  "
+        },
+        {
+          "line": 83,
+          "removed_suffix": "  "
+        },
+        {
+          "line": 84,
+          "removed_suffix": "  "
+        }
+      ],
+      "restore": "append removed_suffix to the end of each listed line (before its LF); visible characters unchanged"
+    }
+  ]
+}

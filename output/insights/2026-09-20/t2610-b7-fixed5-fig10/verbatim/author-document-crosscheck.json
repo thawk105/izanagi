@@ -1,0 +1,28 @@
+{
+  "medians": {
+    "rr5-stock": 2354846.0,
+    "rr5-fixed5": 3953710.0,
+    "rr50-stock": 3832768.0,
+    "rr50-fixed5": 4318443.0,
+    "rr95-stock": 10334945.0,
+    "rr95-fixed5": 9158963.0
+  },
+  "effects": {
+    "rr5": 0.6789675418265144,
+    "rr50": 0.12671651401806727,
+    "rr95": -0.11378696258180376
+  },
+  "floors": {
+    "rr5": 0.009536033056996148,
+    "rr50": 0.00725042525457718,
+    "rr95": 0.0022283754708938273
+  },
+  "judgments": {
+    "rr5": "no-regression",
+    "rr50": "no-regression",
+    "rr95": "regression"
+  },
+  "samples": "30/30 match",
+  "repo_closure": "PASS",
+  "external_sources": "PASS"
+}

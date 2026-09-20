@@ -1,0 +1,12 @@
+start 2026-09-20T08:11:09+0900 HEAD=06d101fee18c92636ee3e90d4bae59654cc15e28
+== porcelain before (must be empty)
+applied M1-hit-trusts-marker-campaign-run-id to orchestrator/campaign/s8b_holdout_admission.py
+== diff --stat after mutation
+ orchestrator/campaign/s8b_holdout_admission.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+FAIL states=24 matched=22 mismatches=["e-later-nontarget-marker-campaign_run_id", "f-later-A-campaign_run_id"] positive_control_rc=not-run import_writes=0 import_processes=0 rc=1
+probe rc=1
+== diff --stat after restore (must be empty)
+blob_worktree=1c62600057f960524955c7c3c9890c75f896638a
+blob_head=1c62600057f960524955c7c3c9890c75f896638a
+end 2026-09-20T08:11:28+0900
