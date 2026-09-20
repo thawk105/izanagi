@@ -1,0 +1,96 @@
+{
+  "accounting": {
+    "cpu_total_s": 9080.502,
+    "elapsed_s": 1050.0200000000186,
+    "ended_epoch_s": 1789896533.2025006,
+    "ended_monotonic_s": 892575.87,
+    "method": "bash-times-delta-reaped-descendants/v1",
+    "reaped_descendants_system_s": 168.618,
+    "reaped_descendants_user_s": 8911.832,
+    "shell_system_s": 0.045,
+    "shell_user_s": 0.006999999999999999,
+    "started_epoch_s": 1789895483.1838665,
+    "started_monotonic_s": 891525.85,
+    "times_baseline_raw": "0m0.002s 0m0.000s\n0m0.001s 0m0.000s",
+    "times_final_raw": "0m0.009s 0m0.045s\n148m31.833s 2m48.618s",
+    "unreaped_descendants": []
+  },
+  "attempt_identity": {
+    "st_dev": 743766374,
+    "st_ino": 144118414837837640
+  },
+  "completion_receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/receipts/completion.json",
+  "driver_rc": 0,
+  "expected_head": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "observed_head": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "ordinal": 0,
+  "pbs_jobid": "0:13220.nqsv",
+  "pbs_observation": {
+    "pbs_jobid": "0:13220.nqsv",
+    "pbs_o_host": "pegasus02",
+    "pbs_o_workdir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2792-a1-sized-attempt2/submit-tree"
+  },
+  "porcelain": "",
+  "receipt_sha256": "5777392350017246e2465cd8b1bf307917f8a08541f0c6c22d6c2cc9aca88cd2",
+  "recorded_epoch": 1789896537,
+  "reservation_binding": {
+    "boot_id": "0c839600-ef43-4de6-9d36-6f201f8a1e5c",
+    "deadline_epoch": 1789917083.0,
+    "host": "bnode035",
+    "job_id": "0:13220.nqsv",
+    "nonce": "attempt-0002.write-heavy",
+    "requested_s": 21600,
+    "scheduler_started_epoch": 1789895483.0,
+    "script_sha256": "3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80"
+  },
+  "result_sha256": "f05ea8e80a4e2f9a7525e6e4e3a6624d9166669bd5789dc8027dce1e2cbd0156",
+  "schema_version": "paper-story-a1-paired-workload-job-terminal/v1",
+  "shell_rc": 0,
+  "status": "finished",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "submission_receipt_sha256": "7fb0ebd66652d4d91cf399d2fa5b523b90615f0c493c4275f089ba1a8561aeb6",
+  "terminal_source_binding": {
+    "artifact_standalone_proof": false,
+    "evidence_level": "source-routed-trace0",
+    "files": {
+      "orchestrator/calibrator/runner.py": {
+        "git_blob_oid": "6ebeb4f7b7ce103dfa8f88937799414ea8865b05",
+        "working_sha256": "afa697ee4527a790c93ea9e77e98a0605a5543645ac064d5eba23f587913d7ed"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.py": {
+        "git_blob_oid": "47c94e1db0d2922a4364134f724041035ea481b2",
+        "working_sha256": "9e69bae4b82df318233455423c58a4254a47e8d938d99ef12fd0d8e3dedae2e6"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.v3-sized.json": {
+        "git_blob_oid": "2e440c502cefc529bb65a7285d230ddc98a9f362",
+        "working_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a"
+      },
+      "orchestrator/campaign/paper_story_a1_source.py": {
+        "git_blob_oid": "d6d0a2e6f4ab91139111e5d1c71984957fc1be17",
+        "working_sha256": "f7adc8e99afe3d772bfede1b60320f9ef39b15d82335515181b7880b9833db4f"
+      },
+      "orchestrator/campaign/paper_story_a1_source.v2.json": {
+        "git_blob_oid": "8450d7352b5ee6d0bef779f1dac39b4f83b07c91",
+        "working_sha256": "b50a4edf86250033aa0e2b18efa2d7842d7c90025fdb901011fdad7adf052fe1"
+      },
+      "orchestrator/campaign/pipeline.py": {
+        "git_blob_oid": "ff4f3c8ab056571595279e81e9d35724d77647be",
+        "working_sha256": "472cc7a23d1f8d442db8c3a85fb2af03242e55540258ff284c678051a82c11df"
+      },
+      "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md": {
+        "git_blob_oid": "a614b89319fd189bf0247d9074c5d2c9ac3c77ff",
+        "working_sha256": "6093de244e6fc90607094608617032f427db4951ebffc847c7bcaa795309789b"
+      },
+      "patches/silo-backoff-fixed.patch": {
+        "git_blob_oid": "eb319d8fd856de0799b0134d24122ba8f031a438",
+        "working_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a"
+      },
+      "tools/pegasus/paper_story_a1_paired.sh": {
+        "git_blob_oid": "746d474f8909c36b191bbd3daa90851eec3fea4a",
+        "working_sha256": "3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80"
+      }
+    },
+    "measurement_source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280"
+  },
+  "workload": "write-heavy"
+}

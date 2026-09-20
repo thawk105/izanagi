@@ -1,0 +1,15 @@
+
+============================================================
+Request ID:             13222.nqsv
+Request Name:           paper_story_a1_paired.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Sun Sep 20 18:11:16 2026
+Started Request Time:   Sun Sep 20 18:11:23 2026
+Ended Request Time:     Sun Sep 20 18:25:34 2026
+Resources Information:
+  Elapse:               856S
+  Remaining Elapse:     20744S
+============================================================

@@ -1,0 +1,3 @@
+acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":"0372cb944ff8e84dc8e406f2cb2dd2ba348fb1c6","classification":"postcheck","log_sha256":null,"normalized_child_rc":null,"raw_child_rc":null,"reason":"terminal-postcheck","retry":false}
+error: stage=postcheck rc=70

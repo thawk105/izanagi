@@ -12108,6 +12108,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `state=held` かつ `main_sha` が現行 main と異なれば
   `python3 tools/wave_land_window.py release --lease-dir <dir> --wave <slug>` で解放してから
   投入する。同じ検知手順が F344 の再発検知節に既にある。
+
+- **再発: 2026-09-20** — land を挟まない**同一 wave の連続受入** (採用効果の A/B 再確認で B 木の受入を 3 走) で起きた。02-B の成功後に lease が保持されたまま (記録済み main_sha `4fe49200e`) 他 wave の land で main が進み、03-B の claim が `stage=claim-self-unverified rc=70` で 1 回空振り (子は走らず、17 分の門番待ちを消費)。親が `wave_land_window.py release` で解放し、launcher へ「`lease is held` と告げた走だけ終端で release する」を加えて以後は通った。F344 の恒久対応 (land rc=0 直後の release) と 2026-09-07 の追記 (land 不成功時の release) は「land しない受入の反復」を覆っていない — 同 wave で受入を続けて投げるときは、各走の終端 (または次走の投入前の `status` 確認) で release する。逐語は `output/insights/2026-09-20/t2766-pairing-adopt/README.md` §5・§7。
 ### F345. 生きた成果物から導出した hash の literal pin が path 検索にも値検索にも掛からず、実走でだけ露見した [手順漏れ]
 
 - 事象: 8c 事前登録の証拠契約を改訂する wave で、親は着手前に pin 閉包を取った。成果物 path で
@@ -27665,6 +27667,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入全走が検出者である。**走査器 1 本の緑を全 gate の緑と読まない。**
   記録に「走査器 rc=0」と書くときは、その走査器の候補集合が何であるかを併記する。
 
+
+- **再発: 2026-09-20** ([T-2792] A-1 sized attempt-0002 の記録 wave) — DW-S07 の三軸語走査器 (`s8b_holdout_freeze search`) を段 7 で走らせ「本 wave の file に hit なし」を確認したうえで、**その走査器の生出力 (走査の対象・正規表現名・既知 hit の一覧を含む JSON) を insight の `verbatim/three-axis-scan.txt` として repo に写した。** 出力自身が三軸語 conjunction に当たり、受入全走 (attempt 1、25 分) が `test_s8b_oracle_driver` の t080 系 `IZANAGI_FREEZE_HOLD` と `test_s8b_floor_campaign` の `clean scan 拒否` で赤 25 件 (全件がこの file を名指し)。走査は写す前の tree に対して行ったので緑だった。是正: file を削除し (走査結果は insight の要約 1 行で足りる)、走査を再走して hit が既知 4 file に戻ることを確認してから受入を取り直した。**走査器の出力は走査器の候補集合に入る**ので、走査後に足す file にも同じ検査を掛ける。
 ### F1014. 段 1 で採った consumer 列挙を段 5 まで持ち越し、その間に着地した新 consumer を落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 1 で旧 locator の読み手を列挙し (28 file)、段 4 の裁定に写した。段 5 の投入直前に

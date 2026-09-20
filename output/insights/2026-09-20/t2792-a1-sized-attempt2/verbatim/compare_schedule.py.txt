@@ -1,0 +1,30 @@
+import json, sys
+l1, l2 = sys.argv[1], sys.argv[2]
+r1 = json.load(open(l1 + "/result.json")); r2 = json.load(open(l2 + "/result.json"))
+for w1, w2 in zip(r1["workloads"], r2["workloads"]):
+    assert w1["workload"] == w2["workload"]
+    d1 = w1["schedule_receipt"]["document"]; d2 = w2["schedule_receipt"]["document"]
+    keys = sorted(set(d1) | set(d2))
+    print("==", w1["workload"], "keys:", keys)
+    for k in keys:
+        if k == "arms":
+            continue
+        v1, v2 = d1.get(k), d2.get(k)
+        same = v1 == v2
+        s1 = json.dumps(v1)[:200]; s2 = json.dumps(v2)[:200]
+        print(f"  {k}: same={same}" + ("" if same else f"\n    a1={s1}\n    a2={s2}"))
+    # arms: compare block_cvs presence only
+    print("  arms:", list(d1["arms"].keys()), list(d2["arms"].keys()))
+    print("  campaign_id:", w1["campaign_id"], w2["campaign_id"])
+    print("  campaign.lock sha:", w1["campaign_binding"]["campaign_lock_sha256"][:12], w2["campaign_binding"]["campaign_lock_sha256"][:12])
+    p1 = w1["campaign_binding"].get("canonical_preimage"); p2 = w2["campaign_binding"].get("canonical_preimage")
+    print("  preimage equal:", p1 == p2)
+    if p1 != p2 and p1 and p2:
+        j1 = json.loads(p1); j2 = json.loads(p2)
+        def walk(a, b, path=""):
+            if isinstance(a, dict) and isinstance(b, dict):
+                for k in sorted(set(a) | set(b)):
+                    walk(a.get(k), b.get(k), path + "/" + k)
+            elif a != b:
+                print("    diff", path, json.dumps(a)[:120], "->", json.dumps(b)[:120])
+        walk(j1, j2)

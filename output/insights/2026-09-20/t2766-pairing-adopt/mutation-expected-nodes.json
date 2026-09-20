@@ -1,0 +1,47 @@
+{
+  "M1-partner-sort-descending": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+  ],
+  "M2-head-width-47": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+  ],
+  "M3p-drop-pairing-call": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_collection_is_worker_count_independent",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_real_distribution_second_unit_counterexample"
+  ],
+  "M4-drop-cardinality-check": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_cardinality_infeasible_fails_closed"
+  ],
+  "M5-drop-witness-properties": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_holds_shard_selection_and_real_repo_suffix_survive",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[0]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[off]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_legacy_env_cannot_disable_pairing_or_change_item_state[t2766-min-cost-partners]",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_live_junit_witness_includes_skips_and_execution_worker",
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g12_pairing_queue_and_all_item_witness"
+  ]
+}

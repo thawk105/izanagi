@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""[T-2792] 公開 leaf (result.json / receipt.json / .complete.json) と durable attempt root (WAL / receipts) から、
+results 稿の表を機械生成する (数値は逐語、派生値は明示)。使い捨て (job dir)。
+
+usage: extract.py <leaf-dir> <attempt-root> [--json <out>]
+"""
+import hashlib, json, os, statistics, sys
+from datetime import datetime, timezone, timedelta
+
+JST = timezone(timedelta(hours=9))
+WORKLOADS = ("write-heavy", "balanced", "read-heavy")
+
+
+def sha(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def jst(epoch):
+    return datetime.fromtimestamp(epoch, JST).strftime("%H:%M:%S")
+
+
+def jst_full(epoch):
+    return datetime.fromtimestamp(epoch, JST).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def main():
+    leaf, attempt = sys.argv[1], sys.argv[2]
+    res = json.load(open(os.path.join(leaf, "result.json")))
+    rec = json.load(open(os.path.join(leaf, "receipt.json")))
+    comp = json.load(open(os.path.join(leaf, ".complete.json")))
+    out = {}
+
+    print("## leaf files")
+    for name in ("README.md", "receipt.json", "result.json", ".complete.json"):
+        p = os.path.join(leaf, name)
+        print(f"| `{name}` | `{sha(p)}` | {os.path.getsize(p)} |")
+    print("complete.files:", json.dumps(comp.get("files")))
+    print("complete.schema:", comp.get("schema_version"), "publish:", json.dumps(comp.get("publish"))[:300])
+    print()
+    print("## top-level")
+    for k in ("schema_version", "study_id", "policy_sha256", "authority", "formal", "promotion_prohibited",
+              "complete", "all_workloads_terminal", "measurement_error", "workload_reps", "pairing_design"):
+        print(f"- {k}: {json.dumps(res.get(k))}")
+    sb = res["source_binding"]
+    print(f"- measurement_source_commit: {sb['measurement_source_commit']}")
+    print(f"- evidence_level: {sb['evidence_level']} artifact_standalone_proof: {sb['artifact_standalone_proof']}")
+    print("- source files:")
+    for f in sb["files"]:
+        print(f"  - {json.dumps(f)}")
+    print("- limitations:")
+    for l in res["limitations"]:
+        print(f"  - {l}")
+    print()
+
+    print("## §1.4 job table (receipt.job_executions)")
+    print("| workload | request | host | scheduler start (JST) | job start (JST) | job end (JST) | elapsed s | CPU total s | requested_s | script sha |")
+    for je in rec["job_executions"]:
+        a = je["accounting"]; rb = je["reservation_binding"]
+        print(f"| {je['workload']} | `{je['request_id']}` | {rb['host']} | {jst(rb['scheduler_started_epoch'])} | {jst(a['started_epoch_s'])} | {jst(a['ended_epoch_s'])} | {a['elapsed_s']:.2f} | {a['cpu_total_s']:.3f} | {rb['requested_s']} | `{rb['script_sha256'][:16]}…` |")
+    print("receipt keys:", sorted(rec.keys()))
+    print("receipt.submission_receipt:", json.dumps(rec.get("submission_receipt"))[:600])
+    print("receipt.scheduler_completion_receipt:", json.dumps(rec.get("scheduler_completion_receipt"))[:900])
+    print("receipt.recorded_epoch:", rec.get("recorded_epoch"), jst_full(rec["recorded_epoch"]) if isinstance(rec.get("recorded_epoch"), (int, float)) else "")
+    print("receipt.materialization:", json.dumps(rec.get("materialization"))[:1200])
+    print("receipt.route:", rec.get("route"), "policy:", json.dumps(rec.get("policy")))
+    print()
+
+    print("## §2.1 statistics (逐語)")
+    print("| workload | contrast | n | mean | h | interval | B | baseline mean | sample sd | planned sigma | classification | breach |")
+    for w in res["workloads"]:
+        s = w["statistics"]
+        arms = list(w["arms"].keys())
+        var = [a for a in arms if a != "no-backoff"][0]
+        print(f"| {w['workload']} | `{var}` − `no-backoff` | {s['n']} | `{s['mean_signed_positional_difference_tps']!r}` | `{s['descriptive_half_width_tps']!r}` | `{s['descriptive_interval_tps']!r}` | `{s['floor_boundary_tps']!r}` | `{s['baseline_mean_tps']!r}` | `{s['sample_sd_positional_difference_tps']!r}` | `{s['planned_sigma_tps']!r}` | `{s['classification']}` | `{str(s['variance_plan_breach']).lower()}` |")
+    for w in res["workloads"]:
+        s = w["statistics"]
+        print(f"- {w['workload']}: k={s['k']!r} df={s['df']} floor_fraction={s['floor_fraction']!r} pairing_design={s['pairing_design']} contrast={s['contrast']} terminal_result={json.dumps(w['terminal_result'])} valid={w['valid']} errors={w['errors']} campaign_id={w['campaign_id']}")
+    print()
+
+    print("## §2.1 検算 (30 対から再計算)")
+    for w in res["workloads"]:
+        s = w["statistics"]; pairs = s["pairs"]
+        arms = list(w["arms"].keys()); var = [a for a in arms if a != "no-backoff"][0]
+        diffs = [p["signed_difference_tps"] for p in pairs]
+        ok_diff = all(abs(p[f"{var}_tps"] - p["no-backoff_tps"] - p["signed_difference_tps"]) < 1e-9 for p in pairs)
+        ok_raw = all(p[f"{var}_tps"] == w["arms"][var]["raw_tps"][i] and p["no-backoff_tps"] == w["arms"]["no-backoff"]["raw_tps"][i] for i, p in enumerate(pairs))
+        n = len(diffs); mean = sum(diffs) / n; sd = statistics.stdev(diffs)
+        h = s["k"] * sd / (n ** 0.5)
+        bmean = sum(w["arms"]["no-backoff"]["raw_tps"]) / n
+        B = 0.03 * bmean
+        cls = "resolved-above-floor" if abs(mean) - h > B else ("bounded-below-floor" if abs(mean) + h <= B else "unresolved")
+        print(f"- {w['workload']}: diff一致={ok_diff} raw一致={ok_raw} n={n} mean={mean!r} (記録 {s['mean_signed_positional_difference_tps']!r}) sd={sd!r} (記録 {s['sample_sd_positional_difference_tps']!r}) h={h!r} (記録 {s['descriptive_half_width_tps']!r}) B={B!r} (記録 {s['floor_boundary_tps']!r}) bmean={bmean!r} 分類={cls} (記録 {s['classification']}) sd/sigma={sd / s['planned_sigma_tps']:.3f} mean/bmean={mean / bmean:+.3f} 整数標本={all(float(x).is_integer() for p in pairs for x in (p[f'{var}_tps'], p['no-backoff_tps']))}")
+    print()
+
+    print("## §2.2 pairs (3 列 × 10 行)")
+    for w in res["workloads"]:
+        s = w["statistics"]; pairs = s["pairs"]
+        arms = list(w["arms"].keys()); var = [a for a in arms if a != "no-backoff"][0]
+        print(f"{w['workload']} (`{var}_tps`, `no-backoff_tps`, `signed_difference_tps`):")
+        print()
+        print(f"| # | {var} | no-backoff | diff | # | {var} | no-backoff | diff | # | {var} | no-backoff | diff |")
+        print("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+        for i in range(10):
+            cells = []
+            for j in (i, i + 10, i + 20):
+                p = pairs[j]
+                assert p["pair_index"] == j
+                cells.append(f"| {j} | {int(p[f'{var}_tps'])} | {int(p['no-backoff_tps'])} | {int(p['signed_difference_tps'])} ")
+            print("".join(cells) + "|")
+        print()
+
+    print("## §2.3 arms (派生 mean/min/max、WAL median/cv)")
+    print("| workload | arm | mean tps (派生) | min / max tps (派生) | median tps (WAL) | cv (WAL) | unstable | rounds | attempts |")
+    wal_by_w = {}
+    for w in res["workloads"]:
+        recs = w["wal_evidence"]["records"]
+        wal_by_w[w["workload"]] = recs
+        for arm, a in w["arms"].items():
+            raw = a["raw_tps"]
+            bd = [r for r in recs if r["stage"] == "bench_done" and r["variant"] == a["variant"]][0]["payload"]
+            print(f"| {w['workload']} | {arm} | {sum(raw) / len(raw):,.2f} | {int(min(raw)):,} / {int(max(raw)):,} | {bd['median_tps']!r} | {bd['cv']!r} | {str(bd['unstable']).lower()} | {a['actual_rounds']} | {a['attempt_count']} |")
+    for w in res["workloads"]:
+        for arm, a in w["arms"].items():
+            cm = [r for r in w["wal_evidence"]["records"] if r["stage"] == "commit" and r["variant"] == a["variant"]][0]["payload"]
+            print(f"- {w['workload']}/{arm}: variant={a['variant']} expected_reps={a['expected_reps']} observed_reps={a['observed_reps']} unstable={a['unstable']} valid={a['valid']} errors={a['errors']} rep_notes={a['rep_notes']} high_variance(commit)={cm['high_variance']} verify_configs={cm['verify_configs']} correctness_evidence.certified={a['correctness_evidence'].get('certified')} verify_configs={a['correctness_evidence'].get('verify_configs')} frames={len(a['correctness_evidence'].get('verify_done_frames', []))} genome={a['genome']}")
+    print()
+
+    print("## §2.4 verify_done")
+    print("| workload | arm (variant id) | commits | aborts | anomalies | certified | verdict | check config |")
+    for w in res["workloads"]:
+        for arm, a in w["arms"].items():
+            vd = [r for r in w["wal_evidence"]["records"] if r["stage"] == "verify_done" and r["variant"] == a["variant"]][0]["payload"]
+            print(f"| {w['workload']} | {arm} (`{a['variant']}`) | {vd['commits']} | {vd['aborts']} | {vd['anomalies']} | {str(vd['certified']).lower()} | {vd['verdict']} | `{vd['workload']['tag']}` | proof={json.dumps(vd['proof_surfaces'])} witness={json.dumps(vd['commit_witness'])}")
+    print()
+
+    print("## WAL (raw) ts / sha / size と bench_done.run_cmd / perf")
+    for w in res["workloads"]:
+        we = w["wal_evidence"]
+        p = we["path"]
+        print(f"- {w['workload']}: path={p}")
+        print(f"  recorded sha={we['sha256']} size={we['size']} env_tag={we['expected_env_tag']} line_issues={we['line_issues']} truncated_tail={we['truncated_tail']} records={len(we['records'])}")
+        if os.path.exists(p):
+            print(f"  actual   sha={sha(p)} size={os.path.getsize(p)}")
+            with open(p) as f:
+                for line in f:
+                    r = json.loads(line)
+                    ts = r.get("ts")
+                    extra = ""
+                    if r["stage"] == "bench_done":
+                        extra = f" bench_wall_s={r['payload']['bench_wall_s']!r} use_perf={r['payload']['perf_observation'].get('use_perf')} counter_status={r['payload']['perf_observation'].get('counter_status')}"
+                    if r["stage"] == "build_done":
+                        extra = f" trace_bin_sha256={r['payload']['trace_bin_sha256'][:12]}… perf_bin_sha256={r['payload']['perf_bin_sha256'][:12]}… perf_cached={r['payload'].get('perf_cached')} trace_cached={r['payload'].get('trace_cached')}"
+                    print(f"  {ts} {r['stage']} {r['variant']}{extra}")
+                    if r["stage"] == "bench_done" and w["workload"] == "write-heavy" and r["variant"] != "84319b1127a6":
+                        print("  run_cmd:", r["payload"]["run_cmd"])
+        cb = w["campaign_binding"]
+        lock = cb["campaign_lock_path"]
+        print(f"  campaign.lock recorded sha={cb['campaign_lock_sha256']} size={cb['campaign_lock_size']}" + (f" actual sha={sha(lock)} size={os.path.getsize(lock)}" if os.path.exists(lock) else " (lock path missing)"))
+        sr = w["schedule_receipt"]
+        srp = sr.get("path")
+        print(f"  schedule receipt recorded sha={sr.get('sha256')} size={sr.get('size')} path={srp}" + (f" actual sha={sha(srp)} size={os.path.getsize(srp)}" if srp and os.path.exists(srp) else ""))
+    print()
+
+    print("## attempt root receipts / raw")
+    for rel in ("raw/results/result.json", "raw/results/receipt.json", "raw/job-terminal.json", "receipts/submission.json", "receipts/completion.json"):
+        p = os.path.join(attempt, rel)
+        if os.path.exists(p):
+            print(f"- {rel}: sha={sha(p)} size={os.path.getsize(p)} mtime={jst_full(os.path.getmtime(p))}")
+    base = os.path.dirname(attempt)
+    for name in (f"{os.path.basename(attempt)}.intent.json", f"{os.path.basename(attempt)}.authorization.json"):
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            print(f"- {name}: sha={sha(p)} size={os.path.getsize(p)} mtime={jst_full(os.path.getmtime(p))}")
+    for wl in WORKLOADS:
+        for rel in (f"barrier/ready/{wl}.json", f"barrier/bench-start/{wl}.json", f"jobs/{wl}/job-terminal.json"):
+            p = os.path.join(attempt, rel)
+            if os.path.exists(p):
+                print(f"- {rel}: mtime={jst_full(os.path.getmtime(p))} sha={sha(p)[:16]}…")
+    bg = os.path.join(attempt, "barrier/bench-go.json")
+    if os.path.exists(bg):
+        print(f"- barrier/bench-go.json: mtime={jst_full(os.path.getmtime(bg))}")
+    for wl in WORKLOADS:
+        p = os.path.join(attempt, f"jobs/{wl}/job-terminal.json")
+        if os.path.exists(p):
+            t = json.load(open(p))
+            print(f"- job-terminal {wl}: {json.dumps({k: t.get(k) for k in ('driver_rc', 'shell_rc', 'status', 'request_id', 'host')})}")
+    p = os.path.join(attempt, "receipts/submission.json")
+    if os.path.exists(p):
+        s = json.load(open(p))
+        print("- submission: schema", s.get("schema_version"), "route", s.get("route"), "intent_sha256", s.get("intent_sha256"))
+        for j in s.get("jobs", []):
+            print("  job:", json.dumps({k: j.get(k) for k in ('workload', 'request_id', 'qstat_visibility', 'queue')})[:300])
+    p = os.path.join(attempt, "receipts/completion.json")
+    if os.path.exists(p):
+        c = json.load(open(p))
+        print("- completion: schema", c.get("schema_version"), "keys", sorted(c.keys()))
+        print("  ", json.dumps({k: c.get(k) for k in ('group_terminal', 'scheduler_terminal', 'recorded_epoch')})[:1200])
+
+
+if __name__ == "__main__":
+    main()
