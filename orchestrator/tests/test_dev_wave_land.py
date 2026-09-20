@@ -9957,7 +9957,7 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
             return subprocess.CompletedProcess(
                 [], returncode, b"",
                 b"provenance dispatch budget: remaining_at_dispatch_s=470.0 "
-                b"queue_wait_timeout_s=288.0 deadline_at_margin_s=32.0 "
+                b"queue_wait_timeout_s=288.0 deadline_margin_s=32.0 "
                 b"remaining_at_return_s=400.0 rc=16\n",
             )
 

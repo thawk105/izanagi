@@ -6985,7 +6985,7 @@ def test_outer_deadline_terminal_line_reports_observable_values(monkeypatch, cap
     lines = capsys.readouterr().err.splitlines()
     assert lines[0] == (
         "provenance dispatch budget: remaining_at_dispatch_s=470.0 "
-        "queue_wait_timeout_s=288.0 deadline_at_margin_s=32.0 "
+        "queue_wait_timeout_s=288.0 deadline_margin_s=32.0 "
         f"remaining_at_return_s=420.0 rc={expected_rc}"
     )
     assert len(lines) == (1 if isinstance(outcome, int) else 2)

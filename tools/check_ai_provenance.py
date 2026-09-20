@@ -2942,7 +2942,7 @@ def _default_dispatch(argv: Sequence[str]) -> int:
         print(
             f"provenance dispatch budget: remaining_at_dispatch_s={remaining} "
             f"queue_wait_timeout_s={queue_wait_timeout_s} "
-            f"deadline_at_margin_s={outer_deadline - deadline_at} "
+            f"deadline_margin_s={outer_deadline - deadline_at} "
             f"remaining_at_return_s={outer_deadline - time.monotonic()} rc={rc}",
             file=sys.stderr, flush=True,
         )
