@@ -1469,6 +1469,7 @@ def _waiver_audit(label: str, message: str) -> WaiverAudit:
 
 def validate_message(
     label: str, message: str, *, check_cab: bool = True,
+    values: list[str] | None = None,
 ) -> tuple[list[str], list[str], list[str]]:
     """(findings, scope_findings, cab_findings) を返す。
 
@@ -1478,7 +1479,8 @@ def validate_message(
     祖先でない HEAD 到達 commit にも適用する。
     CAB policy 導入前の履歴では check_cab=False とし、canonical parser 自体を呼ばない。
     """
-    values = _ai_agent_values(message)
+    if values is None:
+        values = _ai_agent_values(message)
     cab_findings = (
         _co_authored_by_findings(label, message) if check_cab else []
     )
@@ -1598,6 +1600,7 @@ def _is_implementation_path(path: str) -> bool:
 
 def validate_implementation_author(
     label: str, message: str, paths: list[str], *, waived: bool = False,
+    values: list[str] | None = None,
 ) -> tuple[list[str], bool]:
     """AI 関与の実装面 commit に Codex author がいることを検査する。
 
@@ -1608,7 +1611,8 @@ def validate_implementation_author(
     implementation = sorted(path for path in paths if _is_implementation_path(path))
     if not implementation:
         return [], False
-    values = _ai_agent_values(message)
+    if values is None:
+        values = _ai_agent_values(message)
     if not values or values == ["none"]:
         return [], False
     for value in values:
@@ -1635,6 +1639,79 @@ def _nul_paths(raw: str) -> list[str]:
 
 def _commit_parents(commit: str) -> list[str]:
     return _git("show", "-s", "--format=%P", commit).split()
+
+
+def _parse_path_batch(raw: str, requested: list[str]) -> dict[str, list[str]] | None:
+    """Every OID-shaped token is a header, including paths after the last header."""
+    if not raw.endswith("\0"):
+        return None
+    tokens = raw[:-1].split("\0")
+    result: dict[str, list[str]] = {}
+    headers: list[str] = []
+    paths: list[str] | None = None
+    for token in tokens:
+        if not token:
+            return None
+        if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", token):
+            headers.append(token)
+            paths = []
+            result[token] = paths
+        elif paths is None:
+            return None
+        else:
+            paths.append(token)
+    if headers != requested or result.keys() != set(requested):
+        return None
+    return result
+
+
+def _batch_nonmerge_paths(commits: list[str]) -> dict[str, list[str]] | None:
+    requested = list(dict.fromkeys(commits))
+    if not requested:
+        return {}
+    try:
+        raw = _git(
+            "diff-tree", "--stdin", "--root", "--no-renames", "-r",
+            "--name-only", "-z", "--always",
+            input_text="".join(f"{oid}\n" for oid in requested),
+        )
+        return _parse_path_batch(raw, requested)
+    except (RuntimeError, OSError, UnicodeError, ValueError):
+        return None
+
+
+def _merge_path_batch_enabled() -> bool:
+    try:
+        statuses = [subprocess.run(
+            ["git", "config", "--get", key], cwd=REPO, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ).returncode for key in ("diff.ignoreSubmodules", "diff.relative")]
+        return statuses == [1, 1]
+    except (RuntimeError, OSError, UnicodeError, ValueError):
+        return False
+
+
+def _batch_merge_parent_paths(
+    merges: list[str], parents_table: dict[str, tuple[str, ...]],
+) -> dict[str, list[set[str]]] | None:
+    requested = list(dict.fromkeys(merges))
+    result: dict[str, list[set[str]]] = {oid: [] for oid in requested}
+    for slot in range(max((len(parents_table[oid]) for oid in requested), default=0)):
+        batch = [oid for oid in requested if slot < len(parents_table[oid])]
+        try:
+            raw = _git(
+                "diff-tree", "--stdin", "--no-renames", "-r", "--name-only",
+                "-z", "--diff-filter=ACMRDTUXB", "--always",
+                input_text="".join(f"{oid} {parents_table[oid][slot]}\n" for oid in batch),
+            )
+            parsed = _parse_path_batch(raw, batch)
+        except (RuntimeError, OSError, UnicodeError, ValueError):
+            return None
+        if parsed is None:
+            return None
+        for oid in batch:
+            result[oid].append(set(parsed[oid]))
+    return result
 
 
 def _paths_changed_from(parent: str, commit: str) -> set[str]:
@@ -1693,18 +1770,22 @@ def _intersection_path_set(path_sets: list[set[str]]) -> list[str]:
     return sorted(set.intersection(*path_sets))
 
 
-def _commit_paths(commit: str) -> list[str]:
+def _commit_paths(
+    commit: str, *, parents: tuple[str, ...] | None = None,
+    parent_paths: list[set[str]] | None = None,
+) -> list[str]:
     """non-merge は従来差分、merge は combined diff が自明でない候補 path だけを返す。"""
-    parents = _commit_parents(commit)
+    if parents is None:
+        parents = _commit_parents(commit)
     if len(parents) <= 1:
         raw = _git(
             "diff-tree", "--root", "--no-renames", "--no-commit-id",
             "--name-only", "-r", "-z", commit,
         )
         return _nul_paths(raw)
-    candidates = _intersection_path_set([
-        _paths_changed_from(parent, commit) for parent in parents
-    ])
+    if parent_paths is None:
+        parent_paths = [_paths_changed_from(parent, commit) for parent in parents]
+    candidates = _intersection_path_set(parent_paths)
     if not candidates:
         return []
     return _combined_diff_paths(commit, candidates)
@@ -1856,6 +1937,7 @@ class _Ancestry:
     bits: tuple[int, ...]
     cab_policy_mask: int
     cab_policy_ancestor_mask: int = 0
+    parents: dict[str, tuple[str, ...]] | None = None
 
     def is_descendant(self, ancestor: str, commit: str) -> bool:
         i = self.index.get(commit)
@@ -1924,7 +2006,24 @@ def _build_ancestry(
         if j is not None:
             mask |= 1 << j
             ancestor_mask |= bits[j]
-    return _Ancestry(index, tuple(bits), mask, ancestor_mask)
+    # This is an optional cache: malformed rows must not change the existing
+    # ancestry calculation or its exceptions. Require a complete, ordered closure.
+    parents = {row[0]: tuple(row[1:]) for row in rows}
+    tokens = [token for row in rows for token in row]
+    if (
+        not raw.endswith("\n")
+        or any(not line.strip() for line in raw.splitlines())
+        or any(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", token) is None
+               for token in tokens)
+        or len({len(token) for token in tokens}) != 1
+        or len(parents) != len(rows)
+        or not set(commits).issubset(parents)
+        or parents.keys() != index.keys()
+        or any(parent not in index or index[parent] >= index[commit]
+               for commit, row_parents in parents.items() for parent in row_parents)
+    ):
+        parents = None
+    return _Ancestry(index, tuple(bits), mask, ancestor_mask, parents)
 
 
 def _base_finding_ledger_kind(label: str, finding: str) -> str | None:
@@ -1942,6 +2041,8 @@ def _normal_commit_audit(
     implementation_epoch: str | None,
     ancestry: _Ancestry | None = None,
     commit_message: _CommitMessage | None = None,
+    nonmerge_paths: dict[str, list[str]] | None = None,
+    merge_parent_paths: dict[str, list[set[str]]] | None = None,
     authoritative: bool = False,
 ) -> CommitAudit:
     """ancestry=None は逐次 oracle 経路 (merge-base / per-commit pickaxe)。
@@ -1973,8 +2074,9 @@ def _normal_commit_audit(
         def descends(ancestor: str) -> bool:
             return ancestry.is_descendant(ancestor, commit)
 
+    shared_values = {} if ancestry is None else {"values": _ai_agent_values(message)}
     base, scoped, cab = validate_message(
-        label, message, check_cab=cab_policy_applies,
+        label, message, check_cab=cab_policy_applies, **shared_values,
     )
     findings = [
         NormalFinding(
@@ -2008,8 +2110,19 @@ def _normal_commit_audit(
         findings.extend(
             NormalFinding(finding, None) for finding in waiver.findings
         )
+        if ancestry is not None and authoritative:
+            parents = ancestry.parents.get(commit) if ancestry.parents is not None else None
+            paths = nonmerge_paths.get(commit) if nonmerge_paths is not None else None
+            if paths is None:
+                paths = _commit_paths(
+                    commit, parents=parents,
+                    parent_paths=(merge_parent_paths.get(commit)
+                                  if merge_parent_paths is not None else None),
+                )
+        else:
+            paths = _commit_paths(commit)
         implementation, waived_applied = validate_implementation_author(
-            label, message, _commit_paths(commit), waived=waiver.exact,
+            label, message, paths, waived=waiver.exact, **shared_values,
         )
         findings.extend(
             NormalFinding(finding, MISSING_CODEX_AUTHOR)
@@ -2488,6 +2601,19 @@ def _audit_history(
             selected = commits
             messages = _batch_commit_messages(selected)
 
+    nonmerge_paths = merge_parent_paths = None
+    if authoritative and ancestry is not None and ancestry.parents is not None:
+        parents_table = ancestry.parents
+        requested = list(dict.fromkeys(selected))
+        nonmerge_paths = _batch_nonmerge_paths([
+            oid for oid in requested if oid in parents_table and len(parents_table[oid]) <= 1
+        ])
+        if _merge_path_batch_enabled():
+            merge_parent_paths = _batch_merge_parent_paths(
+                [oid for oid in requested if oid in parents_table and len(parents_table[oid]) > 1],
+                parents_table,
+            )
+
     def audit_one(commit: str) -> CommitAudit:
         return _normal_commit_audit(
             commit,
@@ -2495,6 +2621,8 @@ def _audit_history(
             implementation_epoch=implementation_epoch,
             ancestry=ancestry,
             commit_message=messages[commit] if messages is not None else None,
+            nonmerge_paths=nonmerge_paths,
+            merge_parent_paths=merge_parent_paths,
             authoritative=authoritative,
         )
 

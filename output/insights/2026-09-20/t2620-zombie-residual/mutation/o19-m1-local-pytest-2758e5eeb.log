@@ -1,0 +1,908 @@
+[1m============================= test session starts ==============================[0m
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+hypothesis profile 'default'
+rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2620-zombie-residual
+configfile: pytest.ini
+plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+[1mcollecting ... [0mcollected 216 items / 211 deselected / 5 selected
+
+orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_running_is_rejected [32mPASSED[0m[32m [ 20%][0m
+orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected [31mFAILED[0m[31m [ 40%][0m
+orchestrator/tests/test_codex_worker_launch.py::test_t2620_sigterm_ignore_subreaper_is_rejected [31mFAILED[0m[31m [ 60%][0m
+orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected [31mFAILED[0m[31m [ 80%][0m
+orchestrator/tests/test_codex_worker_launch.py::test_t2620_check_receipt_rejects_residual_only_changes [32mPASSED[0m[31m [100%][0m
+
+=================================== FAILURES ===================================
+[31m[1m_____________________ test_t2620_orphan_zombie_is_rejected _____________________[0m
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2013/test_t2620_orphan_zombie_is_re0')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_t2620_orphan_zombie_is_rejected[39;49;00m(tmp_path: Path) -> [94mNone[39;49;00m:[90m[39;49;00m
+>       _assert_t2620_residual_case([90m[39;49;00m
+            tmp_path, [33m"[39;49;00m[33morphan_zombie[39;49;00m[33m"[39;49;00m, residual=[94m1[39;49;00m, subreaper=[94mTrue[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4716: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4674: in _assert_t2620_residual_case
+    [0mobserve(completed)[90m[39;49;00m
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/usr/bin/python3', '/tmp/pytest-of-tanab/pytest-2013/test_t2620_orphan_zombie_is_re0/subreaper...derr='{"harness": "subreaper", "launcher_rc": 0, "adoptees": [[1950926, "Z"]], "reaped": [1950926], "unreaped": []}\n')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mobserve[39;49;00m(completed: subprocess.CompletedProcess[[96mstr[39;49;00m]) -> [94mNone[39;49;00m:[90m[39;49;00m
+        [94mtry[39;49;00m:[90m[39;49;00m
+            report = json.loads(completed.stderr.splitlines()[-[94m1[39;49;00m])[90m[39;49;00m
+        [94mexcept[39;49;00m ([96mIndexError[39;49;00m, json.JSONDecodeError):[90m[39;49;00m
+            report = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        observed = {[33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: completed.returncode, [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: report}[90m[39;49;00m
+        [94mif[39;49;00m paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].exists():[90m[39;49;00m
+            receipt = json.loads(paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].read_text(encoding=[33m"[39;49;00m[33mutf-8[39;49;00m[33m"[39;49;00m))[90m[39;49;00m
+            attempt = receipt[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                key: attempt[key][90m[39;49;00m
+                [94mfor[39;49;00m key [95min[39;49;00m ([90m[39;49;00m
+                    [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                    [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                )[90m[39;49;00m
+            })[90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+                [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+            })[90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        diagnostics = [94mNone[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96mlist[39;49;00m(paths[[33m"[39;49;00m[33martifact[39;49;00m[33m"[39;49;00m].glob([33m"[39;49;00m[33mlauncher-diagnostics.*.json[39;49;00m[33m"[39;49;00m)):[90m[39;49;00m
+            diagnostics = _read_launcher_diagnostics(paths)[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m] = diagnostics[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33msidecar[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        limit = [33m"[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [94mNone[39;49;00m[90m[39;49;00m
+        expected = {[90m[39;49;00m
+            [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+            [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33mnot_accepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: limit [95mor[39;49;00m [33m"[39;49;00m[33mmax_attempts[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m: limit,[90m[39;49;00m
+            [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m: -signal.SIGKILL [94mif[39;49;00m forced [94melse[39;49;00m [94m0[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m: {[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_count[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_unknown_source[39;49;00m[33m"[39;49;00m: [94mNone[39;49;00m,[90m[39;49;00m
+                [33m"[39;49;00m[33munknown_sources_seen[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+                [33m"[39;49;00m[33mproc_stat_malformed[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            },[90m[39;49;00m
+        }[90m[39;49;00m
+        expected_adoptees = [][90m[39;49;00m
+        [94mif[39;49;00m running:[90m[39;49;00m
+            child = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([child, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+        [94mif[39;49;00m forced [95mor[39;49;00m mode [95min[39;49;00m ([33m"[39;49;00m[33morphan_zombie[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33morphan_mixed[39;49;00m[33m"[39;49;00m):[90m[39;49;00m
+            zombie = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [33m"[39;49;00m[33mzombie.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = ([90m[39;49;00m
+                [96misinstance[39;49;00m(report, [96mdict[39;49;00m)[90m[39;49;00m
+                [95mand[39;49;00m [zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m] [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                [95mand[39;49;00m zombie [95min[39;49;00m report[[33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+            )[90m[39;49;00m
+            expected[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = [94mTrue[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96misinstance[39;49;00m(report, [96mdict[39;49;00m):[90m[39;49;00m
+            [90m# Keep the report in the comparison, normalizing only live states.[39;49;00m[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+                **report,[90m[39;49;00m
+                [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: [[90m[39;49;00m
+                    [pid, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m [94mif[39;49;00m state [95min[39;49;00m ([33m"[39;49;00m[33mS[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mR[39;49;00m[33m"[39;49;00m) [94melse[39;49;00m state][90m[39;49;00m
+                    [94mfor[39;49;00m pid, state [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ],[90m[39;49;00m
+            }[90m[39;49;00m
+        expected_adoptees.sort(key=[94mlambda[39;49;00m item: item[[94m0[39;49;00m] [95mor[39;49;00m -[94m1[39;49;00m)[90m[39;49;00m
+        expected[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+            [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33msubreaper[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: expected_adoptees,[90m[39;49;00m
+            [33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m: [pid [94mfor[39;49;00m pid, _state [95min[39;49;00m expected_adoptees],[90m[39;49;00m
+            [33m"[39;49;00m[33munreaped[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+        }[90m[39;49;00m
+        [94mif[39;49;00m forced:[90m[39;49;00m
+            [94mif[39;49;00m diagnostics [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m:[90m[39;49;00m
+                observed[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[90m[39;49;00m
+                    item[[33m"[39;49;00m[33msignal[39;49;00m[33m"[39;49;00m] [94mfor[39;49;00m item [95min[39;49;00m diagnostics[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ][90m[39;49;00m
+            expected[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[33m"[39;49;00m[33mSIGTERM[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mSIGKILL[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+>       [94massert[39;49;00m observed == expected[90m[39;49;00m
+[1m[31mE       AssertionError: assert {'launcher_rc': 0, 'harness': {'harness': 'subreaper', 'launcher_rc': 0, 'adoptees': [[1950926, 'Z']], 'reaped': [1950926], 'unreaped': []}, 'process_group_residual': 0, 'termination_verified': True, 'accepted': True, 'limit_trigger': None, 'codex_exit_code': 0, 'outcome': 'accepted', 'stop_reason': 'completed', 'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True} == {'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'launcher_rc': 1, 'limit_trigger': None, 'codex_exit_code': 0, 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1950926, 'Z']], 'reaped': [1950926], 'unreaped': []}}[0m
+[1m[31mE         [0m
+[1m[31mE         Common items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         Differing items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1950926[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]], [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1950926[39;49;00m], ...}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1950926[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]], [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1950926[39;49;00m], ...}}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mcompleted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mmax_attempts[39;49;00m[33m'[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m
+[1m[31mE         Full diff:[0m
+[1m[31mE         [0m[90m [39;49;00m {[90m[39;49;00m[0m
+[1m[31mE         [91m-     'process_group_residual': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'accepted': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'launcher_rc': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         ?                    ^[90m[39;49;00m[0m
+[1m[31mE         [92m+     'launcher_rc': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         ?                    ^[90m[39;49;00m[0m
+[1m[31mE         [91m-     'limit_trigger': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_count': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'harness': {[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m[0m
+[1m[31mE         [91m-         'launcher_rc': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         ?                        ^[90m[39;49;00m[0m
+[1m[31mE         [92m+         'launcher_rc': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         ?                        ^[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'adoptees': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 1950926,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 'Z',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'reaped': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             1950926,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'unreaped': [],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     },[90m[39;49;00m[0m
+[1m[31mE         [92m+     'process_group_residual': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'termination_verified': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'accepted': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'limit_trigger': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'outcome': 'accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'stop_reason': 'completed',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_count': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m }[90m[39;49;00m[0m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4663: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2620-zombie-residual/output/runs/pytest-launcher-failures/local--pegasus02/main/d3458d672269c49b--pid1949419--1789859043937939980--cobu35d5
+[31m[1m_______________ test_t2620_sigterm_ignore_subreaper_is_rejected ________________[0m
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2013/test_t2620_sigterm_ignore_subr0')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_t2620_sigterm_ignore_subreaper_is_rejected[39;49;00m(tmp_path: Path) -> [94mNone[39;49;00m:[90m[39;49;00m
+>       _assert_t2620_residual_case([90m[39;49;00m
+            tmp_path, [33m"[39;49;00m[33msigterm_ignore[39;49;00m[33m"[39;49;00m, residual=[94m1[39;49;00m, subreaper=[94mTrue[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4722: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4674: in _assert_t2620_residual_case
+    [0mobserve(completed)[90m[39;49;00m
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/usr/bin/python3', '/tmp/pytest-of-tanab/pytest-2013/test_t2620_sigterm_ignore_subr0/subreaper...derr='{"harness": "subreaper", "launcher_rc": 1, "adoptees": [[1952048, "Z"]], "reaped": [1952048], "unreaped": []}\n')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mobserve[39;49;00m(completed: subprocess.CompletedProcess[[96mstr[39;49;00m]) -> [94mNone[39;49;00m:[90m[39;49;00m
+        [94mtry[39;49;00m:[90m[39;49;00m
+            report = json.loads(completed.stderr.splitlines()[-[94m1[39;49;00m])[90m[39;49;00m
+        [94mexcept[39;49;00m ([96mIndexError[39;49;00m, json.JSONDecodeError):[90m[39;49;00m
+            report = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        observed = {[33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: completed.returncode, [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: report}[90m[39;49;00m
+        [94mif[39;49;00m paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].exists():[90m[39;49;00m
+            receipt = json.loads(paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].read_text(encoding=[33m"[39;49;00m[33mutf-8[39;49;00m[33m"[39;49;00m))[90m[39;49;00m
+            attempt = receipt[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                key: attempt[key][90m[39;49;00m
+                [94mfor[39;49;00m key [95min[39;49;00m ([90m[39;49;00m
+                    [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                    [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                )[90m[39;49;00m
+            })[90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+                [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+            })[90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        diagnostics = [94mNone[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96mlist[39;49;00m(paths[[33m"[39;49;00m[33martifact[39;49;00m[33m"[39;49;00m].glob([33m"[39;49;00m[33mlauncher-diagnostics.*.json[39;49;00m[33m"[39;49;00m)):[90m[39;49;00m
+            diagnostics = _read_launcher_diagnostics(paths)[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m] = diagnostics[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33msidecar[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        limit = [33m"[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [94mNone[39;49;00m[90m[39;49;00m
+        expected = {[90m[39;49;00m
+            [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+            [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33mnot_accepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: limit [95mor[39;49;00m [33m"[39;49;00m[33mmax_attempts[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m: limit,[90m[39;49;00m
+            [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m: -signal.SIGKILL [94mif[39;49;00m forced [94melse[39;49;00m [94m0[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m: {[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_count[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_unknown_source[39;49;00m[33m"[39;49;00m: [94mNone[39;49;00m,[90m[39;49;00m
+                [33m"[39;49;00m[33munknown_sources_seen[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+                [33m"[39;49;00m[33mproc_stat_malformed[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            },[90m[39;49;00m
+        }[90m[39;49;00m
+        expected_adoptees = [][90m[39;49;00m
+        [94mif[39;49;00m running:[90m[39;49;00m
+            child = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([child, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+        [94mif[39;49;00m forced [95mor[39;49;00m mode [95min[39;49;00m ([33m"[39;49;00m[33morphan_zombie[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33morphan_mixed[39;49;00m[33m"[39;49;00m):[90m[39;49;00m
+            zombie = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [33m"[39;49;00m[33mzombie.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = ([90m[39;49;00m
+                [96misinstance[39;49;00m(report, [96mdict[39;49;00m)[90m[39;49;00m
+                [95mand[39;49;00m [zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m] [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                [95mand[39;49;00m zombie [95min[39;49;00m report[[33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+            )[90m[39;49;00m
+            expected[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = [94mTrue[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96misinstance[39;49;00m(report, [96mdict[39;49;00m):[90m[39;49;00m
+            [90m# Keep the report in the comparison, normalizing only live states.[39;49;00m[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+                **report,[90m[39;49;00m
+                [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: [[90m[39;49;00m
+                    [pid, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m [94mif[39;49;00m state [95min[39;49;00m ([33m"[39;49;00m[33mS[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mR[39;49;00m[33m"[39;49;00m) [94melse[39;49;00m state][90m[39;49;00m
+                    [94mfor[39;49;00m pid, state [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ],[90m[39;49;00m
+            }[90m[39;49;00m
+        expected_adoptees.sort(key=[94mlambda[39;49;00m item: item[[94m0[39;49;00m] [95mor[39;49;00m -[94m1[39;49;00m)[90m[39;49;00m
+        expected[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+            [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33msubreaper[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: expected_adoptees,[90m[39;49;00m
+            [33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m: [pid [94mfor[39;49;00m pid, _state [95min[39;49;00m expected_adoptees],[90m[39;49;00m
+            [33m"[39;49;00m[33munreaped[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+        }[90m[39;49;00m
+        [94mif[39;49;00m forced:[90m[39;49;00m
+            [94mif[39;49;00m diagnostics [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m:[90m[39;49;00m
+                observed[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[90m[39;49;00m
+                    item[[33m"[39;49;00m[33msignal[39;49;00m[33m"[39;49;00m] [94mfor[39;49;00m item [95min[39;49;00m diagnostics[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ][90m[39;49;00m
+            expected[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[33m"[39;49;00m[33mSIGTERM[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mSIGKILL[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+>       [94massert[39;49;00m observed == expected[90m[39;49;00m
+[1m[31mE       AssertionError: assert {'launcher_rc': 1, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1952048, 'Z']], 'reaped': [1952048], 'unreaped': []}, 'process_group_residual': 0, 'termination_verified': True, 'accepted': False, 'limit_trigger': 'wall_clock_admission_bound_s', 'codex_exit_code': -9, 'outcome': 'not_accepted', 'stop_reason': 'wall_clock_admission_bound_s', 'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True, 'termination_signals_sent': ['SIGTERM', 'SIGKILL']} == {'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'wall_clock_admission_bound_s', 'launcher_rc': 1, 'limit_trigger': 'wall_clock_admission_bound_s', 'codex_exit_code': -9, 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1952048, 'Z']], 'reaped': [1952048], 'unreaped': []}, 'termination_signals_sent': ['SIGTERM', 'SIGKILL']}[0m
+[1m[31mE         [0m
+[1m[31mE         Common items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: -[94m9[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1952048[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]],[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1952048[39;49;00m],[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33munreaped[39;49;00m[33m'[39;49;00m: []},[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mtermination_signals_sent[39;49;00m[33m'[39;49;00m: [[33m'[39;49;00m[33mSIGTERM[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mSIGKILL[39;49;00m[33m'[39;49;00m],[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         Differing items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m
+[1m[31mE         Full diff:[0m
+[1m[31mE         [0m[90m [39;49;00m {[90m[39;49;00m[0m
+[1m[31mE         [91m-     'process_group_residual': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'accepted': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'stop_reason': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'launcher_rc': 1,[90m[39;49;00m[0m
+[1m[31mE         [91m-     'limit_trigger': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'codex_exit_code': -9,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_count': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'harness': {[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'launcher_rc': 1,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'adoptees': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 1952048,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 'Z',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'reaped': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             1952048,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'unreaped': [],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     },[90m[39;49;00m[0m
+[1m[31mE         [92m+     'process_group_residual': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'termination_verified': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'accepted': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'limit_trigger': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'codex_exit_code': -9,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'stop_reason': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_count': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'termination_signals_sent': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'SIGTERM',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'SIGKILL',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m }[90m[39;49;00m[0m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4663: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2620-zombie-residual/output/runs/pytest-launcher-failures/local--pegasus02/main/240ddac85dc851f5--pid1949419--1789859049981499160--zzazpm84
+[31m[1m_____________________ test_t2620_orphan_mixed_is_rejected ______________________[0m
+
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2013/test_t2620_orphan_mixed_is_rej0')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_t2620_orphan_mixed_is_rejected[39;49;00m(tmp_path: Path) -> [94mNone[39;49;00m:[90m[39;49;00m
+>       _assert_t2620_residual_case([90m[39;49;00m
+            tmp_path, [33m"[39;49;00m[33morphan_mixed[39;49;00m[33m"[39;49;00m, residual=[94m2[39;49;00m, subreaper=[94mTrue[39;49;00m[90m[39;49;00m
+        )[90m[39;49;00m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4728: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4674: in _assert_t2620_residual_case
+    [0mobserve(completed)[90m[39;49;00m
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+completed = CompletedProcess(args=['/usr/bin/python3', '/tmp/pytest-of-tanab/pytest-2013/test_t2620_orphan_mixed_is_rej0/subreaper...per", "launcher_rc": 1, "adoptees": [[1953439, "S"], [1953457, "Z"]], "reaped": [1953439, 1953457], "unreaped": []}\n')
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mobserve[39;49;00m(completed: subprocess.CompletedProcess[[96mstr[39;49;00m]) -> [94mNone[39;49;00m:[90m[39;49;00m
+        [94mtry[39;49;00m:[90m[39;49;00m
+            report = json.loads(completed.stderr.splitlines()[-[94m1[39;49;00m])[90m[39;49;00m
+        [94mexcept[39;49;00m ([96mIndexError[39;49;00m, json.JSONDecodeError):[90m[39;49;00m
+            report = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        observed = {[33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: completed.returncode, [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: report}[90m[39;49;00m
+        [94mif[39;49;00m paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].exists():[90m[39;49;00m
+            receipt = json.loads(paths[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m].read_text(encoding=[33m"[39;49;00m[33mutf-8[39;49;00m[33m"[39;49;00m))[90m[39;49;00m
+            attempt = receipt[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                key: attempt[key][90m[39;49;00m
+                [94mfor[39;49;00m key [95min[39;49;00m ([90m[39;49;00m
+                    [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                    [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+                )[90m[39;49;00m
+            })[90m[39;49;00m
+            observed.update({[90m[39;49;00m
+                [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+                [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: receipt[[33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m],[90m[39;49;00m
+            })[90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mreceipt[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        diagnostics = [94mNone[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96mlist[39;49;00m(paths[[33m"[39;49;00m[33martifact[39;49;00m[33m"[39;49;00m].glob([33m"[39;49;00m[33mlauncher-diagnostics.*.json[39;49;00m[33m"[39;49;00m)):[90m[39;49;00m
+            diagnostics = _read_launcher_diagnostics(paths)[[33m"[39;49;00m[33mattempts[39;49;00m[33m"[39;49;00m][[94m0[39;49;00m][90m[39;49;00m
+            observed[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m] = diagnostics[[33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+        [94melse[39;49;00m:[90m[39;49;00m
+            observed[[33m"[39;49;00m[33msidecar[39;49;00m[33m"[39;49;00m] = [33m"[39;49;00m[33mmissing[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+        limit = [33m"[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [94mNone[39;49;00m[90m[39;49;00m
+        expected = {[90m[39;49;00m
+            [33m"[39;49;00m[33mprocess_group_residual[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+            [33m"[39;49;00m[33mtermination_verified[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33maccepted[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33moutcome[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33mnot_accepted[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mstop_reason[39;49;00m[33m"[39;49;00m: limit [95mor[39;49;00m [33m"[39;49;00m[33mmax_attempts[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlimit_trigger[39;49;00m[33m"[39;49;00m: limit,[90m[39;49;00m
+            [33m"[39;49;00m[33mcodex_exit_code[39;49;00m[33m"[39;49;00m: -signal.SIGKILL [94mif[39;49;00m forced [94melse[39;49;00m [94m0[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mresidual_observation[39;49;00m[33m"[39;49;00m: {[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_count[39;49;00m[33m"[39;49;00m: residual,[90m[39;49;00m
+                [33m"[39;49;00m[33mfinal_unknown_source[39;49;00m[33m"[39;49;00m: [94mNone[39;49;00m,[90m[39;49;00m
+                [33m"[39;49;00m[33munknown_sources_seen[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+                [33m"[39;49;00m[33mproc_stat_malformed[39;49;00m[33m"[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+            },[90m[39;49;00m
+        }[90m[39;49;00m
+        expected_adoptees = [][90m[39;49;00m
+        [94mif[39;49;00m running:[90m[39;49;00m
+            child = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([child, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+        [94mif[39;49;00m forced [95mor[39;49;00m mode [95min[39;49;00m ([33m"[39;49;00m[33morphan_zombie[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33morphan_mixed[39;49;00m[33m"[39;49;00m):[90m[39;49;00m
+            zombie = registered_pid([33m"[39;49;00m[33mchild.pid[39;49;00m[33m"[39;49;00m [94mif[39;49;00m forced [94melse[39;49;00m [33m"[39;49;00m[33mzombie.pid[39;49;00m[33m"[39;49;00m)[90m[39;49;00m
+            expected_adoptees.append([zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m])[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = ([90m[39;49;00m
+                [96misinstance[39;49;00m(report, [96mdict[39;49;00m)[90m[39;49;00m
+                [95mand[39;49;00m [zombie, [33m"[39;49;00m[33mZ[39;49;00m[33m"[39;49;00m] [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                [95mand[39;49;00m zombie [95min[39;49;00m report[[33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+            )[90m[39;49;00m
+            expected[[33m"[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m"[39;49;00m] = [94mTrue[39;49;00m[90m[39;49;00m
+        [94mif[39;49;00m [96misinstance[39;49;00m(report, [96mdict[39;49;00m):[90m[39;49;00m
+            [90m# Keep the report in the comparison, normalizing only live states.[39;49;00m[90m[39;49;00m
+            observed[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+                **report,[90m[39;49;00m
+                [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: [[90m[39;49;00m
+                    [pid, [33m"[39;49;00m[33mS/R[39;49;00m[33m"[39;49;00m [94mif[39;49;00m state [95min[39;49;00m ([33m"[39;49;00m[33mS[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mR[39;49;00m[33m"[39;49;00m) [94melse[39;49;00m state][90m[39;49;00m
+                    [94mfor[39;49;00m pid, state [95min[39;49;00m report[[33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ],[90m[39;49;00m
+            }[90m[39;49;00m
+        expected_adoptees.sort(key=[94mlambda[39;49;00m item: item[[94m0[39;49;00m] [95mor[39;49;00m -[94m1[39;49;00m)[90m[39;49;00m
+        expected[[33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m] = {[90m[39;49;00m
+            [33m"[39;49;00m[33mharness[39;49;00m[33m"[39;49;00m: [33m"[39;49;00m[33msubreaper[39;49;00m[33m"[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33mlauncher_rc[39;49;00m[33m"[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+            [33m"[39;49;00m[33madoptees[39;49;00m[33m"[39;49;00m: expected_adoptees,[90m[39;49;00m
+            [33m"[39;49;00m[33mreaped[39;49;00m[33m"[39;49;00m: [pid [94mfor[39;49;00m pid, _state [95min[39;49;00m expected_adoptees],[90m[39;49;00m
+            [33m"[39;49;00m[33munreaped[39;49;00m[33m"[39;49;00m: [],[90m[39;49;00m
+        }[90m[39;49;00m
+        [94mif[39;49;00m forced:[90m[39;49;00m
+            [94mif[39;49;00m diagnostics [95mis[39;49;00m [95mnot[39;49;00m [94mNone[39;49;00m:[90m[39;49;00m
+                observed[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[90m[39;49;00m
+                    item[[33m"[39;49;00m[33msignal[39;49;00m[33m"[39;49;00m] [94mfor[39;49;00m item [95min[39;49;00m diagnostics[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+                ][90m[39;49;00m
+            expected[[33m"[39;49;00m[33mtermination_signals_sent[39;49;00m[33m"[39;49;00m] = [[33m"[39;49;00m[33mSIGTERM[39;49;00m[33m"[39;49;00m, [33m"[39;49;00m[33mSIGKILL[39;49;00m[33m"[39;49;00m][90m[39;49;00m
+>       [94massert[39;49;00m observed == expected[90m[39;49;00m
+[1m[31mE       AssertionError: assert {'launcher_rc': 1, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1953439, 'S/R'], [1953457, 'Z']], 'reaped': [1953439, 1953457], 'unreaped': []}, 'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'limit_trigger': None, 'codex_exit_code': 0, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True} == {'process_group_residual': 2, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'launcher_rc': 1, 'limit_trigger': None, 'codex_exit_code': 0, 'residual_observation': {'final_count': 2, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1953439, 'S/R'], [1953457, 'Z']], 'reaped': [1953439, 1953457], 'unreaped': []}}[0m
+[1m[31mE         [0m
+[1m[31mE         Common items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1953439[39;49;00m, [33m'[39;49;00m[33mS/R[39;49;00m[33m'[39;49;00m], [[94m1953457[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]],[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1953439[39;49;00m, [94m1953457[39;49;00m],[90m[39;49;00m[0m
+[1m[31mE                      [33m'[39;49;00m[33munreaped[39;49;00m[33m'[39;49;00m: []},[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mmax_attempts[39;49;00m[33m'[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m[0m
+[1m[31mE          [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         Differing items:[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m2[39;49;00m}[90m[39;49;00m[0m
+[1m[31mE         [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m2[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m[0m
+[1m[31mE         [0m
+[1m[31mE         Full diff:[0m
+[1m[31mE         [0m[90m [39;49;00m {[90m[39;49;00m[0m
+[1m[31mE         [91m-     'process_group_residual': 2,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'accepted': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'launcher_rc': 1,[90m[39;49;00m[0m
+[1m[31mE         [91m-     'limit_trigger': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_count': 2,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     'harness': {[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'launcher_rc': 1,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'adoptees': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 1953439,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 'S/R',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 1953457,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m                 'Z',[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'reaped': [[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             1953439,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m             1953457,[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         ],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m         'unreaped': [],[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m     },[90m[39;49;00m[0m
+[1m[31mE         [92m+     'process_group_residual': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'termination_verified': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'accepted': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'limit_trigger': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_count': 1,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     },[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         [90m [39;49;00m }[90m[39;49;00m[0m
+
+[1m[31morchestrator/tests/test_codex_worker_launch.py[0m:4663: AssertionError
+------------------- Captured launcher-failure-artifact call --------------------
+archive_status=complete bundle=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2620-zombie-residual/output/runs/pytest-launcher-failures/local--pegasus02/main/6b6958a5b1ebe2fd--pid1949419--1789859052248668485--9ftw0k5g
+[36m[1m=========================== short test summary info ============================[0m
+[31mFAILED[0m orchestrator/tests/test_codex_worker_launch.py::[1mtest_t2620_orphan_zombie_is_rejected[0m - AssertionError: assert {'launcher_rc': 0, 'harness': {'harness': 'subreaper', 'launcher_rc': 0, 'adoptees': [[1950926, 'Z']], 'reaped': [1950926], 'unreaped': []}, 'process_group_residual': 0, 'termination_verified': True, 'accepted': True, 'limit_trigger': None, 'codex_exit_code': 0, 'outcome': 'accepted', 'stop_reason': 'completed', 'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True} == {'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'launcher_rc': 1, 'limit_trigger': None, 'codex_exit_code': 0, 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1950926, 'Z']], 'reaped': [1950926], 'unreaped': []}}
+  
+  Common items:
+  [0m{[33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m
+  Differing items:
+  [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1950926[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]], [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1950926[39;49;00m], ...}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1950926[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]], [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1950926[39;49;00m], ...}}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mcompleted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mmax_attempts[39;49;00m[33m'[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m}[90m[39;49;00m
+  
+  Full diff:
+  [0m[90m [39;49;00m {[90m[39;49;00m
+  [91m-     'process_group_residual': 1,[39;49;00m[90m[39;49;00m
+  [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m
+  [91m-     'accepted': False,[39;49;00m[90m[39;49;00m
+  [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m
+  [91m-     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m
+  [91m-     'launcher_rc': 1,[39;49;00m[90m[39;49;00m
+  ?                    ^[90m[39;49;00m
+  [92m+     'launcher_rc': 0,[39;49;00m[90m[39;49;00m
+  ?                    ^[90m[39;49;00m
+  [91m-     'limit_trigger': None,[39;49;00m[90m[39;49;00m
+  [91m-     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m
+  [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [91m-         'final_count': 1,[39;49;00m[90m[39;49;00m
+  [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [91m-     },[39;49;00m[90m[39;49;00m
+  [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'harness': {[90m[39;49;00m
+  [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m
+  [91m-         'launcher_rc': 1,[39;49;00m[90m[39;49;00m
+  ?                        ^[90m[39;49;00m
+  [92m+         'launcher_rc': 0,[39;49;00m[90m[39;49;00m
+  ?                        ^[90m[39;49;00m
+  [90m [39;49;00m         'adoptees': [[90m[39;49;00m
+  [90m [39;49;00m             [[90m[39;49;00m
+  [90m [39;49;00m                 1950926,[90m[39;49;00m
+  [90m [39;49;00m                 'Z',[90m[39;49;00m
+  [90m [39;49;00m             ],[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'reaped': [[90m[39;49;00m
+  [90m [39;49;00m             1950926,[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'unreaped': [],[90m[39;49;00m
+  [90m [39;49;00m     },[90m[39;49;00m
+  [92m+     'process_group_residual': 0,[39;49;00m[90m[39;49;00m
+  [92m+     'termination_verified': True,[39;49;00m[90m[39;49;00m
+  [92m+     'accepted': True,[39;49;00m[90m[39;49;00m
+  [92m+     'limit_trigger': None,[39;49;00m[90m[39;49;00m
+  [92m+     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m
+  [92m+     'outcome': 'accepted',[39;49;00m[90m[39;49;00m
+  [92m+     'stop_reason': 'completed',[39;49;00m[90m[39;49;00m
+  [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [92m+         'final_count': 0,[39;49;00m[90m[39;49;00m
+  [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [92m+     },[39;49;00m[90m[39;49;00m
+  [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m }[90m[39;49;00m
+[31mFAILED[0m orchestrator/tests/test_codex_worker_launch.py::[1mtest_t2620_sigterm_ignore_subreaper_is_rejected[0m - AssertionError: assert {'launcher_rc': 1, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1952048, 'Z']], 'reaped': [1952048], 'unreaped': []}, 'process_group_residual': 0, 'termination_verified': True, 'accepted': False, 'limit_trigger': 'wall_clock_admission_bound_s', 'codex_exit_code': -9, 'outcome': 'not_accepted', 'stop_reason': 'wall_clock_admission_bound_s', 'residual_observation': {'final_count': 0, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True, 'termination_signals_sent': ['SIGTERM', 'SIGKILL']} == {'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'wall_clock_admission_bound_s', 'launcher_rc': 1, 'limit_trigger': 'wall_clock_admission_bound_s', 'codex_exit_code': -9, 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1952048, 'Z']], 'reaped': [1952048], 'unreaped': []}, 'termination_signals_sent': ['SIGTERM', 'SIGKILL']}
+  
+  Common items:
+  [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: -[94m9[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1952048[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]],[90m[39;49;00m
+               [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+               [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+               [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1952048[39;49;00m],[90m[39;49;00m
+               [33m'[39;49;00m[33munreaped[39;49;00m[33m'[39;49;00m: []},[90m[39;49;00m
+   [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mwall_clock_admission_bound_s[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mtermination_signals_sent[39;49;00m[33m'[39;49;00m: [[33m'[39;49;00m[33mSIGTERM[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mSIGKILL[39;49;00m[33m'[39;49;00m],[90m[39;49;00m
+   [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m
+  Differing items:
+  [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}[90m[39;49;00m
+  
+  Full diff:
+  [0m[90m [39;49;00m {[90m[39;49;00m
+  [91m-     'process_group_residual': 1,[39;49;00m[90m[39;49;00m
+  [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m
+  [91m-     'accepted': False,[39;49;00m[90m[39;49;00m
+  [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m
+  [91m-     'stop_reason': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'launcher_rc': 1,[90m[39;49;00m
+  [91m-     'limit_trigger': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m
+  [91m-     'codex_exit_code': -9,[39;49;00m[90m[39;49;00m
+  [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [91m-         'final_count': 1,[39;49;00m[90m[39;49;00m
+  [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [91m-     },[39;49;00m[90m[39;49;00m
+  [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'harness': {[90m[39;49;00m
+  [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m
+  [90m [39;49;00m         'launcher_rc': 1,[90m[39;49;00m
+  [90m [39;49;00m         'adoptees': [[90m[39;49;00m
+  [90m [39;49;00m             [[90m[39;49;00m
+  [90m [39;49;00m                 1952048,[90m[39;49;00m
+  [90m [39;49;00m                 'Z',[90m[39;49;00m
+  [90m [39;49;00m             ],[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'reaped': [[90m[39;49;00m
+  [90m [39;49;00m             1952048,[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'unreaped': [],[90m[39;49;00m
+  [90m [39;49;00m     },[90m[39;49;00m
+  [92m+     'process_group_residual': 0,[39;49;00m[90m[39;49;00m
+  [92m+     'termination_verified': True,[39;49;00m[90m[39;49;00m
+  [92m+     'accepted': False,[39;49;00m[90m[39;49;00m
+  [92m+     'limit_trigger': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m
+  [92m+     'codex_exit_code': -9,[39;49;00m[90m[39;49;00m
+  [92m+     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m
+  [92m+     'stop_reason': 'wall_clock_admission_bound_s',[39;49;00m[90m[39;49;00m
+  [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [92m+         'final_count': 0,[39;49;00m[90m[39;49;00m
+  [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [92m+     },[39;49;00m[90m[39;49;00m
+  [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'termination_signals_sent': [[90m[39;49;00m
+  [90m [39;49;00m         'SIGTERM',[90m[39;49;00m
+  [90m [39;49;00m         'SIGKILL',[90m[39;49;00m
+  [90m [39;49;00m     ],[90m[39;49;00m
+  [90m [39;49;00m }[90m[39;49;00m
+[31mFAILED[0m orchestrator/tests/test_codex_worker_launch.py::[1mtest_t2620_orphan_mixed_is_rejected[0m - AssertionError: assert {'launcher_rc': 1, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1953439, 'S/R'], [1953457, 'Z']], 'reaped': [1953439, 1953457], 'unreaped': []}, 'process_group_residual': 1, 'termination_verified': False, 'accepted': False, 'limit_trigger': None, 'codex_exit_code': 0, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'residual_observation': {'final_count': 1, 'final_unknown_source': None, 'proc_stat_malformed': False, 'unknown_sources_seen': []}, 'zombie_reaped_as_Z': True} == {'process_group_residual': 2, 'termination_verified': False, 'accepted': False, 'outcome': 'not_accepted', 'stop_reason': 'max_attempts', 'launcher_rc': 1, 'limit_trigger': None, 'codex_exit_code': 0, 'residual_observation': {'final_count': 2, 'final_unknown_source': None, 'unknown_sources_seen': [], 'proc_stat_malformed': False}, 'zombie_reaped_as_Z': True, 'harness': {'harness': 'subreaper', 'launcher_rc': 1, 'adoptees': [[1953439, 'S/R'], [1953457, 'Z']], 'reaped': [1953439, 1953457], 'unreaped': []}}
+  
+  Common items:
+  [0m{[33m'[39;49;00m[33maccepted[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mcodex_exit_code[39;49;00m[33m'[39;49;00m: [94m0[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33madoptees[39;49;00m[33m'[39;49;00m: [[[94m1953439[39;49;00m, [33m'[39;49;00m[33mS/R[39;49;00m[33m'[39;49;00m], [[94m1953457[39;49;00m, [33m'[39;49;00m[33mZ[39;49;00m[33m'[39;49;00m]],[90m[39;49;00m
+               [33m'[39;49;00m[33mharness[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33msubreaper[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+               [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+               [33m'[39;49;00m[33mreaped[39;49;00m[33m'[39;49;00m: [[94m1953439[39;49;00m, [94m1953457[39;49;00m],[90m[39;49;00m
+               [33m'[39;49;00m[33munreaped[39;49;00m[33m'[39;49;00m: []},[90m[39;49;00m
+   [33m'[39;49;00m[33mlauncher_rc[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mlimit_trigger[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33moutcome[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mnot_accepted[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mstop_reason[39;49;00m[33m'[39;49;00m: [33m'[39;49;00m[33mmax_attempts[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mtermination_verified[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m,[90m[39;49;00m
+   [33m'[39;49;00m[33mzombie_reaped_as_Z[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m
+  Differing items:
+  [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mprocess_group_residual[39;49;00m[33m'[39;49;00m: [94m2[39;49;00m}[90m[39;49;00m
+  [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m1[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: []}}[90m[39;49;00m != [0m{[33m'[39;49;00m[33mresidual_observation[39;49;00m[33m'[39;49;00m: {[33m'[39;49;00m[33mfinal_count[39;49;00m[33m'[39;49;00m: [94m2[39;49;00m, [33m'[39;49;00m[33mfinal_unknown_source[39;49;00m[33m'[39;49;00m: [94mNone[39;49;00m, [33m'[39;49;00m[33munknown_sources_seen[39;49;00m[33m'[39;49;00m: [], [33m'[39;49;00m[33mproc_stat_malformed[39;49;00m[33m'[39;49;00m: [94mFalse[39;49;00m}}[90m[39;49;00m
+  
+  Full diff:
+  [0m[90m [39;49;00m {[90m[39;49;00m
+  [91m-     'process_group_residual': 2,[39;49;00m[90m[39;49;00m
+  [91m-     'termination_verified': False,[39;49;00m[90m[39;49;00m
+  [91m-     'accepted': False,[39;49;00m[90m[39;49;00m
+  [91m-     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m
+  [91m-     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'launcher_rc': 1,[90m[39;49;00m
+  [91m-     'limit_trigger': None,[39;49;00m[90m[39;49;00m
+  [91m-     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m
+  [91m-     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [91m-         'final_count': 2,[39;49;00m[90m[39;49;00m
+  [91m-         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [91m-         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [91m-         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [91m-     },[39;49;00m[90m[39;49;00m
+  [91m-     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m     'harness': {[90m[39;49;00m
+  [90m [39;49;00m         'harness': 'subreaper',[90m[39;49;00m
+  [90m [39;49;00m         'launcher_rc': 1,[90m[39;49;00m
+  [90m [39;49;00m         'adoptees': [[90m[39;49;00m
+  [90m [39;49;00m             [[90m[39;49;00m
+  [90m [39;49;00m                 1953439,[90m[39;49;00m
+  [90m [39;49;00m                 'S/R',[90m[39;49;00m
+  [90m [39;49;00m             ],[90m[39;49;00m
+  [90m [39;49;00m             [[90m[39;49;00m
+  [90m [39;49;00m                 1953457,[90m[39;49;00m
+  [90m [39;49;00m                 'Z',[90m[39;49;00m
+  [90m [39;49;00m             ],[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'reaped': [[90m[39;49;00m
+  [90m [39;49;00m             1953439,[90m[39;49;00m
+  [90m [39;49;00m             1953457,[90m[39;49;00m
+  [90m [39;49;00m         ],[90m[39;49;00m
+  [90m [39;49;00m         'unreaped': [],[90m[39;49;00m
+  [90m [39;49;00m     },[90m[39;49;00m
+  [92m+     'process_group_residual': 1,[39;49;00m[90m[39;49;00m
+  [92m+     'termination_verified': False,[39;49;00m[90m[39;49;00m
+  [92m+     'accepted': False,[39;49;00m[90m[39;49;00m
+  [92m+     'limit_trigger': None,[39;49;00m[90m[39;49;00m
+  [92m+     'codex_exit_code': 0,[39;49;00m[90m[39;49;00m
+  [92m+     'outcome': 'not_accepted',[39;49;00m[90m[39;49;00m
+  [92m+     'stop_reason': 'max_attempts',[39;49;00m[90m[39;49;00m
+  [92m+     'residual_observation': {[39;49;00m[90m[39;49;00m
+  [92m+         'final_count': 1,[39;49;00m[90m[39;49;00m
+  [92m+         'final_unknown_source': None,[39;49;00m[90m[39;49;00m
+  [92m+         'proc_stat_malformed': False,[39;49;00m[90m[39;49;00m
+  [92m+         'unknown_sources_seen': [],[39;49;00m[90m[39;49;00m
+  [92m+     },[39;49;00m[90m[39;49;00m
+  [92m+     'zombie_reaped_as_Z': True,[39;49;00m[90m[39;49;00m
+  [90m [39;49;00m }[90m[39;49;00m
+[31m================= [31m[1m3 failed[0m, [32m2 passed[0m, [33m211 deselected[0m[31m in 16.64s[0m[31m =================[0m
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=12739 retained_bytes=3418 omitted_bytes=9321 rendered_excerpt_bytes=4096 sha256=ed9c2db89c0328b43f4be7742ec580b3a734ad55904170233e9c5f7813f89305
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> ual': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'termination_verified': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'accepted': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'outcome': 'not_accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'stop_reason': 'max_attempts',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'launcher_rc': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         ?                    ^\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'launcher_rc': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         ?                    ^\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'limit_trigger': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'codex_exit_code': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_count': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'harness': {\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'harness': 'subreaper',\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'launcher_rc': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         ?                        ^\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'launcher_rc': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         ?                        ^\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'adoptees': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 1950926,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 'Z',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'reaped': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             1950926,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'unreaped': [],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     },\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'process_group_residual': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'termination_verified': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'accepted': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'limit_trigger': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'codex_exit_code': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'outcome': 'accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'stop_reason': 'completed',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_count': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m }\x1b[90m\x1b[39;49;00m
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4663: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_sigterm_ignore_subreaper_is_rejected" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=12483 retained_bytes=3422 omitted_bytes=9061 rendered_excerpt_bytes=4096 sha256=40e08735aa98437ec11886ab4e9c0d4a40abc86990e3400297ec18f0ad3abef8
+--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+>  1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'termination_verified': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'accepted': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'outcome': 'not_accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'stop_reason': 'wall_clock_admission_bound_s',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'launcher_rc': 1,\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'limit_trigger': 'wall_clock_admission_bound_s',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'codex_exit_code': -9,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_count': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'harness': {\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'harness': 'subreaper',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'launcher_rc': 1,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'adoptees': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 1952048,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 'Z',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'reaped': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             1952048,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'unreaped': [],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     },\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'process_group_residual': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'termination_verified': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'accepted': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'limit_trigger': 'wall_clock_admission_bound_s',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'codex_exit_code': -9,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'outcome': 'not_accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'stop_reason': 'wall_clock_admission_bound_s',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_count': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'termination_signals_sent': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'SIGTERM',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'SIGKILL',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m }\x1b[90m\x1b[39;49;00m
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4663: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=2 END ---
+IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=11999 retained_bytes=3408 omitted_bytes=8591 rendered_excerpt_bytes=4096 sha256=47c0c17af571f1e392ea0e640fd0041eea3df04b6cbc8324104bd391f21572b5
+--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+> sidual': 2,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'termination_verified': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'accepted': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'outcome': 'not_accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'stop_reason': 'max_attempts',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'launcher_rc': 1,\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'limit_trigger': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'codex_exit_code': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_count': 2,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[91m-     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     'harness': {\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'harness': 'subreaper',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'launcher_rc': 1,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'adoptees': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 1953439,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 'S/R',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 1953457,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m                 'Z',\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'reaped': [\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             1953439,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m             1953457,\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         ],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m         'unreaped': [],\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m     },\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'process_group_residual': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'termination_verified': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'accepted': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'limit_trigger': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'codex_exit_code': 0,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'outcome': 'not_accepted',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'stop_reason': 'max_attempts',\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'residual_observation': {\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_count': 1,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'final_unknown_source': None,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'proc_stat_malformed': False,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+         'unknown_sources_seen': [],\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     },\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[92m+     'zombie_reaped_as_Z': True,\x1b[39;49;00m\x1b[90m\x1b[39;49;00m
+> E         \x1b[90m \x1b[39;49;00m }\x1b[90m\x1b[39;49;00m
+> 
+> orchestrator/tests/test_codex_worker_launch.py:4663: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=3 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=37221 retained_bytes=10248 omitted_bytes=26973 budget_bytes=49152 rendered_bytes=13876 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===
