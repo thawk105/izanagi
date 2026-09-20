@@ -60,7 +60,7 @@ harness は rc と失敗 node を毎回記録する。pytest は `-rf`、node �
 期待 node は login self-run（変異ごとに注入 → 自走 harness の FAIL / ERROR を観測・正規化 →
 `DW-O19` で復元し sha256 も照合）か初回と明記した dispatch probe で集め、erratum・再登録後に
 dispatch final を走らせる。適用は自走の全 node が `--collect-only` と同形式で照合でき login 実行が許される file に限り、pytest 専用
-allowlist・parametrize・fixture（conftest / autouse）・環境変数・import 副作用への依存や対応不明は
+allowlist・parametrize・skip・fixture（conftest / autouse）・環境変数・import 副作用への依存や対応不明は
 dispatch probe へ戻す。
 受理集合を変えず構造化シグナルだけを pin する変異は kill でなく diagnostic sensitivity pin へ
 別枠記録する。テスト強化だけの wave は新テストと変更前 HEAD 版の双方へ変異を走らせ、新テストだけが検出する差分を示す。
