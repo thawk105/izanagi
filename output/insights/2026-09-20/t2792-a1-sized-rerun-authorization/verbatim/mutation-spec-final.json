@@ -1,0 +1,261 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-lexists-is-false",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    path = base / f\"{current_attempt.name}.authorization.json\"\n    if not os.path.lexists(path):\n        return None\n",
+          "new": "    path = base / f\"{current_attempt.name}.authorization.json\"\n    if os.path.lexists(path) is False:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-absent-record-releases",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    path = base / f\"{current_attempt.name}.authorization.json\"\n    if not os.path.lexists(path):\n        return None\n",
+          "new": "    path = base / f\"{current_attempt.name}.authorization.json\"\n    if not os.path.lexists(path):\n        return next(iter(V3_SIZED_RERUN_AUTHORIZATIONS))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_submit_refuses_rerun_without_or_with_mismatched_authorization[absent-group rerun is prohibited]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_absent_record",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_sibling_without_record"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-constant-drops-attempt-name",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            and current_attempt.name == authorization[1]\n",
+          "new": "            and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_attempt[attempt-0003]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-attempt-root-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        (\"attempt_root\", os.fspath(current_attempt)),\n",
+          "new": "        (\"attempt_root\", record[\"attempt_root\"]),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_attempt[attempt-0002]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_mismatched_record[attempt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-constant-drops-study",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            record[\"study_id\"] == authorization[0]\n",
+          "new": "            True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_study[paper-story-a1-20260901-balanced5-pilot-v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-study-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        (\"study_id\", study_id),\n        (\"source_commit\", source_commit),\n",
+          "new": "        (\"study_id\", record[\"study_id\"]),\n        (\"source_commit\", source_commit),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_study[paper-story-a1-20260901-balanced5-sized-v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-source-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        (\"study_id\", study_id),\n        (\"source_commit\", source_commit),\n",
+          "new": "        (\"study_id\", study_id),\n        (\"source_commit\", record[\"source_commit\"]),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_submit_refuses_rerun_without_or_with_mismatched_authorization[source-rerun authorization record differs: source_commit]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_source",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_mismatched_record[source]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-constant-drops-decision-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            and decision[\"id\"] == authorization[3]\n",
+          "new": "            and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_decision[id-D2173]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_mismatched_record[decision]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-drop-self-digest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        or record[\"authorization_sha256\"] != _rerun_authorization_digest(record)\n",
+          "new": "        or False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_bad_digest",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_mismatched_record[digest]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-released-skips-integrity",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        released = authorization is not None and prior == base / authorization[2]\n        if prior.is_symlink() or not prior.is_dir():\n",
+          "new": "        released = authorization is not None and prior == base / authorization[2]\n        if released:\n            continue\n        if prior.is_symlink() or not prior.is_dir():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_preserves_prior_integrity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-release-any-prior",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        released = authorization is not None and prior == base / authorization[2]\n",
+          "new": "        released = authorization is not None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_authorization_rejects_other_prior_reached_bench"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-destination-create-only-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        raise PaperStoryError(\"materialize destination is not the exact A-1 insight leaf\")\n    if os.path.lexists(destination):\n        raise PaperStoryError(\"materialize destination already exists\")\n",
+          "new": "        raise PaperStoryError(\"materialize destination is not the exact A-1 insight leaf\")\n    if False:\n        raise PaperStoryError(\"materialize destination already exists\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_materialization_is_exact_leaf_and_noreplace_publish",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_existing_sibling"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-sibling-without-record",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if authorization is not None:\n            relative = relative.with_name(f\"{relative.name}-{attempt.name}\")\n",
+          "new": "        if True:\n            relative = relative.with_name(f\"{relative.name}-{attempt.name}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_rerun_materialization_rejects_sibling_without_record"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-producer-recreates-record",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        (attempt, \"attempt root\"), (record_path, \"record\"),\n",
+          "new": "        (attempt, \"attempt root\"),\n"
+        },
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        _exclusive_write(record_path, record)\n        _fsync_directory(base)\n",
+          "new": "        record_path.write_bytes(_canonical_json_bytes(record))\n        _fsync_directory(base)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_authorize_rerun_is_create_only",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_authorize_rerun_rejects_existing_namespace[record]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-submit-passes-fixed-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        attempt.parent, study_id=study_id, current_attempt=attempt,\n        source_commit=expected_head,\n",
+          "new": "        attempt.parent, study_id=study_id, current_attempt=attempt,\n        source_commit=\"b\" * 40,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_submit_reaches_qsub_with_exact_rerun_authorization",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_submit_refuses_rerun_without_or_with_mismatched_authorization[source-rerun authorization record differs: source_commit]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -2483,6 +2483,7 @@ def test_exclusive_write_bytes_refuses_final_symlink(tmp_path: Path) -> None:
 
 
 def test_materialization_is_exact_leaf_and_noreplace_publish(tmp_path: Path) -> None:
+    """受理: 追加引数なしで従来 leaf に公開する。拒否: 既存 leaf の再使用を拒否する。"""
     repo = tmp_path / "repo"
     destination = repo / paired.MATERIALIZATION_RELATIVE_PATH
     destination.parent.mkdir(parents=True)
@@ -2500,10 +2501,88 @@ def test_materialization_is_exact_leaf_and_noreplace_publish(tmp_path: Path) -> 
         "README.md", "receipt.json", "result.json", paired.COMPLETION_MARKER,
     }
 
+    with pytest.raises(paired.PaperStoryError, match="destination already exists"):
+        paired._exact_materialization_destination(repo, destination)
+
     second = destination.parent / ".a1-staging-second"
     second.mkdir()
     with pytest.raises(paired.PaperStoryError, match="no-replace"):
         paired._publish_staging_noreplace(second, destination)
+
+
+def _rerun_destination_context(tmp_path):
+    policy, attempt = _rerun_policy_context(tmp_path)
+    repo = tmp_path / "repo"
+    leaf = repo / policy["execution"]["materialization_relative_path"]
+    leaf.parent.mkdir(parents=True)
+    sibling = leaf.with_name(f"{leaf.name}-{attempt.name}")
+    context = dict(attempt=attempt, base=attempt.parent, source_commit="a" * 40)
+    return repo, policy, leaf, sibling, context
+
+
+def test_rerun_materialization_accepts_authorized_sibling(tmp_path):
+    """受理: 一致 record は兄弟公開先を受理する。拒否: 認可時の旧 leaf 指定を拒否する。"""
+    repo, policy, leaf, sibling, context = _rerun_destination_context(tmp_path)
+    _rerun_save(context["attempt"])
+    assert paired._exact_materialization_destination(repo, sibling, policy, **context) == sibling
+    with pytest.raises(paired.PaperStoryError, match="exact A-1 insight leaf"):
+        paired._exact_materialization_destination(repo, leaf, policy, **context)
+    sibling.parent.rmdir()
+    with pytest.raises(paired.PaperStoryError, match="parent does not exist"):
+        paired._exact_materialization_destination(repo, sibling, policy, **context)
+
+
+def test_rerun_materialization_rejects_sibling_without_record(tmp_path):
+    """受理: record 不在は従来 leaf を受理する。拒否: record 不在の兄弟 leaf を拒否する。"""
+    repo, policy, leaf, sibling, context = _rerun_destination_context(tmp_path)
+    with pytest.raises(paired.PaperStoryError, match="exact A-1 insight leaf"):
+        paired._exact_materialization_destination(repo, sibling, policy, **context)
+    assert paired._exact_materialization_destination(repo, leaf, policy, **context) == leaf
+
+
+def test_rerun_materialization_rejects_existing_sibling(tmp_path):
+    """受理: 未存在の兄弟 leaf を受理する。拒否: 一致 record でも既存 sibling は拒否する。"""
+    repo, policy, leaf, sibling, context = _rerun_destination_context(tmp_path)
+    _rerun_save(context["attempt"])
+    sibling.mkdir()
+    with pytest.raises(paired.PaperStoryError, match="destination already exists"):
+        paired._exact_materialization_destination(repo, sibling, policy, **context)
+
+
+@pytest.mark.parametrize("field", ["attempt", "study", "source", "decision", "digest"])
+def test_rerun_materialization_rejects_mismatched_record(tmp_path, field):
+    """受理: 公開時にも全 identity が一致する。拒否: 不一致 record は fallback せず拒否する。"""
+    repo, policy, leaf, sibling, context = _rerun_destination_context(tmp_path)
+    attempt = context["attempt"]
+    record = _rerun_record(attempt)
+    if field == "attempt":
+        record["attempt_root"] = str(attempt.with_name("attempt-0003"))
+    elif field == "study":
+        record["study_id"] = paired.V3_PILOT_STUDY_ID
+    elif field == "source":
+        record["source_commit"] = "b" * 40
+    elif field == "decision":
+        record["decision"]["id"] = "D2173"
+    path = _rerun_save(attempt, record)
+    if field == "digest":
+        record["authorization_sha256"] = "0" * 64
+        _rerun_write_json(path, record)
+    message = "record is corrupt" if field == "digest" else "record differs"
+    for destination in (leaf, sibling):
+        with pytest.raises(paired.PaperStoryError, match=message):
+            paired._exact_materialization_destination(repo, destination, policy, **context)
+
+
+@pytest.mark.parametrize("missing", ["attempt", "base", "source_commit", "policy"])
+def test_rerun_materialization_rejects_partial_context(tmp_path, missing):
+    """受理: 全指定または追加引数なしを受理する。拒否: 不完全な認可 context を拒否する。"""
+    repo, policy, leaf, sibling, context = _rerun_destination_context(tmp_path)
+    if missing == "policy":
+        policy = None
+    else:
+        context.pop(missing)
+    with pytest.raises(paired.PaperStoryError, match="authorization context is incomplete"):
+        paired._exact_materialization_destination(repo, leaf, policy, **context)
 
 
 def test_einval_fallback_publishes_absent_destination_and_records_limits_M37(
@@ -4182,6 +4261,7 @@ def test_mf2_one_ready_cannot_publish_bench_go_M3(tmp_path: Path) -> None:
 def test_mf2_prior_same_study_bench_start_blocks_new_attempt_M4(
     tmp_path: Path,
 ) -> None:
+    """受理: 初回投入は通過する。拒否: 同 study の先行 bench 到達を拒否する。"""
     base = tmp_path / "measurement"
     prior = base / "prior"
     bench_root = prior / "barrier" / "bench-start"
@@ -4201,13 +4281,14 @@ def test_mf2_prior_same_study_bench_start_blocks_new_attempt_M4(
     with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
         paired._assert_no_prior_v3_bench_start(
             base, study_id=paired.V3_PILOT_STUDY_ID,
-            current_attempt=base / "new-attempt",
+            current_attempt=base / "new-attempt", source_commit="a" * 40,
         )
 
 
 def test_f1_prior_bench_barrier_blocks_with_empty_or_missing_start_M8(
     tmp_path: Path,
 ) -> None:
+    """受理: 初回投入は通過する。拒否: 同 study の先行 bench 到達を拒否する。"""
     for reach_evidence in ("bench-go", "ready-triple"):
         base = tmp_path / reach_evidence / "measurement"
         prior = base / "prior"
@@ -4261,18 +4342,327 @@ def test_f1_prior_bench_barrier_blocks_with_empty_or_missing_start_M8(
         ):
             paired._assert_no_prior_v3_bench_start(
                 base, study_id=paired.V3_PILOT_STUDY_ID,
-                current_attempt=base / "new-attempt",
+                current_attempt=base / "new-attempt", source_commit="a" * 40,
             )
 
 
 def test_f1_first_submit_has_no_prior_attempt_and_is_accepted_M8(
     tmp_path: Path,
 ) -> None:
+    """受理: 初回投入は通過する。拒否: 同 study の先行 bench 到達を拒否する。"""
     paired._assert_no_prior_v3_bench_start(
         tmp_path / "measurement",
         study_id=paired.V3_PILOT_STUDY_ID,
-        current_attempt=tmp_path / "measurement" / "first-attempt",
+        current_attempt=tmp_path / "measurement" / "first-attempt", source_commit="a" * 40,
     )
+
+
+def _rerun_write_json(path, value):
+    path.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                               indent=2, allow_nan=False) + "\n", encoding="utf-8")
+
+
+def _rerun_record(attempt, study_id=paired.V3_SIZED_STUDY_ID, source="a" * 40):
+    return {
+        "schema_version": "paper-story-a1-paired-rerun-authorization/v1",
+        "study_id": study_id, "attempt_root": str(attempt), "source_commit": source,
+        "decision": {"id": "D2172", "item": 2, "decided_on": "2026-09-20"},
+    }
+
+
+def _rerun_seal(record):
+    payload = {key: value for key, value in record.items() if key != "authorization_sha256"}
+    raw = (json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                      indent=2, allow_nan=False) + "\n").encode("utf-8")
+    record["authorization_sha256"] = hashlib.sha256(raw).hexdigest()
+    return record
+
+
+def _rerun_save(attempt, record=None):
+    path = attempt.parent / f"{attempt.name}.authorization.json"
+    _rerun_write_json(path, _rerun_seal(_rerun_record(attempt) if record is None else record))
+    return path
+
+
+def _rerun_gate(base, attempt=None, study_id=paired.V3_SIZED_STUDY_ID):
+    return paired._assert_no_prior_v3_bench_start(
+        base, study_id=study_id, current_attempt=attempt or base / "attempt-0002",
+        source_commit="a" * 40,
+    )
+
+
+def _rerun_prior_barrier_fixture(
+    base, prior_name="attempt-0001", study_id=paired.V3_SIZED_STUDY_ID,
+    kind="bench-go",
+):
+    prior = base / prior_name
+    barrier = prior / "barrier"
+    ready_root = barrier / "ready"
+    ready_root.mkdir(parents=True)
+    if kind == "bench-go":
+        (barrier / "bench-start").mkdir()
+        _rerun_write_json(barrier / "bench-go.json", {
+            "schema_version": paired.V3_BENCH_GO_SCHEMA,
+            "study_id": study_id,
+            "source_commit": "a" * 40,
+            "attempt_root": os.fspath(prior),
+            "ready": [
+                {
+                    "workload": workload,
+                    "ordinal": ordinal,
+                    "campaign_id": f"campaign-{workload}",
+                    "path": os.fspath(ready_root / f"{workload}.json"),
+                    "sha256": str(ordinal + 1) * 64,
+                }
+                for ordinal, workload in enumerate(paired.WORKLOAD_ORDER)
+            ],
+        })
+    else:
+        for ordinal, workload in enumerate(paired.WORKLOAD_ORDER):
+            _rerun_write_json(ready_root / f"{workload}.json", {
+                "schema_version": paired.V3_READY_SCHEMA,
+                "study_id": study_id,
+                "source_commit": "a" * 40,
+                "attempt_root": os.fspath(prior),
+                "workload": workload,
+                "ordinal": ordinal,
+                "request_id": f"{100 + ordinal}.server",
+                "reservation_nonce": f"{prior.name}.{workload}",
+                "campaign_id": f"campaign-{workload}",
+                "prepared_arms": [
+                    {
+                        "variant": f"variant-{arm}",
+                        "build_attempt_id": f"attempt-{arm}",
+                        "build_admission_receipt_sha256": str(index + 1) * 64,
+                        "verify_tags": list(paired.EXPECTED_VERIFY_CONFIGS),
+                    }
+                    for index, arm in enumerate(paired.ARM_ORDER)
+                ],
+                "recorded_epoch": 1,
+            })
+        assert not (barrier / "bench-start").exists()
+    return prior
+
+
+@pytest.mark.parametrize("kind", ["bench-go", "ready-triple"])
+def test_rerun_authorization_accepts_exact_record(tmp_path, kind):
+    """受理: 一致 record と正常な先行証拠は通過する。拒否: 認可なしの反復は禁止する。"""
+    _rerun_prior_barrier_fixture(tmp_path, kind=kind)
+    attempt = tmp_path / "attempt-0002"
+    _rerun_save(attempt)
+    assert paired._exact_v3_rerun_authorization(
+        tmp_path, study_id=paired.V3_SIZED_STUDY_ID,
+        current_attempt=attempt, source_commit="a" * 40,
+    ) == (paired.V3_SIZED_STUDY_ID, "attempt-0002", "attempt-0001", "D2172", 2, "2026-09-20")
+    _rerun_gate(tmp_path)
+
+
+def test_rerun_authorization_rejects_absent_record(tmp_path):
+    """受理: 一致 record は先行 bench 禁止を解除する。拒否: 不在では反復を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
+        _rerun_gate(tmp_path)
+
+
+@pytest.mark.parametrize("current", ["attempt-0003", "attempt-0002"])
+def test_rerun_authorization_rejects_other_attempt(tmp_path, current):
+    """受理: 定数と root と filename が一致する。拒否: 別 attempt と root 不一致を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    attempt = tmp_path / current
+    _rerun_save(attempt, _rerun_record(tmp_path / "attempt-0003"))
+    with pytest.raises(paired.PaperStoryError, match="rerun authorization record differs"):
+        _rerun_gate(tmp_path, attempt)
+
+
+@pytest.mark.parametrize("record_study", [paired.V3_PILOT_STUDY_ID, paired.V3_SIZED_STUDY_ID])
+def test_rerun_authorization_rejects_other_study(tmp_path, record_study):
+    """受理: sized の caller と定数が一致する。拒否: 別 study と caller 不一致を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path, study_id=paired.V3_PILOT_STUDY_ID)
+    attempt = tmp_path / "attempt-0002"
+    _rerun_save(attempt, _rerun_record(attempt, study_id=record_study))
+    with pytest.raises(paired.PaperStoryError, match="rerun authorization record differs"):
+        _rerun_gate(tmp_path, study_id=paired.V3_PILOT_STUDY_ID)
+
+
+def test_rerun_authorization_rejects_other_source(tmp_path):
+    """受理: source SHA が一致する。拒否: 別の有効な SHA を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    attempt = tmp_path / "attempt-0002"
+    _rerun_save(attempt, _rerun_record(attempt, source="b" * 40))
+    with pytest.raises(paired.PaperStoryError, match="differs: source_commit"):
+        _rerun_gate(tmp_path)
+
+
+@pytest.mark.parametrize("field,value", [("id", "D2173"), ("item", 3), ("decided_on", "2026-09-21")])
+def test_rerun_authorization_rejects_other_decision(tmp_path, field, value):
+    """受理: 裁定の全 field が一致する。拒否: 各 field の単独変更を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    attempt = tmp_path / "attempt-0002"
+    record = _rerun_record(attempt)
+    record["decision"][field] = value
+    _rerun_save(attempt, record)
+    with pytest.raises(paired.PaperStoryError, match="differs: registered decision"):
+        _rerun_gate(tmp_path)
+
+
+def test_rerun_authorization_rejects_bad_digest(tmp_path):
+    """受理: canonical payload の digest が一致する。拒否: 形式の正しい別 digest を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    attempt = tmp_path / "attempt-0002"
+    record = _rerun_seal(_rerun_record(attempt))
+    record["authorization_sha256"] = "0" * 64
+    _rerun_write_json(tmp_path / "attempt-0002.authorization.json", record)
+    with pytest.raises(paired.PaperStoryError, match="record is corrupt"):
+        _rerun_gate(tmp_path)
+
+
+@pytest.mark.parametrize("kind", ["symlink", "dangling", "directory"])
+def test_rerun_authorization_rejects_unsafe_file(tmp_path, kind):
+    """受理: regular file を読む。拒否: symlink と非 regular file を拒否する。"""
+    path = tmp_path / "attempt-0002.authorization.json"
+    if kind == "directory":
+        path.mkdir()
+    else:
+        target = tmp_path / "target"
+        if kind == "symlink":
+            _rerun_write_json(target, _rerun_seal(_rerun_record(tmp_path / "attempt-0002")))
+        path.symlink_to(target)
+    with pytest.raises(paired.PaperStoryError, match="record is unsafe"):
+        _rerun_gate(tmp_path)
+
+
+@pytest.mark.parametrize("kind", [
+    "extra", "missing", "decision-extra", "json", "duplicate", "schema",
+    "type", "item-float", "hash", "source-hash",
+])
+def test_rerun_authorization_rejects_malformed_record(tmp_path, kind):
+    """受理: exact keys と型と形式が一致する。拒否: JSON と schema と shape の不正を拒否する。"""
+    attempt = tmp_path / "attempt-0002"
+    record = _rerun_record(attempt)
+    if kind == "extra":
+        record["extra"] = 1
+    elif kind == "missing":
+        del record["study_id"]
+    elif kind == "decision-extra":
+        record["decision"]["extra"] = 1
+    elif kind == "schema":
+        record["schema_version"] = "other"
+    elif kind == "type":
+        record["study_id"] = 1
+    elif kind == "item-float":
+        record["decision"]["item"] = 2.0
+    elif kind == "source-hash":
+        record["source_commit"] = "z" * 40
+    path = _rerun_save(attempt, record)
+    if kind == "json":
+        path.write_text("{")
+    elif kind == "duplicate":
+        text = path.read_text()
+        path.write_text('{"study_id":' + json.dumps(record["study_id"]) + ',' + text[1:])
+    elif kind == "hash":
+        record["authorization_sha256"] = "z" * 64
+        _rerun_write_json(path, record)
+    message = "differs: schema_version" if kind == "schema" else "record is corrupt"
+    with pytest.raises(paired.PaperStoryError, match=message):
+        _rerun_gate(tmp_path)
+
+
+def test_rerun_authorization_preserves_prior_integrity(tmp_path):
+    """受理: 認可時にも先行証拠を検査する。拒否: recorded_epoch が不正な ready を拒否する。"""
+    prior = _rerun_prior_barrier_fixture(tmp_path, kind="ready-triple")
+    _rerun_save(tmp_path / "attempt-0002")
+    path = prior / "barrier" / "ready" / f"{paired.WORKLOAD_ORDER[0]}.json"
+    ready = json.loads(path.read_text())
+    ready["recorded_epoch"] = 0
+    _rerun_write_json(path, ready)
+    with pytest.raises(paired.PaperStoryError, match="prior ready evidence is corrupt"):
+        _rerun_gate(tmp_path)
+
+
+def test_rerun_authorization_rejects_other_prior_reached_bench(tmp_path):
+    """受理: attempt-0001 だけの禁止を解除する。拒否: 他の先行 attempt の bench 到達を拒否する。"""
+    _rerun_prior_barrier_fixture(tmp_path)
+    _rerun_prior_barrier_fixture(tmp_path, prior_name="attempt-0003")
+    _rerun_save(tmp_path / "attempt-0002")
+    with pytest.raises(paired.PaperStoryError, match="group rerun is prohibited"):
+        _rerun_gate(tmp_path)
+
+
+def _rerun_policy_context(tmp_path):
+    policy = copy.deepcopy(paired.load_policy(paired.V3_SIZED_STUDY_ID)[0])
+    base = tmp_path / "measurement"
+    base.mkdir()
+    policy["execution"]["durable_measurement_base"] = str(base)
+    return policy, base / "attempt-0002"
+
+
+def _rerun_producer_argv(policy, attempt):
+    return ["authorize-rerun", "--study-id", paired._policy_study_id(policy),
+            "--attempt-root", str(attempt), "--expected-head", "a" * 40,
+            "--decision", "D2172", "--decision-item", "2", "--decided-on", "2026-09-20"]
+
+
+def test_authorize_rerun_is_create_only(tmp_path, monkeypatch, capsys):
+    """受理: 初回は独立算出した record を作る。拒否: 再作成は既存 bytes を保持して拒否する。"""
+    policy, attempt = _rerun_policy_context(tmp_path)
+    monkeypatch.setattr(paired, "_load_policy_for_study", lambda _: (policy, "unused"))
+    argv = _rerun_producer_argv(policy, attempt)
+    assert paired.main(argv) == 0
+    path = attempt.parent / f"{attempt.name}.authorization.json"
+    before = path.read_bytes()
+    assert json.loads(before) == _rerun_seal(_rerun_record(attempt))
+    assert paired.main(argv) == 2
+    assert "record exists" in capsys.readouterr().err
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("field,value", [
+    ("--attempt-root", "attempt-0003"), ("--study-id", paired.V3_PILOT_STUDY_ID),
+    ("--decision", "D2173"),
+])
+def test_authorize_rerun_rejects_constant_mismatch(tmp_path, monkeypatch, capsys, field, value):
+    """受理: 定数の identity だけを生成する。拒否: 別 attempt と study と裁定を拒否する。"""
+    policy, attempt = _rerun_policy_context(tmp_path)
+    if field == "--study-id":
+        policy = copy.deepcopy(paired.load_policy(value)[0])
+        policy["execution"]["durable_measurement_base"] = str(attempt.parent)
+    monkeypatch.setattr(paired, "_load_policy_for_study", lambda _: (policy, "unused"))
+    argv = _rerun_producer_argv(policy, attempt)
+    argv[argv.index(field) + 1] = str(attempt.parent / value) if field == "--attempt-root" else value
+    assert paired.main(argv) == 2
+    assert "registered decision differs" in capsys.readouterr().err
+    assert list(attempt.parent.iterdir()) == []
+
+
+@pytest.mark.parametrize("kind", ["intent", "attempt root", "record"])
+def test_authorize_rerun_rejects_existing_namespace(tmp_path, monkeypatch, capsys, kind):
+    """受理: 新規 namespace に生成する。拒否: intent と root と record の再使用を拒否する。"""
+    policy, attempt = _rerun_policy_context(tmp_path)
+    monkeypatch.setattr(paired, "_load_policy_for_study", lambda _: (policy, "unused"))
+    record_path = attempt.parent / f"{attempt.name}.authorization.json"
+    path = {"intent": paired._attempt_intent_path(attempt),
+            "attempt root": attempt, "record": record_path}[kind]
+    if kind == "attempt root":
+        path.mkdir()
+    else:
+        path.write_bytes(b"preserve")
+    assert paired.main(_rerun_producer_argv(policy, attempt)) == 2
+    assert f"{kind} exists" in capsys.readouterr().err
+    if kind == "record":
+        assert path.read_bytes() == b"preserve"
+    else:
+        assert not record_path.exists()
+
+
+def test_authorize_rerun_rejects_invalid_source(tmp_path, monkeypatch, capsys):
+    """受理: lowercase 40hex source を保存する。拒否: 不正な SHA では record を作らない。"""
+    policy, attempt = _rerun_policy_context(tmp_path)
+    monkeypatch.setattr(paired, "_load_policy_for_study", lambda _: (policy, "unused"))
+    argv = _rerun_producer_argv(policy, attempt)
+    argv[argv.index("--expected-head") + 1] = "invalid"
+    assert paired.main(argv) == 2
+    assert "invalid source" in capsys.readouterr().err
+    assert list(attempt.parent.iterdir()) == []
 
 
 def test_submit_parser_rejects_missing_study_id_M1() -> None:
