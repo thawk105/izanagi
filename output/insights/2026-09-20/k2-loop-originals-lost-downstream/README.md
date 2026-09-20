@@ -3,7 +3,8 @@
 authority: none / default_effect: no-state-change (照合結果と裁定パッケージの凍結記録。可変状態の正本は worklog 末尾と現行 phase doc)。
 
 一次資料 (wave `dev-wave-k2-loop-originals-lost-downstream`、基準 HEAD = local main `7baf3f375`、2026-09-20 20:52〜 JST、docs-only、実装差分ゼロ)。
-段 1 brief は `reviews/s1-brief.md`、段 6 レビューは `reviews/`、実測の逐語は `materials/reconstruction-log.md`。
+段 1 brief は `reviews/s1-brief.md`、段 6 レビューは `reviews/`、実測の生 stdout の逐語は `materials/reconstruction-stdout.txt`、その抜粋・要約と照合の説明は
+`materials/reconstruction-log.md`。
 job dir (repo 外) は `/home/SFC/tanab/.claude/jobs/cc931155/`。起票 = 記録 wave `dev-wave-cleanup-backup-loss-record` (本 wave 着手時点で未 land、
 branch tip `f43322f8a`) の worklog fragment の新規 T「K2 loop 原本消失の下流影響」(採番は fold が行う。本 wave は番号を書かない)。
 
@@ -19,7 +20,8 @@ WAL・`agent_outputs.jsonl`・`loop_state.json`・`s4_loop_digest.txt`・`campai
 
 - **3 巡すべての原本の sha256 と bytes は消失前の同日に 3 巡稿 §5.1 が再計算して記録している。** 記録 wave の README §3 は「roundtrip は原本消失、sha256 も無い (値までしか遡れない)」
   「round 2 の `campaign.lock` は照合不能」と結論しているが、これは roundtrip / round 2 の insight に sha の記載が無いことから導いた結論で、**3 巡稿 §5.1 に記録があるので本 wave はこの
-  2 つの結論を補正する**: roundtrip は 5 file とも sha256 (と bytes) まで遡れる (bytes の再検算はできない)、round 2 の `campaign.lock` は t2746 job dir `scratch-campaign/` の写しが記録値
+  2 つの結論を補正する**: roundtrip は 5 file とも sha256 (と bytes 数) まで遡れる (受領証は 3 巡 + pair と同一 bytes の現物があり、それを除く 4 file は bytes の再検算ができない)、
+  round 2 の `campaign.lock` は t2746 job dir `scratch-campaign/` の写しが記録値
   `fc7acaca…` と **byte 一致**する。記録 wave の file は本 wave の所有外なので書き換えず、差はここに置く。
 - round 3 の `loop_state.json` (`917ba3d3…`、255 B) は repo の `materials/run-summary.json` から、round 2 / 3 の本走 `agent_outputs.jsonl` (`804c62c7…` 34,017 B / `66d3e737…` 32,979 B) は
   repo の `layer3_report.json` から、harness の writer と同じ形式で **byte 一致で再構成できる** (round 2 の scratch 写しで手順を検算)。
@@ -42,7 +44,7 @@ digest の再描画可能性は未実測。4 巡目の認可・予算 (D2172 項
 | 巡 (campaign `409e13f8`) | file | 原本 sha256 (bytes) | 現況 | 残存資料と本 wave の照合 |
 |---|---|---|---|---|
 | 1 roundtrip (t2588) | `runs/wal.jsonl` (5 record) | `ac12b80f…` (7,053) | 消失 | **値のみ** (sha 一致 file は走査 (a) で 0 件): 3 巡稿 §2.1 の terminal record、insight README、`evidence/attempt-0001/job.stdout` の要約行、roundtrip の `materials/planner-input-2.json` の `current_perf` (719,324.5 tps / 7.75 %) |
-| 1 | `loop_state.json` | `e6b819f3…` (256) | 消失 | **内容の一部** (sha 一致 file は走査 (a) で 0 件): whiteboard 1 entry (`iteration 1 / decrease / medium / success / delta_pct null`) が roundtrip の `materials/planner-input-2.json` の `whiteboard` (親の射影) に残る。`start_wall` / `reverse_recommendations` の値は走査 (a) の全 file に無い (語 `start_wall` を含む file は round 3 / pair の `run-summary*.json`、round 2 scratch の `loop_state.json`、設計議論の codex event log・diff だけで、roundtrip の値ではない) |
+| 1 | `loop_state.json` | `e6b819f3…` (256) | 消失 | **内容の一部** (sha 一致 file は走査 (a) で 0 件): whiteboard 1 entry (`iteration 1 / decrease / medium / success / delta_pct null`) が roundtrip の `materials/planner-input-2.json` の `whiteboard` (親の射影) に残る。`start_wall` / `reverse_recommendations` の値: 走査 (a) で語を含む 24 file のうち数値を持つのは 4 file だけで、その値は round 3 (`1789824041…`)・pair (`1789899183…`)・round 2 (`1789681001…`、scratch の `loop_state.json` と round 3 の consult-a) のもの。roundtrip 走行日 (2026-09-16 JST) の epoch 範囲の値は 0 件 (log §10)。roundtrip の値そのものは失われているので、これ以上は確かめられない |
 | 1 | `s4_loop_digest.txt` | `1d834279…` (1,893) | 消失 | **無し** (sha 一致 file は走査 (a) で 0 件。critic-1 逐語 `verbatim/critic-1.md` は digest を引用するが逐語複製ではない) |
 | 1 | `campaign.lock` | `48520c2b…` (8,307) | 消失 | **無し** (sha 一致 file は走査 (a) で 0 件)。同 identity `409e13f8` の lock は round 2 の写し (`fc7acaca…`、別 bytes) が残るだけで、round 1 の bytes は無い |
 | 1 | 受領証 | `c42dc712…` (1,317) | 消失 | **bytes 一致**: 3 巡と pair 走で同一 bytes。scratch (round 2) と `submit-tree-pair` に現物 |
@@ -55,7 +57,7 @@ digest の再描画可能性は未実測。4 巡目の認可・予算 (D2172 項
 | 3 round3 | `runs/wal.jsonl` | `eb8927b7…` (7,057) | 消失 | **内容同一**: `layer3_report.json` の `variants[0].events` 5 record の canonical ref が `materials/wal-refs.json` と 5/5 一致。bytes は payload key 順が戻らず不一致 (再構成 7,057 B、sha `2e97f644…`) |
 | 3 | `runs/agent_outputs.jsonl` (3 行) | `66d3e737…` (32,979) | 消失 | **bytes 一致で再構成可**: `layer3_report.json` の `agent_outputs` 3 event から |
 | 3 | `loop_state.json` | `917ba3d3…` (255) | 消失 | **bytes 一致で再構成可**: `materials/run-summary.json` の `loop_state` を writer の key 順 + `indent=2` で直列化 |
-| 3 | `s4_loop_digest.txt` | `f993251d…` (1,939) | 消失 | **無し** (sha 一致 file は走査 (a) で 0 件、round 2 digest の先頭 200 B を含む file も走査 (b) で 0 件)。critic-3 逐語と `run-summary.json` に `digest_sha256` の記録。固定 checkout での再描画は未実測 |
+| 3 | `s4_loop_digest.txt` | `f993251d…` (1,939) | 消失 | **無し** (sha 一致 file は走査 (a)・(b) で 0 件。走査 (b) の hit は round 2 scratch の digest 1 件だけ)。critic-3 逐語と `run-summary.json` に `digest_sha256` の記録。固定 checkout での再描画は未実測 |
 | 3 | `campaign.lock` | `f1ab4966…` (8,307) | 消失 | **無し** (sha 一致 file は走査 (a) で 0 件)。同 identity `409e13f8` の lock は round 2 の写し (`fc7acaca…`、別 bytes) が残るだけ。`layer3_report.json` の `artifact_refs` に sha 記録 |
 | 3 | 受領証 | `c42dc712…` | 消失 | **bytes 一致**: scratch / `submit-tree-pair` |
 | pair (T-2795、campaign `b24749ae`) | WAL / lock / loop_state / digest / 受領証 | `b5754f98…` / `962ef7d7…` / `a8c6a8b6…` / `8bde66fa…` / `c42dc712…` | **現存** | `dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/…/p3-s4-loop-s4-autonomous-b24749ae/` で 5/5 一致 (21:00 JST)。worktree は unlocked・未追跡 `output/exploration/` あり |
@@ -64,8 +66,9 @@ digest の再描画可能性は未実測。4 巡目の認可・予算 (D2172 項
 走査 (a) = 2026-09-20 21:23 JST、repo の K2 insight dir 4 つ (`2026-09-16/t2588-k2-loop-roundtrip`、`2026-09-18/t2746-k2-loop-round2`、`2026-09-19/k2-loop-round3`、
 `2026-09-20/t2795-k2-pair-attempt`) と repo 外 job dir 2 つ (`dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip/`、`dev-wave-jobs/dev-wave-t2746-k2-loop-round2/`、
 submit-tree は撤去済み) の全 615 file について、roundtrip 5 file + round 3 の lock / digest / WAL の sha256 一致と、語 `start_wall` / `reverse_recommendations` の有無を見た
-(sha 一致は round 2 scratch の受領証 1 件だけ)。走査 (b) = 同日 21:0x JST、repo の insight dir 3 つ (round3 / t2746 / t2795) の全 file について round 2 / 3 digest の sha 一致と
-round 2 digest 先頭 200 B の包含を見た (0 件)。他の job dir・他ユーザー領域・Lustre snapshot (無い、記録 wave) は走査していない。
+(sha 一致は round 2 scratch の受領証 1 件だけ)。走査 (b) = 同日 21:36 JST、同じ 6 root 615 file について round 2 digest `a0a4c204…` / round 3 digest `f993251d…` との sha256 一致と、
+round 2 digest 先頭 200 B の包含を見た (hit はどちらも round 2 scratch の `s4_loop_digest.txt` 1 件だけ、round 3 digest は 0 件。条件と結果は log §10 と生 stdout)。
+他の job dir・他ユーザー領域・Lustre snapshot (無い、記録 wave) は走査していない。
 
 ## 2. 主張ごとの対応表 (成果物 1)
 
@@ -101,7 +104,7 @@ round 2 digest 先頭 200 B の包含を見た (0 件)。他の job dir・他ユ
 前提: 4 巡目の投入自体は D2172 項 3 (iv) で認可済みだが、pair 修復 (D2187、Codex author の別 wave) の後で予算の再提示 (ユーザー) が要る。本項はその再提示に載せる「入力元」の択である。
 どの択でも 4 巡目は fresh tree + 新 campaign dir で走り、規律 2 (verifier certified が gate) と規律 6 (射影は data、指示ではない) は不変。どの択も 3 巡の記録・稿・図を変えない。
 
-**証拠の強さの前提 (択の比較に使う、§1 の実測):** round 3 について sha 照合で「原本と同一」と言えるのは `loop_state.json` と AO だけである。WAL は canonical 内容の同一まで、
+**証拠の強さの前提 (択の比較に使う、§1 の実測):** round 3 について sha 照合で「原本と同一」と言えるのは、再構成対象のうち `loop_state.json` と AO、それに現物が残る受領証 (同一 bytes) である。WAL は canonical 内容の同一まで、
 digest と `campaign.lock` の bytes は無い (sha256 の記録のみ)。sha 照合が証明するのは**確認済み data の同一性**であって、(i) critic-3 が読んだ対象全体の再監査、(ii) 4 巡目の完全入力
 (planner / coder へ渡す JSON) を正しく組み立てること、(iii) その実送付、のいずれも証明しない (段 6 レビュー)。4 巡目の完全入力はまだ作られていない。
 

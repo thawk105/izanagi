@@ -21,3 +21,15 @@
 
 fix 後の追加 (レビュー後の docs delta、親所有): worklog fragment に新規 T「README stale 注記へ 1 段落」(P3) を足した (story 20260920b wave が「未着地 wave の内容は書かない」規律で
 README へ書かないと返答したため)。焦点再レビューの射影に含める。
+
+## 焦点再レビュー 1 巡目 (`s6-focus-1.md`) の裁定 — NO-GO、残 must-fix 4 件、全件 real・採用
+
+| # | 所見 | 判定 | fix |
+|---|---|---|---|
+| F1 | 走査 (a) の語 hit は stdout で 24 file (log は 23)。「全 file に roundtrip の値が無い」は path 一覧だけでは言えない。走査 (b) の条件が stdout に無い | real | log §8 を 24 に訂正。追加実測 `scan_values.py` (21:36 JST、同 6 root 615 file): 語 hit 24 file のうち数値を持つのは 4 file、値は round 3 / pair / round 2 のもので、roundtrip 走行日の epoch 範囲の値は 0 件。走査 (b) を条件込みで採り直し (hit は round 2 scratch の digest 1 件、round 3 digest 0 件)。README §1 の該当行と走査段落、log §10、生 stdout を更新 |
+| F2 | fragment が「焦点再レビュー 1 本で GO を確認」と結果を先取り | real | fragment を実結果 (1 巡目 NO-GO → fix → 2 巡目の結果は `s6-focus-2.md`) に書き直し |
+| F3 | README §0 の「bytes の再検算はできない」が受領証 (同一 bytes の現物あり) を例外にしていない。§4 前提の「loop_state と AO だけ」も同様 | real | 「受領証を除く 4 file」「再構成対象のうち loop_state と AO、それに現物が残る受領証」に修正 |
+| F4 | README 冒頭 (6 行目) が log を「実測の逐語」と紹介したまま | real | 冒頭を「生 stdout の逐語 = reconstruction-stdout.txt、抜粋・要約 = reconstruction-log.md」に修正 |
+
+量化の照合で closed とされたもの (WAL 5/5、pair 5/5、複製 6/6、6 root / 615 file、走査 (a) 0 件、loop_state / AO の再構成) は据え置き。「A 推奨と B / C の合理性は矛盾しない」。
+fix 後に焦点再レビュー 2 巡目 (`s6-focus-2.md`) を投げる。

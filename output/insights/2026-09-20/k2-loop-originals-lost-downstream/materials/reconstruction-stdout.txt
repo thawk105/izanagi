@@ -60,6 +60,46 @@ round2 rebuild from layer3_report: sha f51b7b21d90c65e8d866b2df198649b4b0b2c647f
 round3 rebuild from layer3_report: bytes 7057 sha 2e97f6445155e57bff1521f315c39959e329493bb9371cd490a13d8b2d9afbf7 match False
 round3 canonical refs from layer3 events == materials/wal-refs.json: True 5 5
 
+==== scan_values.py (stdout) ====
+scan time: 2026-09-20 21:36:42 JST
+roots: 6
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-16/t2588-k2-loop-roundtrip (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-18/t2746-k2-loop-round2 (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3 (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-20/t2795-k2-pair-attempt (exists)
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip (exists)
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2 (exists)
+files scanned: 615
+(b) digest sha256 hits (round2 a0a4c204 / round3 f993251d): ['/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/s4_loop_digest.txt']
+(b) files containing round2 digest first 200 B: ['/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/s4_loop_digest.txt']
+files containing word start_wall/reverse_recommendations: 24
+  output/insights/2026-09-19/k2-loop-round3/README.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s1-brief.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s2-plan.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-b.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-a.md :: start_wall numeric values = ['1789681001.1930716']
+  output/insights/2026-09-19/k2-loop-round3/materials/run-summary.json :: start_wall numeric values = ['1789824041.4768934']
+  output/insights/2026-09-20/t2795-k2-pair-attempt/materials/run-summary-pair.json :: start_wall numeric values = ['1789899183.7126458']
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-sol-9977ae63c4dfa8578d18c37f23ce53ab8c485f83abdf7820cc30dd706e43f52f/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-plan-10bd5f1b2a41651c9fefc31682a5a25e5f1ea1ca13558cba0b7bff3489db3125/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-luna-96fca9ceee247fa193c0d9a51d548836eb93c10e29bf514a64f5a01428124618/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/a1-implementation.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/s6-final.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/s5-integrated.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/mutation-probe2.json :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/mutation-final.json :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-sol-92e058a583687094d5afbf625db2e27fad68b419ede5b437f34fe76d02708cb3/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-a-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-focus-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-fix-2/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-plan-338040d4619f1a5cee32f803f4e3b5a708951156cda7a2ac52897e9b93d3e26c/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s5-a1-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-b-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-luna-8227ff0260fbe671821aaa7476a2b1710dfa099b6f5df7262becf012ad2a636d/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/loop_state.json :: start_wall numeric values = ['1789681001.1930716']
+roundtrip 走行日 (2026-09-16 JST) の epoch 範囲: 1789484400..1789570799
+start_wall numeric values in that range: none
+
 ==== wal_canon_r2.py (stdout) ====
 round2 scratch WAL canonical refs == layer3 events: True 5 5
 round2 layer3 events canonical refs == materials/wal-refs.json: True 5
