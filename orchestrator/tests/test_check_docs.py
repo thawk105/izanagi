@@ -577,7 +577,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "664815dfb3457e0ed8e0de443edeb0c48c75f76bfc382d2993fa17f61de9f09c"
+    "c8db749bd90fdf3b663eadbb516682472bd489bd57589f2036b972398f7da9c8"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -673,7 +673,7 @@ final で裁定候補として返し、実装・記録は明示起動された�
   -d 拒否は取込漏れの兆候、停止・報告
 - 未追跡 `output/` (`exploration/`・`env/`) は該当 wave の insight「証拠の所在」節で
   repo 外原本か確かめ、原本なら候補にせず残置・報告 (F1034)
-- 高い条件: 削除直前に §1 の status 空を再確認。§3 の占有・判定不能は保持。
+- 高い条件: 削除直前に status 空と非施錠を再確認。§3 の占有・判定不能は保持。
   迷えばユーザー確認。対象内で作業中は先に main checkout へ退出
 
 ## 3. worktree の削除手順 (F26)
@@ -708,7 +708,7 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-remote branch の削除と main の push は行わず、対象をユーザーへ列挙。
+remote branch 削除と main の push は行わず、対象をユーザーへ列挙。
 削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
 
 ## 6. 自己改善候補の終端
@@ -9949,13 +9949,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_200
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_200
-        oversized = original + "\n" + "x" * 4
+        assert len(original.encode("utf-8")) == 6_201
+        oversized = original + "\n" + "x" * 3
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 
