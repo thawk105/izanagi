@@ -3628,7 +3628,16 @@ def _launch_validate(
         _assert_artifact_introduction_interval(
             graph, path, oid, cert_commit=cert_commit, gen_commit=gen_commit, root=root,
         )
-    generation_path = _gen_path(ratified.generation_number)
+    # path は G 自身の追加 path から引く (追補 1)。generation_number から引くと
+    # scope 射影 fixture で g2 の G に対して g1 の文書を要求してしまう。
+    added, _other = _added_paths(gen_commit, root)
+    generation_paths = [path for path in added if _GEN_RE.match(path)]
+    if len(generation_paths) != 1:
+        raise RatifiedFreezeError(
+            "binding-chain-mismatch", f"G が追加した世代文書の個数 != 1: {len(generation_paths)}",
+            cause="generation-introduction",
+        )
+    generation_path = generation_paths[0]
     _mode, generation_oid = _tree_mode_oid(head, generation_path, root)
     introductions = _immutable_introductions(graph, generation_path, generation_oid, root)
     if set(introductions) != {gen_commit}:
