@@ -41,10 +41,10 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
 - 段 6 read-only レビュー 1 本 (gpt-6-astra、12 call、180 秒): NO-GO → must-fix 7 件 (roundtrip 不在断定の走査根拠、B-6 (c) の限定に WAL / lock を含める、B-6 (d) の 3 巡と pair の
   分離、択 A / B の provenance 比較の過大、次巡記録文の裁定先取り、実測 log の「逐語」表記、記録 wave との相違を「補正」と書く) + nit 2 件 (出所の誤記、whiteboard ≠ current_perf)。
   全件 real・採用、親が docs を直した。焦点再レビュー 1 巡目は NO-GO (残 must-fix 4: 走査件数の誤記 23→24 と値の不在の根拠、README 冒頭の「逐語」表記、fragment が再レビュー結果を
-  先取り、受領証を除外しない限定文) → 追加実測 (`start_wall` 値の内訳、走査 (b) の条件込み採り直し) と fix → 2 巡目の結果は `reviews/s6-focus-2.md` (本 entry の記録時点の判定は
-  insight §6)。「択 A を棄却する技術的根拠は無い」「択 B は次系列の依存範囲を減らす利点があり研究目的次第で合理」「付随項は scope 外に当たらない」「A 推奨と B / C の合理性は矛盾しない」
-  はレビューの判定。
-- 事故: なし。工数: codex 3 本 (段 6 レビュー 1 + 焦点再レビュー 2、実測値は insight §8)、計算ノード job 0。
+  先取り、受領証を除外しない限定文) → 追加実測 (`start_wall` 値の内訳、走査 (b) の条件込み採り直し) と fix → 2 巡目 NO-GO (残 1: `reverse_recommendations` の不在断定が
+  `start_wall` の実測を越える) → 限定文へ fix → 3 巡目 **GO** (新規所見なし、`reviews/s6-focus-{1,2,3}.md`)。「択 A を棄却する技術的根拠は無い」「択 B は次系列の依存範囲を減らす
+  利点があり研究目的次第で合理」「付随項は scope 外に当たらない」「A 推奨と B / C の合理性は矛盾しない」はレビューの判定。
+- 事故: なし。工数: codex 4 本 (gpt-6-astra、段 6 レビュー 1 + 焦点再レビュー 3、合計 26 call 429 秒)、計算ノード job 0。
 
 ## 次の一手差分
 

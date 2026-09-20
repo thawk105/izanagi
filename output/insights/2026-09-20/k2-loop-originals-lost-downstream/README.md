@@ -157,7 +157,8 @@ story 20260920b wave (`dev-wave-paper-story-20260920b`) が同じ節を編集中
 - 手順の正例: round 2 の scratch 写し (原本 sha と一致済み) に同じ再構成手順を当てて byte 一致 (loop_state / AO の直列化形式)。負例に相当するもの: WAL の再構成は
   同じ手順で不一致 (payload の挿入順) — 「内容同一」と「bytes 一致」を分けて書く根拠。
 - 段 6: read-only レビュー 1 本 (`reviews/s6-review-1.md`、NO-GO、must-fix 7 + nit 2、全件採用) → 親が docs を fix (`reviews/s6-adjudication.md`、追加実測 = 走査 (a) と pair 原本の
-  複製) → 焦点再レビュー 1 本 (`reviews/s6-focus-1.md`)。
+  複製) → 焦点再レビュー 1 巡目 (`s6-focus-1.md`、NO-GO 残 4 → 追加実測 `scan_values.py` と fix) → 2 巡目 (`s6-focus-2.md`、NO-GO 残 1 = `reverse_recommendations` の不在断定の限定
+  → fix) → 3 巡目 (`s6-focus-3.md`、**GO**、新規所見なし)。
 - ListAgents (20:55 JST): 稼働 17 session に [T-2795] の session は無い (entry 1754 で着地済み、`submit-tree-pair` だけ残存)。編集面の重複: `docs/paper-story/README.md` は
   20260920b wave が編集中 → 本 wave は触らない。`docs/phase3.md` は 20260920b wave の版が main より古い (未編集) → 項 4 の [T-2795] 項の直後に 1 行足す。
   記録 wave の編集面 (4 insight の erratum 節 + 新 insight + spool) とは重ならない。
@@ -181,4 +182,5 @@ story 20260920b wave (`dev-wave-paper-story-20260920b`) が同じ節を編集中
 - repo 外: t2746 job dir `scratch-campaign/`、`dev-wave-t2795-k2-pair/submit-tree-pair/`、`cleanup-20260920/candidates-*.txt`。
 - repo 外 (本 wave が書いたもの): T-2795 job dir `originals-copy-20260920/` (pair 原本の byte 複製 + MANIFEST)、`dev-wave-jobs/rulings-inbox/2026-09-20-k2-loop-originals-lost-downstream.md`
   (裁定パッケージの控え)。
-- 工数: codex 2 本 (段 6 read-only レビュー gpt-6-astra 12 call 180 秒、焦点再レビュー = `reviews/s6-focus-1.md` 冒頭に実測値)、計算ノード job 0、login node の読み取り検査のみ。
+- 工数: codex 4 本 (gpt-6-astra、段 6 read-only レビュー 12 call 180 秒、焦点再レビュー 3 本 = 6 call 119 秒 / 4 call 68 秒 / 4 call 62 秒、合計 26 call 429 秒)、計算ノード job 0、
+  login node の読み取り検査 (script 9 本、repo 外) のみ。

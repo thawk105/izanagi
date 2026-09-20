@@ -42,3 +42,8 @@ fix 後に焦点再レビュー 2 巡目 (`s6-focus-2.md`) を投げる。
 
 M6・fragment の先取り・受領証の限定は closed。追加量化 (6 root 615 file、語 hit 24、数値 4 file、epoch 範囲 0 件、走査 (b) の hit 1 件 / round 3 digest 0 件) は stdout と一致。
 fix 後に焦点再レビュー 3 巡目 (`s6-focus-3.md`、G1 だけ) を投げる。
+
+## 焦点再レビュー 3 巡目 (`s6-focus-3.md`、4 call、62 秒) — GO
+
+G1 closed (README §1・log §8・§10 の限定が生 stdout の検証範囲と整合、`reverse_recommendations` の全 7 出現に値の不在断定は残っていない)。新規所見なし。
+段 6 の総計: read-only レビュー 1 本 + 焦点再レビュー 3 本 (gpt-6-astra、12 + 6 + 4 + 4 = 26 call、180 + 119 + 68 + 62 = 429 秒)。
