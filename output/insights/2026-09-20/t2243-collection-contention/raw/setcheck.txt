@@ -1,0 +1,8 @@
+  26152 /scr/tanab/t2243-3188720/out/set-L.txt
+  26152 /scr/tanab/t2243-3188720/out/set-C.txt
+      0 /scr/tanab/t2243-3188720/out/set.diff
+  52304 total
+diff_rc=0
+L_rc=0
+C_rc=0
+C_VALID=1

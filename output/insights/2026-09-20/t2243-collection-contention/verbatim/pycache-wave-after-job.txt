@@ -1,0 +1,12 @@
+observed 2026-09-20T22:03 JST (login node, wave worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2243-collection-diag, right after job 13599.nqsv ended at 22:01:56 and before any other python tool was run in the tree without PYTHONDONTWRITEBYTECODE=1)
+
+command: find orchestrator tools -name '*.pyc' -printf '%TY-%Tm-%Td %TH:%TM:%TS %p\n' | sort
+
+2026-09-20 21:49:23.0000000000 orchestrator/__pycache__/scheduler_nqsv.cpython-310.pyc
+2026-09-20 21:49:23.0000000000 orchestrator/campaign/__pycache__/__init__.cpython-310.pyc
+2026-09-20 21:49:23.0000000000 orchestrator/campaign/__pycache__/mutation_attempt_marker.cpython-310.pyc
+2026-09-20 21:49:23.0000000000 orchestrator/campaign/__pycache__/site_policy.cpython-310.pyc
+
+git status --short --untracked-files=all | wc -l -> 0
+
+Note: 21:49:23 is the job start time recorded in raw/env.txt (date --iso-8601=seconds). The wave tree had 0 pyc when the job was submitted at 21:38:09 (the parent removed 5 __pycache__ dirs created by login-side tool runs before submitting; see README section 10 step 1). These 4 files are therefore attributed to the compute-side dispatcher process (tools/pegasus/dispatch_compute.py --job-run ..., which runs in the PBS job environment without PYTHONDONTWRITEBYTECODE) importing those modules at job start. This attribution is by timing and by the module set; the write itself was not traced.

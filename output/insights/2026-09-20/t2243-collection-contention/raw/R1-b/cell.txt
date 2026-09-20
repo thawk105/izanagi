@@ -1,0 +1,14 @@
+arm=R
+N=1
+half=b
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2243-collection-diag
+prefix=
+others=0
+stale_pytest=0
+nproc=48
+pid 3188720's current affinity list: 0-47
+cohort_start=1789909222.327589449
+cohort_end=1789909272.253165608
+cohort_wall=49.925576210
+rc_list=0
+expected_rc=0

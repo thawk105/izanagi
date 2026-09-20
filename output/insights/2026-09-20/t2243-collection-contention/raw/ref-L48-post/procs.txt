@@ -1,0 +1,576 @@
+--- proc-0.time
+17.64 13.08 2.08 339928 0 134222 6294 10136
+--- proc-0.rc
+0
+--- proc-0.perf
+# started on Sun Sep 20 22:01:12 2026
+
+46697434524,,cycles,15164322903,100.00,,
+59276766220,,instructions,15164322903,100.00,1.27,insn per cycle
+225309761,,cache-misses,15164322903,100.00,,
+--- proc-0.err
+
+--- proc-1.time
+17.85 14.30 2.10 340472 1 134302 6494 8123
+--- proc-1.rc
+0
+--- proc-1.perf
+# started on Sun Sep 20 22:01:12 2026
+
+50532678056,,cycles,16399808907,100.00,,
+61298073458,,instructions,16399808907,100.00,1.21,insn per cycle
+224569062,,cache-misses,16399808907,100.00,,
+--- proc-1.err
+
+--- proc-2.time
+17.66 14.23 2.08 340428 1 134815 6514 7400
+--- proc-2.rc
+0
+--- proc-2.perf
+# started on Sun Sep 20 22:01:12 2026
+
+50258579239,,cycles,16312494360,100.00,,
+61113682138,,instructions,16312494360,100.00,1.22,insn per cycle
+224028472,,cache-misses,16312494360,100.00,,
+--- proc-2.err
+
+--- proc-3.time
+17.96 12.59 2.13 340512 0 134531 6640 11053
+--- proc-3.rc
+0
+--- proc-3.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45348754111,,cycles,14731781095,100.00,,
+58318498756,,instructions,14731781095,100.00,1.29,insn per cycle
+223880658,,cache-misses,14731781095,100.00,,
+--- proc-3.err
+
+--- proc-4.time
+17.70 13.45 2.04 339924 1 134323 6450 6203
+--- proc-4.rc
+0
+--- proc-4.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47710006646,,cycles,15488364048,100.00,,
+59831812514,,instructions,15488364048,100.00,1.25,insn per cycle
+223674282,,cache-misses,15488364048,100.00,,
+--- proc-4.err
+
+--- proc-5.time
+18.09 12.69 2.14 340144 2 134138 6564 10432
+--- proc-5.rc
+0
+--- proc-5.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45678928676,,cycles,14837245227,100.00,,
+58456992090,,instructions,14837245227,100.00,1.28,insn per cycle
+224674417,,cache-misses,14837245227,100.00,,
+--- proc-5.err
+
+--- proc-6.time
+17.96 12.84 2.12 340316 0 134707 6650 7918
+--- proc-6.rc
+0
+--- proc-6.perf
+# started on Sun Sep 20 22:01:12 2026
+
+46074883471,,cycles,14962966465,100.00,,
+58804125678,,instructions,14962966465,100.00,1.28,insn per cycle
+224477524,,cache-misses,14962966465,100.00,,
+--- proc-6.err
+
+--- proc-7.time
+17.69 14.22 2.12 342812 0 125308 6299 9065
+--- proc-7.rc
+0
+--- proc-7.perf
+# started on Sun Sep 20 22:01:12 2026
+
+50336956508,,cycles,16338225822,100.00,,
+61187608834,,instructions,16338225822,100.00,1.22,insn per cycle
+225345428,,cache-misses,16338225822,100.00,,
+--- proc-7.err
+
+--- proc-8.time
+17.65 12.88 2.05 340312 0 134634 6218 17948
+--- proc-8.rc
+0
+--- proc-8.perf
+# started on Sun Sep 20 22:01:12 2026
+
+46166728002,,cycles,15005475205,100.00,,
+58984184997,,instructions,15005475205,100.00,1.28,insn per cycle
+223943344,,cache-misses,15005475205,100.00,,
+--- proc-8.err
+
+--- proc-9.time
+17.64 12.85 1.97 341040 0 134582 6398 7064
+--- proc-9.rc
+0
+--- proc-9.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45698271056,,cycles,14839306629,100.00,,
+58693201857,,instructions,14839306629,100.00,1.28,insn per cycle
+223275402,,cache-misses,14839306629,100.00,,
+--- proc-9.err
+
+--- proc-10.time
+17.55 13.01 2.06 341012 0 134345 6385 8367
+--- proc-10.rc
+0
+--- proc-10.perf
+# started on Sun Sep 20 22:01:12 2026
+
+46402756121,,cycles,15069145116,100.00,,
+59153172603,,instructions,15069145116,100.00,1.27,insn per cycle
+221655886,,cache-misses,15069145116,100.00,,
+--- proc-10.err
+
+--- proc-11.time
+17.63 13.51 1.98 340468 0 134770 6472 12450
+--- proc-11.rc
+0
+--- proc-11.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47724097544,,cycles,15498317728,100.00,,
+59893495114,,instructions,15498317728,100.00,1.25,insn per cycle
+222924292,,cache-misses,15498317728,100.00,,
+--- proc-11.err
+
+--- proc-12.time
+17.72 13.63 2.05 339348 0 134250 6478 8331
+--- proc-12.rc
+0
+--- proc-12.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48285257572,,cycles,15678741145,100.00,,
+60146023636,,instructions,15678741145,100.00,1.25,insn per cycle
+222401765,,cache-misses,15678741145,100.00,,
+--- proc-12.err
+
+--- proc-13.time
+18.07 13.61 2.28 340884 0 134368 6596 7605
+--- proc-13.rc
+0
+--- proc-13.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48953754895,,cycles,15891614448,100.00,,
+60283079207,,instructions,15891614448,100.00,1.23,insn per cycle
+225081396,,cache-misses,15891614448,100.00,,
+--- proc-13.err
+
+--- proc-14.time
+17.37 14.96 1.87 338708 0 133862 6430 9318
+--- proc-14.rc
+0
+--- proc-14.perf
+# started on Sun Sep 20 22:01:12 2026
+
+51875799396,,cycles,16832288406,100.00,,
+62627013665,,instructions,16832288406,100.00,1.21,insn per cycle
+224420390,,cache-misses,16832288406,100.00,,
+--- proc-14.err
+
+--- proc-15.time
+17.68 12.75 2.11 340888 0 134517 6343 10510
+--- proc-15.rc
+0
+--- proc-15.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45818937904,,cycles,14881862731,100.00,,
+58662727130,,instructions,14881862731,100.00,1.28,insn per cycle
+224144116,,cache-misses,14881862731,100.00,,
+--- proc-15.err
+
+--- proc-16.time
+18.10 12.83 2.18 340372 0 134282 6581 4695
+--- proc-16.rc
+0
+--- proc-16.perf
+# started on Sun Sep 20 22:01:12 2026
+
+46219380456,,cycles,15004494576,100.00,,
+58712736769,,instructions,15004494576,100.00,1.27,insn per cycle
+225283747,,cache-misses,15004494576,100.00,,
+--- proc-16.err
+
+--- proc-17.time
+17.88 13.28 2.00 340356 1 134095 6727 6156
+--- proc-17.rc
+0
+--- proc-17.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47043039500,,cycles,15275332267,100.00,,
+59403821094,,instructions,15275332267,100.00,1.26,insn per cycle
+223739950,,cache-misses,15275332267,100.00,,
+--- proc-17.err
+
+--- proc-18.time
+18.06 12.67 2.14 340076 0 134218 6728 10124
+--- proc-18.rc
+0
+--- proc-18.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45581783815,,cycles,14806280087,100.00,,
+58427534582,,instructions,14806280087,100.00,1.28,insn per cycle
+225732560,,cache-misses,14806280087,100.00,,
+--- proc-18.err
+
+--- proc-19.time
+18.06 13.64 1.99 341112 0 134757 6520 6764
+--- proc-19.rc
+0
+--- proc-19.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48135566294,,cycles,15623639803,100.00,,
+60090163637,,instructions,15623639803,100.00,1.25,insn per cycle
+225143971,,cache-misses,15623639803,100.00,,
+--- proc-19.err
+
+--- proc-20.time
+18.10 12.53 2.21 339856 1 134522 6679 7092
+--- proc-20.rc
+0
+--- proc-20.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45368427697,,cycles,14733658618,100.00,,
+58319607998,,instructions,14733658618,100.00,1.29,insn per cycle
+225212843,,cache-misses,14733658618,100.00,,
+--- proc-20.err
+
+--- proc-21.time
+18.09 14.80 2.30 340696 0 134525 6496 7992
+--- proc-21.rc
+0
+--- proc-21.perf
+# started on Sun Sep 20 22:01:12 2026
+
+52693856312,,cycles,17096319258,100.00,,
+62546355589,,instructions,17096319258,100.00,1.19,insn per cycle
+226266368,,cache-misses,17096319258,100.00,,
+--- proc-21.err
+
+--- proc-22.time
+18.11 14.10 2.15 340568 0 134549 6731 10596
+--- proc-22.rc
+0
+--- proc-22.perf
+# started on Sun Sep 20 22:01:12 2026
+
+50092791822,,cycles,16263434701,100.00,,
+60960041171,,instructions,16263434701,100.00,1.22,insn per cycle
+225031790,,cache-misses,16263434701,100.00,,
+--- proc-22.err
+
+--- proc-23.time
+18.07 13.46 2.08 339860 0 134265 6611 15148
+--- proc-23.rc
+0
+--- proc-23.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47941210913,,cycles,15571827613,100.00,,
+59882225557,,instructions,15571827613,100.00,1.25,insn per cycle
+225214161,,cache-misses,15571827613,100.00,,
+--- proc-23.err
+
+--- proc-24.time
+17.99 14.90 2.10 340764 0 134561 6613 11451
+--- proc-24.rc
+0
+--- proc-24.perf
+# started on Sun Sep 20 22:01:12 2026
+
+52423727118,,cycles,17013041739,100.00,,
+62359481987,,instructions,17013041739,100.00,1.19,insn per cycle
+224710857,,cache-misses,17013041739,100.00,,
+--- proc-24.err
+
+--- proc-25.time
+17.65 13.41 2.11 340592 1 134659 6497 9829
+--- proc-25.rc
+0
+--- proc-25.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47804379719,,cycles,15523477480,100.00,,
+59819248363,,instructions,15523477480,100.00,1.25,insn per cycle
+225909340,,cache-misses,15523477480,100.00,,
+--- proc-25.err
+
+--- proc-26.time
+18.05 13.59 2.03 340312 0 134743 6619 7921
+--- proc-26.rc
+0
+--- proc-26.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48126535710,,cycles,15624395029,100.00,,
+59724781459,,instructions,15624395029,100.00,1.24,insn per cycle
+226236240,,cache-misses,15624395029,100.00,,
+--- proc-26.err
+
+--- proc-27.time
+17.83 14.49 2.07 340388 0 134298 6465 10769
+--- proc-27.rc
+0
+--- proc-27.perf
+# started on Sun Sep 20 22:01:12 2026
+
+51049971526,,cycles,16571033935,100.00,,
+61501864704,,instructions,16571033935,100.00,1.20,insn per cycle
+223727968,,cache-misses,16571033935,100.00,,
+--- proc-27.err
+
+--- proc-28.time
+17.85 15.33 2.12 340316 0 134532 6683 8252
+--- proc-28.rc
+0
+--- proc-28.perf
+# started on Sun Sep 20 22:01:12 2026
+
+53773958034,,cycles,17448671658,100.00,,
+63143716398,,instructions,17448671658,100.00,1.17,insn per cycle
+223677831,,cache-misses,17448671658,100.00,,
+--- proc-28.err
+
+--- proc-29.time
+17.68 13.74 2.14 340840 1 134835 6556 4798
+--- proc-29.rc
+0
+--- proc-29.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48884082799,,cycles,15866244362,100.00,,
+60328562061,,instructions,15866244362,100.00,1.23,insn per cycle
+223890007,,cache-misses,15866244362,100.00,,
+--- proc-29.err
+
+--- proc-30.time
+18.04 13.51 2.07 340748 1 134527 6521 7608
+--- proc-30.rc
+0
+--- proc-30.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47970532744,,cycles,15573745442,100.00,,
+60035016263,,instructions,15573745442,100.00,1.25,insn per cycle
+224483797,,cache-misses,15573745442,100.00,,
+--- proc-30.err
+
+--- proc-31.time
+17.87 13.48 2.08 339024 0 134267 6392 15575
+--- proc-31.rc
+0
+--- proc-31.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47988230290,,cycles,15587607718,100.00,,
+59760225836,,instructions,15587607718,100.00,1.25,insn per cycle
+223832573,,cache-misses,15587607718,100.00,,
+--- proc-31.err
+
+--- proc-32.time
+17.87 13.71 2.15 340712 1 134776 6557 6422
+--- proc-32.rc
+0
+--- proc-32.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48841462700,,cycles,15857015525,100.00,,
+60217579771,,instructions,15857015525,100.00,1.23,insn per cycle
+222220903,,cache-misses,15857015525,100.00,,
+--- proc-32.err
+
+--- proc-33.time
+18.06 13.83 2.09 340836 0 134543 6606 13464
+--- proc-33.rc
+0
+--- proc-33.perf
+# started on Sun Sep 20 22:01:12 2026
+
+49057332425,,cycles,15929373913,100.00,,
+60466172076,,instructions,15929373913,100.00,1.23,insn per cycle
+225082282,,cache-misses,15929373913,100.00,,
+--- proc-33.err
+
+--- proc-34.time
+17.80 13.21 2.08 339432 0 134279 6584 4814
+--- proc-34.rc
+0
+--- proc-34.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47084126947,,cycles,15286152473,100.00,,
+59403696115,,instructions,15286152473,100.00,1.26,insn per cycle
+223528707,,cache-misses,15286152473,100.00,,
+--- proc-34.err
+
+--- proc-35.time
+18.02 13.91 2.19 340492 0 134465 6573 12353
+--- proc-35.rc
+0
+--- proc-35.perf
+# started on Sun Sep 20 22:01:12 2026
+
+49617953162,,cycles,16110909732,100.00,,
+60789305404,,instructions,16110909732,100.00,1.23,insn per cycle
+224792105,,cache-misses,16110909732,100.00,,
+--- proc-35.err
+
+--- proc-36.time
+18.09 13.51 2.11 340116 0 134119 6520 14227
+--- proc-36.rc
+0
+--- proc-36.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48158747868,,cycles,15641588057,100.00,,
+59943324608,,instructions,15641588057,100.00,1.24,insn per cycle
+224409130,,cache-misses,15641588057,100.00,,
+--- proc-36.err
+
+--- proc-37.time
+17.60 12.84 1.99 339988 0 134549 6347 8551
+--- proc-37.rc
+0
+--- proc-37.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45689617179,,cycles,14836415638,100.00,,
+58695815190,,instructions,14836415638,100.00,1.28,insn per cycle
+223315458,,cache-misses,14836415638,100.00,,
+--- proc-37.err
+
+--- proc-38.time
+17.94 12.89 1.92 339484 0 134526 6666 6955
+--- proc-38.rc
+0
+--- proc-38.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45623312073,,cycles,14817063100,100.00,,
+58600386061,,instructions,14817063100,100.00,1.28,insn per cycle
+224094085,,cache-misses,14817063100,100.00,,
+--- proc-38.err
+
+--- proc-39.time
+17.95 12.78 2.09 338232 0 134190 6753 4862
+--- proc-39.rc
+0
+--- proc-39.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45779641718,,cycles,14865490885,100.00,,
+58336529032,,instructions,14865490885,100.00,1.27,insn per cycle
+223918178,,cache-misses,14865490885,100.00,,
+--- proc-39.err
+
+--- proc-40.time
+17.89 12.68 2.04 338776 0 134060 6719 4177
+--- proc-40.rc
+0
+--- proc-40.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45307874923,,cycles,14711972470,100.00,,
+58388542901,,instructions,14711972470,100.00,1.29,insn per cycle
+224113143,,cache-misses,14711972470,100.00,,
+--- proc-40.err
+
+--- proc-41.time
+17.99 13.34 2.16 340472 0 134450 6729 25081
+--- proc-41.rc
+0
+--- proc-41.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47827005206,,cycles,15540876628,100.00,,
+59795826883,,instructions,15540876628,100.00,1.25,insn per cycle
+223510462,,cache-misses,15540876628,100.00,,
+--- proc-41.err
+
+--- proc-42.time
+17.99 13.72 2.07 340636 0 134301 6852 7295
+--- proc-42.rc
+0
+--- proc-42.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48624527341,,cycles,15784222676,100.00,,
+60134816829,,instructions,15784222676,100.00,1.24,insn per cycle
+224690940,,cache-misses,15784222676,100.00,,
+--- proc-42.err
+
+--- proc-43.time
+17.44 14.94 1.98 340316 0 134531 6476 12173
+--- proc-43.rc
+0
+--- proc-43.perf
+# started on Sun Sep 20 22:01:12 2026
+
+52147337313,,cycles,16924817437,100.00,,
+62510018260,,instructions,16924817437,100.00,1.20,insn per cycle
+222781588,,cache-misses,16924817437,100.00,,
+--- proc-43.err
+
+--- proc-44.time
+18.02 13.44 1.99 339624 0 134060 6738 11253
+--- proc-44.rc
+0
+--- proc-44.perf
+# started on Sun Sep 20 22:01:12 2026
+
+47528426744,,cycles,15434765557,100.00,,
+59795461856,,instructions,15434765557,100.00,1.26,insn per cycle
+226017646,,cache-misses,15434765557,100.00,,
+--- proc-44.err
+
+--- proc-45.time
+17.95 12.79 2.15 340320 0 134272 6694 7435
+--- proc-45.rc
+0
+--- proc-45.perf
+# started on Sun Sep 20 22:01:12 2026
+
+45997833990,,cycles,14937711618,100.00,,
+58747017639,,instructions,14937711618,100.00,1.28,insn per cycle
+224511682,,cache-misses,14937711618,100.00,,
+--- proc-45.err
+
+--- proc-46.time
+17.68 14.06 2.04 340408 0 134790 6466 5090
+--- proc-46.rc
+0
+--- proc-46.perf
+# started on Sun Sep 20 22:01:12 2026
+
+49577269547,,cycles,16088395439,100.00,,
+60892369297,,instructions,16088395439,100.00,1.23,insn per cycle
+223288849,,cache-misses,16088395439,100.00,,
+--- proc-46.err
+
+--- proc-47.time
+17.73 13.55 2.12 339920 0 134267 6711 7589
+--- proc-47.rc
+0
+--- proc-47.perf
+# started on Sun Sep 20 22:01:12 2026
+
+48289633659,,cycles,15679175364,100.00,,
+60023987791,,instructions,15679175364,100.00,1.24,insn per cycle
+223492352,,cache-misses,15679175364,100.00,,
+--- proc-47.err
+
