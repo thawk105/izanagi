@@ -4820,8 +4820,10 @@ def test_cumulative_wait_budget_arithmetic_uses_production_timeouts() -> None:
     function = ast.parse(inspect.getsource(LAND._run_provenance_checker))
     timeouts = [kw.value for node in ast.walk(function) if isinstance(node, ast.Call)
                 for kw in node.keywords if kw.arg == "timeout"]
-    assert len(timeouts) == 1 and isinstance(timeouts[0], ast.Constant)
-    provenance = timeouts[0].value
+    assert len(timeouts) == 1 and isinstance(timeouts[0], ast.Name)
+    assert timeouts[0].id == "_PROVENANCE_AUDIT_TIMEOUT_S"
+    provenance = getattr(LAND, timeouts[0].id)
+    assert provenance == 480
     budgets = LAND._fold_gate_budgets()
     # 裁定の検査harness予算。production全体watchdogがあるという主張ではない。
     termination_margin, test_watchdog = 30.0, 1280.0
@@ -5833,16 +5835,21 @@ def test_provenance_subprocess_contract_and_exception_mapping() -> None:
 
             try:
                 LAND.subprocess.run = fake_run
+                monotonic_before = time.monotonic()
                 receipt = LAND._audit_provenance_history(repository)
+                monotonic_after = time.monotonic()
                 assert receipt.returncode == 0
                 assert len(observed_calls) == 1
                 argv, kwargs = observed_calls[0]
                 assert argv == [sys.executable, str(checker_path)]
                 assert set(kwargs) == expected_keys
                 assert kwargs["cwd"] == wave
+                deadline = kwargs["env"][LAND._PROVENANCE_OUTER_DEADLINE_ENV]
+                assert monotonic_before + 480 <= float(deadline) <= monotonic_after + 480
                 assert kwargs["env"] == {
                     **LAND._git_env(),
                     "PYTHONDONTWRITEBYTECODE": "1",
+                    LAND._PROVENANCE_OUTER_DEADLINE_ENV: deadline,
                 }
                 assert kwargs["stdin"] is subprocess.DEVNULL
                 assert kwargs["stdout"] is subprocess.PIPE
@@ -5850,11 +5857,11 @@ def test_provenance_subprocess_contract_and_exception_mapping() -> None:
                 assert kwargs["check"] is False
                 assert kwargs["shell"] is False
                 assert kwargs["close_fds"] is True
-                assert kwargs["timeout"] == 480
+                assert kwargs["timeout"] == LAND._PROVENANCE_AUDIT_TIMEOUT_S == 480
 
                 for failure in (
                     OSError("synthetic exec failure"),
-                    subprocess.TimeoutExpired([sys.executable], 480),
+                    subprocess.TimeoutExpired([sys.executable], LAND._PROVENANCE_AUDIT_TIMEOUT_S),
                     RuntimeError("synthetic unexpected failure"),
                     SystemExit("synthetic system exit"),
                     GeneratorExit("synthetic generator exit"),
@@ -9947,7 +9954,12 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
 
         def incomplete_checker(_checker, _repository, _env):
             registered.append(_turn_registry_snapshot(repo))
-            return subprocess.CompletedProcess([], returncode, b"", b"")
+            return subprocess.CompletedProcess(
+                [], returncode, b"",
+                b"provenance dispatch budget: remaining_at_dispatch_s=470.0 "
+                b"queue_wait_timeout_s=288.0 deadline_at_margin_s=32.0 "
+                b"remaining_at_return_s=400.0 rc=16\n",
+            )
 
         with _patched_land_attr("_run_provenance_checker", incomplete_checker):
             rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
@@ -9957,6 +9969,10 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
         assert payload["release_safe"] is False
         assert payload["retryable_same_request"] is True
         assert "did not complete authoritatively" in payload["reason"]
+        if returncode == 16:
+            assert payload["reason"] == (
+                "provenance full-history audit did not complete authoritatively (rc=16)"
+            )
         assert errors == (
             "lease_renew state=held-self reason=none\n"
             "lease_release state=retained reason=land-result-not-release-safe\n"
@@ -9994,13 +10010,14 @@ def test_provenance_checker_timeout_is_retryable_and_retains() -> None:
         before = lease_path.read_bytes()
 
         def timed_out_checker(_checker, _repository, _env):
-            raise subprocess.TimeoutExpired(["provenance-checker"], 480)
+            raise subprocess.TimeoutExpired(["provenance-checker"], LAND._PROVENANCE_AUDIT_TIMEOUT_S)
 
         with _patched_land_attr("_run_provenance_checker", timed_out_checker):
             rc, payload, _raw, errors = _invoke_land_main(request, lease_dir)
 
         assert rc == LAND.RC_PROVENANCE
         assert payload["status"] == "rejected"
+        assert "after 480 seconds" in payload["reason"]
         assert payload["release_safe"] is False
         assert payload["retryable_same_request"] is True
         assert errors == (
@@ -12116,6 +12133,32 @@ def test_fresh_noop_never_starts_fold_gate() -> None:
             result = _land_real_gate(repo.request(wave, tip=tip))
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def test_provenance_outer_deadline_overwrites_inherited_value() -> None:
+    from types import SimpleNamespace
+
+    observed = []
+    env = {LAND._PROVENANCE_OUTER_DEADLINE_ENV: "9999"}
+
+    def capture(argv, **kwargs):
+        observed.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    before = time.monotonic()
+    with _patched_land_attr("subprocess", SimpleNamespace(
+        run=capture, DEVNULL=subprocess.DEVNULL, PIPE=subprocess.PIPE,
+    )):
+        LAND._run_provenance_checker(
+            SimpleNamespace(path=Path("checker.py")),
+            SimpleNamespace(wave=Path(".")), env,
+        )
+    after = time.monotonic()
+    assert len(observed) == 1
+    deadline = observed[0]["env"][LAND._PROVENANCE_OUTER_DEADLINE_ENV]
+    assert deadline != "9999"
+    assert before + 480 <= float(deadline) <= after + 480
+    assert observed[0]["timeout"] == LAND._PROVENANCE_AUDIT_TIMEOUT_S == 480
 
 
 def _run() -> int:
