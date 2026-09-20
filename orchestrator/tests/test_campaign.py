@@ -454,6 +454,7 @@ def _bound(cfg: CampaignConfig) -> CampaignConfig:
 _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-45ca7ab9"
 _T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-4347a1fd"
 _T816_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-27d737fd"
+_T2304_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-c301cc73"
 _T530_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-cbddc476"
 _PRE_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-4891e99f",
@@ -470,10 +471,20 @@ _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-balanced-sweep-920bb445",
     "backoff-sweep-silo-read-heavy-sweep-ac548305",
 })
+_T2304_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-6297b00c",
+    "backoff-sweep-silo-balanced-sweep-21777a4d",
+    "backoff-sweep-silo-read-heavy-sweep-611a783b",
+})
 _T816_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-172b45ad",
     "backoff-sweep-silo-balanced-sweep-2899b6a7",
     "backoff-sweep-silo-read-heavy-sweep-57160b6c",
+})
+_T2304_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-4b8f83c9",
+    "backoff-sweep-silo-balanced-sweep-080a1603",
+    "backoff-sweep-silo-read-heavy-sweep-f9c15ce6",
 })
 _T530_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-d0589634",
@@ -491,6 +502,10 @@ _T343_S6_CAMPAIGN_IDS = frozenset({
 _T816_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-36c93671",
     "p3-s6-sort-sweep-write-heavy-sweep-e6174b76",
+})
+_T2304_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-c691213c",
+    "p3-s6-sort-sweep-write-heavy-sweep-33edc1ec",
 })
 _T530_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-cc0921a0",
@@ -530,9 +545,10 @@ def test_campaign_id_binds_admission_policy():
     )
     current = str(ident.campaign_id(_cfg()))
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current == _T816_REPRESENTATIVE_CAMPAIGN_ID
+    assert current == _T2304_REPRESENTATIVE_CAMPAIGN_ID
     assert current not in {
         historical,
+        _T816_REPRESENTATIVE_CAMPAIGN_ID,
         _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
     }
@@ -729,8 +745,9 @@ def test_screening_search_config_omits_none_and_binds_current_admission_policy()
     search = {**base, **ident.screening_search_config(None)}
     assert search == base and "screening" not in search
     cfg = _cfg(search_config=search)
-    assert str(ident.campaign_id(_bound(cfg))) == _T816_REPRESENTATIVE_CAMPAIGN_ID
+    assert str(ident.campaign_id(_bound(cfg))) == _T2304_REPRESENTATIVE_CAMPAIGN_ID
     assert str(ident.campaign_id(_bound(cfg))) not in {
+        _T816_REPRESENTATIVE_CAMPAIGN_ID,
         _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
@@ -824,17 +841,19 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     }
     assert (
         current_policy_kickoff_backoff
-        == _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
+        == _T2304_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
     )
     assert current_policy_kickoff_backoff.isdisjoint(
         _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+        | _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
     )
     current_backoff = {
         str(ident.campaign_id(cfg)) for cfg in current_backoff_cfgs
     }
-    assert current_backoff == _T816_BACKOFF_CAMPAIGN_IDS
+    assert current_backoff == _T2304_BACKOFF_CAMPAIGN_IDS
     assert current_backoff.isdisjoint(
         _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+        | _T816_BACKOFF_CAMPAIGN_IDS
     )
 
     historical_s6 = set()
@@ -862,11 +881,12 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
             },
         ))
     assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
-    # T-816 pin 前進後の current は歴史的 T343/T530 集合と分離する。
+    # T-2304 pin 前進後の current は歴史的 T343/T530/T816 集合と分離する。
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs} == \
-        _T816_S6_CAMPAIGN_IDS
+        _T2304_S6_CAMPAIGN_IDS
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs}.isdisjoint(
         _T343_S6_CAMPAIGN_IDS | _T530_S6_CAMPAIGN_IDS
+        | _T816_S6_CAMPAIGN_IDS
     )
 
 
@@ -11067,6 +11087,9 @@ _T343_GOLDEN_CK0 = {
 _T816_GOLDEN_CK0 = {
     "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_2b19d78065_t0",
 }
+_T2304_GOLDEN_CK0 = {
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_23cc2a2610_t0",
+}
 
 
 def test_source_digest_preimage_join_has_pre_refactor_golden_digests():
@@ -11217,8 +11240,9 @@ def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():
     current = buildcache.cache_key(
         g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,
     )
-    assert current == _T816_GOLDEN_CK0[g0.canonical()]
+    assert current == _T2304_GOLDEN_CK0[g0.canonical()]
     assert current not in {
+        _T816_GOLDEN_CK0[g0.canonical()],
         _PRE_T343_GOLDEN_CK0[g0.canonical()],
         _T343_GOLDEN_CK0[g0.canonical()],
     }
