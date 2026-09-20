@@ -1,0 +1,4 @@
+insert '' -> '対象commitの木へ'
+insert '' -> '`PYTHONPATH=.python3`の'
+replace 'の' -> 'で'
+insert '' -> 'と`--porcelain`空'
