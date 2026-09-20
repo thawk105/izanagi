@@ -49,7 +49,7 @@ _G_EXTIME = 5
 _G_FLOOR = 0.05
 
 # 独立 golden (期待 canonical bytes/sha256 をテスト側に literal で保持)。
-_GOLDEN_BYTES = (
+_T816_GOLDEN_BYTES = (
     b'{"allowed_excluded_reasons":["competing_process","launch_failure",'
     b'"nonfinite_or_partial_output","performance_anomaly"],'
     b'"ccbench_pin":"511c9538e4e8efa54b45cda62e72389ed3b706ec",'
@@ -64,7 +64,26 @@ _GOLDEN_BYTES = (
     b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
     b'"wired_min_rel_floor":0.05}'
 )
-_GOLDEN_SHA = "32e306c1e009adf03eabcbb314bb3542d7c76e892462213d759660c618e7dc4d"
+_T816_GOLDEN_SHA = "32e306c1e009adf03eabcbb314bb3542d7c76e892462213d759660c618e7dc4d"
+_T816_APPROVED_SHA = "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a"
+
+# T-2304 builder output, independently recalculated and retained as literal bytes.
+_GOLDEN_BYTES = (
+    b'{"allowed_excluded_reasons":["competing_process","launch_failure",'
+    b'"nonfinite_or_partial_output","performance_anomaly"],'
+    b'"ccbench_pin":"e9e477ca1b55348ab4530de0b1cf663ce4555290",'
+    b'"cell_cv_max":"0.15",'
+    b'"contract_sha256":"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",'
+    b'"env_tag":"linux-baremetal","extime_s":5,"formula":"s8b-floor-stats/v2",'
+    b'"freeze":{"path":"output/s8b-freeze/holdout_freeze.json",'
+    b'"sha256":"315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"},'
+    b'"master_seed":"golden-master-seed","n_sessions":8,"reps":5,'
+    b'"retry_slots_per_cell":2,"scale_adequacy_rel_tolerance":"0.10",'
+    b'"schedule_algorithm":"round-permutation/v2","schema":"s8b-floor-protocol/v2",'
+    b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
+    b'"wired_min_rel_floor":0.05}'
+)
+_GOLDEN_SHA = "481fdf8e1ead63ef485a231ea92f3b8ee25c2df63c03688d7689cf56aeb40e1b"
 
 
 def _requires_repo() -> None:
@@ -119,7 +138,7 @@ def test_approved_constants_protocol_bytes_match_parent_precalculation():
         wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
     )
     assert len(built.canonical_bytes) == 774
-    assert built.sha256 == "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a"
+    assert built.sha256 == "62f1387dba4f191ec4545cf533671ece52532139237f275fa87351a0e9e812db"
 
 
 def test_builder_rejects_holdout_conjunction_in_master_seed():
@@ -553,7 +572,7 @@ def test_freeze_protocol_success_writes_only_fixed_tmp_repo_path(tmp_path):
         "status": "frozen",
         "path": fc._FLOOR_PROTOCOL_REL,
         "byte_length": 774,
-        "sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a",
+        "sha256": "62f1387dba4f191ec4545cf533671ece52532139237f275fa87351a0e9e812db",
     }
     assert len(raw) == outcome["byte_length"]
     assert hashlib.sha256(raw).hexdigest() == outcome["sha256"]
