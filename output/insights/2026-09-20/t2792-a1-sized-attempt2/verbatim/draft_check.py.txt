@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""稿の sha256 / 数値を一次資料と機械照合する (使い捨て、job dir)。
+usage: draft_check.py <稿> <leaf2> <attempt2> <leaf1> <repo>"""
+import hashlib, json, os, re, sys
+doc, leaf2, att2, leaf1, repo = sys.argv[1:6]
+text = open(doc, encoding="utf-8").read()
+problems = []
+
+
+def sha(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+r2 = json.load(open(os.path.join(leaf2, "result.json")))
+rc2 = json.load(open(os.path.join(leaf2, "receipt.json")))
+c2 = json.load(open(os.path.join(leaf2, ".complete.json")))
+r1 = json.load(open(os.path.join(leaf1, "result.json")))
+base = os.path.dirname(att2)
+
+known = {}
+for name in ("README.md", "receipt.json", "result.json", ".complete.json"):
+    known[sha(os.path.join(leaf2, name))] = f"leaf2/{name}"
+known[sha(os.path.join(leaf1, "result.json"))] = "leaf1/result.json"
+for rel in ("raw/results/result.json", "raw/results/receipt.json", "raw/job-terminal.json", "receipts/submission.json", "receipts/completion.json"):
+    known[sha(os.path.join(att2, rel))] = f"att2/{rel}"
+for name in ("attempt-0002.intent.json", "attempt-0002.authorization.json"):
+    known[sha(os.path.join(base, name))] = f"base/{name}"
+auth = json.load(open(os.path.join(base, "attempt-0002.authorization.json")))
+known[auth["authorization_sha256"]] = "authorization_sha256(field)"
+known[r2["policy_sha256"]] = "policy_sha256(field)"
+for w in r2["workloads"]:
+    known[w["wal_evidence"]["sha256"]] = f"{w['workload']}/wal(field)"
+    known[w["campaign_binding"]["campaign_lock_sha256"]] = f"{w['workload']}/lock(field)"
+    known[w["schedule_receipt"]["sha256"]] = f"{w['workload']}/sched(field)"
+    for k, lab in (("wal_evidence", "wal"), ):
+        p = w[k]["path"]
+        if os.path.exists(p):
+            known.setdefault(sha(p), f"{w['workload']}/{lab}(actual)")
+sub = json.load(open(os.path.join(att2, "receipts/submission.json")))
+known[sub["intent_sha256"]] = "intent_sha256(field)"
+for p, lab in ((os.path.join(repo, "orchestrator/campaign/paper_story_a1_paired.v3-sized.json"), "policy(file)"),
+               (os.path.join(repo, "output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/README.md"), "prereg(file)"),
+               (os.path.join(repo, "output/insights/2026-09-20/t2792-a1-sized-preregistration-amendment/README.md"), "amendment(file)"),
+               (os.path.join(repo, "tools/pegasus/paper_story_a1_paired.sh"), "job-script(file)")):
+    known[sha(p)] = lab
+for je in rc2["job_executions"]:
+    known[je["reservation_binding"]["script_sha256"]] = "job-script(receipt)"
+known[c2["files"]["README.md"]] = "complete.files.README"
+for path, f in r2["source_binding"]["files"].items():
+    known[f["working_sha256"]] = f"binding2:{path}"
+for path, f in r1["source_binding"]["files"].items():
+    known.setdefault(f["working_sha256"], f"binding1:{path}")
+# completion / group terminal fields
+comp = json.load(open(os.path.join(att2, "receipts/completion.json")))
+known[comp["group_terminal"]["sha256"]] = "group_terminal(field)"
+for path, f in r2["source_binding"]["files"].items():
+    known[f["git_blob_oid"]] = f"blob2:{path}"
+for path, f in r1["source_binding"]["files"].items():
+    known.setdefault(f["git_blob_oid"], f"blob1:{path}")
+for w in r2["workloads"]:
+    d = w["schedule_receipt"]["document"]
+    known[d["root_seed"]] = f"{w['workload']}/root_seed"
+    known[d["effective_root_seed"]] = f"{w['workload']}/effective_root_seed"
+
+for full in sorted(set(re.findall(r"\b[0-9a-f]{64}\b", text))):
+    if full in known:
+        print(f"ok sha256 {full[:12]}… = {known[full]}")
+    else:
+        problems.append(f"UNKNOWN sha256 {full}")
+# short forms `xxxxxxxx…`
+short_known = {k[:8]: v for k, v in known.items()}
+for s in sorted(set(re.findall(r"`([0-9a-f]{8})…`", text))):
+    if s in short_known:
+        print(f"ok short {s} -> {short_known[s]}")
+    else:
+        # allow attempt-0001 稿由来の既知 short (leaf1 receipt/complete, raw1) は別途
+        problems.append(f"UNKNOWN short {s}")
+
+# §2.1 numbers
+for w in r2["workloads"]:
+    s = w["statistics"]
+    for key in ("mean_signed_positional_difference_tps", "descriptive_half_width_tps", "floor_boundary_tps", "baseline_mean_tps",
+                "sample_sd_positional_difference_tps", "planned_sigma_tps"):
+        v = repr(s[key])
+        if f"`{v}`" in text:
+            print(f"ok §2.1 {w['workload']} {key} {v}")
+        else:
+            problems.append(f"§2.1 {w['workload']} {key} {v} not verbatim")
+    iv = repr(s["descriptive_interval_tps"])
+    if f"`{iv}`" in text: print(f"ok §2.1 {w['workload']} interval")
+    else: problems.append(f"§2.1 {w['workload']} interval {iv} not verbatim")
+    # pairs
+    for p in s["pairs"]:
+        var = [k for k in p if k.endswith("_tps") and k not in ("no-backoff_tps", "signed_difference_tps")][0]
+        row = f"| {p['pair_index']} | {int(p[var])} | {int(p['no-backoff_tps'])} | {int(p['signed_difference_tps'])} "
+        if row not in text:
+            problems.append(f"§2.2 {w['workload']} pair {p['pair_index']} row missing: {row}")
+    print(f"ok §2.2 {w['workload']} 30 pairs present" if not any(f"§2.2 {w['workload']}" in x for x in problems) else f"NG §2.2 {w['workload']}")
+    # arms / verify
+    for arm, a in w["arms"].items():
+        bd = [r for r in w["wal_evidence"]["records"] if r["stage"] == "bench_done" and r["variant"] == a["variant"]][0]["payload"]
+        vd = [r for r in w["wal_evidence"]["records"] if r["stage"] == "verify_done" and r["variant"] == a["variant"]][0]["payload"]
+        raw = a["raw_tps"]
+        checks = [
+            (f"| {bd['median_tps']!r} | {bd['cv']!r} |", "median/cv"),
+            (f"| {sum(raw)/len(raw):,.2f} | {int(min(raw)):,} / {int(max(raw)):,} |", "mean/min/max"),
+            (f"| {vd['commits']} | {vd['aborts']} | {vd['anomalies']} | {str(vd['certified']).lower()} | {vd['verdict']} |", "verify_done"),
+        ]
+        for needle, lab in checks:
+            if needle in text: print(f"ok §2.3/2.4 {w['workload']} {arm} {lab}")
+            else: problems.append(f"§2.3/2.4 {w['workload']} {arm} {lab} missing: {needle}")
+# §2.7 attempt-0001 row
+for w in r1["workloads"]:
+    s = w["statistics"]
+    for key in ("mean_signed_positional_difference_tps", "descriptive_half_width_tps", "floor_boundary_tps", "baseline_mean_tps",
+                "sample_sd_positional_difference_tps"):
+        v = repr(s[key])
+        if f"`{v}`" in text: print(f"ok §2.7 a1 {w['workload']} {key}")
+        else: problems.append(f"§2.7 a1 {w['workload']} {key} {v} not verbatim")
+    iv = repr(s["descriptive_interval_tps"])
+    if f"`{iv}`" in text: print(f"ok §2.7 a1 {w['workload']} interval")
+    else: problems.append(f"§2.7 a1 {w['workload']} interval not verbatim")
+# §1.4 job table
+for je in rc2["job_executions"]:
+    a = je["accounting"]; rb = je["reservation_binding"]
+    needle = f"| `{je['request_id']}` | {rb['host']} |"
+    needle2 = f"| {a['elapsed_s']:.2f} | {a['cpu_total_s']:.3f} |"
+    if needle in text and needle2 in text: print(f"ok §1.4 {je['workload']}")
+    else: problems.append(f"§1.4 {je['workload']} row missing: {needle} {needle2}")
+# schedule receipt facts
+for w1, w2 in zip(r1["workloads"], r2["workloads"]):
+    d1 = w1["schedule_receipt"]["document"]; d2 = w2["schedule_receipt"]["document"]
+    same = all(d1[k] == d2[k] for k in ("root_seed", "effective_root_seed", "seed_counter", "group_bits")) and \
+        [b["arm"] for b in d1["blocks"]] == [b["arm"] for b in d2["blocks"]]
+    print(f"ok schedule identical {w1['workload']}" if same else f"NG schedule differs {w1['workload']}")
+    if not same: problems.append(f"schedule differs {w1['workload']}")
+    for lab, v in (("group_bits", d2["group_bits"]),):
+        pass
+# variance breach text
+for w in r2["workloads"]:
+    s = w["statistics"]
+    print(f"info {w['workload']} breach={s['variance_plan_breach']} sd/sigma={s['sample_sd_positional_difference_tps']/s['planned_sigma_tps']:.3f}")
+print("PROBLEMS", len(problems))
+for p in problems:
+    print(" -", p)
+sys.exit(1 if problems else 0)

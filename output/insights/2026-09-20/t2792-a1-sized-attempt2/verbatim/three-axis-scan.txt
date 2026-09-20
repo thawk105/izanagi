@@ -1,0 +1,93 @@
+fails-closed: rr80: holdout hit 4 件: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 件: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']
+{
+  "match_convention": "file-level conjunction: 同一ファイルが rratio/skew/rmw の三軸正規表現すべてに一致した場合だけ 1 hit と数える",
+  "search": {
+    "file_enumeration": "repo root の git ls-files -z -s (通常ファイル mode 100644/100755 のみ。gitlink/symlink はテキストでないため除外) と git ls-files -z --others --exclude-standard の和集合に、git -C external/ccbench ls-files -z -s の各通常ファイル path へ external/ccbench/ を前置した集合を加える",
+    "top_level_dirs": [
+      ".agents",
+      ".claude",
+      ".codex",
+      ".devcontainer",
+      "docs",
+      "external",
+      "hooks",
+      "orchestrator",
+      "output",
+      "patches",
+      "src",
+      "tools"
+    ],
+    "file_count": 29838,
+    "skipped_binary_count": 1840,
+    "excluded_paths": [
+      "output/s8b-freeze/"
+    ]
+  },
+  "holdouts": {
+    "rr80": {
+      "candidate_id": "H1",
+      "expressions": {
+        "rratio": "(?:ycsb_rratio=80|\"ycsb_rratio\": \"80\"|\"ycsb_rratio\":\"80\")",
+        "skew": "(?:ycsb_zipf_skew=0.9|\"ycsb_zipf_skew\": \"0.9\"|\"ycsb_zipf_skew\":\"0.9\")",
+        "rmw": "(?:ycsb_rmw=0|\"ycsb_rmw\": \"0\"|\"ycsb_rmw\":\"0\")"
+      },
+      "per_axis_counts": {
+        "rratio": 24,
+        "skew": 464,
+        "rmw": 369
+      },
+      "conjunction_hits": [
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+        "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+      ],
+      "result_sha256": "19c3035167b4f7b2619fca7718c42d5c5afa2e9f01747f05ede65bc8ff296e7d"
+    },
+    "rr20": {
+      "candidate_id": "H2",
+      "expressions": {
+        "rratio": "(?:ycsb_rratio=20|\"ycsb_rratio\": \"20\"|\"ycsb_rratio\":\"20\")",
+        "skew": "(?:ycsb_zipf_skew=0.9|\"ycsb_zipf_skew\": \"0.9\"|\"ycsb_zipf_skew\":\"0.9\")",
+        "rmw": "(?:ycsb_rmw=0|\"ycsb_rmw\": \"0\"|\"ycsb_rmw\":\"0\")"
+      },
+      "per_axis_counts": {
+        "rratio": 11,
+        "skew": 464,
+        "rmw": 369
+      },
+      "conjunction_hits": [
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+        "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+      ],
+      "result_sha256": "bf5cf92a223473db07f07f61e452d14c91c9bbc0e2a8ddc03a41269a88b416be"
+    }
+  },
+  "positive_control": {
+    "expressions": {
+      "rratio": "(?:ycsb_rratio=50|\"ycsb_rratio\": \"50\"|\"ycsb_rratio\":\"50\")",
+      "skew": "(?:ycsb_zipf_skew=0.9|\"ycsb_zipf_skew\": \"0.9\"|\"ycsb_zipf_skew\":\"0.9\")",
+      "rmw": "(?:ycsb_rmw=0|\"ycsb_rmw\": \"0\"|\"ycsb_rmw\":\"0\")"
+    },
+    "per_axis_counts": {
+      "rratio": 355,
+      "skew": 464,
+      "rmw": 369
+    },
+    "hit_count": 233,
+    "hit_paths": [
+      "docs/b10-backoff-shape-preregistration.md",
+      "docs/b10-backoff-static-tail-preregistration.md",
+      "docs/decisions.md",
+      "docs/freeze-permanent-design-s2.md",
+      "docs/paper-story/figures/fig5_a2_certification_reject.provenance.json",
+      "docs/paper-story/figures/fig6_a2_certification_observed_positive.provenance.json",
+      "docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject.provenance.json",
+      "docs/paper-story/figures/fig8_b10_static_tail_not_observed.provenance.json",
+      "docs/paper-story/figures/fig8b_b10_static_tail_cohort2.provenance.json",
+      "docs/paper-story/results/2026-09-16-b7-three-run-materials.md"
+    ]
+  }
+}
