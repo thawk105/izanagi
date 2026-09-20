@@ -215,3 +215,7 @@ refuted: A-1〜A-3 / A-5 / A-13、B-8 / B-9。
   RB-6 (P3 の 2 拒否は両方 (ii))、RB-7 (帰結の閉包は静的に追加無し、受入全走で閉じる)、RB-9 (hook / B-10 fixture / dispatch 契約は不変)。
 - 段 6 の裁定パッケージ候補 (次 wave へ): official journal producer と validator の契約整合、result 導入順と段階 6 lineage の設計択一、
   論文での批准の呼称 (必要なら)、launch memo の要否 (実測後)。W-4 spec 承認は別手番。
+
+## 10. 段 8 — dev-wave 改善候補 (未統合)
+
+- 候補: 同じ課題の稼働 wave (`git worktree list` + job dir) の重複を段 1 前に実測し、あれば SendMessage で担当を決める手順 (本 wave では 13:36 に実測で発見し、先行 job が譲った)。DW-S01 への 1 文追記を試みたが L1 unique footprint が 10,773 bytes > 予算 10,625 bytes となり、契約 (`docs/skill-self-improvement.md`「予算超過は reference へ統合し、意味等価にできなければ D782 に従う。裁定へ返さず、上限引き上げ時だけ報告する」) に従い追記を戻した。上限の引き上げは親裁定 (層ごとの最小増分と収容表) の対象で、本 wave では報告のみ。
