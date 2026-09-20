@@ -1635,7 +1635,7 @@ def test_batch_reader_rejects_one_missing_path_of_sixty_two(
                     for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS
                 ),
             ),
-            {"timeout_seconds": 630},
+            {"timeout_seconds": 850},
         ),
     ]
 
@@ -1714,13 +1714,13 @@ def test_capture_batches_blobs_but_reads_all_sixty_two_disk_paths(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 630},
+            {"timeout_seconds": 850},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 630,
+                "timeout_seconds": 850,
             },
         ),
     ]
@@ -1798,13 +1798,13 @@ def test_committed_verification_rejects_one_digest_mismatch(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 630},
+            {"timeout_seconds": 850},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 630,
+                "timeout_seconds": 850,
             },
         ),
     ]
