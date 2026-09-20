@@ -1,0 +1,62 @@
+{
+ "file": "verbatim/out-review.md",
+ "original_sha256": "fe8e687b155c6cb65dc6316c2e1b994142599cb9632df7b217b614107fa59a32",
+ "original_bytes": 20871,
+ "normalized_sha256": "639bdf3558b7d63ae9224db230b68b590db6d74d4c4cf781abfe15b41d30403a",
+ "normalized_bytes": 20845,
+ "rule": "各行の LF 直前の ASCII space / tab を除去 (可視文字不変)。復元は各 line の LF 前へ suffix を戻す",
+ "removed": [
+  {
+   "line": 15,
+   "suffix": "  "
+  },
+  {
+   "line": 34,
+   "suffix": "  "
+  },
+  {
+   "line": 37,
+   "suffix": "  "
+  },
+  {
+   "line": 56,
+   "suffix": "  "
+  },
+  {
+   "line": 71,
+   "suffix": "  "
+  },
+  {
+   "line": 86,
+   "suffix": "  "
+  },
+  {
+   "line": 101,
+   "suffix": "  "
+  },
+  {
+   "line": 104,
+   "suffix": "  "
+  },
+  {
+   "line": 121,
+   "suffix": "  "
+  },
+  {
+   "line": 134,
+   "suffix": "  "
+  },
+  {
+   "line": 137,
+   "suffix": "  "
+  },
+  {
+   "line": 152,
+   "suffix": "  "
+  },
+  {
+   "line": 167,
+   "suffix": "  "
+  }
+ ]
+}

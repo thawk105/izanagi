@@ -1,0 +1,25 @@
+"""U0 diff の new 側行番号を、新版 file の AST で関数に帰属させる (R-2 の検証)。"""
+import ast, re, sys
+patch, newfile = sys.argv[1], sys.argv[2]
+src = open(newfile).read()
+tree = ast.parse(src)
+spans = []
+for node in ast.walk(tree):
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        spans.append((node.lineno, node.end_lineno, node.name))
+spans.sort()
+new_lines = []
+for line in open(patch):
+    m = re.match(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", line)
+    if m:
+        start = int(m.group(1)); n = int(m.group(2)) if m.group(2) is not None else 1
+        new_lines.extend(range(start, start + n))
+owners = {}
+for ln in new_lines:
+    name = "<module>"
+    for s, e, nm in spans:
+        if s <= ln <= e:
+            name = nm  # innermost last (sorted by start; nested later)
+    owners.setdefault(name, []).append(ln)
+for name, lns in owners.items():
+    print(f"{name}: {len(lns)} lines ({min(lns)}-{max(lns)})")

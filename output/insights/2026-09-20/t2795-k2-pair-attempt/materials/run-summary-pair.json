@@ -1,0 +1,250 @@
+{
+  "campaign_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae",
+  "campaign_id": "p3-s4-loop-s4-autonomous-b24749ae",
+  "digest_sha256": "8bde66fa21413dda8f269a1b7736164e354a371db465387a52e23bd4fe9ece8e",
+  "files": {
+    "campaign.lock": {
+      "bytes": 8307,
+      "exists": true,
+      "sha256": "962ef7d787b7031a99e6c57088746f1a00646ac5e69c979110cc131bcb39ff03"
+    },
+    "knowledge_manifest_receipt.json": {
+      "bytes": 1317,
+      "exists": true,
+      "sha256": "c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a"
+    },
+    "loop_state.json": {
+      "bytes": 255,
+      "exists": true,
+      "sha256": "a8c6a8b69bc7bdd5eaee3203025968b4e198e082e5cca6b40244d75fa7a49ae0"
+    },
+    "runs/wal.jsonl": {
+      "bytes": 7062,
+      "exists": true,
+      "sha256": "b5754f98c0643e80fc02f8bcc02f080ba43ee7d72464ef8fa6ad1410a3b2c56a"
+    },
+    "s4_loop_digest.txt": {
+      "bytes": 1939,
+      "exists": true,
+      "sha256": "8bde66fa21413dda8f269a1b7736164e354a371db465387a52e23bd4fe9ece8e"
+    }
+  },
+  "loop_state": {
+    "iteration": 1,
+    "reverse_recommendations": 0,
+    "start_wall": 1789899183.7126458,
+    "whiteboard": [
+      {
+        "delta_pct": null,
+        "direction": "decrease",
+        "iteration": 1,
+        "magnitude": "large",
+        "result": "success"
+      }
+    ]
+  },
+  "records": [
+    {
+      "env_tag": "pegasus",
+      "stage": "build_start",
+      "ts": 1789899190.5704706,
+      "ts_jst": "2026-09-20 19:13:10",
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "build_done",
+      "ts": 1789899205.4139848,
+      "ts_jst": "2026-09-20 19:13:25",
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "verify_done",
+      "ts": 1789899218.3748083,
+      "ts_jst": "2026-09-20 19:13:38",
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "bench_done",
+      "ts": 1789899220.5394115,
+      "ts_jst": "2026-09-20 19:13:40",
+      "variant": "002642c7ac96"
+    },
+    {
+      "env_tag": "pegasus",
+      "stage": "commit",
+      "ts": 1789899220.5460682,
+      "ts_jst": "2026-09-20 19:13:40",
+      "variant": "002642c7ac96"
+    }
+  ],
+  "stock_variant_id_expected": "602b4ce9c788",
+  "stop_decision": {
+    "reason": "continue",
+    "stop": false
+  },
+  "variants": {
+    "002642c7ac96": {
+      "admission": {
+        "authority_kind": "cli-opt-in",
+        "class": "coder-authored",
+        "generator_id": null,
+        "policy_sha256": "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a",
+        "receipt_sha256": "d3a481b7367a878fa8f063daabdccf1f60b44a9961e6e2cc35dcb532bdee3b83",
+        "source": {
+          "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+          "src_token": "fec064b1edfceba8a8fac7b26d9a07538ad0984c68a9185c385a85a7d0158d18",
+          "tracked_clean": false
+        }
+      },
+      "bench": {
+        "bench_wall_s": 2.129355721990578,
+        "cv": 0.009769401139163563,
+        "leading_indicators": {
+          "abort_rate": 0.09154999999999999,
+          "ipc": null,
+          "latency_ns": 4926.6104,
+          "llc_miss_rate": null,
+          "throughput_tps": 811956.0
+        },
+        "median_tps": 811956.0,
+        "perf_preflight": {
+          "available": false,
+          "candidates": [
+            {
+              "executable": true,
+              "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+              "rc": 0
+            },
+            {
+              "executable": true,
+              "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+              "rc": 0
+            }
+          ],
+          "parsed_events": [],
+          "probe_argv": [
+            "perf",
+            "stat",
+            "-x,",
+            "-o",
+            "<tmp>/perf.csv",
+            "-e",
+            "LLC-load-misses,LLC-loads,instructions,cycles",
+            "--",
+            "/bin/true"
+          ],
+          "rc": 2,
+          "reason": "nonzero-rc",
+          "schema": "izanagi-perf-preflight/v1",
+          "status": "unavailable",
+          "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+        },
+        "rounds": 1,
+        "settled": true,
+        "tps": [
+          817565.0,
+          806347.0
+        ]
+      },
+      "build": {
+        "perf_bin_sha256": "7a60310d588b89c7b197908ebb1da2ae6df887b87ea935fed080936a651623d1",
+        "perf_cached": false,
+        "trace_bin_sha256": "6c87eb2ecf19686e1a77b117a1fc81d642f5db3d4e9877fc8f9150234c9d6cb6",
+        "trace_cached": false
+      },
+      "build_admission_receipt_sha256": "d3a481b7367a878fa8f063daabdccf1f60b44a9961e6e2cc35dcb532bdee3b83",
+      "build_to_verify_s": 27.804337739944458,
+      "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "is_stock_src_token": false,
+      "is_stock_variant_id": false,
+      "knowledge_provenance": {
+        "knowledge_level": "K2",
+        "knowledge_manifest_sha256": "396cd5594c3f22fb0d52476aa3eec51e62f26c5d3e81b1e25a5935697b73588e",
+        "sources": [
+          {
+            "identity": {
+              "commit": "2fa13a262a53b7f4e610a40a7a7af7f86fc9d621",
+              "path": "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl"
+            },
+            "kind": "repo_artifact",
+            "sha256": "2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"
+          }
+        ]
+      },
+      "src_token": "fec064b1edfceba8a8fac7b26d9a07538ad0984c68a9185c385a85a7d0158d18",
+      "stages": [
+        "build_start",
+        "build_done",
+        "verify_done",
+        "bench_done",
+        "commit"
+      ],
+      "terminal": {
+        "cv": 0.009769401139163563,
+        "fitness_tps": 811956.0,
+        "reason": null,
+        "stage": "commit"
+      },
+      "ts": {
+        "bench_done": 1789899220.5394115,
+        "build_done": 1789899205.4139848,
+        "build_start": 1789899190.5704706,
+        "commit": 1789899220.5460682,
+        "verify_done": 1789899218.3748083
+      },
+      "verify": [
+        {
+          "aborts": 121826,
+          "anomalies": 0,
+          "certified": true,
+          "commit_witness": {
+            "batch_commit_counts": 0,
+            "commit_counts": 522868
+          },
+          "commits": 522868,
+          "proof_surfaces": {
+            "I": "evidence-absent",
+            "P": "evidence-present",
+            "X": "evidence-present",
+            "protocol": "silo"
+          },
+          "verdict": "serializable",
+          "workload": {
+            "tag": "legacy"
+          }
+        }
+      ],
+      "verify_to_bench_s": 2.1646032333374023
+    }
+  },
+  "wal_refs": [
+    {
+      "ref": "wal:69e8144659df92c4b3e6bff05f3c9f32f4eeaf286061ea56c0974a1e2b0b7138",
+      "stage": "build_start",
+      "variant": "002642c7ac96"
+    },
+    {
+      "ref": "wal:ef216908340490bf5622583a74f5e82728bc839c4e63b0d9f0f6978c8af9ea40",
+      "stage": "build_done",
+      "variant": "002642c7ac96"
+    },
+    {
+      "ref": "wal:577bcabb223b5a40e9cd66b1b93b2cc3299b86875848eb29a5aabdd4c7ff2e89",
+      "stage": "verify_done",
+      "variant": "002642c7ac96"
+    },
+    {
+      "ref": "wal:22f8a6b25010bc2c90296d5752995031cb711315df7a1c2e207c0eb976f7a4a8",
+      "stage": "bench_done",
+      "variant": "002642c7ac96"
+    },
+    {
+      "ref": "wal:c4ef426b999705054d120e4c8c4c3d949bfd5caeecb35f7f413b8af3a641f5e8",
+      "stage": "commit",
+      "variant": "002642c7ac96"
+    }
+  ]
+}
