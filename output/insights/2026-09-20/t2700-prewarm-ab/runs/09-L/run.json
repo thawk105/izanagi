@@ -1,0 +1,141 @@
+{
+  "schema": "t2700-run/v2",
+  "run": "09",
+  "condition": "L",
+  "pair_slot": 4,
+  "measurement_tip": "7447c9a35c769ff6b962d364ed5f9fd0c089c749",
+  "tip_sha": "7447c9a35c769ff6b962d364ed5f9fd0c089c749",
+  "tip_sha_after": "7447c9a35c769ff6b962d364ed5f9fd0c089c749",
+  "main_sha_at_launch": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+  "worktree_realpath": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2700-prewarm-ab",
+  "warm_tip": "7447c9a35c769ff6b962d364ed5f9fd0c089c749",
+  "warm_rc": 0,
+  "submitted_at": "2026-09-20T13:39:50+0900",
+  "finished_at": "2026-09-20T14:01:02+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/6a2be82e7ce988f20bd5adf12aa9862a",
+  "copy_ok": true,
+  "artifacts": {
+    "shard-0/junit.xml": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/report.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatch/receipt.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatch/request.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatch/result.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatch/izdw-shard-0.e12524": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatch/izdw-shard-0.o12524": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-0/dispatcher.log": {
+      "status": "ok",
+      "requirement": "optional"
+    },
+    "shard-1/junit.xml": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/report.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatch/receipt.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatch/request.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatch/result.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatch/izdw-shard-1.e12525": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatch/izdw-shard-1.o12525": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-1/dispatcher.log": {
+      "status": "ok",
+      "requirement": "optional"
+    },
+    "shard-2/junit.xml": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/report.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatch/receipt.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatch/request.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatch/result.json": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatch/izdw-shard-2.e12523": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatch/izdw-shard-2.o12523": {
+      "status": "ok",
+      "requirement": "required"
+    },
+    "shard-2/dispatcher.log": {
+      "status": "ok",
+      "requirement": "optional"
+    },
+    "junit.xml": {
+      "status": "ok",
+      "requirement": "optional"
+    },
+    "login-collection.log": {
+      "status": "ok",
+      "requirement": "optional"
+    }
+  },
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "IZANAGI_T2700_EARLY_MEMO_OFF_V1": "t2700-early-memo-off",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 13.92,
+  "rc": 0,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 2,
+    "load1_max_exclusive": 30.0,
+    "leader_query": "ps -eo args | grep '[d]ev_wave_wait.py' | grep ' acceptance' | grep -vc <slug>"
+  },
+  "opt_out_env": "IZANAGI_T2700_EARLY_MEMO_OFF_V1",
+  "opt_out_token": "t2700-early-memo-off"
+}
