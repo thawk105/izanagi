@@ -2,7 +2,7 @@
 
 本稿は 2026-09-20 の新規執筆依頼に基づく日本語草稿である。既存の
 [方法節草稿](../../2026-09-10/paper-methods-ja/methods.md) と
-[結果・考察草稿](../../2026-09-10/paper-results-ja/results-discussion.md) に先立つ本文として、
+[結果・考察草稿 (2026-09-20 版)](../paper-results-ja/results-discussion.md) に先立つ本文として、
 論文が何を問い、どう取り組み、何が分かったかを述べる。同時に起草した
 [貢献節草稿](contributions.md) と [限界節草稿](limitations.md) と主張の強さを揃えてある —
 序論で強く言い、限界で引き下げる形は採らない。資料の採用時点は local main `482f19b88`

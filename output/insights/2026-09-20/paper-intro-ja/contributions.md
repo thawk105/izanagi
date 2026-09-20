@@ -172,7 +172,7 @@ mocc の certified 系列・性能比較は含まれず、非 Silo の性能比�
    「因果はアブレーションで分離できた効果に限る」は同版 §1 末尾。同版 §3 項目 3 の見出しは前版の「仮説層は未実装」を訂正済みで、本稿はその訂正後を採る。
 7. **P2-5:** [凍結集計](../../../../output/campaigns/p2-5-summary.json) の `rows`・`recalibration_2026_07_02`・`correction_2026_07_03`
    (write-heavy exact p = 0.0002521080…、A = 0.2304166…、n_configs 50,268)、D21 / D29、claim-evidence の C7。read-heavy の扱いは
-   [結果・考察草稿](../../2026-09-10/paper-results-ja/results-discussion.md) 表 1 と同じ。
+   [結果・考察草稿 (2026-09-20 版)](../paper-results-ja/results-discussion.md) 表 1 と同じ。
 8. **S':** [S-1 report](../../../../output/reports/s1_direct_comparison/report.json) (`families.s1a.p_family` 1.0 不成立、`s1b` 0.000204… 成立)、
    [最終報告](../../../../output/reports/s_prime_final_report.md) (族 4 判定表、S-2 名目 p 0.115、S-3 名目 p 1.0)、
    [S-1a 9 対の単独稿](../../../../docs/paper-story/results/2026-09-20-s1a-nine-pair-direct-comparison.md)、claim-evidence の C4〜C6 と `L12` / `L13`。

@@ -3,7 +3,7 @@
 本稿は 2026-09-20 の新規執筆依頼に基づく日本語草稿である。[序論草稿](intro.md) と
 [貢献節草稿](contributions.md) と同時に起草し、主張の強さを揃えてある。この節が扱うのは**論文全体の
 適用範囲と、未実証のまま残る主張**である。個々の実験の留保 (各 attempt の限定、成果物に無い情報、
-欠測の内訳、図の用法) は [結果・考察草稿](../../2026-09-10/paper-results-ja/results-discussion.md) と
+欠測の内訳、図の用法) は [結果・考察草稿 (2026-09-20 版)](../paper-results-ja/results-discussion.md) と
 各結果稿の側に残し、ここでは繰り返さない。資料の採用時点は local main `482f19b88` (2026-09-20 17:56 JST
 の commit) に着地した正典であり、論文ストーリーの凍結版と claim-evidence 稿が「裁定待ち」「未着地」と
 書いた項目のうちその後に動いたものは、裁定台帳の本文に照合して現在地で書いた。証拠ごとの現在地の
@@ -242,7 +242,7 @@ TicToc は較正と床値基準線の登録まで、Cicada は測定 0 件、sna
 13. **B-5:** D1067、D2158、D2172 項 4、[B-5 事前登録](../../../../docs/b5-generator-contrast-preregistration.md)、`L47`。
 14. **出力契約と合成ループ:** ストーリー §1 の成果物 1、`L20`、[K2 3 巡の単独稿](../../../../docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md)、
     D2155、D2172 項 3、D2183 (同 job stock 対照の実装。worklog entry 1746 は「1 job も投入していない」と明記)、`L45`。
-15. **P2-5 の射程:** [凍結集計](../../../../output/campaigns/p2-5-summary.json)、D21 / D29、claim-evidence §5.4、[結果・考察草稿](../../2026-09-10/paper-results-ja/results-discussion.md) §1。
+15. **P2-5 の射程:** [凍結集計](../../../../output/campaigns/p2-5-summary.json)、D21 / D29、claim-evidence §5.4、[結果・考察草稿 (2026-09-20 版)](../paper-results-ja/results-discussion.md) §1。
 16. **機序の帯域:** D20、`output/insights/2026-06-22_p2-case-study-backoff-synthesis.md` と `docs/paper-story/notes-2026-07-10.md` の訂正 (0.815 → 0.494)、
     D1505 / D1506 (既定 3 定数)、D1724 / D1857 (機序主張の上限)、D1637 (2 本目の論文と数値を共有しない)、`L04` / `L05` / `L53`。
 17. **右 tail と待ち方 grid:** [cohort 1 の単独稿](../../../../docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md) (1250 → 9999 µs で throughput は
