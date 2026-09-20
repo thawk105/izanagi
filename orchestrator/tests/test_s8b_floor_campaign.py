@@ -15757,28 +15757,32 @@ def _protocol_binding_public_preflight(
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert _git_stdout(root, "rev-parse", "HEAD").strip() == source_head
-    if not versioned:
-        legacy = fc.load_protocol(root / fc._FLOOR_PROTOCOL_REL)
-        subprocess.run(
-            ["git", "checkout", "--quiet", "--detach", legacy["ccbench_pin"]],
-            cwd=root / "external/ccbench", check=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        subprocess.run(
-            ["git", "add", "--", "external/ccbench"], cwd=root, check=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        subprocess.run(
-            ["git", "-c", "user.name=fixture", "-c",
-             "user.email=fixture@example.invalid", "commit", "--quiet", "-m",
-             "select legacy protocol gitlink"], cwd=root, check=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
+    # Each historical protocol is exercised on a checkout of its own pin.
+    if versioned:
+        (protocol_path,) = sorted((root / fc._FLOOR_PROTOCOLS_REL).glob("*.json"))
+    else:
+        protocol_path = root / fc._FLOOR_PROTOCOL_REL
+    protocol_for_checkout = fc.load_protocol(protocol_path)
+    subprocess.run(
+        ["git", "checkout", "--quiet", "--detach", protocol_for_checkout["ccbench_pin"]],
+        cwd=root / "external/ccbench", check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "add", "--", "external/ccbench"], cwd=root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "-c", "user.name=fixture", "-c",
+         "user.email=fixture@example.invalid", "commit", "--quiet", "-m",
+         "select fixture protocol gitlink"], cwd=root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
 
-        assert _git_stdout(root, "rev-parse", "HEAD^").strip() == source_head
-        assert _git_stdout(
-            root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
-        ).splitlines() == ["external/ccbench"]
+    assert _git_stdout(root, "rev-parse", "HEAD^").strip() == source_head
+    assert _git_stdout(
+        root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+    ).splitlines() == ["external/ccbench"]
     _remove_chain_artifacts_from_replay(root)
     selected = fc.resolve_current_floor_protocol(root=root)
     assert (selected.path != fc._FLOOR_PROTOCOL_REL) is versioned

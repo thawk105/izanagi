@@ -1,0 +1,86 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "mut3-equivalent-pin-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pin.py",
+          "old": "# D2150 項 1、2026-09-20 [T-2304]。\n",
+          "new": "# D2150 項 1 (2026-09-20 [T-2304])。\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "mut1-ccbench-full-sha-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_approved.py",
+          "old": "CCBENCH_FULL_SHA = \"e9e477ca1b55348ab4530de0b1cf663ce4555290\"\n",
+          "new": "CCBENCH_FULL_SHA = \"511c9538e4e8efa54b45cda62e72389ed3b706ec\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_is_40hex_and_current_pin_is_prefix",
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_matches_real_gitlink",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_approved_constants_protocol_bytes_match_parent_precalculation",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_builder_document_roundtrips_validate_protocol",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_builder_golden_bytes_and_sha_are_stable",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_builder_rejects_holdout_conjunction_in_master_seed",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_builder_rejects_unregistered_env_tag_before_assembly",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_freeze_protocol_success_writes_only_fixed_tmp_repo_path",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_validate_protocol_rejects_contract_sha256_mismatch",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_validate_protocol_rejects_each_pinned_field_mutation",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_validate_protocol_rejects_unregistered_env_tag",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_writer_create_only_and_bytes_match",
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_writer_rejects_real_repo_freeze_dir"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mut2-current-pin-reverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pin.py",
+          "old": "CURRENT_PIN = \"e9e477c\"\n",
+          "new": "CURRENT_PIN = \"511c953\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_authorityless_trigger_coder_is_rejected_before_build_spy",
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_stock_machine_and_opted_in_coder_paths_remain_accepted",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_default_cfg_axis_is_sort_marker",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_b4_trigger_marker_is_opt_in_and_ordinary_contract_digest_is_unchanged",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_campaign_identity_is_unchanged_for_other_and_split_for_compute",
+        "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_default_cfg_wires_s2_verify_and_axis",
+        "orchestrator/tests/test_s6_sort_sweep.py::test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_default_off_campaign_ids_remain_historical_values",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_broken_conservation",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_ok",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_partial_run",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_rejects_mismatched_receipts[<lambda>-outer SHA]",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_rejects_mismatched_receipts[<lambda>-producer /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_rejects_mismatched_receipts[<lambda>-schema/policy]",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_rejects_receiptless_characterization",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_load_effective_reasons_unknown_reason",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes",
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_is_40hex_and_current_pin_is_prefix",
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_matches_real_gitlink",
+        "orchestrator/tests/test_t126_qualification_driver.py::test_qualification_stock_source_reaches_build_with_exact_class"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

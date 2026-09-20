@@ -111,6 +111,10 @@ FORMAL_PHASES = (*RUN_PHASES, "verify-perf", "trial-cell", "report")
 TRIAL_CELL_PHASE = "trial-cell"
 TRIAL_SEARCH_TAG = "trial"
 B10_POLICY_REL = "tools/pegasus/policy.json"
+# 記録済み formal 系列 (2026-09-15 / 09-19) の取得 pin。
+# 現行 PIN とは独立。pin 前進で動かさない。
+LEGACY_REPORT_CCBENCH_PIN = "511c953"
+
 LEGACY_WRITE_HEAVY_CAMPAIGN_ID = (
     "b10-backoff-shape-silo-write-heavy-formal-e3de15eb"
 )
@@ -3189,7 +3193,7 @@ def _assert_report_lock_binding(
     expected_trial = f"{LEGACY_REPORT_SPACE_VERSION.replace('/', '-')}-{expected_spec_sha256[:16]}"
     if space_version != LEGACY_REPORT_SPACE_VERSION \
             or identity.get("search_tag") != "formal" \
-            or identity.get("ccbench_commit") != PIN \
+            or identity.get("ccbench_commit") != LEGACY_REPORT_CCBENCH_PIN \
             or identity.get("trial") != expected_trial \
             or identity.get("spec_content") != _formal_spec_content(workload) \
             or search_config.get("workload") != workload \

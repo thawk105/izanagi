@@ -61,8 +61,12 @@ _PRE_T343_NO_BUILD_CAMPAIGN_ID = (
 _T343_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
 )
-_CURRENT_NO_BUILD_CAMPAIGN_ID = (
+_T816_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e"
+)
+# T-2304 admission-policy epoch.
+_CURRENT_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-d567badf"
 )
 _T530_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
@@ -76,11 +80,19 @@ assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
     "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
 )
 # T-671 で契約 H が identity から外れ、C01 の golden も H なし preimage へ戻る。
-_C01_OTHER_CAMPAIGN_ID = (
+_T816_C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
 )
-_C01_PEGASUS_CAMPAIGN_ID = (
+# T-2304 admission-policy epoch.
+_C01_OTHER_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-407fa1aa"
+)
+_T816_C01_PEGASUS_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
+)
+# T-2304 admission-policy epoch.
+_C01_PEGASUS_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-46384c28"
 )
 
 
@@ -411,6 +423,7 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
     assert _PRE_T343_NO_BUILD_CAMPAIGN_ID == (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
+    assert str(A.ident.campaign_id(cfg)) != _T816_NO_BUILD_CAMPAIGN_ID
     assert str(A.ident.campaign_id(cfg)) != _T530_NO_BUILD_CAMPAIGN_ID
 
 
@@ -895,6 +908,7 @@ def _assert_workload_campaign_uses_site_contract(
 def test_pegasus_workload_identity_layout_and_drive_use_pegasus_contract(
     tmp_path, monkeypatch,
 ) -> None:
+    assert _C01_PEGASUS_CAMPAIGN_ID != _T816_C01_PEGASUS_CAMPAIGN_ID
     _assert_workload_campaign_uses_site_contract(
         tmp_path,
         monkeypatch,
@@ -910,6 +924,7 @@ def test_pegasus_workload_identity_layout_and_drive_use_pegasus_contract(
 def test_other_workload_identity_layout_and_drive_use_linux_contract(
     tmp_path, monkeypatch,
 ) -> None:
+    assert _C01_OTHER_CAMPAIGN_ID != _T816_C01_OTHER_CAMPAIGN_ID
     _assert_workload_campaign_uses_site_contract(
         tmp_path,
         monkeypatch,
