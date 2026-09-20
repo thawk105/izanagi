@@ -1,0 +1,3 @@
+sort-1v0 rc=0 wall=5s
+noinline-1v0 rc=0 wall=6s
+rung1-1v0 rc=0 wall=4s

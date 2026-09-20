@@ -1,0 +1,41 @@
+#!/bin/bash
+# 生死実験 (DW-G01): 箇所ごとの識別 marker を -D の function-like macro + token 貼り付けで作り、
+# 前処理出力に展開後 token が 1 行ずつ現れるか、コメント / raw string 内は展開されないかを見る。
+set -u
+D=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-witness-requested-us/probe-site-token
+mkdir -p "$D"
+cat > "$D/h.hh" <<'EOF'
+#pragma once
+#if BACKOFF_REQUESTED_US
+IZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED(h0)
+#endif
+IZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED(h0)
+#if BACKOFF_REQUESTED_US
+static int h0 = 1;
+#else
+static int h0 = 0;
+#endif
+EOF
+cat > "$D/tu.cc" <<'EOF'
+#if BACKOFF_REQUESTED_US
+IZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED(t0)
+#endif
+IZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED(t0)
+#if BACKOFF_REQUESTED_US
+static int t0 = 1;
+#else
+static int t0 = 0;
+#endif
+#include "h.hh"
+#include "h.hh"
+// IZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED(c0)
+const char* s = R"(IZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED(r0))";
+EOF
+CXX=/usr/bin/x86_64-linux-gnu-g++-11
+for v in 1 0; do
+  echo "== BACKOFF_REQUESTED_US=$v"
+  "$CXX" -E -P -DBACKOFF_REQUESTED_US=$v \
+    '-DIZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED(k)=IZANAGI_COMPILE_TIME_BRANCH_SITE_SELECTED_OBSERVED_##k' \
+    '-DIZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED(k)=IZANAGI_COMPILE_TIME_BRANCH_SITE_COMPLETED_OBSERVED_##k' \
+    "$D/tu.cc" | grep -n "IZANAGI"
+done
