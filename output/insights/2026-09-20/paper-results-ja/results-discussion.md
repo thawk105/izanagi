@@ -2,9 +2,9 @@
 
 本稿は 2026-09-20 の新規執筆依頼に基づく日本語草稿である。
 2026-09-10 の前稿 (`output/insights/2026-09-10/paper-results-ja/results-discussion.md`、worklog entry 1436) を
-置き換える (supersede)。前稿は 1 byte も変えずに残す。前稿が反映していなかった 09-10 以後の結果稿 12 本
-(現行環境の 3 走行の単独稿、A-1 本走、同一候補の 3 workload 測定、採用候補の検証相、B-10 の待ち方 grid と右 tail 2 cohort、
-K2 手動 loop 3 巡、S-1a の 9 対、mocc の観測 2 件、旧環境 sweep の単独稿) と図 fig4〜fig12・fig8b を、主張ごとに整理した。
+置き換える (supersede)。前稿は 1 byte も変えずに残す。前稿が反映していなかった 09-10 以後の結果稿 15 本 — 単独稿 13 本
+(A-6、[T-1998]、A-1 本走、同一候補の 3 workload 測定、採用候補の検証相、B-10 の待ち方 grid、右 tail の cohort 1 と 2、K2 手動 loop 3 巡、
+S-1a の 9 対、mocc の観測 2 件、旧環境 sweep) と B-7 の併記稿 2 本 (2026-09-14 / 09-16) — と図 fig4〜fig12・fig8b を、主張ごとに整理した。
 
 資料の採用時点は local main `482f19b88` (2026-09-20。起草は `fec4a8187` から始め、段 6 の前に main を読み直した。差分は [T-2304] の
 ccbench pin 前進とその記録だけで、results 稿・版・decisions の正典は動いていない)。稼働中の wave の成果は数えない。
@@ -86,7 +86,7 @@ treatment の一般効果として平均すること (限定 9)、adaptive を�
 
 ## 3. 現行環境の 3 走行 — 正しい identity で測った採用静的 backoff
 
-現行 Pegasus・CCBench pin `511c953` で、採用静的 backoff を測った正式な走行が 3 つある。**3 つは独立した protocol であり、
+測定当時の現行環境 (Pegasus・CCBench pin `511c953`) で、採用静的 backoff を測った正式な走行が 3 つある。**3 つは独立した protocol であり、
 1 つの横断実験ではない** (D1993 項 6)。それぞれ単独稿を持つ。[3, 4, 5]
 
 ### 3.1 A-2 (write-heavy / balanced) — `observed-positive`
@@ -267,7 +267,10 @@ A-1 の充足・formal 化・昇格は判定されておらず、事前登録 §
 | fixed-10 | pass | 30 verify (本走 24 + 校正完走 6) | 0 | 2 件 | 3 s | 6134 S (1.70 h) |
 
 本走 48 枠は全件 `serializable`・certified・anomaly 0、bench 失敗・verifier 未完走・再検証は 0 件。校正の extime 10 s の走 2 件 / 候補
-(balanced、write-heavy) は verifier が完走せず verdict を持たない (trace は保全済み、原因は未確定)。fixed-5 の source bytes は
+(balanced、write-heavy) は verifier が完走せず verdict を持たない (trace は保全済み)。検証相の記録時点では原因は未確定だった。後続の調査
+(worklog entry 1744。保全済みの fixed-5 の 10 s trace 2 本を計算ノードで profile) は、balanced 10 s は fork した edge worker の
+copy-on-write による OOM kill、write-heavy 10 s は worker が殺された後の pool の停滞 (SIGTERM 無視環境) と同定し、省メモリ化した verifier で
+両 trace を完走させた (判定は旧版と bytes まで同一)。**当時の未完走記録・判定集合 30 件・extime 3 s は変えない** (規律 7)。fixed-5 の source bytes は
 [T-1998] v1 の target と一致し、fixed-10 は A-2 当時の `src_token` と `91a5bfca3` の改訂分だけ異なる (A-2 当時のバイナリの再検証ではない)。[10]
 
 **言えること / 言えないこと。** 言えるのは「両候補とも判定集合 30 verify で anomaly 0 (操作的事実)」までである。「全走 anomaly ゼロ」
@@ -301,9 +304,10 @@ session 内 5 反復の中央値)、判定境界は相対中央値差 +3% (gate 
 
 成立した 3 対の `p_perm` は 1/4,900 (完全分離) だが、family は 9 対の max を取るので family p = 1.0 のままで、**S-1a は不成立**である。
 落ちた 6 対はすべて gate (1) 不通過で gate (2) は通過しており、負けは 2 ブロック間で方向が一致した負けである (cross-run 再現の
-観測であって機序の説明ではない)。負けた 6 対は左の 8 標本すべてが右の 8 標本すべてより低い (確率優越 0.0)。正しさは別 build の
-`legacy` 条件の検査で、正典 4 campaign の `verify_done` 324 件がすべて `serializable` / `certified` / anomaly 0 である。図は fig4
-(失敗報告図)。[11]
+観測であって機序の説明ではない)。負けた 6 対は左の 8 標本すべてが右の 8 標本すべてより低い (確率優越 0.0)。正しさは別 build の検査で、
+正典 4 campaign の `verify_done` 324 件 (develop は cell ごとに `legacy` と `s2` の 2 件 = 36 件、floor 144 件・block1 72 件・block2 72 件は
+session ごとに `legacy` 1 件 — `legacy` 306 件 + `s2` 18 件) がすべて `serializable` / `certified` / anomaly 0 である。性能の認証ではない。
+図は fig4 (失敗報告図)。[11]
 
 同じ report の別 family である S-1b (gate 述語を恒真にした対照との 3 対比較) は成立し (`p_family` 0.00020408163265306123、相対中央値差
 balanced 0.874244 / write-heavy 0.60638 / read-heavy 0.999298)、Holm 族 4 の第 1 段 (α 0.0125) を通過した。これは軸を有効にする効果を
@@ -321,8 +325,10 @@ balanced 0.874244 / write-heavy 0.60638 / read-heavy 0.999298)、Holm 族 4 の�
 
 軸提案の適格率を比較した S-2 では、本アーム 20/20 に対して選定のみを無作為化した C4 は 17/20 で、差は有意ではなかった
 (名目 p = 0.1154)。C4 は生成過程全体を非 LLM へ置き換えた対照ではない。旧 S-3 の診断数値を除いた C5 では適格率が 20/20 で本アームと
-同率だった (名目 p = 1.0)。P2-5 の貪欲探索、S-1 の機械探索済み候補、S-2 の無作為選定は、異なる問いに対する対照であり、まとめて
-「同じ編集面・同じ予算で LLM 生成が非 LLM 生成を上回った」と扱うことはできない。[1, 11, 13]
+同率だった (名目 p = 1.0)。登録した「帰属遮断による適格率の退化」は示されなかった。ただし採点基準は診断への言及を加点しないよう
+設計されており、この非有意結果を診断の寄与が存在しない証明とも読めない。これは性能診断の入力と提案の適格率についての比較であり、
+直列性の反例を次の合成へ渡す効果の比較ではない。P2-5 の貪欲探索、S-1 の機械探索済み候補、S-2 の無作為選定は、異なる問いに対する
+対照であり、まとめて「同じ編集面・同じ予算で LLM 生成が非 LLM 生成を上回った」と扱うことはできない。[1, 11, 13]
 
 **言えること / 言えないこと。** 言えるのは「合成した軸は既知軸の一部 (sort) には 3 workload とも +55.5%〜+98.4% で明確に勝つ」
 「登録した追試として S-1b は成立した (新発見ではない)」「登録した 9 対の family 判定 (S-1a) は不成立で、縮小主張 S' の headline
@@ -409,8 +415,9 @@ pair を 1 job で投入、4 巡目 1 job を認可) で決まり、launcher の
 | balanced | `different` | 18 | 0.00026702881 | 0.00053405762 | 同 |
 | read-heavy | `different` | 18 | 7.6293945e-06 | 2.2888184e-05 | 同 |
 
-36 cell の効果量はすべて `estimable` で、95% paired-block 区間と等価域 ±3.0% の関係は**内側 32、境界を跨ぐ 4** (write-heavy μ 2・μ 25、
-balanced μ 2・μ 25)、**外側 0**、判定不能 0 である。点推定が負なのは write-heavy μ 5 の 1 cell (−0.97%、区間は 0 を含む) だけで、
+36 cell (`symmetric-modulo` 18 + `constant` 18。後者は自分自身との対なので効果 0・区間 [0, 0] で `inside-equivalence-range`) の効果量は
+すべて `estimable` で、95% paired-block 区間と等価域 ±3.0% の関係は**内側 32、境界を跨ぐ 4** (write-heavy μ 2・μ 25、balanced μ 2・μ 25)、
+**外側 0**、判定不能 0 である。`symmetric-modulo` 18 cell のうち点推定が負なのは write-heavy μ 5 の 1 cell (−0.97%、区間は 0 を含む) だけで、
 残り 17 cell は正。54 個の対差のうち負は write-heavy 5 / 18、balanced 2 / 18、read-heavy 0 / 18 (最小 −1.49%、最大 +2.66%)。
 図は無い。[18]
 
@@ -454,7 +461,10 @@ write-heavy の実行 host は成果物に無い。事前登録 §9 の 9 項目
 「再現されたので飽和しない」「2 cohort で有意」— cohort 1 の verdict を主として保持し、cohort 2 は再現欄に併記して合成せず、
 統合 verdict・プール推定・またぐ有意水準は存在しない。2 cohort の数値の近さを再現精度として評価しない。9999 µs は符号化の上限で
 あって物理的な限界ではなく、右側は測れない。901〜998 µs の帯は未測 (D2027 / D2044 項 14)、旧 consumer へ schema v2 を入力した
-場合の判定も未測定である。機序 (なぜ abort 率がこの形で下がるか) は書かない。[19, 20]
+場合の判定も未測定である。機序 (なぜ abort 率がこの形で下がるか) は書かない。事前登録 §0 が開示するとおり、格子の位置と刻み幅・等価幅 5%・
+変動係数の品質 gate・「表現域内で飽和しない」を正当な結末に含める選択は、いずれも探索走 (`t2418-explore`) の結果を見た後に選ばれたもので、
+前向きに固定したのは本格 cohort に対する測定規則と判定規則である (cohort 2 では地位 (独立再現) と併記法も結果前に固定した)。
+`[qL, qU]` は Bonferroni を適用した同時区間であり区間ごとの 95% 信頼区間ではなく、表 13 の平均は算術平均であって median ではない。[19, 20]
 
 ## 10. stock mocc の G2 signal — 非 certifying の観測 2 件
 
@@ -481,7 +491,9 @@ CCBench pin は `511c9538` で、本稿の採用時点の main では pin が `e
 | off、`BACK_OFF=1` | 1/60 | 1.667% | [0.042%, 8.940%] | — |
 
 G2 signal の走はいずれも `verdict: non-serializable`、`certified: false`、`total_cycles: 1`、anomaly は `G2`、長さ 2、2 辺とも `rw`、
-`integrity.clean: true` で、規律 2 の即 reject 契約はそのまま働いている。[21, 22]
+`integrity.clean: true` で、規律 2 の即 reject 契約はそのまま働いている。表 14・15 の CP 区間と Fisher の p は独立・同率 Bernoulli を仮定した
+参考値で、node 内相関・回転順・時間変動をモデル化していない。検出率は固定時間 (3 秒) の走あたりの率であり、同じ commit 数への曝露比較ではない
+(on の曝露量は少ない)。4 block は別 node・別 binary・別時刻であり「同一条件の 120 反復」とは書けない。[21, 22]
 
 **言えること / 言えないこと。** 言えるのは「stock mocc の G2 signal は witness を切った producer で再現し、診断 patch (2 変更を束ねた介入)
 の arm では 0/120 で、固定条件で介入と検出率低下が整合する」「軽量 witness on では 0/60・0/60、off では 1/60・1/60 で、この標本・条件
@@ -516,9 +528,11 @@ CCBench の当該定数設定の範囲に限られ、適応制御一般の欠点
 
 本研究の結果を提示する中心は、トランザクション CC を対象に、対象実装の action vocabulary そのものを拡張し、各反復に正しさの判定を
 入れることである (核 3 点、D1598)。正しさと性能を別 build・別 run に分ける規律 (規律 1) と、判定を性能値から独立に保つ規律 (規律 2)
-は、実際に働いた例を持つ — 旧 A-2 の走行では要求した define が黙って無視されたまま正式 protocol が完走しており (F707)、その訂正は
-identity の束縛 (`src_token`) によって初めて可能になった (§3.5)。同一候補の測定では退行した cell も certified であり (§4)、検証相は
-性能値を一切含まずに正しさだけを追加検証した (§6)。記録の追跡可能性はこれらの区別を確認する補助であるが、記録の整合性や説明文の
+は、実際に働いた例を持つ。旧 A-2 の走行 (§3.5) は、correctness の合格だけでは要求した構成が build されたことを保証しない例である —
+要求した define が黙って無視されたまま正式 protocol が完走し (F707)、その訂正は WAL の `src_token` と追跡木の変更記録 (`tracked_clean` /
+空 diff / 空 paths) の連言の照合に基づく (token 単独では木が HEAD どおりとは言えない)。新 attempt は pin + patch に束縛した identity を
+cell ごとに要求した。性能と正しさの独立 (規律 1・2) は、同一候補の測定で退行した cell も certified であること (§4) と、性能値を一切含まない
+検証相 (§6) に示される。記録の追跡可能性はこれらの区別を確認する補助であるが、記録の整合性や説明文の
 生成から、説明の忠実性、因果機序の同定、合成能力の高さを導くことはできない。provenance そのものを研究上の優越に数えない。[3, 6, 7, 10]
 
 還流について言えるのは、正しさゲートを毎反復回す loop が certified まで 4 度到達し、実測の還流 2 回と critic 診断の型付き還流 1 回が
@@ -528,7 +542,7 @@ identity の束縛 (`src_token`) によって初めて可能になった (§3.5)
 
 ## 12. 未取得の比較と進行中の成果
 
-本稿の採用時点 (local main `fec4a8187`) で、次は取得されていない。
+本稿の採用時点 (local main `482f19b88`) で、次は取得されていない。
 
 - **A-1 の充足 (但し書き 1)。** attempt-0001 は非認証 lane の descriptive 出力であり、「A-1 の値がある」とは書けない。attempt-0002 は
   1 attempt 認可の下で gate に qsub 前で拒否され (D2156)、投入経路は D2172 項 2 で裁定され実装が着地したが (entry 1736)、測定値は無い。
@@ -536,14 +550,18 @@ identity の束縛 (`src_token`) によって初めて可能になった (§3.5)
 - **別 boot での再取得 (A-5、但し書き 3)。** D1100 が要求する別 boot 成果物は無く、Pegasus で取っても充足にならない (D1525)。2 度の投入は
   測定前に止まった。[2, 12]
 - **合成軸が既知軸最良を超える証拠 (B-1)。** S-1a で不成立。§3〜§6 の走行はこの比較ではない。[11, 12]
-- **descriptor を条件にした合成の因果証拠 (B-2)、LLM の因果的必要性を示す対照 (B-5)。** 未実走・未取得。B-5 は事前登録 v1 (D2158) が
-  作られ、D2172 項 4 が部品の段階実装と上限付き試走を認可したが、本走は未認可である。[12]
+- **descriptor を条件にした合成の因果証拠 (B-2)、生成器の対照 (B-5 = 固定予算・同一編集面で、事前登録した非 LLM 生成器に対する条件付き
+  優越を問う対照。D1067 により「必要性」の形では対照を取っても言えない)。** 未実走・未取得。B-5 は事前登録 v1 (D2158) が作られ、D2172 項 4 が
+  部品の段階実装と上限付き試走を認可したが、本走は未認可である。[12]
 - **8c 正式系列 (B-3)、リーク制御を完備した実走 (B-6)。** 未完走・未達。K2 3 巡は B-6 の材料であって充足ではない (§8.1)。[12, 15]
 - **反例還流の on/off ablation (B-4)。** 適格な赤 precursor 0 件で実施不可。床値 w1 は完走したが集約・採用は未 (§8.2)。[17]
 - **種を変えた長時間実行による最終候補の検証 (B-8)。** 検証相 (§6) は対象・種・長さの 3 要素とも要件と違い、未取得のまま。[10, 12]
-- **現行環境の判定下限の較正、床値の発効。** 取れているのは走行間ばらつきの下限 (between-run CV: rr5 0.9536% / rr50 0.7250% /
-  rr95 0.2228%、cold-boot と温度ドリフトを含まない) と、配線下限 0.03 × stock 中央値で決まった official の floor 案 (rr20 35,817.945 /
-  rr80 46,065.78 tps、未発効) である。「判定下限を較正した」「床値が発効した」とは書かない。[7, 23]
+- **現行環境の判定下限の較正。** 取れているのは走行間ばらつきの下限 (between-run CV: rr5 0.9536% / rr50 0.7250% / rr95 0.2228%、
+  cold-boot と温度ドリフトを含まない) と、配線下限 0.03 × stock 中央値で決まった official の floor 案 (rr20 35,817.945 / rr80 46,065.78 tps)
+  である。この floor 案を候補充填した凍結 v2 g1 は、承認 A と active pointer X (AI 手番、D2180) により 2026-09-20 に批准され、批准 loader は
+  成功した (worklog entry 1742)。ただし P3 の full launch validation は、A / X が生む差ではない既存の不整合 2 件 (`_JOURNAL_KEYS` に無い
+  journal event、段階 6 の lineage) で `allowed: false` のまま未達である。「判定下限を較正した」「科学的に十分な床」とは書かない
+  (D2120 項 2)。official の rr20 / rr80 の値を A-2 / A-6 の 3 workload や B-4 の床値へ転用しない。[7, 23, 25]
 - **クロスプロトコル (C-1)。** Silo 固定スコープは解除されたが、非 Silo の性能比較は 0 件である。mocc の観測 (§10) は準備段階の
   非 certifying 記録で、ccbench pin の `e9e477ca` への前進 ([T-2304]、2026-09-20 着地) の後も、探索・軸採用は未解禁である。[21, 22, 24, 12]
 - **pin 前進と既存の測定の関係。** 本稿の現行環境の測定 (§3〜§6、§9) はいずれも pin `511c9538` の下の値であり、pin 前進はそれらの記録を
@@ -555,7 +573,8 @@ identity の束縛 (`src_token`) によって初めて可能になった (§3.5)
 
 ## 出所 (執筆者向け)
 
-数値の権威は各 results 稿の表とその §「一次資料」が指す権威 bytes にあり、本稿はそれを転記した。以下の path は repo root 相対。
+数値の権威は各 results 稿の表とその §「一次資料」が指す権威 bytes にあり、本稿はそれを転記した。以下の path は原則 repo root 相対。
+ただし `results/…` は `docs/paper-story/results/…`、`figures/…` は `docs/paper-story/figures/…` の短縮である。
 
 1. **P2-5:** `output/campaigns/p2-5-summary.json` の `rows`、`recalibration_2026_07_02`、`correction_2026_07_03` (2026-09-20 に
    再確認、前稿から変化なし)。元の誘導試行 WAL は削除済みで、凍結した試行コスト・軌跡と再生側の記録が残る。
@@ -615,3 +634,6 @@ identity の束縛 (`src_token`) によって初めて可能になった (§3.5)
     `output/insights/2026-09-16/t2698-official-floor-resubmit/README.md` (rr20 35,817.945 / rr80 46,065.78) と D2120 項 2。
 24. **ccbench pin 前進:** `output/insights/2026-09-20/t2304-pin-advance/README.md` ([T-2304]、gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` を
     同一 commit で `511c9538` → `e9e477ca` へ、main `482f19b88` に着地。worklog fragment は fold 前)。
+25. **凍結 v2 g1 の批准と launch validation の未達:** worklog entry 1742 ([T-2724]、`docs/worklog.md`)、
+    `output/insights/2026-09-20/t2724-ax-delegated/README.md`、D2180。検証相の未完走原因の同定は worklog entry 1744 と
+    `output/insights/2026-09-20/verifier-capacity/README.md` §2・§4 (D2181)。
