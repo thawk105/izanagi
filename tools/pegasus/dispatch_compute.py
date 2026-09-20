@@ -128,8 +128,6 @@ TASKS = {
             "PYTHONDONTWRITEBYTECODE",
             # 成長比例テストの明示 opt-in を計算ノードへ伝える。
             "IZANAGI_RUN_GROWTH_HELD_TESTS",
-            # T-2766 measurement opt-in; off by default.
-            "IZANAGI_ACCEPTANCE_PAIRING_V1",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
         env_mode="inherit",

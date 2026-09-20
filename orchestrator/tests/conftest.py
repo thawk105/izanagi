@@ -1019,9 +1019,7 @@ _ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY = (
 # loadscope.schedule() synchronously gives 48 workers one unit and then one
 # prefetched unit via _reschedule(), so the initial distribution window is 96.
 _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS = 48 * 2
-# T-2766 measurement opt-in, off by default; adoption needs a separate ruling.
-_ACCEPTANCE_PAIRING_ENV = "IZANAGI_ACCEPTANCE_PAIRING_V1"
-_ACCEPTANCE_PAIRING_TOKEN = "t2766-min-cost-partners"
+# T-2766 pairing is on by default (D2172 item 1).
 _ACCEPTANCE_PAIRING_PROPERTY_PREFIX = "izanagi_acceptance_pairing_v1"
 _ACCEPTANCE_PAIRING_HEAD_UNITS = _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS // 2
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
@@ -1785,18 +1783,6 @@ def _replace_acceptance_items(items, reordered) -> None:
         )
 
 
-def _acceptance_pairing_opted_in() -> bool:
-    value = os.environ.get(_ACCEPTANCE_PAIRING_ENV)
-    if value in (None, ""):
-        return False
-    if value != _ACCEPTANCE_PAIRING_TOKEN:
-        raise pytest.UsageError(
-            f"{_ACCEPTANCE_PAIRING_ENV} must be exactly "
-            f"{_ACCEPTANCE_PAIRING_TOKEN!r}, empty, or unset"
-        )
-    return True
-
-
 def _pair_initial_distribution_units(ordered_units, unknown_cost) -> list:
     realized = sorted(ordered_units, key=lambda unit: -len(unit["items"]))
     if len(realized) < _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS:
@@ -1880,8 +1866,7 @@ def _reorder_acceptance_items_by_duration(items, durations, workerid="") -> bool
             unit["index"],
         ),
     )
-    if _acceptance_pairing_opted_in():
-        ordered_units = _pair_initial_distribution_units(ordered_units, unknown_cost)
+    ordered_units = _pair_initial_distribution_units(ordered_units, unknown_cost)
     reordered = []
     for unit in ordered_units:
         for item in unit["items"]:
@@ -2345,13 +2330,10 @@ def pytest_collection_modifyitems(config, items):
             raise pytest.UsageError(
                 "acceptance duration ledger が collection hook に配線されていない"
             )
-        if _acceptance_pairing_opted_in():
-            _reorder_acceptance_items_by_duration(
-                items, durations,
-                workerid=getattr(config, "workerinput", {}).get("workerid", ""),
-            )
-        else:
-            _reorder_acceptance_items_by_duration(items, durations)
+        _reorder_acceptance_items_by_duration(
+            items, durations,
+            workerid=getattr(config, "workerinput", {}).get("workerid", ""),
+        )
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)

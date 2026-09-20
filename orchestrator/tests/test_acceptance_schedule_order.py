@@ -748,9 +748,9 @@ def test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order():
         order_trace.append(("strip", item.nodeid))
         return production_strip(item)
 
-    def traced_reorder(collection, durations):
+    def traced_reorder(collection, durations, workerid=""):
         order_trace.append(("reorder", tuple(item.nodeid for item in collection)))
-        return production_reorder(collection, durations)
+        return production_reorder(collection, durations, workerid=workerid)
 
     with pytest.MonkeyPatch.context() as patcher:
         patcher.setattr(CONF, "_strip_real_repo_loadgroup_suffix", traced_strip)
@@ -1167,6 +1167,10 @@ def test_g7_worker_consumes_snapshot_without_reading_file(monkeypatch):
 # G8: the unknown unit lands immediately after the known unit tied at the 96th
 # cost.  Infinity would put it first and zero would put it last.
 def test_g8_unknown_cost_is_known_96th_and_zero_known_is_full_noop(monkeypatch):
+    """Inspect pre-pairing cost order; G12 tests pairing independently."""
+    monkeypatch.setattr(
+        CONF, "_pair_initial_distribution_units", lambda units, _unknown: units,
+    )
     known = [
         _item(f"orchestrator/tests/test_{index:03d}.py::test_case")
         for index in range(100)
@@ -1383,8 +1387,8 @@ def test_g10_collection_wrapper_worker_dependent_tie_break_control_fails(
     # The wrapper has no callable-injection parameter: it directly resolves
     # this module helper post-yield.  Patch that production-resolved callable,
     # while keeping the item objects and ledger identical across all arms.
-    def worker_dependent_tie_break(items, durations):
-        changed = production_reorder(items, durations)
+    def worker_dependent_tie_break(items, durations, workerid=""):
+        changed = production_reorder(items, durations, workerid=workerid)
         if active_numprocesses["value"] == 32:
             first = next(
                 index for index, item in enumerate(items)
@@ -1756,18 +1760,9 @@ def test_g11_loadgroup_worker_dependent_tie_break_control_fails(monkeypatch):
 
 
 # G12: queue ranks do not guarantee each worker's second unit.
-_PAIRING_ENV = "IZANAGI_ACCEPTANCE_PAIRING_V1"
-_PAIRING_TOKEN = "t2766-min-cost-partners"
 _PAIRING_PREFIX = "izanagi_acceptance_pairing_v1_"
 _PAIRING_A_UNITS = tuple(range(120))
 _PAIRING_B_UNITS = (*range(48), *range(119, 71, -1), *range(48, 72))
-
-
-@pytest.fixture(autouse=True)
-def _isolate_pairing_measurement_environment(monkeypatch):
-    # A B-arm acceptance run still tests the default behavior of synthetic
-    # collections. G12 explicitly enables pairing where that is under test.
-    monkeypatch.delenv(_PAIRING_ENV, raising=False)
 
 
 def _pairing_nodeids(indices):
@@ -1800,10 +1795,12 @@ def _pairing_fixture(count=120, double_units=0):
 
 
 def test_g12_pairing_queue_and_all_item_witness(monkeypatch):
-    monkeypatch.delenv(_PAIRING_ENV, raising=False)
     a_items, ledger = _pairing_fixture()
-    a = _run_scheduler_arm(48, a_items, ledger, lambda _n: _TracingWorkQueue())
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    # This arm observes the pre-pairing queue only; it does not test pairing.
+    with monkeypatch.context() as patcher:
+        patcher.setattr(CONF, "_pair_initial_distribution_units", lambda units, _cost: units)
+        a = _run_scheduler_arm(48, a_items, ledger, lambda _n: _TracingWorkQueue())
+    assert a["collection"] == _pairing_nodeids(_PAIRING_A_UNITS)
     option_config = _OptionConfig
 
     def worker_config(**overrides):
@@ -1841,38 +1838,33 @@ def test_g12_pairing_queue_and_all_item_witness(monkeypatch):
         assert after["keywords"] == before[id(item)]["keywords"]
 
 
-@pytest.mark.parametrize("value", (None, ""), ids=("unset", "empty"))
-def test_g12_off_preserves_literal_collection_and_item_state(monkeypatch, value):
-    if value is None:
-        monkeypatch.delenv(_PAIRING_ENV, raising=False)
-    else:
-        monkeypatch.setenv(_PAIRING_ENV, value)
+@pytest.mark.parametrize("value", ("t2766-min-cost-partners", "off", "0", ""))
+def test_g12_legacy_env_cannot_disable_pairing_or_change_item_state(monkeypatch, value):
+    monkeypatch.setenv("IZANAGI_ACCEPTANCE_PAIRING_V1", value)
     items, ledger = _pairing_fixture()
     selected = frozenset(item.nodeid for item in items)
     before = _semantic_snapshot(items)
     observation = _run_collection_wrapper_arm(48, items, ledger)
-    assert observation["after_nodeids"] == _pairing_nodeids(_PAIRING_A_UNITS)
+    assert observation["after_nodeids"] == _pairing_nodeids(_PAIRING_B_UNITS)
     assert observation["after_identities"] == observation["before_identities"]
     assert frozenset(observation["after_nodeids"]) == selected
-    assert _semantic_snapshot(observation["after_items"]) == before
-    assert all(
-        not key.startswith(_PAIRING_PREFIX)
-        for item in items for key, _ in item.user_properties
-    )
+    ranks = {f"u{i:03d}": rank for rank, i in enumerate(_PAIRING_B_UNITS)}
+    for item in items:
+        scope = item.nodeid.rsplit("@", 1)[1]
+        rank = ranks[scope]
+        after = _semantic_snapshot([item])[id(item)]
+        assert after["markers"] == before[id(item)]["markers"]
+        assert after["keywords"] == before[id(item)]["keywords"]
+        assert item.user_properties == [
+            *before[id(item)]["user_properties"],
+            (_PAIRING_PREFIX + "scope", scope),
+            (_PAIRING_PREFIX + "rank", str(rank)),
+            (_PAIRING_PREFIX + "partner", "1" if 48 <= rank < 96 else "0"),
+            (_PAIRING_PREFIX + "worker", ""),
+        ]
 
 
-@pytest.mark.parametrize("value", ("1", "true", "t2766-min-cost-partners "))
-def test_g12_invalid_token_fails_closed(monkeypatch, value):
-    monkeypatch.setenv(_PAIRING_ENV, value)
-    items, ledger = _pairing_fixture()
-    with pytest.raises(
-        pytest.UsageError, match="IZANAGI_ACCEPTANCE_PAIRING_V1.*t2766-min-cost-partners",
-    ):
-        _run_collection_wrapper_arm(48, items, ledger)
-
-
-def test_g12_cardinality_infeasible_fails_closed(monkeypatch):
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+def test_g12_cardinality_infeasible_fails_closed():
     items, ledger = _pairing_fixture(double_units=49)
     before = _semantic_snapshot(items)
     with pytest.raises(pytest.UsageError, match="infeasible"):
@@ -1881,8 +1873,7 @@ def test_g12_cardinality_infeasible_fails_closed(monkeypatch):
 
 
 @pytest.mark.parametrize("count", (1, 48, 95))
-def test_g12_short_queue_has_no_pairing_witness(monkeypatch, count):
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+def test_g12_short_queue_has_no_pairing_witness(count):
     items, ledger = _pairing_fixture(count)
     before = _semantic_snapshot(items)
     result = _run_collection_wrapper_arm(48, items, ledger)
@@ -1890,18 +1881,16 @@ def test_g12_short_queue_has_no_pairing_witness(monkeypatch, count):
     assert _semantic_snapshot(result["after_items"]) == before
 
 
-def test_g12_collection_is_worker_count_independent(monkeypatch):
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+def test_g12_collection_is_worker_count_independent():
     for nproc in (16, 32, 48):
         items, ledger = _pairing_fixture()
         result = _run_collection_wrapper_arm(nproc, items, ledger)
         assert result["after_nodeids"] == _pairing_nodeids(_PAIRING_B_UNITS)
 
 
-def test_g12_live_junit_witness_includes_skips_and_execution_worker(pytester, monkeypatch):
+def test_g12_live_junit_witness_includes_skips_and_execution_worker(pytester):
     import xml.etree.ElementTree as ET
 
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
     source = "import pytest\n\n" + "\n\n".join(
         ("@pytest.mark.skip(reason='retained skip')\n" if i == 119 else "")
         + f"def test_case_{i:03d}():\n    pass"
@@ -1939,10 +1928,7 @@ class _PairingRecordingNode(_FakeSchedulerNode):
         self.sent.append(tuple(indexes))
 
 
-@pytest.mark.parametrize("enabled", (False, True), ids=("A", "B"))
-def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch, enabled):
-    if enabled:
-        monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch):
     monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
     initial, ledger = _pairing_fixture()
     growth = _item(
@@ -1991,13 +1977,10 @@ def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch, ena
         properties = tuple((key, value) for key, value in item.user_properties
                            if not key.startswith(_PAIRING_PREFIX))
         assert properties == before[id(item)]["user_properties"]
-        assert sum(key.startswith(_PAIRING_PREFIX) for key, _ in item.user_properties) == (
-            4 if enabled else 0
-        )
+        assert sum(key.startswith(_PAIRING_PREFIX) for key, _ in item.user_properties) == 4
 
 
-def test_g12_real_distribution_second_unit_counterexample(monkeypatch):
-    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+def test_g12_real_distribution_second_unit_counterexample():
     items, ledger = _pairing_fixture()
     result = _run_collection_wrapper_arm(48, items, ledger)
     collection = result["after_nodeids"]
