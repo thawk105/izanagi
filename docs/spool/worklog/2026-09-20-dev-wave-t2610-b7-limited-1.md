@@ -23,9 +23,9 @@ title: [T-2610] B-7 (全 workload の退行込み報告) の限定付き充足 (
   編集せず、次版の全面再導出で拾う (系列規則、D1858)。
 - T-2610 の状態語は entry 1729 の「P2・未裁定」から「裁定済み (D2174 項 3)・反映済み」へ更新し、残件なしで閉じる。凍結版への反映は版系列の規則が拾うので
   active に残さない (手番の無い永久 carry を作らない、F428 型の回避)。
-- 軽量版 (段 2・3 省略)。段 5 は親が docs 4 か所を直接編集。段 6 は read-only レビュー 1 本 (gpt-6-astra、13:46〜13:49 JST、`check_codex_output` OK): must-fix 1 (fig10 追補の「区間推定」の除外範囲が既存説明より広い) / nit 2 (一覧 2 行の supersede 対象を「要件充足へ昇格させない」に限定、重複説明の短縮) / (P1)(P2) は refuted = 親の判断維持。3 所見とも real 採用、親が docs を直した (fig10 追補の第 2 bullet を「何を示す図か」への参照へ、第 4 bullet を stale 注記への参照 1 文へ、「論文で使うときに付く限定」→「B-7 の充足裁定に付く限定」)。焦点再レビューは、fix が reviewer の対案の文面をそのまま採り派生値を含まないので省略し、親が逐語 4 か所・caption・SHA 3 行を再検算して closed 3 / partial 0 / regressed 0 とした。焦点走・受入は記録 commit の時点では未実施 (実測後に本 fragment を更新する)。
+- 軽量版 (段 2・3 省略)。段 5 は親が docs 4 か所を直接編集。段 6 は read-only レビュー 1 本 (gpt-6-astra、13:46〜13:49 JST、`check_codex_output` OK): must-fix 1 (fig10 追補の「区間推定」の除外範囲が既存説明より広い) / nit 2 (一覧 2 行の supersede 対象を「要件充足へ昇格させない」に限定、重複説明の短縮) / (P1)(P2) は refuted = 親の判断維持。3 所見とも real 採用、親が docs を直した (fig10 追補の第 2 bullet を「何を示す図か」への参照へ、第 4 bullet を stale 注記への参照 1 文へ、「論文で使うときに付く限定」→「B-7 の充足裁定に付く限定」)。焦点再レビューは、fix が reviewer の対案の文面をそのまま採り派生値を含まないので省略し、親が逐語 4 か所・caption・SHA 3 行を再検算して closed 3 / partial 0 / regressed 0 とした。焦点走 1 走 (計算ノード request `12603.nqsv`、5 file = fig10 着地 test・figures README を読む a2 / s1 の provenance test・check_docs・spool_fold): **904 passed / 3 skipped (check_docs の成長 hold) / 0 failed、rc=0**。受入全走は記録後に投入し、結果は land の receipt が束縛する (`docs/spool/FOLDED.md` の tested_tip)。
   一次資料は `output/insights/2026-09-20/t2610-b7-limited-satisfaction/README.md`。
-- 工数: codex 子 1 本 (review)。計算ノード job = 焦点走と受入 (件数は実測後に記入)。
+- 工数: codex 子 1 本 (review)。計算ノード job = 焦点走 1 + 受入 1 (変異は免除)。
 
 ## 次の一手差分
 

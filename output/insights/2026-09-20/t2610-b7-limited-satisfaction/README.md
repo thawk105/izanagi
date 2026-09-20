@@ -64,6 +64,16 @@
 - 段 6 の検査 (レビュー子の静的検算、親も再現): 稿の現 SHA-256 = provenance の `caption_source.sha256` = `6585d446…`、PNG / PDF / provenance の現 SHA = README の 3 行、
   `git status --short -- docs/paper-story/results/` 空、追補の H2 書式は既存 (fig5 Erratum / 旧 fig5 追補 / fig8b 追補) と一致。
 
+## 3.1 段 7 の検査 (記録 commit `c5fda99b3` の後)
+
+- 三軸語走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) rc=1: rr80 / rr20 の hit は各 4 file で、すべて起点 main `947fd160a` に既存の
+  official 床値 campaign (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/`) と凍結候補 (`output/s8b-freeze-candidates/holdout_freeze.v2.g1.json`)。
+  本 wave の新規・変更 file の hit は 0 (直近 wave と同じ所見)。
+- 焦点走 1 走 (計算ノード request `12603.nqsv`、job `izdw-4269d10e24`、13:57 投入 → 13:58 RUN、5 file): **904 passed / 3 skipped / 0 failed、rc=0** (19.6 秒、48 worker、907 item)。
+  skip 3 件は `test_check_docs.py` の成長 hold (`hold_axis=docs_bytes`、opted_in false) で対象 test の skip ではない。fig10 の着地 test
+  (`test_landed_fig10_repo_closure_and_caption_when_present`) は同 file 42 test の中で pass。正本は `output/pegasus-dispatch/4269d10e24f5d7f972eff5b159236e08/izdw-4269d10e24.o12603`。
+- provenance 全史監査 rc=0 (記録 commit 後)。
+
 ## 4. 限界
 
 - 追補は入口 (README 2 本) にだけあり、凍結版 (ストーリー版 2026-09-20、claim-evidence 2026-09-20) と凍結稿・図には無い。次版の再導出が拾うまで、版だけを読む者には B-7 が「未充足」に見える。
