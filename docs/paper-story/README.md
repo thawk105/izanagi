@@ -64,8 +64,8 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**現在この節に積んでいる項目は 1 件である。** 2026-09-20b 版の導出起点 (同日 18:01 JST の local main `fec4a8187`) より後に着地した
-事実で、同版の記述は執筆時点では真であり、後続で古くなった型である。
+**現在この節に積んでいる項目は 5 件である。** 2026-09-20b 版の導出起点 (同日 18:01 JST の local main `fec4a8187`) より後に着地した
+事実で、同版の記述は執筆時点では真であり、後続で古くなった型である (最初の 1 件は段 7 で、残る 4 件は受入の claim 前に積んだ)。
 
 - **ccbench の pin が候補 `e9e477ca` へ前進した (2026-09-20、[T-2304]、D2150 項 1 の実施、D2184、entry 1747)。** 2026-09-20b 版が
   「pin 前進は承認済み・未実施」「基準 HEAD の pin は `511c9538`」と書く箇所 (§1、§2 (c)、§6、§7、§8 の C-1) は、同版の導出起点
@@ -75,6 +75,31 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
   A-1 v3 登録の `canonical_pin`・mocc 比較 policy の base・backoff 解析 3 本の `CCBENCH_PIN` は据え置き (規律 7)。前進は mocc の certified
   系列に要る X/P 計装の解決・D1373 の関門通過・探索と軸採用の解禁のいずれも含まない (D2150 項 1 の射程)。一次資料 =
   `output/insights/2026-09-20/t2304-pin-advance/README.md`。
+- **[T-1871] の追補 1 が着地した (2026-09-20、entry 1752)** — D1441 の 4 点 (固定予算下の操作的定義、新状態骨格は追わない、レンズ本数は
+  規則にしない、段階 A gate はやり直さない) を、事前登録 `docs/phase3-main-experiment.md` の bytes を変えない別 file
+  `docs/phase3-main-experiment-addendum-1.md` に日付付き追補として置き、`docs/README.md` と `docs/phase3.md` 分離節から導線を張った。
+  2026-09-20b 版が「実装残件 [T-1871] は起点時点で次の一手に残っていた」と書く箇所 (冒頭の訂正 1、§2 (b)、§3 項目 2、§8 B-1) は執筆時点では
+  真であった。**変わらないこと:** 追補が発効させるのは語義改訂だけで、旧 headline の復活・D1012 の休眠・D52 (c')・壁 2 (D1409) は動かない
+  (同 entry が明記)。一次資料 = `output/insights/2026-09-20/t1871-nonenum-addendum/README.md`。
+- **第 26 回 /rulings (2026-09-20、D2186、entry 1751) が B-8 の対象・定義・上限付き試走を認可し、発効と本走は試走後に再提示とした。** 同版
+  §0 の前進 7・§2 (g)・§6 の「言えないこと」・§7・§8 の B-8 が「事前登録 v1 は未発効で、発効・試走・本走は未認可」と書く箇所は執筆時点では
+  真であった。**変わらないこと:** 試走は未実走、発効 commit と本走の認可は試走後、「B-8 を取得した」とは書けない (D2175 の条件)。verifier 改修の
+  帰結 3 点 (read-heavy 10 s の入力取得、校正規則 ≤ 600 s、campaign lock の drift) は据え置き。一次資料 = D2186 (`docs/decisions.md`)。
+- **K2 手動 loop の同 job pair が初投入された (2026-09-20、[T-2795]、D2187、entry 1754)** — 1 job (`13339.nqsv`、`IZANAGI_S4_STOCK_CONTROL=1`) で
+  候補 10 の再評価は serializable / certified / anomalies 0、median 811,956 tps (CV 0.98%) だったが、stock (同 job の driver 2 起動目) は
+  one-shot claim leaf の `ClaimError` (候補 driver が同 identity の claim を残して終了) で build 未到達、`src_token == STOCK` 未確認、**pair 不成立**。
+  再投入なし、4 巡目も未投入。修復方向 (1 回の認可・claim の所有期間で候補と stock を両評価する driver 形) は裁定パッケージへ (D2187)。同版
+  §0 の前進 5・§2 (c)・§6・§8 の B-6 が「pair は 1 job も投入していない」と書く箇所は執筆時点では真であった。**変わらないこと:** 対照は取れて
+  おらず、3 巡目の記録は縮小走行のまま、非同時刻の走は改善の根拠にしない。一次資料 = `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
+- **A-1 balanced5 sized attempt-0002 (D2172 項 2 の認可済み独立再現) が完走した (2026-09-20、[T-2792]、entry 1755)** — exact な認可 record
+  (D2178) 経由で 1 回投入 (18:11 JST、job `13220` / `13221` / `13222`)、3 workload とも valid、登録済み解析は 3 本とも `resolved-above-floor`
+  (対差平均 write-heavy +1,538,451.47 / balanced +548,138.23 / read-heavy −560,565.6 tps、符号 +/+/− = attempt-0001 と同じ)、`variance_plan_breach`
+  は write-heavy / read-heavy で true。単独稿 `results/2026-09-20-a1-balanced5-sized-attempt2-descriptive.md` (attempt-0001 稿の値を §2.7 に併記、
+  プールしない) と公開 leaf `output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/` が着地した。同版 §0 の前進 4・§2 (f) の
+  第 4・§6・§8 の A-1・§9 が「attempt-0002 は投入可能になったが投入は未、測定値は無い」と書く箇所は執筆時点では真であった。**変わらないこと:**
+  非認証 lane (`formal=false` / `promotion_prohibited=true`) の descriptive 出力であり、A-1 の充足・formal 化・attempt 間の再現性・3 本目の認可は
+  稿も判定しない (D2044 項 8、D2120 項 3、D2172 項 2)。「A-1 の値がある」「再現した」とは書けない。一次資料 =
+  `output/insights/2026-09-20/t2792-a1-sized-attempt2/README.md`。
 
 2026-09-20b 版は同日 18:01 JST の local main
 (`fec4a8187`、worklog entry 1746 までの fold を含む) から導出している。前版 (2026-09-20 版) に対して積んでいた

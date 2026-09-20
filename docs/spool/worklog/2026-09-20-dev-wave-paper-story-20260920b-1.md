@@ -51,7 +51,10 @@ title: 論文ストーリー 2026-09-20 第 2 版 (`2026-09-20b.md`) を正典�
   は closed 10 / partial 0 / regressed 0 + 新規 must-fix 1 (§7 の前版由来の項目が supersede 済みの D2044 項 3 を恒久規律として残していた)
   で NO-GO → 親が対案どおり `r24.py` (置換 3 件 + 1) で直し、`check_docs` と path / D / F 実在検査を再走して閉じた (DW-O16、3 巡目は
   起動せず)。転記 SHA の集合比較 (`check_hashes.py`、8 桁 prefix 43 件) を訂正後に走らせ、29 件一致・残り 14 件は commit / identity /
-  較正の digest。near-miss 3 件は F1 の再発として failures へ追記。
+  較正の digest。near-miss 3 件は F1 の再発として failures へ追記。**受入の claim 前の自己点検で、親の「実装残件として起票された項目も無い」
+  (§8 B-1 ほか 5 箇所) が誤りと判明した** — 次の一手に [T-1871] (D1441 の 4 点を事前登録の追補として置く、裁定済み・実装待ち) が carry stub で残って
+  おり、親は語で走査して stub の本文 (entry 1184) を遡らず、段 6 の 2 レビューも拾わなかった (レビュー 10 は「全履歴の不在は証明していない」と
+  限定)。peer の着地通知 (追補 1 = entry 1752) を契機に直した (`r26.py`、5 件)。F1 再発 (near-miss) として failures fragment に追記。
 - 検査: `check_docs.py` 違反なし (5 回)、三軸語走査は両 holdout とも hit 4 (official 床値 run dir 3 file + 候補 = chain 着地後の設計どおり、
   新版 file は hit 外)、引用 path 223 件の実在 (不在は相対断片 13 件と attempt-0002 の期待公開先 1 件)、D 231 件・F 17 件の見出し実在、
   祖先性 / 日時 33 件 (X1' / X2 / G / merge `629690fdd` / `0e647f84c` / A `a3bf67a8c` / X `70e87c9c9` / `ca3907e57` / fig8b は HEAD の
@@ -62,7 +65,9 @@ title: 論文ストーリー 2026-09-20 第 2 版 (`2026-09-20b.md`) を正典�
   訂正一覧を「1 件」へ、stale 注記 3 件を本文へ移管し、着手後に着地した ccbench pin 前進 [T-2304] (D2184、entry 1747、main `6a3e15809`
   19:03 JST) を 1 件積んだ — 同版が「基準 HEAD の pin は `511c9538`」「pin 前進は承認済み・未実施」と書く箇所は起点 `fec4a8187` の時点で
   真。peer wave と重複しないことを SendMessage で確認して本 wave が積んだ)。取り込みで submodule の gitlink が `e9e477ca` へ進んだので
-  `dev_wave_submodule_init.py` を再走した。
+  `dev_wave_submodule_init.py` を再走した。受入の claim 前 (門番待ち中) に peer の着地通知 (A-1 attempt-0002 完走) から main を再読し、
+  entry 1751〜1755 のうち版の状態語を動かす 4 件 ([T-1871] の追補 1 = entry 1752、第 26 回裁定 D2186 の B-8 段階認可 = 1751、K2 pair の初投入と
+  pair 不成立 D2187 = 1754、A-1 attempt-0002 の完走と単独稿 = 1755) を stale 注記へ追加した (計 5 件。版本文は起点の状態のまま)。
 - 段 5 の途中に peer wave (`dev-wave-t2304-pin-advance`) から advisory 3 通 (main の ff、land の rc=27 一時停止、landed) を受けたが、
   peer 通知は local main 再読の契機にだけ使い、起点は依頼どおり動かさず、land は同 wave の tool 修正 (main `108c16ddf` 以降) を取り込んだ
   tip で行う。

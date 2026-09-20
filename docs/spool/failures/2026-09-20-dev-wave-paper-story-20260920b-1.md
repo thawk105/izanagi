@@ -21,6 +21,12 @@ seq: 1
   の教訓「転記 SHA は集合比較で検査する」の再発 — 訂正後に job dir の `check_hashes.py` で版の 8 桁 prefix 43 件を figures / results /
   provenance の現物と集合比較した)、2026-09-02 版の着地時刻を `git log --first-parent main -- <file>` の結果 (別 wave が main を取り込んだ
   merge `b664df20c` 07:14) から採り、導入 commit `ad88a391c` 04:22 とその wave の fold `45994d900` 04:42 を見なかった。
+  (3) **near-miss (受入の claim 前に親の自己点検で訂正、実害なし):** 版の §8 B-1 ほか 5 箇所で「非列挙」の実装残件を「起票された項目も無い」と
+  書いたが、次の一手には [T-1871] (D1441 の 4 点を事前登録の追補として置く — 2026-09-02 の entry 1184 で「裁定済み → 実装待ち」) が carry stub
+  `- [T-1871] (N)` で残っていた。親は次の一手を語 (「非列挙」「D1409」) で grep して stub の本文を遡らず、段 6 の 2 レビューも拾わなかった
+  (レビュー 10 は「段階 B の全履歴の不在は証明していない」と自ら限定)。peer の着地通知 (追補 1 の着地 = entry 1752) を契機に直した。
+  **carry stub は本文を持たないので、次の一手の走査は ID を carry 鎖の実体まで遡ってから語で照合する** (第 24〜26 回 /rulings の
+  「carry 鎖の実体まで解決」と同じ手順)。
   一次資料: `output/insights/2026-09-20/paper-story-20260920b/README.md` §4、同 `verbatim/review-out.md` 所見 1〜3。
   恒久対応は変更なし — 版の全面再導出では「未裁定」「裁定待ち」「未実施」型の状態語を D 台帳の見出しで検索して裁定の有無を確かめ
   (前版の判定を継承しない)、転記した SHA は集合比較で検査し、版の着地時刻は file の導入 commit と fold commit から採る (first-parent の
