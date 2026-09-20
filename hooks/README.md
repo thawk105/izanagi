@@ -150,8 +150,10 @@ TRACE 混入は build 出口の一次防壁が捕える。
 - **s8b-freeze namespace の直接書き込み拒否 (F6a, C1-11):** `output/s8b-freeze/` 配下 (approval record・
   active pointer・revocation/cancellation tombstone・v2 世代 file) への Edit/Write を拒否。これは
   **誤操作抑止であって認証防壁ではない** — 発効の真正性は `s8b_ratified_freeze` の Git 内容による規約
-  attestation (`AI-Agent: none` 逐語 + 導入 commit topology) が担い、hook は層に数えない (AI が `none`
-  commit を作れる以上、人間性の機械証明にはならない)。誤って freeze を worktree 直書きする事故だけを止める。
+  attestation (記録済みの委任裁定 + `AI-Agent` trailer ちょうど 1 行 (逐語 none または provenance 規約に適合する
+  構造化 trailer) + 導入 commit topology) が担い、hook は層に数えない (2026-09-20 のユーザー裁定で承認 A / pointer X は
+  AI が作る形へ改まった。それ以前の「`AI-Agent: none` 逐語」も AI が `none` commit を作れる以上、人間性の機械証明では
+  なかった)。誤って freeze を worktree 直書きする事故だけを止める。
 - **発行主体 subtree への直接書き込み拒否 ([T-2146], D906/D1478):** 着地受領証の署名鍵と issuer 運用複製を
   置く repo 外の固定 subtree (path は `guard_write.py` / `guard_bash.py` の module 定数が正本。argv・
   環境変数・repo root から導出しない) への Write/Edit/MultiEdit/NotebookEdit と apply_patch の全 directive

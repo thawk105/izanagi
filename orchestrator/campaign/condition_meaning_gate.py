@@ -10,15 +10,19 @@ The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
 Claim boundary: the supply domain contains the 40 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Thirteen
-registered macros plus five mocc controls additionally have a bounded
-compile-time witness (18 total): it
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-one
+registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
-guarded branch for value 1 and omits it for value 0.  It
+guarded branches for value 1 and omits them for value 0 (or an undefined
+contrast for declared #ifdef witnesses).  It
 does not prove the branch body's semantics, dynamic reachability, an expected
 runtime anomaly, or correctness.  Supply preprocessing separately proves that
 a define changes the selected owner TU's compile-command input.
+A declared multi-site witness observes exactly the N verbatim directive lines
+its DefineSpec patch adds; conditionals added by overlay patches (for example
+the diagnostic composite ``#if BACKOFF_TRIGGER_GATING && TRACE``) and ``#ifndef``
+supply guards are outside the claim.
 ``driver_integration`` on the legacy evidence remains ``"none"``.
 Compiler and CMake path snapshots narrow identity drift around invocations,
 but do not attest a same-UID adversarial process, delegated processes, the
@@ -307,7 +311,31 @@ _CONDITIONAL_BRANCH_WITNESSES = {
         "cc/silo/ycsb_silo.cc",
         "#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT",
     ),
+    "IZANAGI_BREAK_TRIGGER_MISATTR": (
+        "cc/silo/transaction.cc", "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR",
+    ),
+    "IZANAGI_SILO_LADDER_RUNG1": (
+        "cc/silo/transaction.cc", "#if IZANAGI_SILO_LADDER_RUNG1",
+    ),
+    "BACKOFF_TRIGGER_GATING": (
+        "cc/silo/transaction.cc", "#if BACKOFF_TRIGGER_GATING",
+    ),
 }
+_CONDITIONAL_BRANCH_SITE_COUNTS = {
+    "IZANAGI_SILO_LADDER_RUNG1": 2,
+    "BACKOFF_TRIGGER_GATING": 12,
+}
+
+
+def _declared_site_count(macro: str) -> int:
+    return _CONDITIONAL_BRANCH_SITE_COUNTS.get(macro, 1)
+
+
+def _declared_contrast_is_undefined(macro: str) -> bool:
+    registered = CONDITIONAL_BRANCH_WITNESSES.get(macro)
+    return registered is not None and registered[1].startswith("#ifdef ")
+
+
 CONDITIONAL_BRANCH_WITNESSES: Mapping[str, tuple[str, str]] = MappingProxyType(
     _CONDITIONAL_BRANCH_WITNESSES,
 )
@@ -510,7 +538,7 @@ class BranchMeaningEvidence:
 class CompileTimeBranchSelectionObservation:
     """One requested or default/contrast observation of the declared branch."""
 
-    define_value: str
+    define_value: str | None
     selected_count: int
     completed_count: int
     preprocess_argv: tuple[str, ...]
@@ -991,6 +1019,9 @@ def declare_define_runtime_meaning(
     if request.macro == "BACKOFF_NOINLINE":
         if requested not in {"0", "1"} or default != "0" \
                 or source_rel != "include/backoff.hh":
+            return None
+    elif _declared_contrast_is_undefined(request.macro):
+        if requested != "1" or default is not None or source_rel not in spec.owner_tus:
             return None
     elif requested != "1" or default != "0" \
             or source_rel not in spec.owner_tus:
@@ -2269,6 +2300,14 @@ def _collect_preprocess(
                 f"{request.macro} compile value differs from the request",
                 expected=expected_value, observed=observed_defines[request.macro],
             )
+    if expected_value is None and not stock_identity \
+            and _declared_contrast_is_undefined(request.macro) \
+            and request.macro in observed_defines:
+        raise ConditionMeaningGateError(
+            "supply-value-mismatch",
+            f"{request.macro} compile value differs from the request",
+            expected=None, observed=observed_defines[request.macro],
+        )
     for name, value in companions:
         if observed_defines.get(name) != value:
             raise ConditionMeaningGateError(
@@ -2953,34 +2992,41 @@ def _instrument_declared_owner_source(
     source_text: str,
     declaration: ConditionalBranchMeaningDeclaration,
 ) -> str:
-    """Insert a compiler-evaluated probe at the one exact declared line."""
+    """Insert a compiler-evaluated probe at every exact declared site."""
     lines = source_text.splitlines(keepends=True)
     starts = [
         index for index, line in enumerate(lines)
         if line.rstrip("\r\n") == declaration.start_directive
     ]
-    if len(starts) != 1:
+    count = _declared_site_count(declaration.macro)
+    if len(starts) != count and count != 1:
+        raise ConditionMeaningGateError(
+            "compile-time-branch-site-count-mismatch",
+            "declared start directive count differs from its declared site count",
+            expected=str(count), observed=str(len(starts)),
+        )
+    if len(starts) != count:
         raise ConditionMeaningGateError(
             "compile-time-branch-start-not-unique",
             "declared start directive must occur exactly once in its owner file",
         )
-    start = starts[0]
     if _COMPILE_TIME_SELECTED_OUTPUT in source_text \
             or _COMPILE_TIME_COMPLETED_OUTPUT in source_text:
         raise ConditionMeaningGateError(
             "compile-time-branch-marker-collision",
             "compile-time branch output marker already exists in source",
         )
-    directive = lines[start]
-    if not directive.endswith(("\n", "\r")):
-        directive += "\n"
-    lines[start] = "".join((
-        directive,
-        f"{_COMPILE_TIME_SELECTED_MARKER}()\n",
-        "#endif\n",
-        f"{_COMPILE_TIME_COMPLETED_MARKER}()\n",
-        directive,
-    ))
+    for start in starts:
+        directive = lines[start]
+        if not directive.endswith(("\n", "\r")):
+            directive += "\n"
+        lines[start] = "".join((
+            directive,
+            f"{_COMPILE_TIME_SELECTED_MARKER}()\n",
+            "#endif\n",
+            f"{_COMPILE_TIME_COMPLETED_MARKER}()\n",
+            directive,
+        ))
     return "".join(lines)
 
 
@@ -3098,7 +3144,7 @@ def _compile_time_observation(
     build_root: Path,
     request: DefineRequest,
     companions: tuple[tuple[str, str], ...],
-    define_value: str,
+    define_value: str | None,
     compiler: Path,
     dependency_path: Path,
 ) -> tuple[CompileTimeBranchSelectionObservation, tuple[str, ...]]:
@@ -3174,7 +3220,7 @@ def _assert_compile_time_branch_selection(
     if type(declaration) is not ConditionalBranchMeaningDeclaration \
             or expected_declaration is None \
             or declaration != expected_declaration \
-            or default is None:
+            or (default is None and not _declared_contrast_is_undefined(request.macro)):
         raise ConditionMeaningGateError(
             "meaning-contract-invalid",
             "compile-time branch declaration does not match the request registry",
@@ -3307,8 +3353,9 @@ def _assert_compile_time_branch_selection(
         default_observation.selected_count,
         default_observation.completed_count,
     )
-    requested_expected = (int(requested), 1)
-    default_expected = (int(comparison), 1)
+    count = _declared_site_count(request.macro)
+    requested_expected = (count * int(requested), count)
+    default_expected = (count * int(comparison or "0"), count)
     expected_observations = (
         f"requested=({requested_expected[0]},{requested_expected[1]}),"
         f"default=({default_expected[0]},{default_expected[1]})"
@@ -3827,8 +3874,9 @@ def _validate_compile_time_branch_observation(
     *,
     compiler_path: str,
     macro: str,
-    define_value: str,
+    define_value: str | None,
     selected_count: int,
+    completed_count: int = 1,
 ) -> CompileTimeBranchSelectionObservation:
     if type(value) is not CompileTimeBranchSelectionObservation:
         _invalid_record(f"{field_name} has the wrong exact observation type")
@@ -3836,7 +3884,7 @@ def _validate_compile_time_branch_observation(
             or type(value.selected_count) is not int \
             or type(value.completed_count) is not int \
             or value.selected_count != selected_count \
-            or value.completed_count != 1:
+            or value.completed_count != completed_count:
         _invalid_record(f"{field_name} does not encode the exact branch observation")
     argv = _require_record_argv(value.preprocess_argv, f"{field_name}.preprocess_argv")
     try:
@@ -3986,7 +4034,9 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
                 or source_file.after != source_file.path_after:
             _invalid_record("green compile-time branch source changed during capture")
         requested_value = "1"
-        default_value = "0"
+        undefined_contrast = _declared_contrast_is_undefined(record.macro)
+        default_value = None if undefined_contrast else "0"
+        count = _declared_site_count(record.macro)
         if record.macro == "BACKOFF_NOINLINE":
             raw_requested = evidence["requested"]
             raw_default = evidence["default"]
@@ -4004,27 +4054,44 @@ def _validate_meaning_green_evidence(record: ConditionArmRecord) -> None:
         requested = _validate_compile_time_branch_observation(
             evidence["requested"], "requested", compiler_path=compiler_path,
             macro=record.macro, define_value=requested_value,
-            selected_count=int(requested_value),
+            selected_count=count * int(requested_value), completed_count=count,
         )
         default = _validate_compile_time_branch_observation(
             evidence["default"], "default", compiler_path=compiler_path,
             macro=record.macro, define_value=default_value,
-            selected_count=int(default_value),
+            selected_count=count * int(default_value or "0"), completed_count=count,
         )
-        normalized_requested_argv = tuple(
-            "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}={requested.define_value}",
-                f"{record.macro}={requested.define_value}",
-            } else argument
-            for argument in requested.preprocess_argv
-        )
-        normalized_default_argv = tuple(
-            "<TESTED_DEFINE>" if argument in {
-                f"-D{record.macro}={default.define_value}",
-                f"{record.macro}={default.define_value}",
-            } else argument
-            for argument in default.preprocess_argv
-        )
+        if undefined_contrast:
+            requested_argv = iter(requested.preprocess_argv)
+            normalized = []
+            for argument in requested_argv:
+                if argument == f"-D{record.macro}=1":
+                    continue
+                if argument == "-D":
+                    operand = next(requested_argv, None)
+                    if operand is None:
+                        _invalid_record("green compile-time requested argv has a dangling -D")
+                    if operand != f"{record.macro}=1":
+                        normalized.extend((argument, operand))
+                else:
+                    normalized.append(argument)
+            normalized_requested_argv = tuple(normalized)
+            normalized_default_argv = default.preprocess_argv
+        else:
+            normalized_requested_argv = tuple(
+                "<TESTED_DEFINE>" if argument in {
+                    f"-D{record.macro}={requested.define_value}",
+                    f"{record.macro}={requested.define_value}",
+                } else argument
+                for argument in requested.preprocess_argv
+            )
+            normalized_default_argv = tuple(
+                "<TESTED_DEFINE>" if argument in {
+                    f"-D{record.macro}={default.define_value}",
+                    f"{record.macro}={default.define_value}",
+                } else argument
+                for argument in default.preprocess_argv
+            )
         if normalized_requested_argv != normalized_default_argv:
             _invalid_record(
                 "green compile-time observations differ beyond the tested define",

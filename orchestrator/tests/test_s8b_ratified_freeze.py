@@ -2247,13 +2247,158 @@ def test_pointer_content_hash_mismatch(tmp_path):
 # 導入 commit / trailer / topology (C1-4/C1-6)
 # --------------------------------------------------------------------------
 
-def test_non_ancestry_user_commit_rejected(tmp_path):
+_STRUCTURED_AGENT = (
+    "product=codex; model=gpt-6-astra; reasoning=medium; role=author; scope=approval-record"
+)
+_STRUCTURED_AGENTS = (
+    _STRUCTURED_AGENT,
+    _STRUCTURED_AGENT.split("; scope=")[0],
+    _STRUCTURED_AGENT.replace("role=author", "role=manager"),
+    "product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager",
+)
+_INVALID_STRUCTURED_AGENTS = (
+    "claude-opus",
+    _STRUCTURED_AGENT + "; unknown=value",
+    _STRUCTURED_AGENT.replace("role=author", "role=unknown"),
+    _STRUCTURED_AGENT + " suffix",
+    *(_STRUCTURED_AGENT.replace("product=codex", f"product={product}")
+      for product in ("none", "unknown", "not-exposed", "human")),
+    _STRUCTURED_AGENT.replace("model=gpt-6-astra", "model=none"),
+    _STRUCTURED_AGENT.replace("reasoning=medium", "reasoning=none"),
+)
+
+
+@pytest.mark.parametrize("ai_agent", _STRUCTURED_AGENTS)
+def test_structured_approval_and_pointer_resolve_active_generation(tmp_path, ai_agent):
+    root = _base_repo(tmp_path)
+    gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
+    approval_sha, ptr_sha = _approve_and_point(
+        root, 1, gen_sha, gen_rel, None, ai_agent=ai_agent,
+    )
+    res = M.resolve_active_generation(root)
+    assert res.generation_number == 1
+    assert res.generation_sha256 == gen_sha
+    assert res.approval_sha256 == approval_sha
+    assert res.pointer_sha256 == ptr_sha
+
+
+@pytest.mark.parametrize("ai_agent", _STRUCTURED_AGENTS)
+def test_structured_revocation_is_applied(tmp_path, ai_agent):
+    root, gen_sha, *_ = _valid_g1(tmp_path)
+    _write(root, f"{M.REVOCATION_DIR}/{gen_sha}.json", _revocation_raw(gen_sha))
+    _commit(root, "revoke g1", ai_agent)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "tip-revoked"
+
+
+@pytest.mark.parametrize("case,raw_count,parsed_count", (
+    ("missing", 0, 0), ("two-structured", 2, 2), ("mixed", 2, 2),
+    ("body-only", 1, 0), ("body-and-trailer", 2, 1),
+))
+def test_user_commit_trailer_requires_one_raw_and_parsed_line(
+    tmp_path, case, raw_count, parsed_count,
+):
+    root = _base_repo(tmp_path)
+    line = f"AI-Agent: {_STRUCTURED_AGENT}"
+    messages = {
+        "missing": "subject\n\nno trailer\n",
+        "two-structured": f"subject\n\n{line}\nAI-Agent: {_STRUCTURED_AGENTS[3]}\n",
+        "mixed": f"subject\n\nAI-Agent: none\n{line}\n",
+        "body-only": f"subject\n\n{line}\n\nordinary final paragraph\n",
+        "body-and-trailer": f"subject\n\n{line}\n\nordinary paragraph\n\n{line}\n",
+    }
+    _write(root, "record.txt", b"record")
+    commit = _commit_raw(root, messages[case])
+    message = M._commit_message(commit, root)
+    assert len(M._raw_ai_agent_lines(message)) == raw_count
+    assert len(M._parsed_ai_agent_values(message, root)) == parsed_count
+    problem = (f"AI-Agent raw 行数が 1 でない: {raw_count}" if raw_count != 1
+               else f"AI-Agent trailer 値数が 1 でない: {parsed_count}")
+    assert M._user_commit_trailer_problem(commit, root) == problem
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_user_commit(commit, M._commit_graph(commit, root), root)
+    assert ei.value.reason == "user-commit-trailer"
+
+
+@pytest.mark.parametrize("value", _INVALID_STRUCTURED_AGENTS)
+def test_user_commit_structured_value_must_conform(tmp_path, value):
+    root = _base_repo(tmp_path)
+    _write(root, "record.txt", b"record")
+    commit = _commit(root, "record", value)
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_user_commit(commit, M._commit_graph(commit, root), root)
+    assert ei.value.reason == "user-commit-trailer"
+
+
+@pytest.mark.parametrize("case", ("trailing-space", "tab", "lower-key", "before-key", "after-key"))
+def test_structured_trailer_raw_form_is_exact(tmp_path, case):
+    root = _base_repo(tmp_path)
+    line = {
+        "trailing-space": f"AI-Agent: {_STRUCTURED_AGENT} ",
+        "tab": f"AI-Agent:\t{_STRUCTURED_AGENT}",
+        "lower-key": f"ai-agent: {_STRUCTURED_AGENT}",
+        "before-key": f" AI-Agent: {_STRUCTURED_AGENT}",
+        "after-key": f"AI-Agent : {_STRUCTURED_AGENT}",
+    }[case]
+    _write(root, "record.txt", b"record")
+    commit_fn = _commit_verbatim if case in ("trailing-space", "tab") else _commit_raw
+    commit = commit_fn(root, f"subject\n\n{line}\n")
+    message = M._commit_message(commit, root)
+    assert M._raw_ai_agent_lines(message) == [line]
+    # A leading space makes Git treat the line as continuation, not a trailer.
+    values = [] if case == "before-key" else [_STRUCTURED_AGENT]
+    assert M._parsed_ai_agent_values(message, root) == values
+    problem = ("AI-Agent trailer 値数が 1 でない: 0" if not values
+               else "AI-Agent 行が canonical 表記でない")
+    assert M._user_commit_trailer_problem(commit, root) == problem
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_user_commit(commit, M._commit_graph(commit, root), root)
+    assert ei.value.reason == "user-commit-trailer"
+
+
+def test_structured_user_merge_commit_rejected(tmp_path):
+    root = _base_repo(tmp_path)
+    base = _git(root, "rev-parse", "HEAD")
+    _git(root, "checkout", "-q", "-b", "side")
+    _write(root, "side.txt", b"side")
+    side = _commit(root, "side", _STRUCTURED_AGENT)
+    _git(root, "checkout", "-q", base)
+    _write(root, "main.txt", b"main")
+    _commit(root, "main", _STRUCTURED_AGENT)
+    _git(root, "merge", "--no-ff", "--no-commit", side)
+    commit = _commit(root, "merge", _STRUCTURED_AGENT)
+    graph = M._commit_graph(commit, root)
+    assert len(graph.parents[commit]) == 2
+    assert M._user_commit_trailer_problem(commit, root) is None
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M._assert_user_commit(commit, graph, root)
+    assert ei.value.reason == "user-commit-merge"
+
+
+@pytest.mark.parametrize("value", ("none", *_STRUCTURED_AGENTS, *_INVALID_STRUCTURED_AGENTS))
+def test_user_commit_provenance_grammar_matches_checker(tmp_path, value):
+    from tools import check_ai_provenance as checker
+
+    assert M._PROVENANCE_AGENT_VALUE.pattern == checker.AGENT_VALUE.pattern
+    assert M._PROVENANCE_AGENT_VALUE.flags == checker.AGENT_VALUE.flags
+    assert M._PROVENANCE_RESERVED_PRODUCTS == checker.RESERVED_PRODUCTS
+    root = _base_repo(tmp_path)
+    _write(root, "record.txt", b"record")
+    commit = _commit(root, "record", value)
+    message = M._commit_message(commit, root)
+    findings = checker.validate_message("fixture", message, check_cab=False, values=[value])
+    assert (M._user_commit_trailer_problem(commit, root) is None) == (not any(findings))
+
+
+@pytest.mark.parametrize("ai_agent", ("none", _STRUCTURED_AGENT), ids=("none", "structured"))
+def test_non_ancestry_user_commit_rejected(tmp_path, ai_agent):
     root, *_ = _valid_g1(tmp_path)
     head = _git(root, "rev-parse", "HEAD")
-    # 別ブランチに未 merge の none commit を作る。
+    # 別ブランチに未 merge の適合 trailer commit を作る。
     _git(root, "checkout", "-q", "-b", "sidebranch")
     (root / "side.txt").write_text("s\n", encoding="utf-8")
-    side = _commit(root, "side", "none")
+    side = _commit(root, "side", ai_agent)
     _git(root, "checkout", "-q", head)
     graph = M._commit_graph(head, root)
     with pytest.raises(M.RatifiedFreezeError) as ei:
@@ -2262,9 +2407,10 @@ def test_non_ancestry_user_commit_rejected(tmp_path):
 
 
 def test_approval_commit_with_ai_trailer_rejected(tmp_path):
+    """歴史的 node 名。非構造化 `claude-opus` の拒否 (規約非適合) を検査。"""
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
-    # approval commit を AI trailer にする (人間 commit でない)。
+    # approval commit に規約非適合の値を載せる。
     with pytest.raises(M.RatifiedFreezeError) as ei:
         _approve_and_point(root, 1, gen_sha, gen_rel, None, ai_agent="claude-opus")
         M.resolve_active_generation(root)
@@ -2280,7 +2426,7 @@ def test_trailer_both_none_and_structured_rejected(tmp_path):
     ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
     ptr_sha = _sha(ptr_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
-    _commit_raw(root, "approve\n\nAI-Agent: none\nAI-Agent: claude-opus\n")
+    _commit_raw(root, f"approve\n\nAI-Agent: none\nAI-Agent: {_STRUCTURED_AGENT}\n")
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "user-commit-trailer"
@@ -2305,8 +2451,8 @@ def test_trailer_case_or_space_variant_rejected(tmp_path):
 def test_trailer_none_trailing_space_rejected(tmp_path):
     # R3: approval commit の trailer 行が `AI-Agent: none ` (末尾空白 1 個)。
     # git interpret-trailers --parse は空白を丸めて "none" を返すため parse 側検査だけでは
-    # 素通りする。_is_none_commit の raw 行 byte-for-byte 検査 (== "AI-Agent: none") のみが
-    # これを拒否できる。この raw 検査を startswith 化する変異はこのテストで殺せる。
+    # 素通りする。approval 経路は新 helper の raw byte 比較 (手順 d) が拒否する。
+    # 旧 helper の拒否は下の直接 assert で独立に検査する。
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
     approval_raw = _approval_raw(gen_sha)
@@ -2320,58 +2466,62 @@ def test_trailer_none_trailing_space_rejected(tmp_path):
     # 前提: raw に末尾空白が保存され、parse 側は "none" に丸める (両立で初めて攻撃が成立)。
     assert M._raw_ai_agent_lines(M._commit_message(commit, root)) == ["AI-Agent: none "]
     assert M._parsed_ai_agent_values(M._commit_message(commit, root), root) == ["none"]
+    assert M._is_none_commit(commit, root) is False
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "user-commit-trailer"
 
 
-def test_approval_commit_with_extra_file_rejected(tmp_path):
+@pytest.mark.parametrize("ai_agent", ("none", _STRUCTURED_AGENT), ids=("none", "structured"))
+def test_approval_commit_with_extra_file_rejected(tmp_path, ai_agent):
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
     approval_raw = _approval_raw(gen_sha)
     approval_sha = _sha(approval_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
     (root / "extra.txt").write_text("sneaky\n", encoding="utf-8")  # 余分ファイル
-    _commit(root, "approve+extra", "none")
+    _commit(root, "approve+extra", ai_agent)
     ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
     ptr_sha = _sha(ptr_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
-    _commit(root, "point", "none")
+    _commit(root, "point", ai_agent)
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "approval-commit-diff"
 
 
-def test_pointer_commit_with_extra_file_rejected(tmp_path):
+@pytest.mark.parametrize("ai_agent", ("none", _STRUCTURED_AGENT), ids=("none", "structured"))
+def test_pointer_commit_with_extra_file_rejected(tmp_path, ai_agent):
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
     approval_raw = _approval_raw(gen_sha)
     approval_sha = _sha(approval_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
-    _commit(root, "approve", "none")
+    _commit(root, "approve", ai_agent)
     ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
     ptr_sha = _sha(ptr_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
     (root / "extra.txt").write_text("sneaky\n", encoding="utf-8")
-    _commit(root, "point+extra", "none")
+    _commit(root, "point+extra", ai_agent)
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "pointer-commit-diff"
 
 
-def test_pointer_parent_must_be_selected_approval_commit(tmp_path):
+@pytest.mark.parametrize("ai_agent", ("none", _STRUCTURED_AGENT), ids=("none", "structured"))
+def test_pointer_parent_must_be_selected_approval_commit(tmp_path, ai_agent):
     root = _base_repo(tmp_path)
     gen_sha, gen_rel = _add_generation(root, 1, M.V1_FREEZE_SHA256)
     approval_raw = _approval_raw(gen_sha)
     approval_sha = _sha(approval_raw)
     _write(root, f"{M.APPROVAL_DIR}/{gen_sha}.json", approval_raw)
-    _commit(root, "approve", "none")
+    _commit(root, "approve", ai_agent)
     (root / "intervening.txt").write_text("intervening\n", encoding="utf-8")
-    _commit(root, "intervening", "none")
+    _commit(root, "intervening", ai_agent)
     ptr_raw = _pointer_raw(1, gen_rel, gen_sha, None, approval_sha)
     ptr_sha = _sha(ptr_raw)
     _write(root, f"{M.ACTIVE_DIR}/{ptr_sha}.json", ptr_raw)
-    _commit(root, "point", "none")
+    _commit(root, "point", ai_agent)
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "pointer-approval-parent"
@@ -2524,6 +2674,7 @@ def test_valid_revocation_yields_no_active(tmp_path):
 
 
 def test_revocation_with_ai_trailer_is_error_not_ignored(tmp_path):
+    """歴史的 node 名。非構造化 `claude-opus` の拒否 (規約非適合) を検査。"""
     root, gen_sha, *_ = _valid_g1(tmp_path)
     _write(root, f"{M.REVOCATION_DIR}/{gen_sha}.json", _revocation_raw(gen_sha))
     _commit(root, "revoke g1 (ai)", "claude-opus")  # 無効 record
@@ -2605,7 +2756,35 @@ def test_pointer_fork_and_cancellation_recovery(tmp_path):
     assert res.generation_sha256 == g2_sha
 
 
+@pytest.mark.parametrize("ai_agent", _STRUCTURED_AGENTS)
+def test_structured_cancellation_is_applied(tmp_path, ai_agent):
+    root, g1_sha, g1_rel, approval1_sha, ptr1_sha = _valid_g1(tmp_path)
+    # g2 (child of ptr1) と g3 (child of ptr1) の 2 本 → fork。
+    g2_sha, g2_rel, ptr2_sha = _build_chain_g2(root, g1_sha, g1_rel, ptr1_sha)
+    g3_sha, g3_rel = _add_generation(root, 3, g2_sha)
+    approval3_raw = _approval_raw(g3_sha)
+    approval3_sha = _sha(approval3_raw)
+    _write(root, f"{M.APPROVAL_DIR}/{g3_sha}.json", approval3_raw)
+    _commit(root, "approve fork g3", "none")
+    ptr3_raw = _pointer_raw(3, g3_rel, g3_sha, ptr1_sha, approval3_sha)  # 同じ parent=ptr1 → fork
+    ptr3_sha = _sha(ptr3_raw)
+    _write(root, f"{M.ACTIVE_DIR}/{ptr3_sha}.json", ptr3_raw)
+    _commit(root, "point fork g3", "none")
+
+    with pytest.raises(M.RatifiedFreezeError) as ei:
+        M.resolve_active_generation(root)
+    assert ei.value.reason == "pointer-fork"
+
+    # ptr3 を cancellation tombstone で取消 → fork 回復 → active = g2。
+    _write(root, f"{M.ACTIVE_CANCEL_DIR}/{ptr3_sha}.json", _cancel_raw(ptr3_sha))
+    _commit(root, "cancel ptr3", ai_agent)
+    res = M.resolve_active_generation(root)
+    assert res.generation_number == 2
+    assert res.generation_sha256 == g2_sha
+
+
 def test_cancellation_with_ai_trailer_is_error(tmp_path):
+    """歴史的 node 名。非構造化 `claude-opus` の拒否 (規約非適合) を検査。"""
     root, g1_sha, g1_rel, approval1_sha, ptr1_sha = _valid_g1(tmp_path)
     _write(root, f"{M.ACTIVE_CANCEL_DIR}/{ptr1_sha}.json", _cancel_raw(ptr1_sha))
     _commit(root, "cancel (ai)", "claude-opus")

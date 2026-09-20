@@ -9,7 +9,7 @@ import shutil
 import struct
 import subprocess
 import sys
-from dataclasses import replace
+from dataclasses import fields, replace
 from pathlib import Path
 
 import pytest
@@ -49,7 +49,24 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "MOCC_TEMP_PREDICATE",
     "SORT_VARIANT",
     "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+    "IZANAGI_BREAK_TRIGGER_MISATTR",
+    "IZANAGI_SILO_LADDER_RUNG1",
+    "BACKOFF_TRIGGER_GATING",
 )
+
+
+# Independent patch expectations: source, exact directive, site count, contrast.
+_NEW_BRANCH_EXPECTATIONS = {
+    "IZANAGI_BREAK_TRIGGER_MISATTR": (
+        "cc/silo/transaction.cc", "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR", 1, None,
+    ),
+    "IZANAGI_SILO_LADDER_RUNG1": (
+        "cc/silo/transaction.cc", "#if IZANAGI_SILO_LADDER_RUNG1", 2, 0,
+    ),
+    "BACKOFF_TRIGGER_GATING": (
+        "cc/silo/transaction.cc", "#if BACKOFF_TRIGGER_GATING", 12, 0,
+    ),
+}
 
 
 def _any_cxx() -> str:
@@ -244,6 +261,16 @@ def _compile_time_source_root(
     spec = G.DEFINE_SPECS[macro]
     owner = root / spec.owner_tus[0]
     owner.parent.mkdir(parents=True)
+    if owner_text is None and macro in _NEW_BRANCH_EXPECTATIONS:
+        _, expected_directive, count, _ = _NEW_BRANCH_EXPECTATIONS[macro]
+        owner_text = prefix + "".join(
+            f"{directive or expected_directive}\n"
+            f"int selected_{site} = 1;\n"
+            "#else\n"
+            f"int selected_{site} = 0;\n"
+            "#endif\n"
+            for site in range(count)
+        )
     if owner_text is None:
         branch = (
             (directive or _start_directive) + "\n"
@@ -264,9 +291,11 @@ def _compile_time_source_root(
 
 
 def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
-    """Derive the unique owner/directive pair from real patch additions."""
+    """Bind every declared site to real patch additions."""
     patch = _ROOT / G.DEFINE_SPECS[macro].patch_rel
-    if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
+    if macro in _NEW_BRANCH_EXPECTATIONS:
+        expected_directive = _NEW_BRANCH_EXPECTATIONS[macro][1]
+    elif macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
         expected_directive = (
             "#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT"
         )
@@ -283,8 +312,20 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
                 and line[1:] == expected_directive:
             assert current_target is not None
             matches.append((current_target, line[1:]))
-    assert len(matches) == 1
-    return matches[0]
+    if macro in _NEW_BRANCH_EXPECTATIONS:
+        source_rel, expected_directive, count, _ = _NEW_BRANCH_EXPECTATIONS[macro]
+        expected_pair = (source_rel, expected_directive)
+    else:
+        source_rel = (
+            "include/backoff.hh" if macro == "BACKOFF_NOINLINE"
+            else "cc/silo/ycsb_silo.cc" if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+            else "cc/mocc/transaction.cc" if "MOCC" in macro
+            else "cc/silo/transaction.cc"
+        )
+        expected_pair = (source_rel, expected_directive)
+        count = 1
+    assert matches == [expected_pair] * count
+    return expected_pair
 
 
 def test_backoff_fixed_five_matches_pointwise():
@@ -1003,7 +1044,9 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
             ).read_text(encoding="utf-8").splitlines()
             if line == patch_declaration[1]
         ]
-        assert fixture_directives == [patch_declaration[1]]
+        count = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))[2]
+        assert fixture_directives == [patch_declaration[1]] * count
+        assert G._declared_site_count(macro) == count
         assert (patch_declaration[0], fixture_directives[0]) \
             == patch_declaration
         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
@@ -1318,7 +1361,8 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
     macro: str,
 ):
     root = _compile_time_source_root(tmp_path, macro)
-    request = _compile_time_request(macro)
+    _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
+    request = _compile_time_request(macro, default=contrast)
     declaration = G.declare_define_runtime_meaning(request)
 
     assert type(declaration) is G.ConditionalBranchMeaningDeclaration
@@ -1336,10 +1380,10 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
     assert meaning.evidence["proof_kind"] == G.COMPILE_TIME_BRANCH_SELECTION_PROOF_KIND
     assert "compile-time" in meaning.evidence["proof_kind"]
     assert "runtime" not in meaning.evidence["proof_kind"]
-    assert meaning.evidence["requested"].selected_count == 1
-    assert meaning.evidence["requested"].completed_count == 1
+    assert meaning.evidence["requested"].selected_count == count
+    assert meaning.evidence["requested"].completed_count == count
     assert meaning.evidence["default"].selected_count == 0
-    assert meaning.evidence["default"].completed_count == 1
+    assert meaning.evidence["default"].completed_count == count
     requested_argv = tuple(
         argument.replace(f"-D{macro}=1", f"-D{macro}=<VALUE>")
         for argument in meaning.evidence["requested"].preprocess_argv
@@ -1348,7 +1392,238 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
         argument.replace(f"-D{macro}=0", f"-D{macro}=<VALUE>")
         for argument in meaning.evidence["default"].preprocess_argv
     )
+    if contrast is None:
+        requested_argv = tuple(arg for arg in requested_argv if arg != f"-D{macro}=<VALUE>")
     assert requested_argv == default_argv
+
+
+@pytest.mark.parametrize("macro", _NEW_BRANCH_EXPECTATIONS)
+def test_new_branch_selection_supply_meaning_and_admission(tmp_path, macro):
+    """Observe only the N declared verbatim directive lines from the DefineSpec
+    patch, without claiming overlay composite branches, #ifndef supply guards,
+    dynamic reachability, or misattribution firing.
+    """
+    _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS[macro]
+    root = _compile_time_source_root(tmp_path, macro)
+    request = _compile_time_request(macro, default=contrast)
+    captured = G.capture_define_inputs(root)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == meaning.terminal_status == "green"
+    for arm, selected in (("requested", count), ("default", 0)):
+        observation = meaning.evidence[arm]
+        assert (observation.selected_count, observation.completed_count) == (selected, count)
+    admission = G.require_condition_gate_family([supply], [meaning], use_class="certified-selection")
+    assert admission.admitted
+    assert admission.unestablished_meaning_macros == ()
+
+
+def test_ifdef_factory_and_supply_reject_one_vs_zero(tmp_path):
+    macro = "IZANAGI_BREAK_TRIGGER_MISATTR"
+    request = _compile_time_request(macro)
+    assert G.declare_define_runtime_meaning(request) is None
+    declaration = G.declare_define_runtime_meaning(_compile_time_request(macro, default=None))
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    assert (declaration.source_rel, declaration.start_directive) == _NEW_BRANCH_EXPECTATIONS[macro][:2]
+    root = _compile_time_source_root(tmp_path, macro)
+    supply = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root), request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (supply.terminal_status, supply.reason_code) == ("red", "preprocess-bytes-identical")
+
+
+@pytest.mark.parametrize("tokens", [
+    ("-DIZANAGI_BREAK_TRIGGER_MISATTR=0",),
+    ("-DIZANAGI_BREAK_TRIGGER_MISATTR",),
+    ("-D", "IZANAGI_BREAK_TRIGGER_MISATTR=0"),
+])
+def test_undefined_contrast_rejects_compile_define_in_supply(tmp_path, tokens):
+    macro = "IZANAGI_BREAK_TRIGGER_MISATTR"
+    # Numeric use preserves a supply difference for =0, independently of #ifdef meaning.
+    root = _compile_time_source_root(tmp_path, macro, owner_text=f"int numeric_value = {macro};\n")
+    with (root / "CMakeLists.txt").open("a") as stream:
+        stream.write(
+            f'if(NOT CMAKE_CXX_FLAGS MATCHES "{macro}=1")\n'
+            f'  target_compile_options(ycsb_silo.exe PRIVATE {" ".join(tokens)})\n'
+            'endif()\n'
+        )
+    request = _compile_time_request(macro, default=None)
+    supply = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root), request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (supply.terminal_status, supply.reason_code) == ("red", "supply-value-mismatch")
+    assert supply.evidence["expected"] is None
+    assert supply.evidence["observed"] == ("1" if tokens == (f"-D{macro}",) else "0")
+
+
+def test_if_macro_none_contrast_keeps_cmake_default_supply_behavior(tmp_path):
+    macro = "SORT_VARIANT"
+    root = _compile_time_source_root(tmp_path, macro, owner_text=SORT_VARIANT_SOURCE)
+    request = _compile_time_request(macro, default=None)
+    assert G.declare_define_runtime_meaning(request) is None
+    supply = G.evaluate_define_supply_effectuation(
+        G.capture_define_inputs(root), request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+
+
+def _partial_default_selection_source(source, macro, directive):
+    head, tail = source.rsplit(directive, 1)
+    return head + f"#undef {macro}\n#define {macro} 1\n" + directive + tail
+
+
+@pytest.mark.parametrize("macro", ["IZANAGI_SILO_LADDER_RUNG1", "BACKOFF_TRIGGER_GATING"])
+@pytest.mark.parametrize("mutation", ["directive", "inactive", "partial-default", "undef"])
+def test_multisite_rejects_missing_or_wrong_selection(tmp_path, macro, mutation):
+    root = _compile_time_source_root(tmp_path, macro)
+    source_rel, directive, count, _ = _NEW_BRANCH_EXPECTATIONS[macro]
+    owner = root / source_rel
+    source = owner.read_text()
+    if mutation == "directive":
+        source = source.replace(directive, f"#if ({macro})", 1)
+        reason = "compile-time-branch-site-count-mismatch"
+    elif mutation == "inactive":
+        source = "#if 0\n" + source.replace("#endif\n", "#endif\n#endif\n", 1)
+        reason = "compile-time-branch-selection-mismatch"
+    elif mutation == "partial-default":
+        source = _partial_default_selection_source(source, macro, directive)
+        reason = "compile-time-branch-selection-mismatch"
+    else:
+        source = f"#undef {macro}\n" + source
+        reason = "compile-time-branch-selection-not-discriminating"
+    owner.write_text(source)
+    request = _compile_time_request(macro)
+    captured = G.capture_define_inputs(root)
+    declaration = G.declare_define_runtime_meaning(request)
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == ("red", reason)
+    if mutation == "directive":
+        assert meaning.evidence["expected"] == str(count)
+        assert meaning.evidence["observed"] == str(count - 1)
+    elif mutation == "inactive":
+        assert meaning.evidence["observed"] == f"requested=({count - 1}, {count - 1}),default=(0, {count - 1})"
+    elif mutation == "partial-default":
+        assert meaning.evidence["observed"] == f"requested=({count}, {count}),default=(1, {count})"
+
+
+@pytest.mark.parametrize("macro", ["IZANAGI_SILO_LADDER_RUNG1", "BACKOFF_TRIGGER_GATING"])
+def test_multisite_assert_rejects_default_partial_selection(tmp_path, macro):
+    root = _compile_time_source_root(tmp_path, macro)
+    source_rel, directive, count, _ = _NEW_BRANCH_EXPECTATIONS[macro]
+    owner = root / source_rel
+    owner.write_text(_partial_default_selection_source(owner.read_text(), macro, directive))
+    request = _compile_time_request(macro)
+    captured = G.capture_define_inputs(root)
+    declaration = G.declare_define_runtime_meaning(request)
+    # Bypass record issuing to test the evaluation check independently of schema.
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._assert_compile_time_branch_selection(
+            captured, request, declaration, cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+    assert raised.value.reason_code == "compile-time-branch-selection-mismatch"
+    assert raised.value.observed == f"requested=({count}, {count}),default=(1, {count})"
+
+
+@pytest.mark.parametrize("mutation", ["undef", "inactive-outer"])
+def test_ifdef_owner_context_can_disable_selection(tmp_path, mutation):
+    macro = "IZANAGI_BREAK_TRIGGER_MISATTR"
+    root = _compile_time_source_root(tmp_path, macro)
+    owner = root / "cc/silo/transaction.cc"
+    source = owner.read_text()
+    if mutation == "undef":
+        source = f"#undef {macro}\n" + source
+        observed = "requested=(0, 1),default=(0, 1)"
+    else:
+        source = "#if 0\n" + source + "#endif\n"
+        observed = "requested=(0, 0),default=(0, 0)"
+    owner.write_text(source)
+    request = _compile_time_request(macro, default=None)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root), request=request,
+        declaration=G.declare_define_runtime_meaning(request), cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-not-discriminating",
+    )
+    assert meaning.evidence["observed"] == observed
+
+
+@pytest.mark.parametrize("macro", _NEW_BRANCH_EXPECTATIONS)
+def test_new_branch_green_schema_rejects_count_value_and_argv_mutations(tmp_path, macro):
+    root = _compile_time_source_root(tmp_path, macro)
+    contrast = _NEW_BRANCH_EXPECTATIONS[macro][3]
+    request = _compile_time_request(macro, default=contrast)
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root), request=request,
+        declaration=G.declare_define_runtime_meaning(request), cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+
+    def public(evidence):
+        return _public_arm_record(
+            arm="runtime-meaning", terminal_status="green",
+            reason_code="declared-compile-time-branch-selection-observed",
+            request=request, request_digest=meaning.request_digest, evidence=evidence,
+        )
+
+    G._validate_arm_record_integrity(public(dict(meaning.evidence)), require_issuer=False)
+    default = meaning.evidence["default"]
+    requested = meaning.evidence["requested"]
+    mutations = [
+        ("default", replace(default, selected_count=1)),
+        ("default", replace(default, completed_count=default.completed_count - 1)),
+        ("requested", replace(requested, selected_count=requested.selected_count - 1)),
+        ("default", replace(default, define_value="0" if contrast is None else None)),
+        ("default", replace(default, preprocess_argv=(*default.preprocess_argv, "-DOTHER=1"))),
+        ("default", replace(default, preprocess_argv=(*default.preprocess_argv, f"-U{macro}"))),
+    ]
+    if contrast is None:
+        mutations.append(("default", replace(
+            default, preprocess_argv=(*default.preprocess_argv, f"-D{macro}=0"),
+        )))
+        split = []
+        for argument in requested.preprocess_argv:
+            split.extend(("-D", f"{macro}=1") if argument == f"-D{macro}=1" else (argument,))
+        evidence = dict(meaning.evidence)
+        evidence["requested"] = replace(requested, preprocess_argv=tuple(split))
+        G._validate_arm_record_integrity(public(evidence), require_issuer=False)
+    for arm, observation in mutations:
+        evidence = dict(meaning.evidence)
+        evidence[arm] = observation
+        with pytest.raises(G.ConditionMeaningGateError) as raised:
+            G._validate_arm_record_integrity(public(evidence), require_issuer=False)
+        assert raised.value.reason_code == "admission-contract-invalid"
+
+
+def test_compile_time_branch_field_and_existing_evidence_keys_are_unchanged(tmp_path):
+    assert {field.name for field in fields(G.ConditionalBranchMeaningDeclaration)} == {
+        "macro", "source_rel", "start_directive", "witness_id",
+    }
+    assert {field.name for field in fields(G.CompileTimeBranchSelectionObservation)} == {
+        "define_value", "selected_count", "completed_count", "preprocess_argv",
+    }
+    root = _compile_time_source_root(tmp_path, "SORT_VARIANT", owner_text=SORT_VARIANT_SOURCE)
+    request = _compile_time_request("SORT_VARIANT")
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root), request=request,
+        declaration=G.declare_define_runtime_meaning(request), cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+    assert set(meaning.evidence) == {
+        "witness_id", "proof_kind", "source_sha256", "compiler_path", "compiler_version",
+        "compiler_identities", "source_rel", "start_directive", "source_file",
+        "requested", "default", "cmake_path", "requested_configure_argv",
+        "default_configure_argv", "requested_cmake_identities", "default_cmake_identities",
+    }
 
 
 def test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure(
@@ -1687,7 +1962,8 @@ def test_compile_time_branch_selection_rejects_unobserved_completion_marker(
 
 
 def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):
-    request = _compile_time_request("IZANAGI_BREAK_TRIGGER_MISATTR")
+    request = _compile_time_request("SS2PL_LOCK_IMPL")
+    assert request.macro not in G.CONDITIONAL_BRANCH_WITNESSES
     assert G.declare_define_runtime_meaning(request) is None
 
     root = tmp_path / "ccbench"
@@ -3025,8 +3301,10 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
     assert "supply domain contains the 40 patch-derived defines" in G.__doc__
-    assert "registered macros plus five mocc controls additionally have a bounded" in G.__doc__
-    assert "compile-time witness (18 total)" in G.__doc__
+    assert (
+        "Twenty-one\nregistered macros additionally have a bounded compile-time witness"
+    ) in G.__doc__
+    assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

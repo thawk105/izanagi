@@ -1,0 +1,178 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_TRIGGER_GATING\": 12,\n}\n",
+          "new": "    \"BACKOFF_TRIGGER_GATING\": 12,  # declared sites (T2153 m0)\n}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-coverage-misattr-default-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8a_trigger_coverage.py",
+          "old": "        default_value=None if macro == MISATTR_DEFINE else 0,\n",
+          "new": "        default_value=0,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_coverage_condition_gate_passes_exact_factory_pair[misattr]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-coverage-declaration-none",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8a_trigger_coverage.py",
+          "old": "        declaration=condition_meaning_gate.declare_define_runtime_meaning(request),\n",
+          "new": "        declaration=None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_coverage_condition_gate_passes_exact_factory_pair[gating]",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_coverage_condition_gate_passes_exact_factory_pair[misattr]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-gating-site-count-11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_TRIGGER_GATING\": 12,\n}\n",
+          "new": "    \"BACKOFF_TRIGGER_GATING\": 11,\n}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[BACKOFF_TRIGGER_GATING]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4p-evaluator-drops-default-selected-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            or default_counts != default_expected:\n",
+          "new": "            or default_counts[1] != default_expected[1]:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-IZANAGI_SILO_LADDER_RUNG1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-schema-default-selected-from-record",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            selected_count=count * int(default_value or \"0\"), completed_count=count,\n",
+          "new": "            selected_count=evidence[\"default\"].selected_count, completed_count=count,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_LADDER_RUNG1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-supply-absence-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if expected_value is None and not stock_identity \\\n            and _declared_contrast_is_undefined(request.macro) \\\n",
+          "new": "    if False and expected_value is None and not stock_identity \\\n            and _declared_contrast_is_undefined(request.macro) \\\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-misattr-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_TRIGGER_MISATTR\": (\n        \"cc/silo/transaction.cc\", \"#ifdef IZANAGI_BREAK_TRIGGER_MISATTR\",\n    ),\n",
+          "new": "    # mutation m7: IZANAGI_BREAK_TRIGGER_MISATTR entry removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_factory_and_supply_reject_one_vs_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[inactive-outer]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[undef]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens2]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_s8a_trigger_sweep.py::test_coverage_condition_gate_passes_exact_factory_pair[misattr]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-supply-absence-check-widened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if expected_value is None and not stock_identity \\\n            and _declared_contrast_is_undefined(request.macro) \\\n            and request.macro in observed_defines:\n",
+          "new": "    if expected_value is None and not stock_identity \\\n            and request.macro in observed_defines:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_if_macro_none_contrast_keeps_cmake_default_supply_behavior"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

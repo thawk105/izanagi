@@ -1,0 +1,62 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "p1-test-literals-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_backoff_extended_sweep.py",
+          "old": "        \"EXPECTED_FREEZE_TREES_SHA256=\"\n        \"92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb\"\n    ) in job\n",
+          "new": "        \"EXPECTED_FREEZE_TREES_SHA256=\"\n        \"6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415\"\n    ) in job\n"
+        },
+        {
+          "file": "orchestrator/tests/test_backoff_extended_sweep.py",
+          "old": "    assert digest.hexdigest() == (\n        \"92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb\"\n    )\n",
+          "new": "    assert digest.hexdigest() == (\n        \"6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415\"\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "p2-job-constant-old",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "EXPECTED_FREEZE_TREES_SHA256=92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb\n",
+          "new": "EXPECTED_FREEZE_TREES_SHA256=6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n1-approval-one-byte",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/s8b-freeze/approvals/7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06.json",
+          "old": "\"scope\":\"s8b-holdout\"",
+          "new": "\"scope\":\"s8b-holdouT\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+schema izanagi-dev-wave-mutation/v4 head b8c458b7f7a9663503a4c841fa9f3146fac00872
+baseline {'status': 'PASSED', 'rc': 0, 'failed_nodes': [], 'duration_s': 48.25}
+p1-test-literals-old KILLED rc 1 failed: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs', 'orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate'] expected: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate', 'orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs'] dur 376.64
+p2-job-constant-old KILLED rc 1 failed: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs'] expected: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs'] dur 416.564
+n1-approval-one-byte KILLED rc 1 failed: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate'] expected: ['orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate'] dur 27.289
+overall None None
+top keys ['baseline', 'date', 'mutations', 'nonterminal_history', 'procedure', 'repo_head', 'runner_identity', 'runner_sha256', 'schema', 'spec_sha256', 'summary', 'tool_identity', 'tool_sha256', 'updated_at']

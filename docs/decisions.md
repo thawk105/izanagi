@@ -69020,3 +69020,109 @@ live module と test からの参照、成果物の所在) で確認できたと
 - 項 5 R3 の名指しを項 6 より優先して science-slice の対を削る — 逐語に優先の根拠が無く、派生値 pin を消す。
 - 「結果凍結済み」を満たす module を「現行機構でない」の確認なしに削る — cohort2 の seeds や D2035 の errno 連言のように、
   live な test が結果でなく module 自体を照合先にしている場合を見落とす。
+
+## D2180. 凍結 v2 g1 の承認 A と active pointer X は AI が作る — 批准 attestation を「`AI-Agent: none` 逐語」から「記録済みの委任裁定 + 構造化 AI trailer ちょうど 1 行」へ改める (D2120 項 2 (b) と D2174 項 4 を supersede) (2026-09-20)
+
+**決定 (ユーザー裁定 2026-09-20 13:2x JST、本 wave が履行):**
+
+- 承認 A (`output/s8b-freeze/approvals/<世代 sha256>.json`) と active pointer X (`output/s8b-freeze/active/<自身の sha256>.json`) は
+  AI が作る。D2120 項 2 (b) の「いずれも逐語 `AI-Agent: none` の人間 commit」と D2174 項 4 の「ユーザーが実施する。AI は作らない」は
+  本決定で supersede する。record の bytes は Codex author (D95) が `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §5
+  手順 2〜5 と同じ形 (canonical JSON、keys ちょうど 4 / 5、filename 規則、create-only) で書き、commit は親 (Claude manager) が機械的に
+  代行する。A / X の commit は非 merge・diff 1 file・X^ == A・A と X の間に他 commit を挟まない、を保つ。
+- 批准側 `orchestrator/campaign/s8b_ratified_freeze.py` の `_assert_user_commit` (approval / pointer / revocation / cancellation の
+  導入 commit 検査、C1-6) は「非 merge・H ancestry・`AI-Agent` trailer が**ちょうど 1 行**で、その 1 行が逐語 `AI-Agent: none`
+  または `docs/ai-provenance.md` の必須形式に適合する構造化 trailer」を要求する。none と構造化の併記、2 行以上、trailer 無し、
+  規約非適合の構造化行 (product / model / reasoning / role の順と許可値、予約語 product、`model` / `reasoning` の `none`)、
+  key の大小文字違い・末尾空白 (raw 行の byte-for-byte 検査) は従来どおり拒否する。
+- attestation の意味: 発効 commit の真正性は「本決定 (記録済みの委任裁定) + 構造化 AI trailer + 導入 commit topology」が担う。
+  `AI-Agent: none` 逐語は人間 commit の証明ではなく (hooks README F6a)、本決定以後は「人間が commit 操作を行った」ことを主張しない
+  (承認の主体はユーザー、record の作成と commit の実行は委任された AI)。論文で g1 の批准をどう記すか (呼称・独立性・主張への影響)
+  は本決定の対象外で、必要なら別途諮る (10:2x の裁定控えには、提示時に AI が明示しユーザーが承知した帰結として「AI が自己承認した
+  世代になる」の記録がある)。
+- 不変: 世代導入 G の `generation-commit-none` 拒否、diff 1 file (`approval-commit-diff` / `pointer-commit-diff`)、X^ == A
+  (`pointer-approval-parent`)、`user-commit-merge`、`user-commit-ancestry`、`_unique_introduction`、`history-mutated`。
+  hook (`hooks/guard_write.py` の `output/s8b-freeze/` Write 拒否) は変えない (誤操作抑止のまま。bytes は Bash 経路で書く、G と同じ)。
+  鍵署名・床値・certification・W-4 / W-5 は本決定の対象外。規律 2 は緩めない。
+- `approver` は「ユーザーの委任と裁定日」を記す文字列とし、批准側は値の書式を検査しない (従来どおり)。
+- 帰結: A / X の 2 file は B-10 の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`、D2166) の対象 dir に入るので、pin を A / X 込みの
+  値へ更新する。扱いは D2166 を引き継ぐ (旧 cohort の記録は不変、新 phase の事前登録成立でも本走許可でもない) が、手続は同一ではない:
+  本 wave では A / X 導入の事前授権から必然となる期待変更として、赤を見る前に更新対象 3 literal を固定し、独立レビュー・変異 2 件
+  (test literal だけ旧値 / job 定数だけ旧値)・負例 4 件 (別 file 追加 / 1 byte 変更 / A 欠落 / X 欠落) を条件に同 wave で更新する。
+  未実施の検証は未実施と記録する。実 repo を root にする consumer test (growth hold 下の 6 node) の「`no-active`」期待値は発効後の
+  実測値へ書き直す (弱体化ではなく新しい真値。tmp repo 側の `no-active` 負例は残す。hold の登録は不変だが通常受入の所要は未検証)。
+
+**理由・採らない案:** 人間 commit を待つ形 (D2174 項 4) は、`git status` 空の前提が未追跡 dir で成立せず、承認の内容 (床の採用、
+候補 bytes、世代導入) はすべて D2120 項 2 で裁定済みで人間が新たに判断する事項が無い。AI が `AI-Agent: none` を書く案は
+provenance 虚偽 (規約 35 行) で採らない。構造化 trailer を「1 行以上」で受理する案 (10:2x の控え) は、A / X が単一の author 構成で
+作られる事実と合わず、ちょうど 1 行の方が受理集合が狭い。hook の Write 拒否を正規経路に限って解除する案 (同控え) は hook が
+認証防壁でない以上、発効の真正性に寄与せず変更面を増やすだけで採らない。`role=author` / `product=codex` を必須にする案は、
+裁定の文言 (規約に適合する構造化 trailer) より狭く、revocation / cancellation を将来別構成が作る余地を無くすので採らない。
+
+## D2181. 直列性検査の producer / versions は鍵単位の packed 配列とし、edge worker は親の Python object に触れず配列だけを読む — 10 s trace の未完走 2 型 (OOM kill / pool 停滞) の除去 (2026-09-20)
+
+**決定 (2026-09-20 計算ノード実測に基づく親裁定、`dev-wave-verifier-capacity`):**
+
+1. **原因の同定。** trace-enabled 10 s 走の未完走 2 型 (D2160 項 4) は、fork した edge worker 16 本が親の producer dict (key tuple / value int) と versions list (版 tuple) に refcount で触って copy-on-write で page を複製し、node memory 128 GiB を使い切る OOM kill である。balanced は親が殺され (rc −9、t≈308 s、`vmstat oom_kill` 0→1)、write-heavy は worker 1 本が殺され pool が壊れ、残 15 worker が計算ノードの job 配下 (SIGTERM 無視) で `Process.terminate()` に応じず `shutdown(wait=True)` の下で停滞して hard timeout に達する。`gc.freeze()` 単独では減らない (refcount 書込みが主因)。worker 数を 8 / 4 に減らせば現行でも完走するが worker 1 本の複製量は増える (親の object graph に比例) ので、既定 16 (D1553) は変えない。
+2. **採る形 (1 つの変更)。** `orchestrator/verifier/dsg.py` の `_build_compact` は、全 write の epoch / tid が 32 bit 非負なら packed 経路 — writer を持つ鍵だけに初出順 id、file ごとの `token_id → key_id` 配列、版を `((epoch<<32)|tid) − 2**63` の flat `array("q")`、producer txid の並走配列、鍵ごとに版昇順・同版は出現順の安定整列で最初の writer — を作り、edge worker は配列と `bisect` だけで wr / rw / ww を生成する。範囲外の trace は従来の tuple builder をそのまま使う (partial な integrity を残さない)。`producer` / `versions` は既存消費者が使う Mapping 操作だけの薄い view。D1664 が「別 wave の候補」と残した「writer を持つ鍵だけに id を振る形」の実装である。
+3. **pool 破綻の終端。** parse / edge とも worker 例外時に残 worker を SIGKILL してから shutdown し、Future / executor / 部分結果の参照を解放してから全件を親で逐次再計算する (D1552 の fallback は不変、部分結果は採らない)。
+4. **判定の同一性。** `adj` の dict-of-tuple、set 再生順、root 初出順、witness 選択は変えない。fixture 全件 (22) の `result_to_dict` sha256 が base `947fd160a` の凍結一覧と一致し、完走済み校正 trace (fixed-5 / fixed-10 の 3 s / 6 s) と 10 s 2 件で旧新の `result_to_dict` と `VerifyResult` 全 field (非 wire の `expected_commits` / `observed_commits` / `proof_surfaces` を含む) が同一。
+5. **実装しない案。** CSR 隣接、txid 直接 index の Tarjan、「全辺が前向きなら非巡回」の前判定は本 wave では採らない (未完走 2 件は replay / SCC に到達していない。前判定は rw 辺が commit 順・txid 順で逆向きになりうるため緑 trace で発火しない)。read-heavy 10 s 級 (1.2B edge 見込み) の将来 wave の候補として insight に設計を残す。
+
+**理由:**
+- 段 1 の profile (Pss / Private_Dirty の時系列、`oom_kill`、freeze A/B、worker 数対照) が原因を判別した。worker の Private_Dirty は自前出力の 10 倍超で、node MemAvailable の減少と一致する。
+- 見積り (同 process 内): dict producer 8.96 GB / 105 s → packed 1.96 GB / 70 s (bal6、44.1M write)、5.28 → 1.55 GB (wh3)、4.15 → 1.04 GB (rh6)。実装後の compare: balanced 10 s 478 s / node peak 32.4 GiB (旧 8 worker 725 s / 78.7 GiB、旧 16 worker は OOM kill)、write-heavy 10 s 297 s / 15.2 GiB (旧 8 worker 493 s / 72.4 GiB、旧 16 worker は timeout)、balanced 6 s 275 s / 19.5 GiB (旧 364 s / 80.2 GiB)。
+- 段 3 相談が「最小案から積む」「JSON 一致は非 wire integrity の代用にならない」「Private_Dirty だけで CoW を同定しない」「read-heavy 10 s は未保全」を指摘し、完了条件を bal10 / wh10 の完走 + 同一性へ改めた。
+
+**却下した選択肢:**
+- 既定 worker の削減 — 症状は消えるが根本原因 (共有 object graph の複製) は残り、所要が伸び規模で再発する。
+- `gc.freeze()` の追加 — bal6 で効果なし (node peak 80.4 → 78.9 GiB)。
+- CSR / 配列 Tarjan / 前判定を同時に入れる — 未完走 2 件の解消に不要 (段 3 B-1 / B-5)。
+- 校正規則 (≤ 600 s) の充足を目標にする — 規則の改訂は裁定事項。結果として 10 s 2 件は 600 s 内だが、本 wave はそれを適格化とは扱わない。
+
+**研究状態への影響:** certified 選択・レポート・台帳の値は変えない。verifier bytes の変更で既存 campaign lock は `contract-loader-drift` で再開不能 (D1552 と同じ帰結、扱いは裁定パッケージ)。B-8 の取得は主張しない (対象・種・長さは別の裁定事項)。
+
+## D2182. `#ifdef` 形の witness は対照を未定義にし、非一意 directive は宣言した全箇所を観測する — 代表選択はせず、主張は DefineSpec patch の逐語箇所に限る (2026-09-20)
+
+**決定:** D1490 の compile-time 枝選択 witness に 2 つの型を足す。(1) 登録簿の directive が `#ifdef <MACRO>` で始まる
+macro は、要求腕を `-D<MACRO>=1`、対照腕を**未定義 (`-D` なし)** で観測し、request には `default_value=None` を要求する
+(`-D=0` を対照にする経路は作らない)。supply arm の対照 compile argv に同 macro が残れば `supply-value-mismatch` で拒否する。
+この不在検査は `#ifdef` 登録 macro に限り、他 macro の `default=None` 要求 (`BACKOFF_NOINLINE` 1/None、stock 対照) の
+判定は変えない。(2) 同一逐語の directive が所有 TU に複数ある macro は、`_CONDITIONAL_BRANCH_SITE_COUNTS` に箇所数 N を
+宣言し、**N 箇所すべて**に marker を入れて要求 (N,N) / 対照 (0,N) を要求する。実測箇所数 ≠ N は N=1 なら従来の
+`compile-time-branch-start-not-unique`、N>1 なら `compile-time-branch-site-count-mismatch` で拒否する。green record の
+再検証も N と未定義対照に追随する。登録簿へ `IZANAGI_BREAK_TRIGGER_MISATTR` (`#ifdef`、N=1)、`IZANAGI_SILO_LADDER_RUNG1`
+(N=2)、`BACKOFF_TRIGGER_GATING` (N=12) を足し (枝選択 18 → 21、対応集合 19 → 22)、`s8a_trigger_coverage` の
+`_require_condition_gate` を factory 配線して MISATTR の request を default None にする。`BACKOFF_REQUESTED_US`
+(transaction.cc 2 + backoff.hh 2) は 1 macro に複数 file の箇所群を宣言する機構が要るため登録しない (残件)。
+`s1_verify_extime_calibration` は TRIGGER_GATING を要求し admission を JSON へ載せるが、capture が genome の configure と
+offline 供給を渡さないため配線しない (配線と供給を同じ変更単位で扱う、D2161 理由 4 と同じ)。
+
+**主張の範囲:** N 箇所 witness が確立するのは「所有 TU において、DefineSpec が宣言する patch の逐語 N 箇所すべてで、その
+define の値 (または定義の有無) が枝の選択を決めている」ことまで。重ね当て patch が足す条件 (例: 計装 patch の
+`#if BACKOFF_TRIGGER_GATING && TRACE`) と `#ifndef` の供給番兵は対象外で、動的到達性・枝本文・誤帰属の発火は主張しない。
+`declare_define_runtime_meaning` が None を返す request は従来どおり unestablished admit であり、family 拒否ではない。
+
+**理由:**
+
+- positive control `IZANAGI_BREAK_TRIGGER_MISATTR` は `#ifdef` なので、要求 1 / 既定 0 では両腕とも定義済みで前処理が同一になり、
+  現行 gate では **supply arm が `preprocess-bytes-identical` で赤** = `s8a_trigger_coverage` の misattr 腕は preflight で
+  `RuntimeError` になる (本 wave の login 実測、production CLI、main 947fd160a)。実 build の対は「定義する / しない」なので
+  request の default も未定義が正しい。
+- 複数箇所のうち 1 箇所を代表にすると、他の箇所の欠落・不活性を witness が見逃す (D2161 (2) が退けた過大主張)。全箇所に
+  marker を入れ両腕の completion を N で要求すれば、箇所の欠落 (site-count)、外側条件で不活性な箇所 (completed < N)、既定腕
+  だけ選ばれる箇所 (selected ≠ 0) がすべて red になり fail-closed が保たれる。
+- 既存 18 entry の 2-tuple・順序・N=1 の reason/detail 逐語・record の key 集合を変えないことで、既存 macro の witness と
+  receipt は変更前後で同一 (SORT / REPORT の実 TU record を leaf 単位で比較し、一時 path 由来の揮発以外は一致)。
+- 不在検査を全 domain の `default=None` へ広げると `BACKOFF_NOINLINE` 1/None や SORT 1/None の supply 判定が変わる
+  (CMake 既定の `-D<M>=0` が対照に残るため) ので、`#ifdef` 登録 macro に限る。
+
+**却下した選択肢:**
+
+- **`-D<MACRO>=0` を `#ifdef` の対照にする** — 定義済みなので識別しない (実測で supply 赤)。
+- **N 箇所のうち 1 箇所を代表にする** — D2161 (2) の過大主張。
+- **所有 TU 内の未宣言な条件指令 (重ね当て patch の複合枝) を走査して red にする** — `#ifndef` 番兵の免除規則を要し本題を超える。
+  主張範囲を DefineSpec patch の逐語箇所に限って記録することで対応し、機構は足さない (裁定パッケージ候補として残す)。
+- **REQUESTED_US を所有 TU の 2 箇所だけで登録する** — header の 2 箇所が未観測の部分登録。
+- **登録簿の tuple を 3 要素にして N を持つ** — 2-tuple を unpack する consumer test 3 件を壊す。別 mapping で持つ。
+- **新しい dataclass / receipt field を足す** — 既定値でも canonical JSON へ出力され既存 record の bytes が変わる。

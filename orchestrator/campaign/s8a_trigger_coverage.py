@@ -110,13 +110,15 @@ def _require_condition_gate(
         driver_id=driver_id,
         macro=macro,
         requested_value=1,
-        default_value=0,
+        default_value=None if macro == MISATTR_DEFINE else 0,
     )
     supply = condition_meaning_gate.evaluate_define_supply_effectuation(
         captured, request=request, cxx=buildcache.DEFAULT_CXX, cmake="cmake",
     )
     meaning = condition_meaning_gate.evaluate_define_runtime_meaning(
-        captured, request=request, declaration=None, cxx=buildcache.DEFAULT_CXX,
+        captured, request=request,
+        declaration=condition_meaning_gate.declare_define_runtime_meaning(request),
+        cxx=buildcache.DEFAULT_CXX,
     )
     admission = condition_meaning_gate.require_condition_gate_family(
         [supply], [meaning], use_class="raw-measurement",

@@ -1,0 +1,870 @@
+{
+  "schema_version": "verifier-compare-probe/v1",
+  "label": "f5-rh3",
+  "started_at": "2026-09-20T06:05:07.790506+00:00",
+  "node": {
+    "meminfo": {
+      "MemTotal": 130536312,
+      "MemFree": 122481792,
+      "MemAvailable": 124950180,
+      "Cached": 1961260,
+      "AnonPages": 201656,
+      "SwapTotal": 25165816,
+      "SwapFree": 25165816,
+      "Committed_AS": 958432
+    },
+    "vmstat": {
+      "oom_kill": 0,
+      "pswpin": 0,
+      "pswpout": 0,
+      "pgmajfault": 1219246
+    },
+    "loadavg": [
+      0.3,
+      0.93,
+      2.44
+    ],
+    "hostname": "bnode024",
+    "cpu_count": 48,
+    "affinity_cpus": 48
+  },
+  "restore": {
+    "wall_s": 18.946,
+    "files": 48,
+    "bytes": 6398811750,
+    "trace_dir": "/scr/vcap-compare-f5-rh3-6ea09800/trace",
+    "skipped": false
+  },
+  "bindings": {
+    "repo_head": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+    "python": {
+      "executable": "/usr/bin/python3.10",
+      "version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]"
+    },
+    "probe_sha256": "17ad243e45baef589306f50f016915b5ba83a3f3baf14f915589b68b54ed830a",
+    "verifier_sha256": {
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/dsg.py": "e77eaabd929e1e05f853b230041495a19b004a8156ddc805676bbd81ffbcbb05",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    }
+  },
+  "single_tenant": {
+    "ok": true,
+    "message": null
+  },
+  "both_completed": true,
+  "stop_reason": "completed",
+  "identical_result_to_dict": true,
+  "identical_full_fields": true,
+  "diff": [],
+  "old": {
+    "repo": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1",
+    "repo_head": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+    "verifier_module_sha256": {
+      "__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "dsg.py": "e77eaabd929e1e05f853b230041495a19b004a8156ddc805676bbd81ffbcbb05",
+      "model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    },
+    "workers": 16,
+    "child": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/probe/verifier_profile_probe.py",
+        "_verify_child",
+        "--repo-root",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1",
+        "--trace-dir",
+        "/scr/vcap-compare-f5-rh3-6ea09800/trace",
+        "--expected-commits",
+        "16819316",
+        "--ccbench-root",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/external/ccbench",
+        "--workers",
+        "default",
+        "--phase-log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/compare/f5-rh3/old-phases.jsonl",
+        "--result",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/compare/f5-rh3/old-result.json"
+      ],
+      "timed_out": false,
+      "sampler_errors": [],
+      "pid": 2870020,
+      "rc": 0,
+      "signal": null,
+      "t_popen_monotonic": 427974.43,
+      "t_popen_returned_monotonic": 427974.43,
+      "t_wait_monotonic": 428406.89,
+      "walls": {
+        "wall_s": 432.461,
+        "popen_s": 0.0,
+        "wait_s": 432.46
+      },
+      "rusage": {
+        "ru_utime": 1786.969,
+        "ru_stime": 85.506,
+        "ru_maxrss": 45262324
+      },
+      "wall_s": 432.461
+    },
+    "phases": {
+      "parse": {
+        "wall_s": 68.146,
+        "extra": {
+          "worker_pids": [
+            2870024,
+            2870025,
+            2870026,
+            2870027,
+            2870028,
+            2870029,
+            2870030,
+            2870031,
+            2870032,
+            2870033,
+            2870034,
+            2870035,
+            2870036,
+            2870037,
+            2870038,
+            2870039
+          ]
+        },
+        "calls": [
+          {
+            "wall_s": 68.146,
+            "extra": {
+              "worker_pids": [
+                2870024,
+                2870025,
+                2870026,
+                2870027,
+                2870028,
+                2870029,
+                2870030,
+                2870031,
+                2870032,
+                2870033,
+                2870034,
+                2870035,
+                2870036,
+                2870037,
+                2870038,
+                2870039
+              ]
+            }
+          }
+        ]
+      },
+      "producer": {
+        "wall_s": 30.626,
+        "extra": {
+          "n_keys": 861206,
+          "n_producer": 8406500
+        },
+        "calls": [
+          {
+            "wall_s": 30.626,
+            "extra": {
+              "n_keys": 861206,
+              "n_producer": 8406500
+            }
+          }
+        ]
+      },
+      "edges-workers": {
+        "wall_s": 56.579,
+        "extra": {
+          "gc_freeze": false,
+          "call_index": 1
+        },
+        "calls": [
+          {
+            "wall_s": 56.579,
+            "extra": {
+              "gc_freeze": false,
+              "call_index": 1
+            }
+          }
+        ]
+      },
+      "adjacency-replay": {
+        "wall_s": 141.533,
+        "extra": {
+          "call_index": 1,
+          "received": 32,
+          "task_count": 32,
+          "complete": true
+        },
+        "calls": [
+          {
+            "wall_s": 141.533,
+            "extra": {
+              "call_index": 1,
+              "received": 32,
+              "task_count": 32,
+              "complete": true
+            }
+          }
+        ]
+      },
+      "edges": {
+        "wall_s": 198.115,
+        "extra": {
+          "dsg_worker_pids": [
+            2870180,
+            2870181,
+            2870182,
+            2870183,
+            2870184,
+            2870185,
+            2870186,
+            2870187,
+            2870188,
+            2870189,
+            2870190,
+            2870191,
+            2870192,
+            2870193,
+            2870194,
+            2870195
+          ],
+          "edge_fallback": false,
+          "n_sources": 16818364,
+          "n_keys": 861206,
+          "n_producer": 8406500,
+          "orphan_reads": 0,
+          "gc_freeze": false,
+          "gc_unfreeze_after": false
+        },
+        "calls": [
+          {
+            "wall_s": 198.115,
+            "extra": {
+              "dsg_worker_pids": [
+                2870180,
+                2870181,
+                2870182,
+                2870183,
+                2870184,
+                2870185,
+                2870186,
+                2870187,
+                2870188,
+                2870189,
+                2870190,
+                2870191,
+                2870192,
+                2870193,
+                2870194,
+                2870195
+              ],
+              "edge_fallback": false,
+              "n_sources": 16818364,
+              "n_keys": 861206,
+              "n_producer": 8406500,
+              "orphan_reads": 0,
+              "gc_freeze": false,
+              "gc_unfreeze_after": false
+            }
+          }
+        ]
+      },
+      "n_edges": {
+        "wall_s": 0.825,
+        "extra": {
+          "n_edges": 291168798
+        },
+        "calls": [
+          {
+            "wall_s": 0.825,
+            "extra": {
+              "n_edges": 291168798
+            }
+          }
+        ]
+      },
+      "scc": {
+        "wall_s": 125.173,
+        "extra": {
+          "includes_n_edges": true
+        },
+        "calls": [
+          {
+            "wall_s": 125.173,
+            "extra": {
+              "includes_n_edges": true
+            }
+          }
+        ]
+      }
+    },
+    "peaks": {
+      "node_used_kib_peak": 45305304,
+      "sum_pss_kib_peak": 45234081,
+      "sum_private_dirty_kib_peak": 45232612,
+      "main_vmrss_kib_peak": 45241996,
+      "worker_private_dirty_kib_max": 2135424,
+      "worker_count_max": 16,
+      "by_phase": {
+        "unknown": {
+          "node_used_kib_peak": 0,
+          "sum_pss_kib_peak": 1680,
+          "sum_private_dirty_kib_peak": 1172,
+          "main_vmrss_kib_peak": 5024,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "parse": {
+          "node_used_kib_peak": 24685276,
+          "sum_pss_kib_peak": 24481577,
+          "sum_private_dirty_kib_peak": 24469136,
+          "main_vmrss_kib_peak": 8681960,
+          "worker_private_dirty_kib_max": 1666792,
+          "worker_count_max": 16
+        },
+        "producer": {
+          "node_used_kib_peak": 7906108,
+          "sum_pss_kib_peak": 7909029,
+          "sum_private_dirty_kib_peak": 7907560,
+          "main_vmrss_kib_peak": 7917344,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "edges-workers": {
+          "node_used_kib_peak": 39301276,
+          "sum_pss_kib_peak": 39081474,
+          "sum_private_dirty_kib_peak": 32565392,
+          "main_vmrss_kib_peak": 10585516,
+          "worker_private_dirty_kib_max": 2135424,
+          "worker_count_max": 16
+        },
+        "adjacency-replay": {
+          "node_used_kib_peak": 45305304,
+          "sum_pss_kib_peak": 45234081,
+          "sum_private_dirty_kib_peak": 45232612,
+          "main_vmrss_kib_peak": 45241996,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "scc": {
+          "node_used_kib_peak": 42278068,
+          "sum_pss_kib_peak": 42212641,
+          "sum_private_dirty_kib_peak": 42211172,
+          "main_vmrss_kib_peak": 42221196,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "n_edges": {
+          "node_used_kib_peak": 42273724,
+          "sum_pss_kib_peak": 42212641,
+          "sum_private_dirty_kib_peak": 42211172,
+          "main_vmrss_kib_peak": 42221196,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        }
+      }
+    },
+    "vmstat_delta": {
+      "oom_kill": 0,
+      "pswpin": 0,
+      "pswpout": 0,
+      "pgmajfault": 0
+    },
+    "swap_seen": false,
+    "worker_states_tail": [
+      {
+        "t_mono": 428390.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428392.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428394.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428396.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428398.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428400.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428402.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428404.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428406.45,
+        "states": {}
+      },
+      {
+        "t_mono": 428406.89,
+        "states": {}
+      }
+    ],
+    "verdict": "serializable",
+    "certified": true,
+    "serializable": true,
+    "integrity_clean": true,
+    "anomaly_count": 0,
+    "total_cycles": 0,
+    "stats": {
+      "txns": 16819316,
+      "reads": 158318481,
+      "writes": 8406500,
+      "keys": 861206,
+      "edges": 291168798,
+      "abort_reasons": {}
+    },
+    "result_to_dict_sha256": "186813a83d21e1fadb3f991ab57c0503c2727098d4297156c3967029e42efb9a",
+    "full_fields_sha256": "3e0fe1886bd203fc0171ae388864d94244cdb2a4aa25562dd5d4eb2ed6e541b0",
+    "parse_fallback": false,
+    "edge_fallback": false,
+    "node_before": {
+      "meminfo": {
+        "MemTotal": 130536312,
+        "MemFree": 114572520,
+        "MemAvailable": 124826244,
+        "Cached": 9746780,
+        "AnonPages": 219340,
+        "SwapTotal": 25165816,
+        "SwapFree": 25165816,
+        "Committed_AS": 977656
+      },
+      "vmstat": {
+        "oom_kill": 0,
+        "pswpin": 0,
+        "pswpout": 0,
+        "pgmajfault": 1219250
+      },
+      "loadavg": [
+        0.43,
+        0.92,
+        2.4
+      ]
+    }
+  },
+  "new": {
+    "repo": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-n1",
+    "repo_head": "11f0f1972c43250939144ca8bbbd89acdcbabacc",
+    "verifier_module_sha256": {
+      "__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "dsg.py": "b1850522cf2fcd75d0c74d228e3f8d804c5fedf7428e18436ec6c5fe7e053ab5",
+      "model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    },
+    "workers": 16,
+    "child": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/probe/verifier_profile_probe.py",
+        "_verify_child",
+        "--repo-root",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-n1",
+        "--trace-dir",
+        "/scr/vcap-compare-f5-rh3-6ea09800/trace",
+        "--expected-commits",
+        "16819316",
+        "--ccbench-root",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-n1/external/ccbench",
+        "--workers",
+        "default",
+        "--phase-log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/compare/f5-rh3/new-phases.jsonl",
+        "--result",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/compare/f5-rh3/new-result.json"
+      ],
+      "timed_out": false,
+      "sampler_errors": [],
+      "pid": 2870579,
+      "rc": 0,
+      "signal": null,
+      "t_popen_monotonic": 428406.921,
+      "t_popen_returned_monotonic": 428406.922,
+      "t_wait_monotonic": 428840.077,
+      "walls": {
+        "wall_s": 433.156,
+        "popen_s": 0.0,
+        "wait_s": 433.155
+      },
+      "rusage": {
+        "ru_utime": 1448.885,
+        "ru_stime": 68.273,
+        "ru_maxrss": 42963832
+      },
+      "wall_s": 433.156
+    },
+    "phases": {
+      "parse": {
+        "wall_s": 68.462,
+        "extra": {
+          "worker_pids": [
+            2870583,
+            2870584,
+            2870585,
+            2870586,
+            2870587,
+            2870588,
+            2870589,
+            2870590,
+            2870591,
+            2870592,
+            2870593,
+            2870594,
+            2870595,
+            2870596,
+            2870597,
+            2870598
+          ]
+        },
+        "calls": [
+          {
+            "wall_s": 68.462,
+            "extra": {
+              "worker_pids": [
+                2870583,
+                2870584,
+                2870585,
+                2870586,
+                2870587,
+                2870588,
+                2870589,
+                2870590,
+                2870591,
+                2870592,
+                2870593,
+                2870594,
+                2870595,
+                2870596,
+                2870597,
+                2870598
+              ]
+            }
+          }
+        ]
+      },
+      "producer": {
+        "wall_s": 57.725,
+        "extra": {
+          "n_keys": 861206,
+          "n_producer": 8406500
+        },
+        "calls": [
+          {
+            "wall_s": 57.725,
+            "extra": {
+              "n_keys": 861206,
+              "n_producer": 8406500
+            }
+          }
+        ]
+      },
+      "edges-workers": {
+        "wall_s": 33.451,
+        "extra": {
+          "gc_freeze": false,
+          "call_index": 1
+        },
+        "calls": [
+          {
+            "wall_s": 33.451,
+            "extra": {
+              "gc_freeze": false,
+              "call_index": 1
+            }
+          }
+        ]
+      },
+      "adjacency-replay": {
+        "wall_s": 139.619,
+        "extra": {
+          "call_index": 1,
+          "received": 32,
+          "task_count": 32,
+          "complete": true
+        },
+        "calls": [
+          {
+            "wall_s": 139.619,
+            "extra": {
+              "call_index": 1,
+              "received": 32,
+              "task_count": 32,
+              "complete": true
+            }
+          }
+        ]
+      },
+      "edges": {
+        "wall_s": 173.074,
+        "extra": {
+          "dsg_worker_pids": [
+            2870753,
+            2870754,
+            2870755,
+            2870757,
+            2870758,
+            2870759,
+            2870760,
+            2870761,
+            2870762,
+            2870763,
+            2870764,
+            2870765,
+            2870766,
+            2870767,
+            2870768,
+            2870769
+          ],
+          "edge_fallback": false,
+          "n_sources": 16818364,
+          "n_keys": 861206,
+          "n_producer": 8406500,
+          "orphan_reads": 0,
+          "gc_freeze": false,
+          "gc_unfreeze_after": false
+        },
+        "calls": [
+          {
+            "wall_s": 173.074,
+            "extra": {
+              "dsg_worker_pids": [
+                2870753,
+                2870754,
+                2870755,
+                2870757,
+                2870758,
+                2870759,
+                2870760,
+                2870761,
+                2870762,
+                2870763,
+                2870764,
+                2870765,
+                2870766,
+                2870767,
+                2870768,
+                2870769
+              ],
+              "edge_fallback": false,
+              "n_sources": 16818364,
+              "n_keys": 861206,
+              "n_producer": 8406500,
+              "orphan_reads": 0,
+              "gc_freeze": false,
+              "gc_unfreeze_after": false
+            }
+          }
+        ]
+      },
+      "n_edges": {
+        "wall_s": 0.824,
+        "extra": {
+          "n_edges": 291168798
+        },
+        "calls": [
+          {
+            "wall_s": 0.824,
+            "extra": {
+              "n_edges": 291168798
+            }
+          }
+        ]
+      },
+      "scc": {
+        "wall_s": 125.524,
+        "extra": {
+          "includes_n_edges": true
+        },
+        "calls": [
+          {
+            "wall_s": 125.524,
+            "extra": {
+              "includes_n_edges": true
+            }
+          }
+        ]
+      }
+    },
+    "peaks": {
+      "node_used_kib_peak": 42752432,
+      "sum_pss_kib_peak": 42792898,
+      "sum_private_dirty_kib_peak": 42791340,
+      "main_vmrss_kib_peak": 42800692,
+      "worker_private_dirty_kib_max": 1635572,
+      "worker_count_max": 16,
+      "by_phase": {
+        "unknown": {
+          "node_used_kib_peak": 0,
+          "sum_pss_kib_peak": 1312,
+          "sum_private_dirty_kib_peak": 884,
+          "main_vmrss_kib_peak": 4596,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "parse": {
+          "node_used_kib_peak": 23974288,
+          "sum_pss_kib_peak": 23829367,
+          "sum_private_dirty_kib_peak": 23816684,
+          "main_vmrss_kib_peak": 8749040,
+          "worker_private_dirty_kib_max": 1635572,
+          "worker_count_max": 16
+        },
+        "producer": {
+          "node_used_kib_peak": 5599776,
+          "sum_pss_kib_peak": 5588068,
+          "sum_private_dirty_kib_peak": 5586512,
+          "main_vmrss_kib_peak": 5596572,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "edges-workers": {
+          "node_used_kib_peak": 13476340,
+          "sum_pss_kib_peak": 12659813,
+          "sum_private_dirty_kib_peak": 6999496,
+          "main_vmrss_kib_peak": 7962656,
+          "worker_private_dirty_kib_max": 699484,
+          "worker_count_max": 16
+        },
+        "adjacency-replay": {
+          "node_used_kib_peak": 42752432,
+          "sum_pss_kib_peak": 42792898,
+          "sum_private_dirty_kib_peak": 42791340,
+          "main_vmrss_kib_peak": 42800692,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        },
+        "scc": {
+          "node_used_kib_peak": 39932288,
+          "sum_pss_kib_peak": 39954750,
+          "sum_private_dirty_kib_peak": 39953192,
+          "main_vmrss_kib_peak": 39963100,
+          "worker_private_dirty_kib_max": 0,
+          "worker_count_max": 0
+        }
+      }
+    },
+    "vmstat_delta": {
+      "oom_kill": 0,
+      "pswpin": 0,
+      "pswpout": 0,
+      "pgmajfault": 0
+    },
+    "swap_seen": false,
+    "worker_states_tail": [
+      {
+        "t_mono": 428822.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428824.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428826.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428828.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428830.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428832.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428834.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428836.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428838.942,
+        "states": {}
+      },
+      {
+        "t_mono": 428840.077,
+        "states": {}
+      }
+    ],
+    "verdict": "serializable",
+    "certified": true,
+    "serializable": true,
+    "integrity_clean": true,
+    "anomaly_count": 0,
+    "total_cycles": 0,
+    "stats": {
+      "txns": 16819316,
+      "reads": 158318481,
+      "writes": 8406500,
+      "keys": 861206,
+      "edges": 291168798,
+      "abort_reasons": {}
+    },
+    "result_to_dict_sha256": "186813a83d21e1fadb3f991ab57c0503c2727098d4297156c3967029e42efb9a",
+    "full_fields_sha256": "3e0fe1886bd203fc0171ae388864d94244cdb2a4aa25562dd5d4eb2ed6e541b0",
+    "parse_fallback": false,
+    "edge_fallback": false,
+    "node_before": {
+      "meminfo": {
+        "MemTotal": 130536312,
+        "MemFree": 114596336,
+        "MemAvailable": 124847504,
+        "Cached": 9745620,
+        "AnonPages": 217468,
+        "SwapTotal": 25165816,
+        "SwapFree": 25165816,
+        "Committed_AS": 980572
+      },
+      "vmstat": {
+        "oom_kill": 0,
+        "pswpin": 0,
+        "pswpout": 0,
+        "pgmajfault": 1219250
+      },
+      "loadavg": [
+        1.11,
+        2.54,
+        2.98
+      ]
+    }
+  },
+  "rc": 0,
+  "wall_total_s": 885.394
+}
