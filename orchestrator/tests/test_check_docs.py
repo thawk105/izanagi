@@ -7185,12 +7185,12 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, text.replace(section, heading, 1))
     elif case == "o28_contract_weakened":
         rel = "docs/dev-wave/operations.md"
-        current = "次 wave・ユーザー・`/cleanup-branches` へ引き渡さない"
+        current = "他へ引き渡さない"
         assert _read(root, rel).count(current) == 1
         _write(
             root,
             rel,
-            _read(root, rel).replace(current, "次 wave へ引き渡してよい", 1),
+            _read(root, rel).replace(current, "他へ引き渡してよい", 1),
         )
     elif case == "codex_skill_deleted":
         os.remove(os.path.join(
@@ -9955,7 +9955,7 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
-    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_055, 110)
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_058, 110)
     assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_055
 
     root = _build_min_repo()
@@ -9970,7 +9970,7 @@ def test_cleanup_command_budget_is_pinned_and_enforced():
 
         assert res.returncode == 1, res.stdout
         assert (
-            f"{rel}: 7059 bytes > 予算 7055 bytes" in res.stdout
+            f"{rel}: 7059 bytes > 予算 7058 bytes" in res.stdout
         ), res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)

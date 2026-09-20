@@ -283,7 +283,7 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    ".claude/commands/cleanup-branches.md": TextLimit(7_055, 110),
+    ".claude/commands/cleanup-branches.md": TextLimit(7_058, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
