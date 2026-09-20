@@ -1,0 +1,19 @@
+{
+ "rule": "行末の空白 (space/tab) を除去し、末尾の連続空行を 1 つの newline に畳む。可視文字は不変。復元は原本 sha256 と bytes を持つ job dir の codex 出力原本から行う。",
+ "files": {
+  "output/insights/2026-09-20/t2609-t2656-provenance-cost/reviews/s5-author.md": {
+   "original_sha256": "102df758d5775fa80d19a085f179c6dc2043f5081c9184b2f1c4d7e445a8376e",
+   "original_bytes": 5796,
+   "normalized_sha256": "d1a32b0457c3e93ec84fcbb4656e6da3ed947978ac94e96ab2869988801a1d0f",
+   "normalized_bytes": 5795,
+   "lines_with_trailing_ws_removed": 1
+  },
+  "output/insights/2026-09-20/t2609-t2656-provenance-cost/reviews/s2-plan.md": {
+   "original_sha256": "0382ae748b2063ddae7b38cd5c04ee271f661eb25d7ca7fd4b9be8c054861b9c",
+   "original_bytes": 23151,
+   "normalized_sha256": "1bec5703399e8ffe4ffc2e5fa791ac76b0867dfdc3296fe52fd4fae6c3b98a74",
+   "normalized_bytes": 23124,
+   "lines_with_trailing_ws_removed": 14
+  }
+ }
+}

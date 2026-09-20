@@ -1,0 +1,58 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-missing-to-not-ancestor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n",
+          "new": "    if kind is None:\n        return AncestryResult(\"not-ancestor\", recorded, validation_head)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-missing-to-ancestor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "old": "    if kind is None:\n        return AncestryResult(\"missing-commit\", recorded, None)\n",
+          "new": "    if kind is None:\n        return AncestryResult(\"ancestor\", recorded, validation_head)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-ancestry-subject-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "old": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head\",\n",
+          "new": "            \"artifact\": artifact, \"kind\": \"ancestry\", \"subject\": \"/frozen_at_head/\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

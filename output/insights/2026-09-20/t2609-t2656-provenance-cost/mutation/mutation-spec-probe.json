@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-parents-first-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    parents = {row[0]: tuple(row[1:]) for row in rows}\n",
+          "new": "    parents = {row[0]: tuple(row[1:2]) for row in rows}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-accept-outside-closure-parent",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        or any(parent not in index or index[parent] >= index[commit]\n               for commit, row_parents in parents.items() for parent in row_parents)\n",
+          "new": "        or False\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-always-nonmerge",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "            \"--name-only\", \"-z\", \"--always\",\n",
+          "new": "            \"--name-only\", \"-z\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-publish-partial-batch",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if headers != requested or result.keys() != set(requested):\n        return None\n    return result\n",
+          "new": "    if headers != requested or result.keys() != set(requested):\n        return result\n    return result\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-hex-path-as-plain-path",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        if re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", token):\n            headers.append(token)\n",
+          "new": "        if token in requested:\n            headers.append(token)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-ignore-config-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        return statuses == [1, 1]\n",
+          "new": "        return statuses == statuses\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-use-earlier-batches-on-late-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "        if parsed is None:\n            return None\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n",
+          "new": "        if parsed is None:\n            break\n        for oid in batch:\n            result[oid].append(set(parsed[oid]))\n    return result\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-share-values-of-wrong-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(message)}\n",
+          "new": "    shared_values = {} if ancestry is None else {\"values\": _ai_agent_values(subject)}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-falsy-values-reparse",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    if values is None:\n        values = _ai_agent_values(message)\n    cab_findings = (\n",
+          "new": "    if not values:\n        values = _ai_agent_values(message)\n    cab_findings = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "E0-equivalent-list-copy",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_ai_provenance.py",
+          "old": "    requested = list(dict.fromkeys(merges))\n",
+          "new": "    requested = [*dict.fromkeys(merges)]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

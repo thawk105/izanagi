@@ -1,0 +1,83 @@
+host bnode003 cpus 48 workers 32 commits 11769 head b7f970dfa507
+loadavg start/end [0.0732421875, 0.01611328125, 0.109375] [13.34033203125, 4.29345703125, 1.609375] tmp None temp_root None
+prelude {'commit_range_s': 0.764, 'known_violation_append_only_history_s': 1.743, 'resolve_head_and_authoritative_s': 0.037}
+prelude subprocess {'log:batch-messages': {'count': 3, 'wall_sum_s': 2.345}, 'replace': {'count': 1, 'wall_sum_s': 0.006}, 'rev-list': {'count': 1, 'wall_sum_s': 0.108}, 'rev-parse': {'count': 6, 'wall_sum_s': 0.084}}
+=== A_full_no_receipt: wall 41.747 s  rusage {'children_sys_s': 153.272, 'children_user_s': 97.837, 'self_sys_s': 14.198, 'self_user_s': 22.634}  findings 0 known 56 corrected 1 waived 12 batch_sizes [11769]
+   loadavg [0.0732421875, 0.01611328125, 0.109375] -> [10.39794921875, 2.61669921875, 0.97705078125]
+   subprocess (種別: 回数 / 累積 wall 秒 / 1 回平均 ms)   合計 1128.4 s (32 worker 並列なので wall より大きい)
+     show:%P(parents)                   11308      332.5     29.4
+     diff:name-only(merge-parent)        8502      235.7     27.7
+     interpret-trailers:repo            13993      225.8     16.1
+     diff-tree:name-only                 7061      210.6     29.8
+     interpret-trailers:isolated        11315       62.4      5.5
+     diff-tree:--cc(merge)               1418       59.6     42.0
+     log:batch-messages                     1        0.8    827.0
+     log:pickaxe                            3        0.7    229.3
+     rev-list                               1        0.1     97.0
+     cat-file                               1        0.0     33.0
+     ls-files                               2        0.0     16.0
+     rev-parse                              2        0.0     13.0
+     ls-tree                                1        0.0     14.0
+     merge-base                             1        0.0      8.0
+   functions (名前: 回数 / 累積 wall 秒)
+     _normal_commit_audit                       11769     1272.8
+     _commit_paths                              11308      838.9
+     validate_message                           11769      386.4
+     _commit_parents                            11308      332.6
+     _ai_agent_values                           13993      296.6
+     _isolated_parsed_trailers                  11315      136.2
+     _co_authored_by_findings                   11274      135.9
+     _combined_diff_paths                         646       59.6
+     validate_implementation_author             11308       46.4
+     _batch_commit_messages                         1        0.9
+     _build_ancestry                                1        0.6
+     _waiver_audit                              11308        0.5
+     _correction_audit                          11769        0.2
+     _known_violation_registry                      1        0.2
+     _scope_policy_commit                           1        0.1
+     _implementation_policy_commit                  1        0.1
+     _finish_history_audit                          1        0.0
+     _known_violation_head_entries                  1        0.0
+=== B_receipt_reuse_attempt: wall 41.248 s  rusage {'children_sys_s': 149.779, 'children_user_s': 98.186, 'self_sys_s': 14.626, 'self_user_s': 22.876}  findings 0 known 56 corrected 1 waived 12 batch_sizes [11769]
+   receipt_selection_count 11769 path /work/1/SFC/tanab/izanagi/.git/provenance-audit-receipts/f093170f9856c67cd9cdac8e344bd07ef9edca64ddc23607b0d165ae34f7306a/b7f970dfa507558f7fb669a5ab38958d6c76b57c.json
+   loadavg [10.39794921875, 2.61669921875, 0.97705078125] -> [13.34033203125, 4.29345703125, 1.609375]
+   subprocess (種別: 回数 / 累積 wall 秒 / 1 回平均 ms)   合計 1051.5 s (32 worker 並列なので wall より大きい)
+     show:%P(parents)                   11308      291.2     25.8
+     diff:name-only(merge-parent)        8502      217.9     25.6
+     interpret-trailers:repo            13993      214.0     15.3
+     diff-tree:name-only                 7061      197.3     27.9
+     interpret-trailers:isolated        11315       73.9      6.5
+     diff-tree:--cc(merge)               1418       55.4     39.1
+     log:batch-messages                     2        0.9    466.0
+     log:pickaxe                            3        0.7    229.3
+     rev-list                               1        0.1    100.0
+     rev-parse                              6        0.1      8.3
+     ls-files                               3        0.0     11.3
+     ls-tree                                2        0.0     14.0
+     cat-file                               1        0.0     10.0
+     merge-base                             1        0.0      8.0
+     config                                 2        0.0      3.5
+     var                                    1        0.0      4.0
+   functions (名前: 回数 / 累積 wall 秒)
+     _normal_commit_audit                       11769     1223.7
+     _commit_paths                              11308      762.3
+     validate_message                           11769      413.1
+     _ai_agent_values                           13993      297.2
+     _commit_parents                            11308      291.3
+     _isolated_parsed_trailers                  11315      163.1
+     _co_authored_by_findings                   11274      162.7
+     _combined_diff_paths                         646       55.4
+     validate_implementation_author             11308       47.1
+     _receipt_bindings                              1        1.4
+     _attribute_fingerprint                         1        0.8
+     _build_ancestry                                1        0.7
+     _waiver_audit                              11308        0.7
+     _policy_commit                                 1        0.6
+     _batch_commit_messages                         1        0.4
+     _correction_audit                          11769        0.2
+     _known_violation_registry                      1        0.1
+     _scope_policy_commit                           1        0.1
+     _implementation_policy_commit                  1        0.1
+     _known_violation_head_entries                  2        0.0
+     _finish_history_audit                          1        0.0
+total_wall_s 85.539
