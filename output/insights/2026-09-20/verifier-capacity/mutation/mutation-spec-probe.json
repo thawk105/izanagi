@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-equivalent-counts-init",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        counts = array(\"Q\")\n",
+          "new": "        counts = array(\"Q\", [])\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-dup-version-keeps-last-writer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                if value != previous:\n                    values[end] = value\n                    writers[end] = writer\n                    end += 1\n                    previous = value\n",
+          "new": "                if value != previous:\n                    values[end] = value\n                    writers[end] = writer\n                    end += 1\n                    previous = value\n                else:\n                    writers[end - 1] = writer\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-rw-successor-bisect-left",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        return writer, bisect_right(values, value, lo, hi)\n",
+          "new": "        return writer, bisect_left(values, value, lo, hi)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-wr-writer-without-exact-match",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        writer = index if index < hi and values[index] == value else -1\n",
+          "new": "        writer = index if index < hi else -1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-out-of-range-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                if not (0 <= columns.txn_commit_epoch[row] < _VERSION_LIMIT\n                        and 0 <= columns.txn_commit_tid[row] < _VERSION_LIMIT):\n                    self._build_compact_tuple()\n                    return\n",
+          "new": "                if False and not (0 <= columns.txn_commit_epoch[row] < _VERSION_LIMIT\n                        and 0 <= columns.txn_commit_tid[row] < _VERSION_LIMIT):\n                    self._build_compact_tuple()\n                    return\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-worker-uses-mapping-path",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "    if isinstance(versions, _PackedVersions):\n        values = versions.versions_flat\n",
+          "new": "    if False and isinstance(versions, _PackedVersions):\n        values = versions.versions_flat\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-broken-pool-no-kill",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                    if failed:\n                        _kill_pool_workers(executor)\n                    executor.shutdown(wait=True, cancel_futures=True)\n                if not failed:\n",
+          "new": "                    if failed:\n                        pass\n                    executor.shutdown(wait=True, cancel_futures=True)\n                if not failed:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-partial-results-not-released",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "        if outcomes is None:\n            received.clear()\n            futures.clear()\n",
+          "new": "        if outcomes is None:\n            futures.clear()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-ww-drops-last-pair",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/dsg.py",
+          "old": "                for index in range(offsets[key_id], offsets[key_id + 1] - 1):\n",
+          "new": "                for index in range(offsets[key_id], offsets[key_id + 1] - 2):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

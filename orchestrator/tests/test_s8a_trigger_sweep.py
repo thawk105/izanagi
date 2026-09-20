@@ -94,6 +94,57 @@ def test_trigger_characterization_gate_dominates_first_build(module):
     assert source.index("_preflight_condition_gates") < source.index("_build(")
 
 
+@pytest.mark.parametrize(("macro", "default", "directive"), [
+    ("IZANAGI_BREAK_TRIGGER_MISATTR", None, "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR"),
+    ("BACKOFF_TRIGGER_GATING", 0, "#if BACKOFF_TRIGGER_GATING"),
+], ids=["misattr", "gating"])
+def test_coverage_condition_gate_passes_exact_factory_pair(monkeypatch, tmp_path, macro, default, directive):
+    gate = coverage.condition_meaning_gate
+    captured = object()
+    record = SimpleNamespace(canonical_json=lambda: "{}")
+    admission = SimpleNamespace(admitted=True, canonical_json=lambda: "{}")
+    observed = {}
+
+    def capture(source, *, configure_args):
+        observed["capture"] = (source, configure_args)
+        return captured
+
+    def supply(inputs, **kwargs):
+        observed["supply"] = (inputs, kwargs)
+        return record
+
+    def meaning(inputs, **kwargs):
+        observed["meaning"] = (inputs, kwargs)
+        return record
+
+    def family(supplies, meanings, **kwargs):
+        observed["family"] = (supplies, meanings, kwargs)
+        return admission
+
+    monkeypatch.setattr(gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(gate, "evaluate_define_supply_effectuation", supply)
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", meaning)
+    monkeypatch.setattr(gate, "require_condition_gate_family", family)
+    result = coverage._require_condition_gate(
+        str(tmp_path), driver_id="coverage-test", macro=macro,
+        configure_args=["-DCCBENCH_BACKOFF_TRIGGER_GATING=1"],
+    )
+    assert result == {"supply": {}, "meaning": {}, "admission": {}}
+    assert observed["capture"] == (str(tmp_path), ("-DCCBENCH_BACKOFF_TRIGGER_GATING=1",))
+    assert observed["supply"][0] is observed["meaning"][0] is captured
+    request = observed["supply"][1]["request"]
+    assert observed["meaning"][1]["request"] is request
+    assert request.macro == macro
+    assert request.requested_value == 1
+    assert request.default_value == default
+    declaration = observed["meaning"][1]["declaration"]
+    assert type(declaration) is gate.ConditionalBranchMeaningDeclaration
+    assert declaration.macro == macro
+    assert declaration.source_rel == "cc/silo/transaction.cc"
+    assert declaration.start_directive == directive
+    assert observed["family"] == ([record], [record], {"use_class": "raw-measurement"})
+
+
 def test_screening_forwards_ident_baseline_genome_protocol():
     source = Path(W.__file__).read_text(encoding="utf-8")
     assert source.count("protocol=_genome(1).protocol") == 1
@@ -105,12 +156,9 @@ _CHARACTERIZATION_GENOME = (
     "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,"
     "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
 )
-_CHARACTERIZATION_PIN = "e9e477c"
-_T816_ADMISSION_POLICY_SHA256 = (
-    "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
-)
+_CHARACTERIZATION_PIN = "511c953"
 _ADMISSION_POLICY_SHA256 = (
-    "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a"
+    "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
 )
 _PRE_T343_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8",
@@ -123,10 +171,6 @@ _T343_S8A_CAMPAIGN_IDS = {
 _T816_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-82061ef6",
     "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-eaa6d33e",
-}
-_T2304_S8A_CAMPAIGN_IDS = {
-    "balanced": "p3-s8a-trigger-sweep-balanced-sweep-8ee9d0be",
-    "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-49fa575c",
 }
 _T530_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-0b2966f0",
@@ -374,11 +418,10 @@ def test_default_off_campaign_ids_remain_historical_values():
         and cfg.bound_environment_contract is explicit_contract
         for cfg in configs.values()
     )
-    assert current == _T2304_S8A_CAMPAIGN_IDS
+    assert current == _T816_S8A_CAMPAIGN_IDS
     assert set(current.values()).isdisjoint(
         set(_T343_S8A_CAMPAIGN_IDS.values())
         | set(_T530_S8A_CAMPAIGN_IDS.values())
-        | set(_T816_S8A_CAMPAIGN_IDS.values())
     )
 
 
@@ -490,7 +533,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     machine_name = W.candidates(EFF3)[0][0]
     seen = []
     passed = SimpleNamespace(passed=True)
-    expected_pin = "e9e477c"  # repo policy から逆算しない独立 pin
+    expected_pin = "511c953"  # repo policy から逆算しない独立 pin
 
     def evidence_for(genome, commit, source_root):
         assert commit == expected_pin == W.PIN

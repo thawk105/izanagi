@@ -102,7 +102,10 @@ def test_condition_gates_pass_real_factory_declarations_to_evaluator(monkeypatch
     assert backoff.requested_value == -1
     assert backoff.stock_comparison is True
     assert backoff_declaration is None
-    assert rung_declaration is None
+    assert type(rung_declaration) is gate.ConditionalBranchMeaningDeclaration
+    assert rung_declaration.macro == "IZANAGI_SILO_LADDER_RUNG1"
+    assert rung_declaration.source_rel == "cc/silo/transaction.cc"
+    assert rung_declaration.start_directive == "#if IZANAGI_SILO_LADDER_RUNG1"
     assert type(declaration) is gate.ConditionalBranchMeaningDeclaration
     assert declaration.macro == report.macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT"
     assert declaration.source_rel == "cc/silo/ycsb_silo.cc"

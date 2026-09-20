@@ -1,0 +1,320 @@
+{
+  "schema_version": "verifier-profile-probe/v1",
+  "label": "bal10",
+  "started_at": "2026-09-20T04:58:13.127626+00:00",
+  "bindings": {
+    "repo_head": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+    "python": {
+      "executable": "/usr/bin/python3.10",
+      "version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]"
+    },
+    "probe_sha256": "bc86ca222282c5eb1c5f716b240095c435f0474300962689df94a7e86f7bb03d",
+    "verifier_sha256": {
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/dsg.py": "e77eaabd929e1e05f853b230041495a19b004a8156ddc805676bbd81ffbcbb05",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    }
+  },
+  "node": {
+    "meminfo": {
+      "MemTotal": 130536308,
+      "MemFree": 122164196,
+      "MemAvailable": 125025780,
+      "Cached": 2472096,
+      "AnonPages": 200736,
+      "SwapTotal": 25165816,
+      "SwapFree": 25159672,
+      "Committed_AS": 993520
+    },
+    "vmstat": {
+      "oom_kill": 0,
+      "pswpin": 79,
+      "pswpout": 1482,
+      "pgmajfault": 17776686
+    },
+    "loadavg": [
+      0.02,
+      0.64,
+      1.06
+    ],
+    "hostname": "bnode029",
+    "cpu_count": 48,
+    "affinity_cpus": 48
+  },
+  "single_tenant": {
+    "ok": true,
+    "message": null
+  },
+  "restore": {
+    "wall_s": 16.109,
+    "files": 48,
+    "bytes": 5896236914,
+    "trace_dir": "/scr/vcap-profile-bal10-9726308c/trace",
+    "skipped": false
+  },
+  "child": {
+    "argv": [
+      "/usr/bin/python3.10",
+      "-B",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/probe/verifier_profile_probe.py",
+      "_child",
+      "--trace-dir",
+      "/scr/vcap-profile-bal10-9726308c/trace",
+      "--expected-commits",
+      "14748197",
+      "--ccbench-root",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5/external/ccbench",
+      "--phase-log",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/bal10/phases.jsonl",
+      "--result",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/bal10/child-result.json",
+      "--workers",
+      "default"
+    ],
+    "timed_out": false,
+    "sampler_errors": [],
+    "pid": 2341635,
+    "rc": -9,
+    "signal": 9,
+    "t_popen_monotonic": 876352.302,
+    "t_popen_returned_monotonic": 876352.303,
+    "t_wait_monotonic": 876657.88,
+    "walls": {
+      "wall_s": 305.578,
+      "popen_s": 0.0,
+      "wait_s": 305.577
+    },
+    "rusage": {
+      "ru_utime": 767.804,
+      "ru_stime": 41.573,
+      "ru_maxrss": 21903760
+    }
+  },
+  "phases": {
+    "parse": {
+      "wall_s": 55.246,
+      "extra": {
+        "n_files": 48,
+        "n_txns": 14748197,
+        "n_reads": 73059912,
+        "n_writes": 73398951,
+        "worker_pids": [
+          2341638,
+          2341639,
+          2341640,
+          2341641,
+          2341642,
+          2341643,
+          2341644,
+          2341645,
+          2341646,
+          2341647,
+          2341648,
+          2341649,
+          2341650,
+          2341651,
+          2341652,
+          2341653
+        ],
+        "parse_fallback": false,
+        "legacy": false,
+        "dup_txids": 0,
+        "missing_txids": 0,
+        "framing_violations": 0,
+        "malformed_keys": 0
+      },
+      "calls": [
+        {
+          "wall_s": 55.246,
+          "extra": {
+            "n_files": 48,
+            "n_txns": 14748197,
+            "n_reads": 73059912,
+            "n_writes": 73398951,
+            "worker_pids": [
+              2341638,
+              2341639,
+              2341640,
+              2341641,
+              2341642,
+              2341643,
+              2341644,
+              2341645,
+              2341646,
+              2341647,
+              2341648,
+              2341649,
+              2341650,
+              2341651,
+              2341652,
+              2341653
+            ],
+            "parse_fallback": false,
+            "legacy": false,
+            "dup_txids": 0,
+            "missing_txids": 0,
+            "framing_violations": 0,
+            "malformed_keys": 0
+          }
+        }
+      ]
+    },
+    "producer": {
+      "wall_s": 172.59,
+      "extra": {
+        "n_keys": 999995,
+        "n_producer": 73398951
+      },
+      "calls": [
+        {
+          "wall_s": 172.59,
+          "extra": {
+            "n_keys": 999995,
+            "n_producer": 73398951
+          }
+        }
+      ]
+    },
+    "edges": {
+      "wall_s": null,
+      "extra": {},
+      "calls": [],
+      "incomplete": true
+    },
+    "edges-workers": {
+      "wall_s": null,
+      "extra": {
+        "gc_freeze": false
+      },
+      "calls": [],
+      "incomplete": true
+    }
+  },
+  "estimate": {},
+  "serializable": null,
+  "stop_reason": "killed",
+  "paths": {
+    "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p5",
+    "trace_src": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/trace-src/bal10",
+    "scratch_root": "/scr",
+    "output_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/bal10"
+  },
+  "peaks": {
+    "node_used_kib_peak": 119102592,
+    "sum_pss_kib_peak": 118751903,
+    "sum_private_dirty_kib_peak": 101599500,
+    "main_vmrss_kib_peak": 21741456,
+    "worker_private_dirty_kib_max": 6391968,
+    "worker_count_max": 16,
+    "by_phase": {
+      "unknown": {
+        "node_used_kib_peak": 103476,
+        "sum_pss_kib_peak": 1463,
+        "sum_private_dirty_kib_peak": 996,
+        "main_vmrss_kib_peak": 4412,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "parse": {
+        "node_used_kib_peak": 18422664,
+        "sum_pss_kib_peak": 18437584,
+        "sum_private_dirty_kib_peak": 18426084,
+        "main_vmrss_kib_peak": 7152312,
+        "worker_private_dirty_kib_max": 1459016,
+        "worker_count_max": 16
+      },
+      "producer": {
+        "node_used_kib_peak": 20122712,
+        "sum_pss_kib_peak": 20007615,
+        "sum_private_dirty_kib_peak": 20005912,
+        "main_vmrss_kib_peak": 20015824,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "edges-workers": {
+        "node_used_kib_peak": 119102592,
+        "sum_pss_kib_peak": 118751903,
+        "sum_private_dirty_kib_peak": 101599500,
+        "main_vmrss_kib_peak": 21741456,
+        "worker_private_dirty_kib_max": 6391968,
+        "worker_count_max": 16
+      }
+    }
+  },
+  "vmstat_delta": {
+    "oom_kill": 1,
+    "pswpin": 4,
+    "pswpout": 94,
+    "pgmajfault": 121
+  },
+  "swap_seen": true,
+  "worker_states_tail": [
+    {
+      "t_mono": 876626.368,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876629.854,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876633.19,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876636.602,
+      "states": {
+        "R": 15,
+        "S": 1
+      }
+    },
+    {
+      "t_mono": 876640.218,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876643.927,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876647.586,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876651.166,
+      "states": {
+        "R": 16
+      }
+    },
+    {
+      "t_mono": 876654.902,
+      "states": {
+        "R": 13
+      }
+    },
+    {
+      "t_mono": 876660.299,
+      "states": {}
+    }
+  ],
+  "rc": 1,
+  "wall_total_s": 324.524
+}

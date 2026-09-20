@@ -1,0 +1,865 @@
+{
+  "schema_version": "verifier-profile-probe/v1",
+  "label": "wh3",
+  "started_at": "2026-09-20T05:13:30.972221+00:00",
+  "bindings": {
+    "repo_head": "947fd160ab44e6ae82b6eab56ee8d70813fda31d",
+    "python": {
+      "executable": "/usr/bin/python3.10",
+      "version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]"
+    },
+    "probe_sha256": "bc86ca222282c5eb1c5f716b240095c435f0474300962689df94a7e86f7bb03d",
+    "verifier_sha256": {
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/dsg.py": "e77eaabd929e1e05f853b230041495a19b004a8156ddc805676bbd81ffbcbb05",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/parse.py": "1aedb77a9091600676e843a0b051045b63dc59e377a0ea038599c6bf4b369246",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    }
+  },
+  "node": {
+    "meminfo": {
+      "MemTotal": 130536328,
+      "MemFree": 123594432,
+      "MemAvailable": 125143632,
+      "Cached": 1715440,
+      "AnonPages": 200248,
+      "SwapTotal": 25165816,
+      "SwapFree": 25158904,
+      "Committed_AS": 971380
+    },
+    "vmstat": {
+      "oom_kill": 0,
+      "pswpin": 968,
+      "pswpout": 2650,
+      "pgmajfault": 2016931
+    },
+    "loadavg": [
+      1.45,
+      2.22,
+      3.62
+    ],
+    "hostname": "bnode017",
+    "cpu_count": 48,
+    "affinity_cpus": 48
+  },
+  "single_tenant": {
+    "ok": true,
+    "message": null
+  },
+  "restore": {
+    "wall_s": 4.08,
+    "files": 48,
+    "bytes": 994980612,
+    "trace_dir": "/scr/vcap-profile-wh3-a595bae0/trace",
+    "skipped": false
+  },
+  "child": {
+    "argv": [
+      "/usr/bin/python3.10",
+      "-B",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/probe/verifier_profile_probe.py",
+      "_child",
+      "--trace-dir",
+      "/scr/vcap-profile-wh3-a595bae0/trace",
+      "--expected-commits",
+      "2530609",
+      "--ccbench-root",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1/external/ccbench",
+      "--phase-log",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/wh3/phases.jsonl",
+      "--result",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/wh3/child-result.json",
+      "--workers",
+      "default",
+      "--estimate-packed-producer"
+    ],
+    "timed_out": false,
+    "sampler_errors": [],
+    "pid": 2371305,
+    "rc": 0,
+    "signal": null,
+    "t_popen_monotonic": 877258.656,
+    "t_popen_returned_monotonic": 877258.656,
+    "t_wait_monotonic": 877468.414,
+    "walls": {
+      "wall_s": 209.758,
+      "popen_s": 0.0,
+      "wait_s": 209.758
+    },
+    "rusage": {
+      "ru_utime": 440.139,
+      "ru_stime": 39.336,
+      "ru_maxrss": 10174412
+    }
+  },
+  "phases": {
+    "parse": {
+      "wall_s": 8.42,
+      "extra": {
+        "n_files": 48,
+        "n_txns": 2530609,
+        "n_reads": 1253524,
+        "n_writes": 23831828,
+        "worker_pids": [
+          2371308,
+          2371309,
+          2371310,
+          2371311,
+          2371312,
+          2371313,
+          2371314,
+          2371315,
+          2371316,
+          2371317,
+          2371318,
+          2371319,
+          2371320,
+          2371321,
+          2371322,
+          2371323
+        ],
+        "parse_fallback": false,
+        "legacy": false,
+        "dup_txids": 0,
+        "missing_txids": 0,
+        "framing_violations": 0,
+        "malformed_keys": 0
+      },
+      "calls": [
+        {
+          "wall_s": 8.42,
+          "extra": {
+            "n_files": 48,
+            "n_txns": 2530609,
+            "n_reads": 1253524,
+            "n_writes": 23831828,
+            "worker_pids": [
+              2371308,
+              2371309,
+              2371310,
+              2371311,
+              2371312,
+              2371313,
+              2371314,
+              2371315,
+              2371316,
+              2371317,
+              2371318,
+              2371319,
+              2371320,
+              2371321,
+              2371322,
+              2371323
+            ],
+            "parse_fallback": false,
+            "legacy": false,
+            "dup_txids": 0,
+            "missing_txids": 0,
+            "framing_violations": 0,
+            "malformed_keys": 0
+          }
+        }
+      ]
+    },
+    "producer": {
+      "wall_s": 53.087,
+      "extra": {
+        "n_keys": 989878,
+        "n_producer": 23831828
+      },
+      "calls": [
+        {
+          "wall_s": 53.087,
+          "extra": {
+            "n_keys": 989878,
+            "n_producer": 23831828
+          }
+        }
+      ]
+    },
+    "edges-workers": {
+      "wall_s": 15.212,
+      "extra": {
+        "gc_freeze": false,
+        "call_index": 1
+      },
+      "calls": [
+        {
+          "wall_s": 15.212,
+          "extra": {
+            "gc_freeze": false,
+            "call_index": 1
+          }
+        }
+      ]
+    },
+    "adjacency-replay": {
+      "wall_s": 27.078,
+      "extra": {
+        "call_index": 1,
+        "received": 32,
+        "task_count": 32,
+        "complete": true
+      },
+      "calls": [
+        {
+          "wall_s": 27.078,
+          "extra": {
+            "call_index": 1,
+            "received": 32,
+            "task_count": 32,
+            "complete": true
+          }
+        }
+      ]
+    },
+    "edges": {
+      "wall_s": 42.295,
+      "extra": {
+        "dsg_worker_pids": [
+          2371400,
+          2371401,
+          2371402,
+          2371403,
+          2371404,
+          2371405,
+          2371406,
+          2371407,
+          2371408,
+          2371409,
+          2371410,
+          2371411,
+          2371412,
+          2371413,
+          2371414,
+          2371415
+        ],
+        "edge_fallback": false,
+        "n_sources": 2530545,
+        "n_keys": 989878,
+        "n_producer": 23831828,
+        "orphan_reads": 0,
+        "gc_freeze": false,
+        "gc_unfreeze_after": false
+      },
+      "calls": [
+        {
+          "wall_s": 42.295,
+          "extra": {
+            "dsg_worker_pids": [
+              2371400,
+              2371401,
+              2371402,
+              2371403,
+              2371404,
+              2371405,
+              2371406,
+              2371407,
+              2371408,
+              2371409,
+              2371410,
+              2371411,
+              2371412,
+              2371413,
+              2371414,
+              2371415
+            ],
+            "edge_fallback": false,
+            "n_sources": 2530545,
+            "n_keys": 989878,
+            "n_producer": 23831828,
+            "orphan_reads": 0,
+            "gc_freeze": false,
+            "gc_unfreeze_after": false
+          }
+        }
+      ]
+    },
+    "assess": {
+      "wall_s": 0.007,
+      "extra": {
+        "status": {
+          "protocol": "silo",
+          "X": "evidence-present",
+          "P": "evidence-present",
+          "I": "evidence-absent"
+        }
+      },
+      "calls": [
+        {
+          "wall_s": 0.007,
+          "extra": {
+            "status": {
+              "protocol": "silo",
+              "X": "evidence-present",
+              "P": "evidence-present",
+              "I": "evidence-absent"
+            }
+          }
+        }
+      ]
+    },
+    "n_edges": {
+      "wall_s": 0.097,
+      "extra": {
+        "n_edges": 25081301
+      },
+      "calls": [
+        {
+          "wall_s": 0.097,
+          "extra": {
+            "n_edges": 25081301
+          }
+        }
+      ]
+    },
+    "scc": {
+      "wall_s": 9.399,
+      "extra": {
+        "total_cycles": 0,
+        "n_reported": 0,
+        "n_edges": 25081301,
+        "anomalies_wall_s": 9.3,
+        "includes_n_edges": true
+      },
+      "calls": [
+        {
+          "wall_s": 9.399,
+          "extra": {
+            "total_cycles": 0,
+            "n_reported": 0,
+            "n_edges": 25081301,
+            "anomalies_wall_s": 9.3,
+            "includes_n_edges": true
+          }
+        }
+      ]
+    },
+    "estimate-dict_producer": {
+      "wall_s": 56.79,
+      "extra": {},
+      "calls": [
+        {
+          "wall_s": 56.79,
+          "extra": {}
+        }
+      ]
+    },
+    "estimate-packed_producer": {
+      "wall_s": 36.254,
+      "extra": {},
+      "calls": [
+        {
+          "wall_s": 36.254,
+          "extra": {}
+        }
+      ]
+    }
+  },
+  "estimate": {
+    "dict_producer": {
+      "wall_s": 54.926,
+      "rss_delta_kib": 5279392,
+      "vmrss_before_kib": 1115140,
+      "vmrss_after_kib": 6394532,
+      "entries": 23831828,
+      "n_keys": 989878,
+      "version_dups": 0,
+      "repeated_versions": 0,
+      "aborted": false,
+      "message": null,
+      "includes_per_key_lists": true
+    },
+    "packed_producer": {
+      "wall_s": 36.02,
+      "rss_delta_kib": 1546572,
+      "vmrss_before_kib": 1120084,
+      "vmrss_after_kib": 2666656,
+      "entries": 23831828,
+      "n_keys": 989878,
+      "version_dups": 0,
+      "repeated_versions": 0,
+      "aborted": false,
+      "message": null,
+      "includes_per_key_lists": false
+    }
+  },
+  "serializable": true,
+  "stop_reason": "completed",
+  "paths": {
+    "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/submit-tree-p1",
+    "trace_src": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/trace-src/wh3",
+    "scratch_root": "/scr",
+    "output_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verifier-capacity/run/profile/wh3"
+  },
+  "peaks": {
+    "node_used_kib_peak": 41805640,
+    "sum_pss_kib_peak": 41569063,
+    "sum_private_dirty_kib_peak": 37016336,
+    "main_vmrss_kib_peak": 10062964,
+    "worker_private_dirty_kib_max": 2651472,
+    "worker_count_max": 16,
+    "by_phase": {
+      "unknown": {
+        "node_used_kib_peak": 26332,
+        "sum_pss_kib_peak": 1485,
+        "sum_private_dirty_kib_peak": 1040,
+        "main_vmrss_kib_peak": 4440,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "parse": {
+        "node_used_kib_peak": 2006080,
+        "sum_pss_kib_peak": 1950741,
+        "sum_private_dirty_kib_peak": 1939392,
+        "main_vmrss_kib_peak": 1253492,
+        "worker_private_dirty_kib_max": 253412,
+        "worker_count_max": 16
+      },
+      "producer": {
+        "node_used_kib_peak": 6329988,
+        "sum_pss_kib_peak": 6303959,
+        "sum_private_dirty_kib_peak": 6302336,
+        "main_vmrss_kib_peak": 6312240,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "edges-workers": {
+        "node_used_kib_peak": 41805640,
+        "sum_pss_kib_peak": 41569063,
+        "sum_private_dirty_kib_peak": 37016336,
+        "main_vmrss_kib_peak": 6934388,
+        "worker_private_dirty_kib_max": 2651472,
+        "worker_count_max": 16
+      },
+      "adjacency-replay": {
+        "node_used_kib_peak": 10090716,
+        "sum_pss_kib_peak": 10055053,
+        "sum_private_dirty_kib_peak": 10053428,
+        "main_vmrss_kib_peak": 10062964,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "edges": {
+        "node_used_kib_peak": 9543688,
+        "sum_pss_kib_peak": 9505569,
+        "sum_private_dirty_kib_peak": 9503944,
+        "main_vmrss_kib_peak": 9513996,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "scc": {
+        "node_used_kib_peak": 9787456,
+        "sum_pss_kib_peak": 9752569,
+        "sum_private_dirty_kib_peak": 9750944,
+        "main_vmrss_kib_peak": 9760996,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "estimate-dict_producer": {
+        "node_used_kib_peak": 6414476,
+        "sum_pss_kib_peak": 6386361,
+        "sum_private_dirty_kib_peak": 6384736,
+        "main_vmrss_kib_peak": 6394532,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      },
+      "estimate-packed_producer": {
+        "node_used_kib_peak": 2884028,
+        "sum_pss_kib_peak": 2858313,
+        "sum_private_dirty_kib_peak": 2856688,
+        "main_vmrss_kib_peak": 2866540,
+        "worker_private_dirty_kib_max": 0,
+        "worker_count_max": 0
+      }
+    }
+  },
+  "vmstat_delta": {
+    "oom_kill": 0,
+    "pswpin": 0,
+    "pswpout": 0,
+    "pgmajfault": 0
+  },
+  "swap_seen": false,
+  "worker_states_tail": [
+    {
+      "t_mono": 877450.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877452.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877454.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877456.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877458.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877460.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877462.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877464.666,
+      "states": {}
+    },
+    {
+      "t_mono": 877466.667,
+      "states": {}
+    },
+    {
+      "t_mono": 877468.415,
+      "states": {}
+    }
+  ],
+  "child_result": {
+    "phases": {
+      "parse": {
+        "wall_s": 8.42,
+        "extra": {
+          "n_files": 48,
+          "n_txns": 2530609,
+          "n_reads": 1253524,
+          "n_writes": 23831828,
+          "worker_pids": [
+            2371308,
+            2371309,
+            2371310,
+            2371311,
+            2371312,
+            2371313,
+            2371314,
+            2371315,
+            2371316,
+            2371317,
+            2371318,
+            2371319,
+            2371320,
+            2371321,
+            2371322,
+            2371323
+          ],
+          "parse_fallback": false,
+          "legacy": false,
+          "dup_txids": 0,
+          "missing_txids": 0,
+          "framing_violations": 0,
+          "malformed_keys": 0
+        },
+        "calls": [
+          {
+            "wall_s": 8.42,
+            "extra": {
+              "n_files": 48,
+              "n_txns": 2530609,
+              "n_reads": 1253524,
+              "n_writes": 23831828,
+              "worker_pids": [
+                2371308,
+                2371309,
+                2371310,
+                2371311,
+                2371312,
+                2371313,
+                2371314,
+                2371315,
+                2371316,
+                2371317,
+                2371318,
+                2371319,
+                2371320,
+                2371321,
+                2371322,
+                2371323
+              ],
+              "parse_fallback": false,
+              "legacy": false,
+              "dup_txids": 0,
+              "missing_txids": 0,
+              "framing_violations": 0,
+              "malformed_keys": 0
+            }
+          }
+        ]
+      },
+      "producer": {
+        "wall_s": 53.087,
+        "extra": {
+          "n_keys": 989878,
+          "n_producer": 23831828
+        },
+        "calls": [
+          {
+            "wall_s": 53.087,
+            "extra": {
+              "n_keys": 989878,
+              "n_producer": 23831828
+            }
+          }
+        ]
+      },
+      "edges-workers": {
+        "wall_s": 15.212,
+        "extra": {
+          "gc_freeze": false,
+          "call_index": 1
+        },
+        "calls": [
+          {
+            "wall_s": 15.212,
+            "extra": {
+              "gc_freeze": false,
+              "call_index": 1
+            }
+          }
+        ]
+      },
+      "adjacency-replay": {
+        "wall_s": 27.078,
+        "extra": {
+          "call_index": 1,
+          "received": 32,
+          "task_count": 32,
+          "complete": true
+        },
+        "calls": [
+          {
+            "wall_s": 27.078,
+            "extra": {
+              "call_index": 1,
+              "received": 32,
+              "task_count": 32,
+              "complete": true
+            }
+          }
+        ]
+      },
+      "edges": {
+        "wall_s": 42.295,
+        "extra": {
+          "dsg_worker_pids": [
+            2371400,
+            2371401,
+            2371402,
+            2371403,
+            2371404,
+            2371405,
+            2371406,
+            2371407,
+            2371408,
+            2371409,
+            2371410,
+            2371411,
+            2371412,
+            2371413,
+            2371414,
+            2371415
+          ],
+          "edge_fallback": false,
+          "n_sources": 2530545,
+          "n_keys": 989878,
+          "n_producer": 23831828,
+          "orphan_reads": 0,
+          "gc_freeze": false,
+          "gc_unfreeze_after": false
+        },
+        "calls": [
+          {
+            "wall_s": 42.295,
+            "extra": {
+              "dsg_worker_pids": [
+                2371400,
+                2371401,
+                2371402,
+                2371403,
+                2371404,
+                2371405,
+                2371406,
+                2371407,
+                2371408,
+                2371409,
+                2371410,
+                2371411,
+                2371412,
+                2371413,
+                2371414,
+                2371415
+              ],
+              "edge_fallback": false,
+              "n_sources": 2530545,
+              "n_keys": 989878,
+              "n_producer": 23831828,
+              "orphan_reads": 0,
+              "gc_freeze": false,
+              "gc_unfreeze_after": false
+            }
+          }
+        ]
+      },
+      "assess": {
+        "wall_s": 0.007,
+        "extra": {
+          "status": {
+            "protocol": "silo",
+            "X": "evidence-present",
+            "P": "evidence-present",
+            "I": "evidence-absent"
+          }
+        },
+        "calls": [
+          {
+            "wall_s": 0.007,
+            "extra": {
+              "status": {
+                "protocol": "silo",
+                "X": "evidence-present",
+                "P": "evidence-present",
+                "I": "evidence-absent"
+              }
+            }
+          }
+        ]
+      },
+      "n_edges": {
+        "wall_s": 0.097,
+        "extra": {
+          "n_edges": 25081301
+        },
+        "calls": [
+          {
+            "wall_s": 0.097,
+            "extra": {
+              "n_edges": 25081301
+            }
+          }
+        ]
+      },
+      "scc": {
+        "wall_s": 9.399,
+        "extra": {
+          "total_cycles": 0,
+          "n_reported": 0,
+          "n_edges": 25081301,
+          "anomalies_wall_s": 9.3,
+          "includes_n_edges": true
+        },
+        "calls": [
+          {
+            "wall_s": 9.399,
+            "extra": {
+              "total_cycles": 0,
+              "n_reported": 0,
+              "n_edges": 25081301,
+              "anomalies_wall_s": 9.3,
+              "includes_n_edges": true
+            }
+          }
+        ]
+      },
+      "estimate-dict_producer": {
+        "wall_s": 56.79,
+        "extra": {},
+        "calls": [
+          {
+            "wall_s": 56.79,
+            "extra": {}
+          }
+        ]
+      },
+      "estimate-packed_producer": {
+        "wall_s": 36.254,
+        "extra": {},
+        "calls": [
+          {
+            "wall_s": 36.254,
+            "extra": {}
+          }
+        ]
+      }
+    },
+    "estimate": {
+      "dict_producer": {
+        "wall_s": 54.926,
+        "rss_delta_kib": 5279392,
+        "vmrss_before_kib": 1115140,
+        "vmrss_after_kib": 6394532,
+        "entries": 23831828,
+        "n_keys": 989878,
+        "version_dups": 0,
+        "repeated_versions": 0,
+        "aborted": false,
+        "message": null,
+        "includes_per_key_lists": true
+      },
+      "packed_producer": {
+        "wall_s": 36.02,
+        "rss_delta_kib": 1546572,
+        "vmrss_before_kib": 1120084,
+        "vmrss_after_kib": 2666656,
+        "entries": 23831828,
+        "n_keys": 989878,
+        "version_dups": 0,
+        "repeated_versions": 0,
+        "aborted": false,
+        "message": null,
+        "includes_per_key_lists": false
+      }
+    },
+    "serializable": true,
+    "expected_commits": 2530609,
+    "observed": 2530609,
+    "commit_delta": 0,
+    "rusage_self": {
+      "ru_utime": 181.063,
+      "ru_stime": 9.512,
+      "ru_maxrss": 10174412
+    },
+    "rusage_children": {
+      "ru_utime": 259.063,
+      "ru_stime": 29.78,
+      "ru_maxrss": 6539832
+    },
+    "gc_count": [
+      28,
+      0,
+      0
+    ],
+    "gc_stats": [
+      {
+        "collections": 87952,
+        "collected": 541,
+        "uncollectable": 0
+      },
+      {
+        "collections": 7995,
+        "collected": 234,
+        "uncollectable": 0
+      },
+      {
+        "collections": 56,
+        "collected": 0,
+        "uncollectable": 0
+      }
+    ],
+    "allocated_blocks": 78473,
+    "incomplete_phases": []
+  },
+  "rc": 0,
+  "wall_total_s": 214.271
+}

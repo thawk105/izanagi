@@ -1,0 +1,14 @@
+#!/bin/bash
+# 段 1 の静的観察: 各 directive 箇所を囲む外側の条件指令を列挙 (使い捨て、repo に入れない)
+R=/work/1/SFC/tanab/dev-wave-scratch/t2153-witness-bc-20260920
+A=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-witness-bc/nest.awk
+echo "== gating-misattr transaction.cc (MISATTR L264 / GATING x12)"
+awk -v targets="264 18 105 127 133 147 196 263 302 576 591 605 866" -f "$A" "$R/ccbench-511c953-gating-misattr/cc/silo/transaction.cc"
+echo "== gating transaction.cc (GATING x12)"
+awk -v targets="18 81 103 109 123 172 239 267 541 556 570 831" -f "$A" "$R/ccbench-511c953-gating/cc/silo/transaction.cc"
+echo "== rung1 transaction.cc"
+awk -v targets="11 187" -f "$A" "$R/ccbench-511c953-rung1/cc/silo/transaction.cc"
+echo "== requested-us transaction.cc"
+awk -v targets="11 157" -f "$A" "$R/ccbench-511c953-requested-us/cc/silo/transaction.cc"
+echo "== requested-us backoff.hh"
+awk -v targets="109 141" -f "$A" "$R/ccbench-511c953-requested-us/include/backoff.hh"
