@@ -1679,6 +1679,102 @@ def test_fc07_accepts_production_commit_terminal_shape(case: _Case) -> None:
     assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
 
 
+def test_fc07_rejects_terminal_root_attempt_shadow(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    attempt = case.records[0]["physical_result"]["build_attempt_id"]
+    wal[-1]["build_attempt_id"] = attempt
+    wal[-1]["payload"]["build_attempt_id"] = "fixture-shadow-attempt"
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_terminal_extra_root_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["extra"] = 1
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+@pytest.mark.parametrize("key", ["env_tag", "ts", "variant"], ids=["env_tag", "ts", "variant"])
+def test_fc07_rejects_terminal_missing_root_key(case: _Case, key: str) -> None:
+    wal = _projection_records(case, 0)
+    del wal[-1][key]
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [("ts", True), ("ts", "1788580082.583126"), ("variant", 1), ("env_tag", None)],
+    ids=["ts-bool", "ts-str", "variant-int", "env-tag-none"],
+)
+def test_fc07_rejects_terminal_invalid_outer_type(
+    case: _Case, key: str, value: object,
+) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1][key] = value
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_payload_only_terminal_stage(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    terminal = wal[-1]
+    terminal["payload"]["stage"] = terminal.pop("stage")
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_duplicate_abort_terminals(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal.insert(1, copy.deepcopy(wal[-1]))
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_rejects_commit_before_abort_terminal(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    attempt = case.records[0]["physical_result"]["build_attempt_id"]
+    wal.insert(1, {
+        "variant": "fixture-v",
+        "stage": M.STAGE_COMMIT,
+        "env_tag": "fixture-env",
+        "ts": 0,
+        "payload": {
+            "build_attempt_id": attempt,
+            "verify_configs": ["legacy", "s2"],
+        },
+    })
+    _rewrite_wal(case, 0, wal)
+    _assert_reason(case, C.FormalReasonCode.FC07)
+
+
+def test_fc07_accepts_float_timestamp_abort_terminal_shape(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    wal[-1]["ts"] = 1788580082.583126
+    _rewrite_wal(case, 0, wal)
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
+def test_fc07_accepts_nonterminal_extra_root_key(case: _Case) -> None:
+    wal = _projection_records(case, 0)
+    attempt = case.records[0]["physical_result"]["build_attempt_id"]
+    wal.insert(1, {
+        "variant": "fixture-v",
+        "stage": "build_start",
+        "env_tag": "fixture-env",
+        "ts": 0,
+        "payload": {"build_attempt_id": attempt},
+        "extra": 1,
+    })
+    _rewrite_wal(case, 0, wal)
+    result = _evaluate(case)
+    assert type(result) is C.P6Unavailable
+    assert result.reason_code is C.FormalReasonCode.P6_UNAVAILABLE
+
+
 def test_fc07_rejects_accepted_without_terminal_commit(case: _Case) -> None:
     record = copy.deepcopy(case.records[0])
     record["physical_result"] = {

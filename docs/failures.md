@@ -265,6 +265,34 @@
   一次資料: `output/insights/2026-09-19/paper-story-20260919/README.md` §3〜§4、`verbatim/review-out.md` 所見 3・4、
   `verbatim/focus-out.md` 対応表 2・3・8。恒久対応は変更なし — 版の全面再導出では、前版から運ぶ文の時点語を
   「日付付きの版名」へ置き換えてから再照合する (2026-09-19 版 §10 の契約)。
+
+- **再発: 2026-09-20** — (1) 論文ストーリー 2026-09-19 版 §3 項目 3 の見出し「仮説層は未実装」は、2026-09-17 版から
+  付け替えられずに運ばれた文で、機序仮説層 v3 が 2026-09-18 の D2143 で実装され同版の起点 `a99425b66` に含まれていた以上、
+  同版の執筆時点で既に偽だった (同版の本文自身は「K2 2 巡目で初適用」と書いており、見出しだけが残った)。2026-09-19 版の
+  親の自己点検と段 6 の 2 本のレビューはこれを拾わず、凍結物に偽が残った (実害)。2026-09-20 版の全面再導出の親も見出しを
+  そのまま運び、同版の段 6 read-only レビューが検出して冒頭の訂正 1 として一覧へ移した (2026-09-19 版は凍結物として書き換え
+  ない。README の訂正一覧・版の履歴表に「1 件」で記録)。転写元が一次資料でなく前版の見出しであった点で F1 と同型であり、
+  前版が「執筆時点の誤り 0 件」と判定していても、新版の導出はその判定を継承せずに見出し語まで一次資料へ再照合する必要がある。
+  (2) 同 wave の親が専用 handoff の段 1 完了時刻を `date` で採らず推定で「07:47 JST」と書き、直後に `date` (07:16 JST) で
+  「07:15 JST」へ訂正した (near-miss、実害なし。2026-09-19 の B-4 w1 wave と同型)。
+  一次資料: `output/insights/2026-09-20/paper-story-20260920/README.md` §4、同 `verbatim/review-out.md` 所見 2。
+  恒久対応は変更なし — 版の全面再導出では見出し・括弧書きの状態語も一次資料 (D 本文) へ再照合し、handoff の時刻は
+  `date` の出力だけを書く。
+
+- **再発: 2026-09-20 (near-miss)** — claim-evidence 稿 2026-09-20 版の wave で、親が専用 handoff の節見出しに時刻を
+  `date` で採らず推定で「08:12 JST」と書き、レビュー子の起動時刻も「08:06 頃」と推定で書いた。直後の `date` (08:05 JST) と
+  `ps` の etime (02:47) で 7〜11 分ずれていることが分かり、同じ turn で実測値へ直した (実害なし。台帳・insight・稿には
+  入っていない)。転写対象は日付・機構の実在・推測の確度に続いて**経過時刻の推定**であり、memory
+  「wave 中の時刻は date/mtime/commit 日時で採る、推定しない」の再発である。恒久対応は同 memory と `DW-S07`
+  (日時は commit / 成果物 field から取る) から変更なし — 時刻を書く行の直前に `date` を打ち、その出力だけを写す。
+
+- **再発: 2026-09-20 (near-miss、単独 results 稿 wave `dev-wave-mocc-g2-observation-results`)** — 稿 §1.5 の B2〜B4 の `result.json` の
+  `started_at` / `finished_at` を、B1 の実値と NQSV 要約から**推定**して書いた (B2 06:50:20 / B3 06:55:41 / B4 06:50:35 UTC。実値は
+  06:50:16 / 06:55:37 / 06:50:29)。commit 前の機械照合 (job dir の使い捨て script が稿の全数値を一次資料から再抽出して突き合わせる、
+  T-2674 の恒久対応) が捕まえ、実値へ直した。同じ wave で専用 handoff の節見出しの時刻も 2 回推定で書き (07:30 / 07:55、実測は
+  07:24 以後 / 07:42 直前)、`date` の実測で訂正した。転写対象が「隣の block の値からの外挿」へ広がった顕在化。稿・README・insight
+  には推定値は残っていない。恒久対応は memory (`timestamps-from-date-or-mtime-not-estimation`) から変更なし — 表の各 cell は
+  現物 field から機械抽出し、機械照合を commit 前に必ず 1 回通す。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -2420,6 +2448,13 @@
   21530 passed / 赤 0)。
 
 - **再発: 2026-09-10** — 事前登録の束縛のために consumer へ `subprocess.run` を 2 箇所足したが、親の焦点走の集合を「変更した 2 file + 直接の path/basename pin 2 file」から組んだため、repo 全体を AST 走査する `test_ccbench_spawn_sites.py` の reviewed inventory を落とした。2026-08-28 の再発と同じ機構である。今回は最終受入まで行かず段 6 の敵対レビュー B が静的に指摘し、親が当該 file を単独走して 2 failed を現物で確認してから fix へ回したため、費用は焦点走 1 回 + fix 子 1 本に収まった。**新しい process 起動 site を足す wave では、親の焦点走の集合に `test_ccbench_spawn_sites.py` を必ず入れる。** module 名の grep では出ない層である。
+
+- **再発: 2026-09-20** — wave dev-wave-fig3b-arc-status。新設した `orchestrator/tests/test_plot_arc_status.py` が自走 harness も allowlist
+  記載も持たず、受入全走 1 回目 (3 shard) を `test_plain_runner_coverage.py` の 1 件赤にした。親は `DW-O26` (新規 test file を足す走は
+  file 集合列挙のメタテストも焦点走に含める) を段 9 前に読みながら、焦点走 2 回とも新 test file 単独で回した。author とレビュー B は
+  目録型 test を `plotting` / `provenance` の語で検索して「見つからない」と報告した (file 名を列挙する型は語検索で必ず落ちる、
+  [T-2737] と同じ)。fix2 (Codex、`__main__` + `pytest.main` の 2 行) の後に焦点走を新 test + `test_plain_runner_coverage.py` +
+  `test_check_subprocess_bytecode_guard.py` で回して閉じた。費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -2755,6 +2790,13 @@
   実害なし。v1 の所見は v2 brief の provisional 裁定へ取り込んだ)。2026-08-21 の再発と同じ `DW-O13` の判定漏れで、
   前回は巻き戻さなかったが今回は契約どおり巻き戻した。根本原因は同じ — 条件表の「可能性が生じた時点」を、参照節の
   冒頭 2 文を読んで判定していない。
+
+- **再発: 2026-09-20** — 8c formal consumer の terminal 外枠 gate の wave (D1730 実装) で、条件 dispatch 13 (`DW-O13`、gate 新設時、
+  最遅 = 段 2 前) を段 1 brief に「gate を足す」と書いた時点で辿らず、段 3 の後に気づいた (near miss、実害なし)。契約どおり段 2〜4 の成果物を無効化し、
+  実環境 log で gate 入力の到達性 (outer 5 key exact 490/490、attempt ごとに terminal 1 件 = 16/16) を実測してから段 2〜4 をやり直した
+  (codex 子 3 本の再投入、約 15 分)。型は同じ「L2 節の読了が発火より遅れる」。段 1 brief を書き終えた直後に条件表 08/09/10/13 を
+  一括再評価する手順を memory へ置いた。`DW-S01` へ同旨の 1 文 (76 bytes) を足す案は `check_docs` の L1 予算
+  (10701 > 10625 bytes) に当たり、D782 / D730 に従い docs 側へは入れていない。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -16644,6 +16686,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-08** — [T-2401] wave が同じ型を踏んだ。新設 test が Python を明示 `env=` 付きで起動する 4 箇所に bytecode guard が無く、受入全走 (22016 件緑) が `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` 1 件だけで rc=70 になった。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` を直接叩けば 1 分で分かる違反である。**恒久対応は既に F521 が書いていたが、受入前の棚卸しをしなかった。** 焦点走 (`DW-O26`) は参照関係で対象を引くため、repo 全体を走査する checker 系 test は今回も対象に入らなかった。
+
+- **再発: 2026-09-20** — wave dev-wave-fig3b-arc-status。新設 test の T7 が `subprocess.run([sys.executable, ...], env={...})` に
+  bytecode guard を持たず、受入全走 1 回目を `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` の赤にした (上の F42 再発と
+  同じ走)。`python3 tools/check_subprocess_bytecode_guard.py --repo <worktree>` は数秒で rc=1 を返したのに、受入前の関門として
+  `check_docs.py` と `check_ai_provenance.py` しか回していなかった。fix2 で env dict literal に `PYTHONDONTWRITEBYTECODE` を足し、
+  checker rc=0 を login で確認してから受入を取り直した。
 ### F522. acceptance 直前に session-start resume gate を再実行し、既存の main 取り込み経路を使わず停止した [手順漏れ] [コンテキスト浪費]
 
 - 事象: [T-1376] の stale-main 再開で固定 main を取り込んだ後、acceptance 直前に local main が
@@ -24020,6 +24068,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 本 wave の D1714 が要求する
   「node → worker 割当」の実測が、この仮定の誤りを毎回顕在化させる。
 
+
+- **再発: 2026-09-18** — [T-2724] 候補生成 wave の一次資料 §8 と裁定パッケージ (d) が、chain (official 床値 result) を main に載せる帰結を growth hold 登録簿にある実 repo 走査 test 2 本だけで数え、登録簿に無い実 root consumer (実 root の git-visible output を fixture へ複製する T-080 fixture 10 node、実 committed HEAD を clone して official clean scan を通す 5 node、`run_block(root=ROOT)` で T-080 receipt を解決し process 内 memo で共有する契約 test 29 node、公開 gate の v1 verify 1 node) と production の oracle gate (`_make_gate_decision` が receipt refusal を無条件 merge、`_campaign_t080_value` が invalid receipt を拒否) への波及を列挙しないまま D2120 項 2 (a)(d) が裁定された。世代導入 G の wave が X1' を含む木で焦点走を実走して 45 failed / 967 passed、runbook §2 P3 `gate-check` の refusals に `holdout-freeze-verify: [holdout.unknownness_layer2]` が混入することを観測 (`output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §4)。恒久対応の追加: memory `chain-consequence-enumerate-real-root-consumers` (2026-09-18 作成) — 凍結 / official 成果物を tree に入れる帰結は hold 登録簿でなく `ROOT` 参照 (複製・clone・`root=ROOT` 解決) を grep で列挙し、その成果物を含む木で当該 file を `tools/run_tests.py` で 1 走し、production gate (runbook P3) も同じ木で 1 回叩いてから裁定材料に書く。
 ### F863. 高速化がキャッシュ経由で検出力を静かに下げた [恒真ゲート]
 
 - 事象: 実 repo `output/` snapshot を git 索引経由へ変える実装が、初版で 3 つの経路から
@@ -27861,3 +27911,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 登録された node は test 全体の間 read lock (LOCK_SH) を保持する。ccbench の writer node が gate を握って全 reader の解放を待つ間、後続の reader は gate で 245 秒を超えて待ち、deadline で fail-closed になる。既存の stub-free T-080 e2e 10 node (各約 200 秒) は `_T080SharedBases` で session に 1 回だけ base を組み、各 test はその copy を使うので登録されておらず、この経路を通らない。「実 root を読む test は登録する」は正しいが、**長時間の test をそのまま登録すると lock の保持時間が gate の deadline を食う**。
 - 恒久対応: copy後の親rootへのfallbackをfix-4で除去し、`build_production_emitter_g1`のreceipt接続分岐はcopy内の材料だけを読む。登録簿は既存stub-free e2eと同じ未登録へ戻し、`root=ROOT`を直接渡すseam負例だけ保持する。base構築自体の親root読取りと完全排他の残余は保持する。解消根拠はfix-5後の焦点走（5698: 1211 passed / 12 skipped、5699: 1104 passed / 11 skipped）と回収時の独立静的監査2本 `output/insights/2026-09-18/t2724-t080-defer-active-v2/verbatim/recovery-review-A.md` / `recovery-review-B.md`。旧`s6-rereview.md`のRR-1は修正前NO-GOであり、解消証拠ではない。
 - 再発検知: 既存のcopy内材料欠落7条件の負例とreal-repo serialization検査、焦点走のlock deadline/INTERNALERRORを確認する。一般的な所要閾値や新しいgateは設けない。
+
+### F1031. 40 hex の SHA を `rev-parse` の出力から写さず頭から推測で補完し、存在しない object を指す git 操作を投げた [捏造/幻覚] [手順漏れ]
+
+- 事象: 2026-09-20 に独立 2 例。(1) [T-2790] wave で `git worktree add ... <sha>` の sha を短縮 sha から補完して存在しない object を
+  fetch し、独立 clone を 1 回無駄にした。(2) 本 wave (fig3b) で変異用 clone の `git update-ref refs/heads/main <sha>` に推測の
+  40 hex を書いて `nonexistent object` で失敗し、clone を作り直した。いずれも実害は clone 1 回の再作成で、成果物・判定は変わらない。
+- 根本原因: 短縮 sha を見た後に 40 hex 引数を手で組み立てた (先頭 9 桁だけが本物で残りは埋め文字)。git は短縮 sha を受けるのに
+  「40 hex 必須」という思い込みから補完した。
+- 恒久対応: memory `worktree-discipline` (2026-09-20 追記「worktree add の sha は 40 hex を rev-parse から」) と
+  `mutation-discipline` (update-ref 後の reset --hard)。行動規律: SHA を引数に書く command は、直前の `git rev-parse <ref>` の
+  出力を逐語で写すか、短縮 sha をそのまま渡す (補完しない)。
+- 再発検知: `nonexistent object` / `bad object` の失敗を見たら推測 SHA を疑い、`git rev-parse` の出力と比較する。

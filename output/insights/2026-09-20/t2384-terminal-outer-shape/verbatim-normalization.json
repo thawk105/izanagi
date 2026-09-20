@@ -1,0 +1,68 @@
+{
+ "rule": "行末の空白 (space/tab) を除去し、末尾の連続空行を 1 つの newline に畳む。可視文字は不変。復元は原本 sha256 と bytes を持つ job dir の原本 (/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2384-terminal-outer-shape/codex/ 配下、invalidated-r1 は同 dir の invalidated-r1/) から行う。",
+ "files": {
+  "verbatim/codex/s2-plan.md": {
+   "original_sha256": "84a52ae3ab19bdab7f462b773563f5ad8c3ef83ec1669094a73035e933f98d3e",
+   "original_bytes": 17673,
+   "normalized_sha256": "361b6f49e126a886ed23048b837fe4f87755d39ae96ec8439afdfcef2d6e1355",
+   "normalized_bytes": 17666,
+   "lines_with_trailing_ws_removed": 4
+  },
+  "verbatim/codex/s3-consult-A.md": {
+   "original_sha256": "e7aadd4420f9fd200246c4af109ac41686b89be447077be77b2d5bc2698d63e8",
+   "original_bytes": 9421,
+   "normalized_sha256": "6c000c1a3daf429aee99a05cf2c946236f0aa08c228da6af765bfa370f223620",
+   "normalized_bytes": 9416,
+   "lines_with_trailing_ws_removed": 3
+  },
+  "verbatim/codex/s3-consult-B.md": {
+   "original_sha256": "e102800640d0bcd2d616d67c8153c29c3bb8b0afa68950785283b17a975ae691",
+   "original_bytes": 9017,
+   "normalized_sha256": "f1d16ed68bc81b01c50f73054eadf7c0a8cc72d51ab5e916578e91b9c82db5d5",
+   "normalized_bytes": 9010,
+   "lines_with_trailing_ws_removed": 4
+  },
+  "verbatim/codex/s5-author.md": {
+   "original_sha256": "6be3b3a509af2a6b378ff26114f963d5002e12ddbcaaa11b31690ef8295b7fb4",
+   "original_bytes": 6100,
+   "normalized_sha256": "67d930476fae4a6f2d1c6c3366ba508c31cbf7ee61d19b04cca03d9d9435bb04",
+   "normalized_bytes": 6095,
+   "lines_with_trailing_ws_removed": 3
+  },
+  "verbatim/codex/s6-review-A.md": {
+   "original_sha256": "bb592981dcf11786a14957738dfa33e9e1fd602efc1a5b73be1feada31bd4118",
+   "original_bytes": 8324,
+   "normalized_sha256": "3e78520ad4bce2f200d90a93f0d716c5e13dabe86682d37b58e82096b11aeb2b",
+   "normalized_bytes": 8319,
+   "lines_with_trailing_ws_removed": 3
+  },
+  "verbatim/codex/s6-review-B.md": {
+   "original_sha256": "7343ba4db088a7533e5f11f95c32c46811f4e9b0b668c63d0e42c4c2a39c6cdf",
+   "original_bytes": 8635,
+   "normalized_sha256": "3c1f75ba38394761d16782444cb0f9b57eed8be782714aee139af0c7707972a4",
+   "normalized_bytes": 8618,
+   "lines_with_trailing_ws_removed": 9
+  },
+  "verbatim/invalidated-r1/s2-plan.md": {
+   "original_sha256": "07088c2939e8234ed835e25e35348e6d87407248e08693a0fea1318295b1f9fc",
+   "original_bytes": 17150,
+   "normalized_sha256": "546d3de23fa8edc0feae3b5dd61bcf139dc3904edc4c796152d29daf3c0cf68e",
+   "normalized_bytes": 17143,
+   "lines_with_trailing_ws_removed": 4
+  },
+  "verbatim/invalidated-r1/s3-consult-A.md": {
+   "original_sha256": "e4cdee922bb372610cb33eae464b884bdbbc068b976861c8c9e8a40062954c6e",
+   "original_bytes": 10981,
+   "normalized_sha256": "1e969d5095bad522bf4e24b7ddae1cab737fe4ee2fd1c32c50acaf998678ab6a",
+   "normalized_bytes": 10974,
+   "lines_with_trailing_ws_removed": 4
+  },
+  "verbatim/invalidated-r1/s3-consult-B.md": {
+   "original_sha256": "9f678b13f0cd60cb97575bbbf1b6ba740e39b72265889a1ddf0feeaaeb353afc",
+   "original_bytes": 10195,
+   "normalized_sha256": "f4d7f617c1e7ce535db4d0eee3584426b0ec46390f63c1e6ed764db0471a0db5",
+   "normalized_bytes": 10190,
+   "lines_with_trailing_ws_removed": 3
+  }
+ }
+}

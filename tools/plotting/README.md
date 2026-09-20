@@ -163,6 +163,17 @@ root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `izanagi-b10-static-tail-formal-figure-provenance/v1`。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig8 節を正本とする。
 
+**再現欄付きの後継図 (fig8b、2026-09-20):** `OUT_PREFIX` の後ろに `--reproduction-cohort 2` を付けると、
+**主結果 cohort 1 (上 block) と独立再現 cohort 2** (group `b10-backoff-grid-20260919T131526Z-2235286`、
+`group-report-20260919-cohort2/` の 3 file、下 block) を縦 2 block (4 行 × 3 列、7.2 × 10.6 in) で
+区別して併記する。cohort 2 単独の図は作らない (受理する値は `2` だけ)。役割 (1 = primary、2 = reproduction)
+と順序は生成器の `COHORTS` 表で固定し、CLI からも provenance の改変からも入れ替えられない。拒否条件と
+pin (CLI から渡せない) は両 cohort に同じ。provenance の schema は `.../v2` で、`cohorts[]` に cohort ごとの
+記録を持ち、top-level に cohort をまたぐ統計 field は無い (`claim_boundary.cohorts_pooled: false`)。caption は
+事前登録 §4.5 の固定表現を各 cohort へ独立に適用し、合成・プール・一致度評価をしない旨を含む。省略時は
+上の単 cohort 経路 (fig8 の形) のままで、その受理集合・射影は変えていない。図番号の英字 suffix (`fig8b_`) を
+受理するのは `--reproduction-cohort 2` の経路だけ。正本は同 README の fig8b 節。
+
 ## A-1 balanced5 sized attempt-0001 (対差平均 ± 登録済み区間) figure
 
 `plot_a1_sized_paired.py` は、A-1 balanced5 sized 本走 attempt-0001 (study
@@ -192,6 +203,38 @@ repo 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` を `caption_source` として SHA-256 付きで記録する
 (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig9 節を正本とする。
+
+## B-7 fixed 5 µs 三 workload 退行 (床値判定の記述図) figure
+
+`plot_b7_fixed5_regression.py` は、採用候補 fixed 5 µs を 3 workload で同一 attempt に測った study
+`paper-story-b7-fixed5-regression` (attempt `b7f5-20260919a`、3 workload × 2 cell × 5 標本) の標本・median・効果と、
+D1639 の between-run 床値との比較を 2 段 (上段 3 panel の標本、下段 1 panel の効果と −floor) で描く専用生成器である。
+既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_b7_fixed5_regression.py [--repo-root PATH] [--measurement-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の権威 bytes `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json` と
+`raw-manifest.json`、床値 JSON `output/env/pegasus/calibration/between_run_noise_t48_skew0p9_{rr5,rr50,rr95}_rmw0.json`、
+policy `orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json` (6 file、生成器の pin 表で SHA-256 束縛。pin は CLI から渡せない) と、
+raw-manifest が SHA-256 で束縛する repo 外の raw cell JSON 6 本 (`--measurement-root` 配下、既定は durable authority の path)。
+
+- median は raw の 5 標本から再計算し certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、median の比からの
+  再計算と照合する。図に出す判定の出所は稿 `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` §2.1 の転記
+  (定数) で、生成器は述語 `effect < −floor` (床 = 床値 JSON の `between_run.cv` 全桁、strict) を転記との整合検査にだけ使う。
+- SHA-256 不一致、schema / study / attempt / cell 順序の不一致、`source_binding_status` ≠ bound、adopted の `src_token` 不整合、
+  `correctness.status` ≠ certified、raw の verify 記録の不整合、性能標本が trace-enabled、`unstable`、標本数 ≠ 5、median / 効果 / 判定の不一致、
+  床値 JSON の genome / 条件の不一致、caption_source の不在のいずれでも成果物を出さない。
+- 保存前に renderer-backed layout check を実行し、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- caption は英文で、「B-7 の充足判定ではない」「規則 (effect < −floor、strict) と D1639 の床の出自」「退行なしは優越でも差が無いことの証明でもない、
+  有意差判定はしない」「outer status は論理積の出力で研究の判定ではない」「単一 attempt、昇格しない」「正しさは別走行、性能の認証ではない」
+  「CI は標本の記述」「上段 y は workload 別」「既存材料とプール・比較しない」の固定文を逐語で含む。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-b7-fixed5-regression-figure-provenance/v1`。`tracked_inputs` には稿を `caption_source` として SHA-256 付きで記録する
+(稿は provenance の SHA-256 を持たない、F36)。`external_inputs` には raw 6 本の root 相対 path と SHA-256 を記録する。
+論文図の再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig10 節を正本とする。
 
 ## S-1a 9 対 (失敗報告図) command example
 
@@ -332,3 +375,32 @@ loader が照合し、不一致を fail-closed にする。model 側も元測定
 現行の作図規約に合わせ、prediction 図の水平参照線は raw 反復から再計算した Student-t 95% CI 帯を
 伴う。適応機構との比較用に、no backoff と調整済み adaptive (刻み 1 µs / 更新間隔 2560 µs /
 上限 1000 µs) をともに表示し、10 µs panel は 8 点格子固有の tick も省略しない。
+
+## 論文ストーリーの現況図 (3 幕 + §8 A/B 群の状態、値なし) figure
+
+`plot_arc_status.py` は、論文ストーリー文書の凍結版 (現在は `docs/paper-story/2026-09-19.md`) の §0 の 3 幕の要約と §8 の
+証拠項目 (A 系列 5 + B 群 11) の【状態】だけを、値を 1 つも描かずに 1 枚の模式図にする専用生成器である
+(`fig3_arc_status.png` の後継図 `fig3b_`)。既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_arc_status.py [--repo-root PATH] [--states PATH] OUT_PREFIX
+```
+
+入力は状態 JSON (`--states` 省略時は `tools/plotting/arc_status_story_2026-09-19.json`、schema `izanagi-arc-status/v1`) と、
+JSON の `story_path` が指す凍結本文である。状態語の意味の正本は本文で、JSON は人がそこから写した射影である。
+
+- 4 状態 `obtained` / `uncertified` / `awaiting-ruling` / `not-obtained` を色とマーカー形 (塗り丸 / 中抜き菱形 / 中抜き三角 / ×)
+  で描く。`obtained` は「判定または完了の記録がある」であって主張の支持ではない (B-1 の `not met`、A-6 の `reject` も obtained)。
+- 各項目の `source_anchor` (`§8 A-1` / `§0 item 3` / `§0 act 3`) が本文の該当節にちょうど 1 行の項目見出しとして存在することを
+  検査する。意味の一致は検査しない。
+- 自由文 (label / sublabel / 状態定義文) に数量が混じると拒否する: `=`、`%`、単位語、数詞、および JSON で宣言した証拠項目 ID と
+  `reference_ids` 以外の数字入り token。caption と脚注の節番号・版日付・図番号は構造 field から組み立てる。
+- key 集合の不一致 (未知・不足・重複 key、NaN / Infinity)、4 状態以外の `state`、ID 重複、`story_path` の不一致、prefix が
+  `fig<N><letters>_` でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・
+  所属領域内包・相互非交差・兄弟セル非交差・marker 非交差) の違反、のいずれでも成果物を出さない。
+- 判定・値・認証を再計算しない。図は「記録された状態の要約」であり、採用・認可・certification の根拠にしない。
+
+出力は `OUT_PREFIX.png` (200 dpi)、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-arc-status-figure-provenance/v1` で、入力 2 file (JSON・本文) と生成器・出力の SHA-256、描いた項目 (`drawn_items`: ID・
+状態・実表示文字列)、状態定義、caption、展開済み argv、matplotlib / numpy の版を持つ。論文図の再現コマンド、caption、proof chain、
+次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節を正本とする。

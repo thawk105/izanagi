@@ -1,0 +1,217 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\"\"\"\n",
+          "new": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-cohort2-dat-pin-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd6\",\n",
+          "new": "            \"group-report-20260919-cohort2/t2500-backoff-static-tail-formal.dat\": \"15b99944b8429c0c2bb0d36d4498c7ab2a57d3f90c97d2430f34838905881fd7\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_pinned_hashes_match_cohort2_results_document",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_real_root_loads_cohort2_and_matches_results_document_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-cohort2-role-primary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    2: {\"role\": \"reproduction\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n",
+          "new": "    2: {\"role\": \"primary\", \"group_id\": \"b10-backoff-grid-20260919T131526Z-2235286\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-verdict-accepts-saturated",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    _require(report[\"verdict\"] == EXPECTED_VERDICT, \"verdict mismatch\")\n",
+          "new": "    _require(report[\"verdict\"] in (EXPECTED_VERDICT, \"saturated-in-all-workloads\"), \"verdict mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort2_rejects_alternate_verdict_and_certification_failures"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-caption-v2-drops-not-pooled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        *ratios, NOT_POOLED_WORDING,\n",
+          "new": "        *ratios,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-fixed-wording-overclaims",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "FIXED_WORDING = \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\"\n",
+          "new": "FIXED_WORDING = \"Under the predicates of this preregistration, the abort rate does not saturate up to 9999 us, the representable limit of the current encoding.\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_avoids_forbidden_saturation_claims",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_caption_contains_fixed_expression_and_certification_literal",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-layout-check-returns-early",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    from matplotlib.text import Text\n",
+          "new": "def check_figure_layout(fig, axes, *, expected_axes=6):\n    return None\n    from matplotlib.text import Text\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-drop-block-title-intrusion-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        if text.get_gid() == \"block-title\" and any(_intersection(box, ax.bbox) > 1 for ax in plot_axes):\n",
+          "new": "        if text.get_gid() == \"block-title\" and False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-figure-number-numeric-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    pattern = r\"fig([0-9]+[a-z]?)_\" if letter_suffix else r\"fig([0-9]+)_\"\n",
+          "new": "    pattern = r\"fig([0-9]+)_\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_figure_number_suffix_is_v2_only",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_block_title_intrusion_publishes_nothing",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_caption_contains_independent_fixed_wording",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_v2_text_overlap_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-lower-block-draws-cohort1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], c)\n",
+          "new": "        _, block_handles = _draw_block(fig, axes[2 * block:2 * block + 2], data[\"cohorts\"][0])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_two_cohort_artists_match_raw_repetitions_and_intervals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-claim-boundary-pooled-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": False, \"cohort_roles_fixed_in_generator\": True,\n",
+          "new": "CLAIM_BOUNDARY_V2 = {**CLAIM_BOUNDARY, \"cohorts_pooled\": True, \"cohort_roles_fixed_in_generator\": True,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cohort_roles_are_fixed_literals",
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_landed_fig8b_repo_closure_and_both_captions_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-drop-positional-role-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    _require([(c[\"cohort\"], c[\"role\"]) for c in provenance[\"cohorts\"]] == [(1, \"primary\"), (2, \"reproduction\")],\n             \"cohort order/role mismatch\")\n",
+          "new": "    _require(len(provenance[\"cohorts\"]) == 2, \"cohort order/role mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b10_static_tail_formal.py::test_cli_cohort2_writes_three_outputs_and_v2_closure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

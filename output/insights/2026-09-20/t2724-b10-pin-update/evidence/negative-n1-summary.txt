@@ -1,0 +1,91 @@
+2026-09-20 07:45:22 JST
+16f4879369a64e29c5ef98bb6ce50553fb39f03d
+?? output/s8b-freeze/negative-example-extra-file.json
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-b10-pin-update/negative-n1/output/pegasus-dispatch/orphan-holds/unknown-f960497f4ac1684dc06b02af.json
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-b10-pin-update/negative-n1/output/pegasus-dispatch/orphan-holds/unknown-f960497f4ac1684dc06b02af.json
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [ 32%]
+| ........................................................................ [ 64%]
+| .......................................................F................ [ 96%]
+| .........                                                                [100%]
+| =================================== FAILURES ===================================
+| _____________ test_b10_freeze_tree_bytes_match_the_wave_local_gate _____________
+| [gw28] linux -- Python 3.10.12 /bin/python3.10
+|
+|     def test_b10_freeze_tree_bytes_match_the_wave_local_gate():
+|         root = Path(__file__).resolve().parents[2]
+|         digest = hashlib.sha256()
+|         paths = [
+|             path
+|             for relative in ("output/s1-freeze", "output/s8b-freeze")
+|             for path in (root / relative).rglob("*")
+|             if path.is_file()
+|         ]
+|         for path in sorted(paths):
+|             digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+|             digest.update(b"\0")
+|             digest.update(path.read_bytes())
+| >       assert digest.hexdigest() == (
+|             "6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415"
+|         )
+| E       AssertionError: assert '74a3f0355b77...dae9afc656c9f' == '6a4ee1ef58e7...ec63fa2f52415'
+| E
+| E         - 6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415
+| E         + 74a3f0355b778f5e5fa53f3449f477ca45c8804fc0305ba6295dae9afc656c9f
+|
+| orchestrator/tests/test_backoff_extended_sweep.py:2024: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate
+| 1 failed, 224 passed in 5.49s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1045 retained_bytes=1045 omitted_bytes=0 rendered_excerpt_bytes=1097 sha256=e7630032354b4c0ba6b54c8ea3a19425f96635cb63cc647e9deb67e531dc2674
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw28] linux -- Python 3.10.12 /bin/python3.10
+| >
+| >     def test_b10_freeze_tree_bytes_match_the_wave_local_gate():
+| >         root = Path(__file__).resolve().parents[2]
+| >         digest = hashlib.sha256()
+| >         paths = [
+| >             path
+| >             for relative in ("output/s1-freeze", "output/s8b-freeze")
+| >             for path in (root / relative).rglob("*")
+| >             if path.is_file()
+| >         ]
+| >         for path in sorted(paths):
+| >             digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+| >             digest.update(b"\x5c0")
+| >             digest.update(path.read_bytes())
+| > >       assert digest.hexdigest() == (
+| >             "6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415"
+| >         )
+| > E       AssertionError: assert '74a3f0355b77...dae9afc656c9f' == '6a4ee1ef58e7...ec63fa2f52415'
+| > E
+| > E         - 6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415
+| > E         + 74a3f0355b778f5e5fa53f3449f477ca45c8804fc0305ba6295dae9afc656c9f
+| >
+| > orchestrator/tests/test_backoff_extended_sweep.py:2024: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1045 retained_bytes=1045 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1828 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+|
+| ============================================================
+| Request ID:             11875.nqsv
+| Request Name:           izdw-5495be4322
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sun Sep 20 07:45:37 2026
+| Started Request Time:   Sun Sep 20 07:45:45 2026
+| Ended Request Time:     Sun Sep 20 07:45:51 2026
+| Resources Information:
+|   Elapse:               11S
+|   Remaining Elapse:     3589S
+| ============================================================
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:sidecar
+2026-09-20 07:46:03 JST

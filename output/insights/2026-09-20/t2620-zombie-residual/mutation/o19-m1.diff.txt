@@ -1,0 +1,13 @@
+diff --git a/tools/codex_worker_launch.py b/tools/codex_worker_launch.py
+index cf230dabb..d940bcb21 100755
+--- a/tools/codex_worker_launch.py
++++ b/tools/codex_worker_launch.py
+@@ -1719,6 +1719,8 @@ def _group_member_count(
+                     if on_malformed is not None:
+                         on_malformed()
+                     continue
++                if fields[0] == "Z":
++                    continue
+                 if int(fields[2]) == identity.pid:
+                     count += 1
+             except FileNotFoundError:

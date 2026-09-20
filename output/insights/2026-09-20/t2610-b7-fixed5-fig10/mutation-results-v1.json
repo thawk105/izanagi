@@ -1,0 +1,1085 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/3330ce8b79ff2ae3b0a04f124a1bc402/izdw-3330ce8b79.o11934",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/3330ce8b79ff2ae3b0a04f124a1bc402/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................                               [100%]\n42 passed in 7.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "30397efc69a05d1e7f82b2abc343a367f85350023e19a51beb5f475642d51b55"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+    "duration_s": 32.645,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "2c0484cc47ba2134fe941fca740efcb24e4cb58455e7218e0e081b4d10760b9d",
+    "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+    "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+    "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+    "status": "PASSED",
+    "test_output_sha256": "30397efc69a05d1e7f82b2abc343a367f85350023e19a51beb5f475642d51b55",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+  },
+  "date": "2026-09-19T23:23:46.357983+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/00f8ee15a05bdfb85af37eba1c18cad9/izdw-00f8ee15a0.o11935",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/00f8ee15a05bdfb85af37eba1c18cad9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................                               [100%]\n42 passed in 7.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "0f25cfac4937fff768eecb811380fa96c8352acb09905753bdf86124bcc0dfa3"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 83.734,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-docstring",
+      "injection_diff_sha256": "463f30540bb1bd40628389ab0969964cc1793f98f47ed43a2fd20ab2c1c6bdf8",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "8d7e7a9e5e30a956b2746747421efc49792310a2a2584891e1041466abd8e61a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+          "old": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\"\"\"\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "SURVIVED",
+      "test_output_sha256": "0f25cfac4937fff768eecb811380fa96c8352acb09905753bdf86124bcc0dfa3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/25911492c4519f89892a832362cf3e91/izdw-25911492c4.o11942",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/25911492c4519f89892a832362cf3e91/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................FFFF....                               [100%]\n=================================== FAILURES ===================================\n_____________________ test_manifest_hash_drift_is_rejected _____________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_manifest_hash_drift_is_re0')\n\n    def test_manifest_hash_drift_is_rejected(tmp_path):\n>       _reject_hash_drift(tmp_path, PLOT.MANIFEST_JSON)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:274: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_hash_drift.<locals>.<lambda> at 0x14aba3526ef0>\nphrase = 'SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n______________________ test_policy_hash_drift_is_rejected ______________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_policy_hash_drift_is_reje0')\n\n    def test_policy_hash_drift_is_rejected(tmp_path):\n>       _reject_hash_drift(tmp_path, PLOT.POLICY_PATH)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:282: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_hash_drift.<locals>.<lambda> at 0x14e24557aef0>\nphrase = 'SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n______________________ test_floor_hash_drift_is_rejected _______________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_floor_hash_drift_is_rejec0')\n\n    def test_floor_hash_drift_is_rejected(tmp_path):\n>       _reject_hash_drift(tmp_path, PLOT.FLOOR_JSON['rr5'])\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:278: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_hash_drift.<locals>.<lambda> at 0x14ec2acd2e60>\nphrase = 'SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n__________________ test_certification_hash_drift_is_rejected ___________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certification_hash_drift_0')\n\n    def test_certification_hash_drift_is_rejected(tmp_path):\n>       _reject_hash_drift(tmp_path, PLOT.CERT_JSON)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:270: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_hash_drift.<locals>.<lambda> at 0x14c40534aef0>\nphrase = 'SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected\n4 failed, 38 passed in 7.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1174 retained_bytes=1174 omitted_bytes=0 rendered_excerpt_bytes=1229 sha256=811b782f07de034d2425b0c8d9682dba7c2128063425406d368d8188505eebfa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_floor_hash_drift_is_rejec0')\n> \n>     def test_floor_hash_drift_is_rejected(tmp_path):\n> >       _reject_hash_drift(tmp_path, PLOT.FLOOR_JSON['rr5'])\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:278: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_hash_drift.<locals>.<lambda> at 0x14ec2acd2e60>\n> phrase = 'SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1172 retained_bytes=1172 omitted_bytes=0 rendered_excerpt_bytes=1227 sha256=599f73af90b1fc00d99b6bd7c73f215c6b1961093a8b73b5c377acdb5c9baf31\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_certification_hash_drift_0')\n> \n>     def test_certification_hash_drift_is_rejected(tmp_path):\n> >       _reject_hash_drift(tmp_path, PLOT.CERT_JSON)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:270: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_hash_drift.<locals>.<lambda> at 0x14c40534aef0>\n> phrase = 'SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1171 retained_bytes=1171 omitted_bytes=0 rendered_excerpt_bytes=1226 sha256=e5806da05f332e91e0b63f68836995d6b87f0303f9c6446b43ac5db793b8f4ae\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_manifest_hash_drift_is_re0')\n> \n>     def test_manifest_hash_drift_is_rejected(tmp_path):\n> >       _reject_hash_drift(tmp_path, PLOT.MANIFEST_JSON)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:274: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_hash_drift.<locals>.<lambda> at 0x14aba3526ef0>\n> phrase = 'SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1169 retained_bytes=1169 omitted_bytes=0 rendered_excerpt_bytes=1224 sha256=ebf918284a44870575adc1113121dc5ccd821b58c4fc552262d6ca514293a55c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_policy_hash_drift_is_reje0')\n> \n>     def test_policy_hash_drift_is_rejected(tmp_path):\n> >       _reject_hash_drift(tmp_path, PLOT.POLICY_PATH)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:282: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:266: in _reject_hash_drift\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'SHA-256 mismatch')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_hash_drift.<locals>.<lambda> at 0x14e24557aef0>\n> phrase = 'SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=4686 retained_bytes=4686 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6913 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eda9cdbc3adbf76184cf57f2bce4ec8fc080650048d65b62bf3f743db2b37580"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.816,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m1-drop-cert-hash-check",
+      "injection_diff_sha256": "397fac24818d65815dfc8632fdb6629242298cfeff0f296b85460493b479e171",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "abf3a5bdf779505402db11e2e977661b446a4e4f0bcef64a205a9a295d9af23a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        _require(digest == hashes[path] or True, f\"SHA-256 mismatch: {path}\")\n",
+          "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "eda9cdbc3adbf76184cf57f2bce4ec8fc080650048d65b62bf3f743db2b37580",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/871c0990c924a76e1d057030fe236b23/izdw-871c0990c9.o11945",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/871c0990c924a76e1d057030fe236b23/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................F.....                               [100%]\n=================================== FAILURES ===================================\n______________________ test_raw_sha_mismatch_is_rejected _______________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_raw_sha_mismatch_is_rejec0')\n\n    def test_raw_sha_mismatch_is_rejected(tmp_path):\n        root, durable, hashes = _fixture(tmp_path)\n        path = durable / PLOT.RAW_REL['rr5-stock']\n        path.write_bytes(path.read_bytes()+b'\\n')\n>       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'raw SHA-256 mismatch')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:293: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_raw_sha_mismatch_is_rejected.<locals>.<lambda> at 0x150fefc9ae60>\nphrase = 'raw SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected\n1 failed, 41 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1131 retained_bytes=1131 omitted_bytes=0 rendered_excerpt_bytes=1189 sha256=475787b9df12dc7a13717f065b11d475408d69d819d82fd597beffce7cd4c044\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_raw_sha_mismatch_is_rejec0')\n> \n>     def test_raw_sha_mismatch_is_rejected(tmp_path):\n>         root, durable, hashes = _fixture(tmp_path)\n>         path = durable / PLOT.RAW_REL['rr5-stock']\n>         path.write_bytes(path.read_bytes()+b'\\x5cn')\n> >       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'raw SHA-256 mismatch')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:293: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_raw_sha_mismatch_is_rejected.<locals>.<lambda> at 0x150fefc9ae60>\n> phrase = 'raw SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1131 retained_bytes=1131 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1903 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f850cef373e6d513be506249f18b58dba14274a2c3b2ce7c6e36afb6161c7211"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 34.219,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m2-drop-raw-manifest-check",
+      "injection_diff_sha256": "6f60282baba7da1b7969f098d96f42e80d11305f8a94d2c791d7b3cc843ef1de",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f739684a64f0a2a5788d5d280c8d6a940d2e5ce0a1701e44ad4fba0c5e3c92f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "            _require(_sha256(path) == entry[\"sha256\"] or True, \"raw SHA-256 mismatch\")\n",
+          "old": "            _require(_sha256(path) == entry[\"sha256\"], \"raw SHA-256 mismatch\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "f850cef373e6d513be506249f18b58dba14274a2c3b2ce7c6e36afb6161c7211",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/43003e19ebca4de5cf0ef8af1ea24136/izdw-43003e19eb.o11947",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/43003e19ebca4de5cf0ef8af1ea24136/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n_______________________ test_median_mismatch_is_rejected _______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_median_mismatch_is_reject0')\n\n    def test_median_mismatch_is_rejected(tmp_path):\n        # Scale both arms together: the ratio still matches if median checks are removed.\n        root, durable, _ = _fixture(tmp_path)\n        for arm in ('stock', 'fixed5'):\n            _edit(durable/PLOT.RAW_REL['rr5-'+arm], lambda r: r['performance'].update(\n                samples_tps=[v*2 for v in r['performance']['samples_tps']]))\n        hashes = _seal(root, durable)\n>       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'median mismatch')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:313: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_median_mismatch_is_rejected.<locals>.<lambda> at 0x14f778fbee60>\nphrase = 'median mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected\n1 failed, 41 passed in 7.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1345 retained_bytes=1345 omitted_bytes=0 rendered_excerpt_bytes=1406 sha256=6d405472c057e6f5dd2e281a99648a73b84005befca4679faa9c6f691f0dcbc5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_median_mismatch_is_reject0')\n> \n>     def test_median_mismatch_is_rejected(tmp_path):\n>         # Scale both arms together: the ratio still matches if median checks are removed.\n>         root, durable, _ = _fixture(tmp_path)\n>         for arm in ('stock', 'fixed5'):\n>             _edit(durable/PLOT.RAW_REL['rr5-'+arm], lambda r: r['performance'].update(\n>                 samples_tps=[v*2 for v in r['performance']['samples_tps']]))\n>         hashes = _seal(root, durable)\n> >       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'median mismatch')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:313: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_median_mismatch_is_rejected.<locals>.<lambda> at 0x14f778fbee60>\n> phrase = 'median mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1345 retained_bytes=1345 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2119 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "26b230b03bf83bc258ae33d9f5095ca48d1692c56dfc6ba388242c36cb686695"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 34.441,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m3-drop-median-crosscheck",
+      "injection_diff_sha256": "bb00ff3b298a5001e48c64bfbfaceb28824e0ee5d342c747a2ae9196c031e364",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "063a240716c76bb17338dd80967cc9802d1b714a7038914ee173c81da97c2424",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"] or True, \"median mismatch\")\n",
+          "old": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"], \"median mismatch\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "26b230b03bf83bc258ae33d9f5095ca48d1692c56dfc6ba388242c36cb686695",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/2222dd2d044c70f7e5f482b4a54b59f9/izdw-2222dd2d04.o11954",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/2222dd2d044c70f7e5f482b4a54b59f9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n_______________________ test_effect_mismatch_is_rejected _______________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_effect_mismatch_is_reject0')\n\n    def test_effect_mismatch_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda c: c['effects'].update(rr5=.4), 'effect mismatch')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:317: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x152adc9c7640>\nphrase = 'effect mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected\n1 failed, 41 passed in 7.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1185 retained_bytes=1185 omitted_bytes=0 rendered_excerpt_bytes=1240 sha256=342daf794ce13b6ef5ace541bb43e62309c263e70250e14b55486d9258577608\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_effect_mismatch_is_reject0')\n> \n>     def test_effect_mismatch_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda c: c['effects'].update(rr5=.4), 'effect mismatch')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:317: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x152adc9c7640>\n> phrase = 'effect mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1185 retained_bytes=1185 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1953 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ea28a6307f4de7966c938f5c97cff25f186eeae2199bb086506c4a99e5d00e9e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.894,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m4-drop-effect-crosscheck",
+      "injection_diff_sha256": "8d5eb48fd97c0156a670bdf809d08c7b860ce39e309e85cb2fb516204403f5eb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cb85476437fed0e602d862ee6b914533c9ffc2d604166d7e764db8a1602e75b8",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12) or True, \"effect mismatch\")\n",
+          "old": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12), \"effect mismatch\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "ea28a6307f4de7966c938f5c97cff25f186eeae2199bb086506c4a99e5d00e9e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/978e795f3fccbc33267f1cf3ec3b6ed7/izdw-978e795f3f.o11957",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/978e795f3fccbc33267f1cf3ec3b6ed7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n______________________ test_judgment_mismatch_is_rejected ______________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_judgment_mismatch_is_reje0')\n\n    def test_judgment_mismatch_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda f: f['between_run'].update(cv=.2), 'judgment mismatch', path=PLOT.FLOOR_JSON['rr95'])\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:321: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x1485ad386ef0>\nphrase = 'judgment mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected\n1 failed, 41 passed in 7.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1224 retained_bytes=1224 omitted_bytes=0 rendered_excerpt_bytes=1279 sha256=98f27f2c45723950953900c004b3f0d9229f2067f68a70691e993547d575f0f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_judgment_mismatch_is_reje0')\n> \n>     def test_judgment_mismatch_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda f: f['between_run'].update(cv=.2), 'judgment mismatch', path=PLOT.FLOOR_JSON['rr95'])\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:321: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x1485ad386ef0>\n> phrase = 'judgment mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1224 retained_bytes=1224 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1994 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9db72f91d505d273da9d84aecb0ebc28be6409017c6eb1c55d16b078799518b3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.675,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m5-drop-judgment-check",
+      "injection_diff_sha256": "44b2d9d2230888cf89d83020e18a0598474b039c5b9b027e08d6dfb8c35f08a1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bbb4229be210181bb3c2601db619de69d754e23c0daaa5cd4533ce57fbfbe7d8",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        _require(computed == RECORDED_JUDGMENT[w] or True, \"judgment mismatch\")\n",
+          "old": "        _require(computed == RECORDED_JUDGMENT[w], \"judgment mismatch\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "9db72f91d505d273da9d84aecb0ebc28be6409017c6eb1c55d16b078799518b3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/766da3d8d7b5483bc425d67d2bc05491/izdw-766da3d8d7.o11960",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/766da3d8d7b5483bc425d67d2bc05491/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n______________________ test_uncertified_cell_is_rejected _______________________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_uncertified_cell_is_rejec0')\n\n    def test_uncertified_cell_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda c: c['cells'][0]['correctness'].update(status='rejected'), 'uncertified cell')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:351: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x14f07598f640>\nphrase = 'uncertified cell'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected\n1 failed, 41 passed in 7.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1215 retained_bytes=1215 omitted_bytes=0 rendered_excerpt_bytes=1270 sha256=4210979cdbe6a5c630414e9a3ce4824c8a351b3a24b3eae1029ed4922497bb93\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_uncertified_cell_is_rejec0')\n> \n>     def test_uncertified_cell_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda c: c['cells'][0]['correctness'].update(status='rejected'), 'uncertified cell')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:351: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x14f07598f640>\n> phrase = 'uncertified cell'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1215 retained_bytes=1215 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1984 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a5c79575658d03b9e2fe39eb5a020524292033b7f129f20757355475d4a889ee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 355.444,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m6-drop-certified-check",
+      "injection_diff_sha256": "8de43e8c4980a00773d7aa94f00cb09c9c4b38b40d18482084038b40843c394b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c6cbd610a5a705d68aa97d43dc0e52330b4e3e9c30c56990ee30742948a9f727",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        _require(q[\"status\"] == \"certified\" or True, \"uncertified cell\")\n",
+          "old": "        _require(q[\"status\"] == \"certified\", \"uncertified cell\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "a5c79575658d03b9e2fe39eb5a020524292033b7f129f20757355475d4a889ee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/15e50330e05398e38b1f8cc39339718e/izdw-15e50330e0.o11987",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/15e50330e05398e38b1f8cc39339718e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n___________________ test_trace_enabled_samples_are_rejected ____________________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_trace_enabled_samples_are0')\n\n    def test_trace_enabled_samples_are_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r['performance'].update(trace_enabled=True), 'trace-enabled performance', raw=True)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:359: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x1511105937f0>\nphrase = 'trace-enabled performance'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected\n1 failed, 41 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1238 retained_bytes=1238 omitted_bytes=0 rendered_excerpt_bytes=1293 sha256=d9b576463918da34508e7e9d080d416c6c8a599647026635636698d09708ba16\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_trace_enabled_samples_are0')\n> \n>     def test_trace_enabled_samples_are_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r['performance'].update(trace_enabled=True), 'trace-enabled performance', raw=True)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:359: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x1511105937f0>\n> phrase = 'trace-enabled performance'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1238 retained_bytes=1238 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2013 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c506edfb2e9e7acdf4ebf6e1e8234400b58df9eff6974deef824d79ee3fe9e8e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 27.441,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m7-drop-trace-disabled-check",
+      "injection_diff_sha256": "52320bf8392a67f38679a50fd3d186e6d29e049174d1911bbfd97ce4d717567c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "965e89eb07ead20b4563ca4fac6fad117d068731813b5788a4d958cd937e9da6",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "            _require(p[\"trace_enabled\"] is False or True, \"trace-enabled performance samples\")\n",
+          "old": "            _require(p[\"trace_enabled\"] is False, \"trace-enabled performance samples\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "c506edfb2e9e7acdf4ebf6e1e8234400b58df9eff6974deef824d79ee3fe9e8e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/da9f1c5c993723ec1065b3e3937d46d5/izdw-da9f1c5c99.o11989",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/da9f1c5c993723ec1065b3e3937d46d5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n_____________________ test_adopted_stock_token_is_rejected _____________________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_adopted_stock_token_is_re0')\n\n    def test_adopted_stock_token_is_rejected(tmp_path):\n        root, durable, _ = _fixture(tmp_path)\n        def change(c):\n            for row in c['cells']:\n                if row['role'] == 'adopted':\n                    row['src_token'] = 'stock'\n        _edit(root/PLOT.CERT_JSON, change)\n        for w in PLOT.WORKLOADS:\n            _edit(durable/PLOT.RAW_REL[w+'-fixed5'], lambda r: r.update(src_token='stock'))\n        hashes = _seal(root, durable)\n>       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'adopted stock token')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:376: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_adopted_stock_token_is_rejected.<locals>.<lambda> at 0x151db9ec7520>\nphrase = 'adopted stock token'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected\n1 failed, 41 passed in 7.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1385 retained_bytes=1385 omitted_bytes=0 rendered_excerpt_bytes=1452 sha256=0155e161667b78eb9c54192aa328048c5d4f48a8e7ac3feddbc333fa38d2f166\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_adopted_stock_token_is_re0')\n> \n>     def test_adopted_stock_token_is_rejected(tmp_path):\n>         root, durable, _ = _fixture(tmp_path)\n>         def change(c):\n>             for row in c['cells']:\n>                 if row['role'] == 'adopted':\n>                     row['src_token'] = 'stock'\n>         _edit(root/PLOT.CERT_JSON, change)\n>         for w in PLOT.WORKLOADS:\n>             _edit(durable/PLOT.RAW_REL[w+'-fixed5'], lambda r: r.update(src_token='stock'))\n>         hashes = _seal(root, durable)\n> >       _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), 'adopted stock token')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:376: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_adopted_stock_token_is_rejected.<locals>.<lambda> at 0x151db9ec7520>\n> phrase = 'adopted stock token'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1385 retained_bytes=1385 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2169 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b65bcef616956c830289b7cf8a29da71058d5bd40fcba990312026222b76db79"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 43.799,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m8-drop-adopted-token-check",
+      "injection_diff_sha256": "fd262c76eb71c57ba0e032d5e30b6c71163a097ceb195bf47b7c723c990effe9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4c01e5fc047d2e6a68a42bfb2388d5a798ee9848f891a13894d50aec8e73776f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "            _require(token != \"stock\" or True, \"adopted stock token\")\n",
+          "old": "            _require(token != \"stock\", \"adopted stock token\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "b65bcef616956c830289b7cf8a29da71058d5bd40fcba990312026222b76db79",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/1cc6a2b6d0d99efd0ba98dd19a207bba/izdw-1cc6a2b6d0.o11997",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/1cc6a2b6d0d99efd0ba98dd19a207bba/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................F.F                               [100%]\n=================================== FAILURES ===================================\n________________________ test_bbox_overlap_is_a_failure ________________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_bbox_overlap_is_a_failure0')\n\n    def test_bbox_overlap_is_a_failure(tmp_path):\n        fig, axes = PLOT.make_figure(_data(tmp_path))\n        try:\n            PLOT.check_figure_layout(fig, axes)\n            fig.text(.5, .5, 'overlap alpha')\n            fig.text(.5, .5, 'overlap beta')\n>           _reject(lambda: PLOT.check_figure_layout(fig, axes), 'overlap')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:205: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_bbox_overlap_is_a_failure.<locals>.<lambda> at 0x1481691e16c0>\nphrase = 'overlap'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n____________________ test_layout_failure_publishes_nothing _____________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_layout_failure_publishes_0')\n\n    def test_layout_failure_publishes_nothing(tmp_path):\n        data = _data(tmp_path)\n        fig, axes = PLOT.make_figure(data)\n        prefix = tmp_path / 'fig10_overlap'\n        try:\n            fig.text(.5, .5, 'overlap alpha')\n            fig.text(.5, .5, 'overlap beta')\n>           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), 'overlap')\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:217: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x14881f7536d0>\nphrase = 'overlap'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing\n2 failed, 40 passed in 7.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1178 retained_bytes=1178 omitted_bytes=0 rendered_excerpt_bytes=1239 sha256=0d9d946bc87d213720d1f7b15867129ff49cb2701aea6b8aedbea3cb0a36c91f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_layout_failure_publishes_0')\n> \n>     def test_layout_failure_publishes_nothing(tmp_path):\n>         data = _data(tmp_path)\n>         fig, axes = PLOT.make_figure(data)\n>         prefix = tmp_path / 'fig10_overlap'\n>         try:\n>             fig.text(.5, .5, 'overlap alpha')\n>             fig.text(.5, .5, 'overlap beta')\n> >           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), 'overlap')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:217: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x14881f7536d0>\n> phrase = 'overlap'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1192 sha256=af1316d53319fc363ca59eeda349fa90a53a73cb89eb1e46f2518c1f9bb6a203\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_bbox_overlap_is_a_failure0')\n> \n>     def test_bbox_overlap_is_a_failure(tmp_path):\n>         fig, axes = PLOT.make_figure(_data(tmp_path))\n>         try:\n>             PLOT.check_figure_layout(fig, axes)\n>             fig.text(.5, .5, 'overlap alpha')\n>             fig.text(.5, .5, 'overlap beta')\n> >           _reject(lambda: PLOT.check_figure_layout(fig, axes), 'overlap')\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:205: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_bbox_overlap_is_a_failure.<locals>.<lambda> at 0x1481691e16c0>\n> phrase = 'overlap'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2311 retained_bytes=2311 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3573 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7b7521ea1c5a1351390288e52f3edd262f5a0bef57a64dce9091e1531bbd37c0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 42.762,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m9-bypass-layout-overlap",
+      "injection_diff_sha256": "a1f346446c1295d06487a2c179d371f9599c0364ed2fa97fe64f4f90a15f8cfc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e1e8143cc91f570310e6e1adfe5ad91305192cee0e5f9339c1265157e429e14b",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "            if _intersection(box, other) > 1 and False:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n",
+          "old": "            if _intersection(box, other) > 1:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "7b7521ea1c5a1351390288e52f3edd262f5a0bef57a64dce9091e1531bbd37c0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/a64c3a721deefe1876d107d2340e95d8/izdw-a64c3a721d.o12004",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/a64c3a721deefe1876d107d2340e95d8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................FF....                               [100%]\n=================================== FAILURES ===================================\n______________ test_landed_fig10_rejects_partial_missing_outputs _______________\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0/repo-1')\npresent_suffixes = ['.png']\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root/LANDED\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\n')\n        for suffix in present_suffixes:\n            Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n        original = REPO\n        try:\n            REPO = root\n            try:\n>               test_landed_fig10_repo_closure_and_caption_when_present()\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:581: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:554: in test_landed_fig10_repo_closure_and_caption_when_present\n    skip('fig10 integration bundle is incomplete')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'fig10 integration bundle is incomplete'\n\n    def skip(reason: str) -> None:\n        if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n            import pytest\n>           pytest.skip(reason)\nE           Skipped: fig10 integration bundle is incomplete\n\norchestrator/tests/skiputil.py:31: Skipped\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0')\n\n    def test_landed_fig10_rejects_partial_missing_outputs(tmp_path):\n        for mask in range(1, 7):\n>           _reject_missing_landed_bundle(tmp_path/f'repo-{mask}', [s for i, s in enumerate(SUFFIXES) if mask & (1 << i)])\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:601: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0/repo-1')\npresent_suffixes = ['.png']\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root/LANDED\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\n')\n        for suffix in present_suffixes:\n            Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n        original = REPO\n        try:\n            REPO = root\n            try:\n                test_landed_fig10_repo_closure_and_caption_when_present()\n            except AssertionError as exc:\n                assert str(exc).startswith('fig10 integration bundle is incomplete'), str(exc)\n            except BaseException as exc:\n                pytest = sys.modules.get('pytest')\n                if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n>                   raise AssertionError('missing fig10 bundle was skipped instead of rejected') from exc\nE                   AssertionError: missing fig10 bundle was skipped instead of rejected\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:587: AssertionError\n________________ test_landed_fig10_rejects_all_missing_outputs _________________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0/repo')\npresent_suffixes = ()\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root/LANDED\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\n')\n        for suffix in present_suffixes:\n            Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n        original = REPO\n        try:\n            REPO = root\n            try:\n>               test_landed_fig10_repo_closure_and_caption_when_present()\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:581: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:554: in test_landed_fig10_repo_closure_and_caption_when_present\n    skip('fig10 integration bundle is incomplete')\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'fig10 integration bundle is incomplete'\n\n    def skip(reason: str) -> None:\n        if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n            import pytest\n>           pytest.skip(reason)\nE           Skipped: fig10 integration bundle is incomplete\n\norchestrator/tests/skiputil.py:31: Skipped\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0')\n\n    def test_landed_fig10_rejects_all_missing_outputs(tmp_path):\n>       _reject_missing_landed_bundle(tmp_path/'repo', ())\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:596: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0/repo')\npresent_suffixes = ()\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root/LANDED\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\n')\n        for suffix in present_suffixes:\n            Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n        original = REPO\n        try:\n            REPO = root\n            try:\n                test_landed_fig10_repo_closure_and_caption_when_present()\n            except AssertionError as exc:\n                assert str(exc).startswith('fig10 integration bundle is incomplete'), str(exc)\n            except BaseException as exc:\n                pytest = sys.modules.get('pytest')\n                if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n>                   raise AssertionError('missing fig10 bundle was skipped instead of rejected') from exc\nE                   AssertionError: missing fig10 bundle was skipped instead of rejected\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:587: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs\n2 failed, 40 passed in 7.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=3185 retained_bytes=3185 omitted_bytes=0 rendered_excerpt_bytes=3330 sha256=1f6b26eb40b3ba7792e284583350b080a50e5a0d0886bd01be045bd4d1debbac\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0/repo-1')\n> present_suffixes = ['.png']\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root/LANDED\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\x5cn')\n>         for suffix in present_suffixes:\n>             Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n>         original = REPO\n>         try:\n>             REPO = root\n>             try:\n> >               test_landed_fig10_repo_closure_and_caption_when_present()\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:581: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:554: in test_landed_fig10_repo_closure_and_caption_when_present\n>     skip('fig10 integration bundle is incomplete')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'fig10 integration bundle is incomplete'\n> \n>     def skip(reason: str) -> None:\n>         if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n>             import pytest\n> >           pytest.skip(reason)\n> E           Skipped: fig10 integration bundle is incomplete\n> \n> orchestrator/tests/skiputil.py:31: Skipped\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0')\n> \n>     def test_landed_fig10_rejects_partial_missing_outputs(tmp_path):\n>         for mask in range(1, 7):\n> >           _reject_missing_landed_bundle(tmp_path/f'repo-{mask}', [s for i, s in enumerate(SUFFIXES) if mask & (1 << i)])\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:601: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_fig10_rejects_part0/repo-1')\n> present_suffixes = ['.png']\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root/LANDED\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\x5cn')\n>         for suffix in present_suffixes:\n>             Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n>         original = REPO\n>         try:\n>             REPO = root\n>             try:\n>                 test_landed_fig10_repo_closure_and_caption_when_present()\n>             except AssertionError as exc:\n>                 assert str(exc).startswith('fig10 integration bundle is incomplete'), str(exc)\n>             except BaseException as exc:\n>                 pytest = sys.modules.get('pytest')\n>                 if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n> >                   raise AssertionError('missing fig10 bundle was skipped instead of rejected') from exc\n> E                   AssertionError: missing fig10 bundle was skipped instead of rejected\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:587: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=3068 retained_bytes=3068 omitted_bytes=0 rendered_excerpt_bytes=3211 sha256=c58f5939beda286ce5a4973b41131966cf5c601b589fe322c16a64bf56d9cff7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0/repo')\n> present_suffixes = ()\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root/LANDED\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\x5cn')\n>         for suffix in present_suffixes:\n>             Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n>         original = REPO\n>         try:\n>             REPO = root\n>             try:\n> >               test_landed_fig10_repo_closure_and_caption_when_present()\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:581: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:554: in test_landed_fig10_repo_closure_and_caption_when_present\n>     skip('fig10 integration bundle is incomplete')\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'fig10 integration bundle is incomplete'\n> \n>     def skip(reason: str) -> None:\n>         if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n>             import pytest\n> >           pytest.skip(reason)\n> E           Skipped: fig10 integration bundle is incomplete\n> \n> orchestrator/tests/skiputil.py:31: Skipped\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0')\n> \n>     def test_landed_fig10_rejects_all_missing_outputs(tmp_path):\n> >       _reject_missing_landed_bundle(tmp_path/'repo', ())\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:596: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_fig10_rejects_all_0/repo')\n> present_suffixes = ()\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root/LANDED\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent/'README.md').write_text('Figure 10 landing regression.\\x5cn')\n>         for suffix in present_suffixes:\n>             Path(f'{prefix}{suffix}').write_bytes(b'presence only; reject missing files first')\n>         original = REPO\n>         try:\n>             REPO = root\n>             try:\n>                 test_landed_fig10_repo_closure_and_caption_when_present()\n>             except AssertionError as exc:\n>                 assert str(exc).startswith('fig10 integration bundle is incomplete'), str(exc)\n>             except BaseException as exc:\n>                 pytest = sys.modules.get('pytest')\n>                 if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n> >                   raise AssertionError('missing fig10 bundle was skipped instead of rejected') from exc\n> E                   AssertionError: missing fig10 bundle was skipped instead of rejected\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:587: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6253 retained_bytes=6253 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7711 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b630475a9d266d8fa87465903030257a2416fd0d4327ff13e6670bdc2c7dcca2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.383,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs"
+      ],
+      "hang_risk": false,
+      "id": "m10-landed-skip-on-missing",
+      "injection_diff_sha256": "1a5a37a0a124f58f14327c6705794a1d308b4350823cb54d41e808c657f6b9b2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f5c5a566a79f152f8b542dffa50413a295da88c77dd3bfb27bd322587073b6b3",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_b7_fixed5_regression.py",
+          "new": "    if not all(p.is_file() for p in paths):\n        skip('fig10 integration bundle is incomplete')\n",
+          "old": "    assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "b630475a9d266d8fa87465903030257a2416fd0d4327ff13e6670bdc2c7dcca2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/46671a997e66400ccbe47ac683593d8c/izdw-46671a997e.o12009",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/46671a997e66400ccbe47ac683593d8c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................F.F....                               [100%]\n=================================== FAILURES ===================================\n_____________________ test_caption_contains_fixed_literals _____________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_caption_contains_fixed_li0')\n\n    def test_caption_contains_fixed_literals(tmp_path):\n        caption = PLOT._caption(_data(tmp_path), 'fig10_test')\n        literals = [\n            'This is B-7 material, not a B-7 satisfaction decision (D2044 item 3).',\n            'The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor: the coefficient of variation of the per-session medians of the stock genome across 8 earlier sessions of 5 repetitions under the same settings, recorded as a lower bound; identity of binary, toolchain and node between that floor measurement and this attempt is not established.',\n            'No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made.',\n            \"The outer status is the protocol's conjunction over the three workloads and follows from the negative read-heavy effect; it is not a research verdict.\",\n            'This figure reports a single attempt of five samples per cell; it does not promote the certification and does not speak to repeated attempts.',\n            'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.',\n            'Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment.',\n            'Top-row y axes are workload-local and must not be compared across panels.',\n            'Existing materials with other adopted values are neither pooled nor compared.',\n        ]\n        for literal in literals:\n>           assert literal in caption, literal\nE           AssertionError: Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.\nE           assert 'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance...ing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.' in 'Figure 10. B-7 material: static backoff fixed 5 us versus stock (no backoff) in three workloads, attempt b7f5-2026091... and must not be compared across panels. Existing materials with other adopted values are neither pooled nor compared.'\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:237: AssertionError\n___________ test_landed_fig10_repo_closure_and_caption_when_present ____________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\nprovenance = {'external_inputs': [{'kind': 'raw_cell', 'path': 'jobs/rr5/raw/rr5-stock.json', 'sha256': 'f5c44cf1cc4c1ab43b7c0337f0...7-fixed5-regression', 'attempt_id': 'b7f5-20260919a', 'source_commit': 'c18a80967ed3d9a901b395116c23f90d6a554b36', ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Check tracked authority and projections without consulting the durable root.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data, cert = _authority_data(root, expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            _digest(provenance[\"generator\"][\"sha256\"])  # generation-time record, not a live-source pin\n            _require(len(provenance[\"cells\"]) == 6, \"cells closure count\")\n            data[\"cells\"] = [_cell_summary(c, row[\"samples_tps\"]) for c, row in zip(cert[\"cells\"], provenance[\"cells\"])]\n            data[\"effect_crosschecks\"] = _effect_crosschecks(data)\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"], \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>           _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n\ntools/plotting/plot_b7_fixed5_regression.py:453: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'caption closure mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b7_fixed5_under_test.FigureDataError: caption closure mismatch\n\ntools/plotting/plot_b7_fixed5_regression.py:78: FigureDataError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_landed_fig10_repo_closure_and_caption_when_present():\n        prefix = REPO/LANDED\n        paths = [Path(f'{prefix}{s}') for s in SUFFIXES]\n        assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'\n        prov = json.loads(paths[2].read_text())\n        _assert_landed_output_paths(prov)\n        _, _, _, samples, medians = _document_values()\n        assert {c['cell_id']: c['samples_tps'] for c in prov['cells']} == samples\n        assert {c['cell_id']: c['median_tps'] for c in prov['cells']} == medians\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:559: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprovenance = {'external_inputs': [{'kind': 'raw_cell', 'path': 'jobs/rr5/raw/rr5-stock.json', 'sha256': 'f5c44cf1cc4c1ab43b7c0337f0...7-fixed5-regression', 'attempt_id': 'b7f5-20260919a', 'source_commit': 'c18a80967ed3d9a901b395116c23f90d6a554b36', ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Check tracked authority and projections without consulting the durable root.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data, cert = _authority_data(root, expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            _digest(provenance[\"generator\"][\"sha256\"])  # generation-time record, not a live-source pin\n            _require(len(provenance[\"cells\"]) == 6, \"cells closure count\")\n            data[\"cells\"] = [_cell_summary(c, row[\"samples_tps\"]) for c, row in zip(cert[\"cells\"], provenance[\"cells\"])]\n            data[\"effect_crosschecks\"] = _effect_crosschecks(data)\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"], \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n            _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n        except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n>           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\nE           b7_fixed5_under_test.FigureDataError: invalid repo closure: caption closure mismatch\n\ntools/plotting/plot_b7_fixed5_regression.py:455: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present\n2 failed, 40 passed in 7.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=5676 retained_bytes=3965 omitted_bytes=1711 rendered_excerpt_bytes=4096 sha256=38a956a50f4dfe197b84b49af16a57f72c0ae1238411b02656082373df662919\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> \"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n> >           _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n> \n> tools/plotting/plot_b7_fixed5_regression.py:453: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'caption closure mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           b7_fixed5_under_test.FigureDataError: caption closure mismatch\n> \n> tools/plotting/plot_b7_fixed5_regression.py:78: FigureDataError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_landed_fig10_repo_closure_and_caption_when_present():\n>         prefix = REPO/LANDED\n>         paths = [Path(f'{prefix}{s}') for s in SUFFIXES]\n>         assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'\n>         prov = json.loads(paths[2].read_text())\n>         _assert_landed_output_paths(prov)\n>         _, _, _, samples, medians = _document_values()\n>         assert {c['cell_id']: c['samples_tps'] for c in prov['cells']} == samples\n>         assert {c['cell_id']: c['median_tps'] for c in prov['cells']} == medians\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:559: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> provenance = {'external_inputs': [{'kind': 'raw_cell', 'path': 'jobs/rr5/raw/rr5-stock.json', 'sha256': 'f5c44cf1cc4c1ab43b7c0337f0...7-fixed5-regression', 'attempt_id': 'b7f5-20260919a', 'source_commit': 'c18a80967ed3d9a901b395116c23f90d6a554b36', ...}\n> repo_root = PosixPath('/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10')\n> expected_hashes = None\n> \n>     def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n>         \"\"\"Check tracked authority and projections without consulting the durable root.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data, cert = _authority_data(root, expected_hashes)\n>             _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n>             _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n>             _digest(provenance[\"generator\"][\"sha256\"])  # generation-time record, not a live-source pin\n>             _require(len(provenance[\"cells\"]) == 6, \"cells closure count\")\n>             data[\"cells\"] = [_cell_summary(c, row[\"samples_tps\"]) for c, row in zip(cert[\"cells\"], provenance[\"cells\"])]\n>             data[\"effect_crosschecks\"] = _effect_crosschecks(data)\n>             for key, value in data.items():\n>                 if key != \"repo_root\":\n>                     _require(provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"], \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>             _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n>         except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n> >           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\n> E           b7_fixed5_under_test.FigureDataError: invalid repo closure: caption closure mismatch\n> \n> tools/plotting/plot_b7_fixed5_regression.py:455: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=3250 retained_bytes=3250 omitted_bytes=0 rendered_excerpt_bytes=3297 sha256=63303d20c88e0b5924c17fd9b5018cbe76b7e14dc7fabf84e140a47d54a6efc3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_caption_contains_fixed_li0')\n> \n>     def test_caption_contains_fixed_literals(tmp_path):\n>         caption = PLOT._caption(_data(tmp_path), 'fig10_test')\n>         literals = [\n>             'This is B-7 material, not a B-7 satisfaction decision (D2044 item 3).',\n>             'The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor: the coefficient of variation of the per-session medians of the stock genome across 8 earlier sessions of 5 repetitions under the same settings, recorded as a lower bound; identity of binary, toolchain and node between that floor measurement and this attempt is not established.',\n>             'No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made.',\n>             \"The outer status is the protocol's conjunction over the three workloads and follows from the negative read-heavy effect; it is not a research verdict.\",\n>             'This figure reports a single attempt of five samples per cell; it does not promote the certification and does not speak to repeated attempts.',\n>             'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.',\n>             'Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment.',\n>             'Top-row y axes are workload-local and must not be compared across panels.',\n>             'Existing materials with other adopted values are neither pooled nor compared.',\n>         ]\n>         for literal in literals:\n> >           assert literal in caption, literal\n> E           AssertionError: Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.\n> E           assert 'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance...ing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.' in 'Figure 10. B-7 material: static backoff fixed 5 us versus stock (no backoff) in three workloads, attempt b7f5-2026091... and must not be compared across panels. Existing materials with other adopted values are neither pooled nor compared.'\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:237: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=8926 retained_bytes=7215 omitted_bytes=1711 budget_bytes=49152 rendered_bytes=8566 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "af5cc2485ce7b4b08317fdfc7b4fb467af5f8896d6a0050ff785787d46ebbbdb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.741,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m11-drop-caption-literal",
+      "injection_diff_sha256": "4e8ffb3c43618143db9cc1028dc10d2fb6e23d998363310eb1a2e99325ebf790",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "493393d4a8159e5943301d7ce3a5e4467847c0e847e7af8335a0c7c47d88b22a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded.\",\n",
+          "old": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.\",\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "af5cc2485ce7b4b08317fdfc7b4fb467af5f8896d6a0050ff785787d46ebbbdb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/13f35c3b4e334ce976bd47fef8fb82c6/izdw-13f35c3b4e.o12012",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/13f35c3b4e334ce976bd47fef8fb82c6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n____________________ test_floor_genome_mismatch_is_rejected ____________________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_floor_genome_mismatch_is_0')\n\n    def test_floor_genome_mismatch_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda f: f.update(genome='different-genome'), 'floor genome mismatch', path=PLOT.FLOOR_JSON['rr5'])\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:394: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x147af3dd3520>\nphrase = 'floor genome mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected\n1 failed, 41 passed in 7.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1240 retained_bytes=1240 omitted_bytes=0 rendered_excerpt_bytes=1295 sha256=c840db0b6a06cdcf685c2fbbace68a5622a708926d0319bcb8fd9aa771f42d05\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_floor_genome_mismatch_is_0')\n> \n>     def test_floor_genome_mismatch_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda f: f.update(genome='different-genome'), 'floor genome mismatch', path=PLOT.FLOOR_JSON['rr5'])\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:394: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x147af3dd3520>\n> phrase = 'floor genome mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1240 retained_bytes=1240 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2014 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f44cd87454be9702661fb59d4e63853e9d43cf8ceac5158637e0df6c9a4343f6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 42.929,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m12-drop-floor-genome-check",
+      "injection_diff_sha256": "627589b6b7414ac77e93a83266670f218c3ff8b115f2204d9edc575fa54b5a65",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e87e6f4752d0b5656de8a8c803abcacc3b251e5faa25073c850b0241683d8b23",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        _require(f[\"genome\"] == FLOOR_GENOME or True, \"floor genome mismatch\")\n",
+          "old": "        _require(f[\"genome\"] == FLOOR_GENOME, \"floor genome mismatch\")\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "f44cd87454be9702661fb59d4e63853e9d43cf8ceac5158637e0df6c9a4343f6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/9838ddcd6bc4281e8348d47d133b7df4/izdw-9838ddcd6b.o12020",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/9838ddcd6bc4281e8348d47d133b7df4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n_____________ test_effect_equal_to_negative_floor_is_no_regression _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/repo')\nmeasurement_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/durable')\nexpected_hashes = {'output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json': 'a6319436971a1ebc6b74591e71a42e93d9ad...between_run_noise_t48_skew0p9_rr50_rmw0.json': '277eae643719e487c5ae7628c4628016bfc25879f1f0d27f2b304d4bc159dd2b', ...}\n\n    def load_evidence(repo_root, measurement_root, *, expected_hashes=None):\n        \"\"\"Read bound samples; check, rather than create, the recorded judgments.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n>           data, cert = _authority_data(root, expected_hashes)\n\ntools/plotting/plot_b7_fixed5_regression.py:229: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_b7_fixed5_regression.py:195: in _authority_data\n    _require(computed == RECORDED_JUDGMENT[w], \"judgment mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'judgment mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           b7_fixed5_under_test.FigureDataError: judgment mismatch\n\ntools/plotting/plot_b7_fixed5_regression.py:78: FigureDataError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0')\n\n    def test_effect_equal_to_negative_floor_is_no_regression(tmp_path):\n        root, durable, _ = _fixture(tmp_path)\n        cid = 'rr50-fixed5'\n        samples = [2950000., 2960000., 2970000., 2980000., 2990000.]\n        median = statistics.median(samples)\n        _edit(durable/PLOT.RAW_REL[cid], lambda r: r['performance'].update(samples_tps=samples))\n        cert = json.loads((root/PLOT.CERT_JSON).read_text())\n        cells = {c['cell_id']: c for c in cert['cells']}\n        cells[cid]['performance']['median_tps'] = median\n        effect = median/cells['rr50-stock']['performance']['median_tps']-1\n        assert effect < 0\n        cert['effects']['rr50'] = effect\n        _write(root/PLOT.CERT_JSON, cert)\n        _edit(root/PLOT.FLOOR_JSON['rr50'], lambda f: f['between_run'].update(cv=-effect))\n        hashes = _seal(root, durable)\n>       data = PLOT.load_evidence(root, durable, expected_hashes=hashes)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:339: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/repo')\nmeasurement_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/durable')\nexpected_hashes = {'output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json': 'a6319436971a1ebc6b74591e71a42e93d9ad...between_run_noise_t48_skew0p9_rr50_rmw0.json': '277eae643719e487c5ae7628c4628016bfc25879f1f0d27f2b304d4bc159dd2b', ...}\n\n    def load_evidence(repo_root, measurement_root, *, expected_hashes=None):\n        \"\"\"Read bound samples; check, rather than create, the recorded judgments.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data, cert = _authority_data(root, expected_hashes)\n            cells = []\n            for c, entry in zip(cert[\"cells\"], data[\"external_inputs\"]):\n                path = Path(measurement_root) / entry[\"path\"]\n                _require(path.is_file(), f\"raw missing: {entry['path']}\")\n                _require(_sha256(path) == entry[\"sha256\"], \"raw SHA-256 mismatch\")\n                raw = _json(path)\n                _require(raw[\"schema_version\"] == RAW_SCHEMA and raw[\"attempt_id\"] == ATTEMPT_ID, \"raw schema/attempt mismatch\")\n                _require(all(raw[k] == c[k] for k in (\"cell_id\", \"src_token\", \"genome\")), \"raw identity mismatch\")\n                p, b = raw[\"performance\"], raw[\"build_evidence\"]\n                _require(p[\"trace_enabled\"] is False, \"trace-enabled performance samples\")\n                _require(p[\"unstable\"] is False, \"unstable samples\")\n                _require(p[\"status\"] == \"complete\", \"raw incomplete performance\")\n                _require(p[\"perf_bin_sha256\"] == c[\"perf_bin_sha256\"], \"performance binary mismatch\")\n                _require(b[\"performance_trace_disabled_build\"] is True, \"trace-disabled build required\")\n                _require(b[\"trace_bin_sha256\"] == c[\"trace_bin_sha256\"], \"trace binary mismatch\")\n                cond = data[\"measurement_conditions\"]\n                expected_workload = {k: cond[k] for k in (\"threads\", \"records\", \"reps\", \"extime\")}\n                expected_workload[\"workload\"] = {\"ycsb_rratio\": str(RRATIOS[c[\"workload\"]]),\n                                                 \"ycsb_rmw\": cond[\"rmw\"], \"ycsb_max_ope\": cond[\"max_ope\"], \"ycsb_zipf_skew\": cond[\"skew\"]}\n                _require(p[\"workload\"] == expected_workload, \"raw workload mismatch\")\n                for kind, count in ((\"legacy\", 1), (\"performance\", REPS)):\n                    rows = raw[\"correctness\"][kind]\n                    _require(type(rows) is list and len(rows) == count, \"raw correctness count\")\n                    for row in rows:\n                        _require(row[\"verdict\"] == \"serializable\", \"raw verdict mismatch\")\n                        _require(row[\"certified\"] is True and row[\"trace_enabled\"] is True\n                                 and row[\"status\"] == \"pass\" and row[\"integrity\"] == \"ok\"\n                                 and row[\"trace_binary_sha256\"] == c[\"trace_bin_sha256\"], \"raw correctness mismatch\")\n                cells.append(_cell_summary(c, p[\"samples_tps\"]))\n            data[\"cells\"] = cells\n            data[\"effect_crosschecks\"] = _effect_crosschecks(data)\n            return data\n        except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:\n>           raise FigureDataError(f\"invalid evidence: {exc}\") from exc\nE           b7_fixed5_under_test.FigureDataError: invalid evidence: judgment mismatch\n\ntools/plotting/plot_b7_fixed5_regression.py:263: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression\n1 failed, 41 passed in 7.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=6268 retained_bytes=3985 omitted_bytes=2283 rendered_excerpt_bytes=4096 sha256=5d0d4d53db1b796245dc576f73743f6c03ec029c69f4156a47f7d25f13888d03\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> effect\n>         _write(root/PLOT.CERT_JSON, cert)\n>         _edit(root/PLOT.FLOOR_JSON['rr50'], lambda f: f['between_run'].update(cv=-effect))\n>         hashes = _seal(root, durable)\n> >       data = PLOT.load_evidence(root, durable, expected_hashes=hashes)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:339: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/repo')\n> measurement_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_effect_equal_to_negative_0/durable')\n> expected_hashes = {'output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json': 'a6319436971a1ebc6b74591e71a42e93d9ad...between_run_noise_t48_skew0p9_rr50_rmw0.json': '277eae643719e487c5ae7628c4628016bfc25879f1f0d27f2b304d4bc159dd2b', ...}\n> \n>     def load_evidence(repo_root, measurement_root, *, expected_hashes=None):\n>         \"\"\"Read bound samples; check, rather than create, the recorded judgments.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data, cert = _authority_data(root, expected_hashes)\n>             cells = []\n>             for c, entry in zip(cert[\"cells\"], data[\"external_inputs\"]):\n>                 path = Path(measurement_root) / entry[\"path\"]\n>                 _require(path.is_file(), f\"raw missing: {entry['path']}\")\n>                 _require(_sha256(path) == entry[\"sha256\"], \"raw SHA-256 mismatch\")\n>                 raw = _json(path)\n>                 _require(raw[\"schema_version\"] == RAW_SCHEMA and raw[\"attempt_id\"] == ATTEMPT_ID, \"raw schema/attempt mismatch\")\n>                 _require(all(raw[k] == c[k] for k in (\"cell_id\", \"src_token\", \"genome\")), \"raw identity mismatch\")\n>                 p, b = raw[\"performance\"], raw[\"build_evidence\"]\n>                 _require(p[\"trace_enabled\"] is False, \"trace-enabled performance samples\")\n>                 _require(p[\"unstable\"] is False, \"unstable samples\")\n>                 _require(p[\"status\"] == \"complete\", \"raw incomplete performance\")\n>                 _require(p[\"perf_bin_sha256\"] == c[\"perf_bin_sha256\"], \"performance binary mismatch\")\n>                 _require(b[\"performance_trace_disabled_build\"] is True, \"trace-disabled build required\")\n>                 _require(b[\"trace_bin_sha256\"] == c[\"trace_bin_sha256\"], \"trace binary mismatch\")\n>                 cond = data[\"measurement_conditions\"]\n>                 expected_workload = {k: cond[k] for k in (\"threads\", \"records\", \"reps\", \"extime\")}\n>                 expected_workload[\"workload\"] = {\"ycsb_rratio\": str(RRATIOS[c[\"workload\"]]),\n>                                                  \"ycsb_rmw\": cond[\"rmw\"], \"ycsb_max_ope\": cond[\"max_ope\"], \"ycsb_zipf_skew\": cond[\"skew\"]}\n>                 _require(p[\"workload\"] == expected_workload, \"raw workload mismatch\")\n>                 for kind, count in ((\"legacy\", 1), (\"performance\", REPS)):\n>                     rows = raw[\"correctness\"][kind]\n>                     _require(type(rows) is list and len(rows) == count, \"raw correctness count\")\n>                     for row in rows:\n>                         _require(row[\"verdict\"] == \"serializable\", \"raw verdict mismatch\")\n>                         _require(row[\"certified\"] is True and row[\"trace_enabled\"] is True\n>                                  and row[\"status\"] == \"pass\" and row[\"integrity\"] == \"ok\"\n>                                  and row[\"trace_binary_sha256\"] == c[\"trace_bin_sha256\"], \"raw correctness mismatch\")\n>                 cells.append(_cell_summary(c, p[\"samples_tps\"]))\n>             data[\"cells\"] = cells\n>             data[\"effect_crosschecks\"] = _effect_crosschecks(data)\n>             return data\n>         except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:\n> >           raise FigureDataError(f\"invalid evidence: {exc}\") from exc\n> E           b7_fixed5_under_test.FigureDataError: invalid evidence: judgment mismatch\n> \n> tools/plotting/plot_b7_fixed5_regression.py:263: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=6268 retained_bytes=3985 omitted_bytes=2283 budget_bytes=49152 rendered_bytes=4836 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6fe3e3324a0d24bf2aa2663f1fea525473bc273ecbcfeffc3ccae265c288e10e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.524,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression"
+      ],
+      "hang_risk": false,
+      "id": "m13-strict-to-nonstrict-predicate",
+      "injection_diff_sha256": "e271941c9e3a78a10f70e6f435ab6b89e68328b868beab283ca687a2bf96b334",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d6c6af63ffbfeaafda93b9e73d5846ef5b732dc9ebea55d5caca8f7359ab1534",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "        computed = \"regression\" if effect <= -cv else \"no-regression\"\n",
+          "old": "        computed = \"regression\" if effect < -cv else \"no-regression\"\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "6fe3e3324a0d24bf2aa2663f1fea525473bc273ecbcfeffc3ccae265c288e10e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/b14494477e29d2db8d944402241cc503/izdw-b14494477e.o12023",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/b14494477e29d2db8d944402241cc503/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n______________ test_correctness_trace_disabled_record_is_rejected ______________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_correctness_trace_disable0')\n\n    def test_correctness_trace_disabled_record_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r['correctness']['performance'][0].update(trace_enabled=False),\n                        'raw correctness mismatch', raw=True)\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:346: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n    _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x1478328c36d0>\nphrase = 'raw correctness mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected\n1 failed, 41 passed in 7.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 rendered_excerpt_bytes=1347 sha256=2deb0e00afbe82cfb261b0611657738ce6d335e9d9c94d392903fb81758e2c8b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_correctness_trace_disable0')\n> \n>     def test_correctness_trace_disabled_record_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r['correctness']['performance'][0].update(trace_enabled=False),\n>                         'raw correctness mismatch', raw=True)\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:346: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:133: in _reject_changed\n>     _reject(lambda: PLOT.load_evidence(root, durable, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x1478328c36d0>\n> phrase = 'raw correctness mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_b7_fixed5_regression.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1290 retained_bytes=1290 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2079 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7eb37538a9d81a2f08368c773755ae17a6810402de1f4ec1744ebf3df2fc7732"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f9a34eab300422a13865eda435abb916b27b9cc7491be5e4db8c17584450d402",
+      "duration_s": 32.564,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m14-drop-correctness-trace-enabled-check",
+      "injection_diff_sha256": "84bde5ace1b492a2be02793acb3b3eb1d10c6a6a86961df1bdf02e9636213617",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "48797d09eaa196cd1dcc4e0faf14c2f1222d6ddbf86fd722cd0d78ed0042bc3d",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b7_fixed5_regression.py",
+          "new": "                    _require(row[\"certified\"] is True and (row[\"trace_enabled\"] is True or True)\n",
+          "old": "                    _require(row[\"certified\"] is True and row[\"trace_enabled\"] is True\n"
+        }
+      ],
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "KILLED",
+      "test_output_sha256": "7eb37538a9d81a2f08368c773755ae17a6810402de1f4ec1744ebf3df2fc7732",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/13132288bcb638021234e247bb42cd29/izdw-13132288bc.o11929",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/output/pegasus-dispatch/13132288bcb638021234e247bb42cd29/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_fixture_has_production_shape_and_recomputes_statistics\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_artist_series_equal_provenance_cells_and_rendered_artists\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_avoids_forbidden_claims\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_figure_number_comes_from_prefix\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_sha_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_missing_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_sample_count_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_verdict_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_unstable_samples_are_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_source_binding_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_source_missing_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_cell_order_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_provenance_binds_caption_source\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_pinned_hashes_are_used_when_no_override\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_generator_comment_change_preserves_provenance_closure\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_external_sources_and_repo_closure_have_separate_roots\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_output_paths_reject_same_basename_in_other_directory\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_pins_floors_effects_and_judgments_match_results_document\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_evidence_matches_results_document\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_cli_writes_three_outputs_and_provenance_closure\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_cli_rejects_prefix_without_fig_number\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs\norchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs\n\n42 tests collected in 0.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "dc6f545e1bd499273baed96d638f879dbf7f953bbc1d914577acd87f9c4670bd"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_artist_series_equal_provenance_cells_and_rendered_artists",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_missing_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_sample_count_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_verdict_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_unstable_samples_are_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_source_binding_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_source_missing_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_cell_order_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_pins_floors_effects_and_judgments_match_results_document",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_evidence_matches_results_document",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_cli_rejects_prefix_without_fig_number",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs",
+        "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs"
+      ],
+      "duration_s": 78.62,
+      "rc": 0,
+      "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+      "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+      "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+      "status": "PASSED",
+      "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "463f30540bb1bd40628389ab0969964cc1793f98f47ed43a2fd20ab2c1c6bdf8",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+            "old": "\"\"\"Pinned B-7 fixed 5 us material: samples and recorded floor judgments.\"\"\"\n"
+          }
+        ]
+      },
+      "m1-drop-cert-hash-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_certification_hash_drift_is_rejected",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_hash_drift_is_rejected",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_manifest_hash_drift_is_rejected",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_policy_hash_drift_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "397fac24818d65815dfc8632fdb6629242298cfeff0f296b85460493b479e171",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        _require(digest == hashes[path] or True, f\"SHA-256 mismatch: {path}\")\n",
+            "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n"
+          }
+        ]
+      },
+      "m10-landed-skip-on-missing": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_all_missing_outputs",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_rejects_partial_missing_outputs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1a5a37a0a124f58f14327c6705794a1d308b4350823cb54d41e808c657f6b9b2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_plot_b7_fixed5_regression.py",
+            "new": "    if not all(p.is_file() for p in paths):\n        skip('fig10 integration bundle is incomplete')\n",
+            "old": "    assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'\n"
+          }
+        ]
+      },
+      "m11-drop-caption-literal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_caption_contains_fixed_literals",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_landed_fig10_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e8ffb3c43618143db9cc1028dc10d2fb6e23d998363310eb1a2e99325ebf790",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded.\",\n",
+            "old": "        \"Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.\",\n"
+          }
+        ]
+      },
+      "m12-drop-floor-genome-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_floor_genome_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "627589b6b7414ac77e93a83266670f218c3ff8b115f2204d9edc575fa54b5a65",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        _require(f[\"genome\"] == FLOOR_GENOME or True, \"floor genome mismatch\")\n",
+            "old": "        _require(f[\"genome\"] == FLOOR_GENOME, \"floor genome mismatch\")\n"
+          }
+        ]
+      },
+      "m13-strict-to-nonstrict-predicate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_equal_to_negative_floor_is_no_regression"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e271941c9e3a78a10f70e6f435ab6b89e68328b868beab283ca687a2bf96b334",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        computed = \"regression\" if effect <= -cv else \"no-regression\"\n",
+            "old": "        computed = \"regression\" if effect < -cv else \"no-regression\"\n"
+          }
+        ]
+      },
+      "m14-drop-correctness-trace-enabled-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_correctness_trace_disabled_record_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "84bde5ace1b492a2be02793acb3b3eb1d10c6a6a86961df1bdf02e9636213617",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "                    _require(row[\"certified\"] is True and (row[\"trace_enabled\"] is True or True)\n",
+            "old": "                    _require(row[\"certified\"] is True and row[\"trace_enabled\"] is True\n"
+          }
+        ]
+      },
+      "m2-drop-raw-manifest-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_raw_sha_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6f60282baba7da1b7969f098d96f42e80d11305f8a94d2c791d7b3cc843ef1de",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "            _require(_sha256(path) == entry[\"sha256\"] or True, \"raw SHA-256 mismatch\")\n",
+            "old": "            _require(_sha256(path) == entry[\"sha256\"], \"raw SHA-256 mismatch\")\n"
+          }
+        ]
+      },
+      "m3-drop-median-crosscheck": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_median_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bb00ff3b298a5001e48c64bfbfaceb28824e0ee5d342c747a2ae9196c031e364",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"] or True, \"median mismatch\")\n",
+            "old": "    _require(summary[\"median_tps\"] == c[\"performance\"][\"median_tps\"], \"median mismatch\")\n"
+          }
+        ]
+      },
+      "m4-drop-effect-crosscheck": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_effect_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8d5eb48fd97c0156a670bdf809d08c7b860ce39e309e85cb2fb516204403f5eb",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12) or True, \"effect mismatch\")\n",
+            "old": "        _require(math.isclose(computed, data[\"effects\"][w], rel_tol=0, abs_tol=1e-12), \"effect mismatch\")\n"
+          }
+        ]
+      },
+      "m5-drop-judgment-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_judgment_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44b2d9d2230888cf89d83020e18a0598474b039c5b9b027e08d6dfb8c35f08a1",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        _require(computed == RECORDED_JUDGMENT[w] or True, \"judgment mismatch\")\n",
+            "old": "        _require(computed == RECORDED_JUDGMENT[w], \"judgment mismatch\")\n"
+          }
+        ]
+      },
+      "m6-drop-certified-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_uncertified_cell_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8de43e8c4980a00773d7aa94f00cb09c9c4b38b40d18482084038b40843c394b",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "        _require(q[\"status\"] == \"certified\" or True, \"uncertified cell\")\n",
+            "old": "        _require(q[\"status\"] == \"certified\", \"uncertified cell\")\n"
+          }
+        ]
+      },
+      "m7-drop-trace-disabled-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_trace_enabled_samples_are_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52320bf8392a67f38679a50fd3d186e6d29e049174d1911bbfd97ce4d717567c",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "            _require(p[\"trace_enabled\"] is False or True, \"trace-enabled performance samples\")\n",
+            "old": "            _require(p[\"trace_enabled\"] is False, \"trace-enabled performance samples\")\n"
+          }
+        ]
+      },
+      "m8-drop-adopted-token-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_adopted_stock_token_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd262c76eb71c57ba0e032d5e30b6c71163a097ceb195bf47b7c723c990effe9",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "            _require(token != \"stock\" or True, \"adopted stock token\")\n",
+            "old": "            _require(token != \"stock\", \"adopted stock token\")\n"
+          }
+        ]
+      },
+      "m9-bypass-layout-overlap": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure",
+          "orchestrator/tests/test_plot_b7_fixed5_regression.py::test_layout_failure_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a1f346446c1295d06487a2c179d371f9599c0364ed2fa97fe64f4f90a15f8cfc",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_b7_fixed5_regression.py",
+            "new": "            if _intersection(box, other) > 1 and False:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n",
+            "old": "            if _intersection(box, other) > 1:\n                raise FigureLayoutError(f\"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "2c0484cc47ba2134fe941fca740efcb24e4cb58455e7218e0e081b4d10760b9d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "6fbe7d017f07e23f4942847f1c4ccbb62d6fedd6",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_b7_fixed5_regression.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6fd1ab19bc9a66dcabc09f59937875d832ecdd73",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "2486827e22d450845c7ca3c52453869952fa6f32b480523a23a064bd04bdfe03",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "dff36ad73dcd9c2d2cdce3796f4cb8826d379184aebe7905a303e216c4dbfcca",
+  "summary": {
+    "KILLED": 14,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 15,
+    "matching": 15,
+    "recorded": 15,
+    "registered": 15
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-t2610-fig10/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "db88917faa5d4e7fa1e87c260d09069f12c28acd585d3db1af0101d605883538",
+  "updated_at": "2026-09-19T23:43:59.849986+00:00"
+}
