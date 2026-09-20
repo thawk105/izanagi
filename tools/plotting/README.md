@@ -457,3 +457,21 @@ JSON は人が稿から写した射影で、意味の正本は稿である。
 描いた項目 (`drawn_items`: id・kind・実表示文字列)、矢印 (`arrows`)、role の遮断宣言 (`roles`)、caption、展開済み argv、
 matplotlib / numpy の版を持つ (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig12 節を正本とする。
+
+## B-10 待ち方 grid 正式走 (3 族 Holm + 36 cell の効果量・95% 区間・等価域) の forest figure
+
+`plot_b10_waiting_grid_forest.py` は、B-10 待ち方 grid の report phase (request `978195.nqsv`、事前登録 発効版 commit `77b33e37d`) が出した 1 つの判定 —
+登録した `constant` 対 `symmetric-modulo` の 3 族 × 18 対の exact 符号反転 permutation + Holm と、36 cell の効果量・95% paired-block 区間 (df 2)・等価域 ±3.0% との関係 —
+を 1 行 × 3 panel の forest 図に描く専用生成器である。既存生成器を import しない (自己完結)。判定は report の provenance JSON から写し、生成器は 135 record から同じ式で
+再計算して一致を要求するだけで判定を作らない。
+
+```bash
+python3 tools/plotting/plot_b10_waiting_grid_forest.py [--repo-root PATH] [--evidence-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の権威 bytes `output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_provenance.json` と
+同 dir の `b10_backoff_shape_report_978195.nqsv-23409962b76b.md` (2 file、生成器の pin 表で SHA-256 束縛。pin は CLI から渡せない) と、
+repo 外の report phase の投入受領証と job 結果 (`--evidence-root` 配下、既定は `/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape`。SHA-256 を定数で束縛)。
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本 (provenance schema `izanagi-b10-waiting-grid-forest-figure-provenance/v1`。稿
+`docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md` を `caption_source` として SHA-256 付きで記録する)。
+拒否条件・図の形・caption の固定文・再現コマンド・proof chain は `docs/paper-story/figures/README.md` の fig13 節を正本とする。

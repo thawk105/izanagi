@@ -1,0 +1,3 @@
+pycache_dirs=2
+pyc=4
+R_cache=warm

@@ -1,0 +1,17 @@
+== requested-us transaction.cc (pin e9e477ca1, fixed+requested-us)
+L11: outer=(top)
+L157: outer= > #if BACK_OFF
+== requested-us backoff.hh
+L109: outer=(top)
+L141: outer=(top)
+== backoff.hh の include 経路 (transaction.cc → ?)
+/work/1/SFC/tanab/dev-wave-scratch/t2153-witness-rus-20260920/ccbench-e9e477c-requested-us/cc/silo/include/transaction.hh:9:#include "../../../include/backoff.hh"
+== transaction.cc の include 行
+1:#include <stdio.h>
+2:#include <algorithm>
+3:#include <string>
+5:#include "include/atomic_tool.hh"
+6:#include "include/log.hh"
+7:#include "include/transaction.hh"
+8:#include "include/scan_callback.hh"
+9:#include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
