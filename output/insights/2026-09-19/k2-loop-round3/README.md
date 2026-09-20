@@ -201,3 +201,12 @@ D2172 項 3 (i) で認可された同 job pair (候補 10 + stock 対照、1 job
   leaf は所有者の生死を見ず `O_EXCL` で拒否、D464 / D553)。**build / verify / bench に到達せず、`src_token == STOCK` (inert) は未確認、`outcome=certified-stock` は
   得られず、pair は不成立。** 依頼の停止規則どおり再投入せず、4 巡目 (項 3 (iv)) も投入していない。同 job の stock 対照は本巡でも**未達のまま** (critic の R0 は
   未解消)。修復方向 (1 回の認可・claim の所有期間で候補と stock を両評価する driver 設計) は同 insight §4 の裁定パッケージ。
+
+## erratum (2026-09-20 19:25 JST): 「原本は repo 外 job root の下」は現況と異なる — submit-tree は撤去され原本 bytes は消失した
+
+本文「証拠の所在」の repo 外原本 (`submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` の `runs/wal.jsonl`・
+`runs/agent_outputs.jsonl`・`loop_state.json`・`s4_loop_digest.txt`・`campaign.lock`) は、2026-09-20 19:25 JST の cleanup 引き渡し script の
+退避不備 (退避 tar が空のまま撤去) により消失した。受領証 (`c42dc712…`) だけは round 2 と同 bytes が
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/knowledge_manifest_receipt.json` に残る。
+本文に記した各原本の sha256 と派生物 (`materials/`、`layer3_report.json`、`evidence/`) は不変で、本文の値・結論は変えない。
+事故の記録と損失表は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。

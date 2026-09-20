@@ -1,0 +1,6 @@
+acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します
+acceptance-command argv=["python3", "tools/run_tests.py"]
+acceptance-command timeout=none (long-running acceptance is intentional)
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":"482f19b88dbbe255fc2bb0dcc95b14c1681c1a83","classification":"child-green","log_sha256":"1761b5d538c498e70bd8dfbd91e0e4babf80ca7748c417b1489093ed350175cf","normalized_child_rc":0,"raw_child_rc":0,"reason":"child-verdict","retry":false}
+acceptance succeeded; lease was not acquired
+known limitation: no fencing token is provided

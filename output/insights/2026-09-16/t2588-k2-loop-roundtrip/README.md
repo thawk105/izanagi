@@ -295,3 +295,11 @@ repo 内 (本 dir):
 - checkpoint: 同 `loop_state.json`、digest: 同 `s4_loop_digest.txt`
 - 知識受領証: 同 `knowledge_manifest_receipt.json`
 - job 出力の原本: `evidence/attempt-0001/`
+
+## erratum (2026-09-20 19:25 JST): 「原本は repo 外 job root の下に残る」は現況と異なる — submit-tree は撤去され原本は消失した
+
+本文「証拠の所在」の `submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` (WAL・`loop_state.json`・
+`s4_loop_digest.txt`・`knowledge_manifest_receipt.json`) は、2026-09-20 19:25 JST の cleanup 引き渡し script の退避不備 (退避 tar が
+空のまま撤去) により消失した。本 insight は自走 WAL の sha256 を記録しておらず、残るのは本文の評価値 (`bench_done` の
+`throughput_tps` / `abort_rate` 等) と `evidence/attempt-0001/` の job 出力だけである。知識源 WAL (t2182、commit `2fa13a262`) は git 管理で無傷。
+本文の値・結論は変えない。事故の記録と損失表は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。

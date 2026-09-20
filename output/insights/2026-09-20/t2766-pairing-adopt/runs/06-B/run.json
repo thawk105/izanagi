@@ -1,0 +1,30 @@
+{
+  "run": "06",
+  "condition": "B",
+  "pair_slot": 3,
+  "tip_sha": "cfb217cdb9b3eb9ddf6ce521cfac041ac5effc67",
+  "tip_before": "8cdd7bf54e821cfb9cef10303215da3b790e76eb",
+  "tip_after": "cfb217cdb9b3eb9ddf6ce521cfac041ac5effc67",
+  "tested_main": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "main_sha_at_launch": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "submitted_at": "2026-09-20T17:57:13+0900",
+  "finished_at": "2026-09-20T18:10:52+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/fd6825ad8c2922d12c36623a52bdc211",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 0,
+  "load1": 3.66,
+  "other_leaders_at_finish": 1,
+  "load1_at_finish": 4.25,
+  "rc": 0,
+  "verdict": "child-green",
+  "child_rc": 0,
+  "red_nodeids": [],
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "receipt_file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2766-pairing-adopt/runs/06-B/acceptance-receipt.json"
+}

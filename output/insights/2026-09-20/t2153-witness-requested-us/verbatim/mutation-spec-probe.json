@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_REQUESTED_US\": ((\"include/backoff.hh\", \"#if BACKOFF_REQUESTED_US\", 2),),\n}\n",
+          "new": "    \"BACKOFF_REQUESTED_US\": ((\"include/backoff.hh\", \"#if BACKOFF_REQUESTED_US\", 2),),  # companion sites (T2153 m0)\n}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-companion-header-n-2-to-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_REQUESTED_US\": ((\"include/backoff.hh\", \"#if BACKOFF_REQUESTED_US\", 2),),\n",
+          "new": "    \"BACKOFF_REQUESTED_US\": ((\"include/backoff.hh\", \"#if BACKOFF_REQUESTED_US\", 1),),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-shadow-writes-original-companion",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            (shadow_root / file_rel).write_text(text, encoding=\"utf-8\")\n",
+          "new": "            (shadow_root / file_rel).write_text(text if file_rel == owner_tu else (source_root / file_rel).read_text(encoding=\"utf-8\"), encoding=\"utf-8\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-total-count-back-to-primary",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    count = _declared_total_site_count(request.macro)\n",
+          "new": "    count = _declared_site_count(request.macro)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4p-site-equality-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "                if counts != expected:\n",
+          "new": "                if False and counts != expected:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-companion-schema-keyed-on-evidence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        companion_declarations = _CONDITIONAL_BRANCH_COMPANION_SITES.get(record.macro, ())\n",
+          "new": "        companion_declarations = _CONDITIONAL_BRANCH_COMPANION_SITES.get(record.macro, ()) if \"companion_sources\" in evidence else ()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-registry-entry-deleted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"BACKOFF_REQUESTED_US\": (\n        \"cc/silo/transaction.cc\", \"#if BACKOFF_REQUESTED_US\",\n    ),\n}\n_CONDITIONAL_BRANCH_SITE_COUNTS = {\n",
+          "new": "}\n_CONDITIONAL_BRANCH_SITE_COUNTS = {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-companion-digest-binding-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "                        or source_file.sha256 != row[\"source_sha256\"]:\n",
+          "new": "                        or False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-companion-keys-emitted-unconditionally",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "                **companion_payload,\n",
+          "new": "                \"companion_sources\": companion_payload.get(\"companion_sources\", ()),\n                \"site_observations\": companion_payload.get(\"site_observations\", ()),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
