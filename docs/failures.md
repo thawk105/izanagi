@@ -321,6 +321,12 @@
   出所に留め、「未発効」「未確定」「未実施」型の状態語は起草前に当日の worklog entry 見出しを全部読んで grep で反証し、稿の限定を要約するときは
   条件 (検査 mode の内訳・集約方法・実行時刻) を稿の逐語で引く。一次資料から事実を再抽出する docs-only wave に read-only レビュー 1 本を残す
   規則 (D2148 項 11) の適用例が 1 つ増えた。
+
+- **再発: 2026-09-20 (near miss)** — [T-2501] wave (docs のみ) の親が、専用 handoff の段 1 brief と段 4 裁定の見出しに書いた JST 時刻
+  (21:05 / 21:12) を `date` で実測せず推定で書いた。実際はどちらも commit 1 (`git log --format=%ci` で 21:04:51) より前で、brief は開始 gate
+  (`startup-gate.log` の mtime 20:53:36) の後である。段 7 で commit 日時と mtime を採ったときに気づいた。逐語 (insight `verbatim/brief.md` /
+  `verbatim/adjudication.md`) は改変せず、insight README §2 に訂正を書いた。成果物 (runbook / glossary) への影響は無い。
+  原因は 2026-09-18 の再発と同型 — wave 冒頭の `date` 1 回に体感の経過を足した。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の

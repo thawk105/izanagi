@@ -1,0 +1,48 @@
+diff --git a/docs/glossary.md b/docs/glossary.md
+index d09980fdb..8916458b5 100644
+--- a/docs/glossary.md
++++ b/docs/glossary.md
+@@ -174,7 +174,7 @@ Phase 3 のコード合成と、探索ループの中枢 (orchestrator) を読
+ 
+ **campaign (キャンペーン)** — 1 回の探索実験のまとまり。その入力・WAL・レポートを 1 つのディレクトリに束ねる単位。*izanagi:* 出力レイアウトの軸。入力依存の成果物 (WAL + レポート) を `output/campaigns/<id>/` に置く。id は内容から決まる (D13)。
+ 
+-**exploration / 探索 (エクスプロレーション、2 義)** — 一般には「未知の候補を試して情報を集める」段階。*izanagi:* 同じ語が 2 つの別物を指す。(a) campaign の **use class** `exploration` — producer が `declared_use_class` で宣言する利用意図の 1 値 (閉表は `official` / `exploration` / `qualification` / `dry`、D528)。campaign root の namespace (`output/exploration/campaigns/<id>/`) と出力先の解決規則を決めるだけで、その測定値が正式標本に入るかは決めない。(b) D1813 の**探索** — 測定を 2 段で行うときの第 1 段。探索値は正式標本へ混ぜず、開示だけする (実装は `run_kind = t2418-explore`、D1848)。(b) の探索走は (a) では `official` であり、逆に (a) が `exploration` の campaign (例: A-1 対測定) の標本帰属は (a) の宣言では決まらない。環境変数・job script との対応表は `pegasus-runbook.md` §7.9。
++**exploration / 探索 (エクスプロレーション、2 義)** — 一般には「未知の候補を試して情報を集める」段階。*izanagi:* 同じ語が 2 つの別物を指す。(a) campaign の **use class** `exploration` — producer が `declared_use_class` で宣言する利用意図の 1 値 (閉表は `official` / `exploration` / `qualification` / `dry`、D528)。campaign root の namespace (`<base>/exploration/campaigns/<id>/`、base の既定は `output/`) と出力先の解決規則を決めるだけで、その測定値が正式標本に入るかは決めない。(b) D1813 の**探索** — 静的 backoff の 1000 マイクロ秒超を測る 2 段構成の第 1 段。探索値は正式標本へ混ぜず、開示だけする (実装は `run_kind = t2418-explore`、D1848)。(b) の探索走は (a) では `official` であり、逆に (a) が `exploration` の campaign (例: A-1 対測定) の標本帰属は (a) の宣言では決まらない。環境変数・job script との対応表は `pegasus-runbook.md` §7.9。
+ 
+ **certify / certified (認証・認証済み)** — variant が特定の workload/config で正しさゲート (直列化検証) を通ったことを確定させること。*izanagi:* certified でない variant は性能に関わらず reject。判定は `(variant, workload/config)` ごとで、同じ binary でも別 workload へ横流ししない。COMMIT を書ける唯一の経路は `pipeline.evaluate()` (phase3.md §kickoff タスク, roadmap.md §6)。
+ 
+diff --git a/docs/pegasus-runbook.md b/docs/pegasus-runbook.md
+index 31b437411..f5d910a67 100644
+--- a/docs/pegasus-runbook.md
++++ b/docs/pegasus-runbook.md
+@@ -1755,7 +1755,8 @@ materialize できるのは前 2 値だけである (D528)。**決まるのは c
+ - `official` → `<base>/campaigns/<id>/`。base は明示引数か `IZANAGI_OFFICIAL_OUTPUT_ROOT` で、
+   repo 内への fallback は無い。
+ - `exploration` → `<base>/exploration/campaigns/<id>/`。base は明示引数 > `IZANAGI_EXPLORATION_OUTPUT_ROOT`
+-  > repo 既定 (`output/`) の順で解決し、process 内で最初の解決値に pin される ([T-422] / F98 / D158)。
++  > repo 既定 (`output/`) の順で解決する。env 経路で解決した値は process 内に pin され、以後その経路では env の
++  変更・削除を拒否する。明示引数と repo 既定はこの pin の対象ではない ([T-422] / F98 / D158)。
+   namespace marker で official consumer が拒否する側であり、repo 外の base は hooks の campaign tree 防護の
+   外にある使い捨て領域で、certified 材料・proof chain 素材を置かない (`docs/orchestrator-design.md`
+   「campaign スコープの実際の root」)。
+@@ -1765,7 +1766,7 @@ materialize できるのは前 2 値だけである (D528)。**決まるのは c
+   (D123 の列挙 6 driver には無い。族の外延は D528 決定 7 で宣言由来になった)。backoff sweep 系の producer (`backoff_sweep` / `backoff_extended_sweep` /
+   `b10_backoff_shape_sweep` / `b10_backoff_static_tail_formal`) は `"official"` を渡す。
+ - 実装名は `orchestrator/campaign/layout.py` の `ExplorationCampaignLayout` / `exploration_campaign_layout`
+-  で、docstring も「探索専用 layout」「探索 layout」と書く。**code 中の「探索」はこの語 A である。**
++  で、docstring も「探索専用 layout」「探索 layout」と書く。**この 2 つの docstring 中の「探索」は語 A である。**
+ 
+ **語 B — 探索 (D1813 の測定段階、標本への帰属)。** 静的 backoff の 1000 マイクロ秒超を 2 段で測るうちの
+ 第 1 段。探索値は正式標本へ混ぜず、探索値・探索で選んだ格子・停止基準を開示し、第 2 段の本格格子と停止基準は
+@@ -1791,9 +1792,9 @@ campaign (`.../exploration/campaigns/<id>/`) ではない。本走はここか
+ |---|---|---|
+ | 何を分類するか | campaign の出力先・namespace・durable root policy (利用意図) | 測定値が正式標本に入るか (第 1 段 = 入らない、開示のみ) |
+ | 宣言の場所 | producer の `DECLARED_USE_CLASS` / `run_campaign(declared_use_class=)` | B-10 job の `--run-kind` と成果物 field `run_kind` / `exploratory` / `formal_series` / `claim_scope` |
+-| 環境変数 | `IZANAGI_EXPLORATION_OUTPUT_ROOT` (exploration だけ base を差し替えられる) | 無し。探索走の job は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を export する |
++| 環境変数 | `IZANAGI_EXPLORATION_OUTPUT_ROOT` (この env は exploration の base 解決に使い、official の base 解決には使わない) | 無し。探索走の job は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を export する |
+ | 実例 | A-1 対測定 `paper_story_a1_paired` は `exploration` (job script が `IZANAGI_EXPLORATION_OUTPUT_ROOT` を export)。標本の帰属はこの宣言では決まらない | `t2418-explore` は語 A では `official` のまま語 B の探索走 |
+-| 直交性 | 語 A の値は語 B を含意しない | 語 B の値は語 A を含意しない |
++| 読み違えない点 | use class の宣言だけでは正式標本への帰属は決まらない | D1813 の探索走を exploration use class と読み替えない。現行実装の宣言は `official` |
+ 
+ **読み分け。** 「exploration campaign」「exploration root」「`IZANAGI_EXPLORATION_OUTPUT_ROOT`」
+ 「`output/exploration/`」「`ExplorationCampaignLayout`」は語 A。「探索走」「`t2418-explore`」「探索値」
