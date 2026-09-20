@@ -5,7 +5,9 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 - 成果物: `results-discussion.md` (本 dir)。**前稿 `output/insights/2026-09-10/paper-results-ja/results-discussion.md` (worklog entry 1436) を
   supersede する。前稿の bytes は変えず、前稿 dir に前方 pointer の `README.md` を新規に置いた。**
 - wave: `worktree-dev-wave-paper-results-ja-2026-09-20` (背景 job d1eaf2c2、job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-ja-2026-09-20/`)
-- 起点 local main: `fec4a8187` (着手直前の local main、fresh worktree、startup gate rc=0)。**実装面 (repo 内) の差分 0**
+- 起点 local main: `fec4a8187` (着手直前の local main、fresh worktree、startup gate rc=0)。**採用時点は `482f19b88`** — 段 6 の前に
+  peer 通知を契機に main を読み直し、[T-2304] (ccbench pin `511c9538` → `e9e477ca` の前進) が着地していたので固定 SHA で取り込み、稿の pin に
+  関する記述 (§10、§12) と出所 24 を更新した。差分に results 稿・版・decisions の正典の変更は無い。**実装面 (repo 内) の差分 0**
   (本 dir の 2 file・前稿 dir の README 1 file・`docs/phase3.md` のチェック 1 項・worklog fragment のみ)。変異 matrix は `DW-S04` により免除、受入全走は免除しない
 - **新規の測定は 0 件。** 凍結物 (results 稿 19 本・版・claim-evidence・figures・前稿本文) の bytes は 1 byte も変えていない
 - ユーザー依頼の確定事項 (dev-wave 引数の逐語は job dir の HANDOFF.md 冒頭): 入力 = 論文ストーリー最新版 (2026-09-20 版 §3・§6・§8) と
@@ -34,7 +36,7 @@ B-10 待ち方 grid と右 tail 2 cohort / mocc 観測 2 件 / 考察 / 未取�
 | figures README | 一覧表と fig10 節の追補を読了。fig4 / fig6 / fig7 / fig8 / fig8b / fig9 / fig10 / fig11 / fig12 を番号で参照 | 図は生成しない |
 | 凍結 JSON | `p2-5-summary.json` の rows / recalibration / correction、`s6-rounds/tally.json` の eligible_counts と名目 p を再読。前稿の値と一致 | §1、§7 (表 10 の下) |
 | 裁定 | D2172 項 2 (T-2792、実装は entry 1736 で着地)・項 3 (T-2795、実装は entry 1746 で着地)・項 4 (B-5 部品の段階実装)、D2174 項 3、D2160、D2162、D2157、D2156、D2155、D2148 項 2・13、D1993、D1678、D1598、D1067、D1637 | 「裁定済み・実装済み・測定は未」を分けて書いた |
-| 並走 wave | ListAgents 10 本に同主題なし。序論・限界 / 方法節 / story 次版は別成果物 | 稼働中 wave の成果は数えない (採用時点 = `fec4a8187`) |
+| 並走 wave | ListAgents 10 本に同主題なし。序論・限界 / 方法節 / story 次版は別成果物 | 稼働中 wave の成果は数えない (採用時点 = `482f19b88`、pin 前進 [T-2304] まで) |
 
 ## 3. 親の機械照合 (稿 v1、job dir `artifacts/numcheck.py`)
 
@@ -60,7 +62,7 @@ B-10 待ち方 grid と右 tail 2 cohort / mocc 観測 2 件 / 考察 / 未取�
 | §4 K2 再評価・B-4 | §8.1 (3 巡の表 11、fig12、D2172 項 3 と entry 1746) と §8.2 (w1 完走、赤 precursor 0 件) |
 | §5 考察 | §11 (核 3 点、符号一致は照合、還流の「届いた / 効いた」) |
 | §6 未取得 | §12 (A-1 / A-5 / B-1 / B-2 / B-5 / B-3 / B-6 / B-4 / B-8 / 床値 / C-1) |
-| 出所 9 件 | 出所 23 件 |
+| 出所 9 件 | 出所 24 件 |
 
 ## 5. 段 6 — 独立 read-only レビュー 1 本と焦点再レビュー
 
