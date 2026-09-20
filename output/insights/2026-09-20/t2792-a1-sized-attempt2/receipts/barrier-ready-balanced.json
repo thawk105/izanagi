@@ -1,0 +1,30 @@
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+  "campaign_id": "paper-story-a1-balanced-paired-fdd1cb88",
+  "ordinal": 1,
+  "prepared_arms": [
+    {
+      "build_admission_receipt_sha256": "1dc3356cec772c4fc99d0fc80ef4c76d3745585a5ca2d83586f53393006426d2",
+      "build_attempt_id": "41aee1b567be1daab605f21ff3e09c15",
+      "variant": "93c62227a2d3",
+      "verify_tags": [
+        "legacy"
+      ]
+    },
+    {
+      "build_admission_receipt_sha256": "ab62960a9b71efe2eb0e2d31afcd908e9c802d9c8023304e89040889e4523feb",
+      "build_attempt_id": "4347ba1271baf254d7711aea73a0bf0b",
+      "variant": "84319b1127a6",
+      "verify_tags": [
+        "legacy"
+      ]
+    }
+  ],
+  "recorded_epoch": 1789895924,
+  "request_id": "0:13221.nqsv",
+  "reservation_nonce": "attempt-0002.balanced",
+  "schema_version": "paper-story-a1-paired-workload-ready/v1",
+  "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "workload": "balanced"
+}
