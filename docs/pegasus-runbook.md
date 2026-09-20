@@ -1739,6 +1739,68 @@ terminal `complete`) で実測した事実**は `output/insights/2026-09-19/t228
   rc=0 を返し、`status` は別に持つ。n = 62、欠測率、実 campaign の 24 時間以上の分離、採用は証拠確認者
   (D1641、申し送り 6) と集約 (D1974、申し送り 7) に残る。
 
+### 7.9 「exploration」(campaign の use class) と「探索」(D1813 の標本帰属) は別語 ([T-2501] / D1879、2026-09-20)
+
+同じ「探索」という言葉が、この runbook と設計文書・code では **2 つの別の物**を指す。§8 の
+`IZANAGI_EXPLORATION_OUTPUT_ROOT` の項目 (exploration campaign) と、B-10 静的 backoff 右 tail の
+「探索走」(D1813 の第 1 段、`t2418-explore`) を読み違えないための定義と対応を、ここ 1 か所に置く。
+本節は語の整理だけである — 実装・凍結成果物・正式 consumer の受理集合・`run_kind` には触れない
+(D1879 が採らないと決めた 2 件を含む)。
+
+**語 A — exploration (campaign layout の use class)。** campaign producer が `declared_use_class` で
+宣言する「利用意図」の 1 値。閉表は `official` / `exploration` / `qualification` / `dry` の 4 値で、
+materialize できるのは前 2 値だけである (D528)。**決まるのは campaign root の namespace と出力先の
+解決規則**であり、その campaign の測定値が正式標本に入るかどうかは決まらない。
+
+- `official` → `<base>/campaigns/<id>/`。base は明示引数か `IZANAGI_OFFICIAL_OUTPUT_ROOT` で、
+  repo 内への fallback は無い。
+- `exploration` → `<base>/exploration/campaigns/<id>/`。base は明示引数 > `IZANAGI_EXPLORATION_OUTPUT_ROOT`
+  > repo 既定 (`output/`) の順で解決し、process 内で最初の解決値に pin される ([T-422] / F98 / D158)。
+  namespace marker で official consumer が拒否する側であり、repo 外の base は hooks の campaign tree 防護の
+  外にある使い捨て領域で、certified 材料・proof chain 素材を置かない (`docs/orchestrator-design.md`
+  「campaign スコープの実際の root」)。
+- 宣言主体は producer module の module-level `DECLARED_USE_CLASS` と `run_campaign(declared_use_class=...)`
+  (D528 決定 5・7)。`"exploration"` を宣言するのは s4 driver 族 (`p3_s4_loop` / `_sort` / `_trigger_gating` /
+  `p3_s4_red` / `p3_kickoff`)・8c `p3_autonomous_workload_trial`・A-1 対測定 `paper_story_a1_paired`
+  (D123 の列挙 6 driver には無い。族の外延は D528 決定 7 で宣言由来になった)。backoff sweep 系の producer (`backoff_sweep` / `backoff_extended_sweep` /
+  `b10_backoff_shape_sweep` / `b10_backoff_static_tail_formal`) は `"official"` を渡す。
+- 実装名は `orchestrator/campaign/layout.py` の `ExplorationCampaignLayout` / `exploration_campaign_layout`
+  で、docstring も「探索専用 layout」「探索 layout」と書く。**code 中の「探索」はこの語 A である。**
+
+**語 B — 探索 (D1813 の測定段階、標本への帰属)。** 静的 backoff の 1000 マイクロ秒超を 2 段で測るうちの
+第 1 段。探索値は正式標本へ混ぜず、探索値・探索で選んだ格子・停止基準を開示し、第 2 段の本格格子と停止基準は
+探索結果を見た後・本格 cohort 投入前に事前登録する (D1813)。実装は D1848 のとおり
+`orchestrator/campaign/backoff_extended_sweep.py` の第 3 の RUN_KIND `t2418-explore` で、成果物 3 か所
+(`search_config` / JSON report / `.dat` provenance) に `run_kind` /
+`claim_scope = exploratory_backoff_tail_only_not_formal_series` / `exploratory = true` /
+`formal_series = false` / `declared_use_class` を同値で載せる。**この探索走の `declared_use_class` は
+`official` である** — job 本体 `tools/pegasus/b10_backoff_grid.sh` は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を
+export し、exploration root へは移していない (D1848 の却下肢 3)。第 2 段は
+`docs/b10-backoff-static-tail-preregistration.md` (RUN_KIND `t2500-tail-formal`、driver は別 module
+`orchestrator/campaign/b10_backoff_static_tail_formal.py`) が持つ。
+
+**第 3 の表記 — `--explore-campaign`。** `tools/pegasus/submit_b10_backoff_grid.sh` の
+`--explore-campaign <絶対 path>` (`t2500-tail-formal` 限定) は**語 B の探索走の campaign directory**
+(`<output parent>/<group>-<workload>/campaigns/<id>/`、語 A では `official`) を指す。語 A の exploration
+campaign (`.../exploration/campaigns/<id>/`) ではない。本走はここから正しさ検査の mode を読んで自分の mode と
+比較するだけで、探索走の数値は本走の判定に入らない (`docs/b10-backoff-static-tail-submission.md`)。
+同 driver の検査文言 `mode source must be exploration` (`run_kind == "t2418-explore"` の要求) も語 B であり、
+語 A の use class を検査しているのではない。
+
+| 観点 | 語 A: exploration (use class) | 語 B: 探索 (D1813) |
+|---|---|---|
+| 何を分類するか | campaign の出力先・namespace・durable root policy (利用意図) | 測定値が正式標本に入るか (第 1 段 = 入らない、開示のみ) |
+| 宣言の場所 | producer の `DECLARED_USE_CLASS` / `run_campaign(declared_use_class=)` | B-10 job の `--run-kind` と成果物 field `run_kind` / `exploratory` / `formal_series` / `claim_scope` |
+| 環境変数 | `IZANAGI_EXPLORATION_OUTPUT_ROOT` (exploration だけ base を差し替えられる) | 無し。探索走の job は `IZANAGI_OFFICIAL_OUTPUT_ROOT` を export する |
+| 実例 | A-1 対測定 `paper_story_a1_paired` は `exploration` (job script が `IZANAGI_EXPLORATION_OUTPUT_ROOT` を export)。標本の帰属はこの宣言では決まらない | `t2418-explore` は語 A では `official` のまま語 B の探索走 |
+| 直交性 | 語 A の値は語 B を含意しない | 語 B の値は語 A を含意しない |
+
+**読み分け。** 「exploration campaign」「exploration root」「`IZANAGI_EXPLORATION_OUTPUT_ROOT`」
+「`output/exploration/`」「`ExplorationCampaignLayout`」は語 A。「探索走」「`t2418-explore`」「探索値」
+「`--explore-campaign`」「D1813 の第 1 段」は語 B。1 つの campaign は両方の値を同時に持つ
+(探索走 = 語 A `official` × 語 B 探索)。語 A の `exploration` を「非正式な標本」と読まず、語 B の探索走を
+「exploration root に書かれる」と読まない。
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
@@ -1749,6 +1811,7 @@ terminal `complete`) で実測した事実**は `output/insights/2026-09-19/t228
   job script に絶対 path を書く形は採らない — 機体固有値を repo へ持ち込むため
 - **wave worktree から exploration campaign / 8c trial を実走する job は、job script が
   `IZANAGI_EXPLORATION_OUTPUT_ROOT` を job 専用の `/work` 配下へ export した** ([T-422] / F98。
+  ここでの exploration は campaign の use class であって D1813 の「探索走」ではない — 語の定義と対応は §7.9。
   実 path は job script が組み立て、shared code・test・docs へ固定値を書かない。process 起動前に
   一度だけ設定し実行中に変更しない。未設定のまま worktree 内で materialize しようとすると
   `ensure()` が fail-fast で拒否する)
