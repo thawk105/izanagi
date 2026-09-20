@@ -1,0 +1,6 @@
+control      files=22 digest=92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb MATCH(expected)
+A-missing    files=21 digest=4e83ca6664329860cb882c04a28c13e9d0e7d7ce3dbabb0085e600da39ce98df MISMATCH
+X-missing    files=21 digest=4267daafa8954bd44674f8085c0b9cecd704ea4ba300eca32b138f9be59d92ff MISMATCH
+extra-file   files=23 digest=dfd9a3fb46134fca8652b8b0d4c6c8910d84a56cbba79211562aa1dbe98b05d9 MISMATCH
+X-one-byte   files=22 digest=7f5cf9f53a03ef88274195e398b387b91c0fd8df4bbdc16091349e52a9daf8cc MISMATCH
+negatives-all-mismatch-and-control-matches: True

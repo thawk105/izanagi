@@ -159,8 +159,8 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 | # | コマンド | 期待 |
 |---|---|---|
 | P1 | `git ls-tree HEAD external/ccbench` | `160000 commit e9e477ca…` (2026-09-20 [T-2304] で D2150 項 1 の候補へ前進。値の正本は `orchestrator/campaign/s8b_approved.py` の `CCBENCH_FULL_SHA`。凍結済み floor protocol は自身の `ccbench_pin` (`511c9538…`、2026-08-12 [T-816] 手順 4 で前進した期の値) を保持し、その期の床値を歴史再開するなら旧 commit を明示 checkout する。`d706650c…` 期も同様) |
-| P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `2 passed, 0 failed` / rc=0 |
-| P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = active 世代 path を指定し全 gate が成立した場合だけ `allowed: true`) |
+| P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `5 passed, 0 failed` / rc=0 (2026-09-20 現物の直接 runner は 5 関数を列挙する。held marker が出る検査は bytes 全検証済みと読まない) |
+| P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = v1 path は既知 4 件 exact のまま、active 世代 path は `freeze-ratify:` が消え、全 gate が成立した場合だけ `allowed: true`。2026-09-20 時点の実測は `v2-execution: launch-validate: [journal-state-invalid] …` で refused、W-3 参照) |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |
 
 P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先に切り分ける。
@@ -316,16 +316,26 @@ wrapper からは起動できない。
   `output/s8b-freeze-candidates/holdout_freeze.v2.g{N}.json` に書く (走査除外ではない)。
   世代文書は `output/s8b-freeze/holdout_freeze.v2.g{N}.json` で、批准側はその導入 commit G が
   「非 merge・親 == 候補の `frozen_at_head`・`AI-Agent` trailer 付き」であることを要求する。
-  approvals/・active/ は人間 commit (`AI-Agent: none`、非 merge、X^ == A) で作り、file を作ること自体が発効。
-  `output/s8b-freeze/` への直接 Write は hook が誤操作抑止で拒否する。
+  approvals/・active/ の record は非 merge・diff 1 file・X^ == A の commit で作り、file を作ること自体が発効。
+  導入 commit の trailer 条件は 2026-09-20 のユーザー裁定 (D2120 項 2 (b)・D2174 項 4 を supersede) で「逐語 `AI-Agent: none`
+  の人間 commit」から「`AI-Agent` trailer ちょうど 1 行 (逐語 none または provenance 規約に適合する構造化 trailer)」へ改まり、
+  record は Codex author が書き commit は親が機械的に代行する (attestation = 記録済みの委任裁定 + 構造化 trailer + topology)。
+  `output/s8b-freeze/` への直接 Write は hook が誤操作抑止で拒否する (認証防壁ではない)。
 - **入力の順序は W-2 の一方向順序 (D2077) のとおり** — restore した official result を commit してから
   生成する。成果物を持つ checkout では以後 official 床値の起動証明 (clean scan) が赤になる。
 - **候補の所在:** 保存 branch `freeze-g1-chain-t2724` (base = main、fix commit → 入力 commit →
-  候補 commit)。main には載せていない (載せる = D2077 step 4 の打ち切り決定であり人間裁定)。
+  候補 commit)。2026-09-20 に chain (X1' / X2) と世代導入 G が main に載った (D2120 項 2 (a)(b)、D2166)。
   一次資料 `output/insights/2026-09-17/t2724-freeze-v2-g1-candidate/README.md`、裁定パッケージは同 `package.md`。
 - **chain 導入後の注意 (2026-09-20、D2120 項 2 (a)(b) の履行):** X1' / X2 / G を main に載せた木では、official 床値の起動証明 (clean scan) は run_dir 3 file + 候補の hit 4 / 4 で赤になる (設計どおり、走査除外は広げない) ので、後続の official 床値 wave は main からでなく別 branch から起動する。B-10 job script の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`) は同じ版で G を含む tree の値へ更新済みで、この版の job script は G を欠く tree・file の追加・bytes の変更を測定前の digest 検査で拒否する (旧 script と旧 tree を備えた旧 checkout の組は失効しない)。
-- **残る手番:** (a) 打ち切り = chain の main 取り込み、(b) 世代導入 commit G → approval A → pointer X の
-  人間 commit、(c) 床の採否 (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
+- **発効 (2026-09-20):** 承認 A `a3bf67a8c` (approval sha256 `3787d97b…`) → active pointer X `70e87c9c9` (pointer sha256
+  `577537e2…`) を AI (Codex author が record、親が commit) が作り、批准 loader は generation 1・sha `7e1114…` を返す。
+  §2 P3 は v1 path で既知 4 拒否 (不変)、g1 path で `freeze-ratify:` が消える一方、full launch validation が
+  `v2-execution: launch-validate: [journal-state-invalid] … 'reservation-preflight'` (`_JOURNAL_KEYS` に official run の journal
+  event が未登録) で止まり `allowed: false` のまま。これは A/X が生む差ではなく launch validator と official 成果物の既存の
+  不整合で、その後ろに段階 6 の lineage 条件 (result の導入集合 == {G} だが実際は X1' 導入) も控える。解消は別 wave (AI 手番、
+  設計択一) — 一次資料 `output/insights/2026-09-20/t2724-ax-delegated/README.md`。
+- **残る手番:** launch validation の不整合 2 件の解消 (上記)、(c) 床の採否は D2120 項 2 (c) で裁定済み
+  (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
   [T-750] package の残余 (P-1 pinned literal の恒久形、P-3 批准 proof chain に budget authorization field
   が無い構造) は別管理のまま。
 
@@ -334,7 +344,7 @@ wrapper からは起動できない。
 - `s8b_oracle_manifest.py build-approved --output <path>` が production の呼出し入口で、active ratified
   freeze と approved spec だけから manifest candidate を作る ([T-750] 単位 B)。実行主体は operator。
   出力先は `output/s8b-oracle-manifest-candidates/` 配下に固定される。wrapper script は新設しない。
-- 現在は active freeze が無く `no-active-ratified-freeze` で拒否する。active 成立後も
+- 2026-09-20 に active freeze (g1) が成立した (A/X、W-3)。それ以前は `no-active-ratified-freeze` で拒否していた。active 成立後も
   `s8b_oracle_spec.APPROVED_SPEC_SHA256 = None` のため、人間が reviewed spec を承認して定数を置くまで
   `no-approved-spec` で fail-closed する ([T-750] P-1 の手番)。
 - `s8b_oracle_driver.py run-block` は `--manifest` を必須で取る。CLI の存在は oracle 実走の認可を意味しない。

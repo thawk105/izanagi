@@ -212,10 +212,6 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s5_permutation_coverage.py", "<module>._build_broken"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._run_cmake_build"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._verify"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.export_stock"): 3,
-    ("campaign/s6_canary_rename.py", "<module>.git_apply"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.normalize_cxx"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.verify"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.call_headless"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.cmd_freeze"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.freshness_check"): 2,
@@ -949,7 +945,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "buildcache",
         "<module>._build_binary",
-        3648,
+        3644,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -957,7 +953,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_formal",
-        4474,
+        4470,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/paper_story_a1_paired.py",
@@ -2928,11 +2924,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "buildcache", "<module>._build_binary", 3648,
+            "wave t1905", "buildcache", "<module>._build_binary", 3644,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
-            "wave t1905", "campaign", "<module>.run_formal", 4474,
+            "wave t1905", "campaign", "<module>.run_formal", 4470,
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",

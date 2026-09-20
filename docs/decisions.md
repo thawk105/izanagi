@@ -68986,3 +68986,75 @@ launcher・系列・集計器で強制する。
 - 認可 attempt の公開先を attempt-0001 の leaf 配下 `…/attempt-0002` にする — 凍結 leaf の内容集合を増やし、leaf の存在に依存する。
 - record に追補 file の sha を持たせる — source commit が追補を含む tree を束縛するので冗長。契約 JSON / policy へ sha を足す案は凍結 bytes の改版になる。
 - 手書き JSON で record を作る — key 集合と digest を誤りやすい。小さい producer で exact 性を機械化した。
+
+## D2179. 一回限り tool 15 対は 4 対を削除し 11 対を残す — 専用でない test と別裁定の維持指定は対削除の前提を崩す (2026-09-20)
+
+**決定:** D2172 項 5 R3 (c) の 15 対のうち、`s6_canary_rename.py`、`insights_date_layout.py` + test、`migrate_output_gzip.py` + test、
+`plot_t2266_tail_mechanism.py` + test の 4 対を削除し、残る 11 対を残す。R1 (a) の 6 file は裁定どおり削除する。
+削除できる条件は次の 3 つの連言で、module ごとに現物 (docstring、git 履歴、決定・事前登録・runbook の名指し、
+live module と test からの参照、成果物の所在) で確認できたときだけ削除する。
+
+1. 一回限り — 実施済みで、以後に別の作業が同 module を library・driver として再利用していない。
+2. 結果が凍結済み — 成果物・insight・図に結果があり、module が無くても成果物の読み方が変わらない。
+3. 現行機構の実装でない — 有効な決定・凍結事前登録が実装として名指ししておらず、live な producer / consumer の対の片側でなく、
+   live な test がその module の定数・述語を照合先にしていない。
+
+さらに対削除の前提として、**専用 test が本当に専用であること**を要求する。専用 test に live code の性質を検査する test 関数が含まれる
+場合 (例: dispatch の環境除去、registry の包含 pin、残る patch の意味検査) や、その test 関数を別の有効な裁定が維持対象に
+名指ししている場合は、対削除の前提が成立しないので module ごと残す。被覆を残すための test 分割は削除でなく新しい編集であり、
+削除 wave の scope に入れない。
+
+**理由:**
+- 段 3 の敵対相談で、段 1 が「専用」と数えた test 2 本のうち 1 本が live な dispatch 経路の検査を持ち、もう 1 本の 1 関数が
+  D2172 項 6 (派生値 pin は削らない) の維持対象に載っていた。棚卸しの「module → 参照する test」の対応は import graph から
+  機械的に出したもので、test の中身が module 専用かどうかは見ていない。
+- 「現行機構の実装でない」は名前検索で prod import が 0 でも成立しない。凍結事前登録が解析器に契約を課す (counterfactual)、
+  live な producer の診断 consumer である (床値 job の checkpoint)、live な test が定数を照合先にする (cohort2 の seeds)、
+  別 wave の probe が library として関数を再利用する (非単調性解析) のいずれも、prod import 0 のまま module を現用にする。
+- 2 つの有効な裁定が同じ test 関数で重なるとき、どちらかを優先する順位を親が新設せず、両方を満たす側 (残す) を選ぶ。
+  優先を望むならユーザーが例外を指定する。
+
+**却下した選択肢:**
+- 対削除の前提が崩れた module だけ削り、専用 test から live 被覆の関数を別 file へ移す — 削除でない編集を削除 wave に混ぜ、
+  受理集合の変化が 2 種類になる。移す価値があるかは別依頼で決める。
+- 項 5 R3 の名指しを項 6 より優先して science-slice の対を削る — 逐語に優先の根拠が無く、派生値 pin を消す。
+- 「結果凍結済み」を満たす module を「現行機構でない」の確認なしに削る — cohort2 の seeds や D2035 の errno 連言のように、
+  live な test が結果でなく module 自体を照合先にしている場合を見落とす。
+
+## D2180. 凍結 v2 g1 の承認 A と active pointer X は AI が作る — 批准 attestation を「`AI-Agent: none` 逐語」から「記録済みの委任裁定 + 構造化 AI trailer ちょうど 1 行」へ改める (D2120 項 2 (b) と D2174 項 4 を supersede) (2026-09-20)
+
+**決定 (ユーザー裁定 2026-09-20 13:2x JST、本 wave が履行):**
+
+- 承認 A (`output/s8b-freeze/approvals/<世代 sha256>.json`) と active pointer X (`output/s8b-freeze/active/<自身の sha256>.json`) は
+  AI が作る。D2120 項 2 (b) の「いずれも逐語 `AI-Agent: none` の人間 commit」と D2174 項 4 の「ユーザーが実施する。AI は作らない」は
+  本決定で supersede する。record の bytes は Codex author (D95) が `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §5
+  手順 2〜5 と同じ形 (canonical JSON、keys ちょうど 4 / 5、filename 規則、create-only) で書き、commit は親 (Claude manager) が機械的に
+  代行する。A / X の commit は非 merge・diff 1 file・X^ == A・A と X の間に他 commit を挟まない、を保つ。
+- 批准側 `orchestrator/campaign/s8b_ratified_freeze.py` の `_assert_user_commit` (approval / pointer / revocation / cancellation の
+  導入 commit 検査、C1-6) は「非 merge・H ancestry・`AI-Agent` trailer が**ちょうど 1 行**で、その 1 行が逐語 `AI-Agent: none`
+  または `docs/ai-provenance.md` の必須形式に適合する構造化 trailer」を要求する。none と構造化の併記、2 行以上、trailer 無し、
+  規約非適合の構造化行 (product / model / reasoning / role の順と許可値、予約語 product、`model` / `reasoning` の `none`)、
+  key の大小文字違い・末尾空白 (raw 行の byte-for-byte 検査) は従来どおり拒否する。
+- attestation の意味: 発効 commit の真正性は「本決定 (記録済みの委任裁定) + 構造化 AI trailer + 導入 commit topology」が担う。
+  `AI-Agent: none` 逐語は人間 commit の証明ではなく (hooks README F6a)、本決定以後は「人間が commit 操作を行った」ことを主張しない
+  (承認の主体はユーザー、record の作成と commit の実行は委任された AI)。論文で g1 の批准をどう記すか (呼称・独立性・主張への影響)
+  は本決定の対象外で、必要なら別途諮る (10:2x の裁定控えには、提示時に AI が明示しユーザーが承知した帰結として「AI が自己承認した
+  世代になる」の記録がある)。
+- 不変: 世代導入 G の `generation-commit-none` 拒否、diff 1 file (`approval-commit-diff` / `pointer-commit-diff`)、X^ == A
+  (`pointer-approval-parent`)、`user-commit-merge`、`user-commit-ancestry`、`_unique_introduction`、`history-mutated`。
+  hook (`hooks/guard_write.py` の `output/s8b-freeze/` Write 拒否) は変えない (誤操作抑止のまま。bytes は Bash 経路で書く、G と同じ)。
+  鍵署名・床値・certification・W-4 / W-5 は本決定の対象外。規律 2 は緩めない。
+- `approver` は「ユーザーの委任と裁定日」を記す文字列とし、批准側は値の書式を検査しない (従来どおり)。
+- 帰結: A / X の 2 file は B-10 の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`、D2166) の対象 dir に入るので、pin を A / X 込みの
+  値へ更新する。扱いは D2166 を引き継ぐ (旧 cohort の記録は不変、新 phase の事前登録成立でも本走許可でもない) が、手続は同一ではない:
+  本 wave では A / X 導入の事前授権から必然となる期待変更として、赤を見る前に更新対象 3 literal を固定し、独立レビュー・変異 2 件
+  (test literal だけ旧値 / job 定数だけ旧値)・負例 4 件 (別 file 追加 / 1 byte 変更 / A 欠落 / X 欠落) を条件に同 wave で更新する。
+  未実施の検証は未実施と記録する。実 repo を root にする consumer test (growth hold 下の 6 node) の「`no-active`」期待値は発効後の
+  実測値へ書き直す (弱体化ではなく新しい真値。tmp repo 側の `no-active` 負例は残す。hold の登録は不変だが通常受入の所要は未検証)。
+
+**理由・採らない案:** 人間 commit を待つ形 (D2174 項 4) は、`git status` 空の前提が未追跡 dir で成立せず、承認の内容 (床の採用、
+候補 bytes、世代導入) はすべて D2120 項 2 で裁定済みで人間が新たに判断する事項が無い。AI が `AI-Agent: none` を書く案は
+provenance 虚偽 (規約 35 行) で採らない。構造化 trailer を「1 行以上」で受理する案 (10:2x の控え) は、A / X が単一の author 構成で
+作られる事実と合わず、ちょうど 1 行の方が受理集合が狭い。hook の Write 拒否を正規経路に限って解除する案 (同控え) は hook が
+認証防壁でない以上、発効の真正性に寄与せず変更面を増やすだけで採らない。`role=author` / `product=codex` を必須にする案は、
+裁定の文言 (規約に適合する構造化 trailer) より狭く、revocation / cancellation を将来別構成が作る余地を無くすので採らない。

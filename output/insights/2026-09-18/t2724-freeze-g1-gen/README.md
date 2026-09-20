@@ -10,7 +10,8 @@ branch `freeze-g1-chain-t2724` に置いた候補 X2 `4d8fb93b7` の bytes を�
 (候補の `frozen_at_head`) を親とする新 branch 上で世代文書 `output/s8b-freeze/holdout_freeze.v2.g1.json` として
 書き、親が commit した。それが世代導入 commit **G = `32ba8cae45001697f050bee377413153e6d798a5`** である。
 G は未発効 — `output/s8b-freeze/approvals/` と `active/` は作っていない。発効に要る承認 A と active pointer X
-は provenance 規約上 AI が作れない人間 commit であり、その手順を §5 に残す。
+は起草時点では provenance 規約上 AI が作れない人間 commit であり、その手順を §5 に残す (2026-09-20 13:2x の
+ユーザー裁定で AI 委任へ改訂され、同日 A `a3bf67a8c` / X `70e87c9c9` として実施済み — §5 冒頭の改訂注記)。
 
 ## 1. 入力と出所
 
@@ -133,18 +134,29 @@ land せず**、G を branch に保全して正式停止し、裁定パッケー
 `~/.claude/projects/-work-1-SFC-tanab-izanagi/memory/chain-consequence-enumerate-real-root-consumers.md` (本 wave で作成) に
 「凍結 / official 成果物を入れる帰結は ROOT 参照から列挙し、その木で 1 本実走してから裁定材料にする」を置いた。
 
-## 5. 人間手番 — 承認 A → active pointer X の手順 (AI は作らない)
+## 5. 承認 A → active pointer X の手順 (2026-09-20 13:2x の裁定で AI 委任へ改訂。実施済み)
 
-A / X は provenance 規約 (`docs/ai-provenance.md` 35 行「AI が実質的に関与しない commit」だけが `AI-Agent: none` を使える) と
-D2120 項 2 (b) により人間 commit である。hook の Write 拒否は人間性の証明ではない (hooks README 150 行)。以下は
+**改訂 (2026-09-20、[T-2724] wave `dev-wave-t2724-ax-delegated`):** 本節は起草時 (2026-09-18) には「人間手番 — AI は作らない」
+だった。ユーザー裁定 2026-09-20 13:2x が D2120 項 2 (b) と D2174 項 4 を supersede し、A / X は AI が作ることになった
+(決定台帳の同 wave fragment を参照)。批准側の attestation は「逐語 `AI-Agent: none`」から「記録済みの委任裁定 + `AI-Agent` trailer
+ちょうど 1 行 (逐語 none または provenance 規約に適合する構造化 trailer)」へ改めた (`_assert_user_commit`、同 wave の実装 commit)。
+実施形: 手順 2 と 4 の record は Codex author が同じ script 形で書き、commit は親 (Claude manager) が機械的に代行、message は
+本文 + 空行 + Codex author の構造化 1 行 (`Co-Authored-By` 無し)。実施結果 = 承認 A `a3bf67a8c` (approval sha256 `3787d97b…`)、
+active pointer X `70e87c9c9` (pointer sha256 `577537e2…`)、手順 6 の loader は JSON 1 行 (generation 1、sha `7e1114…`)。
+一次資料は `output/insights/2026-09-20/t2724-ax-delegated/README.md`。以下の手順 1〜6 は実施の形として残す (「人間が」と
+ある箇所は委任後は AI が実施する。手順 3 / 5 の trailer は「逐語 `AI-Agent: none`」ではなく規約適合の構造化 1 行)。
+
+hook の Write 拒否は人間性の証明ではなく誤操作抑止である (hooks README)。以下は
 **§4 の裁定 (`package.md`) が決着し、G と X1' を含む branch が main (または oracle を走らせる branch) に載った後**に、
-その checkout の root で人間が実行する。A と X の間に他の commit を挟まない。
+その checkout の root で実行する。A と X の間に他の commit を挟まない。
 
 1. 前提: `git status --porcelain --untracked-files=all` が空、`git merge-base --is-ancestor 32ba8cae45001697f050bee377413153e6d798a5 HEAD`
    と `git merge-base --is-ancestor cc82edc8c9f90a9ee659c2d27f71b75b19a56490 HEAD` がともに rc=0 (rc=1 は非祖先、それ以外は実行エラー)。
 2. approval record を作る (canonical JSON = `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)`、
    末尾改行なし。keys は `generation_sha256` / `approver` / `approved_at` / `scope` の 4 つちょうど。filename は generation の sha256)。
-   `approver` は承認者の識別子、`approved_at` は実際の承認時刻 (UTC、`YYYY-MM-DDTHH:MM:SSZ`)、`scope` は慣例値 `s8b-holdout`
+   `approver` は承認者の識別子 (下の例の `"user"` は起草時の形。委任後の実施では
+   `user (delegated to AI by user ruling 2026-09-20 13:2x JST; supersedes D2120 item 2(b) and D2174 item 4)` を書いた)、
+   `approved_at` は実際の承認時刻 (UTC、`YYYY-MM-DDTHH:MM:SSZ`)、`scope` は慣例値 `s8b-holdout`
    (test fixture `test_s8b_ratified_freeze.py:169-173` の値。批准側は値の書式を検査しない)。`output/s8b-freeze/` への Write は
    hook が拒否するので人間自身の shell / python で書く:
 
@@ -167,7 +179,9 @@ D2120 項 2 (b) により人間 commit である。hook の Write 拒否は人�
    ```
 3. commit A: `git add -- output/s8b-freeze/approvals/7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06.json`、
    `git diff --cached --name-status` が `A` 1 件だけ。repo 外の message file (例 `/tmp/t2724-approval-message.txt`) の中身は
-   本文 1 行 + 空行 + 逐語 `AI-Agent: none` の 1 行だけ (他の `AI-Agent` 行・`Co-Authored-By` は書かない)。
+   本文 1 行 + 空行 + `AI-Agent` trailer ちょうど 1 行 (起草時は逐語 `AI-Agent: none`。委任後の実施では Codex author の
+   構造化 1 行 `AI-Agent: product=codex; model=…; reasoning=…; role=author; scope=approval-record`) だけ
+   (他の `AI-Agent` 行・`Co-Authored-By` は書かない)。
    `python3 tools/check_ai_provenance.py --message-file <file>` rc=0 → `git commit -F <file>`。確認:
    `git rev-list --parents -n 1 HEAD` (親 1 件)、`git diff-tree --no-commit-id --no-renames --name-status -r HEAD` (`A` 1 件)、
    `git show -s --format=%B HEAD`。A の SHA を控える。
@@ -193,7 +207,8 @@ D2120 項 2 (b) により人間 commit である。hook の Write 拒否は人�
    print(path)
    PY
    ```
-5. commit X: 表示された path だけを `git add`、message file は A と同じ形 (本文 + 逐語 `AI-Agent: none`)、preflight rc=0 →
+5. commit X: 表示された path だけを `git add`、message file は A と同じ形 (本文 + `AI-Agent` trailer ちょうど 1 行。委任後は
+   `scope=active-pointer` の構造化 1 行)、preflight rc=0 →
    `git commit -F`。確認: `git rev-list --parents -n 1 HEAD` の親が **A ちょうど 1 件**、diff が `A` 1 件、
    `git status --porcelain --untracked-files=all -- output/s8b-freeze` が空。
 6. 検証 (repo 外の script、H = 実行時の HEAD)。次を `/tmp/verify-t2724-active.py` に保存し、repo root で

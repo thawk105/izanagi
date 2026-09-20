@@ -128,6 +128,22 @@ _NO_ACTIVE_REFUSAL = (
     "freeze-ratify: [no-active] [no-active] live active pointer が無い "
     "(v2 未発効)"
 )
+# g1 発効後の実 repo の真値 (T-2724 A/X wave で記録)。launch validation が
+# _JOURNAL_KEYS 未登録の reservation-preflight で止まる既存の不整合が
+# 解消されたら再実測して更新する。
+_ACTIVATED_G1_REFUSALS = frozenset({
+    "holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 4 件: "
+    "['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', "
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', "
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', "
+    "'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 件: "
+    "['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', "
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', "
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', "
+    "'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']",
+    "v2-execution: launch-validate: [journal-state-invalid] [journal-state-invalid] "
+    "journal[1] event/status が未知: 'reservation-preflight'",
+})
 _APPROVED_BY_PATH: dict[Path, spec_fixture.ReviewedSpecFixture] = {}
 _ACTIVE_APPROVED: spec_fixture.ReviewedSpecFixture | None = None
 
@@ -4059,7 +4075,7 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
     output_root = tmp_path / "refused-out"
     budget_path = tmp_path / "refused-budget.json"
 
-    # [T-057] 対象は no-active refusal。実 repo receipt 解決は incidental なので memo する。
+    # [T-057] 対象は launch validation refusal。実 repo receipt 解決は incidental なので memo する。
     # [T-117] active 世代解決 (1 回 4.4 秒) も incidental — 対象は「refusal なら 1 byte も
     # 書かない」であり、解決そのものの検出力は
     # test_nonnull_floor_without_active_generation_is_refused (memo 非使用) が持つ。
@@ -4071,7 +4087,7 @@ def test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing(tmp_pa
         )
 
     assert result["status"] == "refused" and result["allowed"] is False
-    _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
+    _assert_exact_refusals(result["refusals"], _ACTIVATED_G1_REFUSALS)
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
@@ -4526,9 +4542,9 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
 
 
 def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
-    """v2 (floor 充填) freeze だが実 repo に承認束縛済み active 世代が無い場合、
-    active 解決失敗を freeze-ratify refusal に翻訳し、一切書かずに倒す (RatifiedFreezeError
-    を例外として漏らさない)。"""
+    """歴史的 node 名。実 repo の active 世代を実解決 (成功) し、
+    launch validation の拒否を翻訳して一切書かずに倒す。
+    no-active 翻訳は未発効 tmp repo の集約テストで維持する。"""
     freeze_path = _floor_only_freeze(tmp_path)
     manifest_freeze = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
@@ -4538,10 +4554,10 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
     output_root = tmp_path / "v2-refused-out"
     budget_path = tmp_path / "v2-refused-budget.json"
 
-    # [T-057] 対象は active 世代の解決失敗の翻訳。receipt 解決は incidental なので memo する。
+    # [T-057] 対象は実解決後の launch validation 拒否翻訳。receipt 解決は incidental なので memo する。
     # [T-117] **この node は active 世代解決を memo しない正本 payer** である。実 repo の
     # 履歴走査 (git 39 本・4.4 秒) を node 順序に依らず毎 session 必ず 1 回走らせ、
-    # 「解決失敗 → freeze-ratify refusal」の検出力を memo に委ねない (規律 2)。
+    # 「実解決成功 → launch validation refusal」の検出力を memo に委ねない (規律 2)。
     # 不変条件は test_real_repo_serialization.py の payer 検査が機械固定する。
     with receipt_memo.patch_driver_resolver():
         result = driver.run_block(
@@ -4551,13 +4567,16 @@ def test_nonnull_floor_without_active_generation_is_refused(tmp_path):
         )
 
     assert result["status"] == "refused"
-    _assert_exact_refusals(result["refusals"], {_NO_ACTIVE_REFUSAL})
+    _assert_exact_refusals(result["refusals"], _ACTIVATED_G1_REFUSALS)
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
 
 
 def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_path):
-    """active 解決失敗時も独立 manifest 構造検査の refusal を落とさない。"""
+    """歴史的 node 名。g1 発効後は manifest 検証前の launch 拒否を固定する。
+
+    no-active と manifest 構造拒否の集約は未発効 tmp repo のテストで維持する。
+    """
     freeze_path = _floor_only_freeze(tmp_path)
     manifest_freeze = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
@@ -4571,8 +4590,8 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
     output_root = tmp_path / "aggregate-refused-out"
     budget_path = tmp_path / "aggregate-refused-budget.json"
 
-    # [T-057] 対象は refusal の集約。receipt 解決は incidental なので memo する。
-    # [T-117] active 世代解決も incidental (対象は manifest 構造 refusal を落とさないこと)。
+    # [T-057] 対象は実 repo の launch 拒否集合。receipt 解決は incidental なので memo する。
+    # [T-117] active 世代解決も incidental (対象は manifest 検証前の launch 拒否)。
     with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
@@ -4581,12 +4600,41 @@ def test_active_resolution_and_manifest_structure_refusals_are_aggregated(tmp_pa
         )
 
     assert result["status"] == "refused" and result["allowed"] is False
+    _assert_exact_refusals(result["refusals"], _ACTIVATED_G1_REFUSALS)
+    assert prepare_fn.calls == [] and evaluate_fn.calls == []
+    assert not output_root.exists() and not budget_path.exists()
+
+
+def test_active_resolution_error_and_manifest_structure_are_aggregated_in_tmp_repo(tmp_path):
+    """未発効 tmp repo で no-active と manifest schema 拒否を exact に集約する。"""
+    root, _ = _t080_repo(tmp_path, receipt="never-issued")
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    prepare_fn.calls.clear()
+    document["unexpected_top_level_key"] = True
+    manifest_path.write_text(
+        json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+    )
+    evaluate_fn = _fake_evaluate_factory()
+    output_root = tmp_path / "aggregate-refused-out"
+    budget_path = tmp_path / "aggregate-refused-budget.json"
+    marker_root = tmp_path / "aggregate-markers"
+
+    result = driver.run_block(
+        manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
+        root=root, output_root=output_root, budget_path=budget_path,
+        marker_root=marker_root, prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+    )
+
+    assert result["status"] == "refused" and result["allowed"] is False
     _assert_exact_refusals(result["refusals"], {
         _NO_ACTIVE_REFUSAL,
         "manifest-verify: ManifestError: manifest top-level schema が不一致",
     })
     assert prepare_fn.calls == [] and evaluate_fn.calls == []
     assert not output_root.exists() and not budget_path.exists()
+    assert not marker_root.exists()
 
 
 def test_success_wal_order_budget_and_evaluate_contract(tmp_path):
@@ -5384,7 +5432,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
 
 
 def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
-    """gate 拒否 (real freeze に active generation 無し) を CLI 実行が rc 2 +
+    """gate 拒否 (実 repo の launch validation 拒否) を CLI 実行が rc 2 +
     stdout JSON の refusal へ transport する。"""
     manifest_freeze = _synthetic_freeze(tmp_path)
     manifest_prepare = _prepare_factory()
@@ -5413,7 +5461,7 @@ def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
     payload = json.loads(proc.stdout)
     assert payload["status"] == "refused"
     assert payload["allowed"] is False
-    _assert_exact_refusals(payload["refusals"], {_NO_ACTIVE_REFUSAL})
+    _assert_exact_refusals(payload["refusals"], _ACTIVATED_G1_REFUSALS)
     assert not output_root.exists() and not budget_path.exists()
 
 
