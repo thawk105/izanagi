@@ -220,6 +220,6 @@ read-only codex review 1 本 (gpt-6-astra / medium、16 call、424 秒、`verbat
   その file 自身が走査の正規表現名 (三軸語) を含むため holdout hit になり、受入 attempt 1 (19:35〜20:00 JST) が赤 25 件 (`test_s8b_oracle_driver` の
   t080 系 `IZANAGI_FREEZE_HOLD` と `test_s8b_floor_campaign` の `clean scan 拒否`、25 件すべての message がこの file を名指し) で rc 70。走査の
   出力 file を repo に置いてはならない (走査結果は本節の要約で足りる)。fix commit で file を削除し、走査を再走して hit が既知 4 file に戻ることを
-  確認してから受入を取り直した。
+  確認してから受入を取り直した。F1013 (機械生成の生出力を insight に入れて holdout hit) の同型再発として failures fragment に追記した。
 - `tools/check_docs.py` 違反なし、whitespace 検査 rc 0、`tools/spool_fold.py --dry-run` status planned、稿の機械照合 `draft-check-2.txt`
   113 ok / 0 問題。

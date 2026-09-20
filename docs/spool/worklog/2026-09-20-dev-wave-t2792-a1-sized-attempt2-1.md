@@ -44,7 +44,7 @@ title: [T-2792] A-1 balanced5 sized attempt-0002 (D2172 項 2 の認可済み独
   静的に確認しただけで実行時の等価性は検証していない。認可 record は署名ではなく「性能値を見た後の選択」を防ぐ装置ではない。
 - 事故 (自分起因): 三軸語走査の出力を insight の verbatim に写したところ、その file 自身が三軸語を含み holdout hit になって受入 attempt 1 が赤 25 件
   (t080 系 `IZANAGI_FREEZE_HOLD` / floor campaign の `clean scan 拒否`、全件がその file を名指し) で rc 70。fix commit で file を削除し (走査結果は
-  insight §11 の要約だけ)、走査の再走で hit が既知 4 file に戻ることを確認して受入を取り直した。受入 1 走 (25 分) を無駄にした。
+  insight §11 の要約だけ)、走査の再走で hit が既知 4 file に戻ることを確認して受入を取り直した。受入 1 走 (25 分) を無駄にした。F1013 の同型再発 (failures fragment に再発追記)。
 - 工数: codex 1 本 (review、16 call)、計算ノード job = 3 (workload 別) + 受入 2 走。
 
 ## 次の一手差分
