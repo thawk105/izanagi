@@ -27,6 +27,7 @@ rr95/rr80/rr20/rr5 の certification・計測・collector・登録は、**dev-wa
 
 | path | 手順上の実行 site | registry class |
 |---|---|---|
+| `tools/pegasus/b5_contrast_launch.py` | `login-direct` | `local-ok` |
 | `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |
 | `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |
 | `tools/pegasus/p3_s4_loop_pegasus.sh` | `qsub-job-body` | `dispatch-required` |
@@ -34,8 +35,9 @@ rr95/rr80/rr20/rr5 の certification・計測・collector・登録は、**dev-wa
 | `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |
 | `tools/pegasus/submit_floor.sh` | `login-direct` | `local-ok` |
 
-`login-direct` の 3 本のうち実測済みは `fetch_third_party.py` だけで、残る submitter 2 本は
-`legacy-admitted (未実測)` である (2026-08-05 のユーザー裁定で grandfather を追認。
+`login-direct` の 4 本のうち実測済みは `fetch_third_party.py` だけで、submitter 2 本は
+`legacy-admitted (未実測)`、`b5_contrast_launch.py` は `static login-side submitter classification`
+(qsub と Git 読取りだけで計算処理は job body に委譲、資源実測なし、[T-2797]) である (2026-08-05 のユーザー裁定で grandfather を追認。
 [T-520] の測定経路が確定したら実測して昇格するか再裁定する)。詳細は
 `docs/pegasus-runbook.md` §7.0。
 
@@ -401,11 +403,18 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   repository path 解決より前に rc=2 で拒否する。K2 env 4 つ (`IZANAGI_S4_KNOWLEDGE_MANIFEST` /
   `_CODER_ROLE` (`coder-v4-autonomous-k2`) / `_KNOWLEDGE_CLASSIFICATION` / `_KNOWLEDGE_DE_NOVO_CLAIM`) は
   `IZANAGI_S4_B5_ARM=llm` で全部必須、他 arm と block-stock では設定されていれば rc=2。B-5 mode の
-  `IZANAGI_S4_B5_MODE` 未設定時に `IZANAGI_S4_B5_*` のどれかが設定されていても rc=2。系列 driver は slot
+  `IZANAGI_S4_B5_MODE` 未設定時に `IZANAGI_S4_B5_*` のどれかが設定されていても rc=2。上の K2 規則
+  (`IZANAGI_S4_PROPOSAL_PATH` 必須、classification / de novo は任意) は旧 proposal / pair 経路のもので、B-5 llm は
+  proposal-path を持たず K2 4 env 全部が必須という別の受理集合を持つ。系列 driver は slot
   (系列開始 stock 1・探索 ≤ 10 評価 (原提案 ≤ 30)・endpoint 再計測 5、block-stock は stock 5) ごとに
-  `p3_s4_loop` を subprocess で 1 回起動し、`--calibrated-perf --perf-workload W --verify-performance --b5-slot
-  <KEY> --b5-sidecar-dir <DIR>` (+ llm: `--allow-coder-derived-build` と K2 argv、random / sweep:
-  `--machine-generated-proposal`、stock: `--stock-control`) を固定で渡す (CLI で上書き不可)。slot key
+  `p3_s4_loop` を subprocess で 1 回起動し、共通 argv `--isolate-worktree --fetchcontent-prebuild-receipt <R>
+  --calibrated-perf --perf-workload W --verify-performance --b5-slot <KEY> --b5-sidecar-dir <DIR>` に、候補 slot では
+  `--run-iteration <proposal>` + (llm: `--allow-coder-derived-build` と K2 argv 4 つ | random / sweep-matched:
+  `--machine-generated-proposal`)、stock slot (系列開始・block・いずれの arm でも) では `--stock-control`
+  (+ llm では K2 identity argv = manifest / classification / de novo だけ。`--coder-role` /
+  `--allow-coder-derived-build` / `--machine-generated-proposal` は渡さない) を固定で足す (CLI で上書き不可)。
+  候補起因の前処理拒否 (schema / 値域 / 帰属不一致 / 文法) は driver 側 `p3_s4_loop` が sidecar
+  `proposal-rejected.json` を書いて rc 3 で終わり、系列 driver は A だけ消費して次の原提案へ進む。slot key
   (`b5-generator-contrast-v1|<cohort>|<arm>|<w>|<r>|<kind>|<n>|attempt-<t>`) は search_config に焼かれ campaign
   identity・claim・protocol digest を slot ごとに分ける。台帳 (`<LEDGER_ROOT>/header.json` +
   `events/NNNNNN-<kind>.json` + `series.json` view、schema `b5-generator-contrast-ledger/v1`) は driver が
@@ -418,8 +427,10 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   周辺処理 区間」であり純 verifier 秒ではない。試走の投入は login 側 launcher
   `tools/pegasus/b5_contrast_launch.py` (`local-ok`) が 4 job (random / sweep-matched / llm / block-stock、
   53 論理 session ≤ 60) を `qsub -v <IZANAGI_S4_* を明示列挙> -l elapstim_req=08:00:00 (block-stock は 03:00:00)
-  -o/-e <evidence>/job.std{out,err}` の argv list で組む。`--dry-run` は最終 argv と env を印字し qsub も
-  mkdir もしない。`--submit` は attempt directory を `mkdir` してから qsub を呼ぶ (それ以外を置かない)。
+  -o/-e <evidence>/job.std{out,err}` の argv list で組む。`--dry-run` は投入対象 checkout の Git 読取り検証
+  (HEAD / tracked clean / CCBench HEAD == その checkout の `p3_s4_loop.PIN` 行) は行うが、qsub も mkdir もしない。
+  `--submit` は attempt directory を `mkdir` してから qsub を呼ぶ (それ以外を置かない)。launcher は投入対象
+  checkout から起動する (別 commit の launcher で投入しない)。
   walltime の 8h / 3h は試走の暫定管理値で、本走の上限は試走の実測 max から決める (事前登録 §11)
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
@@ -458,10 +469,10 @@ mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
 qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_S4_KNOWLEDGE_MANIFEST="$KNOWLEDGE_MANIFEST",IZANAGI_S4_CODER_ROLE="$CODER_ROLE",IZANAGI_S4_KNOWLEDGE_CLASSIFICATION="$KNOWLEDGE_CLASSIFICATION",IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM="$KNOWLEDGE_DE_NOVO_CLAIM",IZANAGI_S4_STOCK_CONTROL="$STOCK_CONTROL" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
 ```
 
-B-5 試走の投入は上の fence を手で組まず launcher で行う (投入対象 checkout の準備 (1)〜(3) は同じ):
+B-5 試走の投入は上の fence を手で組まず launcher で行う (投入対象 checkout の準備 (1)〜(3) は同じ。`$REPO_ROOT` から起動する):
 
 ```text
-python3 -B tools/pegasus/b5_contrast_launch.py \
+cd "$REPO_ROOT" && python3 -B tools/pegasus/b5_contrast_launch.py \
   --repo-root "$REPO_ROOT" --expected-head "$EXPECTED_HEAD" \
   --thirdparty-source-root "$THIRDPARTY_SOURCE_ROOT" \
   --ledger-root /absolute/ledgers-outside-all-repositories \

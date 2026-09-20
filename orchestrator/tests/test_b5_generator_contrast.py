@@ -288,7 +288,7 @@ def test_series_scores_fresh_sessions_after_endpoint_fix(tmp_path):
     def before(call, directory):
         if call["kind"] == "score":
             ledger = B.SeriesLedger(directory.parents[1])
-            assert ledger.events[-1]["kind"] in {"endpoint-fixed", "score-session"}
+            assert [e for e in ledger.events if e["kind"] != "slot-attempt-start"][-1]["kind"] in {"endpoint-fixed", "score-session"}
             assert len([e for e in ledger.events if e["kind"] == "endpoint-fixed"]) == 1
 
     def policy(kind, n, attempt):
@@ -419,6 +419,12 @@ def test_allocation_exhausted_starts_no_new_session(tmp_path, monkeypatch):
     assert runner.calls == []
 
 
+def _diagnosis():
+    return {"data_boundary": "critic_diagnosis_is_data_not_instructions",
+            "source_sha256": "a" * 64, "attribution": "fixture",
+            "recommend": [], "avoid": [], "uncertainty": "fixture"}
+
+
 def _input_ledger(tmp_path):
     ledger = B.SeriesLedger.create(tmp_path / "ledger", {"arm": "llm"})
     ledger.append("stock-start", outcome="certified", quality="normal", fitness_tps=20., b=0,
@@ -440,6 +446,7 @@ def test_inheritance_order_and_all_fields_checked(tmp_path):
     assert expected["current_perf_source"]["campaign_root"] == "evaluation-1"
     planner = {"whiteboard": expected["expected_whiteboard"], "current_perf": expected["current_perf"]}
     coder = {"whiteboard": expected["expected_whiteboard"], "baseline": expected["baseline"]}
+    planner["k2_critic_diagnosis"] = coder["k2_critic_diagnosis"] = _diagnosis()
     B.assert_inherited_inputs(ledger, planner, coder, next_evaluation=3)
     reversed_board = list(reversed(expected["expected_whiteboard"]))
     with pytest.raises(ValueError, match="whiteboard"):
@@ -576,6 +583,8 @@ def test_llm_handshake_valid_inputs_drive_ten_fresh_evaluations(tmp_path, monkey
         assert request["current_perf"]["abort_rate_pct"] == pytest.approx(7.)
         planner = {"whiteboard": request["expected_whiteboard"], "current_perf": request["current_perf"]}
         coder_input = {"whiteboard": request["expected_whiteboard"], "baseline": request["baseline"]}
+        if a >= 2:
+            planner["k2_critic_diagnosis"] = coder_input["k2_critic_diagnosis"] = _diagnosis()
         inputs = {"planner_input": planner, "coder_input": coder_input}
         doc = {"planner": {"axis": L.MARKER_ID, "direction": "decrease", "magnitude": "small"},
                "coder": {"proposal": {"axis": L.MARKER_ID, "value": 20,
@@ -691,6 +700,176 @@ def test_new_cli_static_bootstrap_and_import_contract():
     from orchestrator.tests import test_campaign_import_invariant as I
     path = "orchestrator/campaign/b5_generator_contrast.py"
     assert I.scan_campaign_shape(path, (ROOT / path).read_text()) == ()
+
+
+
+def test_registered_thousand_weights_end_to_end_fixed_vector():
+    weights = B.weights_table()
+    assert weights[0] == 235865763225513294137944142764154484399
+    assert weights[-1] == 340112339079931042622455095438973892
+    assert sum(weights) == 2350927428781729131458637903205781083070
+    assert B.weights_material()["weights_sha256"] == "876b1b4798fbf79dfefaffd9ccefceaf0beb16cb8561cc5ea4e28745bbd20bdd"
+    assert [B.random_value("write-heavy", 1, a, weights) for a in range(1, 5)] == [
+        (698, 0), (1, 0), (5, 0), (364, 0)]
+    assert list(B.sweep_order("write-heavy", 1)[:10]) == [8, 25, 600, 50, 100, 200, 12, 250, 150, 2]
+
+
+@pytest.mark.parametrize("with_start", [False, True])
+def test_rejected_sidecar_advances_without_retry_m21(tmp_path, with_start):
+    normal = FakeRunner()
+    rejected_keys = []
+    def runner(argv, *, cwd):
+        key = argv[argv.index("--b5-slot") + 1]
+        if "|search|1|" not in key:
+            return normal(argv, cwd=cwd)
+        rejected_keys.append(key)
+        sidecar = Path(argv[argv.index("--b5-sidecar-dir") + 1])
+        proposal = json.loads(Path(argv[argv.index("--run-iteration") + 1]).read_text())
+        coder = L.CoderProposal(**{**proposal["coder"], "implementation": "double now_backoff = 30;"})
+        with pytest.raises(L.AttributionMismatch) as error:
+            L._check_attribution_before_quarantine(coder)
+        if with_start:
+            _write_attempt(sidecar, key=key, value=coder.value, outcome="unclassified-missing")
+        L._b5_proposal_rejected(sidecar, key, error.value)
+        observed = B.classify_slot(sidecar, None, 5, _genome(coder.value))
+        assert (observed["outcome"], observed["failure_class"], observed["submitted"]) == (
+            "rejected-preprocess", "candidate", False)
+        return subprocess.CompletedProcess(argv, 3, "", "")
+    result = _series(tmp_path, runner)
+    assert len(rejected_keys) == 1 and not _events(result, "machine-retry")
+    rejection, = _events(result, "proposal-rejected")
+    assert (rejection["a"], rejection["b"]) == (1, 0)
+    assert (result["events"][-1]["a"], result["events"][-1]["b"]) == (11, 10)
+
+
+@pytest.mark.parametrize("reason", ["verify-probe-error", "verify-competing-tenant"])
+@pytest.mark.parametrize("exhausted", [False, True])
+def test_verify_machine_retry_and_exhaustion_m22(tmp_path, reason, exhausted):
+    runner = FakeRunner(lambda kind, n, t: {"outcome": "abort", "abort_reason": reason}
+                        if kind == "search" and n == 1 and (exhausted or t == 0) else {})
+    result = _series(tmp_path, runner)
+    retries = _events(result, "machine-retry")
+    assert len(retries) == (2 if exhausted else 1)
+    assert all(e["outcome"] == "machine-failure" and e["b"] == 1 for e in retries)
+    end = result["events"][-1]
+    if exhausted:
+        assert (end["reason"], end["b"], end["score"]) == ("unclassified-missing", 1, None)
+        assert not end.get("fallback") and not _events(result, "endpoint-fixed")
+    else:
+        assert (end["reason"], end["b"]) == ("b-complete", 10)
+    assert "indeterminate" not in B.MACHINE_FAILURE_ABORT_REASONS
+
+
+def test_attempt_start_durable_before_runner_exception_m23(tmp_path):
+    def runner(argv, *, cwd):
+        ledger = B.SeriesLedger(tmp_path / "ledger")
+        event = ledger.events[-1]
+        assert event["kind"] == "slot-attempt-start"
+        assert (event["slot_kind"], event["n"], event["a"], event["b"], event["attempt"]) == (
+            "stock-start", 1, 0, 0, 0)
+        assert event["logical_slot"] == "stock-start-1"
+        assert event["slot_key"] == argv[argv.index("--b5-slot") + 1]
+        assert ledger.root / event["sidecar_dir"] == Path(argv[argv.index("--b5-sidecar-dir") + 1])
+        raise RuntimeError("driver killed")
+    with pytest.raises(RuntimeError, match="driver killed"):
+        _series(tmp_path, runner)
+    assert B.SeriesLedger(tmp_path / "ledger").events[-1]["kind"] == "slot-attempt-start"
+
+
+def test_both_critic_diagnoses_required_m27(tmp_path):
+    ledger = _input_ledger(tmp_path)
+    expected = B.expected_inputs(ledger, 3)
+    planner = {"whiteboard": expected["expected_whiteboard"], "current_perf": expected["current_perf"]}
+    coder = {"whiteboard": expected["expected_whiteboard"], "baseline": expected["baseline"]}
+    with pytest.raises(ValueError, match="diagnosis"):
+        B.assert_inherited_inputs(ledger, planner, coder, next_evaluation=3)
+    planner["k2_critic_diagnosis"] = coder["k2_critic_diagnosis"] = _diagnosis()
+    B.assert_inherited_inputs(ledger, planner, coder, next_evaluation=3)
+
+
+@pytest.mark.parametrize("missing", ["manifest", "classification", "de-novo-claim"])
+def test_cli_llm_requires_complete_k2_bundle(tmp_path, missing):
+    options = {"manifest": "M", "classification": "de_novo", "de-novo-claim": "true"}
+    extra = [arg for key, value in options.items() if key != missing for arg in ("--knowledge-" + key, value)]
+    with pytest.raises(SystemExit) as error:
+        B.main(["run-series", "--arm", "llm", "--workload", "write-heavy", "--series", "1",
+                "--block", "1", "--ledger-root", str(tmp_path), "--fetchcontent-prebuild-receipt", "R", *extra])
+    assert error.value.code == 2
+    assert not (tmp_path / "header.json").exists()
+
+
+@pytest.mark.parametrize("status", ["proposal", "proposal-rejected", "inheritance-mismatch",
+                                    "proposal-wait-timeout", "allocation-exhausted"])
+def test_handshake_all_exit_statuses_record_elapsed(tmp_path, monkeypatch, status):
+    ledger = B.SeriesLedger.create(tmp_path / "ledger", {"arm": "llm"})
+    ledger.append("stock-start", outcome="certified", quality="normal", fitness_tps=100., b=0,
+                  bench_payload=_bench(), campaign_root="stock")
+    clock = [0.]
+    monkeypatch.setattr(B.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(B, "_allocation_available", lambda: status != "allocation-exhausted" or clock[0] == 0)
+    def reply(seconds):
+        clock[0] += seconds
+        directory = ledger.root / "handshake"
+        if status == "proposal-rejected":
+            (directory / "proposal-1.rejected.json").write_text('{"reason":"empty"}')
+        elif status in {"proposal", "inheritance-mismatch"}:
+            expected = B.expected_inputs(ledger, 1)
+            (directory / "proposal-1.json").write_text("{}")
+            (directory / "inputs-1.json").write_text(json.dumps({
+                "planner_input": {"whiteboard": [], "current_perf": expected["current_perf"]},
+                "coder_input": {"whiteboard": [], "baseline": expected["baseline"] if status == "proposal" else {}}}))
+    monkeypatch.setattr(B.time, "sleep", reply)
+    actual, _, provenance = B._handshake(ledger, 1, 0)
+    assert actual == provenance["handshake_status"] == status
+    assert provenance["proposal_wait_wall_s"] == (2700 if status == "proposal-wait-timeout" else 15)
+
+def test_retry_allocation_exhaustion_retains_submitted_evaluation(tmp_path, monkeypatch):
+    from orchestrator.campaign import b5_generator_contrast_report as report
+    def before(call, sidecar):
+        if call["kind"] == "search":
+            monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "1")
+    runner = FakeRunner(lambda kind, n, t: {"outcome": "abort", "abort_reason": "verify-probe-error"}
+                        if kind == "search" else {}, before)
+    result = _series(tmp_path, runner)
+    assert (result["events"][-1]["reason"], result["events"][-1]["b"]) == ("allocation-exhausted", 1)
+    assert len(_events(result, "evaluation-result")) == 1
+    consumed = report.build_report([tmp_path / "ledger"], purpose="pilot")
+    assert not consumed["invalid"]
+    assert consumed["series"][0]["score"] is None
+
+
+@pytest.mark.parametrize("mutation", ["M21", "M22", "M23", "M27"])
+def test_fix2_producer_mutants_killed(tmp_path, monkeypatch, mutation):
+    import types
+    source = Path(B.__file__).read_text()
+    if mutation == "M21":
+        source = source.replace('if rejected.exists():', 'if False and rejected.exists():', 1)
+    elif mutation == "M22":
+        source = source.replace('"verify-probe-error", "verify-competing-tenant"', '')
+    elif mutation == "M23":
+        start = source.index('        ledger.append("slot-attempt-start"')
+        end = source.index('        started = time.monotonic()', start)
+        block = source[start:end]
+        source = source[:start] + source[end:]
+        boundary = '            completed = runner(argv, cwd=Path(repo_root))\n'
+        source = source.replace(boundary, boundary + ''.join('    ' + line for line in block.splitlines(True)))
+    else:
+        source = source.replace('if next_evaluation >= 2 and diagnosis_key not in planner_input:',
+                                'if False and diagnosis_key not in planner_input:')
+    mutant = types.ModuleType("orchestrator.campaign.b5_fix2_mutant")
+    mutant.__package__, mutant.__file__ = "orchestrator.campaign", B.__file__
+    monkeypatch.setitem(sys.modules, mutant.__name__, mutant)
+    exec(compile(source, B.__file__, "exec"), mutant.__dict__)
+    monkeypatch.setitem(globals(), "B", mutant)
+    with pytest.raises((AssertionError, pytest.fail.Exception)):
+        if mutation == "M21":
+            test_rejected_sidecar_advances_without_retry_m21(tmp_path, False)
+        elif mutation == "M22":
+            test_verify_machine_retry_and_exhaustion_m22(tmp_path, "verify-probe-error", False)
+        elif mutation == "M23":
+            test_attempt_start_durable_before_runner_exception_m23(tmp_path)
+        else:
+            test_both_critic_diagnoses_required_m27(tmp_path)
 
 
 def _run() -> int:

@@ -114,7 +114,7 @@ def _analysis(pairs):
             "raw_p": exact_sign_flip_p(ds) if ds else Fraction(1)}
 
 
-def decide_comparison(pairs, *, floor, certified_counts, baseline,
+def decide_comparison(pairs, *, floor, certified_counts,
                       invalid=False, missing=False, significant=False) -> dict:
     """Apply preregistration 7.4 in order; Holm is supplied after eligibility."""
     omitted = [p for p in pairs if p["fallback_arms"]]
@@ -167,6 +167,7 @@ def _load(source, invalid):
     """Load authoritative header/events, never the regenerable series view."""
     label = str(source) if isinstance(source, (str, Path)) else "in-memory-ledger"
     try:
+        root = None
         if isinstance(source, (str, Path)):
             root = Path(source)
             header = json.loads((root / "header.json").read_text())
@@ -177,12 +178,13 @@ def _load(source, invalid):
                     raise ValueError("event filename/sequence mismatch")
                 events.append(event)
         elif isinstance(source, core.SeriesLedger):
+            root = source.root
             header, events = source.header, source.events
         else:
             header, events = source["header"], source["events"]
         if not isinstance(header, dict) or not isinstance(events, list):
             raise ValueError("header/events shape")
-        return {"header": header, "events": events, "source": label}
+        return {"header": header, "events": events, "source": label, "root": root}
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
         invalid.append({"category": "schema-inconsistent", "source": label, "detail": str(exc)})
         return None
@@ -242,6 +244,11 @@ def _validate(ledger, invalid, purpose):
                 normal = False
             if not normal:
                 bad("schema-inconsistent", f"event {seq} quality evidence mismatch")
+        if (e["kind"] in {"evaluation-result", "score-session", "stock-start", "block-stock"}
+                and e.get("outcome") == "certified"
+                and (not isinstance(e.get("bench_payload"), dict)
+                     or e.get("fitness_tps") != e["bench_payload"].get("median_tps"))):
+            bad("schema-inconsistent", f"event {seq} fitness/median mismatch")
         kind, logical, attempt = e["kind"], e["logical_slot"], e["attempt"]
         if kind == "endpoint-fixed":
             if fixed is not None:
@@ -287,8 +294,44 @@ def _validate(ledger, invalid, purpose):
     for logical, seen in attempts.items():
         if seen != set(range(max(seen) + 1)):
             bad("attempt-unowned", logical + " missing predecessor attempt")
+    ends = [e for e in clean if e["kind"] == "series-end"]
+    if ends and not stock:
+        evaluations = [e for e in clean if e["kind"] == "evaluation-result"]
+        b = ends[-1].get("b")
+        if (type(b) is not int or len(evaluations) != b
+                or [e["b"] for e in evaluations] != list(range(1, b + 1))):
+            bad("schema-inconsistent", "evaluation count/sequence differs from terminal B")
     ledger["events"] = clean
     return True
+
+
+def _reconcile(ledger, invalid):
+    """Read crash evidence without changing any authoritative event."""
+    root, events = ledger["root"], ledger["events"]
+    if root is None:
+        return []
+    terminal_kinds = {"evaluation-result", "proposal-rejected", "score-session",
+                      "stock-start", "block-stock", "machine-retry"}
+    terminal = {e.get("slot_key") for e in events if e["kind"] in terminal_kinds}
+    reconciled, seen = [], set()
+    for e in events:
+        if e["kind"] != "slot-attempt-start" or e["slot_key"] in terminal | seen:
+            continue
+        seen.add(e["slot_key"])
+        relative = e.get("sidecar_dir")
+        if not isinstance(relative, str):
+            invalid.append({"category": "schema-inconsistent", "source": ledger["source"],
+                            "detail": "attempt sidecar path missing"})
+            continue
+        path = root / relative
+        if Path(relative).is_absolute() or not path.resolve().is_relative_to(root.resolve()):
+            invalid.append({"category": "schema-inconsistent", "source": ledger["source"],
+                            "detail": "attempt sidecar path escapes ledger"})
+            continue
+        if (path / "pipeline-submitted.json").is_file():
+            reconciled.append({**e, "outcome": "submitted-unresolved", "submitted": True,
+                               "failure_class": "unclassified-missing", "source": ledger["source"]})
+    return reconciled
 
 
 def _normal(e):
@@ -309,11 +352,32 @@ def _distribution(values):
 
 def _describe(ledger):
     events, h = ledger["events"], ledger["header"]
+    observations = events + ledger.get("reconciled", [])
     # pipeline-submitted and terminal observations describe the SAME attempt.
-    physical = {e["slot_key"]: e for e in events if e.get("slot_key")}
+    physical = {e["slot_key"]: e for e in observations if e.get("slot_key")}
     timing = [e.get("timing") or {} for e in physical.values()]
-    waits = [e.get("provenance", {}).get("proposal_wait_wall_s") for e in events
-             if isinstance(e.get("provenance"), dict) and e["kind"] == "evaluation-result"]
+    waits = {}
+    for e in events:
+        provenance = e.get("provenance") or {}
+        if (e["kind"] in {"evaluation-result", "proposal-rejected", "series-end"}
+                and e.get("a") and type(provenance.get("proposal_wait_wall_s")) in (int, float)):
+            waits.setdefault(e["a"], provenance)
+    def wait_summary(rows):
+        values = [r["proposal_wait_wall_s"] for r in rows]
+        return {"count": len(values), "total_s": sum(values), "max_s": max(values, default=None)}
+    handshake_wait = {**wait_summary(waits.values()), "by_status": {
+        status: wait_summary(r for r in waits.values() if r.get("handshake_status") == status)
+        for status in sorted({r.get("handshake_status", "proposal") for r in waits.values()})}}
+    submitted = {e["logical_slot"] for e in observations if e.get("logical_slot") and (
+        e.get("submitted") is True or e["kind"] == "pipeline-submitted"
+        or e["kind"] in {"evaluation-result", "score-session", "stock-start", "block-stock"}
+        and e.get("submitted") is not False and e.get("outcome") not in {
+            "allocation-exhausted", "pre-start-failure", "rejected-preprocess", "duplicate-skip"})}
+    counted_search = {e["logical_slot"] for e in events if e.get("logical_slot") in submitted
+                      and e["logical_slot"].startswith("search-") and (
+                          e.get("submitted") or e["kind"] in {"evaluation-result", "pipeline-submitted"})}
+    unresolved_search = {e["logical_slot"] for e in ledger.get("reconciled", [])
+                         if e["logical_slot"].startswith("search-")} - counted_search
     intervals = {k: _distribution(t.get(k) for t in timing) for k in (
         "subprocess_wall_s", "build_wall_s", "bench_wall_s", "bench_surrounding_wall_s", "verify_total_wall_s")}
     intervals["verify_intervals"] = [t.get("verify_intervals", []) for t in timing]
@@ -325,15 +389,23 @@ def _describe(ledger):
         for outcome in sorted({e.get("outcome") or "unknown" for e in physical.values()})}
     return {"arm": h["arm"], "workload": h["workload"], "series": h["series"], "block": h["block"],
             "A": max((e.get("a") or 0 for e in events), default=0),
-            "B": max((e.get("b") or 0 for e in events), default=0),
-            "logical_sessions": len({e["logical_slot"] for e in physical.values()}),
+            "B": max((e.get("b") or 0 for e in events), default=0) + len(unresolved_search),
+            "logical_sessions": (len(submitted) if h["arm"] == "stock" else
+                                 1 + len(submitted - {"stock-start-1"})),
+            "attempted_logical_slots": len({e["logical_slot"] for e in physical.values()}),
+            "preprocess_rejections": sum(e["kind"] == "proposal-rejected"
+                                         and e.get("outcome") in {None, "rejected-preprocess"} for e in events),
+            "exploration_quality_missing": sum(e["kind"] == "evaluation-result"
+                                               and e.get("quality") == "quality-missing" for e in events),
             "physical_attempts": len(physical),
             "quality_rounds": [(e.get("bench_payload") or {}).get("rounds") for e in physical.values()],
             "stock": [e for e in events if e["kind"] == "stock-start"],
             "anomaly": [e for e in events if e.get("anomalies") or e.get("outcome") == "anomaly"],
             "unfinished": not events or events[-1]["kind"] != "series-end" or events[-1].get("reason") not in {"b-complete", "a-exhausted", "grid-exhausted"},
             "end_reason": events[-1].get("reason") if events else None,
-            "timing": intervals, "llm_turn_seconds": _distribution(waits),
+            "timing": intervals, "handshake_wait": handshake_wait,
+            "handshake_wait_seconds": _distribution(r["proposal_wait_wall_s"] for r in waits.values()),
+            "queue_wait_seconds": None,
             "job_elapse": h.get("job", {}).get("Elapse"),
             "job_elapse_status": "recorded" if h.get("job", {}).get("Elapse") is not None else "missing-from-ledger",
             "interval_label": "trace+verifier+周辺処理 区間"}
@@ -358,7 +430,7 @@ def _project(ledger, disqualified, stocks, corrections):
     elif endpoint and len(scores) == core.N_EVAL and all(_normal(e) for e in scores):
         sessions = [e["fitness_tps"] for e in scores]
     else:
-        missing = "quality-missing" if quality_missing or any(e.get("quality") == "quality-missing" for e in events) else "machine-missing" if any(e.get("failure_class") == "machine" or e.get("outcome") in {"pre-start-failure", "machine-failure"} for e in events) else "unclassified-missing"
+        missing = "quality-missing" if quality_missing else "machine-missing" if any(e.get("failure_class") == "machine" or e.get("outcome") in {"pre-start-failure", "machine-failure"} for e in events) else "unclassified-missing"
     starts = [e for e in events if e["kind"] == "stock-start"]
     if len(starts) != 1 or not all(_stock_normal(e) for e in starts):
         missing = "stock-unestablished"
@@ -387,6 +459,7 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
     for source in ledgers:
         ledger = _load(source, invalid)
         if ledger is not None and _validate(ledger, invalid, purpose):
+            ledger["reconciled"] = _reconcile(ledger, invalid)
             loaded.append(ledger)
     identities, session_owners = set(), {}
     configurations = {}
@@ -427,6 +500,7 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
             invalid.append({"category": "schema-inconsistent", "source": ledger["source"], "workload": row["workload"], "arm": row["arm"], "detail": "score differs from five fresh sessions"})
     report = {"schema": "b5-generator-contrast-report/v1", "purpose": purpose, "invalid": invalid,
               "series": series, "block_stock": stock_descriptions, "corrections": corrections,
+              "reconciled_attempts": [e for x in loaded for e in x["reconciled"]],
               "disqualified": sorted(disqualified, key=str),
               "validation_scope": "Ledger schema, identities, configuration consistency and numeric rules; saved execution order and block separation require external registration evidence.",
               "cells": [{"workload": w, "arm": a, "series_count": sum(x["workload"] == w and x["arm"] == a for x in series),
@@ -455,7 +529,7 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
             arms = {a: [s for s in series if s["workload"] == w and s["arm"] == a] for a in ("llm", b)}
             pairs = pair_differences(arms["llm"], arms[b])
             kwargs = dict(floor=floors[w], certified_counts={a: sum(s["certified_endpoint"] for s in rows) for a, rows in arms.items()},
-                          baseline=b, invalid=any(
+                          invalid=any(
                               (i.get("workload") not in core.WORKLOADS or i["workload"] == w)
                               and (i.get("arm") not in core.ARMS or i["arm"] in ("llm", b)) for i in invalid),
                           missing=any(len(rows) != 12 or any(s["missing"] for s in rows) for rows in arms.values()))

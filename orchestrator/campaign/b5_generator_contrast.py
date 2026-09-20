@@ -52,12 +52,13 @@ LLM_POLL_S = 15
 SESSION_BUDGET_S = 1800
 ARMS = ("llm", "random", "sweep-matched")
 WORKLOADS = ("write-heavy", "balanced", "read-heavy")
-MACHINE_FAILURE_ABORT_REASONS = frozenset({"bench-probe-error", "bench-competing-tenant"})
+MACHINE_FAILURE_ABORT_REASONS = frozenset({"bench-probe-error", "bench-competing-tenant",
+                                          "verify-probe-error", "verify-competing-tenant"})
 LEDGER_SCHEMA = "b5-generator-contrast-ledger/v1"
 EVENT_KINDS = frozenset({
     "series-start", "stock-start", "proposal-opportunity", "proposal-rejected",
     "pipeline-submitted", "evaluation-result", "machine-retry", "endpoint-fixed",
-    "score-session", "series-end",
+    "score-session", "series-end", "slot-attempt-start",
 })
 END_REASONS = frozenset({
     "b-complete", "a-exhausted", "grid-exhausted", "stock-unestablished",
@@ -305,8 +306,14 @@ def classify_slot(sidecar_dir, campaign_root, expected_reps, expected_genome):
               "variant": None, "build_attempt_id": None, "anomalies": 0,
               "wal_sha256": None, "campaign_id": None, "campaign_root": None,
               "timing": {}, "bench_payload": None, "src_token": None}
+    rejected = sidecar_dir / "proposal-rejected.json"
+    if rejected.exists():
+        result.update(outcome="rejected-preprocess", failure_class="candidate")
+        return result
     start_path = sidecar_dir / "slot-start.json"
     if not start_path.exists():
+        if any(sidecar_dir.glob("*.json")):
+            result.update(outcome="unclassified-missing", failure_class="unclassified-missing")
         return result
     result.update(outcome="unclassified-missing", failure_class="unclassified-missing")
     try:
@@ -359,8 +366,7 @@ def classify_slot(sidecar_dir, campaign_root, expected_reps, expected_genome):
                 or any(r.variant != build.variant or r.payload.get("build_attempt_id") != attempt
                        for r in records)):
             return result
-        result.update(variant=build.variant, build_attempt_id=attempt, src_token=src,
-                      timing=wal_timing(records, expected_reps))
+        result.update(variant=build.variant, build_attempt_id=attempt, src_token=src)
         anomalies = sum(r.payload.get("anomalies", 0) for r in records if r.stage == "verify_done")
         result["anomalies"] = anomalies
         terminals = [r for r in records if r.stage in {"commit", "abort"}]
@@ -451,6 +457,8 @@ def assert_inherited_inputs(ledger, planner_input, coder_input, *, next_evaluati
     diagnosis_key = "k2_critic_diagnosis"
     if (diagnosis_key in planner_input) != (diagnosis_key in coder_input):
         raise ValueError("critic diagnosis inheritance mismatch")
+    if next_evaluation >= 2 and diagnosis_key not in planner_input:
+        raise ValueError("critic diagnosis required after evaluation")
     if diagnosis_key in planner_input:
         diagnosis = planner_input[diagnosis_key]
         if (next_evaluation == 1 or diagnosis != coder_input[diagnosis_key]
@@ -566,6 +574,8 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
     submitted_once = False
     for attempt in range(MAX_MACHINE_RETRIES + 1):
         if not _allocation_available():
+            if submitted_once:
+                return {**fields, "outcome": "allocation-exhausted", "submitted": True}, b
             return {"outcome": "allocation-exhausted", "submitted": submitted_once}, b
         key = slot_key(h["cohort"], h["arm"], h["workload"], h["series"], kind, n, attempt)
         sidecar = ledger.root / "slots" / f"{logical_slot}-attempt-{attempt}"
@@ -573,6 +583,9 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
         argv = slot_argv(arm=h["arm"], workload=h["workload"], key=key,
                          sidecar_dir=sidecar, prebuild_receipt=prebuild_receipt,
                          proposal_path=proposal_path, k2=k2)
+        ledger.append("slot-attempt-start", a=a, b=b, n=n, slot_kind=kind,
+                      logical_slot=logical_slot, attempt=attempt, slot_key=key,
+                      sidecar_dir=str(sidecar.relative_to(ledger.root)))
         started = time.monotonic()
         timed_out = False
         try:
@@ -634,26 +647,29 @@ def _handshake(ledger, a, b):
     proposal = directory / f"proposal-{a}.json"
     inputs = directory / f"inputs-{a}.json"
     rejected = directory / f"proposal-{a}.rejected.json"
+    def finish(status, path=None, provenance=None):
+        return status, path, {**(provenance or {}), "handshake_status": status,
+                              "proposal_wait_wall_s": time.monotonic() - wait_started}
+
     while True:
         if rejected.exists():
             if proposal.exists():
-                return "inheritance-mismatch", None, {}
-            return "proposal-rejected", None, _read_json(rejected)
+                return finish("inheritance-mismatch")
+            return finish("proposal-rejected", provenance=_read_json(rejected))
         if proposal.exists() and inputs.exists():
             try:
                 actual = _read_json(inputs)
                 assert_inherited_inputs(ledger, actual["planner_input"], actual["coder_input"],
                                         next_evaluation=b + 1)
             except (ValueError, TypeError, KeyError):
-                return "inheritance-mismatch", None, {}
-            return "proposal", proposal, {"inputs_path": str(inputs),
+                return finish("inheritance-mismatch")
+            return finish("proposal", proposal, {"inputs_path": str(inputs),
                     "inputs_sha256": hashlib.sha256(inputs.read_bytes()).hexdigest(),
-                    "current_perf_source": expected["current_perf_source"],
-                    "proposal_wait_wall_s": time.monotonic() - wait_started}
+                    "current_perf_source": expected["current_perf_source"]})
         if time.monotonic() >= deadline:
-            return "proposal-wait-timeout", None, {}
+            return finish("proposal-wait-timeout")
         if not _allocation_available():
-            return "allocation-exhausted", None, {}
+            return finish("allocation-exhausted")
         time.sleep(LLM_POLL_S)
 
 
@@ -703,10 +719,10 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
         if arm == "llm":
             status, proposal, provenance = _handshake(ledger, a, b)
             if status == "proposal-rejected":
-                ledger.append("proposal-rejected", a=a, b=b, note=provenance)
+                ledger.append("proposal-rejected", a=a, b=b, provenance=provenance)
                 continue
             if status != "proposal":
-                return _finish(ledger, status, a, b)
+                return _finish(ledger, status, a, b, provenance=provenance)
         else:
             if arm == "random":
                 value, counter = random_value(workload, series, a, weights)
@@ -735,7 +751,8 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
             if arm != "llm":
                 loop_driver.load_proposal_file(str(proposal))
         except (ValueError, KeyError, TypeError) as exc:
-            ledger.append("proposal-rejected", a=a, b=b, note=str(exc), proposal_path=str(proposal))
+            ledger.append("proposal-rejected", a=a, b=b, note=str(exc), proposal_path=str(proposal),
+                          provenance=provenance)
             continue
         frozen = proposals / f"accepted-{a}.json"
         # Copy raw bytes, not a JSON reserialization of the proposal.
@@ -745,8 +762,8 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
             os.fsync(stream.fileno())
         observed, b = _execute_slot(ledger, kind="search", n=a, a=a, b=b, value=int(value),
                                     proposal_path=frozen, provenance=provenance, **common)
-        if observed["outcome"] == "allocation-exhausted":
-            return _finish(ledger, "allocation-exhausted", a, b)
+        if observed["outcome"] == "allocation-exhausted" and not observed["submitted"]:
+            return _finish(ledger, "allocation-exhausted", a, b, provenance=provenance)
         if observed["submitted"]:
             observed["whiteboard_entry"] = {
                 "iteration": b, "direction": direction, "magnitude": magnitude,
@@ -759,9 +776,11 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
                      "digest_path": str(Path(observed["campaign_root"]) / "s4_loop_digest.txt") if observed["campaign_root"] else None})
         else:
             ledger.append("proposal-rejected", **observed)
+        if observed["outcome"] == "allocation-exhausted":
+            return _finish(ledger, "allocation-exhausted", a, b, provenance=provenance, score=None)
         if observed["outcome"] in {"duplicate-skip", "unclassified-missing", "submitted-unresolved",
                                    "pre-start-failure", "machine-failure"}:
-            return _finish(ledger, "unclassified-missing", a, b)
+            return _finish(ledger, "unclassified-missing", a, b, score=None)
     if a == A_PROPOSALS and b < B_EVALUATIONS:
         reason = "a-exhausted"
     disqualified = {e["value"] for e in evaluations if e["anomalies"] or e["outcome"] == "anomaly"}
@@ -840,7 +859,8 @@ def main(argv=None):
     if args.command == "run-series":
         supplied = any(getattr(args, key) is not None for key in
                        ("knowledge_manifest", "knowledge_classification", "knowledge_de_novo_claim"))
-        if ((args.arm == "llm" and args.knowledge_manifest is None)
+        if ((args.arm == "llm" and not all(getattr(args, key) for key in
+                    ("knowledge_manifest", "knowledge_classification", "knowledge_de_novo_claim")))
                 or (args.arm != "llm" and supplied)):
             parser.error("K2 arguments required only for llm")
         k2 = K2Args(args.knowledge_manifest.resolve(), args.knowledge_classification,

@@ -96,7 +96,11 @@ def validate_submit_tree(repo: Path, expected_head: str) -> SubmitTree:
         raise ValueError("CCBench source root is unavailable")
     if _git(ccbench, "rev-parse", "--show-toplevel") != str(ccbench):
         raise ValueError("CCBench is not a separate checkout")
-    if _git(ccbench, "rev-parse", "--verify", "HEAD^{commit}") != p3_s4_loop.PIN:
+    pins = re.findall(r'^PIN = "([0-9a-f]{40})"$',
+                      (repo / "orchestrator/campaign/p3_s4_loop.py").read_text(), re.MULTILINE)
+    if len(pins) != 1:
+        raise ValueError("target checkout must declare exactly one P3 S4 PIN")
+    if _git(ccbench, "rev-parse", "--verify", "HEAD^{commit}") != pins[0]:
         raise ValueError("CCBench P3 S4 campaign pin mismatch")
     if _git(ccbench, "status", "--porcelain", "--untracked-files=no"):
         raise ValueError("CCBench source tree is not clean")
@@ -198,7 +202,10 @@ def build_job_environment(spec: PilotJob, tree: SubmitTree) -> dict[str, str]:
 
 
 def qsub_argv(spec: PilotJob, tree: SubmitTree) -> list[str]:
-    env = build_job_environment(spec, tree)
+    return _qsub_argv(spec, build_job_environment(spec, tree))
+
+
+def _qsub_argv(spec: PilotJob, env: dict[str, str]) -> list[str]:
     evidence = Path(env["IZANAGI_S4_EVIDENCE_ROOT"])
     walltime = "03:00:00" if spec.mode == "block-stock" else "08:00:00"
     return ["qsub", "-v", ",".join(f"{k}={v}" for k, v in env.items()),
@@ -211,7 +218,10 @@ def launch(jobs: tuple[PilotJob, ...], tree: SubmitTree, *, submit: bool,
            runner=None) -> int:
     """Validate the entire pilot before the first mkdir or scheduler call."""
     validate_pilot_cap(jobs)
-    commands = [(job, build_job_environment(job, tree), qsub_argv(job, tree)) for job in jobs]
+    commands = []
+    for job in jobs:
+        env = build_job_environment(job, tree)
+        commands.append((job, env, _qsub_argv(job, env)))
     for job, env, argv in commands:
         for path in (job.evidence_root, job.ledger_root):
             if path.exists() or path.is_symlink():

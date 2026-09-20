@@ -97,6 +97,7 @@ from .pipeline import (PerfConfig, variant_id, S2_FLAGS,     # noqa: E402
                        SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE)
 from . import p2_2, source_digest                           # noqa: E402
 from .projection_guard import (                            # noqa: E402
+    AbilityProbeMaterialError,
     CODER_CONTRACT_K2,
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
@@ -1941,6 +1942,34 @@ def _write_b5_sidecar(directory, name, payload):
         lock.rmdir()
 
 
+def _b5_proposal_rejected(directory, slot, exc):
+    # Classify the rejecting boundary, never candidate-controlled message text.
+    frames = []
+    trace = exc.__traceback__
+    while trace is not None:
+        frames.append(trace.tb_frame.f_code.co_name)
+        trace = trace.tb_next
+    if "_assert_coder_value_domain" in frames:
+        reason = "value-domain"
+    elif isinstance(exc, AttributionMismatch):
+        reason = "attribution"
+    elif isinstance(exc, backoff_hole_grammar.BackoffGrammarViolation):
+        reason = "grammar"
+    elif isinstance(exc, AbilityProbeMaterialError):
+        reason = "probe-material"
+    elif "_consume_k2_coder_output" in frames and "validate_schema_instance" not in frames:
+        reason = "k2-semantic"
+    else:
+        reason = "schema"
+    payload = {"schema": "p3-s4-loop-b5-proposal-rejected/v1", "b5_slot": slot,
+               "reason_class": reason, "exception": type(exc).__name__, "message": str(exc),
+               "ts_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    if directory is not None:
+        _write_b5_sidecar(directory, "proposal-rejected.json", payload)
+    return {"outcome": "rejected-preprocess", "reason_class": reason,
+            "exception": payload["exception"], "message": payload["message"]}
+
+
 def _b5_sidecar_payload(cfg, genome, layout=None):
     payload = {
         "schema": "p3-s4-loop-b5-submission/v1",
@@ -2134,6 +2163,10 @@ def _run_one_iteration_resolved(
     preflight_decision = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
+    if b5_mode and not preflight_decision.accepted and type(coder.implementation) is not str:
+        return _b5_proposal_rejected(
+            b5_sidecar_dir, cfg.search_config["b5_slot"],
+            backoff_hole_grammar.BackoffGrammarViolation(preflight_decision))
     preflight_rejection = None
     if not preflight_decision.accepted and type(coder.implementation) is str:
         value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
@@ -2147,7 +2180,13 @@ def _run_one_iteration_resolved(
     # type/raw-size preflight と value の無損失整数検査は正本への adapter 経由で先に走る。
     # materialization と int() は固定上限内・検証済みの値にしか到達させない。
     if preflight_rejection is None:
-        _check_attribution_before_quarantine(coder)
+        try:
+            _check_attribution_before_quarantine(coder)
+        except (AttributionMismatch, backoff_hole_grammar.BackoffGrammarViolation) as exc:
+            if not b5_mode:
+                raise
+            return _b5_proposal_rejected(
+                b5_sidecar_dir, cfg.search_config["b5_slot"], exc)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     layout.ensure()
@@ -2825,7 +2864,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     )
     save_loop_state(layout, state)
 
-    if b5_mode and out["outcome"] == "duplicate-skip":
+    if b5_mode and out["outcome"] in {"duplicate-skip", "rejected-preprocess"}:
         post = check_stop(state)
         out.update(stop_reason=post.reason, iteration=state.iteration, ran=True,
                    critic_digest_generated=False)
@@ -3423,18 +3462,24 @@ def main(
                         not isinstance(value, str) for value in prompts.values()):
                     raise ValueError("--agent-prompts requires exact planner/coder paths")
                 agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
-        planner, coder, prior_rev = load_proposal_file(
-            a.run_iteration,
-            b4_reflux_ablation=a.b4_reflux_ablation,
-            b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
-            b4_prerun_publication=a.b4_prerun_publication,
-            b4_attempt_id=a.b4_attempt_id,
-            knowledge_input=(
-                knowledge_input if a.coder_role is not None else None
-            ),
-            coder_role=a.coder_role,
-            **({"capture": agent_record} if agent_record is not None else {}),
-        )
+        try:
+            planner, coder, prior_rev = load_proposal_file(
+                a.run_iteration,
+                b4_reflux_ablation=a.b4_reflux_ablation,
+                b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+                b4_prerun_publication=a.b4_prerun_publication,
+                b4_attempt_id=a.b4_attempt_id,
+                knowledge_input=(
+                    knowledge_input if a.coder_role is not None else None
+                ),
+                coder_role=a.coder_role,
+                **({"capture": agent_record} if agent_record is not None else {}),
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            if a.b5_slot is None:
+                raise
+            _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
+            return 3
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
               f"isolate_worktree={a.isolate_worktree}) ===")
@@ -3453,6 +3498,8 @@ def main(
                                   _contract=contract,
                                   **({"agent_record": agent_record} if agent_record is not None else {}),
                                   **b5_options, **fetchcontent_options)
+        if a.b5_slot is not None and out["outcome"] == "rejected-preprocess":
+            return 3
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")

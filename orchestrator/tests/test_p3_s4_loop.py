@@ -10449,6 +10449,65 @@ def test_b5_sidecar_no_overwrite(tmp_path):
     assert list(tmp_path.iterdir()) == [tmp_path / "slot-start.json"]
 
 
+
+@pytest.mark.parametrize("mutation,reason", [
+    ("schema", "schema"), ("value", "value-domain"),
+    ("attribution", "attribution"), ("grammar", "grammar"),
+    ("probe", "probe-material"), ("k2", "k2-semantic"),
+    ("k2-schema", "schema"), ("k2-reference", "k2-semantic"),
+])
+def test_b5_candidate_rejection_sidecar_rc3_m20(tmp_path, monkeypatch, mutation, reason):
+    layout, _, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+    doc = json.loads(proposal.read_text())
+    if mutation == "schema":
+        del doc["coder"]["axis"]
+    elif mutation == "value":
+        doc["coder"]["value"] = 1001
+    elif mutation == "attribution":
+        doc["coder"]["implementation"] = "double now_backoff = 30;"
+    elif mutation == "grammar":
+        doc["coder"]["implementation"] = None
+    elif mutation == "probe":
+        doc["coder"]["justification"] = "silo_ladder_rung1"
+    else:
+        resolved = _resolved_empty_knowledge_fixture(tmp_path)
+        monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _: resolved)
+        doc = _k2_proposal_document(instruction_like=True)
+        if mutation == "k2-schema":
+            doc = _k2_proposal_document()
+            doc["coder"]["knowledge_use"] = "invalid schema type"
+        elif mutation == "k2-reference":
+            doc = _k2_proposal_document(knowledge_use=[{"source_index": 0, "use": "missing source"}])
+        args.remove("--machine-generated-proposal")
+        args += ["--allow-coder-derived-build", "--coder-role", "coder-v4-autonomous-k2",
+                 "--knowledge-manifest", "fixture"]
+    proposal.write_text(json.dumps(doc))
+    monkeypatch.setattr(L, "run_campaign", lambda *a, **k: pytest.fail("rejected candidate submitted"))
+    monkeypatch.setattr(L, "project_whiteboard", lambda *a, **k: pytest.fail("preprocess projected"))
+    assert L.main(args) == 3
+    assert (sidecar / "proposal-rejected.json").is_file()
+    rejected = json.loads((sidecar / "proposal-rejected.json").read_text())
+    assert set(rejected) == {"schema", "b5_slot", "reason_class", "exception", "message", "ts_utc"}
+    assert rejected["schema"] == "p3-s4-loop-b5-proposal-rejected/v1"
+    assert rejected["b5_slot"] == "b5-generator-contrast-v1|fixture"
+    assert rejected["reason_class"] == reason
+    assert rejected["exception"] and rejected["message"] and rejected["ts_utc"]
+    assert not (sidecar / "pipeline-submitted.json").exists()
+    state = L.load_loop_state(layout)
+    assert state is None or state.whiteboard == []
+
+
+def test_b5_rejection_sidecar_mutant_m20(tmp_path, monkeypatch):
+    import inspect
+    source = inspect.getsource(L._b5_proposal_rejected)
+    old = '_write_b5_sidecar(directory, "proposal-rejected.json", payload)'
+    assert source.count(old) == 1
+    namespace = dict(L.__dict__)
+    exec(compile(source.replace(old, "pass"), L.__file__, "exec"), namespace)
+    monkeypatch.setattr(L, "_b5_proposal_rejected", namespace["_b5_proposal_rejected"])
+    with pytest.raises(AssertionError):
+        test_b5_candidate_rejection_sidecar_rc3_m20(tmp_path, monkeypatch, "schema", "schema")
+
 if __name__ == "__main__":
     import traceback
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

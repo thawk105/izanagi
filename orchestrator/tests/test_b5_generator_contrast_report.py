@@ -41,7 +41,8 @@ def ledger(arm="llm", series=1, workload="write-heavy", purpose="registered", sc
         return e
     def session(kind, slot, n, value, tps):
         key = f"b5-generator-contrast-v1|synthetic-registration|{arm}|{workload}|{series}|{slot}|{n}|attempt-0"
-        return add(kind, a=10 if slot != "block-stock" else 0, b=10 if slot != "block-stock" else 0,
+        return add(kind, a=n if slot == "search" else 10 if slot == "score" else 0,
+                   b=n if slot == "search" else 10 if slot == "score" else 0, submitted=True,
                    logical_slot=f"{slot}-{n}", attempt=0, slot_key=key, value=value,
                    proposal_path="proposal.json", proposal_sha256="d" * 64, provenance={},
                    campaign_id=key, campaign_root="/synthetic/" + key, variant=STOCK_VARIANT if value == -1 else "variant",
@@ -59,9 +60,11 @@ def ledger(arm="llm", series=1, workload="write-heavy", purpose="registered", sc
         add("series-end", a=0, b=0, reason="b-complete")
     else:
         session("stock-start", "stock-start", 1, -1, 100)
-        e = session("evaluation-result", "search", 1, 20, 9999)
-        if fallback:
-            e.update(outcome="build-failed", fitness_tps=None, quality=None)
+        for n in range(1, 11):
+            evaluation = session("evaluation-result", "search", n, 20, 9999)
+            if fallback:
+                evaluation.update(outcome="build-failed", fitness_tps=None, quality=None)
+        e = events[2]
         add("endpoint-fixed", a=10, b=10, endpoint=None if fallback else deepcopy(e),
             fallback="pending-block-stock" if fallback else None)
         if not fallback:
@@ -96,7 +99,7 @@ def pairs(difference=0.1):
 
 def decide(ps=None, **kw):
     kwargs = dict(floor={"f": 0.03, "delta": math.log(1.03)},
-                  certified_counts={"llm": 12, "random": 12}, baseline="random", significant=True)
+                  certified_counts={"llm": 12, "random": 12}, significant=True)
     kwargs.update(kw)
     return R.decide_comparison(pairs() if ps is None else ps, **kwargs)
 
@@ -282,11 +285,11 @@ def test_pilot_json_descriptive_only_kills_m17(tmp_path):
     assert not {"comparisons", "floors", "workloads", "all_workloads_superiority"} & result.keys()
     assert result["block_stock"][0]["descriptive_cv"] == 0
     s = result["series"][0]
-    assert (s["A"], s["B"], s["logical_sessions"], s["physical_attempts"]) == (10, 10, 7, 7)
+    assert (s["A"], s["B"], s["logical_sessions"], s["physical_attempts"]) == (10, 10, 16, 16)
     assert s["score"] == 200 and s["endpoint"]["fitness_tps"] == 9999
     assert s["timing"]["subprocess_wall_s"]["max"] == 60
     assert s["job_elapse"] == 400
-    assert s["llm_turn_seconds"]["missing"]
+    assert s["handshake_wait_seconds"]["missing"]
     out = tmp_path / "report.json"
     args = ["--purpose", "pilot", "--out", str(out), "--block-stock-root", str(roots[-1])]
     for root in roots[:-1]:
@@ -300,6 +303,7 @@ def test_fresh_median_not_search_max_and_slow_endpoint_not_replaced():
     values = [10, 40, 50, 60, 100]
     for e, x in zip((e for e in doc["events"] if e["kind"] == "score-session"), values):
         e["fitness_tps"] = x
+        e["bench_payload"].update(median_tps=x, tps=[x] * 5)
     result = R.build_report([doc], purpose="registered")
     assert result["invalid"] == []
     s = result["series"][0]
@@ -312,10 +316,10 @@ def test_anomaly_cross_arm_cross_series_order_independent_and_workload_local():
     docs = [ledger(), ledger("random", 2), ledger(workload="balanced"), ledger("stock", score=100)]
     anomaly = docs[1]["events"][2]
     anomaly.update(outcome="anomaly", anomalies=1, quality=None, fitness_tps=None)
-    docs[1]["events"][3]["endpoint"] = None
-    docs[1]["events"][3]["fallback"] = "pending-block-stock"
-    docs[1]["events"] = docs[1]["events"][:4] + [docs[1]["events"][-1]]
-    docs[1]["events"][-1].update(event_seq=5, score=None)
+    docs[1]["events"][12]["endpoint"] = None
+    docs[1]["events"][12]["fallback"] = "pending-block-stock"
+    docs[1]["events"] = docs[1]["events"][:13] + [docs[1]["events"][-1]]
+    docs[1]["events"][-1].update(event_seq=14, score=None)
     before = deepcopy(docs)
     result = R.build_report(docs, purpose="registered")
     assert result["invalid"] == []
@@ -336,7 +340,7 @@ def test_anomaly_cross_arm_cross_series_order_independent_and_workload_local():
                   ("certified", "quality-missing", "quality-missing"), ("submitted-unresolved", None, "unclassified-missing")])
 def test_missing_score_never_uses_fallback(outcome, quality, expected):
     doc = ledger()
-    doc["events"][4].update(outcome=outcome, quality=quality, fitness_tps=None)
+    doc["events"][13].update(outcome=outcome, quality=quality, fitness_tps=None)
     doc["events"][-1]["score"] = None
     result = R.build_report([doc, ledger("stock", score=100)], purpose="registered")
     s = result["series"][0]
@@ -352,15 +356,15 @@ def test_invalid_categories_fail_closed_without_exception(mutation, category):
     if mutation == "schema":
         doc["header"]["schema"] = "wrong"
     elif mutation == "duplicate":
-        doc["events"][5].update({k: doc["events"][4][k] for k in ("logical_slot", "attempt", "slot_key", "campaign_id")})
+        doc["events"][14].update({k: doc["events"][13][k] for k in ("logical_slot", "attempt", "slot_key", "campaign_id")})
     elif mutation == "attempt":
-        doc["events"][4]["slot_key"] = "unowned"
+        doc["events"][13]["slot_key"] = "unowned"
     elif mutation == "early":
-        doc["events"][3], doc["events"][4] = doc["events"][4], doc["events"][3]
+        doc["events"][12], doc["events"][13] = doc["events"][13], doc["events"][12]
         for i, e in enumerate(doc["events"], 1):
             e["event_seq"] = i
     else:
-        doc["events"][4]["fitness_tps"] = float("nan")
+        doc["events"][13]["fitness_tps"] = float("nan")
     result = R.build_report([doc], purpose="registered")
     assert category in {x["category"] for x in result["invalid"]}
     assert result["comparisons"][0]["judgment"] == "protocol-nonconforming"
@@ -381,11 +385,11 @@ def test_submission_duplicates_do_not_double_count_attempts():
     doc["events"].insert(2, original)
     for i, e in enumerate(doc["events"], 1):
         e["event_seq"] = i
-    doc["events"][4]["endpoint"] = deepcopy(doc["events"][3])
+    doc["events"][13]["endpoint"] = deepcopy(doc["events"][3])
     result = R.build_report([doc], purpose="pilot")
     assert result["invalid"] == []
-    assert result["series"][0]["physical_attempts"] == 7
-    assert result["series"][0]["logical_sessions"] == 7
+    assert result["series"][0]["physical_attempts"] == 16
+    assert result["series"][0]["logical_sessions"] == 16
 
 
 def test_pilot_cannot_be_relabelled_registered():
@@ -407,11 +411,11 @@ def test_a1_opportunity_before_physical_attempt_and_retry_accounting():
     doc["events"][2:2] = [opportunity, retry]
     for i, e in enumerate(doc["events"], 1):
         e["event_seq"] = i
-    doc["events"][5]["endpoint"] = deepcopy(terminal)
+    doc["events"][14]["endpoint"] = deepcopy(terminal)
     result = R.build_report([doc], purpose="pilot")
     assert result["invalid"] == []
     s = result["series"][0]
-    assert s["logical_sessions"] == 7 and s["physical_attempts"] == 8
+    assert s["logical_sessions"] == 16 and s["physical_attempts"] == 17
     assert s["timing"]["session_by_outcome"]["machine-failure"]["count"] == 1
 
 
@@ -419,7 +423,7 @@ def test_a1_opportunity_before_physical_attempt_and_retry_accounting():
                                        ("campaign_id", []), ("kind", []), ("value", {})])
 def test_malformed_event_shapes_report_invalid(field, value):
     doc = ledger()
-    doc["events"][4][field] = value
+    doc["events"][13][field] = value
     result = R.build_report([doc], purpose="registered")
     assert result["invalid"]
     assert result["comparisons"][0]["judgment"] == "protocol-nonconforming"
@@ -445,7 +449,7 @@ def test_nonfinite_floor_precedes_generation_and_precision():
 
 def test_score_anomaly_no_reselection_and_stock_anomaly_invalidates_floor():
     doc = ledger()
-    doc["events"][4].update(outcome="anomaly", anomalies=1, fitness_tps=None, quality=None)
+    doc["events"][13].update(outcome="anomaly", anomalies=1, fitness_tps=None, quality=None)
     doc["events"][-1].update(score=None, fallback="pending-block-stock")
     result = R.build_report([doc, ledger("stock", score=100)], purpose="registered")
     s = result["series"][0]
@@ -468,7 +472,7 @@ def test_stock_identity_mismatch_is_not_fallback_data():
 def test_invalid_comparison_stays_in_family_without_poisoning_other_cells():
     docs = registered()
     doc = next(d for d in docs if d["header"]["arm"] == "random" and d["header"]["workload"] == "write-heavy")
-    doc["events"][4]["bench_payload"]["tps"] = None
+    doc["events"][13]["bench_payload"]["tps"] = None
     report = R.build_report(docs, purpose="registered")
     assert report["invalid"]
     assert report["comparisons"][0]["judgment"] == "protocol-nonconforming"
@@ -502,6 +506,157 @@ def test_registered_mutants_killed_independently(monkeypatch, tmp_path, old, new
             globals()[check](tmp_path)
         else:
             globals()[check]()
+
+
+
+def test_incomplete_attempt_sidecar_consumes_budget_m24(tmp_path):
+    doc = ledger(purpose="pilot")
+    doc["events"] = doc["events"][:1]
+    event = dict.fromkeys(FIELDS)
+    event.update(event_seq=2, kind="slot-attempt-start", ts_utc="2026-09-20T10:00:00Z",
+                 a=1, b=0, logical_slot="search-1", attempt=0, slot_kind="search", n=1,
+                 slot_key="b5-generator-contrast-v1|synthetic-registration|llm|write-heavy|1|search|1|attempt-0",
+                 sidecar_dir="slots/search-1-attempt-0")
+    doc["events"].append(event)
+    root = save(tmp_path, doc)
+    sidecar = root / event["sidecar_dir"]
+    sidecar.mkdir(parents=True)
+    (sidecar / "pipeline-submitted.json").write_text(json.dumps({
+        "schema": "p3-s4-loop-b5-submission/v1", "b5_slot": event["slot_key"]}))
+    original = {p: p.read_bytes() for p in root.rglob("*.json")}
+    result = R.build_report([root], purpose="pilot")
+    assert not result["invalid"]
+    row, = result["series"]
+    assert (row["A"], row["B"], row["physical_attempts"]) == (1, 1, 1)
+    assert row["logical_sessions"] == 2 and row["attempted_logical_slots"] == 1
+    assert row["missing"] and row["score"] is None
+    reconciled, = result["reconciled_attempts"]
+    assert reconciled["outcome"] == "submitted-unresolved"
+    assert reconciled["slot_key"] == event["slot_key"]
+    assert row["events"] == doc["events"]
+    assert all(p.read_bytes() == data for p, data in original.items())
+
+
+def test_reconcile_retry_counts_B_once(tmp_path):
+    doc = ledger(purpose="pilot")
+    doc["events"] = doc["events"][:3]
+    retry = doc["events"][-1]
+    retry.update(kind="machine-retry", b=1, outcome="machine-failure", quality=None, fitness_tps=None)
+    attempt = {**retry, "kind": "slot-attempt-start", "event_seq": 4, "attempt": 1,
+               "slot_key": retry["slot_key"].replace("attempt-0", "attempt-1"),
+               "submitted": None, "sidecar_dir": "slots/retry"}
+    doc["events"].append(attempt)
+    root = save(tmp_path, doc)
+    sidecar = root / "slots/retry"
+    sidecar.mkdir(parents=True)
+    (sidecar / "pipeline-submitted.json").write_text("{}")
+    result = R.build_report([root], purpose="pilot")
+    assert not result["invalid"]
+    assert result["series"][0]["B"] == 1
+    assert result["series"][0]["physical_attempts"] == 3
+    assert len(result["reconciled_attempts"]) == 1
+
+
+def test_one_evaluation_cannot_claim_B10_m25():
+    doc = ledger(purpose="pilot")
+    doc["events"] = [e for e in doc["events"] if e["kind"] != "evaluation-result" or e["b"] == 1]
+    for i, event in enumerate(doc["events"], 1):
+        event["event_seq"] = i
+    result = R.build_report([doc], purpose="pilot")
+    assert any("evaluation count/sequence" in e["detail"] for e in result["invalid"])
+
+
+@pytest.mark.parametrize("kind", ["evaluation-result", "score-session", "stock-start"])
+def test_fitness_median_mismatch_invalid_m26(kind):
+    doc = ledger(purpose="pilot")
+    event = next(e for e in doc["events"] if e["kind"] == kind)
+    event["fitness_tps"] += 1
+    if kind == "evaluation-result":
+        next(e for e in doc["events"] if e["kind"] == "endpoint-fixed")["endpoint"] = deepcopy(event)
+    result = R.build_report([doc], purpose="pilot")
+    assert any("fitness/median mismatch" in e["detail"] for e in result["invalid"])
+
+
+@pytest.mark.parametrize("kind,missing", [("evaluation-result", False), ("score-session", True)])
+def test_exploration_quality_missing_does_not_replace_score_missing(kind, missing):
+    docs = registered()
+    doc = docs[0]
+    event = next(e for e in doc["events"] if e["kind"] == kind and (kind != "evaluation-result" or e["b"] == 2))
+    event["quality"] = "quality-missing"
+    event["bench_payload"]["settled"] = False
+    if missing:
+        doc["events"][-1]["score"] = None
+    result = R.build_report(docs, purpose="registered")
+    assert not result["invalid"]
+    row = result["series"][0]
+    assert row["exploration_quality_missing"] == int(not missing)
+    assert bool(row["missing"]) is missing
+    assert result["comparisons"][0]["judgment"] == (
+        "indeterminate-missing" if missing else "conditional-superiority")
+
+
+def test_handshake_wait_deduplicates_opportunity_and_includes_failures():
+    doc = ledger(purpose="pilot")
+    for event in doc["events"]:
+        if event["kind"] == "evaluation-result":
+            event["provenance"] = {"handshake_status": "proposal", "proposal_wait_wall_s": 2.}
+    next(e for e in doc["events"] if e["kind"] == "endpoint-fixed")["endpoint"] = deepcopy(doc["events"][2])
+    doc["events"][-1]["provenance"] = {"handshake_status": "proposal", "proposal_wait_wall_s": 2.}
+    rejection = dict.fromkeys(FIELDS)
+    rejection.update(kind="proposal-rejected", a=11, b=10, ts_utc="2026-09-20T10:00:00Z",
+                     provenance={"handshake_status": "proposal-rejected", "proposal_wait_wall_s": 7.})
+    doc["events"].insert(-1, rejection)
+    for i, event in enumerate(doc["events"], 1):
+        event["event_seq"] = i
+    result = R.build_report([doc], purpose="pilot")
+    assert not result["invalid"]
+    row = result["series"][0]
+    assert row["handshake_wait"] == {"count": 11, "total_s": 27., "max_s": 7., "by_status": {
+        "proposal": {"count": 10, "total_s": 20., "max_s": 2.},
+        "proposal-rejected": {"count": 1, "total_s": 7., "max_s": 7.}}}
+    assert row["handshake_wait_seconds"]["count"] == 11
+    assert "llm_turn_seconds" not in row
+    assert row["preprocess_rejections"] == 1
+    assert row["logical_sessions"] == 16
+
+
+def test_A_only_physical_rejection_is_not_a_submitted_session():
+    doc = ledger(purpose="pilot")
+    rejection = doc["events"][2]
+    rejection.update(kind="proposal-rejected", b=0, submitted=False, outcome="rejected-preprocess",
+                     failure_class="candidate", quality=None, fitness_tps=None, bench_payload=None)
+    end = doc["events"][-1]
+    end.update(event_seq=4, a=1, b=0, reason="a-exhausted", score=None)
+    doc["events"] = doc["events"][:3] + [end]
+    result = R.build_report([doc], purpose="pilot")
+    assert not result["invalid"]
+    row = result["series"][0]
+    assert (row["logical_sessions"], row["attempted_logical_slots"], row["physical_attempts"],
+            row["preprocess_rejections"], row["B"]) == (1, 2, 2, 1, 0)
+
+
+@pytest.mark.parametrize("mutation", ["M24", "M25", "M26"])
+def test_fix2_consumer_mutants_killed(tmp_path, monkeypatch, mutation):
+    import types
+    source = Path(R.__file__).read_text()
+    old, new = {
+        "M24": ('if (path / "pipeline-submitted.json").is_file():',
+                'if False and (path / "pipeline-submitted.json").is_file():'),
+        "M25": ('if ends and not stock:', 'if False and ends and not stock:'),
+        "M26": ('and e.get("outcome") == "certified"', 'and False and e.get("outcome") == "certified"'),
+    }[mutation]
+    assert source.count(old) == 1
+    mutant = types.ModuleType("orchestrator.campaign.b5_report_fix2_mutant")
+    mutant.__package__, mutant.__file__ = "orchestrator.campaign", R.__file__
+    exec(compile(source.replace(old, new), R.__file__, "exec"), mutant.__dict__)
+    monkeypatch.setitem(globals(), "R", mutant)
+    with pytest.raises(AssertionError):
+        if mutation == "M24":
+            test_incomplete_attempt_sidecar_consumes_budget_m24(tmp_path)
+        elif mutation == "M25":
+            test_one_evaluation_cannot_claim_B10_m25()
+        else:
+            test_fitness_median_mismatch_invalid_m26("score-session")
 
 
 def _run() -> int:

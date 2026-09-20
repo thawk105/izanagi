@@ -37,7 +37,9 @@ def submit_tree(tmp_path, monkeypatch):
     head = _fixed_repo(repo)
     ccbench = repo / "external/ccbench"
     pin = _fixed_repo(ccbench)
-    monkeypatch.setattr(launch.p3_s4_loop, "PIN", pin)
+    module = repo / "orchestrator/campaign/p3_s4_loop.py"
+    module.parent.mkdir(parents=True)
+    module.write_text(f'PIN = "{pin}"\n')
     return repo, head, ccbench
 
 
@@ -68,7 +70,8 @@ def test_validate_submit_tree_rejects_tracked_dirty(submit_tree, which):
 
 def test_validate_submit_tree_rejects_ccbench_pin(submit_tree, monkeypatch):
     repo, head, _ = submit_tree
-    monkeypatch.setattr(launch.p3_s4_loop, "PIN", "f" * 40)
+    (repo / "orchestrator/campaign/p3_s4_loop.py").write_text(
+        'PIN = "' + "f" * 40 + '"\n')
     with pytest.raises(ValueError, match="pin mismatch"):
         launch.validate_submit_tree(repo, head)
 
@@ -257,6 +260,33 @@ def test_main_dry_run_validates_tree_and_prints_four_jobs(tmp_path, monkeypatch,
     assert checked == [(tree.repo, tree.expected_head)]
     assert len(capsys.readouterr().out.splitlines()) == 4
     assert not (tmp_path / "evidence").exists()
+
+
+
+def test_target_checkout_pin_m28(submit_tree, monkeypatch):
+    repo, head, _ = submit_tree
+    target = repo / "orchestrator/campaign/p3_s4_loop.py"
+    target_pin = target.read_text().split('"')[1]
+    monkeypatch.setattr(launch.p3_s4_loop, "PIN", "e" * 40)
+    assert launch.validate_submit_tree(repo, head).repo == repo
+    monkeypatch.setattr(launch.p3_s4_loop, "PIN", target_pin)
+    target.write_text('PIN = "' + "f" * 40 + '"\n')
+    with pytest.raises(ValueError, match="pin mismatch"):
+        launch.validate_submit_tree(repo, head)
+
+def test_target_pin_mutant_m28(submit_tree, monkeypatch):
+    repo, head, _ = submit_tree
+    target = repo / "orchestrator/campaign/p3_s4_loop.py"
+    monkeypatch.setattr(launch.p3_s4_loop, "PIN", target.read_text().split('"')[1])
+    source = Path(launch.__file__).read_text()
+    assert source.count('!= pins[0]:') == 1
+    mutant = ModuleType("tools.pegasus._b5_pin_mutant")
+    mutant.__package__, mutant.__file__ = "tools.pegasus", launch.__file__
+    monkeypatch.setitem(sys.modules, mutant.__name__, mutant)
+    exec(compile(source.replace('!= pins[0]:', '!= p3_s4_loop.PIN:'), launch.__file__, "exec"), mutant.__dict__)
+    monkeypatch.setitem(globals(), "launch", mutant)
+    with pytest.raises(pytest.fail.Exception):
+        test_validate_submit_tree_rejects_ccbench_pin(submit_tree, monkeypatch)
 
 
 def _run() -> int:
