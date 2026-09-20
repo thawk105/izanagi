@@ -2,7 +2,8 @@
 
 authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾と現行 phase doc)
 
-- 成果物: `related-work.md` (本 dir、8 小節 + 出所 22 件)。序論稿 (別 wave `dev-wave-paper-intro-ja`、稿の構成節が「第 2 節で関連研究」と書く) の後ろに置く第 2 節の統制稿。
+- 成果物: `related-work.md` (本 dir、8 小節 + 出所 22 件、約 55 KB / 383 行)。序論稿 (別 wave `dev-wave-paper-intro-ja`、稿の構成節が「第 2 節で関連研究」と書く。
+  本 wave の段 6 中に main へ着地) の後ろに置く第 2 節の統制稿。
 - 依頼: ユーザー (2026-09-20、dev-wave 引数、台帳 ID 未起票)。逐語は `verbatim/s1-brief.md` の冒頭。
 - wave: `dev-wave-paper-related-work-ja` (branch `worktree-dev-wave-paper-related-work-ja`)。着手直前の local main `7baf3f375` (= origin/main) から fresh worktree、
   開始 gate `check_wave_startup.py --mode fresh --external-handoff` rc=0 (20:53 JST)。job dir = `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-related-work-ja/`、
@@ -41,7 +42,7 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 | story 2026-09-20 版 | §1 (核 3 点、3 限定、SysInsight、調査の状態)、§3 (軸 1〜5 の実証状態)、§8 C-4 | 2.1 の 1 文 (逐語) と禁止形、2.8 の状態語 |
 | decisions | D1598 / D1760 / D1931 の本文 | 核の書き方、停止の理由と「取り消さないもの」 |
 | 稼働中 wave の版 `2026-09-20b.md` (未 land) | §1 は 2026-09-20 版 §1 と版名の時点語だけが違う (job dir `s1-20.txt` / `s1-20b.txt` の diff で実測) | 依頼どおり 2026-09-20 版 §1 に揃えた。20b の着地は稿の内容を変えない |
-| 隣接 wave | intro 稿 (未 land) は「個々の先行との比較は関連研究の節に委ねる」「第 2 節で関連研究」と書く | 本稿はその第 2 節。intro 稿は出所にしない (未 land) |
+| 隣接 wave | intro 稿 (起草時は未 land、段 6 中に main `799d38b97` へ着地) は「個々の先行との比較は関連研究の節に委ねる」「第 2 節で関連研究」と書く | 本稿はその第 2 節。intro 稿は出所にしない (本稿の内容は正典から独立に導いた) |
 
 本文の書き方: 平易な日本語の論文本文 (投稿本文の文体)、本文に T 番号を書かず、D 番号と一次資料 path は末尾「出所 (執筆者向け)」へ寄せる
 (先例 = `output/insights/2026-09-20/paper-intro-ja` / `paper-methods-ja` / `paper-results-ja` の稿)。
@@ -106,12 +107,17 @@ prompt = job dir `prompt-focus.md` (所見ごとの closed / partial / regressed
 
 ### 4.3 main の前進の取り込み (段 7)
 
-(実施後に追記)
+段 6 完了後・記録前に、peer 通知 2 通 ([T-2766] 21:1x JST、dev-wave-paper-intro-ja 21:18 JST) を契機に local main を読み直し、`799d38b97` (fold commit) を固定 SHA で
+`merge --no-ff --no-commit` → 競合 0、staged 140 path はすべて main 側 blob と一致 (job dir `check_merge_blobs.py`) → integrator commit `ede935290` →
+`dev_wave_submodule_init.py` rc=0 (ccbench `e9e477ca`、入れ子 2 件とも初期化済み)。取り込んだ内容 = 序論・貢献・限界稿 (`output/insights/2026-09-20/paper-intro-ja/`、
+`docs/phase3.md` の +6 行 = [T-2340] 項直後の [x] 項)、[T-2766] pairing 既定 on、[T-2792] A-1 sized attempt-0002 の稿と `docs/paper-story/README.md` の results 表 1 行。
+本 wave の `docs/phase3.md` の [x] 項は現行チェックポイント先頭に置いたので、序論稿の項とは anchor が違う。稿の内容 (正典から導いた判定・限定・件数) は
+この取り込みで変わらない。
 
 ## 5. 限界と言わないこと
 
 - 本稿は執筆者向けの統制稿であり、投稿本文ではない。英語化は scope 外。
 - 文献の判定・限定・成熟度・件数の権威は正典と claim-survey の凍結物にあり、本稿は転記の検算 (逐語存在) までを行った。一次資料 (論文本文) の再読は行っていない。
 - 稿が引く arXiv ID の実在確認は正典の各エントリの `id検証:` 欄の日付のものであり、本稿は再確認していない。
-- 採用時点より後に着地する事実 (story 2026-09-20b 版、序論稿の land) は反映していない。次に正典 (関連研究 README / claim-survey / 版) が動いたら、
+- 採用時点 (main `799d38b97`、§4.3) より後に着地する事実 (story 2026-09-20b 版など) は反映していない。次に正典 (関連研究 README / claim-survey / 版) が動いたら、
   本稿を書き換えず新しい日付の稿で再導出する (結果稿・方法稿と同じ扱い)。
