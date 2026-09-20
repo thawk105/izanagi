@@ -2068,6 +2068,12 @@ def _validate_journal(
         contract: _env_contract.ExecutionEnvironmentContract,
         expected_use_perf: bool = True,
 ) -> dict:
+    """official run journal の allowlist・型・構造を検査する。
+
+    reservation-preflight は任意・高々 1 件で、campaign-start より前に置く。
+    binding (pbs_jobid / submission_nonce) は両 event で claim 状態と値の一致を
+    要求するが、記録内の整合情報であり PBS job の外部認証ではない。
+    """
     if not records:
         raise RatifiedFreezeError("journal-state-invalid", "journal が空", cause="journal-empty")
     try:
