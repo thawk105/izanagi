@@ -11736,6 +11736,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   復旧は hold の `recovery` field どおり — qdel せず、`qstat` 一覧の行頭 RequestID で消滅を
   待ち、submission dir の終端証拠と tree clean / HEAD を確かめてから 2 箇所を job dir へ退避して
   削除した。dispatch 経路の command に呼び出し側 timeout を重ねない。
+
+- **再発: 2026-09-20** — T-2802 の A/B 測定 (直接投入の受入 shard 走) で、03-A の shard-2 が計算ノード側の xdist
+  INTERNALERROR で rc=16 になり、親 `run_tests.py` が shard-0/1 の dispatcher を SIGTERM した後、request 12235 / 12236 が
+  scheduler に残って base worktree に hold が立った。qstat で終端を確認してから `output/pegasus-dispatch/orphan-holds/12235.nqsv.json`
+  と `12236.nqsv.json` の 2 file だけを消し、root の `orphan-hold.json` (dispatcher が参照する単数形) を残したため、次の 04-A は
+  3 shard とも `child_started=false / "reason":"orphan-hold"` で未投入のまま rc=16 になり、測定走 1 走分 (投入上限 12 走のうち 1) を失った。
+  F333 の恒久対応 (`find output/pegasus-dispatch -maxdepth 2 -name "*hold*"` で全 path を列挙し、dispatcher log が名指しする path を読む)
+  を撤去前に実行しておらず、記憶の hook (`runbook §7.6 の hold file は root の単数形`) も無かった。是正は root latch の削除 (写しを
+  `output/insights/2026-09-20/t2802-floor-attempt-recovery/runs/03-A/orphan-hold-root.json` に保存) と裁定 erratum 5、
+  memory `compute-node-discipline` への追記。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
