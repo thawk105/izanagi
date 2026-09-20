@@ -1,0 +1,421 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "_JOURNAL_BINDING_KEYS = frozenset({\"pbs_jobid\", \"submission_nonce\"})\n",
+          "new": "# T-2810 M0: equivalent mutation marker (comment only)\n_JOURNAL_BINDING_KEYS = frozenset({\"pbs_jobid\", \"submission_nonce\"})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-drop-reservation-allowlist",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    \"reservation-preflight\": frozenset({\n        \"event\", \"required_s\", \"safety_margin_s\", \"formula\",\n        \"build_cap_per_cell_s\", \"shared_dependency_prebuild\",\n        \"dependency_configure_cap_s\", \"dependency_target_cap_s\",\n        \"verify_cap_per_attempt_s\", \"finalize_reserve_s\",\n    }),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_campaign_without_reservation",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[pbs_jobid]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[submission_nonce]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_other_event_binding_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[empty-formula]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-bool]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-formula]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_unknown_journal_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-binding-optional-extend",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if claims_binding:\n            expected = expected | _JOURNAL_BINDING_KEYS\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_campaign_without_reservation",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[pbs_jobid]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[submission_nonce]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_other_event_binding_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_unknown_journal_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-drop-claim-consistency",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if campaign_claim != reservation_claim:\n        raise RatifiedFreezeError(\n            \"journal-state-invalid\", \"campaign/reservation の binding claim が不一致\",\n            cause=\"journal-binding-claim\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_campaign_without_reservation",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[reservation-preflight]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-drop-binding-type-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if claims_binding and any(\n                type(record[field]) is not str or record[field] == \"\"\n                for field in _JOURNAL_BINDING_KEYS):\n            raise RatifiedFreezeError(\n                \"journal-state-invalid\", f\"journal[{index}] binding 型が不正\",\n                cause=\"journal-binding-type\",\n            )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-reservation-preflight]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-binding-value-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if campaign_claim and reservation_claim and any(\n            campaign[key] != reservation[key] for key in _JOURNAL_BINDING_KEYS):\n        raise RatifiedFreezeError(\n            \"journal-state-invalid\", \"campaign/reservation の binding 値が不一致\",\n            cause=\"journal-binding-mismatch\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[pbs_jobid]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[submission_nonce]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-reservation-type-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        if key == \"reservation-preflight\":\n            integer_fields = _JOURNAL_KEYS[key] - {\n                \"event\", \"formula\", \"shared_dependency_prebuild\",\n            }\n            if (type(record[\"formula\"]) is not str or not record[\"formula\"]\n                    or type(record[\"shared_dependency_prebuild\"]) is not bool\n                    or any(type(record[field]) is not int or record[field] <= 0\n                           for field in integer_fields)):\n                raise RatifiedFreezeError(\n                    \"journal-state-invalid\", f\"journal[{index}] reservation 型が不正\",\n                    cause=\"reservation-preflight-type\",\n                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[empty-formula]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-bool]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-formula]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-drop-reservation-count",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(reservations) > 1:\n        raise RatifiedFreezeError(\n            \"journal-state-invalid\", \"reservation-preflight が複数ある\",\n            cause=\"reservation-preflight-count\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[unbound]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-drop-reservation-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if reservations and reservations[0][0] >= starts[0][0]:\n        raise RatifiedFreezeError(\n            \"journal-state-invalid\", \"reservation-preflight が campaign-start より前でない\",\n            cause=\"reservation-preflight-order\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[unbound]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-drop-lower-bound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if not _git_ok([\"merge-base\", \"--is-ancestor\", cert_commit, intro], root):\n        raise RatifiedFreezeError(\n            \"binding-chain-mismatch\", f\"{path}: cert C が導入 i の祖先でない\",\n            cause=\"artifact-introduction-before-cert\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[before-cert]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-drop-merge-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(graph.parents.get(intro, ())) > 1:\n        raise RatifiedFreezeError(\n            \"binding-chain-mismatch\", f\"{path} の導入 {intro} が merge\",\n            cause=\"artifact-introduction-merge\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[merge]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-first-introduction-instead-of-unique",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    intro = _unique_introduction(_immutable_introductions(graph, path, oid, root), path)\n",
+          "new": "    intro = _immutable_introductions(graph, path, oid, root)[0]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[multiple]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-drop-generation-doc-introduction",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    # path は G 自身の追加 path から引く (追補 1)。generation_number から引くと\n    # scope 射影 fixture で g2 の G に対して g1 の文書を要求してしまう。\n    added, _other = _added_paths(gen_commit, root)\n    generation_paths = [path for path in added if _GEN_RE.match(path)]\n    if len(generation_paths) != 1:\n        raise RatifiedFreezeError(\n            \"binding-chain-mismatch\", f\"G が追加した世代文書の個数 != 1: {len(generation_paths)}\",\n            cause=\"generation-introduction\",\n        )\n    generation_path = generation_paths[0]\n    _mode, generation_oid = _tree_mode_oid(head, generation_path, root)\n    introductions = _immutable_introductions(graph, generation_path, generation_oid, root)\n    if set(introductions) != {gen_commit}:\n        raise RatifiedFreezeError(\n            \"binding-chain-mismatch\", f\"{generation_path} の introduction set != {{G}}\",\n            cause=\"generation-introduction\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_floor_source_introduction_must_be_exact_generation_commit",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_generation_introduction_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-drop-upper-bound",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if not _git_ok([\"merge-base\", \"--is-ancestor\", intro, gen_commit], root):\n        raise RatifiedFreezeError(\n            \"binding-chain-mismatch\", f\"{path}: 導入 i が G の祖先でない\",\n            cause=\"artifact-introduction-outside-generation\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_upper_bound_helper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-restore-old-stage6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "        _assert_artifact_introduction_interval(\n            graph, path, oid, cert_commit=cert_commit, gen_commit=gen_commit, root=root,\n        )\n",
+          "new": "        introductions = _immutable_introductions(graph, path, oid, root)\n        if set(introductions) != {gen_commit}:\n            raise RatifiedFreezeError(\n                \"binding-chain-mismatch\", f\"{path} の introduction set != {{G}}\",\n                cause=\"generation-introduction\",\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_interval_positive[branch-join]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_interval_positive[intermediate]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[before-cert]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[merge]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_artifact_lineage_rejected[multiple]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_campaign_without_reservation",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[empty-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-both]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_invalid_type[integer-submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[pbs_jobid-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_missing_key[submission_nonce-reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[campaign-start]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_one_sided_claim[reservation-preflight]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[pbs_jobid]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_binding_value_mismatch[submission_nonce]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[certificate]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_launch_positive[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_other_event_binding_rejected",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_after_campaign[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[bound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_duplicate[unbound]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[bool-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[string-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-build_cap_per_cell_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_configure_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-dependency_target_cap_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-finalize_reserve_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-required_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-safety_margin_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_integer[zero-verify_cap_per_attempt_s]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[empty-formula]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-bool]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_reservation_invalid_other_type[integer-formula]",
+        "orchestrator/tests/test_s8b_ratified_verify.py::test_t2810_unknown_journal_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
