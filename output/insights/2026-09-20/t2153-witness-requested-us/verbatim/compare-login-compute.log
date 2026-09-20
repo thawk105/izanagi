@@ -1,0 +1,36 @@
+row 0: STABLE VALUE differs: record_digest: before='04a68ec1b74733282ee740efb5990dc0ffbb6d38c1457e0c95c4943cf7c0ef7c' after='a9387ae47744a48ca0d3e47b4ac6c023198cb7e407c84df719c2b35fc4b66c55'
+row 0: STABLE VALUE differs: request_digest: before='a427c69e37da5bb597f92900594d799a09aea3418f43a7363c8bc6d5d0df7673' after='f113b92d1bb100e9dda997deb86cdecbaf741b38c35e7f51fe762d9876dd54bc'
+row 1: STABLE VALUE differs: record_digest: before='38f01f8804f0baa673f32414a61cc440e8541fbd480b5e84f4d5256266ea4972' after='ef1ac7c7544a7444f48a26477c44603aaac28178e71754fa8725fa171a030135'
+row 1: STABLE VALUE differs: request_digest: before='a427c69e37da5bb597f92900594d799a09aea3418f43a7363c8bc6d5d0df7673' after='f113b92d1bb100e9dda997deb86cdecbaf741b38c35e7f51fe762d9876dd54bc'
+row 2: STABLE VALUE differs: admission_digest: before='3a0fa7dab777511bf524af6768d89eccc337e2ae85ccc1c7579ae9f490bb4315' after='9ec7854fa1fe0c7c449146fc11d1c1019e810ce37c81b284c66f4f6bbcea2204'
+requested-us-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+36+3
+row 0: STABLE VALUE differs: record_digest: before='5244394c2d2f7bf9334057f57a89b43c686115b391503e5b925c91510c057432' after='d86d831e80631166dc1d379a257c67aece0ecafae11142785de6a16039f960fc'
+row 0: STABLE VALUE differs: request_digest: before='2b0e9a8d8d36830a0dc89599e19f3f7590238d382e019c28ce5bd493e5ffe603' after='c909027073987ac26e4de54190a1ca6a48e21b109b844e1e5c4079b0111e86b3'
+row 1: STABLE VALUE differs: record_digest: before='d0e57e1511a1b8b89de2ca1db6d92e231c3739afbce771ed7cf4221bcdc3c5c6' after='7d2e5e1338d04a6ec55329fd51fcaf494e9022b33f50964c01b825343c065c36'
+row 1: STABLE VALUE differs: request_digest: before='2b0e9a8d8d36830a0dc89599e19f3f7590238d382e019c28ce5bd493e5ffe603' after='c909027073987ac26e4de54190a1ca6a48e21b109b844e1e5c4079b0111e86b3'
+row 2: STABLE VALUE differs: admission_digest: before='c423c2617628e49c4ccf38f365261433d6a409896f2a51011b32570bceec367b' after='d384b84a60168b5abbdeaab4ed3b74eeb47a8078f2dc3f67ae0f5672b06cdb03'
+requested-us-1v0-backoff0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+8+3
+row 0: STABLE VALUE differs: record_digest: before='2a7f4f31ddb78fa0ec24d1d6da1ac702a68217eae304076ae179759cef3dc368' after='e13d8f46fddffc01cf6a5dca4e1891c5d3a5c6a2b04d2d15d5ceffdc43396f82'
+row 0: STABLE VALUE differs: request_digest: before='ac33f4aff335e680ec582a4e8945ade4c8d52cd16d6a1fcff10dbd87df0a55a1' after='eb11f3bdc0ca965916d592ae9a77c3b867b7a80e5e93138a4ae9d5318b9a2c1c'
+row 1: STABLE VALUE differs: record_digest: before='76f769da0d843aed215d7f834fc04d74e5ab9e317b52c8f964f90ccda95dc38a' after='d66d878a8d0bebf6e7e3915a5cf4e56584c1ec07da78b2a93bc6fa9f6f66827f'
+row 1: STABLE VALUE differs: request_digest: before='ac33f4aff335e680ec582a4e8945ade4c8d52cd16d6a1fcff10dbd87df0a55a1' after='eb11f3bdc0ca965916d592ae9a77c3b867b7a80e5e93138a4ae9d5318b9a2c1c'
+row 2: STABLE VALUE differs: admission_digest: before='566a85bde3c94740b40c679f912166010815e1d68ed452a3c9da74510d8dfdac' after='f40b4cd374e0a5ac7fa2140aabc55ca1bc5bbda8b476b98e36498bdc391c9b38'
+sort-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+row 0: STABLE VALUE differs: record_digest: before='ca7e9a853c24b5eb21d1cec1cc816838d0b08e54b61f335a79217337c7aba2d3' after='9d2fe5da4517816e47327da4191bf5c27ebc5fe21d68718f2f53c8f60ca95ebd'
+row 0: STABLE VALUE differs: request_digest: before='9769abb10445406d6f2d03a41c0dcc15ed7336c54ac3f5f3bc99106227708f98' after='24ea66f0d73030fc2d5e06ee2ed43bcf6892a5e8e81c4aa2f9c1cc76d9c73573'
+row 1: STABLE VALUE differs: record_digest: before='98ead3be4a455f0f4f7b7a0725aa6e341418c119f22ebca727fc26db9169dd6b' after='12787798994ce77a1eea6a89ef6d70044d0e2c233ab446486b899332144118c3'
+row 1: STABLE VALUE differs: request_digest: before='9769abb10445406d6f2d03a41c0dcc15ed7336c54ac3f5f3bc99106227708f98' after='24ea66f0d73030fc2d5e06ee2ed43bcf6892a5e8e81c4aa2f9c1cc76d9c73573'
+row 2: STABLE VALUE differs: admission_digest: before='2f3aaa3ec42c2ac7ac0e0fc3317e138f36556ebc66e1714e2d5877fe9e1bedab' after='d8d52a6be093fc8eb3c94f11022421692b0a235f3b5a45951087131c2b011656'
+noinline-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+row 0: STABLE VALUE differs: record_digest: before='b6ca922466487a7972ce23d4644040dba86b30cf9760c7dbe961a2e5da4cd81f' after='45e8a41410fbd112cb7d2bdbfd825d91f7260afa0c01506ce8d63cfef71decc8'
+row 0: STABLE VALUE differs: request_digest: before='30862ffd13ecf56357da22fd9781f39f3baea44254d541f0a92947a411ef9445' after='5af33d3ae29b9b8cec79bf3df6b1113cbdaaa2d37700d974636fa93a76046b75'
+row 1: STABLE VALUE differs: record_digest: before='68fff6d407059aae7d3294e6738b1c0269054c9e8677b7ee25773f56bcc974ff' after='b893636dad979f6c349bb86e51223413040b2cb5da2d15fd4b824d20bc727bb6'
+row 1: STABLE VALUE differs: request_digest: before='30862ffd13ecf56357da22fd9781f39f3baea44254d541f0a92947a411ef9445' after='5af33d3ae29b9b8cec79bf3df6b1113cbdaaa2d37700d974636fa93a76046b75'
+row 2: STABLE VALUE differs: admission_digest: before='ba2926daddd8da0fc1a77b88be5932dbba0dd4157f91f6b188c8614d90a40225' after='7a0b69f1469542d8cc07992c0abbfd1c06007ddb9c1040cff8d91a58bd20ed33'
+rung1-1v0.stdout.jsonl: DIFFERENT; rows=3; stable fields compared=25+27+3
+rc=1
+== compiler_version (login / compute)
+x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+== site_observations equal?
+site_observations identical

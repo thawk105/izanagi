@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "# 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。\n",
+          "new": "# 1〜999 は 3 桁固定、1000 以上は冗長な先頭ゼロなしを正規形とする。(等価変異: comment のみ)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-literal-4-to-5-groups",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "inventory test 4 群（`test_campaign.py` の certified-writer caller inventory、\n",
+          "new": "inventory test 5 群（`test_campaign.py` の certified-writer caller inventory、\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-fixture-bytes-998-to-979",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "    assert len(_SYNTHETIC_DW_O26_SECTION.encode(\"utf-8\")) == 998\n",
+          "new": "    assert len(_SYNTHETIC_DW_O26_SECTION.encode(\"utf-8\")) == 979\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-fixture-drop-last-sentence",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "並行 wave が自分の編集 file を所有するなら main 取込み済みの木の既存走行に相乗りし受入後に足さない。\n\"\"\"\n_SYNTHETIC_DW_O28_SECTION",
+          "new": "\"\"\"\n_SYNTHETIC_DW_O28_SECTION"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

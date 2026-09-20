@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import contextlib
+import io
+import json
 import os
 import shlex
 import shutil
@@ -52,7 +55,15 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_TRIGGER_MISATTR",
     "IZANAGI_SILO_LADDER_RUNG1",
     "BACKOFF_TRIGGER_GATING",
+    "BACKOFF_REQUESTED_US",
 )
+
+
+_REQUESTED_US_EXPECTATIONS = (
+    ("cc/silo/transaction.cc", "#if BACKOFF_REQUESTED_US", 2),
+    ("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),
+)
+_REQUESTED_US_CONTRAST = 0
 
 
 # Independent patch expectations: source, exact directive, site count, contrast.
@@ -250,6 +261,33 @@ def _compile_time_source_root(
     owner_text: str | None = None,
 ) -> Path:
     root = tmp_path / "ccbench"
+    if macro == "BACKOFF_REQUESTED_US":
+        # Independent fixture: registry deletion must reach the factory verdict.
+        for file_index, (source_rel, start, count) in enumerate(_REQUESTED_US_EXPECTATIONS):
+            path = root / source_rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            blocks = [
+                f"{start}\nint selected_{file_index}_{site} = 1;\n"
+                f"#else\nint selected_{file_index}_{site} = 0;\n#endif\n"
+                for site in range(count)
+            ]
+            text = (blocks[0] + "#if BACK_OFF\n" + blocks[1] + "#endif\n"
+                    + '#include "include/transaction.hh"\n') if file_index == 0 \
+                else "#pragma once\n" + "".join(blocks)
+            path.write_text(text, encoding="utf-8")
+        relay = root / "cc/silo/include/transaction.hh"
+        relay.parent.mkdir()
+        relay.write_text('#include "../../../include/backoff.hh"\n', encoding="utf-8")
+        install_condition_gate_build_fixture(root, define_spec=G.DEFINE_SPECS[macro])
+        options = root / "cmake/Options.cmake"
+        options.write_text(
+            'set(CCBENCH_BACKOFF_REQUESTED_US 0 CACHE STRING "requested us")\n'
+            + options.read_text().replace(
+                "    PARENT_SCOPE)",
+                "    BACKOFF_REQUESTED_US=${CCBENCH_BACKOFF_REQUESTED_US}\n    PARENT_SCOPE)",
+            ), encoding="utf-8",
+        )
+        return root
     source_rel, _start_directive = G.CONDITIONAL_BRANCH_WITNESSES[macro]
     owner_rel = G.DEFINE_SPECS[macro].owner_tus[0]
     if source_rel != owner_rel:
@@ -324,7 +362,15 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         )
         expected_pair = (source_rel, expected_directive)
         count = 1
-    assert matches == [expected_pair] * count
+    if macro == "BACKOFF_REQUESTED_US":
+        assert matches == [
+            ("include/backoff.hh", "#if BACKOFF_REQUESTED_US"),
+            ("include/backoff.hh", "#if BACKOFF_REQUESTED_US"),
+            ("cc/silo/transaction.cc", "#if BACKOFF_REQUESTED_US"),
+            ("cc/silo/transaction.cc", "#if BACKOFF_REQUESTED_US"),
+        ]
+    else:
+        assert matches == [expected_pair] * count
     return expected_pair
 
 
@@ -1045,6 +1091,12 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
             if line == patch_declaration[1]
         ]
         count = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))[2]
+        if macro == "BACKOFF_REQUESTED_US":
+            count = 2
+            assert G._CONDITIONAL_BRANCH_COMPANION_SITES[macro] == _REQUESTED_US_EXPECTATIONS[1:]
+            header = fixture / "include/backoff.hh"
+            assert header.read_text().splitlines().count("#if BACKOFF_REQUESTED_US") == 2
+            assert G._declared_total_site_count(macro) == 4
         assert fixture_directives == [patch_declaration[1]] * count
         assert G._declared_site_count(macro) == count
         assert (patch_declaration[0], fixture_directives[0]) \
@@ -1362,6 +1414,8 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
 ):
     root = _compile_time_source_root(tmp_path, macro)
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
+    if macro == "BACKOFF_REQUESTED_US":
+        count, contrast = 4, _REQUESTED_US_CONTRAST
     request = _compile_time_request(macro, default=contrast)
     declaration = G.declare_define_runtime_meaning(request)
 
@@ -1604,7 +1658,263 @@ def test_new_branch_green_schema_rejects_count_value_and_argv_mutations(tmp_path
         assert raised.value.reason_code == "admission-contract-invalid"
 
 
+def _requested_us_meaning(root, *, configure_args=()):
+    request = _compile_time_request("BACKOFF_REQUESTED_US", default=_REQUESTED_US_CONTRAST)
+    captured = G.capture_define_inputs(root, configure_args=configure_args)
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=G.declare_define_runtime_meaning(request),
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    return request, captured, meaning
+
+
+def test_requested_us_multifile_supply_meaning_and_admission(tmp_path):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    request, captured, meaning = _requested_us_meaning(root)
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert supply.terminal_status == meaning.terminal_status == "green"
+    assert [(meaning.evidence[arm].selected_count, meaning.evidence[arm].completed_count)
+            for arm in ("requested", "default")] == [(4, 4), (0, 4)]
+    _, header_capture = G._capture_compile_time_branch_source(captured, "include/backoff.hh")
+    assert meaning.evidence["companion_sources"] == ({
+        "source_rel": "include/backoff.hh", "start_directive": "#if BACKOFF_REQUESTED_US",
+        "site_count": 2, "source_sha256": header_capture.sha256, "source_file": header_capture,
+    },)
+    assert meaning.evidence["site_observations"] == tuple(
+        {"source_rel": source_rel, "site_index": index,
+         "requested_selected": 1, "requested_completed": 1,
+         "default_selected": 0, "default_completed": 1}
+        for source_rel, _, n in _REQUESTED_US_EXPECTATIONS for index in range(n)
+    )
+    admission = G.require_condition_gate_family([supply], [meaning], use_class="certified-selection")
+    assert admission.admitted
+    assert admission.unestablished_meaning_macros == ()
+
+
+@pytest.mark.parametrize("mutation", ["owner", "header-verbatim"])
+def test_requested_us_multifile_site_count_mismatch(tmp_path, mutation):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    source_rel = "cc/silo/transaction.cc" if mutation == "owner" else "include/backoff.hh"
+    path = root / source_rel
+    path.write_text(path.read_text().replace(
+        "#if BACKOFF_REQUESTED_US", "#if 1" if mutation == "owner" else "#if (BACKOFF_REQUESTED_US)", 1,
+    ))
+    _, _, meaning = _requested_us_meaning(root)
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-site-count-mismatch",
+    )
+    assert source_rel in meaning.evidence["detail"]
+    assert meaning.evidence["expected"] == "2"
+    assert meaning.evidence["observed"] == "1"
+
+
+@pytest.mark.parametrize("mutation", ["missing", "twice", "pragma-once"])
+def test_requested_us_multifile_include_counts(tmp_path, mutation):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    relay = root / "cc/silo/include/transaction.hh"
+    relay.write_text("" if mutation == "missing" else relay.read_text() * 2)
+    if mutation == "twice":
+        header = root / "include/backoff.hh"
+        header.write_text(header.read_text().replace("#pragma once\n", ""))
+    _, _, meaning = _requested_us_meaning(root)
+    if mutation == "pragma-once":
+        assert meaning.terminal_status == "green"
+        assert meaning.evidence["requested"].completed_count == 4
+        assert meaning.evidence["default"].completed_count == 4
+    else:
+        assert (meaning.terminal_status, meaning.reason_code) == (
+            "red", "compile-time-branch-selection-mismatch",
+        )
+        n = 2 if mutation == "missing" else 6
+        assert meaning.evidence["observed"] == f"requested=({n}, {n}),default=(0, {n})"
+
+
+def test_requested_us_multifile_owner_site_inactive(tmp_path):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    _, _, meaning = _requested_us_meaning(root, configure_args=("-DCCBENCH_BACK_OFF=0",))
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "red", "compile-time-branch-selection-mismatch",
+    )
+    assert meaning.evidence["observed"] == "requested=(3, 3),default=(0, 3)"
+
+
+def test_requested_us_multifile_rejects_compensated_missing_sites(tmp_path):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    owner = root / "cc/silo/transaction.cc"
+    include = '#include "include/transaction.hh"\n'
+    owner.write_text("#if 0\n" + owner.read_text().replace(include, "") + "#endif\n" + include * 2)
+    header = root / "include/backoff.hh"
+    header.write_text(header.read_text().replace("#pragma once\n", ""))
+    request = _compile_time_request("BACKOFF_REQUESTED_US")
+    # Independent of record schema: total observations still equal (4,4)/(0,4).
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._assert_compile_time_branch_selection(
+            G.capture_define_inputs(root), request, G.declare_define_runtime_meaning(request),
+            cxx=_any_cxx(), cmake=_any_cmake(),
+        )
+    assert raised.value.reason_code == "compile-time-branch-site-observation-mismatch"
+    assert raised.value.expected == "f0s0=(1, 1, 0, 1)"
+    assert raised.value.observed == "f0s0=(0, 0, 0, 0)"
+
+
+def test_requested_us_multifile_shadow_instruments_all_files(tmp_path):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    request = _compile_time_request("BACKOFF_REQUESTED_US")
+    declaration = G.declare_define_runtime_meaning(request)
+    originals = {rel: (root / rel).read_bytes() for rel, _, _ in _REQUESTED_US_EXPECTATIONS}
+    texts = {rel: G._instrument_declared_owner_source(data.decode(), declaration, source_rel=rel)
+             for rel, data in originals.items()}
+    shadow = tmp_path / "shadow"
+    owner = G._write_shadow_owner_source(
+        root, "cc/silo/transaction.cc", texts["cc/silo/transaction.cc"], shadow,
+        owner_tu=request.owner_tu, instrumented_sources=texts,
+    )
+    assert owner == shadow / "cc/silo/transaction.cc"
+    for file_index, (rel, _, n) in enumerate(_REQUESTED_US_EXPECTATIONS):
+        assert (root / rel).read_bytes() == originals[rel]
+        assert (shadow / rel).is_file() and not (shadow / rel).is_symlink()
+        assert (shadow / rel).read_text() == texts[rel]
+        for index in range(n):
+            for kind in ("SELECTED", "COMPLETED"):
+                assert f"IZANAGI_COMPILE_TIME_BRANCH_SITE_{kind}(f{file_index}s{index})" in texts[rel]
+    for rel in ("cc", "cc/silo", "cc/silo/include", "include"):
+        assert (shadow / rel).is_dir() and not (shadow / rel).is_symlink()
+
+
+_REQUESTED_US_SCHEMA_MUTATIONS = (
+    "missing", "missing-companion", "missing-sites", "empty", "duplicate", "path", "directive", "count", "bool-count",
+    "digest", "identity", "file-type", "file-path", "row-extra", "row-type", "rows-type",
+    "sites-empty", "sites-duplicate", "sites-order", "site-extra", "site-path", "site-index",
+    "site-bool-index", "site-count", "site-bool-count", "sites-type", "site-row-type",
+    "requested-selected-define", "requested-completed-define",
+    "default-selected-define", "default-completed-define",
+)
+
+
+def _reconstructed_meaning(request, meaning, evidence):
+    return _public_arm_record(
+        arm="runtime-meaning", terminal_status="green", reason_code=meaning.reason_code,
+        request=request, request_digest=meaning.request_digest, evidence=evidence,
+    )
+
+
+@pytest.mark.parametrize("mutation", _REQUESTED_US_SCHEMA_MUTATIONS)
+def test_requested_us_multifile_green_schema(tmp_path, mutation):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    request, _, meaning = _requested_us_meaning(root)
+    assert meaning.terminal_status == "green"
+    evidence = dict(meaning.evidence)
+    G._validate_arm_record_integrity(_reconstructed_meaning(request, meaning, evidence), require_issuer=False)
+    row = dict(evidence["companion_sources"][0])
+    site = dict(evidence["site_observations"][0])
+    evidence["companion_sources"] = (row,)
+    evidence["site_observations"] = (site, *evidence["site_observations"][1:])
+    if mutation == "missing":
+        del evidence["companion_sources"]
+        del evidence["site_observations"]
+    elif mutation == "missing-companion":
+        del evidence["companion_sources"]
+    elif mutation == "missing-sites":
+        del evidence["site_observations"]
+    elif mutation == "empty":
+        evidence["companion_sources"] = ()
+    elif mutation == "duplicate":
+        evidence["companion_sources"] = (row, row)
+    elif mutation in {"path", "directive", "count", "bool-count", "digest", "row-extra"}:
+        key, value = {
+            "path": ("source_rel", "cc/silo/transaction.cc"),
+            "directive": ("start_directive", "#if (BACKOFF_REQUESTED_US)"),
+            "count": ("site_count", 1), "bool-count": ("site_count", True),
+            "digest": ("source_sha256", "0" * 64), "row-extra": ("extra", 1),
+        }[mutation]
+        row[key] = value
+    elif mutation == "identity":
+        captured_file = row["source_file"]
+        row["source_file"] = replace(captured_file, path_after=replace(
+            captured_file.path_after, size=captured_file.path_after.size + 1,
+        ))
+    elif mutation == "file-type":
+        row["source_file"] = None
+    elif mutation == "file-path":
+        row["source_file"] = replace(row["source_file"], relative_path="cc/silo/transaction.cc")
+    elif mutation == "row-type":
+        evidence["companion_sources"] = (None,)
+    elif mutation == "rows-type":
+        evidence["companion_sources"] = [row]
+    elif mutation == "sites-empty":
+        evidence["site_observations"] = ()
+    elif mutation == "sites-duplicate":
+        evidence["site_observations"] = (site, site, *evidence["site_observations"][2:])
+    elif mutation == "sites-order":
+        evidence["site_observations"] = tuple(reversed(evidence["site_observations"]))
+    elif mutation in {"site-extra", "site-path", "site-index", "site-bool-index", "site-count", "site-bool-count"}:
+        key, value = {
+            "site-extra": ("extra", 1), "site-path": ("source_rel", "include/backoff.hh"),
+            "site-index": ("site_index", 1), "site-bool-index": ("site_index", False),
+            "site-count": ("requested_selected", 2), "site-bool-count": ("requested_completed", True),
+        }[mutation]
+        site[key] = value
+    elif mutation == "sites-type":
+        evidence["site_observations"] = list(evidence["site_observations"])
+    elif mutation == "site-row-type":
+        evidence["site_observations"] = (None, *evidence["site_observations"][1:])
+    else:
+        arm, kind, _ = mutation.split("-")
+        marker = f"-DIZANAGI_COMPILE_TIME_BRANCH_SITE_{kind.upper()}(k)="
+        observation = evidence[arm]
+        evidence[arm] = replace(observation, preprocess_argv=tuple(
+            arg for arg in observation.preprocess_argv if not arg.startswith(marker)
+        ))
+    with pytest.raises(G.ConditionMeaningGateError) as raised:
+        G._validate_arm_record_integrity(_reconstructed_meaning(request, meaning, evidence), require_issuer=False)
+    assert raised.value.reason_code == "admission-contract-invalid"
+
+
+@pytest.mark.parametrize("key", ["companion_sources", "site_observations"])
+def test_single_file_green_schema_rejects_companion_sources(tmp_path, key):
+    root = _compile_time_source_root(tmp_path, "SORT_VARIANT", owner_text=SORT_VARIANT_SOURCE)
+    request = _compile_time_request("SORT_VARIANT")
+    meaning = G.evaluate_define_runtime_meaning(
+        G.capture_define_inputs(root), request=request,
+        declaration=G.declare_define_runtime_meaning(request), cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    assert meaning.terminal_status == "green"
+    with pytest.raises(G.ConditionMeaningGateError, match="unexpected"):
+        G._validate_arm_record_integrity(
+            _reconstructed_meaning(request, meaning, {**meaning.evidence, key: ()}), require_issuer=False,
+        )
+
+
+def test_requested_us_cli_establishes_multifile_meaning(tmp_path):
+    root = _compile_time_source_root(tmp_path, "BACKOFF_REQUESTED_US")
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        result = G.condition_gate_cli([
+            "--source-root", os.fspath(root), "--driver-id", "test-requested-us-cli",
+            "--macro", "BACKOFF_REQUESTED_US", "--requested-value", "1", "--default-value", "0",
+            "--cxx", _any_cxx(), "--cmake", _any_cmake(), "--use-class", "certified-selection",
+        ])
+    assert result == 0
+    supply, meaning, admission = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    assert supply["terminal_status"] == meaning["terminal_status"] == "green"
+    assert meaning["evidence"]["requested"]["selected_count"] == 4
+    assert meaning["evidence"]["requested"]["completed_count"] == 4
+    assert meaning["evidence"]["default"]["selected_count"] == 0
+    assert meaning["evidence"]["default"]["completed_count"] == 4
+    assert len(meaning["evidence"]["site_observations"]) == 4
+    assert admission["admitted"] is True
+    assert admission["unestablished_meaning_macros"] == []
+
+
 def test_compile_time_branch_field_and_existing_evidence_keys_are_unchanged(tmp_path):
+    assert {field.name for field in fields(G.CompileTimeBranchSelectionEvidence)} == {
+        "proof_kind", "source_rel", "start_directive", "source_sha256", "source_file",
+        "requested", "default", "compiler_path", "compiler_version", "compiler_identities",
+        "cmake_path", "requested_configure_argv", "default_configure_argv",
+        "requested_cmake_identities", "default_cmake_identities",
+    }
     assert {field.name for field in fields(G.ConditionalBranchMeaningDeclaration)} == {
         "macro", "source_rel", "start_directive", "witness_id",
     }
@@ -1986,6 +2296,7 @@ def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: P
 )
 @pytest.mark.parametrize("macro", [
     "IZANAGI_BREAK_PERMUTATION", "SORT_VARIANT", "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+    "BACKOFF_REQUESTED_US",
 ])
 def test_compile_time_factory_rejects_nonpaired_values(
     macro: str,
@@ -2024,8 +2335,10 @@ def test_backoff_noinline_factory_accepts_only_default_zero_binary_requests(
         is declared
 
 
+@pytest.mark.parametrize("macro", ["IZANAGI_BREAK_PERMUTATION", "BACKOFF_REQUESTED_US"])
 def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
     tmp_path: Path,
+    macro: str,
 ):
     assert G.MeaningWitnessDeclaration("BACKOFF_FIXED", ()) \
         == G.MeaningWitnessDeclaration("BACKOFF_FIXED", ())
@@ -2040,7 +2353,7 @@ def test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only(
         G.condition_gate_cli([
             "--source-root", os.fspath(root),
             "--driver-id", "test-cli-legacy-boundary",
-            "--macro", "IZANAGI_BREAK_PERMUTATION",
+            "--macro", macro,
             "--requested-value", "1",
             "--default-value", "0",
             "--meaning-case", f"1:{_bits(1)}:{_bits(1)}",
@@ -3090,6 +3403,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 22
+    assert len(G.MEANING_SUPPORTED_MACROS) == 23
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3302,9 +3617,11 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
     assert "supply domain contains the 40 patch-derived defines" in G.__doc__
     assert (
-        "Twenty-one\nregistered macros additionally have a bounded compile-time witness"
+        "Twenty-two\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
+    assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__
+    assert "makes no claim about other TUs using the header" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

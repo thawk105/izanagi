@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-partner-sort-descending",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            entry[1][\"cost\"] if entry[1][\"known\"] else unknown_cost,\n            entry[0],\n",
+          "new": "            -(entry[1][\"cost\"] if entry[1][\"known\"] else unknown_cost),\n            entry[0],\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-head-width-47",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    width = _ACCEPTANCE_PAIRING_HEAD_UNITS\n",
+          "new": "    width = _ACCEPTANCE_PAIRING_HEAD_UNITS - 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3p-drop-pairing-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    ordered_units = _pair_initial_distribution_units(ordered_units, unknown_cost)\n",
+          "new": "    ordered_units = list(ordered_units)  # M3p: pairing call removed by mutation\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-drop-cardinality-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if scopes(sorted(paired, key=lambda unit: -len(unit[\"items\"]))) != scopes(paired):\n",
+          "new": "    if False and scopes(sorted(paired, key=lambda unit: -len(unit[\"items\"]))) != scopes(paired):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-witness-properties",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            if \"pairing_rank\" in unit:\n",
+          "new": "            if False and \"pairing_rank\" in unit:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

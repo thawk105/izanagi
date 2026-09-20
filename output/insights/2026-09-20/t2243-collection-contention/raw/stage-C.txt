@@ -1,0 +1,8 @@
+clone_rc=0
+clone_seconds=13.449290752
+rsync_rc=0
+rsync_seconds=1.049736023
+1090	/scr/tanab/t2243-3188720/repo
+wave_head=25334c9b7bf5a36da20f285a80d4b9e1b847abd7
+local_head=25334c9b7bf5a36da20f285a80d4b9e1b847abd7
+head_match=1

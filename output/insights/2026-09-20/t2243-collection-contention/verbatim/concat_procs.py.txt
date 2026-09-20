@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""job-out の cell ごとに proc-<i>.{time,perf,rc,err} を 1 本の procs.txt へ逐語連結する (親の記録整形、repo 外)。
+使い方: concat_procs.py <job-out> <dest-raw>
+dest-raw/<cell>/procs.txt を作り、dest-raw 側の proc-*.{time,perf,rc,err} を削除する。
+"""
+import os
+import re
+import sys
+
+src = sys.argv[1]
+dst = sys.argv[2]
+made = 0
+removed = 0
+for cell in sorted(os.listdir(src)):
+    cdir = os.path.join(src, cell)
+    if not os.path.isdir(cdir) or not os.path.isfile(os.path.join(cdir, "cell.txt")):
+        continue
+    ids = sorted({int(m.group(1)) for f in os.listdir(cdir) for m in [re.fullmatch(r"proc-(\d+)\.(time|perf|rc|err)", f)] if m})
+    parts = []
+    for i in ids:
+        for ext in ("time", "rc", "perf", "err"):
+            p = os.path.join(cdir, f"proc-{i}.{ext}")
+            if os.path.isfile(p):
+                with open(p, "rb") as fh:
+                    body = fh.read().decode("utf-8", "replace")
+                parts.append(f"--- proc-{i}.{ext}\n{body}" + ("" if body.endswith("\n") else "\n"))
+    ddir = os.path.join(dst, cell)
+    os.makedirs(ddir, exist_ok=True)
+    with open(os.path.join(ddir, "procs.txt"), "w", encoding="utf-8") as fh:
+        fh.write("".join(parts))
+    made += 1
+    for f in os.listdir(ddir):
+        if re.fullmatch(r"proc-\d+\.(time|perf|rc|err|out)", f):
+            os.remove(os.path.join(ddir, f))
+            removed += 1
+print(f"cells={made} removed_files={removed}")
