@@ -174,9 +174,19 @@ baseline PASSED (rc 0、37.6 秒)。**M0 SURVIVED (等価対照)、M1〜M17 は�
 - 三軸語走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`、記録 commit 前): holdout hit は rr80 / rr20 各 4 件で、いずれも既存の凍結
   artifact (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/*`、`output/s8b-freeze-candidates/holdout_freeze.v2.g1.json`)。
   **本 wave の変更 file (12 path) は hit に含まれない** (rr50 の一般 hit 231 件は fig5〜8 の provenance 等と同じ従来からの一般 hit)。
-- **final**: 記録 commit の tip で clean tree から `tools/dev_wave_wait.py acceptance` (3 shard) を門番 loop (他 wave の leader ≤ 1 ∧ load ≤ 60、jitter)
-  から 1 回投入する。結果は本 README には書かず (受入は記録の後)、受領証 (`acceptance-receipt-final-<n>.json`、job dir) と land の記録が持つ。
-  child-green でなければ land しない。
+- **受入 final-1** (記録 commit `906b1c9dd` の tip、post-claim merge `a03ee4693` で local main `b88b56b6b` を取り込み、門番 16:40 JST GO、3 shard):
+  **2 failed / 25,874 passed / 69 skipped、rc=70**。赤 2 件はどちらも本差分に帰属する repo 全体の静的 inventory pin で、焦点走 1 / 2b の 15 file 集合に
+  入っていなかった (assertion 本文 = job dir `acceptance-red-final-1.md`):
+  - `test_campaign.py::test_certified_writer_authorization_caller_inventory_is_closed` — p3_s4_loop.py の `campaign.loop.run_campaign` 呼出し数 1 → 2
+    (stock 経路)。fix3 / fix4 / fix5 (Codex、各 1〜3 分) で `expected_inventory` 2、合計 21 → 22、legacy raw-AST の `expected_run_calls` 2、合計 17 → 18 の
+    鎖 4 箇所を由来 comment 付きで更新 (1 投入 1 欠陥の鎖、`verbatim/s6-fix3.md` / `s6-fix4.md` / `s6-fix5.md`)。
+  - `test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact` — `if a.calibrated_perf` / `a.perf_workload` の名前が perf 述語
+    heuristic (`_perf` 末尾 / `perf_` 先頭) に当たり p3_s4_loop.py が「未レビューの perf file」に。既存の `backoff_extended_sweep.py` と同じ理由 (certified
+    pipeline を呼び preflight 後に perf を起動しうる) で `_REVIEWED_PERF_FILES` へ登録 (comment に CLI opt-in であって profiler でない旨)。第 2 assert
+    (added guard inventory) は不変で緑。
+  統合 commit `1673f69e5` (test 2 file、+7/−4)。production は不変。
+- **受入 final-2**: 統合 commit 3 以降の tip で clean tree から同じ門番 loop により再投入する。結果は本 README には書かず、受領証
+  (`acceptance-receipt-final2-<n>.json`、job dir) と land の記録が持つ。child-green でなければ land しない。
 
 ## 7. 言ってよいこと・言ってはいけないこと・次の一手
 
@@ -189,7 +199,8 @@ baseline PASSED (rc 0、37.6 秒)。**M0 SURVIVED (等価対照)、M1〜M17 は�
 - 裁定パッケージ候補 (実装せず): `build_admission.derive_build_admission` の stock-baseline 分岐が full PIN と短縮 `CURRENT_PIN` を exact 比較する点
   (S4 の stock は machine-generated class で admission される)。正規化は admission gate の変更なのでユーザー裁定。
 - 設計メモ (scope 外、DW-G04): stock 先行 (planner 前) の順序選択 env、block stock の配置、実 argv の独立 receipt。
-- 段 8 (skill 自己改善) の候補 1 件、実装せず裁定パッケージ候補へ: `docs/dev-wave/operations.md` の DW-O26「同一 worktree からの dispatch は全種を直列にする」へ「provenance の range 監査 (`check_ai_provenance.py --range`) も login の memory 予算次第で計算ノードへ dispatch しうる」の 1 句を足す案。本 wave で焦点走 2 が同 worktree の監査 dispatch と衝突して rc=16 (走行ゼロ) になった実測が発火根拠。試したところ DW-O26 は exact 契約 pin と単節予算 1000 bytes (1031 bytes に超過) に当たるため、Codex author + fixture placeholder + 予算増が要り、`docs/skill-self-improvement.md` の「予算の変更は実装せず裁定パッケージへ送る」に従って記録だけ置く (編集は戻した)。
+- 段 8 の候補 2 件目 (受入 final-1 の赤から、同じく実装せず裁定パッケージ候補へ): DW-O26 の焦点走集合に「production file を変えた wave は repo 全体の inventory test (`test_campaign.py` の certified-writer caller inventory、`test_official_perf_closure.py` の perf file inventory、`test_p3_exploration_namespace.py`、`test_p3_b4_wiring_probe.py`) を参照関係に依らず含める」の 1 句を足す案。本 wave では焦点走 1 / 2b が 15 file で緑でも、受入で inventory 2 件が赤になった (焦点走 → 受入の往復 1 回 + fix 3 巡)。DW-O26 は同じ exact pin / 予算の制約に当たる。
+- 段 8 (skill 自己改善) の候補 1 件目、実装せず裁定パッケージ候補へ: `docs/dev-wave/operations.md` の DW-O26「同一 worktree からの dispatch は全種を直列にする」へ「provenance の range 監査 (`check_ai_provenance.py --range`) も login の memory 予算次第で計算ノードへ dispatch しうる」の 1 句を足す案。本 wave で焦点走 2 が同 worktree の監査 dispatch と衝突して rc=16 (走行ゼロ) になった実測が発火根拠。試したところ DW-O26 は exact 契約 pin と単節予算 1000 bytes (1031 bytes に超過) に当たるため、Codex author + fixture placeholder + 予算増が要り、`docs/skill-self-improvement.md` の「予算の変更は実装せず裁定パッケージへ送る」に従って記録だけ置く (編集は戻した)。
 
 ## 8. 一次資料
 
