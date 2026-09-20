@@ -1,0 +1,99 @@
+{
+ "campaign": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae",
+ "records": 5,
+ "variants": {
+  "002642c7ac96": {
+   "admission_authority_kind": "cli-opt-in",
+   "admission_class": "coder-authored",
+   "admission_generator_id": null,
+   "admission_policy_sha256": "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a",
+   "admission_receipt_sha256": "d3a481b7367a878fa8f063daabdccf1f60b44a9961e6e2cc35dcb532bdee3b83",
+   "admission_source_src_token": "fec064b1edfceba8a8fac7b26d9a07538ad0984c68a9185c385a85a7d0158d18",
+   "bench": {
+    "bench_wall_s": 2.129355721990578,
+    "median_tps": 811956.0,
+    "settled": true,
+    "tps": [
+     817565.0,
+     806347.0
+    ]
+   },
+   "bench_keys": [
+    "bench_wall_s",
+    "build_attempt_id",
+    "cv",
+    "cv_history",
+    "high_variance",
+    "leading_indicators",
+    "median_tps",
+    "perf_observation",
+    "rep_notes",
+    "rounds",
+    "run_cmd",
+    "settled",
+    "tps",
+    "unstable"
+   ],
+   "build_done_keys": [
+    "build_admission_receipt_sha256",
+    "build_attempt_id",
+    "perf_bin",
+    "perf_bin_sha256",
+    "perf_build_cmd",
+    "perf_cached",
+    "perf_configure_cmd",
+    "trace_bin",
+    "trace_bin_sha256",
+    "trace_cached"
+   ],
+   "build_start_keys": [
+    "backoff_grammar_version",
+    "build_admission",
+    "build_admission_receipt_sha256",
+    "build_attempt_id",
+    "genome",
+    "knowledge_provenance",
+    "src_token"
+   ],
+   "cv": 0.009769401139163563,
+   "fitness_tps": 811956.0,
+   "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+   "perf_cached": false,
+   "src_token": "fec064b1edfceba8a8fac7b26d9a07538ad0984c68a9185c385a85a7d0158d18",
+   "stages": [
+    "build_start",
+    "build_done",
+    "verify_done",
+    "bench_done",
+    "commit"
+   ],
+   "terminal": "commit",
+   "terminal_payload_keys": [
+    "build_admission_receipt_sha256",
+    "build_attempt_id",
+    "commit_verification_receipt",
+    "contract_sha256",
+    "cv",
+    "fitness_tps",
+    "high_variance",
+    "unstable",
+    "verify_configs"
+   ],
+   "terminal_reason": null,
+   "trace_cached": false,
+   "verify": [
+    {
+     "aborts": 121826,
+     "anomalies": 0,
+     "certified": true,
+     "commits": 522868,
+     "verdict": "serializable",
+     "workload": {
+      "tag": "legacy"
+     }
+    }
+   ]
+  }
+ },
+ "wal_sha256": "b5754f98c0643e80fc02f8bcc02f080ba43ee7d72464ef8fa6ad1410a3b2c56a"
+}

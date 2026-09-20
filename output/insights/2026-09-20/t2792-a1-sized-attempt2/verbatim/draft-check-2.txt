@@ -1,0 +1,117 @@
+ok sha256 0098d4ea5a7d… = amendment(file)
+ok sha256 034cd1fd2f50… = complete.files.README
+ok sha256 0ec558982139… = write-heavy/lock(field)
+ok sha256 11202bf73f4a… = att2/receipts/completion.json
+ok sha256 173a0060ccc2… = write-heavy/wal(field)
+ok sha256 3c2b734d9c71… = binding2:tools/pegasus/paper_story_a1_paired.sh
+ok sha256 5a66484d6c65… = base/attempt-0002.intent.json
+ok sha256 6047eff005fb… = prereg(file)
+ok sha256 6bc38262ad4d… = intent_sha256(field)
+ok sha256 7ad34232eaf9… = leaf2/.complete.json
+ok sha256 7fb0ebd66652… = att2/receipts/submission.json
+ok sha256 8204f9759e51… = base/attempt-0002.authorization.json
+ok sha256 8cc4bc23c5c6… = balanced/wal(field)
+ok sha256 98c35cca4fe0… = leaf2/receipt.json
+ok sha256 9ccd38c995d2… = authorization_sha256(field)
+ok sha256 a2d5d037648b… = read-heavy/sched(field)
+ok sha256 a6228bcd5d2d… = binding2:orchestrator/campaign/paper_story_a1_paired.v3-sized.json
+ok sha256 a9bc5f9a1505… = group_terminal(field)
+ok sha256 b7e0518e1975… = leaf2/result.json
+ok sha256 b814513dbc27… = read-heavy/lock(field)
+ok sha256 bc65d939927d… = balanced/sched(field)
+ok sha256 c9031faa9442… = att2/raw/results/result.json
+ok sha256 cbd853fc34da… = write-heavy/sched(field)
+ok sha256 e68c85ce44e6… = balanced/lock(field)
+ok sha256 eb1f3234ae5e… = read-heavy/wal(field)
+ok sha256 f06a2bc811b5… = att2/raw/results/receipt.json
+ok short 034cd1fd -> complete.files.README
+ok short 11202bf7 -> att2/receipts/completion.json
+ok short 372f199e -> leaf1/result.json
+ok short 3c2b734d -> binding2:tools/pegasus/paper_story_a1_paired.sh
+ok short 47c94e1d -> blob2:orchestrator/campaign/paper_story_a1_paired.py
+ok short 5a66484d -> base/attempt-0002.intent.json
+ok short 6047eff0 -> prereg(file)
+ok short 6093de24 -> binding2:output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md
+ok short 62c10187 -> binding1:orchestrator/campaign/paper_story_a1_paired.py
+ok short 8af3ff86 -> blob1:orchestrator/campaign/paper_story_a1_paired.py
+ok short 98c35cca -> leaf2/receipt.json
+ok short 9ad57bf7 -> read-heavy/root_seed
+ok short 9e69bae4 -> binding2:orchestrator/campaign/paper_story_a1_paired.py
+ok short a5e0710c -> binding2:patches/silo-backoff-fixed.patch
+ok short a6228bcd -> binding2:orchestrator/campaign/paper_story_a1_paired.v3-sized.json
+ok short b50a4edf -> binding2:orchestrator/campaign/paper_story_a1_source.v2.json
+ok short b7e0518e -> leaf2/result.json
+ok short bd459634 -> read-heavy/effective_root_seed
+ok short c9031faa -> att2/raw/results/result.json
+ok short e82d0c26 -> write-heavy/effective_root_seed
+ok short f322d1da -> balanced/effective_root_seed
+ok §2.1 write-heavy mean_signed_positional_difference_tps 1538451.4666666666
+ok §2.1 write-heavy descriptive_half_width_tps 41434.211082207854
+ok §2.1 write-heavy floor_boundary_tps 72952.12299999999
+ok §2.1 write-heavy baseline_mean_tps 2431737.433333333
+ok §2.1 write-heavy sample_sd_positional_difference_tps 80148.43644687126
+ok §2.1 write-heavy planned_sigma_tps 66403.45210801972
+ok §2.1 write-heavy interval
+ok §2.2 write-heavy 30 pairs present
+ok §2.3/2.4 write-heavy fixed10 median/cv
+ok §2.3/2.4 write-heavy fixed10 mean/min/max
+ok §2.3/2.4 write-heavy fixed10 verify_done
+ok §2.3/2.4 write-heavy no-backoff median/cv
+ok §2.3/2.4 write-heavy no-backoff mean/min/max
+ok §2.3/2.4 write-heavy no-backoff verify_done
+ok §2.1 balanced mean_signed_positional_difference_tps 548138.2333333333
+ok §2.1 balanced descriptive_half_width_tps 25552.384438113106
+ok §2.1 balanced floor_boundary_tps 110832.746
+ok §2.1 balanced baseline_mean_tps 3694424.8666666667
+ok §2.1 balanced sample_sd_positional_difference_tps 49427.359824489315
+ok §2.1 balanced planned_sigma_tps 56697.43571357468
+ok §2.1 balanced interval
+ok §2.2 balanced 30 pairs present
+ok §2.3/2.4 balanced fixed5 median/cv
+ok §2.3/2.4 balanced fixed5 mean/min/max
+ok §2.3/2.4 balanced fixed5 verify_done
+ok §2.3/2.4 balanced no-backoff median/cv
+ok §2.3/2.4 balanced no-backoff mean/min/max
+ok §2.3/2.4 balanced no-backoff verify_done
+ok §2.1 read-heavy mean_signed_positional_difference_tps -560565.6
+ok §2.1 read-heavy descriptive_half_width_tps 41746.744315864176
+ok §2.1 read-heavy floor_boundary_tps 305064.861
+ok §2.1 read-heavy baseline_mean_tps 10168828.7
+ok §2.1 read-heavy sample_sd_positional_difference_tps 80752.98639149407
+ok §2.1 read-heavy planned_sigma_tps 74668.48956627495
+ok §2.1 read-heavy interval
+ok §2.2 read-heavy 30 pairs present
+ok §2.3/2.4 read-heavy fixed2 median/cv
+ok §2.3/2.4 read-heavy fixed2 mean/min/max
+ok §2.3/2.4 read-heavy fixed2 verify_done
+ok §2.3/2.4 read-heavy no-backoff median/cv
+ok §2.3/2.4 read-heavy no-backoff mean/min/max
+ok §2.3/2.4 read-heavy no-backoff verify_done
+ok §2.7 a1 write-heavy mean_signed_positional_difference_tps
+ok §2.7 a1 write-heavy descriptive_half_width_tps
+ok §2.7 a1 write-heavy floor_boundary_tps
+ok §2.7 a1 write-heavy baseline_mean_tps
+ok §2.7 a1 write-heavy sample_sd_positional_difference_tps
+ok §2.7 a1 write-heavy interval
+ok §2.7 a1 balanced mean_signed_positional_difference_tps
+ok §2.7 a1 balanced descriptive_half_width_tps
+ok §2.7 a1 balanced floor_boundary_tps
+ok §2.7 a1 balanced baseline_mean_tps
+ok §2.7 a1 balanced sample_sd_positional_difference_tps
+ok §2.7 a1 balanced interval
+ok §2.7 a1 read-heavy mean_signed_positional_difference_tps
+ok §2.7 a1 read-heavy descriptive_half_width_tps
+ok §2.7 a1 read-heavy floor_boundary_tps
+ok §2.7 a1 read-heavy baseline_mean_tps
+ok §2.7 a1 read-heavy sample_sd_positional_difference_tps
+ok §2.7 a1 read-heavy interval
+ok §1.4 write-heavy
+ok §1.4 balanced
+ok §1.4 read-heavy
+ok schedule identical write-heavy
+ok schedule identical balanced
+ok schedule identical read-heavy
+info write-heavy breach=True sd/sigma=1.207
+info balanced breach=False sd/sigma=0.872
+info read-heavy breach=True sd/sigma=1.081
+PROBLEMS 0
