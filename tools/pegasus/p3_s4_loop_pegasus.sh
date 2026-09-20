@@ -51,6 +51,41 @@ export https_proxy="http://10.120.96.1:8080"
 export PYTHONNOUSERSITE=1
 export PYTHONDONTWRITEBYTECODE=1
 
+b5_mode=${IZANAGI_S4_B5_MODE-}
+b5_env_names=(
+  IZANAGI_S4_B5_ARM IZANAGI_S4_B5_WORKLOAD IZANAGI_S4_B5_SERIES
+  IZANAGI_S4_B5_BLOCK IZANAGI_S4_B5_LEDGER_ROOT
+)
+if [[ -v IZANAGI_S4_B5_MODE ]]; then
+  case "$b5_mode" in
+    series|block-stock) ;;
+    *) refuse "IZANAGI_S4_B5_MODE must be series or block-stock" ;;
+  esac
+  for name in "${b5_env_names[@]}"; do
+    [[ -n "${!name:-}" ]] || refuse "missing B-5 environment: $name"
+  done
+  case "$b5_mode:$IZANAGI_S4_B5_ARM" in
+    series:llm|series:random|series:sweep-matched|block-stock:stock) ;;
+    *) refuse "invalid B-5 arm for mode" ;;
+  esac
+  case "$IZANAGI_S4_B5_WORKLOAD" in
+    write-heavy|balanced|read-heavy) ;;
+    *) refuse "invalid B-5 workload" ;;
+  esac
+  [[ "$IZANAGI_S4_B5_SERIES" =~ ^([1-9]|1[0-2])$ ]] \
+    || refuse "invalid B-5 series"
+  [[ "$IZANAGI_S4_B5_BLOCK" =~ ^[1-3]$ ]] || refuse "invalid B-5 block"
+  [[ "$IZANAGI_S4_B5_LEDGER_ROOT" == /* ]] || refuse "B-5 ledger root must be absolute"
+  if [[ -v IZANAGI_S4_PROPOSAL_PATH || -v IZANAGI_S4_FIXTURE_VALUE \
+     || "${IZANAGI_S4_STOCK_CONTROL-}" == 1 ]]; then
+    refuse "B-5 mode excludes proposal, fixture, and stock-control"
+  fi
+else
+  for name in "${b5_env_names[@]}"; do
+    [[ ! -v $name ]] || refuse "B-5 environment requires IZANAGI_S4_B5_MODE"
+  done
+fi
+
 k2_env_names=(
   IZANAGI_S4_KNOWLEDGE_MANIFEST
   IZANAGI_S4_CODER_ROLE
@@ -68,6 +103,18 @@ for name in "${k2_env_names[@]}"; do
     break
   fi
 done
+
+if [[ -n "$b5_mode" ]]; then
+  if [[ "$IZANAGI_S4_B5_ARM" == llm ]]; then
+    for name in "${k2_env_names[@]}"; do
+      [[ -n "${!name:-}" ]] || refuse "B-5 llm requires K2 environment: $name"
+    done
+    [[ "$IZANAGI_S4_CODER_ROLE" == coder-v4-autonomous-k2 ]] \
+      || refuse "B-5 llm requires coder-v4-autonomous-k2"
+  elif [[ "$k2_requested" == true ]]; then
+    refuse "B-5 non-llm arm excludes K2 environment"
+  fi
+fi
 
 k2_argv=()
 if [[ "$k2_requested" == true ]]; then
@@ -92,7 +139,8 @@ if [[ "$k2_requested" == true ]]; then
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"
     )
   fi
-  [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
+  [[ ( "$b5_mode" == series && "${IZANAGI_S4_B5_ARM-}" == llm ) \
+     || -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
     || refuse "K2 environment requires IZANAGI_S4_PROPOSAL_PATH"
 fi
 
@@ -138,6 +186,14 @@ git_common_dir=$(git -C "$repo" rev-parse --path-format=absolute --git-common-di
   || refuse "cannot resolve git common directory"
 [[ "$git_common_dir" == /* ]] || refuse "git common directory is not absolute"
 git_common_repo=${git_common_dir%/.git}
+if [[ -n "$b5_mode" ]]; then
+  b5_ledger_root=$(realpath -m -- "$IZANAGI_S4_B5_LEDGER_ROOT") \
+    || refuse "cannot resolve B-5 ledger root"
+  if [[ "$b5_ledger_root" == "$repo" || "$b5_ledger_root" == "$repo/"* \
+     || "$b5_ledger_root" == "$git_common_repo" || "$b5_ledger_root" == "$git_common_repo/"* ]]; then
+    refuse "B-5 ledger root resolves inside a repository"
+  fi
+fi
 if [[ "$evidence_root" == "$repo" || "$evidence_root" == "$repo/"* \
    || "$evidence_root" == "$git_common_repo" \
    || "$evidence_root" == "$git_common_repo/"* ]]; then
@@ -592,6 +648,23 @@ with open(receipt_path, "x", encoding="utf-8") as stream:
 PY
 sync "$prebuild_receipt"
 sync "$evidence_root"
+
+if [[ -n "$b5_mode" ]]; then
+  b5_argv=("run-$b5_mode")
+  if [[ "$b5_mode" == series ]]; then
+    b5_argv+=(--arm "$IZANAGI_S4_B5_ARM" --series "$IZANAGI_S4_B5_SERIES")
+  fi
+  b5_argv+=(--workload "$IZANAGI_S4_B5_WORKLOAD" --block "$IZANAGI_S4_B5_BLOCK"
+    --ledger-root "$b5_ledger_root" --fetchcontent-prebuild-receipt "$prebuild_receipt")
+  if [[ "$IZANAGI_S4_B5_ARM" == llm ]]; then
+    b5_argv+=(--knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST"
+      --knowledge-classification "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"
+      --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM")
+  fi
+  b5_rc=0
+  "$PY" -B -m orchestrator.campaign.b5_generator_contrast "${b5_argv[@]}" || b5_rc=$?
+  exit "$b5_rc"
+fi
 
 candidate_rc=0
 stock_rc=0

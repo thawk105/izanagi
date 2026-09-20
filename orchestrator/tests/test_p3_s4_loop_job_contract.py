@@ -83,6 +83,31 @@ STOCK_PINS = {
     ),
 }
 
+B5_PINS = {
+    "b5-mode-set": 'if [[ -v IZANAGI_S4_B5_MODE ]]; then',
+    "b5-mode-values": '*) refuse "IZANAGI_S4_B5_MODE must be series or block-stock" ;;',
+    "b5-required": '[[ -n "${!name:-}" ]] || refuse "missing B-5 environment: $name"',
+    "b5-arm": 'series:llm|series:random|series:sweep-matched|block-stock:stock) ;;',
+    "b5-workload": 'write-heavy|balanced|read-heavy) ;;',
+    "b5-series": '[[ "$IZANAGI_S4_B5_SERIES" =~ ^([1-9]|1[0-2])$ ]]',
+    "b5-block": '[[ "$IZANAGI_S4_B5_BLOCK" =~ ^[1-3]$ ]]',
+    "b5-ledger-absolute": '[[ "$IZANAGI_S4_B5_LEDGER_ROOT" == /* ]]',
+    "b5-exclusive": 'refuse "B-5 mode excludes proposal, fixture, and stock-control"',
+    "b5-partial": '[[ ! -v $name ]] || refuse "B-5 environment requires IZANAGI_S4_B5_MODE"',
+    "b5-llm-k2": '[[ -n "${!name:-}" ]] || refuse "B-5 llm requires K2 environment: $name"',
+    "b5-non-llm-k2": 'refuse "B-5 non-llm arm excludes K2 environment"',
+    "b5-ledger-outside": 'refuse "B-5 ledger root resolves inside a repository"',
+    "b5-command": 'b5_argv=("run-$b5_mode")',
+    "b5-series-argv": 'b5_argv+=(--arm "$IZANAGI_S4_B5_ARM" --series "$IZANAGI_S4_B5_SERIES")',
+    "b5-common-argv": (
+        'b5_argv+=(--workload "$IZANAGI_S4_B5_WORKLOAD" --block "$IZANAGI_S4_B5_BLOCK"\n'
+        '    --ledger-root "$b5_ledger_root" --fetchcontent-prebuild-receipt "$prebuild_receipt")'
+    ),
+    "b5-driver": '"$PY" -B -m orchestrator.campaign.b5_generator_contrast "${b5_argv[@]}"',
+    "b5-status": '|| b5_rc=$?',
+    "b5-exit": 'exit "$b5_rc"',
+}
+
 
 def _shell_body_without_heredocs(source: str) -> str:
     output = []
@@ -264,7 +289,8 @@ def _assert_static_job_contract(source: str) -> None:
             "  fi"
         ),
         "k2-proposal-required": (
-            '[[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
+            '[[ ( "$b5_mode" == series && "${IZANAGI_S4_B5_ARM-}" == llm ) \\\n'
+            '     || -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
             '    || refuse "K2 environment requires '
             'IZANAGI_S4_PROPOSAL_PATH"'
         ),
@@ -448,6 +474,7 @@ def _assert_static_job_contract(source: str) -> None:
         ),
     }
     required.update(STOCK_PINS)
+    required.update(B5_PINS)
     uncommented_source = "".join(
         line for line in source.splitlines(keepends=True)
         if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
@@ -525,6 +552,12 @@ def _assert_forbidden_job_constructs(source: str) -> None:
     ):
         raise AssertionError("forbidden-cmake-environment-injection")
 
+    b5_driver = '"$PY" -B -m orchestrator.campaign.b5_generator_contrast'
+    if body.count(b5_driver) != 1 or not (
+        prebuild_position < body.index(b5_driver) < min(driver_positions)
+    ):
+        raise AssertionError("b5-driver-count-or-order")
+
     forbidden_assignment = re.search(
         r"(?m)^\s*(?:export\s+)?(?:CMAKE_PROJECT_INCLUDE"
         r"(?:_BEFORE)?|CMAKE_PROJECT_TOP_LEVEL_INCLUDES|"
@@ -552,6 +585,7 @@ def _assert_static_job_stage_order(source: str) -> None:
         "host=$(hostname",
         "unset CC CXX",
         'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"',
+        'b5_mode=${IZANAGI_S4_B5_MODE-}',
         "k2_env_names=(",
         'repo=$(cd -- "$IZANAGI_S4_REPO_ROOT"',
         "trap finish EXIT",
@@ -573,6 +607,8 @@ def _assert_static_job_stage_order(source: str) -> None:
         "prebuild_source_root=",
         '"$PY" - "$prebuild_receipt"',
         'sync "$prebuild_receipt"',
+        'b5_argv=("run-$b5_mode")',
+        '"$PY" -B -m orchestrator.campaign.b5_generator_contrast',
         'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]',
         '"${stock_identity_argv[@]}" --stock-control',
     )
@@ -697,7 +733,8 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         ),
         pytest.param(
             "k2-proposal-required",
-            '[[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
+            '[[ ( "$b5_mode" == series && "${IZANAGI_S4_B5_ARM-}" == llm ) \\\n'
+            '     || -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \\\n'
             '    || refuse "K2 environment requires '
             'IZANAGI_S4_PROPOSAL_PATH"',
             "true # K2 proposal requirement removed",
@@ -1072,6 +1109,9 @@ def _k2_preflight_environment(
         ),
     )
     environment = dict(os.environ)
+    for name in list(environment):
+        if name.startswith("IZANAGI_S4_B5_") or name == "IZANAGI_S4_FIXTURE_VALUE":
+            environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",
         "IZANAGI_S4_CODER_ROLE",
@@ -1181,6 +1221,7 @@ def _run_actual_job_body_through_driver(
     *,
     relative_evidence: bool = False,
     driver_rcs: tuple[int, int] = (0, 0),
+    source_override: str | None = None,
 ) -> tuple[list[list[str]], int, dict]:
     # Scheduler/build/driver work is simulated; shell path conversion and the
     # Python driver's environment/path observation and file write are real.
@@ -1284,7 +1325,7 @@ def _run_actual_job_body_through_driver(
         "    raise SystemExit(99)\n",
     )
 
-    source = JOB.read_text(encoding="utf-8")
+    source = JOB.read_text(encoding="utf-8") if source_override is None else source_override
     bootstrap_anchor = 'export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"'
     final_path_anchor = 'SANITIZED_PATH="$shim_dir:/usr/bin:/bin"'
     scratch_anchor = "scratch_base=/scr/$USER/p3-s4-loop-pegasus"
@@ -1310,6 +1351,9 @@ def _run_actual_job_body_through_driver(
     )
 
     environment = dict(os.environ)
+    for name in list(environment):
+        if name.startswith("IZANAGI_S4_B5_") or name == "IZANAGI_S4_FIXTURE_VALUE":
+            environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",
         "IZANAGI_S4_CODER_ROLE",
@@ -1922,6 +1966,211 @@ def test_invalid_stock_environment_refuses_before_prebuild(tmp_path, value):
     assert completed.returncode == 2
     assert "IZANAGI_S4_STOCK_CONTROL must be 0 or 1" in completed.stderr
     assert not any(path.exists() for path in sentinels)
+    assert not (evidence / "compute-result.json").exists()
+
+
+@pytest.mark.parametrize("label,fragment", tuple(B5_PINS.items()))
+def test_b5_fragment_mutants_have_one_static_failure(label, fragment):
+    source = JOB.read_text()
+    assert source.count(fragment) == 1
+    with pytest.raises(AssertionError) as error:
+        _assert_static_job_contract(source.replace(fragment, "true", 1))
+    assert str(error.value) == f"job contract missing: {label}"
+
+
+def _b5_environment(tmp_path, arm="random"):
+    env = {
+        "IZANAGI_S4_B5_MODE": "block-stock" if arm == "stock" else "series",
+        "IZANAGI_S4_B5_ARM": arm,
+        "IZANAGI_S4_B5_WORKLOAD": "write-heavy",
+        "IZANAGI_S4_B5_SERIES": "1",
+        "IZANAGI_S4_B5_BLOCK": "1",
+        "IZANAGI_S4_B5_LEDGER_ROOT": str(tmp_path / "ledger"),
+    }
+    if arm == "llm":
+        env.update({
+            "IZANAGI_S4_KNOWLEDGE_MANIFEST": "/absolute/knowledge.json",
+            "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+            "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION": "known_result_conditioned_derivative",
+            "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM": "false",
+        })
+    return env
+
+
+def _assert_b5_driver_history(history, tmp_path, arm):
+    # M13: cardinality is observed at the real shell -> driver boundary.
+    assert len(history) == 1
+    expected = ["-B", "-m", "orchestrator.campaign.b5_generator_contrast",
+                "run-block-stock" if arm == "stock" else "run-series"]
+    if arm != "stock":
+        expected += ["--arm", arm, "--series", "1"]
+    expected += ["--workload", "write-heavy", "--block", "1",
+                 "--ledger-root", str(tmp_path / "ledger"),
+                 "--fetchcontent-prebuild-receipt",
+                 str(tmp_path / "evidence/masstree-prebuild-receipt.json")]
+    if arm == "llm":
+        expected += ["--knowledge-manifest", "/absolute/knowledge.json",
+                     "--knowledge-classification", "known_result_conditioned_derivative",
+                     "--knowledge-de-novo-claim", "false"]
+    assert history == [expected]
+
+
+@pytest.mark.parametrize("arm", ["random", "sweep-matched", "llm", "stock"])
+@pytest.mark.parametrize("driver_rc", [0, 7])
+def test_b5_actual_shell_one_driver_and_trap_rc(tmp_path, arm, driver_rc):
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path, _b5_environment(tmp_path, arm), driver_rcs=(driver_rc, 99))
+    _assert_b5_driver_history(history, tmp_path, arm)
+    assert rc == result["driver_rc"] == driver_rc
+    assert result["schema_version"] == "p3-s4-loop-compute-result/v1"
+
+
+def test_b5_fallthrough_mutant_is_killed_by_shell_call_count(tmp_path):
+    source = JOB.read_text()
+    assert source.count('exit "$b5_rc"') == 1
+    history, _, _ = _run_actual_job_body_through_driver(
+        tmp_path, _b5_environment(tmp_path),
+        source_override=source.replace('exit "$b5_rc"', "true", 1))
+    assert len(history) == 2  # mutation reaches the fixture driver
+    with pytest.raises(AssertionError):
+        _assert_b5_driver_history(history, tmp_path, "random")
+
+
+@pytest.mark.parametrize("arm,key,value,reason", [
+    ("random", "MODE", "", "IZANAGI_S4_B5_MODE must be"),
+    ("random", "MODE", "invalid", "IZANAGI_S4_B5_MODE must be"),
+    ("random", "ARM", "", "missing B-5 environment"),
+    ("random", "ARM", "stock", "invalid B-5 arm"),
+    ("stock", "ARM", "llm", "invalid B-5 arm"),
+    ("random", "WORKLOAD", "", "missing B-5 environment"),
+    ("random", "WORKLOAD", "unknown", "invalid B-5 workload"),
+    ("random", "SERIES", "", "missing B-5 environment"),
+    ("random", "SERIES", "01", "invalid B-5 series"),
+    ("random", "SERIES", "0", "invalid B-5 series"),
+    ("random", "SERIES", "13", "invalid B-5 series"),
+    ("random", "BLOCK", "", "missing B-5 environment"),
+    ("random", "BLOCK", "01", "invalid B-5 block"),
+    ("random", "BLOCK", "4", "invalid B-5 block"),
+    ("random", "LEDGER_ROOT", "", "missing B-5 environment"),
+    ("random", "LEDGER_ROOT", "relative", "ledger root must be absolute"),
+])
+def test_b5_invalid_env_precedes_repository_resolution(tmp_path, arm, key, value, reason):
+    env = _b5_environment(tmp_path, arm)
+    env["IZANAGI_S4_B5_" + key] = value
+    _assert_b5_preflight_refusal(tmp_path, env, reason)
+
+
+def _assert_b5_preflight_refusal(tmp_path, env, reason):
+    # Nonexistent repo distinguishes early env rejection from a path gate rc=2.
+    env["IZANAGI_S4_REPO_ROOT"] = str(tmp_path / "missing-repository")
+    environment, evidence, job, sentinels = _k2_preflight_environment(tmp_path)
+    environment.update(env)
+    completed = subprocess.run(["bash", str(job)], cwd=tmp_path, env=environment,
+                               capture_output=True, text=True, check=False)
+    assert completed.returncode == 2
+    assert reason in completed.stderr
+    assert "repository root is unavailable" not in completed.stderr
+    assert not any(path.exists() for path in sentinels)
+    assert not (evidence / "compute-result.json").exists()
+
+
+@pytest.mark.parametrize("key", ["MODE", "ARM", "WORKLOAD", "SERIES", "BLOCK", "LEDGER_ROOT"])
+def test_b5_partial_environment_refused_before_paths(tmp_path, key):
+    env = _b5_environment(tmp_path)
+    del env["IZANAGI_S4_B5_" + key]
+    reason = "requires IZANAGI_S4_B5_MODE" if key == "MODE" else "missing B-5 environment"
+    _assert_b5_preflight_refusal(tmp_path, env, reason)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("PROPOSAL_PATH", "/absolute/proposal.json"), ("PROPOSAL_PATH", ""),
+    ("FIXTURE_VALUE", "20"), ("FIXTURE_VALUE", ""), ("STOCK_CONTROL", "1"),
+])
+def test_b5_legacy_modes_are_exclusive_before_paths(tmp_path, key, value):
+    env = _b5_environment(tmp_path)
+    env["IZANAGI_S4_" + key] = value
+    _assert_b5_preflight_refusal(tmp_path, env, "B-5 mode excludes")
+
+
+@pytest.mark.parametrize("key", ["KNOWLEDGE_MANIFEST", "CODER_ROLE",
+                                "KNOWLEDGE_CLASSIFICATION", "KNOWLEDGE_DE_NOVO_CLAIM"])
+@pytest.mark.parametrize("value", [None, ""])
+def test_b5_llm_requires_all_k2_before_paths(tmp_path, key, value):
+    env = _b5_environment(tmp_path, "llm")
+    if value is None:
+        del env["IZANAGI_S4_" + key]
+    else:
+        env["IZANAGI_S4_" + key] = value
+    _assert_b5_preflight_refusal(tmp_path, env, "B-5 llm requires K2 environment")
+
+
+@pytest.mark.parametrize("arm", ["random", "sweep-matched", "stock"])
+@pytest.mark.parametrize("value", ["", "/absolute/knowledge.json"])
+def test_b5_non_llm_excludes_k2_before_paths(tmp_path, arm, value):
+    env = _b5_environment(tmp_path, arm)
+    env["IZANAGI_S4_KNOWLEDGE_MANIFEST"] = value
+    _assert_b5_preflight_refusal(tmp_path, env, "B-5 non-llm arm excludes K2")
+
+
+def test_b5_set_empty_mode_alone_is_refused_before_paths(tmp_path):
+    _assert_b5_preflight_refusal(tmp_path, {"IZANAGI_S4_B5_MODE": ""},
+                               "IZANAGI_S4_B5_MODE must be")
+
+
+def test_b5_empty_mode_mutant_is_killed_by_early_rc2(tmp_path, monkeypatch):
+    source = JOB.read_text()
+    fragment = 'if [[ -v IZANAGI_S4_B5_MODE ]]; then'
+    assert source.count(fragment) == 1
+    job = tmp_path / JOB.name
+    job.write_text(source.replace(fragment, 'if [[ -n "$b5_mode" ]]; then', 1))
+    monkeypatch.setitem(globals(), "JOB", job)
+    case = tmp_path / "case"
+    case.mkdir()
+    # M14 escapes the env gate. The independent test rejects the later path rc=2.
+    with pytest.raises(AssertionError):
+        test_b5_set_empty_mode_alone_is_refused_before_paths(case)
+
+
+@pytest.mark.parametrize("stock", [None, "0"])
+def test_b5_stock_off_preserves_single_b5_call(tmp_path, stock):
+    env = _b5_environment(tmp_path)
+    if stock is not None:
+        env["IZANAGI_S4_STOCK_CONTROL"] = stock
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    _assert_b5_driver_history(history, tmp_path, "random")
+    assert rc == result["driver_rc"] == 0
+
+
+def test_b5_duplicate_driver_and_late_branch_are_rejected():
+    source = JOB.read_text()
+    driver = '"$PY" -B -m orchestrator.campaign.b5_generator_contrast'
+    with pytest.raises(AssertionError, match="b5-driver-count-or-order"):
+        _assert_forbidden_job_constructs(source + "\n" + driver)
+    start = source.index('if [[ -n "$b5_mode" ]]; then\n  b5_argv=')
+    end = source.index('candidate_rc=0', start)
+    block = source[start:end]
+    mutant = source[:start] + source[end:] + block
+    with pytest.raises(AssertionError):
+        _assert_static_job_stage_order(mutant)
+
+
+@pytest.mark.parametrize("location", ["repo", "common", "symlink"])
+def test_b5_ledger_inside_repository_refused_before_trap(tmp_path, location):
+    environment, evidence, job, _ = _k2_preflight_environment(tmp_path)
+    repo = tmp_path / "repo"
+    common = tmp_path / "common"
+    common.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(repo, target_is_directory=True)
+    ledger = {"repo": repo, "common": common, "symlink": alias}[location] / "ledger"
+    _write_executable(tmp_path / "bin/git",
+                      "#!/bin/bash\nprintf '%s\\n' " + shlex.quote(str(common / ".git")) + "\n")
+    environment.update(_b5_environment(tmp_path))
+    environment["IZANAGI_S4_B5_LEDGER_ROOT"] = str(ledger)
+    result = subprocess.run(["bash", str(job)], cwd=tmp_path, env=environment,
+                            capture_output=True, text=True)
+    assert result.returncode == 2
+    assert "B-5 ledger root resolves inside a repository" in result.stderr
     assert not (evidence / "compute-result.json").exists()
 
 
