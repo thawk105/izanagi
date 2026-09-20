@@ -29,8 +29,10 @@ title: 本体論文 (日本語) の序論・貢献・限界の本文を、論文
 - 焦点再レビュー 1 (26 call、383 秒): 前巡 8/8 closed、親の派生値・量化語はすべて一次資料と一致、新規所見 2 (must 1 = 「現行の素材コーパスの下で
   4 度到達」を旧 pin `511c9538` の下へ、should 1 = 貢献稿の pin 前進の文に「較正・certified 系列・性能比較は含まない」)。焦点再レビュー 2 (6 call、
   102 秒): 2 件とも closed、新規所見なし、GO (DW-O16 の 3 巡内)。
-- 検査: `check_docs` 違反なし、`git diff --check` 緑、相対リンク 73 本の不達 0。docs のみで実装面ゼロのため変異 matrix は免除。焦点走 (check_docs の
-  consumer test) と provenance 監査は記録 commit の後に実走し、結果は専用 handoff と job dir の receipt に集約する。受入・land も同じ。
+- 検査: `check_docs` 違反なし、`git diff --check` 緑、相対リンク 73 本の不達 0、`spool_fold --dry-run` rc=0。docs のみで実装面ゼロのため変異
+  matrix は免除。記録 commit `ad440c915` の後に provenance 区間監査 (`482f19b88..HEAD`、1 件、違反なし) と焦点走 `tools/run_tests.py
+  orchestrator/tests/test_check_docs.py` (計算ノード request `13325.nqsv`、child rc=0、**580 passed / 3 skipped**、11.90 秒。3 skip は既存の明示 opt-in
+  対象) を実走した。受入全走は記録 commit を含む最終 tip に対して待ち手経由で投入し、結果は専用 handoff と job dir の receipt に集約する。
 - 限界・言わないこと: 3 稿は投稿本文ではなく執筆者向けの日本語草稿。英語化・関連研究節・新規実験・図の作り直しは行っていない。稼働中・未着地の
   wave の内容 (A-1 attempt-0002 の投入、K2 4 巡目、B-5 試走、[T-2810]、W-4) は完成扱いしていない。本 wave の照合は 1 主体の再計算 + レビュー 3 巡で
   独立監査ではない (D920)。
