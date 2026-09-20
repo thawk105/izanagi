@@ -176,8 +176,9 @@ CCBench 内蔵の適応 backoff の有効/無効 (`BACK_OFF` の 0/1) だけだ�
 - **言えること。** 正しい identity で測った採用静的 backoff は、A-2 protocol (write-heavy と balanced の連言) で `observed-positive`、
   A-6 protocol (read-heavy) で `reject`、[T-1998] の事前登録 (balanced) で `accepted` だった。3 走行の符号 (+ / + / −) は旧
   `linux-baremetal` の 3 値と 3 workload とも一致した。**これは記述的な照合であって、再現判定ではない。** D496 が求める「同じ
-  campaign の中で比べる」形は 3 走行がいずれも満たしている。採用静的 backoff は性能を測った workload そのもので certified である
-  (性能の認証ではない)。
+  campaign の中で比べる」形は 3 走行がいずれも満たしている。A-2 の 4 cell と A-6 の 2 cell は、性能条件に対応する別 build・別 run の検査
+  (legacy 1 回 + performance 5 回) でも certified であり、採用静的 backoff は性能を測った workload そのもので certified と言える。[T-1998] の
+  正しさ記録は legacy 条件で各 arm 1 回に限る (§3.4)。いずれも性能の認証ではない。
 - **言えないこと。** 「採用した静的 backoff は現行環境でも効くことを再現した」— 環境も CCBench の版も測定契約も違い、A-2 も
   A-6 も 2 点 protocol で信頼区間を持たず、[T-1998] も点推定である。旧値と新値を pool しない。「A-2 の結果を read-heavy へ転移
   できる」「read-heavy で stock が最良である」— A-6 の `reject` は 1 attempt・5 標本の中央値比較であり、他の read 比率・機体・pin へ
@@ -493,7 +494,8 @@ CCBench pin は `511c9538` で、本稿の採用時点の main では pin が `e
 G2 signal の走はいずれも `verdict: non-serializable`、`certified: false`、`total_cycles: 1`、anomaly は `G2`、長さ 2、2 辺とも `rw`、
 `integrity.clean: true` で、規律 2 の即 reject 契約はそのまま働いている。表 14・15 の CP 区間と Fisher の p は独立・同率 Bernoulli を仮定した
 参考値で、node 内相関・回転順・時間変動をモデル化していない。検出率は固定時間 (3 秒) の走あたりの率であり、同じ commit 数への曝露比較ではない
-(on の曝露量は少ない)。4 block は別 node・別 binary・別時刻であり「同一条件の 120 反復」とは書けない。[21, 22]
+(on の曝露量は少ない)。表 14 の 4 block は別 node・別 binary・別時刻であり「同一条件の 120 反復」とは書けず (稿 §5 項 18)、表 15 の 4 block は
+4 node で同時刻に走り block 内で 4 arm が順次実行された (稿 §3 項 8) — いずれも node 内相関・回転順・時間変動はモデル化していない。[21, 22]
 
 **言えること / 言えないこと。** 言えるのは「stock mocc の G2 signal は witness を切った producer で再現し、診断 patch (2 変更を束ねた介入)
 の arm では 0/120 で、固定条件で介入と検出率低下が整合する」「軽量 witness on では 0/60・0/60、off では 1/60・1/60 で、この標本・条件
@@ -521,8 +523,10 @@ LLM だけが発見できたことや、生成器として LLM が必要だっ�
 ことにもならない。また、負荷ごとに異なる最良点 (10 / 5 / 2 µs) が観測された事実だけでは、workload descriptor を条件とする生成の因果的な
 効果 (B-2) を示したことにならない。[2, 4, 7, 9, 11, 12]
 
-abort 率と throughput の同時変化は、競合の抑制と待機コストの釣合いという解釈に整合する。しかし各 cell の abort 率は代表 rep 1 点の
-集約値であり、これだけから性能差を特定の機序へ帰属できない。待ち方 grid (§9.1) と右 tail (§9.2) が与えるのは記述的な会計と分類であり、
+abort 率と throughput の同時変化は、競合の抑制と待機コストの釣合いという解釈に整合する。しかし abort 率の集約方法は実験ごとに異なり
+(A-2 / A-6 と同一候補の測定は WAL の `leading_indicators` の cell あたり 1 点 — A-6 稿は代表 rep 1 点と記す、右 tail の表 13 は rep ごとの率の
+5 反復算術平均、K2 は巡によって集約規則が違う)、
+いずれも信頼区間を持たない記述的な先行指標であって、これだけから性能差を特定の機序へ帰属できない。待ち方 grid (§9.1) と右 tail (§9.2) が与えるのは記述的な会計と分類であり、
 「abort 率が下がり続けても性能は失われる」という同時成立の観測までで、機序の同定ではない。既定の適応 backoff に関する観測は
 CCBench の当該定数設定の範囲に限られ、適応制御一般の欠点には一般化できない (D1505 / D1506)。[2, 18, 19, 20]
 
