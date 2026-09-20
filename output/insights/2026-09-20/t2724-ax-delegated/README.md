@@ -34,7 +34,7 @@ event `reservation-preflight` が無い) で止まり `allowed: false`** — A/X
   (値 == `none` ∨ (規約文法 fullmatch ∧ product ∉ 予約語 ∧ model / reasoning ≠ `none`))。none 枝の受理集合は従来の `_is_none_commit` と同一。
 - 文法は `tools/check_ai_provenance.py` の `AGENT_VALUE` / `RESERVED_PRODUCTS` を module 内へ複製 (`_PROVENANCE_*`)。理由: コピー fixture
   (`test_s8b_oracle_driver.py` の orchestrator 複製) は `tools/` を持たない (plan Q1、相談 A-4 条件付き)。test
-  `test_user_commit_provenance_grammar_matches_checker` が pattern / flags / 予約語集合の exact 一致と、単一行 13 値で
+  `test_user_commit_provenance_grammar_matches_checker` が pattern / flags / 予約語集合の exact 一致と、単一行 15 値 (none 1 + 適合 4 + 不適合 10) で
   `validate_message` との判定一致を固定する。
 - 不変 (byte): `_is_none_commit`、`_assert_candidate_commit` (G の `generation-commit-none` 拒否)、呼び手 4 箇所、
   `approval-commit-diff` / `pointer-commit-diff` / `pointer-approval-parent`、`_unique_introduction`、`history-mutated`。hook 不変。
@@ -122,15 +122,57 @@ event `reservation-preflight` が無い) で止まり `allowed: false`** — A/X
 
 ### 6.1 変異 (DW-M08、期待 node は完全集合)
 
-(記入待ち)
+手順: probe (`mutation/mutation-spec-s1-probe.json`、全件 SURVIVED 期待で観測 node を集める、独立 clone = `ca3907e57`、runner
+`test_s8b_ratified_freeze.py`) → 観測集合を期待集合にした final (`mutation/mutation-spec-s1-final.json`) を fix 最終 commit `b8c458b7f`
+で本走 (DW-M07 の anchor 再検証は `check-spec-uniqueness` で 15/15 一意)。pin は `mutation/mutation-spec-pin-final.json` (第 2 clone
+= `b8c458b7f`、runner = B-10 の 3 test file)。kill の意味 (DW-M03): 各変異について「受理へ変わった node (witness)」と「診断文字列だけの赤」を分ける。
 
-### 6.2 全史 provenance 監査
+| 変異 (置換) | probe 観測 node 数 | 受理へ変わる witness | 診断のみの赤 |
+|---|---:|---|---|
+| m1 raw 件数 `!= 1` → `< 1` | 3 | `…one_raw_and_parsed_line[body-and-trailer-2-1]` (本文 + 末尾同値、相談 A-7) | two-structured / mixed (parse 件数で拒否、文字列差) |
+| m2 parse 件数を raw からの fallback へ | 2 | `[body-only-1-0]` (parse 0 を raw 値で補って受理) | `raw_form_is_exact[before-key]` (canonical 比較で拒否、文字列差) |
+| m3 raw / parse ともに `< 1` (先頭採用) | 4 | two-structured / body-and-trailer / mixed / `both_none_and_structured_rejected` (いずれも先頭行で受理) | — |
+| m4 raw 比較を `strip()` 後へ | 2 | `raw_form_is_exact[trailing-space]`、R3 `none_trailing_space_rejected` | — |
+| m5 raw 比較を小文字化 | 2 | `raw_form_is_exact[lower-key]`、`case_or_space_variant_rejected` | — |
+| m6 文法不適合を受理 | 11 | `structured_value_must_conform[claude-opus / unknown field / role=unknown / suffix …]`、歴史的 3 node (`*_with_ai_trailer_*`) | — |
+| m7 予約語集合を空に | 19 | `structured_value_must_conform[product=none / human …]` | `provenance_grammar_matches_checker[*]` (RESERVED 等値の meta 比較) |
+| m8 model / reasoning の none 許容 | 4 | `structured_value_must_conform[model=none / reasoning=none]` | `provenance_grammar_matches_checker` 同 2 値 (判定一致の meta) |
+| m9 none + 構造化の混在許容 | 2 | `both_none_and_structured_rejected`、`[mixed-2-2]` | — |
+| m10 merge 検査削除 | 1 | `structured_user_merge_commit_rejected` | — |
+| m11 ancestry 検査削除 | 2 | `non_ancestry_user_commit_rejected[none / structured]` | — |
+| m12 G の none 拒否を両層 (none 検査 + `values == ["none"]`) 削除 | 2 | `generation_introduced_in_none_commit_rejected` | `generation_and_approval_same_commit_rejected` (後段 reason 差) |
+| m13 approval diff 検査削除 | 2 | `approval_commit_with_extra_file_rejected[none / structured]` | — |
+| m14 pointer diff 検査削除 | 2 | `pointer_commit_with_extra_file_rejected[none / structured]` | — |
+| m15 pointer parent 検査削除 | 2 | `pointer_parent_must_be_selected_approval_commit[none / structured]` | — |
 
-(記入待ち)
+登録しない変異: `fullmatch → search` 単独 (anchor 済み regex + strip 済み 1 行値で等価)、片方だけの `>= 1` (他方が拒否を維持)、
+m12 の片層だけ (もう一層が拒否 = 冗長 gate)。probe の所要は各 52〜72 s (m5 のみ queue 待ちで 1044 s)。
+
+本走の結果 (final、clone #1 を `b8c458b7f` へ進めて 15:32〜16:10 JST、baseline 緑 58 s、`mutation/s1-final-summary.txt`、results 原本
+sha256 `17a31d9d…`): **15/15 KILLED、各変異の失敗 node 集合が期待集合 (probe の観測 = 完全集合) と exact 一致**。各変異に受理変化の
+witness が 1 つ以上ある (上表)。SURVIVED は 0、等価変異の登録は 0。
+
+pin (第 2 clone = `b8c458b7f`、baseline 緑 48 s、`mutation/pin-final-summary.txt`、results 原本 sha256 `267e43f6…`): **3/3 KILLED、期待 node と
+exact 一致** — p1 (test literal 2 箇所だけ旧値) → `test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs` +
+`test_b10_freeze_tree_bytes_match_the_wave_local_gate` の 2 node、p2 (job 定数だけ旧値) → `…three_independent_jobs` の 1 node、
+n1 (approval 1 byte) → `…wave_local_gate` の 1 node。負例 4 件 (A 欠落 / X 欠落 / 別 file 追加 / X 1 byte) は harness 外の独立コピーで
+digest 不一致 (`evidence/pin-negatives.log`)。
+
+### 6.2 全史 provenance 監査と三軸走査
+
+- `python3 tools/check_ai_provenance.py` (全史、merge commit `1214c6afe` = local main `4fe49200e` 取り込み後の tip、login bounded local、
+  15:21〜15:22 JST、56 s): **rc=0、11,905 件、新規違反なし** (既知違反 56 件 = 台帳どおり、post-baseline 3)。A / X / 実装 3 commit /
+  docs / merge の trailer はすべて規約適合。land の ff-only 関門 (D254) は着地 tip で再度走る。
+- 三軸走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`、同 tip、`evidence/scan-1.stderr`): hit は両 holdout とも
+  既知の 4 path (official run の journal / manifest / result + 候補文書) だけで、本 wave が足した insight・evidence・test 定数
+  (`_ACTIVATED_G1_REFUSALS` の refusal 文字列は path を含むが三軸語を含まない) からの新規 hit は 0。defang 不要。
 
 ### 6.3 受入と land
 
-(記入待ち)
+受入全走は本 README を含む記録 commit の後、最新 local main を固定 SHA で取り込んだ tip に対して 1 回投入する (DW-O12: 記録 commit
+が tested tip から漏れないよう、受入は段 7 / 8 の commit 完了後)。結果は job dir の `acceptance-1.json` (receipt) と land の receipt
+(`land-*.json`) に束縛され、worklog の本エントリには「受入緑 → land」の事実だけが fold で入る。本 README の bytes は受入前に凍結する
+ので、受入の数値 (所要・件数) はここに書かない (未実施の欄を作らない)。
 
 ## 7. 到達範囲と非保証
 
@@ -156,4 +198,20 @@ A-12 (brief の P3 予測・P2 件数の補正)。相談 B の real = B-1 (drift
 B-6 (launch memo を足さない)、B-7 (pin 更新の授権の書き方)、B-10 (land 順序)、B-12 (P2 件数)。すべて採用、B-2 は scope 外 (§5)。
 refuted: A-1〜A-3 / A-5 / A-13、B-8 / B-9。
 
-段 6: (記入待ち)
+段 6 (レビュー A = 正しさ境界、B = 過剰・削除・帰結、各 rc=0、`verbatim/s6-review-A.md` / `s6-review-B.md`):
+- must-fix: **RA-1** (実 repo の standalone `gate_check` が launch validation で先に戻るため、binding schema → `manifest-verify:` 翻訳の検出力が
+  失われる) → fix 子 (`verbatim/s6-fix-1.md` / `s6-fix-2.md`) が未発効 tmp repo の standalone test を追加。初回は件数の推測 (2) が実測 3
+  (`freeze-ratify: [no-active]` / `known-axes-freeze-verify:` (tmp root に known axes source が無い fixture 由来) / `manifest-verify:`) と
+  違い赤 → 実測に合わせて fix-2 → 焦点走 19 passed / 2 skipped → fix commit `b8c458b7f`。**RB-1** (decisions fragment の「AI の自己承認」
+  「論文で書かない」を決定から外し、委任の事実へ限定)、**RB-2** (B-10 pin 更新の授権説明を「D2166 と同じ根拠」から「事前授権から必然の
+  期待変更 + 独立レビュー + 変異 2 + 負例 4、同一手続ではない」へ)、**RB-3** (「受入所要は不変」を撤回、hold 維持と所要未検証を分ける)、
+  **RB-8** (本 README の作成、runbook の古い現在形 2 箇所、`_is_none_commit` docstring) → 親 / fix 子が修正。
+- nit: RA-8 (README §5 の script 例 `"approver": "user"` に委任後の値を注記 → 済、実装 commit `4114cf51b` の message の「正負例 13 値」は
+  実物 15 値 (none 1 + 適合 4 + 不適合 10) — 履歴は書き換えず本記録で訂正、driftguard の docstring → fix 子)。
+- refuted / 修正不要: RA-2 (受理集合は署名式と一致、CRLF / 末尾空白 / 本文中 / 継続行 / CAB / waiver の挙動を parser 実測で確認、none 枝は
+  旧 `_is_none_commit` と同一)、RA-3 (不変防壁は byte 不変、変更された既存関数は `_assert_user_commit` だけ)、RA-4 (A/X の現物は契約を満たす)、
+  RA-5 (変異は静的に検出可能、crash kill / 診断差分 / 受理拡大の区別 → §6.1 の witness 列)、RA-6 (真値と tmp repo 集約は妥当)、
+  RA-7 (親の実測と期待値は一致)、RB-4 (scope 外への滲み無し、変更された production 関数は 1 つ)、RB-5 (pin は A/X だけで説明できる)、
+  RB-6 (P3 の 2 拒否は両方 (ii))、RB-7 (帰結の閉包は静的に追加無し、受入全走で閉じる)、RB-9 (hook / B-10 fixture / dispatch 契約は不変)。
+- 段 6 の裁定パッケージ候補 (次 wave へ): official journal producer と validator の契約整合、result 導入順と段階 6 lineage の設計択一、
+  論文での批准の呼称 (必要なら)、launch memo の要否 (実測後)。W-4 spec 承認は別手番。
