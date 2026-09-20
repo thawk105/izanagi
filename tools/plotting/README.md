@@ -404,3 +404,37 @@ JSON の `story_path` が指す凍結本文である。状態語の意味の正�
 `izanagi-arc-status-figure-provenance/v1` で、入力 2 file (JSON・本文) と生成器・出力の SHA-256、描いた項目 (`drawn_items`: ID・
 状態・実表示文字列)、状態定義、caption、展開済み argv、matplotlib / numpy の版を持つ。論文図の再現コマンド、caption、proof chain、
 次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節を正本とする。
+
+## K2 手動 loop 3 巡のデータフロー (説明図、値なし) figure
+
+`plot_k2_loop_flow.py` は、凍結稿 `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` が記録した K2 手動 loop の
+3 巡 (提案 → 評価 → critic) のデータフロー — 役割と遮断の所在、親が射影する入力 key、評価経路、実測の還流 2 回・診断の還流 1 回
+(exact 6 field)、規律 6 の自己申告 marker — を、性能値を 1 つも描かずに 4 列 × 6 lane の模式図にする専用生成器である (`fig12_`)。
+既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_k2_loop_flow.py [--repo-root PATH] [--flow PATH] OUT_PREFIX
+```
+
+入力は流れ JSON (`--flow` 省略時は `tools/plotting/k2_loop_flow_2026-09-20.json`、schema `izanagi-k2-loop-flow/v1`)、
+生成器に path 固定の稿 (caption_source)、role 定義 3 file (`.claude/agents/{planner-v4,coder-v4-autonomous-k2,critic}.md`) である。
+JSON は人が稿から写した射影で、意味の正本は稿である。
+
+- 各要素の `source_anchor` (`§1.4` / `§2.2 巡 1` の形) が稿の見出し行としてちょうど 1 行あることを検査する。意味の一致は検査しない。
+  稿の bytes は anchor の検査と SHA-256 の記録にだけ使い、値・判定を再計算しない。
+- role 定義の frontmatter `tools:` (`[]` ⇔ `tools_none: true`) が JSON の宣言と一致することを検査し、3 file の SHA-256 を記録する
+  (生成時点の記録で、着地後の一致は要求しない)。
+- 提案の literal・job id・日付・入力 key・diagnosis の 6 field 名・規律 6 の自己申告 (`form` は role 固定、`instruction_like_detected` は
+  bool で marker の形が変わる) は typed field から固定 template で描き、自由文に数量が混じると拒否する (`=`、`%`、単位語、数詞、宣言 ID・
+  instance・`job <id>` 以外の数字入り token)。
+- この凍結図の矢印 7 組 (実測の還流 m1 / m2a / m2b、診断の還流 d1、不在 a1 / a2 / a3) は生成器の定数と完全一致を要求し、描いた artist
+  から provenance の `arrows` を組む。caption の回数語は固定文である。
+- key 集合の不一致、enum 外、value の範囲・不一致、未評価列の制約違反、anchor の不正・非一意、role 不一致、prefix が `fig<N><letters>_`
+  でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・所属領域内包・相互非交差・
+  兄弟領域非交差・marker 非交差・**矢印線分と Text の非交差**) の違反、のいずれでも成果物を出さない。
+
+出力は `OUT_PREFIX.png` (200 dpi)、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-k2-loop-flow-figure-provenance/v1` で、入力 5 file (JSON・稿・role 定義 3 本) と生成器・出力の SHA-256、`caption_source`、
+描いた項目 (`drawn_items`: id・kind・実表示文字列)、矢印 (`arrows`)、role の遮断宣言 (`roles`)、caption、展開済み argv、
+matplotlib / numpy の版を持つ (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
+`docs/paper-story/figures/README.md` の fig12 節を正本とする。
