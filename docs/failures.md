@@ -349,6 +349,8 @@
   恒久対応は変更なし — 版の全面再導出では「未裁定」「裁定待ち」「未実施」型の状態語を D 台帳の見出しで検索して裁定の有無を確かめ
   (前版の判定を継承しない)、転記した SHA は集合比較で検査し、版の着地時刻は file の導入 commit と fold commit から採る (first-parent の
   merge は着地時刻ではない)。
+
+- **再発: 2026-09-20 (near miss、2 件)** — [T-2804] wave の親が、(1) 段 4 裁定 `s4-ruling.md` §2 項 5 の終端行 field 名 `deadline_margin_s` を段 5 author の prompt へ**手打ちで再記述**して `deadline_at_margin_s` に書き換え、実装とテストがそのまま裁定と食い違った (段 6 レビュー B が must-fix、A が should として捕捉、fix1 1 巡で裁定の名前へ揃えた。受理集合・値・順序は不変で診断行の名前だけの差)。(2) handoff と brief の見出し時刻 4 件 (21:03 / 21:20 / 21:31 / 21:33) を `date` を叩かず推定で書き、job dir の file mtime (21:01 / 21:08 / 21:17 / 21:18) で訂正した (worklog・insight へ写す前に閉じた)。型はどちらも「一次資料から転写せず手で書き直す」で F1 と同じ。恒久対応は変更なし (memory `timestamps-from-date-or-mtime-not-estimation`) に加え、裁定の literal を子の prompt へ再記述せず「裁定 file が正本」と指し、必要な逐語は file から機械的に切り出す (memory `ruling-literals-in-prompts-point-to-the-file`)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
