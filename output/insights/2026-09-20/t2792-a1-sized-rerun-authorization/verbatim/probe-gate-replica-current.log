@@ -1,0 +1,2 @@
+gate: REFUSED: prior attempt reached the bench barrier; group rerun is prohibited (no record)
+base entries after: ['attempt-0001', 'attempt-0001.intent.json']
