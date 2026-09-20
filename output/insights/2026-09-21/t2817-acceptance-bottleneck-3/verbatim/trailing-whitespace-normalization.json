@@ -470,5 +470,25 @@
     "  "
    ]
   ]
+ },
+ "verbatim/s6-review2-out.md": {
+  "normalized_bytes": 5667,
+  "normalized_sha256": "45caab42388e70d7d16a738938fed1038997a4d4467ad13f6e085c0f49185aa3",
+  "original_bytes": 5673,
+  "original_sha256": "59cefca90684d78687fd87267ae7b42d6f81c0d2873de1b5be8fbba6c7172f74",
+  "stripped_lines": [
+   [
+    32,
+    "  "
+   ],
+   [
+    33,
+    "  "
+   ],
+   [
+    34,
+    "  "
+   ]
+  ]
  }
 }
