@@ -457,3 +457,30 @@ JSON は人が稿から写した射影で、意味の正本は稿である。
 描いた項目 (`drawn_items`: id・kind・実表示文字列)、矢印 (`arrows`)、role の遮断宣言 (`roles`)、caption、展開済み argv、
 matplotlib / numpy の版を持つ (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig12 節を正本とする。
+
+## B-10 待ち方 grid 正式走 (3 族 Holm + 36 cell の効果量・95% 区間・等価域) の forest figure
+
+`plot_b10_waiting_grid_forest.py` は、B-10 待ち方 grid の report phase (request `978195.nqsv`、事前登録 発効版 commit `77b33e37d`) が出した 1 つの判定 —
+登録した `constant` 対 `symmetric-modulo` の 3 族 (write-heavy / balanced / read-heavy) × 18 対の exact 符号反転 permutation + Holm と、36 cell の効果量・95% paired-block 区間 (df 2)・
+等価域 ±3.0% との関係 — を 1 行 × 3 panel の forest 図に描く専用生成器である。既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_b10_waiting_grid_forest.py [--repo-root PATH] [--evidence-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の権威 bytes `output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_provenance.json` (判定・135 record・事前登録 spec・submission の束縛) と
+同 dir の `b10_backoff_shape_report_978195.nqsv-23409962b76b.md` (2 file、生成器の pin 表で SHA-256 束縛。pin は CLI から渡せない) と、
+repo 外の report phase の投入受領証 `submissions/<nonce>/submit-receipt.json` と job 結果 `submissions/<nonce>/job-attempts/978195.nqsv/job-result.json` (`--evidence-root` 配下、既定は
+`/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape`。SHA-256 を定数で束縛し、request / nonce / phase / commit が provenance JSON の `submission` と一致することを要求する)。
+
+- 判定は provenance JSON の `judgement` から写し、生成器は作らない。135 record の `median_tps` から 54 対の対相対効果・18 cell の効果と区間・等価域との関係・Holm p を同じ式で再計算して一致を要求する
+  (raw p の全 2^18 列挙は再計算せず、分母 2^18 の整数性だけを見る)。図に出す判定名・値は report の値である。
+- SHA-256 不一致、schema / α / spec SHA / 格子 / 族構成 / 受領証 identity の不一致、族数 ≠ 3、対 ≠ 18、`outcome` ≠ `different`、Holm p > α、対差・効果・区間・等価域関係の不一致、`constant` cell が 0 でない、record 数 ≠ 135、
+  未認証 / missing / unstable の record、登録 cell の曝露不足、`official_certification` が `true`、caption_source (稿) の不在のいずれでも成果物を出さない。
+- 保存前に renderer-backed layout check を実行し、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- caption は英文で、「族の outcome は事前登録手続きの分類名で研究判定ではない」「帯の内側は等価性ではなく等価性検定はしていない」「cell ごとの有意差は判定しない」「右 tail cohort と pool も比較もしない」
+  「`official_certification` false・採用根拠にしない」「この 1 contrast に限る」「正しさは別走行で性能認証ではない」「3 workload は別 job・機序を言わない」の固定文を逐語で含む。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は `izanagi-b10-waiting-grid-forest-figure-provenance/v1`。`tracked_inputs` には稿
+`docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md` を `caption_source` として SHA-256 付きで記録する (稿は provenance の SHA-256 を持たない、F36)。`external_inputs` には受領証・job 結果の root 相対 path と SHA-256 を記録する。
+論文図の再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig13 節を正本とする。

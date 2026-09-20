@@ -1,0 +1,1339 @@
+{
+  "external_inputs": [
+    {
+      "kind": "report_receipt",
+      "path": "submissions/23409962b76be959bb523a0cd5a31bc1/submit-receipt.json",
+      "sha256": "93a1cd74ce279c6c8c876a7ab60fb772b216f25cf59f4eff70d0b0e2b8b429b4"
+    },
+    {
+      "kind": "report_job_result",
+      "path": "submissions/23409962b76be959bb523a0cd5a31bc1/job-attempts/978195.nqsv/job-result.json",
+      "sha256": "d5d4a0ee4c503c1b4b6a811f998949f7a76434a575c4ed8d0bfad849eafd082b"
+    }
+  ],
+  "report": {
+    "request_id": "978195.nqsv",
+    "nonce": "23409962b76be959bb523a0cd5a31bc1",
+    "phase": "report",
+    "source_commit": "2a338449bb2798b729c5bc2f9bfe76463a7fe347",
+    "prereg_commit": "77b33e37d2d63b1f83d10652792c3c93eba9fe8f",
+    "job_script_sha256": "6f633ad08579d020190bf76263c006774a2d548a48ccd3f99106f090df628f6b",
+    "submitted_epoch": 1788581651,
+    "completed_epoch": 1788582054,
+    "driver_rc": 0
+  },
+  "official_certification": false,
+  "ccbench_pin": "511c953",
+  "analysis": {
+    "alpha": 0.05,
+    "equivalence_margin_pct": 3.0,
+    "critical_value": 4.302652729911275,
+    "degrees_of_freedom": 2,
+    "pairs_per_family": 18,
+    "enumeration": 262144
+  },
+  "families": [
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "pairs": 18,
+      "differences": [
+        -0.011282730644890049,
+        -0.014944485776261285,
+        0.002020005366634603,
+        0.02206874194469055,
+        0.016339726400898424,
+        0.012502940364298443,
+        0.0174531283976469,
+        -0.0067642145060333725,
+        -0.0012950247338854304,
+        0.006612223308921861,
+        0.010935966030335642,
+        0.010705072429287199,
+        0.01615645703952917,
+        -0.0075059875940243215,
+        0.010935410957574998,
+        0.0096810983443818,
+        0.007294677502163838,
+        0.011112431863336214
+      ],
+      "raw_p": 0.02556610107421875,
+      "reasons": [],
+      "status": "testable",
+      "holm_p": 0.02556610107421875,
+      "outcome": "different",
+      "raw_p_numerator_2pow18": 6702,
+      "sum_of_differences": 0.11202543669460518,
+      "direction": "symmetric-modulo higher"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "pairs": 18,
+      "differences": [
+        0.008271838659501762,
+        0.0010252263751662216,
+        0.008838499044047321,
+        0.026627359738598644,
+        0.008367985444260206,
+        0.010494735699088098,
+        -0.0071149288637185615,
+        0.004519170411311224,
+        0.012591283264284714,
+        0.007551936535335146,
+        0.004632857275730151,
+        0.009217876195312558,
+        0.012987792814441956,
+        -0.001868445177000022,
+        0.006958638478638202,
+        0.006957566614912647,
+        0.008384245980770366,
+        0.0032353463602219357
+      ],
+      "raw_p": 0.00026702880859375,
+      "reasons": [],
+      "status": "testable",
+      "holm_p": 0.0005340576171875,
+      "outcome": "different",
+      "raw_p_numerator_2pow18": 70,
+      "sum_of_differences": 0.13167898485090257,
+      "direction": "symmetric-modulo higher"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "pairs": 18,
+      "differences": [
+        0.009139698859399026,
+        0.009435264724685144,
+        0.002795855652321766,
+        0.004737985168021153,
+        0.003149142333376931,
+        0.0030487674992460967,
+        0.004397563311591357,
+        0.004774076711265174,
+        0.0006188088683929394,
+        0.00785511651261861,
+        0.00330852499911094,
+        0.005612902849078116,
+        0.005847272279658533,
+        0.00223664641387189,
+        0.002651206011090368,
+        0.008567246772287263,
+        0.005288592583245544,
+        0.004262668470382147
+      ],
+      "raw_p": 7.62939453125e-06,
+      "reasons": [],
+      "status": "testable",
+      "holm_p": 2.288818359375e-05,
+      "outcome": "different",
+      "raw_p_numerator_2pow18": 2,
+      "sum_of_differences": 0.087727340019643,
+      "direction": "symmetric-modulo higher"
+    }
+  ],
+  "cells": [
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 2,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 5,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 10,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 25,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 50,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 100,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "effect": 0.007442284930762007,
+      "ci95_low": -0.03287351722250576,
+      "ci95_high": 0.04775808708402978,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "overlaps-equivalence-boundary",
+      "block_effects": [
+        -0.011282730644890049,
+        0.0174531283976469,
+        0.01615645703952917
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "effect": -0.009738229292106326,
+      "ci95_low": -0.020976416345050222,
+      "ci95_high": 0.0014999577608375714,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        -0.014944485776261285,
+        -0.0067642145060333725,
+        -0.0075059875940243215
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "effect": 0.0038867971967747237,
+      "ci95_low": -0.011826149118458707,
+      "ci95_high": 0.019599743512008154,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.002020005366634603,
+        -0.0012950247338854304,
+        0.010935410957574998
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "effect": 0.012787354532664738,
+      "ci95_low": -0.007540514927378788,
+      "ci95_high": 0.03311522399270826,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "overlaps-equivalence-boundary",
+      "block_effects": [
+        0.02206874194469055,
+        0.006612223308921861,
+        0.0096810983443818
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "effect": 0.011523456644465968,
+      "ci95_low": 0.00021801346639591275,
+      "ci95_high": 0.022828899822536025,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.016339726400898424,
+        0.010935966030335642,
+        0.007294677502163838
+      ]
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "effect": 0.011440148218973952,
+      "ci95_low": 0.009098420777480324,
+      "ci95_high": 0.01378187566046758,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.012502940364298443,
+        0.010705072429287199,
+        0.011112431863336214
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 2,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 5,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 10,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 25,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 50,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 100,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "effect": 0.004714900870075052,
+      "ci95_low": -0.021400312022563796,
+      "ci95_high": 0.030830113762713898,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "overlaps-equivalence-boundary",
+      "block_effects": [
+        0.008271838659501762,
+        -0.0071149288637185615,
+        0.012987792814441956
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "effect": 0.0012253172031591413,
+      "ci95_low": -0.006720210172551036,
+      "ci95_high": 0.009170844578869318,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0010252263751662216,
+        0.004519170411311224,
+        -0.001868445177000022
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "effect": 0.009462806928990078,
+      "ci95_low": 0.0023389201356250056,
+      "ci95_high": 0.01658669372235515,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.008838499044047321,
+        0.012591283264284714,
+        0.006958638478638202
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "effect": 0.01371228762961548,
+      "ci95_low": -0.0140820535791324,
+      "ci95_high": 0.04150662883836336,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "overlaps-equivalence-boundary",
+      "block_effects": [
+        0.026627359738598644,
+        0.007551936535335146,
+        0.006957566614912647
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "effect": 0.007128362900253575,
+      "ci95_low": 0.0017596778667229498,
+      "ci95_high": 0.0124970479337842,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.008367985444260206,
+        0.004632857275730151,
+        0.008384245980770366
+      ]
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "effect": 0.00764931941820753,
+      "ci95_low": -0.0019781040029110434,
+      "ci95_high": 0.017276742839326103,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.010494735699088098,
+        0.009217876195312558,
+        0.0032353463602219357
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 2,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 5,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 10,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 25,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 50,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 100,
+      "effect": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "effect": 0.006461511483549638,
+      "ci95_low": 0.00042504164345056033,
+      "ci95_high": 0.012497981323648717,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.009139698859399026,
+        0.004397563311591357,
+        0.005847272279658533
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "effect": 0.005481995949940736,
+      "ci95_low": -0.003587960840649656,
+      "ci95_high": 0.01455195274053113,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.009435264724685144,
+        0.004774076711265174,
+        0.00223664641387189
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "effect": 0.0020219568439350244,
+      "ci95_low": -0.0010020143689218313,
+      "ci95_high": 0.00504592805679188,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.002795855652321766,
+        0.0006188088683929394,
+        0.002651206011090368
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "effect": 0.0070534494843090085,
+      "ci95_low": 0.0019942094492431534,
+      "ci95_high": 0.012112689519374864,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.004737985168021153,
+        0.00785511651261861,
+        0.008567246772287263
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "effect": 0.003915419971911138,
+      "ci95_low": 0.0009546519275700489,
+      "ci95_high": 0.006876188016252227,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.003149142333376931,
+        0.00330852499911094,
+        0.005288592583245544
+      ]
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "effect": 0.004308112939568787,
+      "ci95_low": 0.001121780056311224,
+      "ci95_high": 0.007494445822826349,
+      "status": "estimable",
+      "equivalence_margin_pct": 3.0,
+      "equivalence_relation": "inside-equivalence-range",
+      "block_effects": [
+        0.0030487674992460967,
+        0.005612902849078116,
+        0.004262668470382147
+      ]
+    }
+  ],
+  "summary": {
+    "inside": 32,
+    "overlaps": 4,
+    "outside": 0,
+    "indeterminate": 0,
+    "estimable": 36
+  },
+  "crosschecks": {
+    "records": 135,
+    "registered_records": 108,
+    "differences": true,
+    "intervals": true,
+    "holm": true,
+    "report_markdown": true
+  },
+  "measurement_conditions": {
+    "environment": "Pegasus compute nodes",
+    "threads": 48,
+    "protocol": "silo",
+    "workloads": [
+      "write-heavy",
+      "balanced",
+      "read-heavy"
+    ],
+    "means_us": [
+      2,
+      5,
+      10,
+      25,
+      50,
+      100
+    ],
+    "reps": 5,
+    "blocks": 3
+  },
+  "tracked_inputs": [
+    {
+      "kind": "report_provenance",
+      "path": "output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_provenance.json",
+      "sha256": "a4390603f20fbc8fdb74c482a17ae880f292e340e79846c31f5d923d71789fca"
+    },
+    {
+      "kind": "report_markdown",
+      "path": "output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_report_978195.nqsv-23409962b76b.md",
+      "sha256": "e237d17db4f02818ea27049165fa90da4c19adea1bc8bca9b165b73b77e8e768"
+    },
+    {
+      "kind": "caption_source",
+      "path": "docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md",
+      "sha256": "8dc6d69538c6785c0e3e56073ccc86c97e82699972265d5c521159a6cf72045a",
+      "authority_scope": "source of wording of limitations and conditions; not the primary authority for measurement values or judgments"
+    }
+  ],
+  "schema": "izanagi-b10-waiting-grid-forest-figure-provenance/v1",
+  "generated_utc": "2026-09-20T10:45:59.153051+00:00",
+  "generator": {
+    "path": "tools/plotting/plot_b10_waiting_grid_forest.py",
+    "sha256": "b520a0452eb79f351bb1badad31fd7958da36141856c5ee55aa122ca76052f40"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig13_b10_waiting_grid_forest.png",
+      "sha256": "7554777f2e00b6c3d9f01959a0ea545127484efbb5244922b84bcbbc6467d8ad"
+    },
+    {
+      "path": "docs/paper-story/figures/fig13_b10_waiting_grid_forest.pdf",
+      "sha256": "e677b94f82d3d73dadc16518b1e6940a688821e8e4518b061ead6503f396072c"
+    }
+  ],
+  "artist_series": [
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 2,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 0,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 5,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 1,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 10,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 2,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 25,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 3,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 50,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 4,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "constant",
+      "mean_us": 100,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 5,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "x": 0.7442284930762006,
+      "low": -3.2873517222505764,
+      "high": 4.775808708402978,
+      "y": 0,
+      "block_x": [
+        -1.1282730644890049,
+        1.74531283976469,
+        1.615645703952917
+      ],
+      "marker": "s"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "x": -0.9738229292106326,
+      "low": -2.097641634505022,
+      "high": 0.14999577608375714,
+      "y": 1,
+      "block_x": [
+        -1.4944485776261285,
+        -0.6764214506033372,
+        -0.7505987594024321
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "x": 0.3886797196774724,
+      "low": -1.1826149118458706,
+      "high": 1.9599743512008154,
+      "y": 2,
+      "block_x": [
+        0.2020005366634603,
+        -0.12950247338854304,
+        1.0935410957574998
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "x": 1.2787354532664739,
+      "low": -0.7540514927378789,
+      "high": 3.3115223992708263,
+      "y": 3,
+      "block_x": [
+        2.206874194469055,
+        0.6612223308921861,
+        0.96810983443818
+      ],
+      "marker": "s"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "x": 1.1523456644465968,
+      "low": 0.021801346639591275,
+      "high": 2.2828899822536024,
+      "y": 4,
+      "block_x": [
+        1.6339726400898424,
+        1.0935966030335642,
+        0.7294677502163838
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "write-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "x": 1.1440148218973953,
+      "low": 0.9098420777480324,
+      "high": 1.378187566046758,
+      "y": 5,
+      "block_x": [
+        1.2502940364298443,
+        1.07050724292872,
+        1.1112431863336214
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 2,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 0,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 5,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 1,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 10,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 2,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 25,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 3,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 50,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 4,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "constant",
+      "mean_us": 100,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 5,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "x": 0.4714900870075052,
+      "low": -2.1400312022563797,
+      "high": 3.08301137627139,
+      "y": 0,
+      "block_x": [
+        0.8271838659501762,
+        -0.7114928863718561,
+        1.2987792814441956
+      ],
+      "marker": "s"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "x": 0.12253172031591412,
+      "low": -0.6720210172551035,
+      "high": 0.9170844578869318,
+      "y": 1,
+      "block_x": [
+        0.10252263751662216,
+        0.4519170411311224,
+        -0.1868445177000022
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "x": 0.9462806928990078,
+      "low": 0.23389201356250056,
+      "high": 1.658669372235515,
+      "y": 2,
+      "block_x": [
+        0.8838499044047321,
+        1.2591283264284714,
+        0.6958638478638202
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "x": 1.371228762961548,
+      "low": -1.40820535791324,
+      "high": 4.150662883836336,
+      "y": 3,
+      "block_x": [
+        2.6627359738598644,
+        0.7551936535335146,
+        0.6957566614912647
+      ],
+      "marker": "s"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "x": 0.7128362900253575,
+      "low": 0.17596778667229498,
+      "high": 1.24970479337842,
+      "y": 4,
+      "block_x": [
+        0.8367985444260206,
+        0.4632857275730151,
+        0.8384245980770366
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "balanced",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "x": 0.764931941820753,
+      "low": -0.19781040029110433,
+      "high": 1.7276742839326102,
+      "y": 5,
+      "block_x": [
+        1.0494735699088098,
+        0.9217876195312558,
+        0.32353463602219357
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 2,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 0,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 5,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 1,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 10,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 2,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 25,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 3,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 50,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 4,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "constant",
+      "mean_us": 100,
+      "x": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "y": 5,
+      "block_x": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 2,
+      "x": 0.6461511483549638,
+      "low": 0.042504164345056036,
+      "high": 1.2497981323648717,
+      "y": 0,
+      "block_x": [
+        0.9139698859399026,
+        0.4397563311591357,
+        0.5847272279658533
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 5,
+      "x": 0.5481995949940737,
+      "low": -0.3587960840649656,
+      "high": 1.4551952740531129,
+      "y": 1,
+      "block_x": [
+        0.9435264724685144,
+        0.4774076711265174,
+        0.223664641387189
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 10,
+      "x": 0.20219568439350244,
+      "low": -0.10020143689218314,
+      "high": 0.504592805679188,
+      "y": 2,
+      "block_x": [
+        0.2795855652321766,
+        0.061880886839293936,
+        0.2651206011090368
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 25,
+      "x": 0.7053449484309009,
+      "low": 0.19942094492431534,
+      "high": 1.2112689519374864,
+      "y": 3,
+      "block_x": [
+        0.47379851680211527,
+        0.785511651261861,
+        0.8567246772287263
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 50,
+      "x": 0.3915419971911138,
+      "low": 0.0954651927570049,
+      "high": 0.6876188016252227,
+      "y": 4,
+      "block_x": [
+        0.3149142333376931,
+        0.330852499911094,
+        0.5288592583245544
+      ],
+      "marker": "o"
+    },
+    {
+      "workload": "read-heavy",
+      "shape": "symmetric-modulo",
+      "mean_us": 100,
+      "x": 0.43081129395687867,
+      "low": 0.1121780056311224,
+      "high": 0.7494445822826349,
+      "y": 5,
+      "block_x": [
+        0.30487674992460967,
+        0.5612902849078116,
+        0.4262668470382147
+      ],
+      "marker": "o"
+    }
+  ],
+  "caption": "Figure 13. B-10 waiting-shape grid, preregistered contrast constant vs symmetric-modulo. write-heavy: different, raw p = 6702/2^18 = 0.02556610107421875, Holm p = 0.02556610107421875, 18 pairs, sum of paired effects +0.11202543669460518 (symmetric-modulo higher); balanced: different, raw p = 70/2^18 = 0.00026702880859375, Holm p = 0.0005340576171875, 18 pairs, sum of paired effects +0.13167898485090257 (symmetric-modulo higher); read-heavy: different, raw p = 2/2^18 = 7.62939453125e-06, Holm p = 2.288818359375e-05, 18 pairs, sum of paired effects +0.087727340019642996 (symmetric-modulo higher). Cell effects and 95% paired-block intervals: 36 estimable, inside 32, overlaps 4, outside 0, indeterminate 0; 1 negative point estimates and 8 positive interval lower bounds. Boundary overlaps: write-heavy mu 2 and 25, balanced mu 2 and 25. Constant cells are constructional references at zero with intervals [0, 0]; gray ticks show the three block-level paired effects. Conditions: Pegasus compute nodes, 48 threads, silo, YCSB write-heavy / balanced / read-heavy, commanded mean wait mu 2, 5, 10, 25, 50, 100 us, 5 reps x 3 blocks, CCBench pin 511c953, report request 978195.nqsv, preregistration commit 77b33e37d, source commit 2a338449b. Each family's outcome is the preregistered procedure's classification and is not a research verdict. Intervals lying inside the +/-3.0% margin are reported as the position of the interval and are not a finding of equivalence; no equivalence test was performed. Per-cell intervals are descriptive and no per-cell significance decision is made; the only tests are the three family-level permutation tests with Holm adjustment. The static right-tail cohorts (separate preregistration, grid and driver) are neither pooled nor compared with this grid. official_certification is false; these performance values are not a basis for adopting a variant. Direction and effect sizes are stated for this one contrast only; nothing is claimed about waiting-shape effects in general, about binary, about a dose response of dispersion, or about a general separation of waiting shape from waiting amount. Correctness is recorded from separate trace-enabled runs (135 of 135 cells certified) and is not a performance certification. The three workloads ran as separate jobs on different days and driver versions; absolute throughput is not compared across workloads, and no mechanism is claimed for the direction.",
+  "reproduction": {
+    "cwd": "repository-root",
+    "argv": [
+      "python3",
+      "tools/plotting/plot_b10_waiting_grid_forest.py",
+      "--repo-root",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fig13-b10-waiting-grid",
+      "--evidence-root",
+      "/work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape",
+      "docs/paper-story/figures/fig13_b10_waiting_grid_forest"
+    ],
+    "command": "python3 tools/plotting/plot_b10_waiting_grid_forest.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fig13-b10-waiting-grid --evidence-root /work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape docs/paper-story/figures/fig13_b10_waiting_grid_forest"
+  }
+}
