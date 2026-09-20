@@ -33,3 +33,12 @@ README へ書かないと返答したため)。焦点再レビューの射影に
 
 量化の照合で closed とされたもの (WAL 5/5、pair 5/5、複製 6/6、6 root / 615 file、走査 (a) 0 件、loop_state / AO の再構成) は据え置き。「A 推奨と B / C の合理性は矛盾しない」。
 fix 後に焦点再レビュー 2 巡目 (`s6-focus-2.md`) を投げる。
+
+## 焦点再レビュー 2 巡目 (`s6-focus-2.md`、4 call、68 秒) の裁定 — NO-GO、残 must-fix 1 件、real・採用
+
+| # | 所見 | 判定 | fix |
+|---|---|---|---|
+| G1 | README §1 の loop_state 行と log §8・§10 が、`start_wall` の数値列挙・epoch 照合の証拠を `reverse_recommendations` の不在断定にも広げている | real | README §1 の該当行と log の 2 文を `start_wall` に限定し、`reverse_recommendations` の値は「未検証 (語の有無だけ見た)」と書いた |
+
+M6・fragment の先取り・受領証の限定は closed。追加量化 (6 root 615 file、語 hit 24、数値 4 file、epoch 範囲 0 件、走査 (b) の hit 1 件 / round 3 digest 0 件) は stdout と一致。
+fix 後に焦点再レビュー 3 巡目 (`s6-focus-3.md`、G1 だけ) を投げる。

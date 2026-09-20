@@ -121,7 +121,7 @@ files containing 'start_wall' or 'reverse_recommendations': 24 file (round 3 REA
   t2588 job dir の codex event log 3 本 (plan / consult、走行前の設計議論)、t2746 job dir の diff 3 本・mutation json 2 本・codex event log 8 本、round 2 scratch の loop_state.json)
 ```
 
-roundtrip の `loop_state.json` の `start_wall` / `reverse_recommendations` の値を持つ file は無い (語を含む 24 file の値の内訳は §10)。
+roundtrip の `loop_state.json` の `start_wall` の値を持つ file は無い (語を含む 24 file の値の内訳は §10)。`reverse_recommendations` の値は未検証 (語の有無だけ見た)。
 
 ## 9. pair 走の原本の byte 複製 (`copy_pair_originals.py`、付随項)
 
@@ -145,7 +145,7 @@ round 3 `materials/run-summary.json` = `1789824041.4768934` (round 3 の値)、p
 round 2 scratch `loop_state.json` と round 3 `reviews/s3-consult-a.md` = `1789681001.1930716` (round 2 の値)。残る 20 file (round 3 README / reviews 3 本、t2588 の codex event log 3 本
 = 走行前の plan / consult、t2746 の diff 3 本・mutation json 2 本・codex event log 8 本) は語だけで数値を持たない。
 **roundtrip 走行日 (2026-09-16 JST、epoch 1789484400..1789570799) の範囲の値は 0 件。** roundtrip の `start_wall` の値そのものは失われているので、「値が無い」は
-「数値を持つ 4 file の値がいずれも roundtrip の範囲外」という意味で言う。
+「数値を持つ 4 file の値がいずれも roundtrip の範囲外」という意味で、`start_wall` についてだけ言う。`reverse_recommendations` の値は列挙・照合しておらず未検証。
 
 走査 (b) の採り直し (条件を stdout に出す版): 6 root 615 file について (i) round 2 digest `a0a4c204…` / round 3 digest `f993251d…` との sha256 一致、(ii) round 2 digest の
 先頭 200 B の包含。結果: (i) hit = round 2 scratch の `s4_loop_digest.txt` 1 件 (round 3 digest は 0 件)、(ii) hit = 同じ 1 file。§6 の走査 (repo の insight dir 3 つ、0 件) は
