@@ -570,6 +570,10 @@ def test_base_site_admission_is_exact_two_site_set():
     assert admitted == {site_policy.OTHER, site_policy.PEGASUS_COMPUTE}
 
 
+# T-816 policy epoch; T-2304 advances repo_stock_pin in admission policy.
+_T816_BASE_CFG_HASHES = {True: "8cf3efb9", False: "93d98106"}
+
+
 def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     raw = L.default_cfg()
     linux_contract = env_contract.lookup(L.ENV_TAG)
@@ -583,11 +587,14 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
         raw, site_policy.PEGASUS_COMPUTE, _contract=pegasus_contract,
     )
 
+    assert str(ident.campaign_id(other)) != (
+        "p3-s4-loop-s4-autonomous-" + _T816_BASE_CFG_HASHES[True]
+    )
     assert other.bound_environment_contract is linux_contract
     assert compute.bound_environment_contract is pegasus_contract
     assert "measurement_env" not in other.search_config
     assert str(ident.campaign_id(other)) == (
-        "p3-s4-loop-s4-autonomous-8cf3efb9"
+        "p3-s4-loop-s4-autonomous-9c24faca"
     )
     assert ident.campaign_id(compute) != ident.campaign_id(other)
     assert compute.search_config["measurement_env"] == "pegasus"
@@ -600,7 +607,7 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert other_off.bound_environment_contract is linux_contract
     assert "measurement_env" not in other_off.search_config
     assert str(ident.campaign_id(other_off)) == (
-        "p3-s4-loop-s4-autonomous-93d98106"
+        "p3-s4-loop-s4-autonomous-5b6dd269"
     )
 
 
@@ -5058,12 +5065,15 @@ def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
         reflux=True, b4_reflux_ablation=True,
         _b4_launch_context=_B4_TEST_CONTEXT,
     )
+    assert str(ident.campaign_id(ordinary)) != (
+        "p3-s4-loop-s4-autonomous-" + _T816_BASE_CFG_HASHES[True]
+    )
     assert ordinary == explicit_false
     assert str(ident.campaign_id(ordinary)) == (
-        "p3-s4-loop-s4-autonomous-8cf3efb9"
+        "p3-s4-loop-s4-autonomous-9c24faca"
     )
     assert str(ident.campaign_id(L.default_cfg(reflux=False))) == (
-        "p3-s4-loop-s4-autonomous-93d98106"
+        "p3-s4-loop-s4-autonomous-5b6dd269"
     )
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert L.b4_reflux_ablation_mode(ordinary) is False
@@ -6429,7 +6439,7 @@ def test_planner_context_payload_rejects_non_string_policy_hint(hint):
 
 @pytest.mark.parametrize(
     ("reflux", "expected_hash"),
-    ((True, "8cf3efb9"), (False, "93d98106")),
+    ((True, "9c24faca"), (False, "5b6dd269")),
 )
 def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
     reflux, expected_hash, tmp_path, monkeypatch,
@@ -6446,6 +6456,7 @@ def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
         classification="reproduction_or_selection",
         de_novo_claim=False,
     )
+    assert expected_hash != _T816_BASE_CFG_HASHES[reflux]
     assert prepared == base
     assert projection is None
     assert wal.KNOWLEDGE_LEVEL_SEARCH_KEY not in prepared.search_config

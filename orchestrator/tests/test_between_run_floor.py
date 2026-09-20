@@ -252,7 +252,8 @@ def test_write_out_rolls_back_json_when_markdown_creation_fails():
 
 def test_trace_hook_admission_is_bound_to_source_facts():
     assert between_run_floor._protocol_source_has_trace_hook_evidence_only("silo")
-    assert not between_run_floor._protocol_source_has_trace_hook_evidence_only("mocc")
+    # 旧 pin 511c953 では mocc の hook 証拠は False、e9e477ca で追加された。
+    assert between_run_floor._protocol_source_has_trace_hook_evidence_only("mocc")
     assert not between_run_floor._protocol_source_has_trace_hook_evidence_only("tictoc")
 
 
@@ -440,7 +441,8 @@ def test_trace_hook_admission_rejects_hook_after_nested_if_inside_if_zero():
         )
 
 
-def test_mocc_floor_rejected_before_build_or_measure_without_trace_hook():
+def test_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():
+    """mocc は e9e477ca で hook を得たので、拒否の被験を tictoc に移した。"""
     calls = []
     originals = {
         "tenant": between_run_floor._assert_single_tenant,
@@ -458,7 +460,7 @@ def test_mocc_floor_rejected_before_build_or_measure_without_trace_hook():
     )
     between_run_floor.derive_build_admission = lambda *_args: object()
     between_run_floor.buildcache.build = lambda *_args, **_kwargs: (
-        calls.append("build") or SimpleNamespace(cached=True, binary="/fixture/mocc")
+        calls.append("build") or SimpleNamespace(cached=True, binary="/fixture/tictoc")
     )
     between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (
         calls.append("measure") or {
@@ -470,11 +472,11 @@ def test_mocc_floor_rejected_before_build_or_measure_without_trace_hook():
     between_run_floor._write_out = lambda *_args, **_kwargs: calls.append("write")
     try:
         try:
-            between_run_floor.main(["prog", "read-heavy", "--protocol", "mocc"])
+            between_run_floor.main(["prog", "read-heavy", "--protocol", "tictoc"])
         except ValueError as caught:
             assert "trace hook" in str(caught)
         else:
-            assert False, "trace hook のない mocc floor が受理された"
+            assert False, "trace hook のない tictoc floor が受理された"
     finally:
         between_run_floor._assert_single_tenant = originals["tenant"]
         between_run_floor.build_run_context = originals["context"]
