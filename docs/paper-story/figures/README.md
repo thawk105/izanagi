@@ -24,7 +24,7 @@
 | `fig8b_b10_static_tail_cohort2.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` (`--reproduction-cohort 2`) | `fig8_` の**後継図 (再現欄付き)**。**主結果 cohort 1** (group `b10-backoff-grid-20260915T061814Z-545445`、上 block) と**独立再現 cohort 2** (group `b10-backoff-grid-20260919T131526Z-2235286`、事前登録追記込み commit `8737cacb4` に束縛、下 block) を縦 2 block で**区別して併記**する記述図。両 cohort とも集団判定 `not-observed-in-any-workload`、18/18 区間 `declining`。**合成しない** (プール推定・統合 verdict・cohort をまたぐ有意水準を作らず、近さを一致度として評価しない。事前登録 2026-09-19 追記 項 2〜3・項 7、D2157)。言い方は §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637) |
 | `fig9_a1_balanced5_sized_attempt1.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` | A-1 balanced5 sized 本走 **attempt-0001** (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`) の**記述図**。3 workload の 30 対の差 (variant − baseline) と、その対差平均 ± 登録済み区間 h を床 ±B と並べる。**非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)** のdescriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再認可は判定しない。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 | `fig3b_arc_status_2026-09-20.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_arc_status.py` | `fig3_` の**後継図**。ストーリー 2026-09-19 版の §0 の 3 幕と §8 の A 系列 5 項目 / B 群 11 項目の**状態** (取得済み / 非認証 / 裁定待ち・人間手番 / 未取得) だけを描いた模式図。**数値・新規判定を含まない** (生成器は JSON を描くだけで判定・値・認証を再計算しない)。入力は状態 JSON `tools/plotting/arc_status_story_2026-09-19.json` (人が同版本文から写した射影) と同版本文。旧 fig3 は凍結のまま |
-| `fig10_b7_fixed5_three_workload_regression.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b7_fixed5_regression.py` | 採用候補 **fixed 5 µs** を 3 workload で同一 attempt `b7f5-20260919a` (study `paper-story-b7-fixed5-regression`、request `10807` / `10808` / `10809`) に測った 6 cell × 5 標本と、各 workload の median 効果を D1639 の between-run 床値と比べた**記述図** (B-7 の材料)。稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の床値判定 (write-heavy / balanced 退行なし、**read-heavy は床値超の退行**) を写す (判定の出所は稿の転記で、生成器は述語 `effect < −floor` との整合だけを検査する)。**B-7 の要件充足・反復 attempt・certification 昇格・有意差は判定しない (D2044 項 3、D2162)。** 既存図の後継ではなく独立した新図。既存材料 (10 / 5 / 2 µs) とプール・比較しない (D1993 項 6)。2 本目の論文と共用しない (D1637) |
+| `fig10_b7_fixed5_three_workload_regression.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b7_fixed5_regression.py` | 採用候補 **fixed 5 µs** を 3 workload で同一 attempt `b7f5-20260919a` (study `paper-story-b7-fixed5-regression`、request `10807` / `10808` / `10809`) に測った 6 cell × 5 標本と、各 workload の median 効果を D1639 の between-run 床値と比べた**記述図** (B-7 の材料)。稿 `results/2026-09-19-b7-fixed5-three-workload-regression.md` の床値判定 (write-heavy / balanced 退行なし、**read-heavy は床値超の退行**) を写す (判定の出所は稿の転記で、生成器は述語 `effect < −floor` との整合だけを検査する)。**B-7 の要件充足・反復 attempt・certification 昇格・有意差は判定しない (D2044 項 3、D2162)。** 既存図の後継ではなく独立した新図。既存材料 (10 / 5 / 2 µs) とプール・比較しない (D1993 項 6)。2 本目の論文と共用しない (D1637)。**追補 (2026-09-20、D2174 項 3): B-7 は図の外で「単一 attempt・descriptive・非認証・反復間安定性は未判定」の限定付きで充足と裁定され、D2044 項 3 の「要件充足へ昇格させない」はこの限定付き充足で supersede された。図・caption・provenance の bytes は不変 (同節の追補)** |
 | `fig11_a6_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-6 read-heavy 正式 certification (attempt `a6-20260908b`、request `982234.nqsv`、outer `reject`) の**結果図**。rr95 の exact 2 cell (stock `BACK_OFF=0` 対 採用静的 backoff fixed 2 µs)、median 比 −5.7841%。fig6 (A-2) と同じ生成器・同じ描画契約で描き、`fig5_` / `fig6_` / `fig7_` の後継でも前身でもない別 policy・別 attempt・別 workload の独立した新図 (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない。**性能の `reject` と別走行の正しさ `certified` (2/2) は別の段で、後者は性能の認証ではなく、前者は正しさ証拠を取り消さない (D1993 項 2)。** B-10 の近接条件 3 block ([T-2430]) は履歴的照合であって pool しない。稿 `results/2026-09-18-a6-certification-reject.md` を `caption_source` として SHA-256 束縛 (稿 bytes は不変)。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
@@ -1305,6 +1305,22 @@ durable root が読めるときは `validate_external_sources` が raw 6 本の 
 
 provenance が `caption_source` として束縛する稿の SHA-256 は `6585d446a07d798d87c352a1b41eb5b195ee70ba453976aa5ec0f46daef4b6f9`
 (稿は凍結物で、着地後に変わらない)。
+
+## 追補 — B-7 の限定付き充足 (2026-09-20、D2174 項 3、[T-2610])
+
+着地後のユーザー裁定 D2174 項 3 (択 (a)) は、B-7 (論文の失敗条件 (e) = target workload では勝つが他の workload で床値超の退行があるなら
+退行込みで全 workload を報告する) を、同一候補 fixed 5 µs の 3 workload 同時期測定と床値判定 (D2162、稿 §2.1、read-heavy が床値超の退行) と本図により、
+**単一 attempt・descriptive・非認証・反復間安定性は未判定**という限定付きで満たしたと扱い、D2044 項 3 (要件充足へ昇格させない) をこの限定付き充足で
+supersede した。反復 attempt は認可されず (択 (b) 不採用)、certified 昇格・有意差判定・新規測定は含まない。
+
+- **本図の bytes・caption・provenance は変えない。** caption の固定文 "This is B-7 material, not a B-7 satisfaction decision (D2044 item 3)." は
+  着地時点の記録として真のまま残す — 充足の裁定は図の外で D2174 項 3 が行ったのであり、図自身が B-7 の充足を判定したのではない。
+  同じく稿 (`caption_source`) の冒頭「本稿が判定しないこと」も凍結のまま (稿の SHA-256 は上の値から動かない)。
+- **本図で言えることは変わらない。** 図の統計的な解釈 (何を判定し何を判定しないか) と、図を variant 採用の根拠にしない制限は、上の「何を示す図か」のとおり変わらない。
+- **「充足」の射程。** 満たしたのは報告要件 (退行込みの全 workload 報告) であって、候補の採用・性能主張・正しさの認証ではない。
+  B-7 の充足裁定に付く限定は上の 4 語である (D2174 項 3)。稿・図の既存の限定はそのまま残る。
+- ストーリー版 2026-09-20 版の該当文 (§8 B-7、§6 「言えないこと」) が古くなった扱いは `docs/paper-story/README.md` の stale 注記が持つ (版・claim-evidence 稿は凍結のまま)。
+- 裁定の一次資料 → D2174 項 3。本追補の記録 → `output/insights/2026-09-20/t2610-b7-limited-satisfaction/README.md`。
 
 ---
 
