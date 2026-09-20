@@ -58,9 +58,35 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 | 出所 (末尾) | 26 (attempt-0002 稿・公開 leaf・記録・裁定)、27 (B-8 の試走認可と発効前試走) を追加 |
 | それ以外の本文・表 1〜15 | 不変 |
 
-## 5. 段 6 — 独立 read-only レビューと焦点再レビュー
+## 5. 段 6 — 独立 read-only レビュー (A) と焦点再レビュー (3 巡、DW-O16 の上限)
 
-(段 6 の実施後に記す。実施前の欄は作らない)
+### 5.1 review-A (read-only、gpt-6-astra / medium、24 call、381 秒、01:10〜01:16 JST、rc=0、`outcome: accepted`)
+
+prompt = job dir `prompt-review-a.md` (2 レンズ = A: 一次資料との照合・帰属・母集合 / B: 主張の強さ・状態語・禁止句・story §6 と stale 注記の整合)。
+対象は本版と README 2 本 (要旨・結論は別のレビュー B)。**NO-GO、所見 5 = must-fix 1 / should-fix 1 / nit 1 / refuted 2。表 7b は 78 セル全一致
+(両公開 leaf の `result.json` でも statistics を照合)、§5 の値・条件・限定は attempt-0002 稿と一致。** 親の裁定: real 3・採用、refuted 2 は親の
+provisional 裁定 (P1)(P2) の維持。
+
+| # | 種別 | 所見 (要旨) | 一次資料 | 親の fix |
+|---|---|---|---|---|
+| 1 | must-fix | 出所 15 の provenance 注記が再構成対象を取り違え (byte 一致で再構成できるのは round 3 `loop_state.json` と round 2 / 3 `agent_outputs.jsonl`。材料レポートは入力側で残存)、「WAL は内容同一まで」が round 1 にも読める (round 2 = byte 一致の写し、round 3 = 内容同一、round 1 = 値のみ) | `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §0〜§1、entry 1764 | 巡ごとに範囲を書き分け、材料レポートを対象から外す |
+| 2 | should-fix | §8.1 の pair 段落が正しさ (serializable / certified) と性能 (811,956 tps) を 1 文に畳む | `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §1 | trace 無効 build の性能と trace 有効 build の検査を別文に |
+| 3 | nit | §11 に足した attempt-0002 の値 (−560,565.60 tps) の段落末に出所 26 が無い | — | `[…, 26]` を追加 |
+| 4 | refuted | (P1) attempt-0002 以外の状態語 4 件の更新は scope 逸脱か | D2186 / D2187 / D2190、entry 1748〜1770 の見出し | 採用時点 `285477c00` の版として妥当。直し漏れなし (維持) |
+| 5 | refuted | (P2) 前稿 README への pointer 追加は前稿不変違反か | `git diff 285477c00 HEAD -- <前稿本文>` = 空、sha256 一致 | 維持 |
+
+fix commit `4034e945c` (`artifacts/fix1.py`、レビュー B の所見と合わせて 4 file +61/−40)。
+
+### 5.2 focus-1 (read-only、12 call、235 秒、01:23〜01:27 JST) と focus-2 (3 call、60 秒、01:30〜01:31 JST)
+
+focus-1 は A / B の所見 14 件を 1 本で判定: **closed 8 / partial 3 (いずれもレビュー B 側) / refuted 妥当 3 / regressed 0**。本版に関わる A-1〜A-3 は closed、A-4 / A-5 は refuted 妥当。
+focus-2 は残 3 件 (要旨・結論側) を closed にして **GO**。本版側の 3 巡目の対象は無い。
+
+### 5.3 費用と気づき
+
+- codex 4 本 (review-A 24 call / review-B 19 call / focus-1 12 call / focus-2 3 call、いずれも gpt-6-astra / medium)。
+- 数表の転記 (表 7b 78 セル) は機械照合で守れたが、**親が要約した provenance の注記 (再構成できる file の種類と巡の範囲) は要約で範囲が広がった**。
+  再構成・残存・欠落の型を持つ注記は、一次資料の表を file × 巡で写してから縮める。
 
 ## 6. 限界と言わないこと
 
