@@ -14,9 +14,9 @@ receipt 解決 ([T-057]) と同じく **commit を積むほど遅くなる**構�
 - canned な `RatifiedFreeze` も canned な例外も作らない。最初の miss は必ず本番
   `load_ratified_freeze(ROOT)` へ委譲し、戻り値 (または送出された例外 object) を
   再構築せずそのまま返す/再送出する。したがってテストが観測する値・例外型・reason・
-  message は memo 導入前と同一である。実 repo の現状は
-  `RatifiedFreezeError(reason="no-active")` で、consumer 側の `freeze-ratify:` refusal
-  文字列はこの reason/str から作られるため、memo が値を偽れば consumer が赤になる。
+  message は memo 導入前と同一である。g1 発効後の実 repo では本番 loader が
+  成功し `RatifiedFreeze` を返す (memo は成功値もそのまま cache する)。consumer 側の
+  refusal は後続の launch validation 由来であり、その検証を memo は畳まない。
 - `Exception` を型を問わず捕まえて同じ object を再送出する。本番 `gate_check` /
   `run_block` は `RatifiedFreezeError` と他 `Exception` で refusal 文字列を書き分ける
   ため、型を落とすと refusal が変わってしまう。
@@ -42,7 +42,7 @@ receipt 解決 ([T-057]) と同じく **commit を積むほど遅くなる**構�
   差し替えが唯一の等価な畳み方である。
 
 **使ってはいけない場所**: 実 repo の active 世代解決そのもの (履歴走査・record 連鎖・
-承認検証・解決失敗の翻訳) を検査対象にしているテスト。現在の該当は
+承認検証・実解決成功後の launch validation 拒否翻訳) を検査対象にしているテスト。現在の該当は
 `test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused` で、
 この node は **memo を使わない正本 payer** として実解決を毎 session 必ず 1 回走らせる
 (node 順序に依らず実走査の検出力を保つ)。この不変条件は

@@ -68836,3 +68836,225 @@ D2150 項 1 が前提とする人間 push (D16) の操作のままで、本項�
   `2026-09-20-rulings-full25-verdicts.md` に照合項として控えた。T-2620 の wave は記録前に entry 1724 で着地したので本 wave が状態を書く。
 - 相談が挙げた land 側 provenance 監査の外側 timeout と dispatch queue 待ちの両立は、稼働 wave の fragment の起票候補 (AI 手番) であり、
   形が提案された時点で諮る。上流報告の送信 (人間) は AI の報告案が先で変わらない。
+
+## D2175. B-8 の事前登録 v1 を別 file に作り、対象の 2 案と推奨・「種」・「長時間」・判定規則を結果を見る前に固定する — 発効・試走・本走は認可しない (2026-09-20)
+
+**決定:** 論文ストーリー 2026-09-20 §8 の B-8 (種を変えた長時間実行による最終候補の検証、未取得) を取得する
+ための事前登録 v1 を `docs/b8-final-candidate-longrun-verify-preregistration.md` (未発効、台帳 ID 未起票) として
+新設した。B-5 の事前登録 (D2158) と同型の別 file で、`docs/phase3-main-experiment.md` と paper-story は編集しない。
+設計の骨子:
+
+- **対象は 2 案を並記し、択一は発効時に D 番号で記録する。** 案 A (推奨) = S-1 の最終候補 = 系側 gate 構成
+  g_rl (balanced / read-heavy) / g_rt (write-heavy)、gate 述語は `output/s1-freeze/known_axes_freeze.json` の逐語、
+  1 対象 = 24 verify。案 B = 採用静的 backoff 2 genome (fixed-5 / fixed-10、D2160 の候補)、48 verify。推奨の理由は
+  (1) 論文ストーリーの仕分けが「対象 ≠ S-1 最終候補」を B-8 未取得の理由に数えるので案 B では B-8 にならない、
+  (2) S-1b の variant は独立反復 × 長 extime の検証を一度も受けていない (S-1 直接比較 report が「独立な検証相を
+  持たない」と明記)、(3) 案 B は D2160 で 30 verify / 候補 (3 s) を持つ。案 B を選ぶ正当条件 = 現行 pin で案 A の
+  build・identity が成立しない、またはユーザーが B-8 の「最終候補」を再定義する。
+- **「種を変えた」= S-1 事前登録 層 2 の登録定義** (各反復が新 process で自己シード。CCBench の `Xoroshiro128Plus::init()`
+  は `std::random_device` の 32 bit 値 1 つから s[0]・s[1] を作り、`YcsbWorkload` は worker thread ごとに構築される。
+  seed の CLI flag は無く値は出力に出ない)。記録は rep-id・PID・開始時刻・argv・node・binary sha・identity・trace 規模。
+  seed 注入の実装は前提条件にしない (D16 の別変更単位、identity が候補と別 bytes になる)。
+- **「長時間」= 1 走の extime が開発相・D2160 の 3 s より長いこと (≥ 6 s)。** 値は校正 {6, 10} s 昇順で決め、適格 =
+  完走 ∧ serializable ∧ certified ∧ anomaly 0 ∧ identity 一致 ∧ verifier wall ≤ 1800 s、未完走は `indeterminate`、
+  3 workload の共通部分の最大値、空なら「候補なし」で本走を投入せず **3 s へ丸めない**。系列長 (反復数) での代替、
+  verifier 容量改善を前提条件にした 10 s 固定、上限撤廃は採らない。現行 verifier では 6 s が見込み (D2160 の校正で
+  6 s は 3 workload とも完走、10 s は balanced SIGKILL・write-heavy hard timeout)。
+- **判定は D2160 項 3・5 を継承**: 判定集合 = 本走 ∪ 校正完走 verdict、失格 (anomaly ≥ 1、再走なし) / pass (24 枠
+  全完走・certified・anomaly 0・identity 一致、判定集合 anomaly 0) / 未確定。本走の未完走は同一 trace の再検証 1 回。
+  anomaly は witness cycle・依存の種類・trx 識別子を逐語で insight に残す (規律 3)。失格時は S-1b (案 A) または
+  A-2 / T-1998 / A-6 (案 B) の記述へ限定を**追記**し、既存記録の bytes は変えない (規律 7)。
+- **予算** = 本走 24 verify の dispatch Elapse 和 ≤ 4 h / 対象 (校正は別欄)。見込みが超えれば 1 段下げ、6 s でも超えれば
+  投入しない。案 B・6 s・1 候補の算術は ≈ 13,000 s (3.6 h)、trace 保全は ≈ 37 GB / 対象 (zstd)。
+- **統計文は反例を作ってから書いた。** 1−εⁿ、「長さ 2 倍 = 露出 2 倍」、「累計 72 s = 72 s の走」、「自己シードは
+  全部異なる」の 4 文は反例が作れたので書かず、条件・仮定として登録した。
+- **主張しないこと**: 性能値 (規律 1)、1−εⁿ、「serializable が示された」、S-1 (iv 付属) の充足、既存 certified の昇格、
+  長さ・反復の効能、他環境への転移。「B-8 を取得した」と書けるのは、対象・種・長時間の各定義が論文ストーリーの
+  仕分けを満たすことをユーザーが発効時に確認した場合だけ。
+- **既存機構の照合**: verifier は 6 s で成立しうる。D2160 の runner (Codex author、repo 外) は fixed 2 genome 専用で
+  **改版が要る**。案 A の現行 pin での厳密適用・trace-enabled build・identity 導出は**未実測**で発効前の試走が要る
+  (template patch の `patch -F0 --dry-run` は transaction.cc の全 hunk が当たる)。本 wave では実装しない。
+
+**理由:**
+- 論文ストーリーの仕分けが B-8 未取得の 3 理由 (対象・種・長さ) を挙げた以上、3 要件の操作的定義を結果を見る前に
+  文書で固定しないと、検証相を再走しても「取得」と書けない状態が続く。
+- 「種」は S-1 の登録定義を持つのに対し、仕分け (2) はそれより厳しい読みをしている。本書で定義を明示し、認めるか
+  どうかを発効時の確認事項にすることで、結果を見た後に定義を動かす余地を無くす。
+- 「長時間」は S-1 自身が 07-16 校正で 3 s に確定した値でもある。B-8 の別登録として「3 s より長い」を要求し、
+  丸めを禁じることで、verifier 容量が足りないときに 3 s を「長時間」と言い換える経路を閉じる。
+- 校正で extime を決める形にすれば、進行中の verifier 容量改善 (別 wave) を前提条件にせずに、着地していれば 10 s を
+  自動的に採れる。
+
+**却下した選択肢:**
+- 対象を 1 案に固定する — 論文ストーリーの仕分けと案 A の build 未実測の両方を発効前に解く必要があり、
+  どちらに転ぶかで対象が変わる。択と推奨を登録し、発効時に択一を D で記録する方が正直である。
+- seed 注入を前提条件にする — 上記のとおり別変更単位で、候補の identity を変える。
+- extime 3 s のまま反復数を増やす — 1 走内でだけ進む状態を捕まえず、仕分け (3) を満たさない。
+- verifier wall の上限を撤廃する — write-heavy 10 s は 3600 s でも終わらず、正しさの情報を増やさない。
+- `docs/phase3-main-experiment.md` へ追記する — 凍結 source で追記できない (D2160 項 6) うえ、D1012 の作法にも反する。
+
+**研究状態への影響:** certified 選択・レポート・台帳の値は変えない。変わるのは、B-8 を取得するための規則が
+発効前の文書として 1 本存在し、発効時の確認事項 7 点が明示されたことである。
+
+## D2176. floor attempt ledger の回復候補関数は呼び出し内 memo で claim 射影と main ledger の再読を 1 回にし、呼び出しを跨ぐ cache は持たない (2026-09-20)
+
+**決定:** `s8b_holdout_admission._floor_attempt_recovery_candidate_locked` は、root lock 保持中の 1 呼び出しに閉じた
+context (成功済み claim 射影の memo + main ledger 生行列の遅延 slot) を持つ。memo に入るのは marker equality まで通った
+claim 射影だけで、hit でも marker の exact shape・schema・role・digest・attempt_id、attempt coverage、constructor、
+marker 全体との equality (MUT-A2) は毎回行う。main ledger の生読取は従来の読取位置 (v1 / measurement-generation) に
+初めて到達したときだけ行い同一呼び出し内で共有する (eager な先読みはしない)。走査順・filter・canonical filename・
+identity 重複・A 行の marker 照合・completed 拒否 (MUT-A6)・error message は不変。既存 signature の 3 関数は context なしの
+wrapper として残す。module 変数・class 属性・呼び出しを跨ぐ cache は持たない。
+
+**理由:**
+- 候補関数は attempt ごとに 1 回呼ばれ、既存 marker 全件と attempt ledger 全行を claim 文書 + main ledger から完全再導出
+  していたため、attempt 数に対し二乗の claim 読取と main ledger 全読が生じていた (T-2766 の profile: 98 attempt で 9,604 回の
+  再導出、代表 node 9.9 s 中 9.1 s、受入 48 worker では `test_s8b_floor_campaign.py` が worker 時間 2,368 s / 17,959 s)。
+- 受理集合 (受理・拒否・message・発火順序) は「一呼出し中に読取対象・読取結果が安定した root」に対して不変である。
+  main ledger と claim の書き手は全て同じ root lock の内側 (H:1909 / 2169 / 3168 / 3797、claim 公開 H:1760 / 2158 / 3786 /
+  3171〜3173) なので、lock 保持中の再読は同じ結果を返す。差分 probe (変更前 module を別名 import し同じ root 状態で比較) で
+  40 状態すべて一致、M1 形の一時変異 (memo hit で marker の値を信用) では 2 状態で不一致を検出した。
+- eager な main 先読みは「target の coverage 不正 + main の末尾 LF 欠落」で最初の例外を変えるため採らない (段 3 相談 A)。
+- 呼び出しを跨ぐ cache は失効・lock・受理集合・実測費用の設計を伴う別裁定であり、本 wave の局所修正の scope 外。
+
+**却下した選択肢:**
+- 参照実装を test 内に写して比較する — 変更後の共通 helper を両側が呼ぶため独立比較にならない。差分 probe は
+  変更前 module の逐語 (job dir) を別名 module として load する wave 時 probe とし、repo の恒久 test は固定 literal で書く。
+- A≠marker (H:5296)・target≠canonical_target (H:5304)・marker identity 重複 (H:5276) の削除を変異に含める —
+  同 identity は同じ canonical 文書に再導出されるため静的 root では到達不能。production の防御は残し、変異にはしない。
+- lock 契約外 (advisory lock を無視する書込み・一過性 I/O) への新 gate や再読 — 既存契約の限界として記録するに留める。
+
+## D2177. 修正前後の受入 shard 対比較は固定した 2 tree の隣接対で測り、D2068 の同一 tree 条件の充足や有意差は主張しない (2026-09-20)
+
+**決定:** production 側の性能改善の効果は、A = 着手時 local main の clean worktree、B = 実装 commit だけを含む
+wave worktree (記録 commit は測定後) から `IZANAGI_ACCEPTANCE_SHARDS=3 python3 tools/run_tests.py` を直接投入 (待ち手・lease・
+merge なし) した隣接対 (A,B / B,A / A,B) 3 組で測る。一次指標は測定前に凍結した nodeid 完全集合 (`S_all`) の worker 秒合計
+`F` の対差、判定は「3 対とも ΔF > 0 かつ中央値 ≥ 200 s」の実用閾値。両 tree の bytecode 条件は計算ノードの collect-only 1 走で
+対称にし証跡を残す。無効走・無効対の規則、赤の分類 (infra / impl / unclassified)、有効 3 対での固定終了、12 走上限を
+launcher・系列・集計器で強制する。
+
+**理由:**
+- T-2766 (D2164) の同一 SHA 型は env で条件を切り替える設計だった。code の変更は同一 SHA にできないため、条件別に SHA を
+  固定した 2 tree の比較にする。これは D2068 の「同一 tree 内で方式を交互に測った対比較」を満たさない (path・pyc・page cache の
+  差は残る) ので、採用判断の射程として明記する。
+- 200 s はノイズから導いた閾値でなく実用上求める削減量。T-2766 の同一 code の隣接対でも floor の対差は 22 / −211 / 60 s と
+  ±200 s 級に振れるため、有意差は主張しない。
+- 一次指標の事後の部分集合選別は不可。補助 (`S_mid`、nodeid 対差の分布、`W_max`、`W_0`) は測定前に凍結した定義だけ。
+
+**却下した選択肢:**
+- 待ち手経由の実受入で測る — claim 直後の main 取り込みで tip が変わる (D2164)。
+- 単発の前後比較や 12w 単独走の秒数からの換算 — 走間ノイズと同程度の効果量で、条件も違う (D2068、D2148 項 6・7)。
+
+## D2178. A-1 sized の認可済み独立再現は、driver 側の定数 1 件と durable base の exact な認可 record の一致でだけ rear gate を解除し、解除対象を先行 attempt-0001 に限り、公開先は兄弟 dir とする (2026-09-20)
+
+**決定 (D2172 項 2 の実装、択 1):** `orchestrator/campaign/paper_story_a1_paired.py` に次を実装した (Codex author、敵対レビュー 2 本、変異 matrix)。
+
+1. **認可の exact 集合は driver の定数 1 件** `V3_SIZED_RERUN_AUTHORIZATIONS = {(sized study, "attempt-0002", "attempt-0001", "D2172", 2, "2026-09-20")}`
+   (構造 = study_id, attempt 名, 解除対象の先行 attempt 名, 裁定 D 番号, 項, 裁定日)。record だけを権威にせず、将来の attempt-0003 は
+   新しい裁定と定数の追加 (diff に現れる) を要する。
+2. **record** は `<durable base>/<attempt 名>.authorization.json`、schema `paper-story-a1-paired-rerun-authorization/v1`、key 集合 exact =
+   `{schema_version, study_id, attempt_root, source_commit, decision{id, item, decided_on}, authorization_sha256}`。self digest は
+   `authorization_sha256` を除いた canonical JSON の SHA-256 (破損検出であって署名ではない)。解除対象の先行 attempt 名は record に持たせない。
+   producer は subcommand `authorize-rerun` (全項目必須、定数 membership、intent / attempt root / record の不在、既存 base を要求、create-only)。
+3. **rear gate** `_assert_no_prior_v3_bench_start(base, *, study_id, current_attempt, source_commit)` は走査前に record を照合し、候補 loop の末尾 2 箇所の
+   「group rerun is prohibited」だけを `released = 一致 record かつ 候補 == base/attempt-0001` のとき skip する。不一致 record (別 attempt 名・別 study・
+   別 source sha・裁定 field・digest・余分 key・symlink・破損) は無視でなく拒否。先行証拠の完全性検査と study differs の拒否は無条件。
+   attempt-0001 以外の同 study の先行 attempt が bench に到達していれば拒否。intent / attempt root / 受領証 namespace の再使用拒否、
+   anomaly 即 reject、非認証 lane は 1 byte も変えない。
+4. **公開先 gate** `_exact_materialization_destination(..., attempt=, base=, source_commit=)` は 3 引数とも None なら従来、一部指定は拒否、全指定は
+   base == policy base と `_validate_attempt_root` の後に record を照合し、一致時だけ兄弟 dir `<materialization_relative_path>-<attempt 名>`
+   (`output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002`) を expected にする。不在 = 従来の exact leaf、不一致 = 拒否。
+   create-only と親 dir 実在は不変。attempt-0001 の leaf 配下には置かない。
+5. **事前登録 §6.1 / §6.4 の追補 (別版)** は `output/insights/2026-09-20/t2792-a1-sized-preregistration-amendment/README.md`。将来の attempt-0002 一件に限り、
+   元の事前登録・policy・契約 v2・source 追補の bytes と attempt-0001 の判定・限定 L-A1S-4 は不変 (遡及しない)。erratum の名で正当化しない。
+   束縛は source commit 経由で、契約 JSON / policy に sha を足さない (追補 file 自身の実行時 digest 検査は無い)。
+6. **投入は本決定に含めない。** 順序は「全成果物の land → fresh submit-tree の確定 → `authorize-rerun` で record → `submit`」。どこかの層で落ちたら再投入せず報告して止める。
+
+**理由:**
+- 「1 attempt 限定」を人手 (record を書かないこと) に委ねず、定数で機械化する。record は source sha (land 後にしか確定しない) を供給し、durable base に
+  置くことで「改めて認可した」事実を証拠の隣に残す (D2156 項 3 の機械化)。
+- 相談 (段 3) の must-fix A1: 認可対象の attempt を限定しても、解除する先行証拠を限定しなければ、attempt-0003 が既に bench に達していても attempt-0002 が
+  通る。定数に先行 attempt 名を固定して閉じた。
+- 兄弟公開先は「pilot の公開先には何も書き足さない」(§6.1) と同型で attempt-0001 の leaf に触れない。leaf 配下 (一次資料 §7 の例) は第 2 attempt の公開が
+  第 1 attempt の leaf の存在に依存する。
+- 実測: 実 base の複製に対し patch 後の gate は record 無し = 拒否、exact = 受理、不一致 9 種 = 拒否。計算ノード焦点走 1697 passed / 0 failed。
+  変異 matrix (独立 clone) の結果は一次資料 `output/insights/2026-09-20/t2792-a1-sized-rerun-authorization/README.md` §5。
+
+**却下した選択肢:**
+- record だけを権威にし定数を持たない — 任意の attempt 名の record で解除でき、「1 attempt 限定」が人手の運用になる。
+- 不一致 record を無視して従来動作にする — 誤った record を置いた投入が「record 不在」と区別できず、拒否理由が曖昧になる。
+- 認可 attempt の公開先を attempt-0001 の leaf 配下 `…/attempt-0002` にする — 凍結 leaf の内容集合を増やし、leaf の存在に依存する。
+- record に追補 file の sha を持たせる — source commit が追補を含む tree を束縛するので冗長。契約 JSON / policy へ sha を足す案は凍結 bytes の改版になる。
+- 手書き JSON で record を作る — key 集合と digest を誤りやすい。小さい producer で exact 性を機械化した。
+
+## D2179. 一回限り tool 15 対は 4 対を削除し 11 対を残す — 専用でない test と別裁定の維持指定は対削除の前提を崩す (2026-09-20)
+
+**決定:** D2172 項 5 R3 (c) の 15 対のうち、`s6_canary_rename.py`、`insights_date_layout.py` + test、`migrate_output_gzip.py` + test、
+`plot_t2266_tail_mechanism.py` + test の 4 対を削除し、残る 11 対を残す。R1 (a) の 6 file は裁定どおり削除する。
+削除できる条件は次の 3 つの連言で、module ごとに現物 (docstring、git 履歴、決定・事前登録・runbook の名指し、
+live module と test からの参照、成果物の所在) で確認できたときだけ削除する。
+
+1. 一回限り — 実施済みで、以後に別の作業が同 module を library・driver として再利用していない。
+2. 結果が凍結済み — 成果物・insight・図に結果があり、module が無くても成果物の読み方が変わらない。
+3. 現行機構の実装でない — 有効な決定・凍結事前登録が実装として名指ししておらず、live な producer / consumer の対の片側でなく、
+   live な test がその module の定数・述語を照合先にしていない。
+
+さらに対削除の前提として、**専用 test が本当に専用であること**を要求する。専用 test に live code の性質を検査する test 関数が含まれる
+場合 (例: dispatch の環境除去、registry の包含 pin、残る patch の意味検査) や、その test 関数を別の有効な裁定が維持対象に
+名指ししている場合は、対削除の前提が成立しないので module ごと残す。被覆を残すための test 分割は削除でなく新しい編集であり、
+削除 wave の scope に入れない。
+
+**理由:**
+- 段 3 の敵対相談で、段 1 が「専用」と数えた test 2 本のうち 1 本が live な dispatch 経路の検査を持ち、もう 1 本の 1 関数が
+  D2172 項 6 (派生値 pin は削らない) の維持対象に載っていた。棚卸しの「module → 参照する test」の対応は import graph から
+  機械的に出したもので、test の中身が module 専用かどうかは見ていない。
+- 「現行機構の実装でない」は名前検索で prod import が 0 でも成立しない。凍結事前登録が解析器に契約を課す (counterfactual)、
+  live な producer の診断 consumer である (床値 job の checkpoint)、live な test が定数を照合先にする (cohort2 の seeds)、
+  別 wave の probe が library として関数を再利用する (非単調性解析) のいずれも、prod import 0 のまま module を現用にする。
+- 2 つの有効な裁定が同じ test 関数で重なるとき、どちらかを優先する順位を親が新設せず、両方を満たす側 (残す) を選ぶ。
+  優先を望むならユーザーが例外を指定する。
+
+**却下した選択肢:**
+- 対削除の前提が崩れた module だけ削り、専用 test から live 被覆の関数を別 file へ移す — 削除でない編集を削除 wave に混ぜ、
+  受理集合の変化が 2 種類になる。移す価値があるかは別依頼で決める。
+- 項 5 R3 の名指しを項 6 より優先して science-slice の対を削る — 逐語に優先の根拠が無く、派生値 pin を消す。
+- 「結果凍結済み」を満たす module を「現行機構でない」の確認なしに削る — cohort2 の seeds や D2035 の errno 連言のように、
+  live な test が結果でなく module 自体を照合先にしている場合を見落とす。
+
+## D2180. 凍結 v2 g1 の承認 A と active pointer X は AI が作る — 批准 attestation を「`AI-Agent: none` 逐語」から「記録済みの委任裁定 + 構造化 AI trailer ちょうど 1 行」へ改める (D2120 項 2 (b) と D2174 項 4 を supersede) (2026-09-20)
+
+**決定 (ユーザー裁定 2026-09-20 13:2x JST、本 wave が履行):**
+
+- 承認 A (`output/s8b-freeze/approvals/<世代 sha256>.json`) と active pointer X (`output/s8b-freeze/active/<自身の sha256>.json`) は
+  AI が作る。D2120 項 2 (b) の「いずれも逐語 `AI-Agent: none` の人間 commit」と D2174 項 4 の「ユーザーが実施する。AI は作らない」は
+  本決定で supersede する。record の bytes は Codex author (D95) が `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` §5
+  手順 2〜5 と同じ形 (canonical JSON、keys ちょうど 4 / 5、filename 規則、create-only) で書き、commit は親 (Claude manager) が機械的に
+  代行する。A / X の commit は非 merge・diff 1 file・X^ == A・A と X の間に他 commit を挟まない、を保つ。
+- 批准側 `orchestrator/campaign/s8b_ratified_freeze.py` の `_assert_user_commit` (approval / pointer / revocation / cancellation の
+  導入 commit 検査、C1-6) は「非 merge・H ancestry・`AI-Agent` trailer が**ちょうど 1 行**で、その 1 行が逐語 `AI-Agent: none`
+  または `docs/ai-provenance.md` の必須形式に適合する構造化 trailer」を要求する。none と構造化の併記、2 行以上、trailer 無し、
+  規約非適合の構造化行 (product / model / reasoning / role の順と許可値、予約語 product、`model` / `reasoning` の `none`)、
+  key の大小文字違い・末尾空白 (raw 行の byte-for-byte 検査) は従来どおり拒否する。
+- attestation の意味: 発効 commit の真正性は「本決定 (記録済みの委任裁定) + 構造化 AI trailer + 導入 commit topology」が担う。
+  `AI-Agent: none` 逐語は人間 commit の証明ではなく (hooks README F6a)、本決定以後は「人間が commit 操作を行った」ことを主張しない
+  (承認の主体はユーザー、record の作成と commit の実行は委任された AI)。論文で g1 の批准をどう記すか (呼称・独立性・主張への影響)
+  は本決定の対象外で、必要なら別途諮る (10:2x の裁定控えには、提示時に AI が明示しユーザーが承知した帰結として「AI が自己承認した
+  世代になる」の記録がある)。
+- 不変: 世代導入 G の `generation-commit-none` 拒否、diff 1 file (`approval-commit-diff` / `pointer-commit-diff`)、X^ == A
+  (`pointer-approval-parent`)、`user-commit-merge`、`user-commit-ancestry`、`_unique_introduction`、`history-mutated`。
+  hook (`hooks/guard_write.py` の `output/s8b-freeze/` Write 拒否) は変えない (誤操作抑止のまま。bytes は Bash 経路で書く、G と同じ)。
+  鍵署名・床値・certification・W-4 / W-5 は本決定の対象外。規律 2 は緩めない。
+- `approver` は「ユーザーの委任と裁定日」を記す文字列とし、批准側は値の書式を検査しない (従来どおり)。
+- 帰結: A / X の 2 file は B-10 の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`、D2166) の対象 dir に入るので、pin を A / X 込みの
+  値へ更新する。扱いは D2166 を引き継ぐ (旧 cohort の記録は不変、新 phase の事前登録成立でも本走許可でもない) が、手続は同一ではない:
+  本 wave では A / X 導入の事前授権から必然となる期待変更として、赤を見る前に更新対象 3 literal を固定し、独立レビュー・変異 2 件
+  (test literal だけ旧値 / job 定数だけ旧値)・負例 4 件 (別 file 追加 / 1 byte 変更 / A 欠落 / X 欠落) を条件に同 wave で更新する。
+  未実施の検証は未実施と記録する。実 repo を root にする consumer test (growth hold 下の 6 node) の「`no-active`」期待値は発効後の
+  実測値へ書き直す (弱体化ではなく新しい真値。tmp repo 側の `no-active` 負例は残す。hold の登録は不変だが通常受入の所要は未検証)。
+
+**理由・採らない案:** 人間 commit を待つ形 (D2174 項 4) は、`git status` 空の前提が未追跡 dir で成立せず、承認の内容 (床の採用、
+候補 bytes、世代導入) はすべて D2120 項 2 で裁定済みで人間が新たに判断する事項が無い。AI が `AI-Agent: none` を書く案は
+provenance 虚偽 (規約 35 行) で採らない。構造化 trailer を「1 行以上」で受理する案 (10:2x の控え) は、A / X が単一の author 構成で
+作られる事実と合わず、ちょうど 1 行の方が受理集合が狭い。hook の Write 拒否を正規経路に限って解除する案 (同控え) は hook が
+認証防壁でない以上、発効の真正性に寄与せず変更面を増やすだけで採らない。`role=author` / `product=codex` を必須にする案は、
+裁定の文言 (規約に適合する構造化 trailer) より狭く、revocation / cancellation を将来別構成が作る余地を無くすので採らない。

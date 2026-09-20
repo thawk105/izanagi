@@ -1,0 +1,178 @@
+{
+  "m0-equivalent-docstring": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=535 retained_bytes=535 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1259 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 5 ++++-\n 1 file changed, 4 insertions(+), 1 deletion(-)"
+  },
+  "M1-enum-membership-true": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[arrow-kind]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[column-kind]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[direction]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[magnitude]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[stop]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_enum_is_rejected[verdict]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=10358 retained_bytes=10358 omitted_bytes=0 budget_bytes=49152 rendered_bytes=14007 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M2-keys-superset": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[arrow]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[cells]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[coder]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[column]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[critic]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[discipline]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[evaluation]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[knowledge]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[lane]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[parent]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[planner]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[proposal]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[role]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[stock]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_unknown_key_is_rejected[top]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=16 failed=16 errors=0 selected=16 omitted_failures=0 source_bytes=24953 retained_bytes=24953 omitted_bytes=0 budget_bytes=49152 rendered_bytes=32939 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M3-free-text-early-return": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[10 tps]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[1216]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[2 \\\\x5cxb5s]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[38%]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[A=0.58]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[K2suffix]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[\\\\x5cu0661\\\\x5cu0662]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[\\\\x5cuff13\\\\x5cuff18\\\\x5cuff05]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[applied twice]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[job 1216.5]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t4_free_text_rejects_quantities[three runs]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=12 failed=12 errors=0 selected=12 omitted_failures=0 source_bytes=4639 retained_bytes=4639 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10546 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 1 +\n 1 file changed, 1 insertion(+)"
+  },
+  "M4a-intersection-zero": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_overlap_is_a_layout_error",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[overlap]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1913 retained_bytes=1913 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3534 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M4b-contains-true": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_escape_is_a_layout_error",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[escape]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1954 retained_bytes=1954 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3573 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M4c-segment-never-intersects": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t5_arrow_crossing_text_is_a_layout_error",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[arrow-crossing]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1991 retained_bytes=1991 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3631 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 1 +\n 1 file changed, 1 insertion(+)"
+  },
+  "M5-caption-source-hash-constant": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_caption_source_hash_is_independent"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1718 retained_bytes=1718 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2991 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M6-tools-none-check-true": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[changed-tools]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[duplicate-line]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[missing-line]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_role_frontmatter_binding[non-array]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[0]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[1]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t2_tools_none_mismatch_is_rejected[2]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=8 failed=8 errors=0 selected=8 omitted_failures=0 source_bytes=7540 retained_bytes=7540 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11558 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M7-publish-skips-layout-check": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[arrow-crossing]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[escape]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t6_publish_runs_layout_check[overlap]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=3124 retained_bytes=3124 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5224 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 1 -\n 1 file changed, 1 deletion(-)"
+  },
+  "M8-prefix-predicate-true": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t8_cli_rejects_invalid_prefix"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1174 retained_bytes=1174 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2339 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M9-anchor-at-least-one": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_non_unique_anchor_is_rejected"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1104 retained_bytes=1104 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2281 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M10-drawn-items-unchecked": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_drawn_items_match_flow"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6168 retained_bytes=4540 omitted_bytes=1628 budget_bytes=49152 rendered_bytes=5779 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M11a-discipline6-form-unchecked": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t3_invalid_json_without_drawing[discipline6-form]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6226 retained_bytes=4522 omitted_bytes=1704 budget_bytes=49152 rendered_bytes=5804 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "M11b-marker-ignores-detected": {
+    "rc": 1,
+    "fail_nodes": [
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_landed_fig12_bundle_when_present",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[coder]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[critic]",
+      "orchestrator/tests/test_plot_k2_loop_flow.py::test_t7_discipline6_flip_changes_marker_and_items[planner]"
+    ],
+    "summary": "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=9748 retained_bytes=9748 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12242 omitted_manifest_sha256=-",
+    "diff_stat": "tools/plotting/plot_k2_loop_flow.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  }
+}

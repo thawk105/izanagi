@@ -1,0 +1,13 @@
+base entries: ['attempt-0001', 'attempt-0001.intent.json']
+no record                                    REFUSED: prior attempt reached the bench barrier; group rerun is prohibited
+exact record                                 ACCEPTED
+record differs: other source                 REFUSED: rerun authorization record differs: source_commit
+record differs: other study                  REFUSED: rerun authorization record differs: study_id
+record names attempt-0003 (file attempt-0002) REFUSED: rerun authorization record differs: attempt_root
+record differs: decision item 3              REFUSED: rerun authorization record differs: registered decision
+record differs: decided_on                   REFUSED: rerun authorization record differs: registered decision
+record corrupt: bad digest                   REFUSED: rerun authorization record is corrupt
+record corrupt: extra key                    REFUSED: rerun authorization record is corrupt
+exact record, caller other study             REFUSED: rerun authorization record differs: study_id
+exact record, caller other source            REFUSED: rerun authorization record differs: source_commit
+base entries after: ['attempt-0001', 'attempt-0001.intent.json']

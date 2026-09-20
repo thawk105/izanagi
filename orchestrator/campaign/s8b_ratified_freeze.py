@@ -544,10 +544,14 @@ def _commit_message(commit: str, root: Path) -> str:
 
 
 def _is_none_commit(commit: str, root: Path) -> bool:
-    """`AI-Agent: none` を逐語で持つ人間 commit か (C1-6 の二重判定)。
+    """逐語 `AI-Agent: none` の trailer 判定 (raw 行 byte-for-byte + parse 値)。
 
     parse 上の AI-Agent 値が厳密に ["none"] であり、かつ raw message に行として
-    byte-for-byte `AI-Agent: none` がちょうど 1 本存在し他に AI-Agent 系行が無い。"""
+    byte-for-byte `AI-Agent: none` がちょうど 1 本存在し他に AI-Agent 系行が無い。
+    世代導入 commit の none 拒否 (`_assert_candidate_commit`) が使う。
+    approval / pointer 等の導入 commit の trailer 検査は
+    `_user_commit_trailer_problem` が担う。人間 commit の証明ではない。
+    """
     message = _commit_message(commit, root)
     raw_lines = _raw_ai_agent_lines(message)
     if len(raw_lines) != 1 or raw_lines[0] != "AI-Agent: none":
@@ -555,16 +559,55 @@ def _is_none_commit(commit: str, root: Path) -> bool:
     return _parsed_ai_agent_values(message, root) == ["none"]
 
 
+# 文法の正本: tools/check_ai_provenance.py (AGENT_VALUE / RESERVED_PRODUCTS)。
+# コピー fixture は tools を含まないため複製し、test で pattern・flags・意味条件を照合する。
+_PROVENANCE_IDENT = r"[a-z0-9][a-z0-9._-]*"
+_PROVENANCE_ROLES = ("author", "reviewer", "researcher", "manager", "integrator")
+_PROVENANCE_RESERVED_PRODUCTS = frozenset({"none", "unknown", "not-exposed", "human"})
+_PROVENANCE_AGENT_VALUE = re.compile(
+    rf"^product=(?P<product>{_PROVENANCE_IDENT}); "
+    rf"model=(?P<model>{_PROVENANCE_IDENT}); "
+    rf"reasoning=(?P<reasoning>{_PROVENANCE_IDENT}); "
+    rf"role=(?P<role>{'|'.join(_PROVENANCE_ROLES)})"
+    rf"(?:; scope=(?P<scope>{_PROVENANCE_IDENT}))?$"
+)
+
+
+def _user_commit_trailer_problem(commit: str, root: Path) -> Optional[str]:
+    """受理なら None、拒否なら診断文字列を返す。"""
+    message = _commit_message(commit, root)
+    raw_lines = _raw_ai_agent_lines(message)
+    if len(raw_lines) != 1:
+        return f"AI-Agent raw 行数が 1 でない: {len(raw_lines)}"
+    values = _parsed_ai_agent_values(message, root)
+    if len(values) != 1:
+        return f"AI-Agent trailer 値数が 1 でない: {len(values)}"
+    if raw_lines[0] != "AI-Agent: " + values[0]:
+        return "AI-Agent 行が canonical 表記でない"
+    if values[0] == "none":
+        return None
+    match = _PROVENANCE_AGENT_VALUE.fullmatch(values[0])
+    if not match:
+        return "AI-Agent 構造化値が provenance 文法に適合しない"
+    if match.group("product") in _PROVENANCE_RESERVED_PRODUCTS:
+        return f"AI-Agent product が予約語: {match.group('product')}"
+    if match.group("model") == "none" or match.group("reasoning") == "none":
+        return "AI-Agent model/reasoning に none は使えない"
+    return None
+
+
 def _assert_user_commit(commit: str, graph: _CommitGraph, root: Path) -> None:
     """approval/pointer/revocation/cancellation の導入 commit 検証 (C1-6)。
 
-    非 merge かつ `AI-Agent: none` 逐語かつ H ancestry。満たさない record の存在は
+    非 merge、AI-Agent trailer ちょうど 1 行、逐語 none または規約適合の構造化値、
+    H ancestry。満たさない record の存在は
     「無視」でなく検証エラー (fail-closed)。"""
     if len(graph.parents.get(commit, ())) > 1:
         raise RatifiedFreezeError("user-commit-merge", f"user commit {commit} が merge")
-    if not _is_none_commit(commit, root):
+    problem = _user_commit_trailer_problem(commit, root)
+    if problem is not None:
         raise RatifiedFreezeError(
-            "user-commit-trailer", f"commit {commit} が `AI-Agent: none` 逐語でない"
+            "user-commit-trailer", f"commit {commit}: {problem}"
         )
     if not _git_ok(["merge-base", "--is-ancestor", commit, graph.commits[0]], root):
         raise RatifiedFreezeError("user-commit-ancestry", f"commit {commit} が H ancestor でない")
