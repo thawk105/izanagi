@@ -184,14 +184,14 @@ D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 ## DW-O26 — 焦点走の consumer test 拡張
 
-`DW-O18` の焦点走対象 file 集合は、変更した test file だけでなく、変更した production file を
-参照する consumer test も含める。名前の推測でなく参照関係で引く。private symbol の変更は
-公開 API の consumer 表に出ない。symbol 名で production 全体を grep する。この拡張を欠く
-焦点走は、静的レビューが見落とした破れを初回実測でも取り逃す（F242）。
-同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
-変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
-test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
-所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
+`DW-O18` の焦点走 file 集合は、変更 test file と、変更 production file を参照関係で引いた consumer
+test。private symbol は consumer 表に出ないので symbol 名で production を grep する。
+欠くと静的レビューが見落とした破れを取り逃す（F242）。production file を変えた wave は repo 全体の
+inventory test 4 群（`test_campaign.py` の certified-writer caller inventory、
+`test_official_perf_closure.py` の perf file inventory、`test_p3_exploration_namespace.py`、
+`test_p3_b4_wiring_probe.py`）を参照関係に依らず焦点走に含める。同一 worktree の dispatch は全種直列。
+変更 test file は受入前に単独走で確認する。新規 test file を足す走は file 集合列挙のメタテストも含める。
+並行 wave が自分の編集 file を所有するなら main 取込み済みの木の既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
 D662 で lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回行い`held`でも待たず wave digest の

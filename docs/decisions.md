@@ -69416,3 +69416,113 @@ D2174 項 6 を維持し、git author identity から推測しない。今回も
 - stock を別 out_root (同 job・別 layout) で評価する — D464 の排他保証範囲外、D2183 の同 WAL 条件を破る。root を変えても identity は変わらず「別 campaign = 別 ID」でもない。
 - 本 wave で launcher を直して再投入する — 依頼の scope 外・再投入禁止。
 - stock 未測定を stock の失格・非 STOCK 判定に置き換える — inert は未測定のまま (規律 2 を緩めず、判定も捏造しない)。
+
+## D2188. 受入 shard 内 pairing を既定 on で採用し、property 4 種を残す (2026-09-20)
+
+**決定:** D2172 項 1 (択 (a)) の実装として、受入の collection hook (`orchestrator/tests/conftest.py`) は cost 順の unit 列に無条件で `_pair_initial_distribution_units` (realized order の 49〜96 位を候補中最小 cost の 48 unit に入れ替える) を適用する。環境変数 `IZANAGI_ACCEPTANCE_PAIRING_V1` の opt-in・token・`tests` task の allowlist 行は撤去し、opt-out も設けない。全 item への property 4 種 (`izanagi_acceptance_pairing_v1_{scope,rank,partner,worker}`、pairing 適用走のみ) は残す。unit < 96 の無変更、cardinality 不成立時の `pytest.UsageError` (fail-closed)、受理集合 (selected / hold / group / unit 境界・marker・既存 property・identity) の不変は保つ。
+
+**理由:**
+- 効果の再確認 (待ち手経由 = 本番経路の実受入、A = 採用前 main / B = 採用後の隣接対 3 組) で 3 対とも B が短く、最遅 shard の JUnit wall の対差 145.8 / 86.3 / 57.3 秒、対率中央値 19.6 % で、事前登録した land 条件 (全対 ΔW > 0 かつ対率中央値 ≥ 10 %) を満たした。前 wave (同一 tip の直接投入) の 101.7 / 112.9 / 144.3 秒と同方向。
+- property は本番の毎受入に「発火と実配布の witness」(被覆 100 %、rank 48〜95 = partner 集合、多重集合の独立再計算、worker 別 item 列) を残す唯一の手段で、既定 on の正例 test と変異 M5 の帰属もこれに依る。機序が未同定のまま採るので、後から機序を調べる材料を毎走残す価値がある。
+- opt-out を足さないのは、裁定が「名指しの変更に限定し付随する gate を足さない」と定めるためと、off の経路を残すと A 不変の負例と変異 M3 を維持し続ける費用が要るため。撤去は並べ替えの呼び出し 1 行と property 付与の削除で戻る。
+
+**却下した選択肢:**
+- property を外して順序変更だけ入れる — junit.xml は小さくなる (受入 1 走あたり約 −13 MB) が、本番で pairing が発火した証拠が junit から消え、機序調査の材料も残らない。
+- (b) A 側 witness (機序調査) を採用の前提にする — 裁定が「相乗り可、採用を遅らせない」と定め、A の item → worker 対応は A の code を変えないと取れない (A = 採用前 main でなくなる) ため本 wave では取らない。
+- (c) 見送り — 効果は本 wave でも 3 対同方向で確認された。
+
+**再訪条件:** property の費用は junit.xml が受入 1 走あたり約 +13 MB (A 0.7 / 1.8 / 1.6 MB → B 2.4 / 6.2 / 6.4 MB、3.4 倍) と実測した。session dir の容量が問題になった時点で、property を rank / partner だけに縮約するか外すかを別裁定にする。効果量は regime 依存 (57〜146 秒の観測) で「毎受入 100 秒」と一般化しない。対 3 (docs fold だけの最もきれいな対) が 12.6 % と閾値に近いため、効果の消失が疑われたら同じ事前登録 (隣接対 3 組、閾値 10 %) で再測する。
+
+## D2189. 複数 file に散る directive 箇所群は 1 macro の副 file 宣言として同じ深い鏡像で計装し、複数 file macro に限り箇所ごとの識別 marker で総数の相殺を拒否する (2026-09-20)
+
+**決定:** D1490 / D2182 の compile-time 枝選択 witness に、1 macro が所有 TU 以外の file にも逐語 directive を持つ型を足す。
+(1) 主 entry は既存 2-tuple のまま `_CONDITIONAL_BRANCH_WITNESSES` に置き、副 file は別 mapping
+`_CONDITIONAL_BRANCH_COMPANION_SITES` (macro → (source_rel, start_directive, N) の tuple) に宣言する。`_declared_site_count` は
+主宣言 file の N のまま (S1 fixture helper の consumer 契約)、総数は `_declared_total_site_count` (和) で導出し期待式 (N·v, N) の N に使う。
+(2) 主 + 副を各々 no-follow capture して file ごとに N_i 箇所を計装し (file ごとの箇所数不一致は既存 reason
+`compile-time-branch-site-count-mismatch`、detail に file 名)、副があれば主 == owner TU でも D1613 の深い鏡像を使い、全計装 file を
+symlink 作成対象から除いて同じ shadow に書く。(3) **複数 file macro に限り**、各箇所に固有 marker
+`IZANAGI_COMPILE_TIME_BRANCH_SITE_{SELECTED,COMPLETED}(f<i>s<j>)` を総数 marker の隣に挿入し、preprocess argv に token 貼り付けの
+`-D…(k)=…_OBSERVED_##k` 2 本を足して、総数 (N·v, N) の判定の後に箇所ごとの要求 (1,1) / 対照 (0,1) と和 = 総数を
+`compile-time-branch-site-observation-mismatch` で要求する。(4) 複数 file macro の green evidence にだけ `companion_sources`
+(副 file の登録値と計装に使った capture) と `site_observations` (全箇所 × 両腕) の 2 key を載せ、green 再検証は副宣言の有無を登録簿から
+決め (record の key から決めない)、row の型・順序・登録値・digest・identity・site 集合・各 row の値・和・両腕 argv の site marker define を
+検査する。既存 dataclass に field を足さず、`proof_kind` も変えない。(5) 登録簿へ `BACKOFF_REQUESTED_US` (`cc/silo/transaction.cc` ×2 +
+`include/backoff.hh` ×2、対照 0) を足す (枝選択 21 → 22、対応集合 22 → 23)。driver は配線しない (`backoff_requested_us` /
+`backoff_sweep` / `screening_driver` は admission を成果物へ載せない、D1492)。
+
+**主張の範囲:** 確立するのは「宣言した owner TU を当該 configure で前処理したとき、DefineSpec patch の逐語 N 箇所すべてで define の値が
+枝の選択を決めている」ことまで。副 file の証拠はその owner TU と configure の include 文脈に限り、同 header を include する他 TU や
+header 単体の意味は主張しない。箇所の活性は configure に依存し (abort() 内の箇所は `#if BACK_OFF` の内側)、`BACK_OFF=0` では
+completed 3/4 で red になる (fail-closed、実測)。`BACK_OFF` を companion define にしない (検査する configure を変えてしまう)。
+
+**理由:**
+
+- 所有 TU 2 箇所だけの登録は D2161 (2) の部分登録であり、header 2 箇所が未観測のまま macro 名が未確立一覧から消える (前 wave が退けた過大主張)。
+- 総数一致だけでは全箇所観測を含意しない。静的に構成できる反例 = owner の 2 箇所を外側 `#if 0` で殺し、`#pragma once` の無い header を
+  2 回展開すると、各 file の逐語箇所数は 2 のまま総数は (4,4)/(0,4) になる (段 2 plan が指摘、段 3 の 2 レンズが独立に成立を確認)。
+  箇所識別を足すと `f0s0=(0,0,0,0)` で拒否される (合成 fixture の独立 node と、評価側の直接検査で実測)。単 file macro では
+  .cc の TU は再展開されず、header 単 file は N=1 で重複が総数に出るので総数で足り、既存 21 macro の計装・argv・record を変えない。
+- 箇所固有 marker を `-D` の function-like macro + token 貼り付けで作ると、既存の総数 marker と同じくコメント / raw string 内では展開されず
+  数えられない (D1490 の構造的 fail-closed を保つ)。g++ 11.4.0 で生死実験のうえ採用。
+- header 宣言の既存例 (BACKOFF_NOINLINE) の深い鏡像 (D1613) は 1 file しか書かなかった。副 file を同じ鏡像へ書くとき、計装 file を
+  symlink 作成対象から除かないと symlink 越しの write で元 source を書き換える (段 3 A / 段 2 plan の条件)。
+- 副 file の証拠を record に載せないと、再検証が「主 2 箇所 + header 2 箇所」を裏付けられない (段 3 A の must-fix)。既存 dataclass に
+  field を足すと既定値でも canonical JSON へ出て既存 record の bytes が変わる (D2182) ので、複数 file macro にだけ現れる key にする。
+- 実 TU (pin e9e477ca1、fixed → requested-us、official 同形供給) で login と計算ノードとも (4,4)/(0,4) green / admitted / 未確立 []、
+  `BACK_OFF=0` は (3,3)/(0,3) red。既存 SORT / NOINLINE / RUNG1 の record は変更前後で一時 path 由来の digest 以外同一 (代表 3 cell、
+  他 18 macro の bytes 同一は主張しない)。
+
+**却下した選択肢:**
+
+- **所有 TU の 2 箇所だけで登録する** — 部分登録 (D2161 (2))。
+- **総数 (4,4)/(0,4) だけで判定し、相殺は主張範囲の限定で対応する** — witness の主張「各箇所で値が枝を決める」が一般には偽になる。
+  複数 file の型を足す本題の健全性であり、仮想リスク向けの新 gate ではない (段 3 B の判定)。
+- **登録簿の value を tuple of tuples にする / `_CONDITIONAL_BRANCH_SITE_COUNTS` を file 別にする** — 2-tuple consumer 3 件と
+  `_declared_site_count` の S1 consumer を壊す。別 mapping で持つ。
+- **別 proof_kind / 既存 dataclass の optional field / 副 file 用 dataclass** — 同じ owner-TU 枝選択の主張に validator 分岐を増やすだけ、
+  optional field は canonical JSON へ出る、新 dataclass は過剰 (段 2 / 段 3 B)。
+- **`BACK_OFF=1` を companion にする** — 検査する configure を変え、`BACK_OFF=0` の red (fail-closed) を失う。
+- **単 file の複数箇所 macro (RUNG1 / GATING) にも箇所識別を広げる** — 総数で足りる型に argv と record の変更を持ち込む (I1 違反)。
+- **所有 TU 内の未宣言 directive の走査・include 専用 gate** — 前 wave と同じく裁定パッケージ候補のまま。
+
+## D2190. B-8 の runner は事前登録 v1 の規則を機械適用する v5 とし、期待 identity は発効束 JSON から読む — 案 A の試走で identity を導出し、発効 commit と本走認可はユーザー再提示に委ねる (2026-09-20)
+
+**決定 (2026-09-20 計算ノード試走に基づく親裁定、D2186 項 1 (6) の認可範囲内):**
+
+1. **runner の形。** D2160 の runner v2 (repo 外) を B-8 の規則へ改版した v5 (2103 行、sha256 `4ff6652a365b952cba4deb23e2ae910ba863dabba4a107503c641c7a36863430`、Codex author + fix 2 巡、
+   job dir に保全、repo へ入れない) を、B-8 の校正・本走・再検証・集計に使う runner とする。規則の写像: 校正 {6, 10} s・適格 = verifier wall ≤ 1800.0 s (§4.2)、
+   対象の extime = 3 workload の適格集合の共通部分の最大値・空なら候補なし、予算 B(E) ≤ 14400 s と ∩ 内の段下げ (§7)、§6.1 の順序付き 3 値 (失格 → pass → 未確定)、
+   §5 の bench 不再生成 (保全済み trace の初回 verifier 再開は維持: `verify --resume` は bench 失敗 = 終端 / verifier 起動済み = skip / 保全済み・未開始 = 復元して初回 verifier / 保全未完了 = 規約不適合の 4 分類)、§8 の既知結果台帳 (判定集合外の別節)、`prerun` サブコマンド (試走 = build と identity のみ)。流用機構 (setup / hydrate / toolchain / 単独性 /
+   保全 → verifier / 計時 / 再検証 / 再開) は D2160 のまま。
+2. **束縛。** 期待 identity は runner の定数に埋めず、発効束 JSON (追補 file、`--bundle`、schema `b8-effective-bundle/v1`) から読む。runner は規則 file (`--ruling` = 事前登録 v1 本文) と
+   追補 file の両 sha256 を全 record に束縛し、`summarize` は許可集合で照合する。`calibrate` / `verify` / `reverify` は build 前後の両観測が期待値と一致しなければ fail-closed、
+   `prerun` は期待値照合をせず観測を記録するだけ (build 前後の一致だけ検査)。
+3. **解釈で固定した点 (段 6 の敵対レビュー 2 本 + 焦点 2 本で攻撃済み)。** (a) rc=3 の `indeterminate` verdict は完走した verdict であり §6.1 項 1 の「`serializable` でない」→ 失格 (§8 の明文)。
+   (b) §5 の「bench 失敗が 1 件でもあれば pass にならない」は校正・本走を問わず、開始して失敗した bench に適用する (打ち切りの `not_run` は失敗でない)。校正で bench 失敗が出た cohort は
+   本走を投入しない (pass になれない → §6.4 の新 cohort)。(c) 失格 (§6.1 項 1) は判定集合外 record の混入・ruling / bundle sha 不一致・規約不適合の有無に関わらず先に評価する (規律 2 の向き)。
+   混入・不一致は pass を妨げ未確定へ落とすだけ。(d) job 段の失敗 record (identity 不一致・実行失敗) も規約不適合として開示し pass を妨げる。(e) 適格は certified を要求し、
+   pass は本走 24 に要求して校正 verdict には要求しない (件数と理由を開示)。(f) 校正は anomaly を理由に残 extime を止めない (§7)。
+4. **verifier hard timeout。** 校正 3600 s (§11 が校正の 3600 s timeout を想定)、本走 1800 s (§12 と D2186 項 1 (5) の「上限 1800 s」そのもの)、再検証 3600 s (§6.4、事前登録は値を置かず
+   D2160 を継承)。当初案 (本走 3600 s) は親の追加解釈として改めた。判定の結果は変わらない (本走 1800 s で未完走 → 再検証 1 回で同じ verdict)。
+5. **試走の結果 (既知結果台帳へ、判定集合外)。** template patch `31316713…` は現行 pin `e9e477ca1b55348ab4530de0b1cf663ce4555290` へ `patchharness.applied` (= `git apply`) で厳密に当たり、
+   `p3_s4_loop.quarantine(write=True)` で gate 述語を hole へ書き、trace-enabled build (define 6 個、g++-11 Ubuntu 11.4.0) を計算ノードで通した。identity は
+   **g_rl `src_token` = `source_bytes_sha256` = `b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d`、g_rt `a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833`**
+   (build 前後・login 事前照合・runner v3 / v4 / v5 の 6 record で全桁一致)。これを発効束の期待値にする。07-16 校正の g_rl `4608a96e…` (旧 pin) は期待値にせず履歴として併記する (規律 7)。
+6. **発効束 draft。** §12 の全項目を insight §7.1 と `verbatim/b8-effective-bundle.draft.json` (sha256 `6063d5d8…`) に揃えた。runner が単独で揃えない項目 (pin と gitlink の一致・raw bytes の保存・
+   node 種別 gen_S・保全先 `/work` の空き 81 TB・校正 walltime 03:30:00 の根拠 = 上限式 ≈ 10,340 s と D2160 校正最大 Elapse 4063 S × 3) は親が実測で補い、新しい機械 gate は足さない。
+7. **委ねるもの。** 発効 commit (D 番号・日付・承認 commit、発効束 JSON を `effective` に) と本走の投入認可は、insight §7.2 の 1 行をユーザーが承認してから。発効前に校正・本走を始めない。
+   論文ストーリー §8 B-8 の仕分け (2) の限定明記も発効時 (D2186 項 1 (2))。
+
+**理由:**
+- 期待 identity を runner 定数に埋めると、runner の sha256 自体が発効束の項目なので試走 → 発効で runner を 2 度変える。追補 file へ分けると規則 file (事前登録本文) と値 (発効束) の束縛が独立する (§12 の「規則 file と追補 file を分ける」)。
+- 解釈 3 (a)〜(d) はすべて fail-closed の向きで、D2160 の規則 (rc=3 を数えない・bench attempt-2・混入で未確定) を B-8 へ持ち越すと §6.1 / §5 / §8 の明文に反する。author と 2 本のレビューが独立に指摘した。
+- hard timeout は事前登録自身の数に揃えることで親の解釈を減らした。判定の結果に影響しないことは再検証 1 回の存在から言える。
+- 試走を runner v3・v4・v5 で走らせたのは、fix 2 巡が prepare 経路を変えていないことの実測と、発効束の runner sha256 を最終版に揃えるため (各 36 秒)。
+
+**却下した選択肢:**
+- 期待 identity を runner 定数に埋める (D2160 の形) — 上記のとおり runner を 2 度変える。
+- 本走 hard timeout 3600 s (校正上限の 2 倍) — 親の追加解釈で、事前登録の「上限 1800 s」と整合しない。
+- bench 失敗の attempt-2 (D2160 の規則) — §5 に反する。
+- 校正の bench 失敗を pass の障害にしない読み — §5 の文は verify の種別を限定しないので、緩い読みは結果を見る前でも採らない。
+- 試走を login の事前照合で代替 — D2186 項 1 (6) は計算ノードでの build を含む試走を認可しており、login 値だけでは build 前後の一致を示せない。

@@ -1,0 +1,147 @@
+# 生 stdout (逐語、tee で採取した .log をそのまま連結)。各 script は job dir /home/SFC/tanab/.claude/jobs/cc931155/tmp/ (repo 外) に置き、repo へ入れない。
+# 採取順は下の見出し順ではない (実行時刻は各 log の先頭行または reconstruction-log.md に記載)。
+
+==== sha_capture.py (stdout) ====
+capture time: 2026-09-20 21:24:11 JST
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign
+  campaign.lock: sha256=fc7acacabd871a180c2f1f4b86d0b2bb90ce5f682476b3a230862c495ed401de bytes=8307 lines=0 mtime=2026-09-18 08:00:05
+  knowledge_manifest_receipt.json: sha256=c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a bytes=1317 lines=1 mtime=2026-09-18 08:00:05
+  loop_state.json: sha256=03ebaf94339c89849e969cb7547f31f6c241a81698f5195c090bc8351db716a7 bytes=255 lines=13 mtime=2026-09-18 08:00:05
+  s4_loop_digest.txt: sha256=a0a4c204f9d214bb52f87d1cdc0dcf9d19a307e36d6db0d9d3c5f13b517e6c9c bytes=1938 lines=30 mtime=2026-09-18 08:00:05
+  runs/agent_outputs.jsonl: sha256=1866ebc89cb82ddefec2913282db4b6235273fde4ceb441dc7ec140de7d5f19d bytes=34020 lines=4 mtime=2026-09-18 08:00:14
+  runs/wal.jsonl: sha256=03ac8508ba9a3d28b89f9a7b39046c76a49375e381a6c3b135949171c4f16d26 bytes=7057 lines=5 mtime=2026-09-18 08:00:05
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae
+  campaign.lock: sha256=962ef7d787b7031a99e6c57088746f1a00646ac5e69c979110cc131bcb39ff03 bytes=8307 lines=0 mtime=2026-09-20 19:13:03
+  knowledge_manifest_receipt.json: sha256=c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a bytes=1317 lines=1 mtime=2026-09-20 19:13:03
+  loop_state.json: sha256=a8c6a8b69bc7bdd5eaee3203025968b4e198e082e5cca6b40244d75fa7a49ae0 bytes=255 lines=13 mtime=2026-09-20 19:13:40
+  s4_loop_digest.txt: sha256=8bde66fa21413dda8f269a1b7736164e354a371db465387a52e23bd4fe9ece8e bytes=1939 lines=30 mtime=2026-09-20 19:13:40
+  runs/agent_outputs.jsonl: (absent)
+  runs/wal.jsonl: sha256=b5754f98c0643e80fc02f8bcc02f080ba43ee7d72464ef8fa6ad1410a3b2c56a bytes=7062 lines=5 mtime=2026-09-20 19:13:40
+
+==== reconstruct_loop_state.py (stdout) ====
+round2 scratch bytes 255 reserialized 255 byte-identical: True
+round3 reconstructed bytes 255 sha256 917ba3d3b34df45eff85aa536999dd30b895256fdefaef68214431ae88a1f950
+round3 expected            255 sha256 917ba3d3b34df45eff85aa536999dd30b895256fdefaef68214431ae88a1f950
+round3 match: True
+
+==== compare_ao2.py (stdout) ====
+AO roles : [(None, None, None, '541fd038737c'), (None, None, None, '1bd5f300c839'), (None, None, None, 'e687d44f4629'), (None, None, None, 'c98feb4351e0')]
+L3 roles : [(None, None, None, 'e687d44f4629'), (None, None, None, 'c98feb4351e0'), (None, None, None, '1bd5f300c839'), (None, None, None, '541fd038737c')]
+events identical except ts: 4 / 4 (AO) 4 (L3)
+only in scratch AO: []
+only in L3        : []
+payload keys: ['input_sha256', 'output', 'provenance', 'refs']
+canonical(ts-stripped) AO: fc6c41ad23c737358e9ceacffb5e12dab97b55a9d52e1cd3f8e9f6f04ae55e8d
+canonical(ts-stripped) L3: fc6c41ad23c737358e9ceacffb5e12dab97b55a9d52e1cd3f8e9f6f04ae55e8d
+
+==== reconstruct_ao.py (stdout) ====
+scratch AO: bytes 34020 lines 4 trailing newline: True
+  sort_keys=True ensure_ascii=True separators=None: round-trip NG (52602 B)
+  sort_keys=True ensure_ascii=True separators=(',', ':'): round-trip NG (52426 B)
+  sort_keys=True ensure_ascii=False separators=None: round-trip NG (34196 B)
+  sort_keys=True ensure_ascii=False separators=(',', ':'): round-trip OK (34020 B)
+  sort_keys=False ensure_ascii=True separators=None: round-trip NG (52602 B)
+  sort_keys=False ensure_ascii=True separators=(',', ':'): round-trip NG (52426 B)
+  sort_keys=False ensure_ascii=False separators=None: round-trip NG (34196 B)
+  sort_keys=False ensure_ascii=False separators=(',', ':'): round-trip OK (34020 B)
+matching format: ["sort_keys=True ensure_ascii=False separators=(',', ':')", "sort_keys=False ensure_ascii=False separators=(',', ':')"]
+round2: rebuilt 34017 B sha 804c62c713e6785a1560725cb35690ffa044208ae94249d21deffdb41fa0a17b | expected 34017 B sha 804c62c713e6785a1560725cb35690ffa044208ae94249d21deffdb41fa0a17b | match=True
+round3: rebuilt 32979 B sha 66d3e737c1e4bb2e651805d97d40e047093f85273642464d24b23b797813efce | expected 32979 B sha 66d3e737c1e4bb2e651805d97d40e047093f85273642464d24b23b797813efce | match=True
+
+==== wal_keyorder.py (stdout) ====
+0 ['variant', 'stage', 'env_tag', 'ts', 'payload'] payload sorted: False n_payload_keys 7
+1 ['variant', 'stage', 'env_tag', 'ts', 'payload'] payload sorted: False n_payload_keys 10
+2 ['variant', 'stage', 'env_tag', 'ts', 'payload'] payload sorted: False n_payload_keys 9
+3 ['variant', 'stage', 'env_tag', 'ts', 'payload'] payload sorted: False n_payload_keys 14
+4 ['variant', 'stage', 'env_tag', 'ts', 'payload'] payload sorted: False n_payload_keys 9
+payload deep-sorted in all records: False
+round2 rebuild from scratch itself: identical False
+round2 rebuild from layer3_report: sha f51b7b21d90c65e8d866b2df198649b4b0b2c647ffc43985680e2fd95dd60e0e match False identical to scratch False
+round3 rebuild from layer3_report: bytes 7057 sha 2e97f6445155e57bff1521f315c39959e329493bb9371cd490a13d8b2d9afbf7 match False
+round3 canonical refs from layer3 events == materials/wal-refs.json: True 5 5
+
+==== scan_values.py (stdout) ====
+scan time: 2026-09-20 21:36:42 JST
+roots: 6
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-16/t2588-k2-loop-roundtrip (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-18/t2746-k2-loop-round2 (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3 (exists)
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-20/t2795-k2-pair-attempt (exists)
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip (exists)
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2 (exists)
+files scanned: 615
+(b) digest sha256 hits (round2 a0a4c204 / round3 f993251d): ['/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/s4_loop_digest.txt']
+(b) files containing round2 digest first 200 B: ['/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/s4_loop_digest.txt']
+files containing word start_wall/reverse_recommendations: 24
+  output/insights/2026-09-19/k2-loop-round3/README.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s1-brief.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s2-plan.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-b.md :: start_wall numeric values = none
+  output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-a.md :: start_wall numeric values = ['1789681001.1930716']
+  output/insights/2026-09-19/k2-loop-round3/materials/run-summary.json :: start_wall numeric values = ['1789824041.4768934']
+  output/insights/2026-09-20/t2795-k2-pair-attempt/materials/run-summary-pair.json :: start_wall numeric values = ['1789899183.7126458']
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-sol-9977ae63c4dfa8578d18c37f23ce53ab8c485f83abdf7820cc30dd706e43f52f/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-plan-10bd5f1b2a41651c9fefc31682a5a25e5f1ea1ca13558cba0b7bff3489db3125/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-luna-96fca9ceee247fa193c0d9a51d548836eb93c10e29bf514a64f5a01428124618/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/a1-implementation.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/s6-final.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/s5-integrated.diff :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/mutation-probe2.json :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/mutation-final.json :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-sol-92e058a583687094d5afbf625db2e27fad68b419ede5b437f34fe76d02708cb3/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-a-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-focus-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-fix-2/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-plan-338040d4619f1a5cee32f803f4e3b5a708951156cda7a2ac52897e9b93d3e26c/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s5-a1-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-b-1/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-luna-8227ff0260fbe671821aaa7476a2b1710dfa099b6f5df7262becf012ad2a636d/attempt-0001.events.jsonl :: start_wall numeric values = none
+  jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/loop_state.json :: start_wall numeric values = ['1789681001.1930716']
+roundtrip 走行日 (2026-09-16 JST) の epoch 範囲: 1789484400..1789570799
+start_wall numeric values in that range: none
+
+==== wal_canon_r2.py (stdout) ====
+round2 scratch WAL canonical refs == layer3 events: True 5 5
+round2 layer3 events canonical refs == materials/wal-refs.json: True 5
+round2 digest scratch sha ok: True bytes 1938
+round2 digest first line: b'# critic digest \xe2\x80\x94 silo leading indicators (P2-3)'
+digest hits in repo insight dirs: []
+
+==== scan_roundtrip.py (stdout) ====
+scan time: 2026-09-20 21:23:41 JST
+files scanned: 615 roots: 6
+sha hits (round1 5 file + round3 lock/digest/wal): [('round1-receipt', '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/knowledge_manifest_receipt.json')]
+files containing 'start_wall' or 'reverse_recommendations':
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/README.md
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/reviews/s1-brief.md
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/reviews/s2-plan.md
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-b.md
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/reviews/s3-consult-a.md
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-19/k2-loop-round3/materials/run-summary.json
+   /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-k2-loop-originals-lost-downstream/output/insights/2026-09-20/t2795-k2-pair-attempt/materials/run-summary-pair.json
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-sol-9977ae63c4dfa8578d18c37f23ce53ab8c485f83abdf7820cc30dd706e43f52f/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-plan-10bd5f1b2a41651c9fefc31682a5a25e5f1ea1ca13558cba0b7bff3489db3125/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2588-k2-loop-roundtrip/artifacts/dev-wave-t2588-k2-loop-roundtrip/dev-wave-t2588-k2-loop-roundtrip-consult-luna-96fca9ceee247fa193c0d9a51d548836eb93c10e29bf514a64f5a01428124618/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/a1-implementation.diff
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/s6-final.diff
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/s5-integrated.diff
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/mutation-probe2.json
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/mutation-final.json
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-sol-92e058a583687094d5afbf625db2e27fad68b419ede5b437f34fe76d02708cb3/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-a-1/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-focus-1/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-fix-2/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-plan-338040d4619f1a5cee32f803f4e3b5a708951156cda7a2ac52897e9b93d3e26c/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s5-a1-1/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/s6-b-1/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/artifacts/dev-wave-t2746-k2-loop-round2/dev-wave-t2746-k2-loop-round2-consult-luna-8227ff0260fbe671821aaa7476a2b1710dfa099b6f5df7262becf012ad2a636d/attempt-0001.events.jsonl
+   /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/loop_state.json
+
+==== copy_pair_originals.py (stdout) ====
+copied 6 files to /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920 at 2026-09-20 21:24:36 JST
+all match source: True
+  campaign/campaign.lock 962ef7d787b7031a 8307
+  campaign/knowledge_manifest_receipt.json c42dc712bbd11fc7 1317
+  campaign/loop_state.json a8c6a8b69bc7bdd5 255
+  campaign/s4_loop_digest.txt 8bde66fa21413dda 1939
+  campaign/runs/wal.jsonl b5754f98c0643e80 7062

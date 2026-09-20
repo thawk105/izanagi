@@ -1,0 +1,189 @@
+ok eligible boundary 1800.0
+ok ineligible above 1800
+ok incomplete ineligible
+ok anomaly ineligible
+ok anomaly under 1800 does not add a calibration stop rule
+ok chooser receives only completed prefix
+ok empty prefix null
+ok 24 green pass
+ok calibration anomaly disqualifies
+ok calibration anomaly with no B disqualifies
+ok one incomplete slot undetermined
+ok duplicate rep undetermined
+ok missing rep undetermined
+ok disqualification precedes missing main slot
+ok calibration indeterminate permits pass with disclosure
+ok unpreserved cannot pass
+ok identity mismatch cannot pass
+ok CLI rc3 completed verdict disqualifies
+ok ruling mixing cannot pass
+ok bench argv
+ok verifier argv
+ok missing witness rejected
+ok configure defines g_rl
+ok configure defines g_rt
+ok schema required keys
+ok inventory and C counting
+ok manifest mismatch rejected
+ok schema JSON roundtrip
+ok stop above 1800
+ok over-limit prefix excludes later row
+ok no rounding up to 3
+ok budget formula
+ok copy anomaly_count not list length
+ok operational rc 2 null verdict
+ok operational rc -9 null verdict
+ok operational rc 42 null verdict
+ok broken JSON null verdict
+ok timeout null verdict
+summarize: plan-A=pass
+ok collector pass with calibration indeterminate disclosed
+ok collector accounting excludes duplicate latest view
+summarize: plan-A=undetermined
+ok calibration bench failure plus 24 green blocks pass and B
+summarize: plan-A=undetermined
+ok main bench failure disclosed once and blocks pass
+summarize: plan-A=undetermined
+ok job-level calib/identity-mismatch plus 24 green blocks pass
+summarize: plan-A=undetermined
+ok job-level calib/failed plus 24 green blocks pass
+summarize: plan-A=undetermined
+ok job-level verify/identity-mismatch plus 24 green blocks pass
+summarize: plan-A=undetermined
+ok job-level verify/failed plus 24 green blocks pass
+summarize: plan-A=undetermined
+ok multiple attempts never select the last attempt
+summarize: plan-A=disqualified
+ok multiple attempts retain anomaly disclosure
+summarize: plan-A=disqualified
+ok calibration anomaly precedes in_judgment_set
+summarize: plan-A=disqualified
+ok calibration anomaly precedes ruling_sha256
+summarize: plan-A=disqualified
+ok calibration anomaly precedes bundle_sha256
+summarize: plan-A=undetermined
+ok mixed calibration/verify SHA without acceptance rejected
+ok default SHA policy disclosed
+summarize: plan-A=pass
+ok explicit accepted SHA set permits mixed phase pass
+ok SHA phase counts count records once
+ok accepted SHA policy disclosed in JSON and Markdown
+summarize: plan-A=undetermined
+ok incomplete accepted SHA set rejected
+summarize: plan-A=pass
+ok collector retry success preserves original incomplete count
+ok SHA phase counts include original and retry once
+summarize: plan-A=undetermined
+ok collector rejects different trace retry
+summarize: plan-A=undetermined
+ok collector bundle mixing rejected
+summarize: plan-A=pass
+ok collector accepted bundle set permits pass
+ok known results copied outside judgment
+summarize: plan-A=undetermined
+ok collector incomplete bundle allowance rejected
+summarize: plan-A=undetermined
+ok collector known record contamination rejected
+ok all v2 and B-8 helper imports exist
+ok workload gate balanced
+ok subset name g_rl/balanced
+ok predicate verbatim balanced
+ok genome flags balanced
+ok workload gate write-heavy
+ok subset name g_rt/write-heavy
+ok predicate verbatim write-heavy
+ok genome flags write-heavy
+ok workload gate read-heavy
+ok subset name g_rl/read-heavy
+ok predicate verbatim read-heavy
+ok genome flags read-heavy
+ok axis constants
+ok 6s over-limit makes 10s not_run
+ok stop does not invent verdict over-limit
+ok 6s incomplete makes 10s not_run
+ok stop does not invent verdict incomplete
+ok 6s bench-failed makes 10s not_run
+ok stop does not invent verdict bench-failed
+ok 6s eligible schedules 10s
+ok empty calibration schedules 6s
+ok intersection maximum 10
+ok budget stepdown 10 to 6
+ok 6 budget exceeded no launch
+ok empty intersection no rounding
+ok P3 calibration rc3 disqualifies green 24
+ok P3 verbatim explanation
+ok P5 uncertified calibration allows pass disclosed
+ok unfinished calibration allows pass disclosed
+ok known-result contamination undetermined
+ok wrong workload gate undetermined
+ok wrong target undetermined
+ok bundle mixing undetermined
+ok missing witness undetermined
+ok witness mismatch undetermined
+ok bench failed undetermined
+ok main pass has no wall eligibility limit
+ok eligibility requires preservation
+ok eligibility requires both identities
+ok bundle valid
+ok prerun identity needs no expected constant
+ok prerun identity drift fails closed
+ok bundle mismatch fails closed
+ok identity expectation remains unchanged
+ok matching bundle before and after
+ok bundle rejects pin
+ok bundle rejects schema
+ok bundle rejects target
+ok bundle rejects identity missing
+ok bundle rejects identity not hex
+ok bundle rejects known results missing
+ok bundle raw bytes sha binding
+ok bundle whitespace changes binding
+ok prerun required keys
+ok prerun excluded and never ran
+ok extimes 6,10 accepted
+ok extimes rejects 3,6,10
+ok extimes rejects 6
+ok extimes rejects 10,6
+ok extimes rejects 6,10,10
+ok extimes rejects 0,10
+ok extimes rejects x
+ok chooser rejects invalid prefix []
+ok chooser rejects invalid prefix [{'extime': 10, 'verifier_walltime_s': 1}]
+ok chooser rejects invalid prefix [{'extime': 6, 'verifier_walltime_s': 1801}, {'extime': 10, 'verifier_walltime_s': 1}]
+ok chooser rejects invalid prefix [{'extime': 6, 'verifier_walltime_s': nan}]
+ok clean environment explicit
+ok hard timeout calibrate
+ok hard timeout verify
+ok hard timeout reverify
+ok single terminal attempt rc
+ok resume never reruns failed rep rc
+ok single terminal attempt timeout
+ok resume never reruns failed rep timeout
+ok single terminal attempt witness
+ok resume never reruns failed rep witness
+ok resume skips existing bench_failed
+ok resume skips existing witness_missing
+ok resume skips existing completed
+ok resume skips existing verifier_incomplete
+ok resume restores then starts first verifier at 1800s
+ok resume keeps bench and attempt-1 provenance
+ok resumed first verdict enters ordinary attempt-1 judgment
+ok resumed completed verifier is skipped next time
+ok unpreserved rep terminates with disclosed nonconformance
+ok unpreserved terminal rep never reruns
+ok unrecorded multiple attempts remain structural errors
+ok resume accepts matching judgment record
+ok resume requires literal judgment True False
+ok resume requires literal judgment True None
+ok resume requires literal judgment True 1
+ok cohort failure blocks pass bench_failed
+ok cohort failure blocks pass witness_missing
+ok cohort failure blocks pass trace_missing
+ok cohort failure blocks pass witness_mismatch
+ok not_run is not a bench failure
+ok nonconforming completed anomaly still disqualifies identity
+ok excluded anomaly never disqualifies identity
+ok nonconforming completed anomaly still disqualifies witness
+ok excluded anomaly never disqualifies witness
+selftest: PASS 166/166 cases
+rc=0

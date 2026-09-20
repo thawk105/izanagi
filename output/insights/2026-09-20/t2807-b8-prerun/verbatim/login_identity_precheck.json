@@ -1,0 +1,119 @@
+{
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2807-b8-prerun",
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "template_patch": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2807-b8-prerun/patches/silo-backoff-trigger-gating-variant.patch",
+  "template_patch_sha256": "31316713b9783fc7fbbbcffb4fa1d791e3f9d1c0bbea6db52ac45b77cef7d620",
+  "genome": {
+    "protocol": "silo",
+    "flags": {
+      "BACK_OFF": 1,
+      "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+      "NO_WAIT_OF_TICTOC": 0,
+      "WAL": 0,
+      "BACKOFF_TRIGGER_GATING": 1
+    },
+    "canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+  },
+  "cmake_defines": [
+    "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+    "-DCCBENCH_BACK_OFF=1",
+    "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+    "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+    "-DCCBENCH_WAL=0"
+  ],
+  "freeze_system_gate": {
+    "balanced": {
+      "name": "g_rl",
+      "flags": {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_TRIGGER_GATING": 1
+      },
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;"
+    },
+    "write-heavy": {
+      "name": "g_rt",
+      "flags": {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_TRIGGER_GATING": 1
+      },
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;"
+    },
+    "read-heavy": {
+      "name": "g_rl",
+      "flags": {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_TRIGGER_GATING": 1
+      },
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;"
+    }
+  },
+  "targets": {
+    "g_rl": {
+      "name": "g_rl",
+      "reasons": [
+        "readvali-locked"
+      ],
+      "predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+      "evidence": {
+        "schema_version": "source-evidence/v1",
+        "source_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2807-b8-prerun/probe/tmp/izanagi_wt_x3zzfdi5/wt",
+        "ccbench_commit": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "genome_sha256": "f37df6824eeea16b7e859fd9f48951a9fb1c8dcfa917eddf24e76116158e07d9",
+        "src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+        "source_bytes_sha256": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+        "tracked_clean": false,
+        "tracked_diff_sha256": "81255f99dff3c90faccaf14038870a747e862ed8024a753ad86605cf40148c93",
+        "tracked_paths": [
+          "cc/silo/transaction.cc",
+          "cmake/Options.cmake"
+        ],
+        "quarantine": {
+          "passed": true,
+          "reason": null
+        },
+        "edited_source_sha256": "e64a0cb4354c1201eb7aa5a96874b098c5bc9b6cfe2649377fea945fa743223f"
+      }
+    },
+    "g_rt": {
+      "name": "g_rt",
+      "reasons": [
+        "readvali-tid"
+      ],
+      "predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;",
+      "evidence": {
+        "schema_version": "source-evidence/v1",
+        "source_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2807-b8-prerun/probe/tmp/izanagi_wt_x3zzfdi5/wt",
+        "ccbench_commit": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "genome_sha256": "f37df6824eeea16b7e859fd9f48951a9fb1c8dcfa917eddf24e76116158e07d9",
+        "src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+        "source_bytes_sha256": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+        "tracked_clean": false,
+        "tracked_diff_sha256": "55b86fdeaba088aeb4dbb9031992d1f4eda7a511e0366d1a40e965895e24d739",
+        "tracked_paths": [
+          "cc/silo/transaction.cc",
+          "cmake/Options.cmake"
+        ],
+        "quarantine": {
+          "passed": true,
+          "reason": null
+        },
+        "edited_source_sha256": "5ec76865c3a0c1c5c3a7963ffaa1890699347b4199ab9b70b74e67a19a57b725"
+      }
+    }
+  },
+  "errors": {},
+  "scratch_checkout": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2807-b8-prerun/probe/tmp/izanagi_wt_x3zzfdi5/wt",
+  "patch_files": [
+    "cmake/Options.cmake",
+    "cc/silo/transaction.cc"
+  ]
+}
