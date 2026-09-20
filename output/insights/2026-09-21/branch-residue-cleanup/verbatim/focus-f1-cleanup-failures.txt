@@ -1,0 +1,13 @@
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_deletes_branch
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_admin_binding_change_is_partial
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[default-branch-reflog]
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[clean]
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_bundle_verify_failure_is_partial[verify]
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_branch_delete_failure_is_partial
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_deletes_branch_after_admin_removal
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_receipt_rejects_recreated_branch
+FAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_already_clean_with_receipt
+
+== 根本の stderr (各 node の Captured stderr call、重複除去) ==
+      1 dev-wave-cleanup: status=partial phase=history-bundle reason=git bundle rc=128: fatal: Refusing to create empty bundle.
