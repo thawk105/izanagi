@@ -1668,7 +1668,7 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert budget["EXPECTED_WALLTIME_S"] == 18000
     assert (
         "EXPECTED_FREEZE_TREES_SHA256="
-        "6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415"
+        "92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb"
     ) in job
     assert "WORKLOADS=(write-heavy balanced read-heavy)" in submit
     assert (
@@ -2022,7 +2022,7 @@ def test_b10_freeze_tree_bytes_match_the_wave_local_gate():
         digest.update(b"\0")
         digest.update(path.read_bytes())
     assert digest.hexdigest() == (
-        "6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415"
+        "92099c87e93536ebecf28e85ebf60222716e0b20c179c94e50dc2fb15ef2f8bb"
     )
 
 

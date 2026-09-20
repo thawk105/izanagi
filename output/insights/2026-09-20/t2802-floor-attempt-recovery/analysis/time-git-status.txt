@@ -1,0 +1,9 @@
+t2802-base-a rep1 status--output=6.53s status-all=8.27s
+dev-wave-t2802-floor-attempt-recovery rep1 status--output=3.93s status-all=4.62s
+t2802-base-a rep2 status--output=3.66s status-all=4.63s
+dev-wave-t2802-floor-attempt-recovery rep2 status--output=3.51s status-all=4.07s
+t2802-base-a rep3 status--output=3.20s status-all=4.03s
+dev-wave-t2802-floor-attempt-recovery rep3 status--output=9.43s status-all=9.38s
+index sizes:
+-rw-r--r-- 1 tanab SFC 4899558  9月 20 08:25 /work/1/SFC/tanab/izanagi/.git/worktrees/dev-wave-t2802-floor-attempt-recovery/index
+-rw-r--r-- 1 tanab SFC 4899558  9月 20 08:29 /work/1/SFC/tanab/izanagi/.git/worktrees/t2802-base-a/index

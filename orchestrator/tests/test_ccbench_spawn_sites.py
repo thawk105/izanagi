@@ -212,10 +212,6 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s5_permutation_coverage.py", "<module>._build_broken"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._run_cmake_build"): 1,
     ("campaign/s5_permutation_coverage.py", "<module>._verify"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.export_stock"): 3,
-    ("campaign/s6_canary_rename.py", "<module>.git_apply"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.normalize_cxx"): 1,
-    ("campaign/s6_canary_rename.py", "<module>.verify"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.call_headless"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.cmd_freeze"): 1,
     ("campaign/s6_proposal_rounds.py", "<module>.freshness_check"): 2,
@@ -965,7 +961,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns this driver",
         "campaign",
         "<module>.run_measurement",
-        7428,
+        7545,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -2936,7 +2932,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/paper_story_a1_paired.py",
-            "wave t1819", "campaign", "<module>.run_measurement", 7428,
+            "wave t1819", "campaign", "<module>.run_measurement", 7545,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",

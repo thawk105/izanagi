@@ -10,6 +10,7 @@ import importlib.util
 import inspect
 import json
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -21,7 +22,7 @@ import pytest
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, os.fspath(HERE))
-from skiputil import skip  # noqa: E402
+from skiputil import Skip, skip  # noqa: E402
 
 
 CANONICAL_CERT = "f685b40d194c9e4b40eed6337b294f38a7ff4aef731829317fd2e83940fbda40"
@@ -34,6 +35,9 @@ T2364_REAL_ROOT = Path(
     "/work/1/SFC/tanab/izanagi-measurements/"
     "dev-wave-paper-story-a2-cert-20260824/t2364-20260907b"
 )
+A6_CERT = "output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json"
+A6_SOURCE = "docs/paper-story/results/2026-09-18-a6-certification-reject.md"
+A6_REAL_ROOT = Path("/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b")
 SAMPLES = {
     "rr5-stock": [2715421, 2565367, 2496060, 2470354, 2527542],
     "rr5-fixed10": [1348263, 1355011, 1345709, 1387690, 1362175],
@@ -190,12 +194,45 @@ def _producer():
     return producer
 
 
-def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> dict:
+def _a6_seed(tmp_path: Path, policy_document: dict) -> dict:
+    """Use the same synthetic raw/WAL machinery, with the A-6 policy shape."""
+    root = tmp_path / "measurements"
+    certification = _certification()
+    certification["study"] = policy_document["study"]
+    certification["cells"] = certification["cells"][:2]
+    certification["request_ids"] = {"rr95": "101.nqsv"}
+    certification["effects"] = {"rr95": certification["effects"]["rr5"]}
+    records = []
+    campaign = "fixture-rr95-campaign"
+    for cell, spec, template in zip(certification["cells"], policy_document["cells"], ("rr5-stock", "rr5-fixed10")):
+        cell.update(cell_id=spec["id"], workload=spec["workload"], genome=spec["genome"])
+        raw = _raw(template)
+        raw.update(cell_id=spec["id"], genome=spec["genome"], campaign_evidence={"campaign_id": campaign})
+        raw["performance"]["workload"]["workload"]["ycsb_rratio"] = "95"
+        _write(root / f"jobs/rr95/raw/{spec['id']}.json", raw)
+        rows = _payloads(template)
+        rows[0]["payload"]["genome"] = "silo|" + ",".join(f"{k}={v}" for k, v in spec["genome"].items())
+        records.extend(rows)
+    wal = root / f"jobs/rr95/campaigns/{campaign}/runs/wal.jsonl"
+    wal.parent.mkdir(parents=True)
+    wal.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in records))
+    cert = tmp_path / "certification.json"
+    _write(cert, certification)
+    return {"root": root, "cert": cert, "manifest": tmp_path / "raw-manifest.json",
+            "prefix": tmp_path / "fig11_fixture"}
+
+
+def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False,
+                     policy_source: str = "output/insights/2026-08-24_paper-story-a2-certification/certification.json") -> dict:
     """Build the real producer's current full schema chain around local bytes."""
-    fixture = _fixture(tmp_path)
     producer = _producer()
-    frozen = json.loads((REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json").read_text())
+    frozen = json.loads((REPO / policy_source).read_text())
     policy_document = json.loads(base64.b64decode(frozen["policy_bytes_base64"], validate=True))
+    is_a6 = policy_document["study"] == "paper-story-a6-certification"
+    fixture = _a6_seed(tmp_path, policy_document) if is_a6 else _fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text()) if is_a6 else _certification()
+    campaigns = {"rr95": "fixture-rr95-campaign"} if is_a6 else CAMPAIGNS
+    ids = {row["cell_id"]: row["build_attempt_id"] for row in certification["cells"]}
     policy_document["trace0_cmake_argv"]["configure"][
         "fetchcontent_path_argument_prefixes"
     ] = [
@@ -244,10 +281,10 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
         _write(raw_path, raw)
 
     for workload in (row["id"] for row in policy.document["workloads"]):
-        wal_path = fixture["root"] / f"jobs/{workload}/campaigns/{CAMPAIGNS[workload]}/runs/wal.jsonl"
+        wal_path = fixture["root"] / f"jobs/{workload}/campaigns/{campaigns[workload]}/runs/wal.jsonl"
         records = [json.loads(line) for line in wal_path.read_text().splitlines()]
         for cell in (cell for cell in policy.cells if cell.workload_id == workload):
-            start = next(row for row in records if row["stage"] == "build_start" and row["payload"]["build_attempt_id"] == IDS[cell.cell_id])
+            start = next(row for row in records if row["stage"] == "build_start" and row["payload"]["build_attempt_id"] == ids[cell.cell_id])
             start["payload"]["src_token"] = tokens[cell.cell_id]
             start["payload"]["build_admission"] = {"source": evidences[cell.cell_id].as_receipt()}
         wal_path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in records), encoding="utf-8")
@@ -268,7 +305,6 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
         receipt.write_text("".join(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n" for row in frames), encoding="ascii")
         receipt_paths[workload] = receipt
 
-    certification = _certification()
     by_cell = {row["cell_id"]: row for row in certification["cells"]}
     certification["cells"] = [by_cell[cell.cell_id] for cell in policy.cells]
     for row in certification["cells"]:
@@ -303,7 +339,7 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
     claims = {}
     files = {}
     for workload in (row["id"] for row in policy.document["workloads"]):
-        campaign = CAMPAIGNS[workload]
+        campaign = campaigns[workload]
         claim_path = fixture["root"] / f"jobs/{workload}/env/pegasus/claims/{campaign}.claim"
         lock_path = fixture["root"] / f"jobs/{workload}/campaigns/{campaign}/campaign.lock"
         _write(claim_path, {"campaign_identity": campaign, "workload": workload})
@@ -325,12 +361,16 @@ def _current_fixture(tmp_path: Path, *, reverse_policy_order: bool = False) -> d
     manifest = {
         "attempt_id": "fixture-attempt", "campaign_claims": claims,
         "current_pin": "511c953", "files": files, "protocol_sha256": protocol,
-        "schema_version": producer.RAW_MANIFEST_SCHEMA, "study": "paper-story-a2-certification",
+        "schema_version": producer.RAW_MANIFEST_SCHEMA, "study": policy.study,
     }
     fixture["manifest"].write_text(
         json.dumps(manifest, separators=(",", ":")) + "\n", encoding="utf-8")
     fixture.update({"policy": policy, "tokens": tokens})
     return fixture
+
+
+def _a6_fixture(tmp_path: Path) -> dict:
+    return _current_fixture(tmp_path, policy_source=A6_CERT)
 
 
 def _replace_embedded_policy_bytes(fixture: dict, policy_bytes: bytes) -> None:
@@ -700,14 +740,14 @@ def test_t2364_canonical_current_full_measurements_load_without_override():
 
     assert [relative for relative, *_rest in current_full] == [
         "output/insights/2026-09-07_t2364-paper-story-a2-certification/"
-        "certification.json"
+        "certification.json", A6_CERT,
     ]
     for (_relative, certification_path, raw_manifest_path,
          certification, manifest) in current_full:
-        _require_complete_external_root(
-            T2364_REAL_ROOT, list(manifest["files"]))
+        root = A6_REAL_ROOT if _relative == A6_CERT else T2364_REAL_ROOT
+        _require_complete_external_root(root, list(manifest["files"]))
         data = plot.load_measurements(
-            T2364_REAL_ROOT, certification_path, raw_manifest_path)
+            root, certification_path, raw_manifest_path)
         certified_cells = {
             row["cell_id"]: row for row in certification["cells"]
         }
@@ -1526,7 +1566,13 @@ def test_tracked_authority_literals_and_run_readme_record_agree():
     cert = REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
     manifest = REPO / "output/insights/2026-08-24_paper-story-a2-certification/raw-manifest.json"
     run_readme = REPO / "output/insights/2026-08-28_t2022-a2-certification-run/README.md"
-    assert len(plot.CANONICAL_SHA256) == 2
+    assert len(plot.CANONICAL_SHA256) == 3
+    assert plot.CANONICAL_SHA256[A6_CERT] == {
+        "certification": "3a9505b009f4d0aa2161bcac8e50dada6712fc214d03d7d68d705060e6d92cab",
+        "raw_manifest": "8d17953575afc4594df052d5b5b778291c4d41a1564bb1fbc2d29e8d1df94ef9",
+    }
+    for digest in plot.CANONICAL_SHA256[A6_CERT].values():
+        assert f"`{digest}`" in (REPO / A6_SOURCE).read_text().split("### 5.1", 1)[1].split("### 5.2", 1)[0]
     assert plot.CANONICAL_SHA256[
         "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
     ] == {"certification": CANONICAL_CERT, "raw_manifest": CANONICAL_MANIFEST}
@@ -1660,6 +1706,268 @@ def test_landed_fig7_repo_closure_and_caption_when_present():
     if not any(path.exists() for path in paths) and "fig7_a2_builtin_backoff_onoff_reject" not in readme:
         skip("fig7 integration artifacts are parent-owned and not landed yet")
     _assert_named_landed_bundle(plot, prefix, figures_readme)
+
+
+def test_a6_fixture_loads_as_current_full_with_six_file_closure(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    data = _load(plot, fixture)
+    assert data["study"] == "paper-story-a6-certification"
+    assert data["measurement_conditions"]["artifact_profile"] == "current-full"
+    assert [w["id"] for w in data["measurement_conditions"]["workloads"]] == ["rr95"]
+    assert len(data["cells"]) == 2 and all(c["n"] == 5 for c in data["cells"])
+    assert len(data["external_inputs"]) == 6
+    manifest = json.loads(fixture["manifest"].read_text())
+    assert len(manifest["files"]) == 6
+    wal = next(row for row in data["external_inputs"] if row["kind"] == "wal")
+    records = [json.loads(line) for line in (fixture["root"] / wal["path"]).read_text().splitlines()]
+    assert collections.Counter(row["stage"] for row in records) == {
+        "build_start": 2, "build_done": 2, "verify_done": 12, "bench_done": 2, "commit": 2}
+    receipt = next(row for row in data["external_inputs"] if row["kind"] == "condition-receipt")
+    assert len((fixture["root"] / receipt["path"]).read_text().splitlines()) == 4
+
+
+def test_study_profiles_are_exactly_a2_and_a6():
+    assert _plot().STUDY_PROFILES == {
+        "paper-story-a2-certification": {"label": "A-2", "caption_source": None},
+        "paper-story-a6-certification": {"label": "A-6", "caption_source": A6_SOURCE},
+    }
+
+
+def test_a6_legacy_profile_is_rejected(tmp_path):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    _change_cert(fixture, lambda d: d.update(study="paper-story-a6-certification"))
+    manifest = json.loads(fixture["manifest"].read_text())
+    manifest["study"] = "paper-story-a6-certification"
+    _write(fixture["manifest"], manifest)
+    with pytest.raises(plot.FigureDataError, match="not an accepted study"):
+        _load(plot, fixture)
+
+
+def test_a6_zero_workload_policy_is_rejected(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text())
+    document = json.loads(base64.b64decode(certification["policy_bytes_base64"]))
+    document["workloads"], document["cells"] = [], []
+    _replace_embedded_policy_bytes(fixture, (json.dumps(document) + "\n").encode())
+    with pytest.raises(plot.FigureDataError, match="policy workload count differs"):
+        _load(plot, fixture)
+
+
+def test_a6_pin_drift_is_rejected(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    expected = _hashes(fixture)
+    fixture["cert"].write_bytes(fixture["cert"].read_bytes() + b"\n")
+    with pytest.raises(plot.FigureDataError, match="certification canonical SHA-256 mismatch"):
+        plot.load_measurements(fixture["root"], fixture["cert"], fixture["manifest"], expected)
+
+
+@pytest.mark.parametrize("overflow", [False, True])
+def test_a6_rejects_six_file_closure_underflow_and_overflow(tmp_path, overflow):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    # A positive control makes reverting to the old 12-file constant observable.
+    assert len(_load(plot, fixture)["external_inputs"]) == 6
+    manifest = json.loads(fixture["manifest"].read_text())
+    if overflow:
+        manifest["files"]["extra.json"] = "0" * 64
+    else:
+        manifest["files"].pop(next(iter(manifest["files"])))
+    _write(fixture["manifest"], manifest)
+    with pytest.raises(plot.FigureDataError, match="exact 6-file closure"):
+        _load(plot, fixture)
+
+
+def _a6_provenance(plot, fixture):
+    data = _load(plot, fixture)
+    outputs = [Path(f"{fixture['prefix']}{suffix}") for suffix in (".png", ".pdf")]
+    for path in outputs:
+        path.write_bytes(b"synthetic output bytes")
+    return plot.build_provenance(data, outputs, ["plot"])
+
+
+def _assert_a6_caption_source(provenance):
+    assert [row for row in provenance["tracked_inputs"] if row["kind"] == "caption_source"] == [{
+        "kind": "caption_source", "path": A6_SOURCE, "sha256": _sha(REPO / A6_SOURCE),
+        "authority_scope": "fixed caption statements and limitation wording only; not measurement values or protocol status",
+    }]
+
+
+def test_a6_provenance_tracks_caption_source_with_current_sha(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    provenance = _a6_provenance(plot, fixture)
+    assert provenance["study"] == "paper-story-a6-certification"
+    _assert_a6_caption_source(provenance)
+    plot.validate_repo_closure(provenance, REPO)
+
+
+def test_a6_caption_contains_fixed_literals(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    data = _load(plot, fixture)
+    caption = plot._caption(data, fixture["prefix"])
+    for literal in (
+        "with one policy workload, the outer status is that workload's verdict itself",
+        "Correctness comes from separate trace-enabled runs: all 2 cells were certified. This is not a performance certification. The performance reject does not withdraw that correctness evidence.",
+        "one abort-rate observation per cell, taken from the repetition whose throughput is closest to the median (the runner's representative-repetition rule)",
+        "src_token equality does not by itself establish semantic identity of the whole translation unit",
+        "artifact hashes alone are not compile-out proof (the evidence is source-routed)",
+        "The value is not extrapolated to other read ratios, machines, CCBench pins, or concurrency-control protocols.",
+        "campaign claim recorded at",
+        "This is one attempt of five samples per cell; it does not decide a between-run floor exceedance, repeated-attempt reproducibility, or research success or failure, and it does not show that stock is best for read-heavy or that static backoff is harmful for read-heavy in general.",
+        "The same-sign B-10 read-heavy blocks are a historical concordance under nearby conditions, not an independent reproduction, and are not pooled here; the A-2 attempts measured other workloads and are neither pooled nor compared as before/after.",
+        "Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision.",
+    ):
+        assert literal in caption, literal
+    assert caption.startswith("Figure 11. A-6 formal certification attempt fixture-attempt (outer status: reject).")
+    assert "all 2 cells were certified" in caption
+
+
+@pytest.mark.parametrize("status,effect,expected", [
+    ("reject", -.1, True), ("observed-positive", -.1, False),
+    ("reject", 0, False), ("reject", .1, False),
+])
+def test_a6_caption_median_statement_is_conditional(tmp_path, status, effect, expected):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    data = _load(plot, fixture)
+    data["outer_status"], data["effects"]["rr95"] = status, effect
+    assert ("the adopted cell's median did not exceed the stock cell's median" in
+            plot._caption(data, fixture["prefix"])) is expected
+
+
+def test_a6_caption_excludes_forbidden_words(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    caption = plot._caption(_load(plot, fixture), fixture["prefix"])
+    for phrase in ("significant", "superior", "improvement", "performance certified", "reproduced",
+                   "replicated", "research failure", "Top-row y axes are scaled independently by workload",
+                   "older series", "sign difference", "aggregate abort-rate"):
+        assert phrase not in caption
+
+
+def test_a6_real_size_figure_has_two_columns_and_passes_layout(tmp_path):
+    """Two cell positions in a single workload column, with two panel rows."""
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    data = _load(plot, fixture)
+    fig, axes = plot.make_figure(data)
+    try:
+        assert axes.shape == (2, 1) and len(fig.axes) == 2
+        assert len(fig._a2_artist_series) == 10
+        assert fig._a2_artist_series == plot._artist_series(data)
+        assert fig._suptitle.get_text() == "A-6 two-cell certification — trace-disabled performance"
+        assert "Single workload (read-heavy, rr95); abort axis is 0-1. Mean t95 CI is descriptive." in [t.get_text() for t in fig.texts]
+        assert any("all 2 cells certified" in t.get_text() for t in fig.texts)
+        for ax in fig.axes:
+            assert [t.get_text() for t in ax.get_xticklabels()] == ["no backoff", "fixed 2 us"]
+        plot.check_figure_layout(fig, axes)
+    finally:
+        plot.plt.close(fig)
+
+
+def test_layout_rejects_wrong_axes_count(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    fig, axes = plot.make_figure(_load(plot, fixture))
+    # Invisible extra axes avoid a secondary text-overlap reason for rejection.
+    fig.add_axes([.2, .2, .1, .1]).set_visible(False)
+    try:
+        assert len(fig.axes) == 3
+        with pytest.raises(plot.FigureLayoutError, match="axes"):
+            plot.check_figure_layout(fig, axes)
+    finally:
+        plot.plt.close(fig)
+
+
+def test_unknown_study_is_rejected(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    certification = json.loads(fixture["cert"].read_text())
+    document = json.loads(base64.b64decode(certification["policy_bytes_base64"]))
+    document["study"] = "paper-story-unknown-certification"
+    raw = (json.dumps(document) + "\n").encode()
+    _replace_embedded_policy_bytes(fixture, raw)
+    _change_cert(fixture, lambda d: d.update(study=document["study"]))
+    manifest = json.loads(fixture["manifest"].read_text())
+    manifest["study"] = document["study"]
+    _write(fixture["manifest"], manifest)
+    with pytest.raises(plot.FigureDataError, match="tracked authority study is not an accepted study"):
+        _load(plot, fixture)
+
+
+@pytest.mark.parametrize("field", ["request_id", "created_utc"])
+def test_current_rejects_duplicate_workload_requests(tmp_path, field):
+    plot, fixture = _plot(), _current_fixture(tmp_path)
+    manifest = json.loads(fixture["manifest"].read_text())
+    first, second = (manifest["campaign_claims"][w]["claim"] for w in ("rr5", "rr50"))
+    if field == "request_id":
+        second["job_id"] = first["job_id"]
+        _change_cert(fixture, lambda d: d["request_ids"].update(rr50=d["request_ids"]["rr5"]))
+    else:
+        second["created_utc"] = first["created_utc"]
+    _write(fixture["manifest"], manifest)
+    with pytest.raises(plot.FigureDataError, match="distinct requests and recorded times"):
+        _load(plot, fixture)
+
+
+def test_a2_current_full_caption_is_unchanged_for_landed_fig6():
+    plot = _plot()
+    path = REPO / "docs/paper-story/figures/fig6_a2_certification_observed_positive.provenance.json"
+    provenance = json.loads(path.read_text())
+    plot.validate_repo_closure(provenance, REPO)
+    assert plot._study_label(provenance) == "A-2"
+    assert len(provenance["tracked_inputs"]) == 2
+
+
+def test_a6_cli_writes_three_outputs(tmp_path):
+    plot, fixture = _plot(), _a6_fixture(tmp_path)
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    paths = [Path(f"{fixture['prefix']}{s}") for s in (".png", ".pdf", ".provenance.json")]
+    assert all(p.is_file() and p.stat().st_size for p in paths)
+    provenance = json.loads(paths[-1].read_text())
+    plot.validate_repo_closure(provenance, REPO)
+    _assert_a6_caption_source(provenance)
+
+
+def test_a6_canonical_current_full_measurements_load_without_override():
+    plot = _plot()
+    cert_path = REPO / A6_CERT
+    manifest_path = cert_path.with_name("raw-manifest.json")
+    cert, manifest = json.loads(cert_path.read_text()), json.loads(manifest_path.read_text())
+    _require_complete_external_root(A6_REAL_ROOT, list(manifest["files"]))
+    data = plot.load_measurements(A6_REAL_ROOT, cert_path, manifest_path)
+    assert [c["median_tps"] for c in data["cells"]] == [10088796, 9505248] == [c["performance"]["median_tps"] for c in cert["cells"]]
+    assert data["effects"]["rr95"] == -0.057841193339621455 == cert["effects"]["rr95"]
+    assert [c["abort_rate"] for c in data["cells"]] == [.1547, .145]
+    assert data["correctness"]["cells"] == {c["cell_id"]: c["correctness"] for c in cert["cells"]}
+
+
+def test_landed_fig11_repo_closure_and_caption_when_present():
+    prefix = REPO / "docs/paper-story/figures/fig11_a6_certification_reject"
+    paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
+    assert all(p.is_file() for p in paths), "fig11 integration bundle is incomplete"
+    plot = _plot()
+    provenance = json.loads(paths[-1].read_text())
+    tracked = {row["kind"]: row["path"] for row in provenance["tracked_inputs"]}
+    cert = json.loads((REPO / tracked["certification"]).read_text())
+    raw_manifest = json.loads((REPO / tracked["raw_manifest"]).read_text())
+    assert provenance["study"] == cert["study"]
+    assert provenance["outer_status"] == cert["status"]
+    assert provenance["effects"] == cert["effects"]
+    assert [c["median_tps"] for c in provenance["cells"]] == [c["performance"]["median_tps"] for c in cert["cells"]]
+    assert {r["path"] for r in provenance["external_inputs"]} == set(raw_manifest["files"])
+    assert [r["path"] for r in provenance["outputs"]] == [p.relative_to(REPO).as_posix() for p in paths[:2]]
+    plot.validate_repo_closure(provenance, REPO)
+    readme = (prefix.parent / "README.md").read_text()
+    assert provenance["caption"] in readme
+    section = readme.split(f"# `{prefix.name}` — ", 1)[1].split("\n# ", 1)[0]
+    hashes = section.split("## 着地 bytes の SHA-256\n", 1)[1].split("\n## ", 1)[0]
+    for path in paths:
+        rows = re.findall(rf"^- `{re.escape(path.name)}` SHA-256: `([0-9a-f]{{64}})`$", hashes, re.M)
+        assert len(rows) == 1 and rows[0] == _sha(path), f"README hash mismatch: {path.name}"
+    _assert_a6_caption_source(provenance)
+
+
+def test_landed_fig11_rejects_all_missing_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "REPO", tmp_path)
+    try:
+        with pytest.raises(AssertionError, match="fig11 integration bundle is incomplete"):
+            test_landed_fig11_repo_closure_and_caption_when_present()
+    except (Skip, pytest.skip.Exception) as exc:
+        raise AssertionError("missing fig11 bundle was skipped instead of rejected") from exc
 
 
 if __name__ == "__main__":

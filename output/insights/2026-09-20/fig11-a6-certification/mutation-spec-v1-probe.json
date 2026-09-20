@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "\"\"\"Render the hash-bound A-2 four-cell certification result.\"\"\"\n",
+          "new": "\"\"\"Render the hash-bound A-2 four-cell certification result.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-a6-pin-drift-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if kind == \"certification\" and actual != expected_hashes[\"certification\"]:\n",
+          "new": "    if kind == \"certification\" and actual != expected_hashes[\"certification\"] and False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-closure-count-fixed-12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    expected_count = 10 if profile == \"legacy\" else 6 * len(workloads)\n",
+          "new": "    expected_count = 10 if profile == \"legacy\" else 12\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-a6-caption-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    caption_source = STUDY_PROFILES[data.get(\"study\", STUDY)][\"caption_source\"]\n    if caption_source is not None:\n",
+          "new": "    caption_source = STUDY_PROFILES[data.get(\"study\", STUDY)][\"caption_source\"]\n    if caption_source is not None and False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-layout-accept-any-axes",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "            or len(plot_axes) != 2 * ncols or len(fig.axes) != 2 * ncols):\n",
+          "new": "            or len(plot_axes) != 2 * ncols or len(fig.axes) != 2 * ncols) and False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-a6-caption-literal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "                f\"runs: all {len(data['cells'])} cells were certified. This is not a performance certification. \"\n",
+          "new": "                f\"runs: all {len(data['cells'])} cells were certified. \"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6a-legacy-accepts-a6-study",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    accepted_studies = (STUDY,) if profile == \"legacy\" else STUDY_PROFILES\n",
+          "new": "    accepted_studies = STUDY_PROFILES\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6b-current-full-drops-a6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    accepted_studies = (STUDY,) if profile == \"legacy\" else STUDY_PROFILES\n",
+          "new": "    accepted_studies = (STUDY,)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-distinct-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if len({row[\"request_id\"] for row in workload_rows}) != len(workloads) or len({row[\"created_utc\"] for row in workload_rows}) != len(workloads):\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-landed-skip-on-missing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_a2_certification.py",
+          "old": "    assert all(p.is_file() for p in paths), \"fig11 integration bundle is incomplete\"\n",
+          "new": "    if not all(p.is_file() for p in paths):\n        skip(\"fig11 integration bundle is incomplete\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-a2-caption-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "            f\"The independent workload campaigns were {campaigns}, at distinct recorded times; the outer status \"\n",
+          "new": "            f\"The independent workload campaigns were {campaigns}, at distinct recorded times indeed; the outer status \"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
