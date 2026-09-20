@@ -1,0 +1,477 @@
+{
+ "T-2153-origin.md": {
+  "source_sha256": "ba52438f5446387751e21d79cc6ed44b7d457dd3d38855e73508ad49220bf92d",
+  "source_bytes": 991,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "brief.md": {
+  "source_sha256": "e0e9de734060ded35937c91d6248827078fda51541f48f032bd70d53e7c5b193",
+  "source_bytes": 10587,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "compare-i1-login.log": {
+  "source_sha256": "c3bf4f294659cdf79a52b8b908fdd15fc62cdbd1cc251a09874b4266e8836c93",
+  "source_bytes": 2049,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "compare-login-compute.log": {
+  "source_sha256": "1c79760554debca4b4a71b8d6d600e2ce5394878f10dada93818ebe2e1e548bf",
+  "source_bytes": 5421,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "focus-own1.log": {
+  "source_sha256": "beb260337627b7ad86935e98252071ac9c3ceb49e8c71e276efb6deda8017d11",
+  "source_bytes": 5863,
+  "nfc_changed": false,
+  "combining_marks_removed": 0,
+  "trailing_whitespace_normalization": {
+   "before_sha256": "beb260337627b7ad86935e98252071ac9c3ceb49e8c71e276efb6deda8017d11",
+   "before_bytes": 5863,
+   "after_sha256": "3fe3d5184a125174a8df1be5c90f011589befd4b5a7e1b4006b4830fadb8fb06",
+   "after_bytes": 5861,
+   "changes": [
+    {
+     "line": 14,
+     "removed_bytes": 1,
+     "removed": " "
+    },
+    {
+     "line": 51,
+     "removed_bytes": 1,
+     "removed": " "
+    }
+   ],
+   "restore": "各 line の末尾に removed の文字列を戻すと before_sha256 に一致する (可視文字不変)"
+  }
+ },
+ "focus-own2-child-stdout.txt": {
+  "source_sha256": "7dad47699ffba954b47d0adb28103a1e671cb590e25b9cc21e483472d06a3666",
+  "source_bytes": 31662,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "i1-after/host.txt": {
+  "source_sha256": "f6a7eb9c9eb301558e9f3cc8c4c69502870deedc5fb05ef1f6e8f85bbb6aa8bd",
+  "source_bytes": 76,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "i1-after/noinline-1v0.stdout.jsonl": {
+  "source_sha256": "13017afab83402fc635293dc36a2cf12a84d7178b6d1d0a8c4bd11a2eb14f951",
+  "source_bytes": 144357,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "i1-after/rc.txt": {
+  "source_sha256": "a085711230cf6d27aedf78774e1d282bac77dcba15c7e75a1eab44c37e88aa22",
+  "source_bytes": 71,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "i1-after/rung1-1v0.stdout.jsonl": {
+  "source_sha256": "3a07b1153f61fb15def54422ca62306ef58811b2b31e49b54af901bf60a0babd",
+  "source_bytes": 144423,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "i1-after/sort-1v0.stdout.jsonl": {
+  "source_sha256": "2b7a5066c61231f376c3b372aaf9280be4734a08de955ff9c894f4ce52889ab2",
+  "source_bytes": 144220,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/host.txt": {
+  "source_sha256": "c65bc7b50dbccf2fb04e81ade3a6b03a710cc06250d6cacb48026b00e2fe8856",
+  "source_bytes": 76,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/noinline-1v0.stdout.jsonl": {
+  "source_sha256": "f1a9eb0d23c3f68dee8c1470fae9e85e5beb9328ef06bbbc63d3c9edc5f657a2",
+  "source_bytes": 144361,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/rc.txt": {
+  "source_sha256": "69052bc491e83abb61e42d6f3a5aaca3155f5a9e9dee682b8bf8ff6c004319d4",
+  "source_bytes": 141,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/requested-us-1v0-backoff0.stdout.jsonl": {
+  "source_sha256": "762263c2455707e45a9da970f9432e5c9fbef8383ea165442dbbb71a66688cc2",
+  "source_bytes": 137732,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/requested-us-1v0.stdout.jsonl": {
+  "source_sha256": "6fd17da83ef0c9e08fead527938be5d356a8c9df4a5f757e904d8aa8bf5adb1e",
+  "source_bytes": 146340,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/rung1-1v0.stdout.jsonl": {
+  "source_sha256": "e55d731197b977ade61ca94ce4b80cba4f264415dec8ffd0f0256b6fa7c6531b",
+  "source_bytes": 144425,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-after/sort-1v0.stdout.jsonl": {
+  "source_sha256": "673389ddcf5401f42681db92cf5560141ad33d3af47b19bd6ff273d35e377610",
+  "source_bytes": 144224,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre/host.txt": {
+  "source_sha256": "0b27d40bdc52e6d08a089c01d6a8cdcbf9148f52950375164bc11f9149e75af4",
+  "source_bytes": 76,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre/noinline-1v0.stdout.jsonl": {
+  "source_sha256": "c112cd7b5c0cb445170f71ff3cbb46ac9c11fc28188303a16fd6bb517b358eed",
+  "source_bytes": 144357,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre/rc.txt": {
+  "source_sha256": "1251452f3028460f3b5ecab5e701b6bad7412a4404e9c17b71b9402bc739e275",
+  "source_bytes": 78,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre/requested-us-1v0.stdout.jsonl": {
+  "source_sha256": "e075a3e2917a32e12ed363276ac854d59f7f41a373c1374cfdaea8d9e560bd42",
+  "source_bytes": 137435,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre/sort-1v0.stdout.jsonl": {
+  "source_sha256": "28a81724f3e2a229d3cdbd288b0d4927414f56f56d0866f969fe236e5644a705",
+  "source_bytes": 144220,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre2/host.txt": {
+  "source_sha256": "4861ef17fc41f0cd2ee6193bfee08e6f957064e1d1aded2c917b2c532bf1679f",
+  "source_bytes": 76,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre2/rc.txt": {
+  "source_sha256": "a8b220e98080d097edf42c9a798eb1505eb2be87c9550df7066b4bf60ea42a0f",
+  "source_bytes": 24,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "login-pre2/rung1-1v0.stdout.jsonl": {
+  "source_sha256": "432085538547570c0a03c8ddba6dcd0b218874a3ba7a7b9e0359d1b340921ac1",
+  "source_bytes": 144423,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "mutation-ledger-final.summary.json": {
+  "source_sha256": "a810d2001d228c4e3a6e8a0691f007045e00a69fe01fd4b67dd8d133806df0ae",
+  "source_bytes": 222260,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "mutation-ledger-probe.summary.json": {
+  "source_sha256": "dd897c370501554310e25990efa0773e24a61b6b5e57f09e3ff2991506aba6f1",
+  "source_bytes": 202003,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "mutation-spec-final.json": {
+  "source_sha256": "e1a6a7418c3f8838049f8f214ace6d83e9ab216e0194daff8bfaa80042c95d53",
+  "source_bytes": 37769,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "mutation-spec-probe.json": {
+  "source_sha256": "6f8f990e30e460be8f4347e1ff4ea4ea39a50b56c95f772e36385bdf692b4095",
+  "source_bytes": 4830,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "nest-static-analysis.out.txt": {
+  "source_sha256": "2ab390eca49e502d08b42630f445bd4de3548558b88568546f549407765030ba",
+  "source_bytes": 714,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "nest-static-analysis.sh.txt": {
+  "source_sha256": "99ef7a44eb6f6cd0dd2bb77020ca9354bd15ceeea6da4f997eb07c62de40e1e8",
+  "source_bytes": 777,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "probe-site-token.out.txt": {
+  "source_sha256": "df504eeb44488167e6ea9afab74d72349232e976a9b9165321525ee0996acb45",
+  "source_bytes": 534,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "probe-site-token.sh.txt": {
+  "source_sha256": "9c95dc87b6b48e0e1998d85aacf4a5d8a6b8447c944673229ef197e16bd2c0a4",
+  "source_bytes": 1387,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "ruling.md": {
+  "source_sha256": "3f101e895ce2ce39a23324ddc1f326b67e927059c8121f421cf862d07cae83b9",
+  "source_bytes": 15066,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s2-plan.md": {
+  "source_sha256": "6132926341fa7c823ed3cd1560acc270d2abffeb2ec9e26a65482581a0667f7c",
+  "source_bytes": 26992,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s3-consult-a.md": {
+  "source_sha256": "7231c0d32692ca1aaab9f43c718f02a45c3bcf88247a4eeb5ea46d4e1c0ffddc",
+  "source_bytes": 13469,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s3-consult-b.md": {
+  "source_sha256": "d85e324c1f90b84f736948feb70bf6c807c5b0ad944e331c6c827c3b790dec84",
+  "source_bytes": 15765,
+  "nfc_changed": false,
+  "combining_marks_removed": 0,
+  "trailing_whitespace_normalization": {
+   "before_sha256": "d85e324c1f90b84f736948feb70bf6c807c5b0ad944e331c6c827c3b790dec84",
+   "before_bytes": 15765,
+   "after_sha256": "0f6da31fe2b50eef8ee486254c84d66ecebf31d3d8daf0780c400b2c6b252a63",
+   "after_bytes": 15725,
+   "changes": [
+    {
+     "line": 7,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 8,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 9,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 12,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 13,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 14,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 17,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 18,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 19,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 22,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 23,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 24,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 27,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 28,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 29,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 32,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 33,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 34,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 37,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 38,
+     "removed_bytes": 2,
+     "removed": "  "
+    }
+   ],
+   "restore": "各 line の末尾に removed の文字列を戻すと before_sha256 に一致する (可視文字不変)"
+  }
+ },
+ "s5-author-impl.md": {
+  "source_sha256": "183eb23781cc590434a655dcf4c77fb575dc0c12a6e663df415bbea9d6249476",
+  "source_bytes": 5314,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-review-a.md": {
+  "source_sha256": "4a124cc4e383a7eca291bdfd9163a070876c9f6778ce539856abc946b43ea590",
+  "source_bytes": 10532,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "s6-review-b.md": {
+  "source_sha256": "7a4c618d57239cdd7958af0819b4853ca2e2885d2ec7fa7211ec4d4f98ec1955",
+  "source_bytes": 6810,
+  "nfc_changed": false,
+  "combining_marks_removed": 0,
+  "trailing_whitespace_normalization": {
+   "before_sha256": "7a4c618d57239cdd7958af0819b4853ca2e2885d2ec7fa7211ec4d4f98ec1955",
+   "before_bytes": 6810,
+   "after_sha256": "971c02f9a5fc71f2e795352ec7a5723a9c9e9b89e42f6cbd0bff180df83347b3",
+   "after_bytes": 6790,
+   "changes": [
+    {
+     "line": 7,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 8,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 11,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 12,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 15,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 16,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 19,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 20,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 23,
+     "removed_bytes": 2,
+     "removed": "  "
+    },
+    {
+     "line": 24,
+     "removed_bytes": 2,
+     "removed": "  "
+    }
+   ],
+   "restore": "各 line の末尾に removed の文字列を戻すと before_sha256 に一致する (可視文字不変)"
+  }
+ },
+ "stage6-compute/host.txt": {
+  "source_sha256": "3ff73b69b31a5a8d2704eb3f35fed6251486f9e64073682b49b159cd9de01d6e",
+  "source_bytes": 75,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/noinline-1v0.stdout.jsonl": {
+  "source_sha256": "6f69ae24983d0e68d233d2a4b15ae198d53cc754938cad74494c57399072dfcd",
+  "source_bytes": 144319,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/rc.txt": {
+  "source_sha256": "2fd36663b0278433b2ee538f30e291111bb651720d6f44c4c1e5b419b07f7a2d",
+  "source_bytes": 140,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/requested-us-1v0-backoff0.stdout.jsonl": {
+  "source_sha256": "1c0d09c5ce6ddf0fa9504a062961a6c5a9b6a0adcf6c0732f99f2ffcffe0c764",
+  "source_bytes": 137714,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/requested-us-1v0.stdout.jsonl": {
+  "source_sha256": "b700c055adb83c1f6e46f065ada74f2fe5e3e50e598aa4265c8ac2c9c3f37602",
+  "source_bytes": 146298,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/rung1-1v0.stdout.jsonl": {
+  "source_sha256": "9fe50c450e2be6813e8a8f1a9de704361be07b22960279d74173915b3498ea05",
+  "source_bytes": 144383,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ },
+ "stage6-compute/sort-1v0.stdout.jsonl": {
+  "source_sha256": "cf028c2ee09d491c0c8ee3cf1ba93362d3fe2d5db3a5229a7ede3984fd3aa9fe",
+  "source_bytes": 144182,
+  "nfc_changed": false,
+  "combining_marks_removed": 0
+ }
+}

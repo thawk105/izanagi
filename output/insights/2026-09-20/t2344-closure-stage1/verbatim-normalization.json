@@ -1,0 +1,162 @@
+{
+  "s2-plan.md": {
+    "lines": [
+      489,
+      490,
+      491,
+      492
+    ],
+    "original_sha256": "dc9a4e154524998af4564998c90f4dc6317abbe686554036e07115f32e15ae7b",
+    "original_bytes": 34384,
+    "normalized_sha256": "b14aed23b929689a29d78d59e61b56a1079d8ad13f344370ce48de7a9df8d8a6",
+    "normalized_bytes": 34376,
+    "removed": [
+      "  ",
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s3-lensA.md": {
+    "lines": [
+      110,
+      111,
+      112
+    ],
+    "original_sha256": "9f2870abc5cbc34f2d7d029127b3e562815959a2226b5330f8c5f40da35ed877",
+    "original_bytes": 11940,
+    "normalized_sha256": "c7235a84296bc19144c771353a55c037fa34fa4c0279152c789f68a2fad67ae9",
+    "normalized_bytes": 11934,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s3-lensB.md": {
+    "lines": [
+      15,
+      32,
+      65,
+      74,
+      141,
+      142,
+      143
+    ],
+    "original_sha256": "457579d67f2e5578492e9697e20fae745d23a8acc3b412499e6744e4ac7c8924",
+    "original_bytes": 13681,
+    "normalized_sha256": "7ea5437c46abeaa2a815daaa1a85b35e22166c8268afbe4c3eaace41e5a7e829",
+    "normalized_bytes": 13667,
+    "removed": [
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s5-author-v1-stopped.md": {
+    "lines": [
+      39,
+      40,
+      41
+    ],
+    "original_sha256": "1db8e1403fd43da9f54375a2752cc68ebc5d4f0fe16be5c01259d02db98f5104",
+    "original_bytes": 3060,
+    "normalized_sha256": "df023b0876cd0938bbbf62fd5f120e095ff371def73867f84ebcf22e113bc0a4",
+    "normalized_bytes": 3054,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s5-author-v2.md": {
+    "lines": [
+      325,
+      326,
+      327
+    ],
+    "original_sha256": "1e3cde5fa2e215ceffe7949c2b9172807ed6c70763483269e1fa14e53f440fda",
+    "original_bytes": 34020,
+    "normalized_sha256": "ac91c789ce965151be085f60a8dd1b7c5f3639f84efb9abdea665a057268f3b7",
+    "normalized_bytes": 34014,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s6-fix1.md": {
+    "lines": [
+      21,
+      22
+    ],
+    "original_sha256": "4a7f61fbbc4dab9b09bade550ae9cd9e55d4d4d21c3c9fbc515d2ece9c44b243",
+    "original_bytes": 1458,
+    "normalized_sha256": "aaf22bce8e0e9ebc3f4bd32f4b7b7b79ca5cf71f6cf87d1cf6b1cb86aba064e2",
+    "normalized_bytes": 1454,
+    "removed": [
+      "  ",
+      "  "
+    ]
+  },
+  "s6-reviewA.md": {
+    "lines": [
+      7,
+      8,
+      19,
+      20,
+      33,
+      34,
+      47,
+      48,
+      57,
+      58,
+      67,
+      68,
+      73,
+      74,
+      75
+    ],
+    "original_sha256": "c6145a797a3e450372d62ddc88def35d3999ff0eaa3baf38702d08c4a5a9f91e",
+    "original_bytes": 8151,
+    "normalized_sha256": "5360d783cfae9543beb8a62c2ce0469443b003a87f144becf0f3a260803fc62b",
+    "normalized_bytes": 8121,
+    "removed": [
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s6-reviewB.md": {
+    "lines": [
+      75,
+      76,
+      77
+    ],
+    "original_sha256": "9ff5d55c8a47ce7393ce0375f4ae409009f032f3d1913c5f2174b001e66b7506",
+    "original_bytes": 7301,
+    "normalized_sha256": "f2b25dfc4cc01de2afa3d5a5c9a5b17b25664ddbfaa3d7b5f97102b15c3ddf81",
+    "normalized_bytes": 7295,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  }
+}

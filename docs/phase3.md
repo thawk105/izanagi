@@ -23,6 +23,27 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   「G 自身が追加した世代文書の導入 == {G}」へ改めた。実 repo の historical reverify は段階 8 (未発効候補の scan hit) まで到達、
   live は現行 policy 照合で拒否のまま。全 gate 受理・W-4 / W-5 は未達。記録 = `output/insights/2026-09-20/t2810-g1-launch-validation/README.md`。
 
+- [x] 本体論文の日本語結果・考察草稿を 2026-09-21 版として更新し (09-20 の前稿 entry 1750 を supersede)、要旨・結論の草稿を
+  新規起草した (2026-09-21 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-21/paper-results-ja/results-discussion.md`
+  は A-1 sized attempt-0002 (認可済み独立再現、entry 1755) の登録済み解析の出力を凍結稿の表の逐語で attempt-0001 と並記し (プールしない、
+  充足・formal 化・再現は判定しない)、採用時点 `285477c00` までに動いた状態語 4 件 (K2 pair 初投入の不成立、fig13、B-8 の試走認可と
+  発効前試走、K2 原本消失の provenance 注記) を最小限に揃えた。`output/insights/2026-09-21/paper-abstract-conclusion-ja/{abstract,conclusion}.md`
+  は story 2026-09-20b 版 §6 + README stale 注記 5 件と 4 稿から起草し、数値は稿の表の逐語、状態語は D 台帳、位置づけは 1 文の逐語引用だけ。
+  前稿本文・版・凍結物は不変 (前稿 dir の README に前方 pointer を追記)。文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
+
+- [x] 本体論文の日本語関連研究節を新規起草した (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。
+  `output/insights/2026-09-20/paper-related-work-ja/related-work.md`。正典 `docs/related-work/README.md` と
+  `claim-survey/` の範囲だけで書き (新規の文献取得は 0 件、D1760 / D1931 の停止を「調査不要」へ広げない)、差別化の核 3 点
+  (D1598) と落とせない限定 3 つは story 2026-09-20 版 §1 に揃え、軸 1 = `RW1`・軸 3 = `RW0` の成熟度を本文の限定にした。
+  正典・凍結物・版は不変。文書成果の完了であり、先行研究調査の完了・優先権主張・Phase 3 全体の完了を意味しない。
+
+- [x] 本体論文の日本語結果・考察草稿を 2026-09-20 版として再導出し、09-10 の前稿 (entry 1436) を supersede した
+  (2026-09-20 の新規ユーザー執筆依頼、台帳 ID 未起票)。`output/insights/2026-09-20/paper-results-ja/results-discussion.md`。
+  09-10 以後の results 稿 15 本と図 fig4〜fig12・fig8b を主張ごとの 12 節・表 15 に束ね、数値は各稿の表の逐語、
+  言えること / 言えないことは各稿の限定と story 2026-09-20 版 §6 + README stale 注記 (D2174 項 3) に揃えた。
+  前稿本文は不変 (前稿 dir に前方 pointer の README を追加)。文書成果の完了であり、未取得の測定 (A-1 充足・A-5・
+  B-1・B-2・B-5・B-8 など) や Phase 3 全体の完了を意味しない。
+
 - [x] [T-2737] D2148項4のSS2PL非inert局所修正を実装した (2026-09-19)。
   関門前の依存準備、phase1の4軸と実build、計器呼出し保存、既存C++テストを確認。
   controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
@@ -298,6 +319,8 @@ stock 最良 / ランダム変異 / 機械 sweep) とその操作的定義・LLM
 実際に発火した。一方、8b の workload 特化は旧比較の結果から
 独立した新しい主張なので、既知結果を pilot と明示し、未見 holdout・descriptor ablation・全件報告を別の
 前向き設計として凍結する。kickoff は旧主実験を満たさなくてよい (別スコープ)。
+2026-09-20 の D1441 反映 (復活条件の「非列挙」の語義改訂) は、凍結成果物が sha256 で参照する同文書の bytes を
+保全し、別 file `docs/phase3-main-experiment-addendum-1.md` に日付付き追補として記録した。
 
 ---
 
@@ -422,6 +445,12 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
   `docs/paper-story-backoff/2026-09-10.md` に追加した。機序の直接観測・動的化の結果・認証の限定を
   反映した文書成果であり、旧版不変、新規測定・追加認証・本体論文との図表の二重新規利用はない。
 
+- [x] 本体論文の日本語序論・貢献・限界草稿 (2026-09-20 の新規ユーザー執筆依頼) を
+  `output/insights/2026-09-20/paper-intro-ja/{intro,contributions,limitations}.md` に作成。
+  論文ストーリー 2026-09-20 版と claim-evidence 稿から起草し、版・稿より後の裁定で動いた状態語
+  (B-7 の限定付き充足、g1 の発効、pin 前進など) は D 本文で現在地へ揃えた。文書成果の完了であり、
+  版・稿・図は不変、新規測定・追加認証・関連研究節・英訳・Phase 3 全体の完了を意味しない。
+
 **段 1〜5 は完了 (2026-07-06〜07-10)。完了記録の詳細 (実装内訳・敵対レビュー・実測値・実機検証手順)
 は `docs/archive/phase3-kickoff-stages1-5.md` へ分離 (2026-07-10)** — ここには完了サマリ + 現役情報
 (ablation 点・残課題・発火条件) + 正本ポインタのみ残す (完了/未了の正本は本リスト、番号は分離前と不変)。
@@ -463,6 +492,14 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      planner-4 / coder-4 へ型付き入力として届き、候補10 (decrease / large) を1評価して
      serializable・異常0・certified・continue を得た。同job stock対照は既存経路に結線がなく未達
      (裁定パッケージ)。改善の実証ではない。記録は `output/insights/2026-09-19/k2-loop-round3/README.md`。
+   - [x] [T-2795] D2172項3 (i) の同job pair launcher (D2183) を初投入 (2026-09-20、実装差分ゼロ)。候補10の再評価は
+     certified、stockは同campaignの2起動目がone-shot claim leaf (D464) に認可前で拒否され pair 不成立
+     (STOCK性未確認、再投入なし、4巡目未投入)。修復方向は裁定パッケージ。記録は
+     `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`。
+   - [x] [T-2815] K2 loop 3巡の campaign 原本消失 (2026-09-20 19:25 JST、cleanup 事故 F1034) の下流影響を照合した (docs のみ、実装差分ゼロ)。
+     3巡の値・判定・稿・図は不変。round 3 の `loop_state.json` と round 2/3 の AO は repo 派生物から byte 一致で再構成でき、
+     WAL は内容同一 (canonical ref 5/5) まで、roundtrip は転記値のみ。4巡目の入力元 (round 3 派生物からの射影 / 別走 /
+     pair 走) は裁定パッケージ。記録は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
@@ -1013,7 +1050,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-1378] **批准台帳の外部 trust root と署名の新設** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): [T-868] (承認 receipt の署名と trust root は設けない) および 2026-08-12 の粗い provenance 方針と同型であり、覆す新事実がない。`hooks/` 配置による AI 追記の機械的遮断を維持し、自己発行可能な性質は機械可読な限界宣言で明示したまま受容する。再訪条件 = 外部公開時 ([T-868] と同じ)。**発火記録: 2026-08-27。D905 (2026-08-25、ユーザー裁定) が
   この見送りを覆した** — 批准の執行経路は「AI が成りすませない実行主体の新設」だけを採ると定めたため、
   外部 trust root と署名を設けない側の前提が失効した。[T-1629] の wave で実装済み。
-- [T-1558] **撤去 tool への同一 invocation 所有権証明 (lease / capability)** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): 実害の観測がなく防御的堅牢化に当たる (2026-08-12 ユーザー方針・D205 と同基準)。現行の 5 条件 (common git-dir 一致・branch↔tip 束縛・占有 rc=0・clean・ancestry) で代替する。再訪条件 = 別セッションによる誤撤去の実害 1 件。
+- [T-1558] **撤去 tool への同一 invocation 所有権証明 (lease / capability)** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): 実害の観測がなく防御的堅牢化に当たる (2026-08-12 ユーザー方針・D205 と同基準)。現行の 5 条件 (common git-dir 一致・branch↔tip 束縛・占有 rc=0・clean・ancestry) で代替する。再訪条件 = 別セッションによる誤撤去の実害 1 件。 2026-09-21 に F1034 (退避 tar が空のまま撤去) で再訪条件「誤撤去の実害 1 件」が文言上発火。D2194 項 11 で見送り維持 — 事故の原因は user 実行の引き渡し script の退避検算の欠落で、同一 invocation の所有権証明では防げない。防壁は [T-2814] の原本判定 + 退避検算。
 
 - [T-1694] **procfs の列挙不完全性を理由に走査全体を rc2 にする形** — 理由: 裁定 2026-08-27
   (/rulings 全件、推奨どおり): rc2 にしない。現環境で当該 mount option は未設定である。

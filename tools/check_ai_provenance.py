@@ -52,6 +52,14 @@ _DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
 _DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = (
     "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
 )
+# C-2804: 同一 host の land/checker 間で共有する絶対 monotonic 期限。
+_PROVENANCE_OUTER_DEADLINE_ENV = "IZANAGI_PROVENANCE_OUTER_DEADLINE_MONOTONIC"
+# 後段の代理値 (後段実測なし): 前段 max 15.9 秒の約 2 倍。
+_PROVENANCE_DEADLINE_POST_RESERVE_S = 32.0
+# T-2484 receipt 3,849 件、harness regime: 2.87 × (前段 max 15.9 + poll 5.0)。
+_PROVENANCE_DISPATCH_PRE_RESERVE_S = 60.0
+# queue 待ち観測 min 5.1 秒 (n=85) の約 3 倍: 運用閾値であり必要時間の証明ではない。
+_PROVENANCE_MIN_QUEUE_BUDGET_S = 16.0
 _BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_PROVENANCE_SCOPE_UNIT"
 _BOUNDED_SCOPE_CAP_ENV = "IZANAGI_PROVENANCE_SCOPE_CAP"
 _BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-provenance-"
@@ -2266,12 +2274,10 @@ def _system_attributes_path():
     return paths.pop()
 
 
-def _attribute_fingerprint(head):
-    """Bind worktree/index and local/global/system attribute inputs, independent of tip.
-
-    Untracked directories containing no tracked files are not enumerated for
-    .gitattributes discovery.
-    """
+def _attribute_candidates(head, *, policy=None) -> tuple[bytes, ...]:
+    """Include index ancestors and attribute directories used by audited merges."""
+    if policy is None:
+        policy = _policy_commit(head)
     attribute_paths = {b".gitattributes"}
 
     def add_ancestors(path):
@@ -2280,6 +2286,43 @@ def _attribute_fingerprint(head):
             attribute_paths.add(directory + b"/.gitattributes")
             directory = directory.rpartition(b"/")[0]
 
+    def git_bytes(*args, input=None):
+        result = subprocess.run(
+            ["git", *args], input=input, cwd=REPO,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        if result.returncode:
+            raise RuntimeError("cannot enumerate attribute candidates")
+        return result.stdout
+
+    for entry in git_bytes("ls-files", "--stage", "-z").split(b"\0"):
+        if entry:
+            _, name = entry.split(b"\t", 1)
+            add_ancestors(name)
+            if name.rsplit(b"/", 1)[-1] == b".gitattributes":
+                attribute_paths.add(name)
+    merges = git_bytes("rev-list", "--merges", f"{policy}..{head}")
+    merges += git_bytes("rev-list", "--merges", "--no-walk", policy)
+    # --cc candidates intersect all parent diffs, so the first-parent diff is a superset.
+    # git log --diff-merges=first-parent --no-walk=unsorted --stdin --name-only -z --format= --no-renames
+    paths = b""
+    if merges:
+        paths = git_bytes("log", "--diff-merges=first-parent",
+                          "--no-walk=unsorted", "--stdin", "--name-only", "-z",
+                          "--format=", "--no-renames", input=merges)
+    for name in paths.split(b"\0"):
+        if name:
+            add_ancestors(name)
+    return tuple(sorted(attribute_paths))
+
+
+def _attribute_fingerprint(head, *, policy=None) -> str:
+    """Bind worktree/index and local/global/system attribute inputs.
+
+    Candidates include root, index ancestors, and ancestors of merge paths
+    whose attributes can affect the audit. The history-derived directories
+    grow monotonically with audit history. Absent entries stay out of the digest.
+    """
     def file_bytes(path):
         path = Path(path)
         if not path.is_absolute():
@@ -2326,15 +2369,14 @@ def _attribute_fingerprint(head):
     for entry in index.split(b"\0"):
         if entry:
             metadata, name = entry.split(b"\t", 1)
-            add_ancestors(name)
             if name.rsplit(b"/", 1)[-1] == b".gitattributes":
                 indexed.append([name.hex(), metadata.decode("ascii")])
-                attribute_paths.add(name)
-    # Probe only directories on index paths (plus the repository root). This includes
-    # untracked attributes along those paths without walking ignored outputs or
-    # submodule contents, and follows directory symlinks as Git does.
-    working = [[name.hex(), file_bytes(os.fsdecode(name))]
-               for name in sorted(attribute_paths)]
+    candidates = _attribute_candidates(head, policy=policy)
+    working = []
+    for name in candidates:
+        source = file_bytes(os.fsdecode(name))
+        if source != {"kind": "absent"}:
+            working.append([name.hex(), source])
     return _receipt_digest({"info": file_bytes(info),
                             "configured": external, "index": sorted(indexed),
                             "working": working,
@@ -2363,17 +2405,18 @@ def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
     )
     manifest = [[name, mode.decode("ascii"), oid.decode("ascii")]
                 for name, (mode, oid) in sorted(entries.items())]
+    policy = _policy_commit(head)
     bindings = {
         "environment": environment,
         "repository": str(common),
         "object_format": _git("rev-parse", "--show-object-format").strip(),
-        "policy": _policy_commit(head),
+        "policy": policy,
         "scope_epoch": scope_epoch,
         "implementation_epoch": implementation_epoch,
         "cab_hits": sorted(oid for oid, i in ancestry.index.items()
                            if ancestry.cab_policy_mask & (1 << i)),
         "registry_manifest": _receipt_digest(manifest),
-        "attributes": _attribute_fingerprint(head),
+        "attributes": _attribute_fingerprint(head, policy=policy),
     }
     return common / _RECEIPT_DIRECTORY / (
         _receipt_digest(environment)) / (head + ".json"), bindings
@@ -2565,7 +2608,8 @@ def _audit_history(
     if authoritative and receipt_state is not None:
         receipt_state.clear()
         try:
-            path, bindings = _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry)
+            path, bindings = _receipt_bindings(
+                head, scope_epoch, implementation_epoch, ancestry)
             # Rank using the existing HEAD closure, before prefix validation.
             selected_mask = 0
             for oid in commits:
@@ -2881,6 +2925,16 @@ def _dispatch_timeout_overrides(
     return overrides
 
 
+def _outer_deadline_monotonic(environ: Mapping[str, str]) -> float | None:
+    raw = environ.get(_PROVENANCE_OUTER_DEADLINE_ENV)
+    if raw is None:
+        return None
+    deadline = float(raw)
+    if not math.isfinite(deadline):
+        raise ValueError(f"{_PROVENANCE_OUTER_DEADLINE_ENV} は有限数でなければなりません")
+    return deadline
+
+
 def _default_dispatch(argv: Sequence[str]) -> int:
     from tools.pegasus import dispatch_compute
 
@@ -2889,7 +2943,45 @@ def _default_dispatch(argv: Sequence[str]) -> int:
         "repo_root": REPO,
         **_dispatch_timeout_overrides(environ=os.environ),
     }
-    return dispatch_compute.dispatch(argv, **dispatch_kwargs)
+    outer_deadline = _outer_deadline_monotonic(os.environ)
+    if outer_deadline is None:
+        return dispatch_compute.dispatch(argv, **dispatch_kwargs)
+    now = time.monotonic()
+    remaining = outer_deadline - now
+    deadline_at = outer_deadline - _PROVENANCE_DEADLINE_POST_RESERVE_S
+    queue_budget = (
+        remaining - _PROVENANCE_DEADLINE_POST_RESERVE_S
+        - dispatch_compute.DEFAULT_CLEANUP_BUDGET_S
+        - _PROVENANCE_DISPATCH_PRE_RESERVE_S
+    )
+    queue_wait_timeout_s = min(
+        dispatch_kwargs.get(
+            "queue_wait_timeout_s", dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S,
+        ),
+        queue_budget,
+    )
+    if queue_wait_timeout_s < _PROVENANCE_MIN_QUEUE_BUDGET_S:
+        print(
+            f"provenance dispatch budget insufficient: remaining_s={remaining} "
+            f"queue_budget_s={queue_budget} "
+            f"min_queue_s={_PROVENANCE_MIN_QUEUE_BUDGET_S} rc={PEGASUS_DISPATCH_RC}",
+            file=sys.stderr, flush=True,
+        )
+        return PEGASUS_DISPATCH_RC
+    dispatch_kwargs["deadline_at"] = deadline_at
+    dispatch_kwargs["queue_wait_timeout_s"] = queue_wait_timeout_s
+    rc = PEGASUS_DISPATCH_RC
+    try:
+        rc = dispatch_compute.dispatch(argv, **dispatch_kwargs)
+        return rc
+    finally:
+        print(
+            f"provenance dispatch budget: remaining_at_dispatch_s={remaining} "
+            f"queue_wait_timeout_s={queue_wait_timeout_s} "
+            f"deadline_margin_s={outer_deadline - deadline_at} "
+            f"remaining_at_return_s={outer_deadline - time.monotonic()} rc={rc}",
+            file=sys.stderr, flush=True,
+        )
 
 
 def _invoke_dispatch(dispatch_fn, argv: Sequence[str]) -> int:

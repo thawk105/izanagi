@@ -1,0 +1,119 @@
+{
+  "schema": "b8-effective-bundle/v1",
+  "status": "draft-pending-user-approval",
+  "target": "plan-A",
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "identity": {
+    "g_rl": {
+      "src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+      "source_bytes_sha256": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;",
+      "gate_reasons": [
+        "readvali-locked"
+      ],
+      "tracked_paths": [
+        "cc/silo/transaction.cc",
+        "cmake/Options.cmake"
+      ],
+      "prerun_binary_sha256": "563ebd0b9872f0c22fe803c35ddab32c3cf7f831829f3ffcf3e50624ea7b5b72",
+      "prerun_hostname": "bnode041",
+      "prerun_finished_at": "2026-09-20T13:21:19.734290+00:00"
+    },
+    "g_rt": {
+      "src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+      "source_bytes_sha256": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+      "gate_predicate": "izanagi_gate_pass = izanagi_abort_reason_ == IzanagiAbortReason::kUnset || izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid;",
+      "gate_reasons": [
+        "readvali-tid"
+      ],
+      "tracked_paths": [
+        "cc/silo/transaction.cc",
+        "cmake/Options.cmake"
+      ],
+      "prerun_binary_sha256": "f52b9e45f5193aaf7adb26f2f464e6e4f256de9811fab5e8173e80f2942689b7",
+      "prerun_hostname": "bnode022",
+      "prerun_finished_at": "2026-09-20T13:15:20.222755+00:00"
+    }
+  },
+  "template_patch": "patches/silo-backoff-trigger-gating-variant.patch",
+  "template_patch_sha256": "31316713b9783fc7fbbbcffb4fa1d791e3f9d1c0bbea6db52ac45b77cef7d620",
+  "genome": {
+    "protocol": "silo",
+    "flags": {
+      "BACK_OFF": 1,
+      "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+      "NO_WAIT_OF_TICTOC": 0,
+      "WAL": 0,
+      "BACKOFF_TRIGGER_GATING": 1
+    },
+    "canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
+  },
+  "configure_defines": [
+    "-DCCBENCH_TRACE=1",
+    "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+    "-DCCBENCH_BACK_OFF=1",
+    "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+    "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+    "-DCCBENCH_WAL=0"
+  ],
+  "toolchain": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11"
+  },
+  "compiler_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+  "python_version": "3.10.12",
+  "verifier_module_sha256": {
+    "__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+    "__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+    "cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+    "commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+    "core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+    "dsg.py": "e5989092476a6208e5631c63b12cc66d64945cbe307514b074c1a7f0fc6365aa",
+    "model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+    "parse.py": "a588bc3095fefb5f107be16de5976ed726c84bcfbe9a5a1f5d670951515f23af",
+    "report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+  },
+  "pipeline_module_sha256": "472cc7a23d1f8d442db8c3a85fb2af03242e55540258ff284c678051a82c11df",
+  "runner": {
+    "path": "dev-wave-jobs/dev-wave-t2807-b8-prerun/probe/verify_phase_runner.py (repo 外)",
+    "sha256": "4ff6652a365b952cba4deb23e2ae910ba863dabba4a107503c641c7a36863430",
+    "lines": 2103
+  },
+  "ruling": {
+    "path": "docs/b8-final-candidate-longrun-verify-preregistration.md",
+    "sha256": "6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5"
+  },
+  "prerun_repo_head": "f94b61fc865af29ff3c7e1c8ef8b99fd8a1216ad",
+  "known_results": [
+    {
+      "kind": "prerun",
+      "gate": "g_rl",
+      "record": "run/prerun-v5/g_rl/prerun.json",
+      "in_judgment_set": false,
+      "src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+      "hostname": "bnode041",
+      "finished_at": "2026-09-20T13:21:19.734290+00:00"
+    },
+    {
+      "kind": "prerun",
+      "gate": "g_rt",
+      "record": "run/prerun-v5/g_rt/prerun.json",
+      "in_judgment_set": false,
+      "src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+      "hostname": "bnode022",
+      "finished_at": "2026-09-20T13:15:20.222755+00:00"
+    },
+    {
+      "kind": "historical",
+      "note": "07-16 S-1 検証相校正 (cygnus、旧 verifier、pin d706650c) g_rl read-heavy 3 s / 6 s serializable・certified、src_token 4608a96e… は旧 pin の値で期待値にしない (§2.4、§8)"
+    },
+    {
+      "kind": "historical",
+      "note": "D2160 検証相 (fixed-5 / fixed-10、案 B) 3 s × 24 + 校正 6 = 30 verify / 候補 anomaly 0、6 s 校正完走、10 s 未完走 (§8)"
+    }
+  ]
+}

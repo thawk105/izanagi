@@ -3552,12 +3552,17 @@ def _bind_provenance_checker(repository: _Repository) -> _ProvenanceCheckerBindi
         raise
 
 
+_PROVENANCE_AUDIT_TIMEOUT_S = 480
+_PROVENANCE_OUTER_DEADLINE_ENV = "IZANAGI_PROVENANCE_OUTER_DEADLINE_MONOTONIC"
+
+
 def _run_provenance_checker(
     checker: _ProvenanceCheckerBinding,
     repository: _Repository,
     env: dict[str, str],
 ) -> subprocess.CompletedProcess[bytes]:
     env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    env[_PROVENANCE_OUTER_DEADLINE_ENV] = repr(time.monotonic() + _PROVENANCE_AUDIT_TIMEOUT_S)
     return subprocess.run(
         [sys.executable, str(checker.path)],
         cwd=repository.wave,
@@ -3568,7 +3573,7 @@ def _run_provenance_checker(
         check=False,
         shell=False,
         close_fds=True,
-        timeout=480,
+        timeout=_PROVENANCE_AUDIT_TIMEOUT_S,
     )
 
 
@@ -3630,7 +3635,7 @@ def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
     except BaseException as exc:
         detail = ""
         if isinstance(exc, subprocess.TimeoutExpired):
-            detail = " after 480 seconds"
+            detail = f" after {_PROVENANCE_AUDIT_TIMEOUT_S} seconds"
         raise _Reject(
             RC_PROVENANCE,
             f"provenance audit failed: {type(exc).__name__}{detail}: {exc}",

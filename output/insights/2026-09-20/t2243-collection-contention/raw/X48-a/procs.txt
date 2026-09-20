@@ -1,0 +1,14 @@
+--- proc-0.time
+Command exited with non-zero status 4
+28.64 766.35 49.56 340004 21 6068904 376597 283452
+--- proc-0.rc
+4
+--- proc-0.perf
+# started on Sun Sep 20 21:56:02 2026
+
+2524155916010,,cycles,814965060568,100.00,,
+3111893648862,,instructions,814965060568,100.00,1.23,insn per cycle
+11289414558,,cache-misses,814965060568,100.00,,
+--- proc-0.err
+ERROR: flaky-test hold keys missing from complete collection: ['orchestrator/tests/test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean']
+

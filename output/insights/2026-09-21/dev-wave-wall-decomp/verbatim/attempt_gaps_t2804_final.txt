@@ -1,0 +1,21 @@
+phase mutation wall_s gap_prev_s | pre(start→qsub) prr(qsub→node) END(qsub→END) post(END→finished)
+collection                                104 None  | 0     86    99    5
+baseline                                   48 9     | -1    13    42    6
+mutation   M1-deadline-without-post-res    53 6     | -1    20    47    6
+mutation   M2-queue-budget-without-clea    53 5     | 0     19    47    6
+mutation   M3-queue-budget-without-pre-    53 6     | 0     19    47    5
+mutation   M4-min-to-max                   53 7     | -1    20    47    6
+mutation   M5-refusal-inverted             43 6     | 0     8     37    6
+mutation   M6-refusal-boundary-le          53 6     | -1    20    47    6
+mutation   M7-unset-env-still-derives      53 12    | -1    20    48    6
+mutation   M8-deadline-at-not-passed       53 10    | 0     20    48    6
+mutation   M9-invalid-env-treated-as-un    43 9     | -1    9     37    6
+mutation   E0-min-operands-swapped         53 10    | -1    20    47    7
+mutation   M10-land-env-not-set            58 8     | 0     19    52    5
+mutation   M11-land-env-setdefault         53 4     | 0     15    47    6
+mutation   M12-land-timeout-481           714 13    | -1    678   708   6
+gap_prev: n=14 中央値 7.5 合計 111 最大 13
+pre: n=15 中央値 -1 合計 -8 最大 0
+prr: n=15 中央値 20 合計 986 最大 678
+END: n=15 中央値 47 合計 1400 最大 708
+post: n=15 中央値 6 合計 88 最大 7

@@ -13,6 +13,7 @@ import json
 import math
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -403,8 +404,26 @@ def test_probe_5_explore_mode_and_formal_report_comparison(spec,tmp_path):
 
 def test_formal_loader_rejects_real_exploration(spec):
     binding = formal.load_preregistration(ROOT,"HEAD")
-    with pytest.raises(ValueError,match="not formal"):
+    # The recorded exact-63 lock is rejected before the run-kind check.
+    with pytest.raises(ValueError,match="exact key 集合が不正"):
         formal.load_formal_campaign(spec,binding,_explore(),correctness_mode="legacy")
+
+
+def test_formal_loader_rejects_non_formal_run_kind_under_current_grammar(spec, tmp_path):
+    import test_campaign as fixture
+
+    fixture._refresh_certified_writer_authority()
+    binding = formal.load_preregistration(ROOT, "HEAD")
+    cfg = formal.config_for(
+        spec, binding, "balanced", contract=fixture._AUTH_CONTRACT,
+        ccbench_source_digest=formal.ccbench_checkout_digest(ROOT/"external/ccbench"),
+        toolchain={"fixture": "compiler"}, correctness_mode="legacy")
+    cfg = replace(cfg, search_config={**cfg.search_config, "run_kind": "t2418-explore"})
+    cfg = ident.bind_admission_policy(cfg, fixture._BUILD_CONTEXT.policy)
+    layout = CampaignLayout(root=str(tmp_path/"campaigns"/str(ident.campaign_id(cfg)))).ensure()
+    fixture._write_certified_lock(layout, cfg)
+    with pytest.raises(ValueError, match="not formal"):
+        formal.load_formal_campaign(spec, binding, layout, correctness_mode="legacy")
 
 
 def test_checkout_source_identity_is_shared_by_real_driver_configs(spec):

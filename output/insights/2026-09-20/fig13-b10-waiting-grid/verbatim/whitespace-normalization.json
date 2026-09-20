@@ -1,0 +1,82 @@
+{
+  "schema": "izanagi-verbatim-whitespace-normalization/v1",
+  "records": [
+    {
+      "file": "author.md",
+      "original_sha256": "08d6351fea1bbb564e8e699c9aed32bd7049beab22d095c77ab34fb80375bd72",
+      "original_bytes": 6930,
+      "normalized_sha256": "bc133db87a94a4cccd98856613237fcae8cacec575036323183ada805dd48d36",
+      "normalized_bytes": 6922,
+      "lines_changed": [
+        78,
+        105,
+        106,
+        107
+      ],
+      "method": "trailing spaces/tabs removed at line ends only; visible characters unchanged",
+      "restore": "append two spaces to the listed lines (markdown hard line breaks written by the codex child); original bytes are in the job dir copy under codex/"
+    },
+    {
+      "file": "fix1.md",
+      "original_sha256": "0f19910a558382fd00db9b5c4af68b1065b3c154f03fa8248382c786baf2fc9c",
+      "original_bytes": 3699,
+      "normalized_sha256": "63f91b7afb8897fa91a2d71ef97fd1705a282323cf046320f8eae4a4bde86ace",
+      "normalized_bytes": 3693,
+      "lines_changed": [
+        67,
+        68,
+        69
+      ],
+      "method": "trailing spaces/tabs removed at line ends only; visible characters unchanged",
+      "restore": "append two spaces to the listed lines (markdown hard line breaks written by the codex child); original bytes are in the job dir copy under codex/"
+    },
+    {
+      "file": "focus.md",
+      "original_sha256": "8bd747fb5867e7e0c586e95e0110df74ac4c6a81adf20ea5f964a49aec5bd4cd",
+      "original_bytes": 7898,
+      "normalized_sha256": "cf94fb785f6196ffa3b80a421ebab9d868f0ab17d2e543e3a6df60b7688ea8cd",
+      "normalized_bytes": 7892,
+      "lines_changed": [
+        78,
+        79,
+        80
+      ],
+      "method": "trailing spaces/tabs removed at line ends only; visible characters unchanged",
+      "restore": "append two spaces to the listed lines (markdown hard line breaks written by the codex child); original bytes are in the job dir copy under codex/"
+    },
+    {
+      "file": "review-A.md",
+      "original_sha256": "4f24ec83930b0e284f69a3ef1b21cd2bfe34d697c30adb2f3357aad379c8373b",
+      "original_bytes": 10987,
+      "normalized_sha256": "9ce03875e04e8f228d5a635056605833c1c030af87947e17ec021d1d4a7de792",
+      "normalized_bytes": 10969,
+      "lines_changed": [
+        7,
+        12,
+        17,
+        22,
+        27,
+        32,
+        78,
+        79,
+        80
+      ],
+      "method": "trailing spaces/tabs removed at line ends only; visible characters unchanged",
+      "restore": "append two spaces to the listed lines (markdown hard line breaks written by the codex child); original bytes are in the job dir copy under codex/"
+    },
+    {
+      "file": "review-B.md",
+      "original_sha256": "561047ab1ac07b043fadd4a99d25aa369dbe5c68f76127403c5dc81c0fdf337f",
+      "original_bytes": 10600,
+      "normalized_sha256": "06e9cdf0d35225c16caa00ef20fcc96f1c5e2f645bb838bfedb64ace6fe18f83",
+      "normalized_bytes": 10594,
+      "lines_changed": [
+        100,
+        101,
+        102
+      ],
+      "method": "trailing spaces/tabs removed at line ends only; visible characters unchanged",
+      "restore": "append two spaces to the listed lines (markdown hard line breaks written by the codex child); original bytes are in the job dir copy under codex/"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+#!/bin/bash
+# 段 1 の静的観察: 各 directive 箇所を囲む外側の条件指令を列挙 (使い捨て、repo に入れない)
+R=/work/1/SFC/tanab/dev-wave-scratch/t2153-witness-rus-20260920/ccbench-e9e477c-requested-us
+A=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-witness-requested-us/nest.awk
+echo "== requested-us transaction.cc (pin e9e477ca1, fixed+requested-us)"
+awk -v targets="11 157" -f "$A" "$R/cc/silo/transaction.cc"
+echo "== requested-us backoff.hh"
+awk -v targets="109 141" -f "$A" "$R/include/backoff.hh"
+echo "== backoff.hh の include 経路 (transaction.cc → ?)"
+grep -n "backoff.hh" "$R/cc/silo/transaction.cc" "$R/cc/silo/include/"*.hh "$R/include/"*.hh
+echo "== transaction.cc の include 行"
+grep -n "^#include" "$R/cc/silo/transaction.cc"

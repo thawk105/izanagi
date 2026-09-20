@@ -214,3 +214,12 @@ repo 内 (本 dir):
 - checkpoint / digest / 受領証: 同 `loop_state.json` / `s4_loop_digest.txt` / `knowledge_manifest_receipt.json`
 - job 出力の原本: `evidence/attempt-0001/`、`evidence/attempt-0002/`
 - 各段の prompt・逐語・fix 3 巡の報告・dogfood log (`ingest-scratch*.log`、`ingest-real.log`)・変異 spec と結果
+
+## erratum (2026-09-20 19:25 JST): 「原本は repo 外 job root の下に残る」は現況と異なる — submit-tree は撤去された
+
+本文「証拠の所在」の `submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/` は、2026-09-20 19:25 JST の
+cleanup 引き渡し script の退避不備 (退避 tar が空のまま撤去) により消失した。同 job dir の `scratch-campaign/` (2026-09-18 08:00 の
+dogfood 用写し) の `runs/wal.jsonl` (`03ac8508…`)・`loop_state.json` (`03ebaf94…`)・`s4_loop_digest.txt` (`a0a4c204…`)・
+`knowledge_manifest_receipt.json` (`c42dc712…`) は本文の sha256 と byte 一致し、原本の写しとして使える。**`runs/agent_outputs.jsonl`
+(4 行、`804c62c7…`) の原本は消失** (scratch 側は別走 `1866ebc8…`)、`campaign.lock` は本文に sha 記載が無く照合不能。
+本文の値・結論は変えない。事故の記録と損失表は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。

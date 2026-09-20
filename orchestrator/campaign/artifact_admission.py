@@ -74,12 +74,12 @@ _TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
 _CAMPAIGN_VERIFIER_EPOCH_DOMAIN = b"campaign-verifier-epoch/v1"
 _CERTIFIED_VIEW_TOKEN = object()
 CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
-    "enforcement source closure (curated exact 63 path; source-import 推移閉包ではない; "
+    "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
     "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
-    "2026-09-16 (a1b40608c) の実測では 162 module、うち収載 63)"
+    "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
 )
 CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
-    "同実測の発見集合の未収載 99 module、同発見集合に入らない module、"
+    "同実測の発見集合の未収載 78 module、同発見集合に入らない module、"
     "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
     "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
     "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
@@ -105,6 +105,20 @@ T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
     "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
     "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+)
+
+
+T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
+    "enforcement source closure (curated exact 63 path; source-import 推移閉包ではない; "
+    "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
+    "2026-09-16 (a1b40608c) の実測では 162 module、うち収載 63)"
+)
+T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
+    "同実測の発見集合の未収載 99 module、同発見集合に入らない module、"
+    "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
+    "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
+    "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
+    "(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない"
 )
 
 
@@ -251,6 +265,8 @@ class HistoricalCampaignVerifierEpoch(CampaignVerifierEpoch):
                  PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE),
                 (T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
                  T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE),
+                (T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                 T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE),
             )
         )
         if not valid:
@@ -304,6 +320,11 @@ class _RecordedCampaignVerifierEpoch:
                 T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
             ):
                 expected_paths = campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS
+            elif scopes == (
+                T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+            ):
+                expected_paths = campaign_lock.T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS
             else:
                 raise TypeError("historical campaign verifier epoch scope の組が不正")
         if tuple(self.blob_sha256s) != expected_paths:
@@ -1053,7 +1074,8 @@ def _verify_committed_loader_binding(
         if (type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
                 and authority.recorded_contract_loader_relative_paths
                 in (campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,
-                    campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS)):
+                    campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS,
+                    campaign_lock.T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS)):
             contract_loader_binding.verify_committed_contract_loader_blobs(
                 authority.contract_loader_commit,
                 authority.contract_loader_blob_sha256s,
@@ -1080,7 +1102,7 @@ def _recorded_campaign_verifier_epoch(
     """記録値だけから enforcement closure epoch を導出する。
 
     現行 grammar の scope は ``CAMPAIGN_VERIFIER_EPOCH_*``、pre-T733
-    exact-24 / T733 exact-62 はそれぞれの歴史 scope 定数に固定する。
+    exact-24 / T733 exact-62 / T2429 exact-63 はそれぞれの歴史 scope 定数に固定する。
     v2 の記録 map は記録 commit に対して真正と検証してから表示 ID を作る。
     """
     authority = decoded.authority
@@ -1122,6 +1144,14 @@ def _recorded_campaign_verifier_epoch(
             reason_code="recorded-closure",
             identity_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
             excluded_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+        )
+    elif relative_paths == campaign_lock.T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS:
+        diagnostic = HistoricalCampaignVerifierEpoch(
+            campaign_verifier_epoch=display,
+            state="E1",
+            reason_code="recorded-closure",
+            identity_scope=T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+            excluded_scope=T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
         )
     else:
         diagnostic = CampaignVerifierEpoch(
@@ -1182,7 +1212,7 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    certified は現行 scope だけ、historical exact-24 / exact-62 は当時の scope を返す。
+    certified は現行 scope だけ、historical exact-24 / exact-62 / exact-63 は当時の scope を返す。
     """
     _validate_read_purpose(purpose)
     layout = _layout(campaign)

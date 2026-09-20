@@ -1,0 +1,30 @@
+{
+  "run": "final2-1",
+  "condition": "B",
+  "pair_slot": 0,
+  "tip_sha": "4240bd73d6d5a868c8525fd3eb4e37ae234b6194",
+  "tip_before": "4240bd73d6d5a868c8525fd3eb4e37ae234b6194",
+  "tip_after": "4240bd73d6d5a868c8525fd3eb4e37ae234b6194",
+  "tested_main": "482f19b88dbbe255fc2bb0dcc95b14c1681c1a83",
+  "main_sha_at_launch": "482f19b88dbbe255fc2bb0dcc95b14c1681c1a83",
+  "submitted_at": "2026-09-20T18:33:12+0900",
+  "finished_at": "2026-09-20T18:42:33+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/c895e77d53e20034a8f89c6dd4fbabe9",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 3.28,
+  "other_leaders_at_finish": 1,
+  "load1_at_finish": 4.95,
+  "rc": 0,
+  "verdict": "child-green",
+  "child_rc": 0,
+  "red_nodeids": [],
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "receipt_file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2766-pairing-adopt/runs/final2-1-B/acceptance-receipt.json"
+}

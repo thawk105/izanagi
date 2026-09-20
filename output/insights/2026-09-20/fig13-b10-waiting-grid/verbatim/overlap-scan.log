@@ -1,0 +1,39 @@
+== branch-tip hits (commits not in main touching paths) ==
+cfb217cdb merge main
+6abc14c65 merge main
+a4c30d6c6 merge main
+353b473e7 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/k2_loop_flow_2026-09-20.json
+tools/plotting/plot_k2_loop_flow.py
+a465c29c2 merge main
+5aff58fe4 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/k2_loop_flow_2026-09-20.json
+tools/plotting/plot_k2_loop_flow.py
+810622cac [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_a2_certification.py
+8f6aee197 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_t2266_tail_mechanism.py
+638378530 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/k2_loop_flow_2026-09-20.json
+tools/plotting/plot_k2_loop_flow.py
+4e46a3b8b [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_a2_certification.py
+917b72ee9 merge(main): local main を固定 SHA で取り込む (dev-wave-t2796-docs4)
+7eaad2d74 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_arc_status.py
+9d2d1396d [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_b7_fixed5_regression.py
+471ee2262 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/arc_status_story_2026-09-19.json
+tools/plotting/plot_arc_status.py
+05fd70615 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_b10_static_tail_formal.py
+8fcff15b9 [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_b10_static_tail_formal.py
+22e46c4fe [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+tools/plotting/plot_b7_fixed5_regression.py
+3440c6620 merge(worktree-dev-wave-t2724-freeze-g1-gen): [T-2724] 凍結 v2 g1 の世代導入 G と G wave の記録を main 系へ取り込む (D2120 項 2 (b)、D2154 の順序)
+b227d0d91 merge(freeze-g1-chain-t2724): [T-2724] 凍結 v2 g1 の chain (X1' cc82edc8c / X2 4d8fb93b7) を main へ運ぶ (D2120 項 2 (a))
+== worktree dirt ==
+roots=47 scanned=47 unreadable=0
+(no dirt on paths)
