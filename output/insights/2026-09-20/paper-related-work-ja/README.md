@@ -72,7 +72,7 @@ prompt = job dir `prompt-review.md` (2 レンズ = A: 一次資料との照合 �
 
 | # | 種別 | 所見 (要旨) | 一次資料 | 親の fix |
 |---|---|---|---|---|
-| 1 | must-fix | 2.5「この系譜には起点から存在しない」は系譜全体への無限定の不在、2.2 / 2.5 の「… に始まる」は歴史上の始点の主張 | README 7.2、7.7.2〜7.7.3 | 4 研究の evaluator / validate の特徴づけと本研究の設計の対比へ書き換え、系譜の導入を「本節では … を方法論的な参照点として取り上げる」へ |
+| 1 | must-fix | 2.5「この系譜には起点から存在しない」は系譜全体への無限定の不在、2.2 / 2.5 の「… に始まる」は歴史上の始点の主張 | README 7.2、7.7.2〜7.7.3 | FunSearch / ShinkaEvolve の evaluator / validate の特徴づけと本研究の設計の対比へ書き換え、系譜の導入を「本節では … を方法論的な参照点として取り上げる」へ。「勝ち筋注入」の 4 研究は名指し (AlphaEvolve・FunSearch・DGM・ShinkaEvolve = README 7.2 末尾の注意、focus-1 の所見 13) |
 | 2 | must-fix | OpenEvolve の「査読論文は … 見つかっておらず」は走査語・列挙可能な母集合を持たない不在。2.3「先行に評価されていない」は SysInsight 1 論文から先行一般への拡張 | README 7.2、SysInsight 裁定 §4.1〜§4.2、D1598 | OpenEvolve は「正典が一次資料として挙げるリポジトリと作者のブログを参照する (査読論文の有無は判定しない)」へ。2.3 は「SysInsight が評価していない」に限定し、軸 3 `RW0` で先行一般は語れないと併記 |
 | 3 | must-fix | Self-Harness の採用条件から「かつ少なくとも一方で改善」が落ちた | README 7.4 | 復元 |
 | 4 | must-fix | ARA の採用済み / 将来雛形 / 反面教師の区別が揃わず、2.7 冒頭「機構は後続段に予約する」が採用済みの入力側隔離と衝突 | README 7.4 | 2.7 冒頭を「思想・外部補強 / 採用済み (ARA の入力側隔離 1 件) / 将来の予約」の区別へ、ARA 段落を 3 区分で書き直し (データ構造の対応は証拠鎖の実証を意味しない、Compiler / Live Research Manager は採らない) |
@@ -83,17 +83,28 @@ prompt = job dir `prompt-review.md` (2 レンズ = A: 一次資料との照合 �
 | 9 | should-fix | 2.8 の成熟度の一般説明が `RW2` の許容表現 (索引名・検索式 ID・cutoff 付きの限定付き未検出) を落とし、実際より厳しい規則にした | README 7.7.3 | 段階ごとの許容表現を正典どおりに書き直し |
 | 10 | nit | 投稿用散文に運用語 (digest 射影、tier、層 2、leaf、epoch、pass 1、seal) が混在、2.8 は実行記録に近い、核と未実証の限定の反復 | brief の成果物の形 | 部分採用: digest 射影 / tier / 層 2 / hooks / Tier0 / seal・catalog を言い換え、leaf と pass 1 は 2.8 冒頭で定義して残す (所見 5 の限定は件数と同じ場所に要る)。反復は残した (各節が単独で読まれても限定が落ちないため) |
 | 11 | nit | README の差分範囲 (初稿時点は 3 file だけ) と「逐語」の記録 (改行位置が原文と異なる) を正確に | Git 実測、story §3 項目 1 | README 冒頭と §3 を訂正 |
-| 12 | refuted | (P1)(P2) を理由に正典へ導線を足すべきという疑義 — README の 3 表に草稿の行種別は無く、results / methods の先例も README を変えていない、phase3 先頭に results-ja の項が実在 | paper-story README、先例 README 2 本、phase3 | (P1)(P2) を維持。intro の先例はレビュー時点で未確認 (稼働中木) だったが、その後 main `799d38b97` に着地した同稿の README も paper-story README を変えていない (§4.3 で親が確認) |
+| 12 | refuted | (P1)(P2) を理由に正典へ導線を足すべきという疑義 — README の 3 表に草稿の行種別は無く、results / methods の先例も README を変えていない、phase3 先頭に results-ja の項が実在 | paper-story README、先例 README 2 本、phase3 | (P1)(P2) を維持。intro の先例はレビュー時点で未確認 (稼働中木) だったが、その後 main へ着地した同稿について、導入 commit `ad440c915` と更新 commit `6e77bb8bd` の変更 file 一覧 (`git show --stat`) に `docs/paper-story/README.md` が無いこと、main `799d38b97` (fold commit) 時点の同稿 README が「README … は 1 byte も変えていない」と書くこと、`7baf3f375..main` の paper-story README の差分 1 行は [T-2792] (`094ac8a1c`) の results 表の行であることを親が確認した (focus-1 の所見 14) |
 
 review-1 が一致を確認した範囲 (消極的証拠): 索引 28 エントリの独立計数、2.1〜2.8 の書誌・判定・限定・件数 (詳細は job dir `review-out.md`「照合して一致を確認した範囲」)。
 fix commit は §4.2 の焦点再レビューの前に作る。加えて親が自己点検で 1 箇所直した — 2.2「CCBench の中心主張が本研究の対照の取り方を決めている」は正典より強い
 因果の言い方だったので「本研究が事前登録した対照も CCBench 内の LLM を使わない対照で閉じている」へ。
 
-### 4.2 focus-1 (焦点再レビュー)
+### 4.2 focus-1 (read-only、gpt-6-astra / medium、11 call、225 秒、21:29〜21:33 JST、rc=0、`outcome: accepted`、対象 = fix 1 commit `27d4b6f52`)
 
-(実施後に追記)
+prompt = job dir `prompt-focus.md` (所見ごとの closed / partial / regressed 表を要求、親が足した量化の再計数、fix 差分の 1 巡走査)。
+**GO (must-fix 0)。所見対応表 = closed 10 / partial 2 / regressed 0。** 親が足した件数 (数えない 16 = 8 / 6 / 2、4 研究、7 件、3 file) は再計数で一致。
+所見 12 (refuted) の維持は妥当 (intro 稿の導入 / 更新 commit の stat に paper-story README は無い)。fix 差分の走査で新しい無限定の不在・序数主張は無し。
 
-### 4.3 main の前進の取り込み
+| # | 判定 | 残差 | 親の fix 2 |
+|---|---|---|---|
+| 9 | partial (should-fix) | 「`RW2` 以上」を一括して索引名・検索式・cutoff の同文併記に限定し、正典 7.7.3 の段階別 (`RW2` = 索引名・検索式 ID・cutoff、`RW3` = 母集合と cutoff、`RW4` = 人間裁定への提出資格) と違う | 段階ごとに書き分けた (対案の文面を採用) |
+| 10 | partial (nit) | 2.8 に旧走行の契約識別子と DBLP の 2 判定の細部が残る | 2.8 の旧走行の説明を圧縮し、件数・epoch・2 判定の細部は出所 21 へ寄せた (所見 5 の限定は同じ段落に保持)。限定の反復は残す |
+| 13 | 新規 nit | 2.5「これら 4 研究」の指示対象が曖昧 (直前に OpenEvolve を含む 5 名称) | 「AlphaEvolve・FunSearch・DGM・ShinkaEvolve の 4 研究について正典が … と特徴づける」へ。README §4.1 行 1 も書き換え |
+| 14 | 新規 nit | README §4.1 行 12 の参照先 (§4.3) が未記入 | 行 12 に確認の内容 (commit の stat・main 時点の intro README・paper-story README の main 差分の由来) を直接書いた |
+
+3 巡目の codex は起動しない (must-fix 0、残差はすべて親が一次資料で閉じた。DW-O16 の上限内)。fix 2 は §4.3 の main 取り込みと同じ記録 commit に含める。
+
+### 4.3 main の前進の取り込み (段 7)
 
 (実施後に追記)
 
