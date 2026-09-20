@@ -18,15 +18,18 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
   `docs/paper-story/README.md` は story 20260920b wave (`dev-wave-paper-story-20260920b`) が stale 注記の同じ節を編集中 (mtime 20:57 JST) だったので
   本 wave は README に触らず、積む文面を insight §5 に置いて peer へ事実を送った。`docs/phase3.md` は同 wave の版が main より古く未編集 → 項 4 に 1 行。
   記録 wave の編集面 (4 insight の erratum 節、新 insight、spool) とは重ならない。
-- 実測 (login node、読み取りのみ、`materials/reconstruction-log.md`): (1) 3 巡稿 `results/2026-09-20-k2-manual-loop-three-rounds.md` §5.1 が消失前の同日に
-  3 巡全原本の sha256 と bytes を再計算しており、記録 wave の「roundtrip は sha256 の記録も無し」「round 2 の `campaign.lock` は照合不能」は当該 insight の
-  記載範囲について正しいが 3 巡稿で埋まる。t2746 job dir `scratch-campaign/` の `campaign.lock` は round 2 の記録値 `fc7acaca…` と byte 一致 (AO だけ別走)。
+- 実測 (login node、読み取りのみ、`materials/reconstruction-log.md`、生 stdout は `materials/reconstruction-stdout.txt`): (1) 3 巡稿
+  `results/2026-09-20-k2-manual-loop-three-rounds.md` §5.1 が消失前の同日に 3 巡全原本の sha256 と bytes を再計算しており、記録 wave の結論「roundtrip は sha256 も無い
+  (値までしか遡れない)」「round 2 の `campaign.lock` は照合不能」(いずれも insight に記載が無いことから導いたもの) を補正する: roundtrip は 5 file とも sha256 まで遡れる、
+  t2746 job dir `scratch-campaign/` の `campaign.lock` は round 2 の記録値 `fc7acaca…` と byte 一致 (AO だけ別走)。記録 wave の file は所有外で書き換えない。
   (2) round 3 `loop_state.json` (`917ba3d3…`) は `materials/run-summary.json` から、round 2 / 3 の本走 AO (`804c62c7…` / `66d3e737…`) は `layer3_report.json` から、
   harness の writer 形式で byte 一致で再構成できる (round 2 の scratch 写しで手順を検算)。(3) round 2 / 3 の WAL は `layer3_report.json` の events と内容同一
   (canonical ref 5/5 = `materials/wal-refs.json`) だが payload の挿入順が戻らず bytes は再構成不能。digest は repo に逐語なし。(4) [T-2795] pair 走の原本 5 file は
   `submit-tree-pair` に無傷 (sha 5/5) だが worktree は unlocked・未追跡 `output/exploration/` あり = 撤去された候補 1 と同型 (16:26 の候補 list には無い)。
   (5) 4 巡目は harness の checkpoint 再開ではなく親の射影で前巡を運ぶ (round 3 の記録: round 2 の tree は `start_wall` 超過で入口停止 → fresh tree)。
-  射影に要る入力は全部 repo 派生物か無傷の写しにある。
+  射影に要る入力は全部 repo 派生物か無傷の写しにある。(6) roundtrip 原本 5 file と round 3 の lock / digest / WAL の sha 一致 file は、K2 insight dir 4 つ + t2588 / t2746 の
+  job dir root の 615 file を 21:23 JST に走査して受領証 1 件 (同一 bytes) だけ。(7) 21:24 JST に pair 走の原本 6 file (campaign 5 + claim) を T-2795 job dir
+  `originals-copy-20260920/` へ byte 複製 (MANIFEST、6/6 一致)。worktree の lock は隔離 session の guard で打てず付随項へ。
 - 対応表 (insight §2): B-6 (a) は round 3 = canonical 内容・roundtrip = 転記値まで、(b) 診断が届いたは原本非依存、(c) critic-3 の読取対象のうち digest の bytes は
   消失、(d) 同 job stock 未達は pair 原本現存。B-9 (c) は材料レポート自身は不変だが fresh rebuild 深い一致は原本 root 消失で再実行不能。fig12 は稿 + JSON 束縛で
   原本非依存、[T-2808] fig12b は影響なし。3 巡の値・判定・稿・図は変えない (規律 7)。
@@ -35,7 +38,11 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
   付随: `submit-tree-pair` の `git worktree lock` を次の非隔離 session が打つ (本 wave の隔離 session では guard が他 worktree への git 操作を拒否)。
   やらない理由の最も強い形は各択に併記。
 - 言わないこと: 原本を復元した、WAL を再構成できる、digest を再描画できる (未実測)、provenance は消失前と同じ強さ、4 巡目の認可・予算・投入時期。
-- 事故: なし。工数: codex 1 本 (段 6 read-only レビュー、実測値は insight §8)、計算ノード job 0。
+- 段 6 read-only レビュー 1 本 (gpt-6-astra、12 call、180 秒): NO-GO → must-fix 7 件 (roundtrip 不在断定の走査根拠、B-6 (c) の限定に WAL / lock を含める、B-6 (d) の 3 巡と pair の
+  分離、択 A / B の provenance 比較の過大、次巡記録文の裁定先取り、実測 log の「逐語」表記、記録 wave との相違を「補正」と書く) + nit 2 件 (出所の誤記、whiteboard ≠ current_perf)。
+  全件 real・採用、親が docs を直し焦点再レビュー 1 本で GO を確認 (`reviews/s6-*.md`)。「択 A を棄却する技術的根拠は無い」「択 B は次系列の依存範囲を減らす利点があり研究目的次第で合理」
+  「付随項は scope 外に当たらない」はレビューの判定。
+- 事故: なし。工数: codex 2 本 (段 6 レビュー + 焦点再レビュー、実測値は insight §8)、計算ノード job 0。
 
 ## 次の一手差分
 
@@ -53,5 +60,12 @@ title: K2 loop 原本消失 (2026-09-20 19:25 JST) の下流影響 — 3 巡の�
   **2026-09-20 追記 (原本消失の下流):** round 3 の campaign 原本は 19:25 JST に消失 (記録 wave の F)。4 巡目の射影入力 (whiteboard・current_perf・critic-3 逐語・
   knowledge-input・受領証・identity の lock) は全部 repo 派生物か無傷の写しにあり、入力元の択 A (推奨、round 3 派生物から組む) / B (別走) / C (pair 走を直前巡) と
   やらない理由は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §4。修復 wave の段 1 で `dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair`
-  (pair 走の原本 5 file、unlocked) を `git worktree lock` する。4 巡目の記録には「round 3 の原本 bytes は消失、入力は派生物から組んだ」を書く。
+  (pair 走の原本 5 file + claim、unlocked。byte 複製は同 job dir `originals-copy-20260920/` に 2026-09-20 21:24 JST 作成済み) を `git worktree lock` する。
+  4 巡目の記録には、択 A なら「round 3 の原本 bytes は消失、入力は派生物から組んだ」を、択 B / C なら実際に選んだ入力元とその原本の所在を書く。
   base: cff0f011dd4e23e4e0c3b1077379b76f5e8da27f8005045f754ed5638fe6bd8e
+
+### 新規
+
+- {{T:k2-originals-lost-readme-stale-note}} **P3・新規**: `docs/paper-story/README.md` の stale 注記に「K2 手動 loop 3 巡の campaign 原本の消失 (2026-09-20 19:25 JST)」の
+  1 段落を積む (文面 = `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §5、記録 wave の F 番号を実番号で)。story 20260920b 版の land 後に
+  同版の注記へ足す (同 wave は「未着地 wave の内容は書かない」規律で書かないと返答、2026-09-20 21:2x JST)。稿・図の bytes は変えない。

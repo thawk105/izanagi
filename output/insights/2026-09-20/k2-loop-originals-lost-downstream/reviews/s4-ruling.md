@@ -5,8 +5,9 @@ K2 4 巡目の入力元に触れる裁定は無い (T-2795 §7 の pin 比較 = 
 
 ## 段 1 の provisional 裁定 (P1〜P3) の確定
 
-- (P1) real・採用: 3 巡稿 §5.1 を原本 sha256 の記録として採る。記録 wave の README の 2 文は insight の記載範囲について正しく、矛盾しない。
-  本 wave は記録 wave の file を書き換えない (所有外)。差は insight §0・§1 に「埋まる」として書く。
+- (P1) real・採用: 3 巡稿 §5.1 を原本 sha256 の記録として採る。記録 wave の README §3 の 2 つの結論 (roundtrip は「sha256 も無い、値までしか遡れない」、round 2 の
+  `campaign.lock` は「照合不能」) は、当該 insight に sha の記載が無いことから導かれており、3 巡稿 §5.1 に記録がある以上、**本 wave はその結論を補正する** (「矛盾しない」とは
+  書かない — 段 6 レビュー M7)。本 wave は記録 wave の file を書き換えない (所有外)。差は insight §0・§1 に「補正」として書き、記録 wave が生きていれば advisory を送る。
 - (P2) real・採用: `submit-tree-pair` の lock は裁定パッケージの付随項にし、本 wave は打たない (隔離 session の guard)。gate・台帳を足さない。
 - (P3) real・採用: 「round 3 の `loop_state.json` からの再開」= 親の射影の入力元の問題。択 A / B / C を並べ、推奨 = A + 付随 1 項。
 

@@ -1,9 +1,11 @@
 # 実測記録 — 残存資料の sha256 照合と、派生物からの再構成 (2026-09-20 20:5x〜21:0x JST、login node)
 
-読み取り専用の検査。使い捨て script 4 本 (`reconstruct_loop_state.py` / `reconstruct_ao.py` / `wal_keyorder.py` / `wal_canon_r2.py`) は
-job dir (repo 外 `/home/SFC/tanab/.claude/jobs/cc931155/tmp/`) に置き、repo へは入れない (probe は Codex author 無しで repo に入れない)。
-本文は各 script の stdout の逐語 (行頭の `$` 以降が command、その下が出力)。期待値の出所は 3 巡稿
-`docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` §5.1 (消失前の同日に再計算された原本の sha256 と bytes)。
+読み取り専用の検査 (§9 の複製だけ repo 外 → repo 外の書込み)。使い捨て script (`sha_capture.py` / `reconstruct_loop_state.py` / `compare_ao2.py` / `reconstruct_ao.py` /
+`wal_keyorder.py` / `wal_canon_r2.py` / `scan_roundtrip.py` / `copy_pair_originals.py`) は job dir (repo 外 `/home/SFC/tanab/.claude/jobs/cc931155/tmp/`) に置き、
+repo へは入れない (probe は Codex author 無しで repo に入れない)。
+**本文は抜粋・要約である** (sha256 を先頭 8 桁に省略した箇所、日本語の注釈、`$` 行の command 表記を加えた)。**生 stdout の逐語は同 dir の `reconstruction-stdout.txt`**
+(tee で採った `.log` をそのまま連結。§1・§2 の `sha256sum` / `wc` / `ls` の初回実行は tee していないので、同じ file を `sha_capture.py` で 21:24 JST に採り直した出力を逐語とする)。
+期待値の出所は 3 巡稿 `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` §5.1 (消失前の同日に再計算された原本の sha256 と bytes)。
 
 ## 1. t2746 job dir `scratch-campaign/` (2026-09-18 08:00 JST の dogfood 用写し) の 6 file
 
@@ -105,3 +107,33 @@ bd3e5fd2…  output/insights/2026-09-19/k2-loop-round3/materials/proposal-4.json
 245ebeb314b44c95a6c0d68dcb915820508de099b3005ac9d35f7f9993306b18  output/insights/2026-09-19/k2-loop-round3/materials/run-summary.json
 1b0f6f56…  docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md  (= fig12 provenance の caption_source.sha256)
 ```
+
+## 8. roundtrip 原本と `start_wall` の残存走査 (`scan_roundtrip.py`、段 6 レビュー M1 への追加実測)
+
+走査 root 6 つ (repo の K2 insight dir 4 つ + repo 外 job dir `dev-wave-t2588-k2-loop-roundtrip/` / `dev-wave-t2746-k2-loop-round2/`)、全 615 file。
+対象 sha = roundtrip 5 file (`ac12b80f…` / `c42dc712…` / `48520c2b…` / `e6b819f3…` / `1d834279…`) + round 3 の lock / digest / WAL (`f1ab4966…` / `f993251d…` / `eb8927b7…`)。
+
+```
+scan time: 2026-09-20 21:23:41 JST
+files scanned: 615 roots: 6
+sha hits (round1 5 file + round3 lock/digest/wal): [('round1-receipt', '.../dev-wave-t2746-k2-loop-round2/scratch-campaign/knowledge_manifest_receipt.json')]
+files containing 'start_wall' or 'reverse_recommendations': 23 file (round 3 README / reviews 4 本 / run-summary.json、pair の run-summary-pair.json、
+  t2588 job dir の codex event log 3 本 (plan / consult、走行前の設計議論)、t2746 job dir の diff 3 本・mutation json 2 本・codex event log 8 本、round 2 scratch の loop_state.json)
+```
+
+roundtrip の `loop_state.json` の `start_wall` / `reverse_recommendations` の値を持つ file は無い (語を含む 23 file はいずれも roundtrip の走行値ではない)。
+
+## 9. pair 走の原本の byte 複製 (`copy_pair_originals.py`、付随項)
+
+```
+copied 6 files to /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920 at 2026-09-20 21:24:36 JST
+all match source: True
+  campaign/campaign.lock 962ef7d787b7031a 8307
+  campaign/knowledge_manifest_receipt.json c42dc712bbd11fc7 1317
+  campaign/loop_state.json a8c6a8b69bc7bdd5 255
+  campaign/s4_loop_digest.txt 8bde66fa21413dda 1939
+  campaign/runs/wal.jsonl b5754f98c0643e80 7062
+```
+
+複製先は T-2795 の job dir (repo 外)。`MANIFEST.json` に 6 file (campaign 5 + `claims/p3-s4-loop-s4-autonomous-b24749ae.claim`) の sha256 / bytes / source 一致。
+pair 走に `runs/agent_outputs.jsonl` は無い (役割の起動が無い走なので当然)。worktree の lock は未実施。
