@@ -180,8 +180,8 @@ replica の禁止メッセージは、少なくともその拒否に到達する
 | P6 | **条件付き**。不在のみ従来 leaf、存在する不一致 record は拒否。base直下検査を維持する。 |
 | P7 | **条件付き**。将来一件の明示的追補とし、attempt-0001／L-A1S-4へ遡及しない。source commit 束縛と専用 digest 検査を区別する。 |
 
-**Q1:** 不在だけ従来 leaf、不一致 record は拒否を支持。  
-**Q2:** 追補を含む確定 commit の一致という表現を支持。追補専用の実行時検査とは称さない。  
+**Q1:** 不在だけ従来 leaf、不一致 record は拒否を支持。
+**Q2:** 追補を含む確定 commit の一致という表現を支持。追補専用の実行時検査とは称さない。
 **Q3:** producer の再作成を実際に可能にする意味的変異を採用。片側除去は限定付きの masked／対照扱いとし、kill に数えない。
 
 **全層の結論:** 読んだ job shell と driver の submit 後段・measure・lock preseed・barrier・complete・materialize では、既知の公開先 gate 以外に先行 attempt を理由とする拒否は発見していない。射影外の trial registry 等の内部は未確認であり、**「残る拒否層なし」の全層断定は保留**する。

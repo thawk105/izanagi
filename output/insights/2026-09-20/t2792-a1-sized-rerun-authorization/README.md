@@ -155,7 +155,10 @@
 ## 8. 一次資料
 
 - 本 dir `verbatim/`: brief、plan (prompt / out)、consult (prompt / out)、段 4 裁定、author (prompt / out)、review A / B (prompt / out)、fix1 (prompt / out)、
-  段 6 裁定、依頼文、probe log 3 本、複製・dogfood script (`.py.txt`)。
+  段 6 裁定、依頼文、probe log 3 本、複製・dogfood script (`.py.txt`)、変異 spec (final) と結果 JSON。
+- 可逆最小正規化 (D88、`git diff --check` 抵触): `verbatim/s3-consult.out.md` の 183・184 行末の空白 2 個 (markdown の強制改行) を除去した。
+  原文 (job dir `codex/s3-consult.md`) の sha256 `087e4009580611b6fa8b442bc2f3c305ada38c72b0b93ab35c47bc02063c096b`・21657 byte、正規化後
+  `45039dfb933429a9e88b8cb5ccb224cc33f68f6abb66bc48ead9f9bda438300d`・21653 byte。復元 = 当該 2 行の行末に空白 2 個を戻す (可視文字不変)。
 - job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2792-a1-sized-rerun-auth/` (原本: HANDOFF、launcher、focus log、変異 spec / 結果、replica-base、codex receipt)。
 - 実装 patch は commit `886c19259` (unit worktree `.codex/worktrees/t2792-unit-impl`、branch `dev-wave-t2792-unit-impl` → `dev-wave-t2792-unit-fix1`)。
 - 裁定: D2172 項 2、D2156、D2120 項 3、D2096、D1993 項 6、事前登録 §6.1 / §6.4 / §7.2。
