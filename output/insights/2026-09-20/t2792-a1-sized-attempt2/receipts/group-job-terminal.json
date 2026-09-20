@@ -1,0 +1,53 @@
+{
+  "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002",
+  "jobs": [
+    {
+      "ordinal": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/job-terminal.json",
+      "receipt": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/raw/results/receipt.json",
+        "sha256": "5777392350017246e2465cd8b1bf307917f8a08541f0c6c22d6c2cc9aca88cd2"
+      },
+      "request_id": "13220.nqsv",
+      "result": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/write-heavy/raw/results/result.json",
+        "sha256": "f05ea8e80a4e2f9a7525e6e4e3a6624d9166669bd5789dc8027dce1e2cbd0156"
+      },
+      "sha256": "450d62d8071ffb1b8b94bbb3cccdd253e38b7f6c7f201fdaf5e09643b34a9230",
+      "workload": "write-heavy"
+    },
+    {
+      "ordinal": 1,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/job-terminal.json",
+      "receipt": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/raw/results/receipt.json",
+        "sha256": "61b5d97ecad0c588e28f7ebc1973d18726b2f050d5b829c59ef0213fcde4551b"
+      },
+      "request_id": "13221.nqsv",
+      "result": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/balanced/raw/results/result.json",
+        "sha256": "2501898564846b8a43eadec502820735764586ceee5f6a9a8d35e440dba28edf"
+      },
+      "sha256": "17ec81ace87c572e829d377930a8d993b019cade6135842b70963cff9339bc96",
+      "workload": "balanced"
+    },
+    {
+      "ordinal": 2,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/job-terminal.json",
+      "receipt": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/raw/results/receipt.json",
+        "sha256": "9bab0d906d253048f2a20bab18fd61fff8553ed301804a680222a80f57410973"
+      },
+      "request_id": "13222.nqsv",
+      "result": {
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0002/jobs/read-heavy/raw/results/result.json",
+        "sha256": "896d4d416417bc0006b5b8f1fbce2cb206f4655e0b1566b773a59c76634665d1"
+      },
+      "sha256": "a817c5795dc59b714d7308284147ac37c158329120904b207ddbee7bcc819753",
+      "workload": "read-heavy"
+    }
+  ],
+  "schema_version": "paper-story-a1-paired-group-terminal/v1",
+  "source_commit": "fec4a818741e5464fffcd11e4b094c125dfe5280",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1"
+}

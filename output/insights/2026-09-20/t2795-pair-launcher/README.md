@@ -31,6 +31,8 @@
    pipeline.py / loop.py / ident.py / build_admission.py は変更なし。** §2・§4。
 6. **変異 matrix (等価対照 1 + 負例 17) と受入全走の結果は §5・§6。**
 
+**追記 (2026-09-20、後続 wave `dev-wave-t2795-k2-pair`):** 本 launcher の初投入 (`13339.nqsv`) で候補は certified、stock は同 job・同 campaign の 2 起動目が `campaign_claim.acquire_claim` (one-shot claim leaf、D464 / D553) に認可前で拒否され build に到達しなかった。§0 の主張 2 (job body が stock を 1 回起動する) と主張 3 (stock の成功条件) は結線の記述として当時どおりだが、Pegasus 契約 (reservation 必須 → claim 必須) の下ではこの結線で stock は評価されない。§2 の「同 campaign」設計と one-shot claim の不整合、修復方向 (1 回の認可・claim の所有期間で両評価) は `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §2・§4。本文は変更しない。
+
 **主張しない。**
 
 - **pair が成立した (同 job で候補と stock の両方が測れた) とは言わない。** 本 wave は結線だけで、1 job も投入していない。pair 成立は両 attempt の
@@ -191,6 +193,7 @@ baseline PASSED (rc 0、37.6 秒)。**M0 SURVIVED (等価対照)、M1〜M17 は�
 ## 7. 言ってよいこと・言ってはいけないこと・次の一手
 
 - 言ってよい: §0 の「主張する」。言ってはいけない: §0 の「主張しない」。
+- 追記 (2026-09-20): 下の「pair 投入」は同日に実施され、stock が one-shot claim で認可前に停止して pair 不成立 (STOCK 成立は未確認)。4 巡目・B-5 試走 (β) の 同 job stock は launcher と claim の整合 (裁定パッケージ、`t2795-k2-pair-attempt` §4) が先。
 - 次の一手 (別 wave、いずれも認可済みまたは裁定済み):
   - **pair 投入 (D2172 項 3 (i)):** fresh submit-tree + fresh layout で候補 10 + stock を 1 job (`IZANAGI_S4_STOCK_CONTROL=1`)。3 巡目の記録に pair 結果を追記。
     最初に実 compiler での STOCK 成立 (stock の `outcome=certified-stock`、admission receipt の source `src_token`) を確認し、成立しなければ対照成立と認定しない。
