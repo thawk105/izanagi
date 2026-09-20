@@ -415,7 +415,8 @@ planner / critic は散文で「指示めいた文字列なし」と自己申告
 同 job の stock 対照はどの巡にも無い。その経路はユーザー裁定 D2172 項 3 (択 (i) = 同 job pair launcher を実装し、候補 10 + stock の
 pair を 1 job で投入、4 巡目 1 job を認可) で決まり、launcher の実装 ([T-2795]、D2183) が main に着地した (entry 1746) のち、
 **pair launcher の初投入が 2026-09-20 に 1 job (`13339.nqsv`) で行われたが、pair は不成立だった** (D2187、entry 1754)。候補 10 の再評価
-(同 job の driver 1 起動目) は `serializable` / certified / anomalies 0、median 811,956 tps (CV 0.98%、別 policy epoch の新 campaign) だったが、
+(同 job の driver 1 起動目) の trace 無効 build による性能測定は median 811,956 tps、CV 0.98% だった (別 policy epoch の新 campaign であり、
+3 巡との性能比較には用いない)。別の trace 有効 build による検査では `serializable` / `certified=true` / anomalies 0 が記録された (性能の認証ではない)。
 stock (同 job の driver 2 起動目) は one-shot claim leaf の `ClaimError` (候補 driver が残した同 identity の claim を、同 job の 2 つ目の process は
 取れない) で build に到達せず、`src_token == STOCK` は未確認である。再投入は無く、4 巡目も投入されていない。修復方向 (1 回の認可・claim の
 所有期間で候補と stock を両評価する driver 形) は裁定パッケージへ送られ、修復後の pair 再投入と 4 巡目の予算はユーザーの再提示に委ねられた。
@@ -569,7 +570,7 @@ LLM だけが発見できたことや、生成器として LLM が必要だっ�
 ある」(S-1b、sort に対する +55.5〜+98.4%) と「最良の既知軸を超える」の隔たりを示す。このため、システムが返す stock や tie は、証拠が
 改善を支持しない場合の有効な出力として扱う必要がある。ただし、比較値が未取得の場合や protocol が成立していない場合は、tie を判定した
 ことにもならない。また、負荷ごとに異なる最良点 (10 / 5 / 2 µs) が観測された事実だけでは、workload descriptor を条件とする生成の因果的な
-効果 (B-2) を示したことにならない。[2, 4, 7, 9, 11, 12]
+効果 (B-2) を示したことにならない。[2, 4, 7, 9, 11, 12, 26]
 
 abort 率と throughput の同時変化は、競合の抑制と待機コストの釣合いという解釈に整合する。しかし abort 率の集約方法は実験ごとに異なり
 (A-2 / A-6 と同一候補の測定は WAL の `leading_indicators` の cell あたり 1 点 — A-6 稿は代表 rep 1 点と記す、右 tail の表 13 は rep ごとの率の
@@ -674,8 +675,12 @@ cell ごとに要求した。性能と正しさの独立 (規律 1・2) は、�
 15. **K2 手動 loop 3 巡:** `docs/paper-story/results/2026-09-20-k2-manual-loop-three-rounds.md` (§0.1 の巡と還流の定義、§2.1 の表、§2.2 の巡ごとの
     記録、§2.3 の「届いた / 効いた」、§2.4 の規律 6、§3 の限定 21 件)。図は `figures/fig12_k2_manual_loop_dataflow.*`。
     **provenance の注記 (執筆者向け):** 3 巡の campaign 原本 (submit-tree の worktree 4 本) は 2026-09-20 19:25 JST の撤去事故 (F1034) で失われた。
-    稿の値は着地済みの派生物 (稿・記録 insight・材料レポート) に依り、round 3 の `loop_state` と round 2 / 3 の材料レポートは repo 派生物から
-    byte 一致で再構成でき、WAL は内容同一まで再構成できる ([T-2815]、worklog entry 1764、`output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md`)。本稿は表 11 の値を稿からの転記として保ち、再構成の範囲を超える主張はしない。
+    3 巡の原本の sha256 と bytes 数は消失前に 3 巡稿 §5.1 が記録している。現在確認できる範囲 ([T-2815]、worklog entry 1764、
+    `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md` §0〜§1): round 3 の `loop_state.json` と round 2 / 3 の
+    `agent_outputs.jsonl` は、repo 派生物 (`materials/run-summary.json`、`layer3_report.json`) から記録 sha256 と byte 一致する形で再構成できる。
+    round 2 の WAL は byte 一致する写し (t2746 job dir の scratch) が残り、round 3 の WAL は材料レポートの record と canonical 内容の同一まで確認できる
+    (bytes は戻らない)。round 1 の WAL は原本 bytes を再検算できず、転記値と job 出力による。材料レポート自体は repo に残存する (再構成の入力側であって
+    対象ではない)。本稿は表 11 の値を稿からの転記として保ち、既存の値・判定を変えず、再構成の範囲を超える主張はしない。
 16. **同 job stock 対照:** D2172 項 3、D2183、worklog entry 1746 ([T-2795] の実装記録)、初投入の不成立は D2187 と worklog entry 1754
     (`output/insights/2026-09-20/t2795-k2-pair-attempt/README.md`、job `13339.nqsv`、候補 10 の再評価 811,956 tps は当時の判定として保持し pair・
     改善の証拠に昇格させない)。
