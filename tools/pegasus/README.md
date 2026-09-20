@@ -366,9 +366,30 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
 - `p3_s4_loop` を `--allow-coder-derived-build --isolate-worktree
   --fetchcontent-prebuild-receipt <EVIDENCE_ROOT>/masstree-prebuild-receipt.json` で起動する。
   `IZANAGI_S4_PROPOSAL_PATH` があれば `--run-iteration`、無ければ fixture `--value`。K2 の
-  `--knowledge-manifest` / `--coder-role` と、設定された場合だけの
-  `--knowledge-classification` / `--knowledge-de-novo-claim` は proposal 分岐だけへ渡す。
+  `--coder-role` は proposal 分岐だけへ渡す。`--knowledge-manifest` と、設定された場合だけの
+  `--knowledge-classification` / `--knowledge-de-novo-claim` は proposal 分岐に加え、下の pair が
+  有効なときは stock 起動にも同じ値で渡す (同 campaign identity の条件)。
   K2 env 未設定時は proposal-only と fixture の既存 argv を変えない
+- **同 job pair (stock 対照、T-2795 / D2172 項 3):** `IZANAGI_S4_STOCK_CONTROL=1` で、候補 (proposal または
+  fixture) の起動の**後**に同 allocation・同 prebuild receipt・同 K2 manifest / 宣言値で
+  `p3_s4_loop --isolate-worktree --fetchcontent-prebuild-receipt <receipt> [K2 identity argv] --stock-control`
+  を 1 回起動する。値域は `0` (既定、未設定と同じ = 現行の 1 起動) と `1` だけで、それ以外と設定済み空値は
+  repository path 解決より前に rc=2 で拒否する。stock 起動には `--allow-coder-derived-build` /
+  `--value` / `--run-iteration` / `--coder-role` を渡さない。候補の rc を捕捉して stock を試みるので候補が
+  失敗しても stock は走り (allocation の残時間は保証しない)、job の rc は候補が非零ならその値、そうでなければ
+  stock の rc (`compute-result.json` の `driver_rc` も同じ集約値)。stock は planner / coder / 検疫 /
+  checkpoint / whiteboard に触れず、同 campaign の WAL に `run_campaign` → `pipeline.evaluate` が書く。
+  driver 側の成功 (`outcome=certified-stock`、rc 0) は certified かつ source が STOCK (variant id と
+  BUILD_START の `src_token`) のときだけで、同 campaign に stock の terminal record が既にあれば
+  `outcome=skipped` (rc 1、復元しない) — 新しい同 job pair を得るには fresh layout が要る。候補 CLI は
+  提案が reject されても rc 0 を返しうるので、**pair の成立は両 attempt の WAL outcome で判定し、
+  job rc・campaign id から判定しない**。stock が skip でなく WAL record が存在するとき `s4_loop_digest.txt` を admitted view から再生成する。stock は候補と
+  同じ pin の別の使い捨て worktree で評価する (同 tree ではない)。実 compiler で stock の source が
+  STOCK token に解決すること (inert) は本結線の実装時点では未測定である。driver の較正動作点
+  (`--calibrated-perf --perf-workload {write-heavy,balanced,read-heavy}`) と exact correctness
+  (`--verify-performance`) の opt-in (B-5 事前登録 §10 の K2 共有部品、D2172 項 4 (α)) は本 job body には
+  配線していない — B-5 試走 (β) の launcher 設計で足す。両 opt-in は search_config に動作点 / verify mode を
+  焼くので campaign identity が変わる (指定なしの identity は不変)
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
 `.claude/worktrees/` 配下は不可)、`THIRDPARTY_SOURCE_ROOT` は §6 の `hydrate` 出力 JSON の
@@ -401,13 +422,15 @@ KNOWLEDGE_MANIFEST=/absolute/path/to/knowledge-manifest.json
 CODER_ROLE=coder-v4-autonomous-k2
 KNOWLEDGE_CLASSIFICATION=reproduction_or_selection
 KNOWLEDGE_DE_NOVO_CLAIM=false
+STOCK_CONTROL=1
 mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
-qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_S4_KNOWLEDGE_MANIFEST="$KNOWLEDGE_MANIFEST",IZANAGI_S4_CODER_ROLE="$CODER_ROLE",IZANAGI_S4_KNOWLEDGE_CLASSIFICATION="$KNOWLEDGE_CLASSIFICATION",IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM="$KNOWLEDGE_DE_NOVO_CLAIM" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
+qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_S4_KNOWLEDGE_MANIFEST="$KNOWLEDGE_MANIFEST",IZANAGI_S4_CODER_ROLE="$CODER_ROLE",IZANAGI_S4_KNOWLEDGE_CLASSIFICATION="$KNOWLEDGE_CLASSIFICATION",IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM="$KNOWLEDGE_DE_NOVO_CLAIM",IZANAGI_S4_STOCK_CONTROL="$STOCK_CONTROL" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
 ```
 
-上の fence は任意の宣言 2 値も明示した K2 正例である。driver の既定を使う場合は
-`IZANAGI_S4_KNOWLEDGE_CLASSIFICATION` と `IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM` を `-v` から
-両方または個別に省ける。非 K2 proposal は proposal path だけを足し、fixture 経路は proposal path と
+上の fence は任意の宣言 2 値と同 job pair (`IZANAGI_S4_STOCK_CONTROL=1`) も明示した K2 正例である。
+driver の既定を使う場合は `IZANAGI_S4_KNOWLEDGE_CLASSIFICATION` と `IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM` を
+`-v` から両方または個別に省ける。候補だけを評価する従来の 1 起動は `IZANAGI_S4_STOCK_CONTROL` を省く
+(または `0`)。非 K2 proposal は proposal path だけを足し、fixture 経路は proposal path と
 K2 env をすべて省く。fixture は `IZANAGI_S4_FIXTURE_VALUE` 無指定時に 20 を使う。
 
 **同じ `REPO_ROOT` へ同じ fixture 値で 2 度目を投入すると、事前構築は消費されない。** campaign WAL に

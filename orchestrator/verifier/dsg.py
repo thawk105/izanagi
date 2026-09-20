@@ -23,12 +23,100 @@ import os
 from array import array
 from bisect import bisect_left, bisect_right
 from collections import defaultdict, deque
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
                     Integrity, Txn, Version)
-from .parse import _CompactTrace, _txn_from_columns
+from .parse import _CompactTrace, _kill_pool_workers, _txn_from_columns
+
+
+# Bias the unsigned 64-bit version into signed array("q") without wrapping.
+# This preserves tuple order over the entire pair of unsigned 32-bit fields.
+_VERSION_BIAS = 1 << 63
+_VERSION_LIMIT = 1 << 32
+
+
+def _packed_version(epoch: int, tid: int) -> int:
+    return ((epoch << 32) | tid) - _VERSION_BIAS
+
+
+def _unpacked_version(value: int) -> Version:
+    value += _VERSION_BIAS
+    return value >> 32, value & (_VERSION_LIMIT - 1)
+
+
+def _packed_read_position(values: array, epoch: int, tid: int,
+                          lo: int, hi: int) -> tuple[int, int]:
+    """Exact writer index (-1 if absent) and strict tuple-order successor.
+
+    Out-of-range tids must not carry into the epoch: all versions of the
+    same epoch precede a too-large tid and follow a negative tid.
+    """
+    if 0 <= epoch < _VERSION_LIMIT and 0 <= tid < _VERSION_LIMIT:
+        value = _packed_version(epoch, tid)
+        index = bisect_left(values, value, lo, hi)
+        writer = index if index < hi and values[index] == value else -1
+        return writer, bisect_right(values, value, lo, hi)
+    if epoch < 0:
+        return -1, lo
+    if epoch >= _VERSION_LIMIT:
+        return -1, hi
+    boundary = ((epoch + (tid >= _VERSION_LIMIT)) << 32) - _VERSION_BIAS
+    return -1, bisect_left(values, boundary, lo, hi)
+
+
+class _PackedVersions(Mapping):
+    """Compatibility view; edge workers only use the array attributes.
+
+    Only writer keys have ids. The small per-file tuple selects array headers,
+    like trace.files selects columns; no per-write Python objects are retained.
+    """
+
+    def __init__(self, key_ids, token_to_key, key_offsets,
+                 versions_flat, producers_flat):
+        self.key_ids = key_ids
+        self.token_to_key = token_to_key
+        self.key_offsets = key_offsets
+        self.versions_flat = versions_flat
+        self.producers_flat = producers_flat
+
+    def __len__(self):
+        return len(self.key_offsets) - 1
+
+    def __iter__(self):
+        return iter(self.key_ids)
+
+    def __getitem__(self, key):
+        key_id = self.key_ids[key]
+        return [_unpacked_version(self.versions_flat[index])
+                for index in range(self.key_offsets[key_id],
+                                   self.key_offsets[key_id + 1])]
+
+
+class _PackedProducer(Mapping):
+    def __init__(self, versions):
+        self.packed = versions
+
+    def __len__(self):
+        return len(self.packed.versions_flat)
+
+    def __iter__(self):
+        for key in self.packed:
+            for version in self.packed[key]:
+                yield key, version
+
+    def __getitem__(self, key_version):
+        key, (epoch, tid) = key_version
+        packed = self.packed
+        key_id = packed.key_ids[key]
+        index, _ = _packed_read_position(
+            packed.versions_flat, epoch, tid,
+            packed.key_offsets[key_id], packed.key_offsets[key_id + 1])
+        if index < 0:
+            raise KeyError(key_version)
+        return packed.producers_flat[index]
 
 
 @dataclass(frozen=True)
@@ -54,8 +142,8 @@ class _EdgeWorkerState:
     """One verification's immutable edge input, isolated per child process."""
 
     trace: _CompactTrace
-    producer: Dict[Tuple[str, Version], int]
-    versions: Dict[str, List[Version]]
+    producer: Mapping[Tuple[str, Version], int]
+    versions: Mapping[str, List[Version]]
     keys: tuple[str, ...]
 
 
@@ -116,7 +204,6 @@ def _edge_candidates_for_task(
     trace = worker_state.trace
     producer = worker_state.producer
     versions = worker_state.versions
-    keys = worker_state.keys
     destinations_by_source: Dict[int, array] = {}
     orphan_reads = 0
 
@@ -128,7 +215,39 @@ def _edge_candidates_for_task(
                 destinations_by_source[src] = destinations
             destinations.append(dst)
 
-    if task.kind == "read":
+    if isinstance(versions, _PackedVersions):
+        values = versions.versions_flat
+        writers = versions.producers_flat
+        offsets = versions.key_offsets
+        if task.kind == "read":
+            for rank in range(task.start, task.end):
+                path_index = trace.winner_path_index[rank]
+                columns = trace.files[path_index]
+                token_to_key = versions.token_to_key[path_index]
+                row = trace.winner_row[rank]
+                txid = trace.winner_txid[rank]
+                for read_index in range(columns.txn_read_offsets[row],
+                                        columns.txn_read_offsets[row + 1]):
+                    key_id = token_to_key[columns.read_key_id[read_index]]
+                    epoch = columns.read_ver_epoch[read_index]
+                    tid = columns.read_ver_tid[read_index]
+                    lo = offsets[key_id] if key_id >= 0 else 0
+                    hi = offsets[key_id + 1] if key_id >= 0 else 0
+                    writer, successor = _packed_read_position(
+                        values, epoch, tid, lo, hi)
+                    if writer >= 0:
+                        add(writers[writer], txid)
+                    elif epoch != 1 or tid != 0:
+                        orphan_reads += 1
+                    if successor < hi:
+                        add(txid, writers[successor])
+        elif task.kind == "ww":
+            for key_id in range(task.start, task.end):
+                for index in range(offsets[key_id], offsets[key_id + 1] - 1):
+                    add(writers[index], writers[index + 1])
+        else:
+            raise RuntimeError(f"unknown compact edge task: {task.kind}")
+    elif task.kind == "read":
         for rank in range(task.start, task.end):
             columns = trace.files[trace.winner_path_index[rank]]
             row = trace.winner_row[rank]
@@ -157,7 +276,7 @@ def _edge_candidates_for_task(
                             add(txid, writer)
     elif task.kind == "ww":
         for key_index in range(task.start, task.end):
-            key = keys[key_index]
+            key = worker_state.keys[key_index]
             key_versions = versions[key]
             for version_index in range(len(key_versions) - 1):
                 first = producer.get((key, key_versions[version_index]))
@@ -254,6 +373,126 @@ class DSG:
         trace = self._compact
         if trace is None:
             raise RuntimeError("compact DSG requested without compact trace")
+        # Decide before recording integrity or allocating the packed index.
+        for rank in range(len(trace.winner_txid)):
+            columns = trace.files[trace.winner_path_index[rank]]
+            row = trace.winner_row[rank]
+            if columns.txn_write_offsets[row] != columns.txn_write_offsets[row + 1]:
+                if not (0 <= columns.txn_commit_epoch[row] < _VERSION_LIMIT
+                        and 0 <= columns.txn_commit_tid[row] < _VERSION_LIMIT):
+                    self._build_compact_tuple()
+                    return
+        self._build_compact_packed(trace)
+        self._build_compact_edges(trace.worker_count)
+
+    def _build_compact_packed(self, trace: _CompactTrace) -> None:
+        # Count/scatter into flat columns. Temporary Python sorting objects are
+        # bounded by the hottest key, not the complete write population.
+        key_ids: Dict[str, int] = {}
+        token_to_key = tuple(array("i", [-1]) * (len(c.token_offsets) - 1)
+                             for c in trace.files)
+        counts = array("Q")
+        for rank in range(len(trace.winner_txid)):
+            path = trace.winner_path_index[rank]
+            columns = trace.files[path]
+            row = trace.winner_row[rank]
+            local_ids = token_to_key[path]
+            for index in range(columns.txn_write_offsets[row],
+                               columns.txn_write_offsets[row + 1]):
+                token = columns.write_key_id[index]
+                key_id = local_ids[token]
+                if key_id < 0:
+                    key = columns.token_blob[columns.token_offsets[token]:
+                                             columns.token_offsets[token + 1]].decode("ascii")
+                    key_id = key_ids.get(key, -1)
+                    if key_id < 0:
+                        key_id = len(key_ids)
+                        key_ids[key] = key_id
+                        counts.append(0)
+                    local_ids[token] = key_id
+                counts[key_id] += 1
+        # Resolve read-only occurrences of writer keys without scanning reads.
+        for path, columns in enumerate(trace.files):
+            local_ids = token_to_key[path]
+            for token in range(len(local_ids)):
+                if local_ids[token] < 0:
+                    key = columns.token_blob[columns.token_offsets[token]:
+                                             columns.token_offsets[token + 1]].decode("ascii")
+                    local_ids[token] = key_ids.get(key, -1)
+        offsets = array("Q", [0])
+        for count in counts:
+            offsets.append(offsets[-1] + count)
+        cursor = offsets[:-1]
+        values = array("q", [0]) * offsets[-1]
+        writers = array("q", [0]) * offsets[-1]
+        for rank, txid in enumerate(trace.winner_txid):
+            path = trace.winner_path_index[rank]
+            columns = trace.files[path]
+            row = trace.winner_row[rank]
+            value = _packed_version(columns.txn_commit_epoch[row],
+                                    columns.txn_commit_tid[row])
+            for index in range(columns.txn_write_offsets[row],
+                               columns.txn_write_offsets[row + 1]):
+                key_id = token_to_key[path][columns.write_key_id[index]]
+                slot = cursor[key_id]
+                values[slot] = value
+                writers[slot] = txid
+                cursor[key_id] += 1
+        del counts, cursor
+        # Stable sort retains occurrence order for equal versions. Compact in
+        # place, so a second all-write payload is not live at the fork boundary.
+        unique_offsets = array("Q", [0])
+        end = 0
+        for key_id in range(len(key_ids)):
+            order = sorted(range(offsets[key_id], offsets[key_id + 1]),
+                           key=values.__getitem__)
+            rows = [(values[index], writers[index]) for index in order]
+            previous = None
+            for value, writer in rows:
+                if value != previous:
+                    values[end] = value
+                    writers[end] = writer
+                    end += 1
+                    previous = value
+            unique_offsets.append(end)
+            del order, rows
+        del values[end:], writers[end:]
+        packed = _PackedVersions(key_ids, token_to_key, unique_offsets,
+                                 values, writers)
+        self.versions = packed
+        self.producer = _PackedProducer(packed)
+        # Replay diagnostic events in original rank/write order, including
+        # write-free genesis commits. The first producer is already known.
+        for rank, txid in enumerate(trace.winner_txid):
+            path = trace.winner_path_index[rank]
+            columns = trace.files[path]
+            row = trace.winner_row[rank]
+            commit = (columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
+            if commit <= GENESIS:
+                self.integrity.genesis_commits += 1
+                self.integrity.notes.append(
+                    f"txid {txid} commits at or below genesis sentinel (1,0): "
+                    f"{commit} (non-physical)")
+            value = _packed_version(*commit)
+            for index in range(columns.txn_write_offsets[row],
+                               columns.txn_write_offsets[row + 1]):
+                token = columns.write_key_id[index]
+                key_id = token_to_key[path][token]
+                slot = bisect_left(values, value, unique_offsets[key_id],
+                                   unique_offsets[key_id + 1])
+                first = writers[slot]
+                if first != txid:
+                    key = columns.token_blob[columns.token_offsets[token]:
+                                             columns.token_offsets[token + 1]].decode("ascii")
+                    self.integrity.version_dups += 1
+                    self.integrity.notes.append(
+                        f"version dup: key={key} ver={commit} "
+                        f"by txid {first} and {txid}")
+
+    def _build_compact_tuple(self) -> None:
+        trace = self._compact
+        if trace is None:
+            raise RuntimeError("compact DSG requested without compact trace")
         per_key: Dict[str, List[Version]] = {}
         for rank, txid in enumerate(trace.winner_txid):
             columns = trace.files[trace.winner_path_index[rank]]
@@ -300,7 +539,12 @@ class DSG:
             count = columns.txn_read_offsets[row + 1] - columns.txn_read_offsets[row]
             read_weights.append(count)
         keys = tuple(self.versions)
-        ww_weights = [max(0, len(self.versions[key]) - 1) for key in keys]
+        if isinstance(self.versions, _PackedVersions):
+            offsets = self.versions.key_offsets
+            ww_weights = [max(0, offsets[i + 1] - offsets[i] - 1)
+                          for i in range(len(keys))]
+        else:
+            ww_weights = [max(0, len(self.versions[key]) - 1) for key in keys]
 
         tasks: List[_EdgeTask] = []
         parallelism = max(1, min(worker_count, len(trace.winner_txid) or 1))
@@ -317,6 +561,9 @@ class DSG:
         )
         outcomes: Optional[List[_EdgeCandidateColumns]] = None
         received: List[_EdgeCandidateColumns] = []
+        executor = None
+        futures = []
+        future = None
         if worker_count > 1 and len(tasks) > 1:
             try:
                 import multiprocessing
@@ -329,6 +576,7 @@ class DSG:
                     initializer=_initialize_edge_worker,
                     initargs=(state,),
                 )
+                failed = True
                 try:
                     futures = [executor.submit(_edge_worker, task) for task in tasks]
                     failed = False
@@ -341,16 +589,25 @@ class DSG:
                     if failed:
                         for future in futures:
                             future.cancel()
+                except BaseException:
+                    failed = True
+                    raise
                 finally:
+                    if failed:
+                        _kill_pool_workers(executor)
                     executor.shutdown(wait=True, cancel_futures=True)
-                outcomes = _ordered_complete_edge_outcomes(
-                    received, len(tasks))
+                if not failed:
+                    outcomes = _ordered_complete_edge_outcomes(
+                        received, len(tasks))
             except (
                     ImportError, OSError, BlockingIOError, RuntimeError,
                     ValueError, AssertionError,
             ):
                 outcomes = None
         if outcomes is None:
+            received.clear()
+            futures.clear()
+            future = executor = None
             outcomes = _ordered_complete_edge_outcomes(
                 [_edge_candidates_for_task(task, state) for task in tasks],
                 len(tasks),

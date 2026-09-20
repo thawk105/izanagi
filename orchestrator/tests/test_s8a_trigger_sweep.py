@@ -94,6 +94,57 @@ def test_trigger_characterization_gate_dominates_first_build(module):
     assert source.index("_preflight_condition_gates") < source.index("_build(")
 
 
+@pytest.mark.parametrize(("macro", "default", "directive"), [
+    ("IZANAGI_BREAK_TRIGGER_MISATTR", None, "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR"),
+    ("BACKOFF_TRIGGER_GATING", 0, "#if BACKOFF_TRIGGER_GATING"),
+], ids=["misattr", "gating"])
+def test_coverage_condition_gate_passes_exact_factory_pair(monkeypatch, tmp_path, macro, default, directive):
+    gate = coverage.condition_meaning_gate
+    captured = object()
+    record = SimpleNamespace(canonical_json=lambda: "{}")
+    admission = SimpleNamespace(admitted=True, canonical_json=lambda: "{}")
+    observed = {}
+
+    def capture(source, *, configure_args):
+        observed["capture"] = (source, configure_args)
+        return captured
+
+    def supply(inputs, **kwargs):
+        observed["supply"] = (inputs, kwargs)
+        return record
+
+    def meaning(inputs, **kwargs):
+        observed["meaning"] = (inputs, kwargs)
+        return record
+
+    def family(supplies, meanings, **kwargs):
+        observed["family"] = (supplies, meanings, kwargs)
+        return admission
+
+    monkeypatch.setattr(gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(gate, "evaluate_define_supply_effectuation", supply)
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", meaning)
+    monkeypatch.setattr(gate, "require_condition_gate_family", family)
+    result = coverage._require_condition_gate(
+        str(tmp_path), driver_id="coverage-test", macro=macro,
+        configure_args=["-DCCBENCH_BACKOFF_TRIGGER_GATING=1"],
+    )
+    assert result == {"supply": {}, "meaning": {}, "admission": {}}
+    assert observed["capture"] == (str(tmp_path), ("-DCCBENCH_BACKOFF_TRIGGER_GATING=1",))
+    assert observed["supply"][0] is observed["meaning"][0] is captured
+    request = observed["supply"][1]["request"]
+    assert observed["meaning"][1]["request"] is request
+    assert request.macro == macro
+    assert request.requested_value == 1
+    assert request.default_value == default
+    declaration = observed["meaning"][1]["declaration"]
+    assert type(declaration) is gate.ConditionalBranchMeaningDeclaration
+    assert declaration.macro == macro
+    assert declaration.source_rel == "cc/silo/transaction.cc"
+    assert declaration.start_directive == directive
+    assert observed["family"] == ([record], [record], {"use_class": "raw-measurement"})
+
+
 def test_screening_forwards_ident_baseline_genome_protocol():
     source = Path(W.__file__).read_text(encoding="utf-8")
     assert source.count("protocol=_genome(1).protocol") == 1

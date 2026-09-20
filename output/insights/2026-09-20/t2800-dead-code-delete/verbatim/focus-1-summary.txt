@@ -1,0 +1,4 @@
+| 557 passed, 8 skipped in 87.80s (0:01:27)
+|   Elapse:               93S
+|   Remaining Elapse:     3507S
+[Pegasus dispatch] request 12686.nqsv の状態: END

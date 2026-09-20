@@ -1,0 +1,36 @@
+== gating-misattr transaction.cc (MISATTR L264 / GATING x12)
+L18: outer=(top)
+L105: outer= > #if BACK_OFF
+L127: outer= > #if BACK_OFF
+L133: outer= > #if BACK_OFF
+L147: outer=(top)
+L196: outer=(top)
+L263: outer= > #if NO_WAIT_LOCKING_IN_VALIDATION
+L264: outer= > #if NO_WAIT_LOCKING_IN_VALIDATION > #if BACKOFF_TRIGGER_GATING
+L302: outer=(top)
+L576: outer=(top)
+L591: outer=(top)
+L605: outer=(top)
+L866: outer=(top)
+== gating transaction.cc (GATING x12)
+L18: outer=(top)
+L81: outer= > #if BACK_OFF
+L103: outer= > #if BACK_OFF
+L109: outer= > #if BACK_OFF
+L123: outer=(top)
+L172: outer=(top)
+L239: outer= > #if NO_WAIT_LOCKING_IN_VALIDATION
+L267: outer=(top)
+L541: outer=(top)
+L556: outer=(top)
+L570: outer=(top)
+L831: outer=(top)
+== rung1 transaction.cc
+L11: outer=(top)
+L187: outer=(top)
+== requested-us transaction.cc
+L11: outer=(top)
+L157: outer= > #if BACK_OFF
+== requested-us backoff.hh
+L109: outer=(top)
+L141: outer=(top)

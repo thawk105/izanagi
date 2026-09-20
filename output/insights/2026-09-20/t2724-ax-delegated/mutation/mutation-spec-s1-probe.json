@@ -1,0 +1,233 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m1-raw-count-ge1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(raw_lines) != 1:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n",
+          "new": "    if len(raw_lines) < 1:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-parse-count-fallback-raw",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(values) != 1:\n        return f\"AI-Agent trailer 値数が 1 でない: {len(values)}\"\n",
+          "new": "    if len(values) != 1:\n        values = [raw_lines[0].partition(\": \")[2]]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-both-counts-ge1-first-wins",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(raw_lines) != 1:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n",
+          "new": "    if len(raw_lines) < 1:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(values) != 1:\n        return f\"AI-Agent trailer 値数が 1 でない: {len(values)}\"\n",
+          "new": "    if len(values) < 1:\n        return f\"AI-Agent trailer 値数が 1 でない: {len(values)}\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-raw-compare-strip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if raw_lines[0] != \"AI-Agent: \" + values[0]:\n",
+          "new": "    if raw_lines[0].strip() != \"AI-Agent: \" + values[0]:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-raw-compare-lower",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if raw_lines[0] != \"AI-Agent: \" + values[0]:\n",
+          "new": "    if raw_lines[0].lower() != (\"AI-Agent: \" + values[0]).lower():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-grammar-check-accepts",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if not match:\n        return \"AI-Agent 構造化値が provenance 文法に適合しない\"\n",
+          "new": "    if not match:\n        return None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-reserved-products-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "_PROVENANCE_RESERVED_PRODUCTS = frozenset({\"none\", \"unknown\", \"not-exposed\", \"human\"})\n",
+          "new": "_PROVENANCE_RESERVED_PRODUCTS = frozenset()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-model-reasoning-none-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if match.group(\"model\") == \"none\" or match.group(\"reasoning\") == \"none\":\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-none-plus-structured-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(raw_lines) != 1:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n",
+          "new": "    if len(raw_lines) != 1 and \"AI-Agent: none\" not in raw_lines:\n        return f\"AI-Agent raw 行数が 1 でない: {len(raw_lines)}\"\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(values) != 1:\n        return f\"AI-Agent trailer 値数が 1 でない: {len(values)}\"\n",
+          "new": "    if len(values) != 1 and \"none\" not in values:\n        return f\"AI-Agent trailer 値数が 1 でない: {len(values)}\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-merge-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if len(graph.parents.get(commit, ())) > 1:\n        raise RatifiedFreezeError(\"user-commit-merge\", f\"user commit {commit} が merge\")\n",
+          "new": "    if False:\n        raise RatifiedFreezeError(\"user-commit-merge\", f\"user commit {commit} が merge\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-ancestry-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if not _git_ok([\"merge-base\", \"--is-ancestor\", commit, graph.commits[0]], root):\n        raise RatifiedFreezeError(\"user-commit-ancestry\", f\"commit {commit} が H ancestor でない\")\n",
+          "new": "    if False:\n        raise RatifiedFreezeError(\"user-commit-ancestry\", f\"commit {commit} が H ancestor でない\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-generation-none-both-layers-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if _is_none_commit(commit, root):\n        raise RatifiedFreezeError(\n            \"generation-commit-none\",\n",
+          "new": "    if False:\n        raise RatifiedFreezeError(\n            \"generation-commit-none\",\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    if not values or values == [\"none\"]:\n        raise RatifiedFreezeError(\n            \"generation-commit-provenance\",\n",
+          "new": "    if not values:\n        raise RatifiedFreezeError(\n            \"generation-commit-provenance\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-approval-diff-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    added, other = _added_paths(commit_a, root)\n    if added != frozenset({approval.path}) or other:\n",
+          "new": "    added, other = _added_paths(commit_a, root)\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-pointer-diff-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    added, other = _added_paths(commit_x, root)\n    if added != frozenset({pointer.path}) or other:\n",
+          "new": "    added, other = _added_paths(commit_x, root)\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15-pointer-parent-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+          "old": "    parents = _parents_of(commit_x, root)\n    if parents != (commit_a,):\n",
+          "new": "    parents = _parents_of(commit_x, root)\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
