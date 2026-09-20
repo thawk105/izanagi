@@ -57,6 +57,11 @@ wave は数えない) に従った。
   T5 overlap / escape、T6 衝突 Figure を publisher へ直接 → 例外 + 出力ゼロ、T7 CLI 3 出力 + 独立 hashlib 照合 + mode 0644 + 同 prefix 2 回目 rc=2、
   T8 不正 prefix rc=2。
 - 焦点走 (計算ノード): fix 前 job `11908.nqsv` 29 passed / 9.06 秒、fix 後 job `11937.nqsv` 30 passed / 9.03 秒。
+- 受入 attempt final-1 (計算ノード 3 shard、09:47〜10:10 JST、門番 GO 09:46:54) は rc=70 で赤 2 件: `test_plain_runner_coverage::test_every_test_file_is_self_runnable_or_allowlisted` (新 test file に自走 harness も allowlist 記載も無い) と `test_check_subprocess_bytecode_guard::test_real_repo_clean` (T7 の subprocess env に `PYTHONDONTWRITEBYTECODE` 無し)。assertion 本文で
+  自分起因と判定し、fix2 (Codex、test file のみ +5/−1: `__main__` に `pytest.main([__file__, "-x"])`、env dict literal に guard) を当てた。
+  焦点走 (新 test + メタテスト 2 本) 39 passed / 23.1 秒、checker rc=0、commit `5686eaa2a`。**F42 と F521 の再発** (目録型メタテストは
+  author / レビュー B の語検索 (`plotting` / `provenance`) では見つからず、親も DW-O26 を読みながら焦点走に入れなかった。checker の棚卸しも
+  していなかった) — failures fragment に再発を追記した。
 - 段 6 レビュー A (状態忠実性・正しさ境界・README 草稿): must-fix 1 (Act 行に JSON 内部 ID `act1-evaluator:` が図に出る、作図規約 §5)、
   should 1 (README の配置再現保証を狭める)、証拠 16 項目 + Act 8 行は全部一致、caption / 脚注に認証・認可を与える文なし。
   レビュー B (過剰・削除・実装の正しさ・変異帰属): must-fix 3 (同 Act ID / T3 `unknown-definition-key` の注入値 `1` は後段の型検査で
@@ -82,6 +87,7 @@ probe (全件 SURVIVED 期待で観測 node を集める、`mutation-spec-probe.
 | M8 prefix 検査を恒真 | `_figure_number` の `_require` | T8 | KILLED (1/1) |
 
 final (KILLED 期待 = 観測 node、`mutation-spec-final.json` / `mutation-final-results.json`): **9/9 KILLED、期待 node と観測 node が全変異で完全一致** (08:45〜09:01 JST、baseline PASSED 30 passed / 8.93 秒、wrapper receipt あり = 共有木 snapshot 不変)。等価変異 0、生存 0
+final2 (fix2 commit `5686eaa2a`、anchor・期待 node 不変のため probe なし、`mutation-spec-final2.json` / `mutation-final2-results.json`): **9/9 KILLED、期待 node 完全一致** (baseline PASSED 30 passed in 9.04s)。
 
 ## 5. 図の内容 (状態の写し) と本文との対応
 
@@ -100,14 +106,18 @@ B-1 = obtained「not met」、B-7 / B-9 / B-10 = uncertified、A-5 / B-2 / B-3 /
 - 一次資料: `docs/paper-story/2026-09-19.md` (SHA-256 `0553280d…`)、状態 JSON (SHA-256 `473aba56…`)、provenance の `inputs` / `generator` /
   `outputs`。
 - 逐語: `s1-brief.md`、`verbatim/s2-plan.md`、`verbatim/s3-consult.md`、`s4-ruling.md`、`verbatim/s5-author.md`、`verbatim/s6-review-A.md`、
-  `verbatim/s6-review-B.md`、`verbatim/s6-fix1.md` (原本と byte 一致、行末空白なし、正規化なし)。
+  `verbatim/s6-review-B.md`、`verbatim/s6-fix1.md`、`verbatim/s6-fix2.md` (原本と byte 一致、行末空白なし、正規化なし)。
 - 変異: `mutation-spec-probe.json`、`mutation-spec-final.json`、`mutation-expected-nodes.json`、`mutation-probe-results.json`、
-  `mutation-final-results.json`。
+  `mutation-final-results.json`、`mutation-spec-final2.json`、`mutation-final2-results.json` (fix2 commit での再走)。
 
 ## 7. 工数・逸脱・気づき
 
-- codex 6 本 (plan 1、consult 1、author 1、review 2、fix 1)、計算ノード job = 焦点走 2 + provenance 全史監査 1 + 変異 (probe 10 + final 10)。
+- codex 7 本 (plan 1、consult 1、author 1、review 2、fix 2)、計算ノード job = 焦点走 3 + provenance 全史監査 1 + 変異 (probe 10 + final 10 + final2 10) + 受入全走 2 (1 回目は赤 2 件)。
 - 親の逸脱 1 件: 変異用 clone の起点 SHA を `rev-parse` せず推測で書いて `update-ref` が失敗 (memory 既載の罠の再発、実害は clone 1 回のやり直し)。
   `update-ref` 後に `reset --hard` が要る型も踏んだ (memory 既載)。
 - 生成器の `tempfile.mkstemp` が 0600 で作った file をそのまま `os.link` で公開すると着地 file が 0600 になる (レビュー B が検出、fix1 で 0644)。
   既存の図生成器 (`plot_a1_sized_paired.py` 等) も同型だが本 wave の scope 外 (git は mode を記録しないので着地物には影響しない)。
+- D88 の検出語走査 (`s8b_holdout_freeze search`): 記録 commit `a9999696f` の時点 (main `b7f970dfa` ベース) では rc=0。受入の post-claim merge で
+  main `9c50b2b90` を取り込んだ後は rc=1 だが、hit 4 file は `output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/*` と
+  `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` (別 wave が land した freeze g1 chain、commit `4d8fb93b7` / `cc82edc8c`) で、
+  本 wave の逐語・図・JSON は hit 集合に無い (非帰属、main の状態)。

@@ -24,12 +24,15 @@ title: 論文の現況図 fig3 の後継図 fig3b (2026-09-19 版の 3 幕と §
   M2 fixture が診断だけの赤 / group label が自由文検査外、should = 公開 file が 0600) → fix1 (Codex、2 file、+11/−5) → 図を再生成。
   焦点走 (計算ノード) fix 前 29 passed / 9.06 秒、fix 後 30 passed / 9.03 秒。
 - 変異 (独立 clone、commit `152c1d99d`、9 変異): probe の観測 node がレビュー B の静的予測と完全一致、final は 9/9 KILLED・期待 node 完全一致 (baseline 30 passed / 8.93 秒、wrapper receipt あり)。等価変異 0。
+- 受入 attempt 1 (3 shard) は赤 2 件で rc=70: 新 test file に自走 harness なし (F42 再発) と T7 の subprocess env に bytecode guard なし
+  (F521 再発)。どちらも自分起因 → fix2 (Codex、test file のみ、commit `5686eaa2a`) → 焦点走 (新 test + メタテスト 2 本) 39 passed →
+  変異 final2 (同 commit) 9/9 KILLED → 受入を取り直した。failures fragment に 2 件の再発を追記。
 - 図が言わないこと (README 節と caption に固定): 判定を作らない、A-2 / A-6 の判定は当時の identity 層の下のものとして残る (規律 7)、
   「A-1 の値がある」「mocc は第 2 成功例」「B-10 を閉じた」「床値が発効した」とは読めない。FIGURE_CONVENTIONS §1 (WAL/dat) は
   値を持たない模式図に限った限定で、数値図への免除ではない。
-- 工数: codex 6 本 (plan 1、consult 1、author 1、review 2、fix 1)、計算ノード job = 焦点走 2 + provenance 全史監査 1 + 変異 20 走。
+- 工数: codex 7 本 (plan 1、consult 1、author 1、review 2、fix 2)、計算ノード job = 焦点走 3 + provenance 全史監査 1 + 変異 30 走 + 受入全走 2。
   親の逸脱 1 件 (変異用 clone の起点 SHA を rev-parse せず推測で書いて update-ref 失敗、clone 1 回やり直し。memory 既載の罠の再発)。
-- 受入全走は本 fragment の記録 commit の後、段 9 の land 前に `dev_wave_wait.py acceptance` で実走する (結果は land の受入受領証が持つ。本 fragment は受入前に書いた)。
+- 受入全走 (2 回目) は本 fragment の追記 commit の後、段 9 の land 前に `dev_wave_wait.py acceptance` で実走する (結果は land の受入受領証が持つ。本 fragment は受入前に書いた)。
 
 ## 次の一手差分
 

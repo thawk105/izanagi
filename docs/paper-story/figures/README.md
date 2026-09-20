@@ -1043,9 +1043,9 @@ matplotlib が生成日時を埋めるので、byte 一致も保証しない。�
   `source_anchor` が指す見出し行の一意な存在を生成器が検査)
 - 状態の写しが本文の意味と一致すること → 本 wave の read-only 敵対レビュー (段 3 の逐語照合 16 項目 + Act 3 の 5 行、段 6 の独立
   レビュー)。一次資料は `output/insights/2026-09-20/fig3b-arc-status/README.md`
-- 生成器 → `tools/plotting/plot_arc_status.py` (実装 commit `14529331c` (段 5 author)、段 6 fix `152c1d99d`、provenance `generator.sha256`)
+- 生成器 → `tools/plotting/plot_arc_status.py` (実装 commit `14529331c` (段 5 author)、段 6 fix `152c1d99d`、test だけの fix2 `5686eaa2a`、provenance `generator.sha256`)
 - 実走 → login node、2026-09-20 08:25 JST (provenance `generated_utc` 2026-09-19T23:25:08Z)、rc=0、3 成果物。単体テスト `orchestrator/tests/test_plot_arc_status.py` は
-  計算ノード job `11937.nqsv` で 30 passed / 9.03 秒 (段 6 fix 後。fix 前は job `11908.nqsv` で 29 passed / 9.06 秒)。変異 9 系列は独立 clone (commit `152c1d99d`) で probe → final の 2 段、final は 9/9 KILLED・期待 node 完全一致 (一次資料 `output/insights/2026-09-20/fig3b-arc-status/` の `mutation-final-results.json`)
+  計算ノード job `11937.nqsv` で 30 passed / 9.03 秒 (段 6 fix 後。fix 前は job `11908.nqsv` で 29 passed / 9.06 秒)。変異 9 系列は独立 clone (commit `152c1d99d`) で probe → final の 2 段、final は 9/9 KILLED・期待 node 完全一致、test だけの fix2 の後の再走 final2 も 9/9 KILLED (一次資料 `output/insights/2026-09-20/fig3b-arc-status/` の `mutation-final-results.json`)
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
 
 ## 着地 bytes の SHA-256 (記録)
