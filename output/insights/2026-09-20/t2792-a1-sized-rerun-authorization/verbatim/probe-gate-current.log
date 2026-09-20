@@ -1,0 +1,9 @@
+base entries: ['attempt-0001', 'attempt-0001.intent.json']
+same study attempt-0002: REFUSED: prior attempt reached the bench barrier; group rerun is prohibited
+other study: ACCEPTED
+intent keys: ['attempt_root', 'intent_sha256', 'jobs', 'schema_version', 'source_binding', 'source_commit', 'study_id']
+intent source_commit: d2ebef7a407dc6be61622ed596cf08b8b518f606 study: paper-story-a1-20260901-balanced5-sized-v1
+intent attempt_root: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001
+V3_SIZED_POLICY_SHA256: a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a
+MATERIALIZATION_RELATIVE_PATH: output/insights/2026-08-26_paper-story-a1-sized
+bench-go study: paper-story-a1-20260901-balanced5-sized-v1 source: d2ebef7a407dc6be61622ed596cf08b8b518f606

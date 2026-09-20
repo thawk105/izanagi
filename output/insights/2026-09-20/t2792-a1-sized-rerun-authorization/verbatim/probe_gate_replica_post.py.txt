@@ -1,0 +1,75 @@
+"""Dogfood the patched gate against the replica of the real attempt-0001 evidence (job dir).
+
+argv: <repo root (wave worktree)> <replica base>
+Writes attempt-0002.authorization.json into the replica base for each scenario and removes it
+afterwards. Never touches the real durable base. Records are built with the driver's own
+digest helper (production producer is bound to the policy base, so it cannot target a replica).
+"""
+import copy
+import json
+import os
+import pathlib
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from orchestrator.campaign import paper_story_a1_paired as p  # noqa: E402
+
+base = pathlib.Path(sys.argv[2]).resolve()
+sid = p.V3_SIZED_STUDY_ID
+attempt = base / "attempt-0002"
+record_path = base / "attempt-0002.authorization.json"
+SOURCE = "371674ea685ecb11e08dbcc31d4bf4f2bed0b20b"
+
+
+def make_record(**overrides):
+    record = {
+        "schema_version": p.V3_RERUN_AUTHORIZATION_SCHEMA,
+        "study_id": sid,
+        "attempt_root": os.fspath(attempt),
+        "source_commit": SOURCE,
+        "decision": {"id": "D2172", "item": 2, "decided_on": "2026-09-20"},
+    }
+    for key, value in overrides.items():
+        if key.startswith("decision."):
+            record["decision"][key.split(".", 1)[1]] = value
+        else:
+            record[key] = value
+    record["authorization_sha256"] = p._rerun_authorization_digest(record)
+    return record
+
+
+def run(label, record, *, current=attempt, study=sid, source=SOURCE):
+    if record_path.exists():
+        record_path.unlink()
+    if record is not None:
+        record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+    try:
+        p._assert_no_prior_v3_bench_start(
+            base, study_id=study, current_attempt=current, source_commit=source,
+        )
+        outcome = "ACCEPTED"
+    except p.PaperStoryError as exc:
+        outcome = f"REFUSED: {exc}"
+    finally:
+        if record_path.exists():
+            record_path.unlink()
+    print(f"{label:<44} {outcome}")
+
+
+print("base entries:", sorted(e.name for e in base.iterdir()))
+run("no record", None)
+run("exact record", make_record())
+run("record differs: other source", make_record(source_commit="b" * 40))
+run("record differs: other study", make_record(study_id=p.V3_PILOT_STUDY_ID))
+run("record names attempt-0003 (file attempt-0002)", make_record(attempt_root=os.fspath(base / "attempt-0003")))
+run("record differs: decision item 3", make_record(**{"decision.item": 3}))
+run("record differs: decided_on", make_record(**{"decision.decided_on": "2026-09-19"}))
+bad = make_record()
+bad["authorization_sha256"] = "0" * 64
+run("record corrupt: bad digest", bad)
+extra = make_record()
+extra["note"] = "x"
+run("record corrupt: extra key", extra)
+run("exact record, caller other study", make_record(), study=p.V3_PILOT_STUDY_ID)
+run("exact record, caller other source", make_record(), source="c" * 40)
+print("base entries after:", sorted(e.name for e in base.iterdir()))
