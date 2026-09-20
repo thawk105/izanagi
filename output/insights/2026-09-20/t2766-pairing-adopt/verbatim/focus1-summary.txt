@@ -1,0 +1,5 @@
+focus1 (2026-09-20 13:58-14:00 JST, 計算ノード job 12604.nqsv, wave 木 HEAD 715bf37b7 (X1) + codex/s5-author.patch 適用 (未 commit), 11 file)
+argv: python3 tools/run_tests.py --force-dispatch <11 files> -q -rf
+files: orchestrator/tests/test_acceptance_schedule_order.py test_pegasus_dispatch_compute.py test_hold_inventory.py test_run_tests_shards.py test_real_repo_serialization.py test_run_tests_preflight.py test_fold_gate_nodes_contract.py test_campaign_import_invariant.py test_growth_test_holds_contract.py test_flaky_test_holds_contract.py test_pytest_collection_config.py
+result: 1210 passed, 7 skipped in 119.70s (0:01:59)
+rc=0 (focus/focus1.done)
