@@ -714,6 +714,47 @@ def test_registered_thousand_weights_end_to_end_fixed_vector():
     assert list(B.sweep_order("write-heavy", 1)[:10]) == [8, 25, 600, 50, 100, 200, 12, 250, 150, 2]
 
 
+def test_wal_diff_quarantine_without_rejection_sidecar_continues(tmp_path):
+    normal = FakeRunner()
+    rejected_keys = []
+
+    def runner(argv, *, cwd):
+        key = argv[argv.index("--b5-slot") + 1]
+        if "|search|1|" not in key:
+            return normal(argv, cwd=cwd)
+        rejected_keys.append(key)
+        sidecar = Path(argv[argv.index("--b5-sidecar-dir") + 1])
+        proposal = json.loads(Path(argv[argv.index("--run-iteration") + 1]).read_text())
+        genome = _genome(proposal["coder"]["value"])
+        root = _write_attempt(sidecar, key=key, value=proposal["coder"]["value"],
+                              outcome="unclassified-missing")
+        records = [
+            WalRecord("diffq-fixture", "build_start", "linux-baremetal", 1., {
+                "build_attempt_id": "diffq-attempt", "genome": genome.canonical(), "src_token": ""}),
+            WalRecord("diffq-fixture", "abort", "linux-baremetal", 2., {
+                "build_attempt_id": "diffq-attempt", "genome": genome.canonical(),
+                "reason": "diff-quarantine",
+                "diff_quarantine": {"rule_id": "backoff-grammar.raw-size.v1"}}),
+        ]
+        (root / "runs/wal.jsonl").write_text(
+            "".join(json.dumps(asdict(record)) + "\n" for record in records))
+        assert (sidecar / "slot-start.json").is_file()
+        assert not (sidecar / "proposal-rejected.json").exists()
+        assert not (sidecar / "pipeline-submitted.json").exists()
+        observed = B.classify_slot(sidecar, None, 5, genome)
+        assert (observed["outcome"], observed["failure_class"], observed["submitted"]) == (
+            "rejected-preprocess", "candidate", False)
+        assert observed["wal_sha256"]
+        return subprocess.CompletedProcess(argv, 0, "outcome=rejected", "")
+
+    result = _series(tmp_path, runner)
+    assert len(rejected_keys) == 1 and not _events(result, "machine-retry")
+    rejection, = _events(result, "proposal-rejected")
+    assert (rejection["a"], rejection["b"], rejection["returncode"]) == (1, 0, 0)
+    assert (result["events"][-1]["a"], result["events"][-1]["b"]) == (11, 10)
+    assert result["events"][-1]["reason"] == "b-complete"
+
+
 @pytest.mark.parametrize("with_start", [False, True])
 def test_rejected_sidecar_advances_without_retry_m21(tmp_path, with_start):
     normal = FakeRunner()

@@ -10497,6 +10497,29 @@ def test_b5_candidate_rejection_sidecar_rc3_m20(tmp_path, monkeypatch, mutation,
     assert state is None or state.whiteboard == []
 
 
+def test_b5_string_preflight_rejection_uses_wal_and_rc0(tmp_path, monkeypatch, capsys):
+    layout, _, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+    doc = json.loads(proposal.read_text())
+    assignment = "double now_backoff = 20;"
+    doc["coder"]["implementation"] = assignment + " " * (
+        BHG.MAX_BACKOFF_HOLE_BYTES - len(assignment) + 1)
+    proposal.write_text(json.dumps(doc))
+    monkeypatch.setattr(L, "run_campaign", lambda *a, **k: pytest.fail("rejected candidate submitted"))
+
+    assert L.main(args) == 0
+    assert "outcome=rejected " in capsys.readouterr().out
+    assert (sidecar / "slot-start.json").is_file()
+    assert not (sidecar / "proposal-rejected.json").exists()
+    assert not (sidecar / "pipeline-submitted.json").exists()
+    records = wal.read_records(layout)
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload["reason"] == "diff-quarantine"
+    assert records[-1].payload["diff_quarantine"]["rule_id"] == "backoff-grammar.raw-size.v1"
+    assert records[0].payload["build_attempt_id"] == records[-1].payload["build_attempt_id"]
+    state = L.load_loop_state(layout)
+    assert len(state.whiteboard) == 1 and state.whiteboard[0].result == "rejected"
+
+
 def test_b5_rejection_sidecar_mutant_m20(tmp_path, monkeypatch):
     import inspect
     source = inspect.getsource(L._b5_proposal_rejected)

@@ -390,8 +390,7 @@ def _describe(ledger):
     return {"arm": h["arm"], "workload": h["workload"], "series": h["series"], "block": h["block"],
             "A": max((e.get("a") or 0 for e in events), default=0),
             "B": max((e.get("b") or 0 for e in events), default=0) + len(unresolved_search),
-            "logical_sessions": (len(submitted) if h["arm"] == "stock" else
-                                 1 + len(submitted - {"stock-start-1"})),
+            "logical_sessions": len(submitted),
             "attempted_logical_slots": len({e["logical_slot"] for e in physical.values()}),
             "preprocess_rejections": sum(e["kind"] == "proposal-rejected"
                                          and e.get("outcome") in {None, "rejected-preprocess"} for e in events),

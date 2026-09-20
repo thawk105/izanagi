@@ -413,8 +413,11 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   `--machine-generated-proposal`)、stock slot (系列開始・block・いずれの arm でも) では `--stock-control`
   (+ llm では K2 identity argv = manifest / classification / de novo だけ。`--coder-role` /
   `--allow-coder-derived-build` / `--machine-generated-proposal` は渡さない) を固定で足す (CLI で上書き不可)。
-  候補起因の前処理拒否 (schema / 値域 / 帰属不一致 / 文法) は driver 側 `p3_s4_loop` が sidecar
-  `proposal-rejected.json` を書いて rc 3 で終わり、系列 driver は A だけ消費して次の原提案へ進む。slot key
+  候補起因の前処理拒否のうち proposal の schema / 値域 / K2 semantic / 帰属不一致 / 非文字列の文法違反は
+  `p3_s4_loop` が sidecar `proposal-rejected.json` を書いて rc 3 で終わり、文字列の文法 preflight 拒否 (サイズ超過など)
+  は既存の WAL diff-reject (`build_start` → `abort(reason=diff-quarantine)`、rc 0) が durable 記録になる。どちらも
+  系列 driver は `rejected-preprocess` として A だけ消費し (B 不変、retry 無し) 次の原提案へ進む。slot の subprocess は
+  論理 slot ごとに 1 回、機械故障 (pre-start / probe / competing-tenant) のときだけ同論理 slot を別 attempt で最大 2 回まで。slot key
   (`b5-generator-contrast-v1|<cohort>|<arm>|<w>|<r>|<kind>|<n>|attempt-<t>`) は search_config に焼かれ campaign
   identity・claim・protocol digest を slot ごとに分ける。台帳 (`<LEDGER_ROOT>/header.json` +
   `events/NNNNNN-<kind>.json` + `series.json` view、schema `b5-generator-contrast-ledger/v1`) は driver が

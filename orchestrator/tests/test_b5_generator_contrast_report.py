@@ -304,6 +304,7 @@ def test_fresh_median_not_search_max_and_slow_endpoint_not_replaced():
     for e, x in zip((e for e in doc["events"] if e["kind"] == "score-session"), values):
         e["fitness_tps"] = x
         e["bench_payload"].update(median_tps=x, tps=[x] * 5)
+    doc["events"][-1]["score_sessions"] = values
     result = R.build_report([doc], purpose="registered")
     assert result["invalid"] == []
     s = result["series"][0]
@@ -511,9 +512,9 @@ def test_registered_mutants_killed_independently(monkeypatch, tmp_path, old, new
 
 def test_incomplete_attempt_sidecar_consumes_budget_m24(tmp_path):
     doc = ledger(purpose="pilot")
-    doc["events"] = doc["events"][:1]
+    doc["events"] = doc["events"][:2]
     event = dict.fromkeys(FIELDS)
-    event.update(event_seq=2, kind="slot-attempt-start", ts_utc="2026-09-20T10:00:00Z",
+    event.update(event_seq=3, kind="slot-attempt-start", ts_utc="2026-09-20T10:00:00Z",
                  a=1, b=0, logical_slot="search-1", attempt=0, slot_kind="search", n=1,
                  slot_key="b5-generator-contrast-v1|synthetic-registration|llm|write-heavy|1|search|1|attempt-0",
                  sidecar_dir="slots/search-1-attempt-0")
@@ -527,8 +528,8 @@ def test_incomplete_attempt_sidecar_consumes_budget_m24(tmp_path):
     result = R.build_report([root], purpose="pilot")
     assert not result["invalid"]
     row, = result["series"]
-    assert (row["A"], row["B"], row["physical_attempts"]) == (1, 1, 1)
-    assert row["logical_sessions"] == 2 and row["attempted_logical_slots"] == 1
+    assert (row["A"], row["B"], row["physical_attempts"]) == (1, 1, 2)
+    assert row["logical_sessions"] == 2 and row["attempted_logical_slots"] == 2
     assert row["missing"] and row["score"] is None
     reconciled, = result["reconciled_attempts"]
     assert reconciled["outcome"] == "submitted-unresolved"
@@ -657,6 +658,51 @@ def test_fix2_consumer_mutants_killed(tmp_path, monkeypatch, mutation):
             test_one_evaluation_cannot_claim_B10_m25()
         else:
             test_fitness_median_mismatch_invalid_m26("score-session")
+
+
+def test_logical_sessions_zero_before_allocation_start(tmp_path, monkeypatch):
+    from orchestrator.tests.test_b5_generator_contrast import FakeRunner, _series
+
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "1")
+    runner = FakeRunner()
+    doc = _series(tmp_path, runner)
+    assert runner.calls == []
+    result = R.build_report([doc], purpose="pilot")
+    assert not result["invalid"]
+    assert result["series"][0]["logical_sessions"] == 0
+
+
+def test_logical_sessions_stock_and_three_submitted_searches(tmp_path, monkeypatch):
+    from orchestrator.tests.test_b5_generator_contrast import FakeRunner, _series
+
+    monkeypatch.delenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", raising=False)
+
+    def policy(kind, n, attempt):
+        if kind == "search" and n == 3:
+            monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "1")
+        return {}
+
+    runner = FakeRunner(policy)
+    doc = _series(tmp_path, runner)
+    assert [call["kind"] for call in runner.calls] == ["stock-start"] + ["search"] * 3
+    result = R.build_report([doc], purpose="pilot")
+    assert not result["invalid"]
+    row, = result["series"]
+    assert row["B"] == 3
+    assert row["logical_sessions"] == 4
+
+
+def test_logical_sessions_zero_for_stock_pre_start_failure(tmp_path, monkeypatch):
+    from orchestrator.tests.test_b5_generator_contrast import FakeRunner, _series
+
+    monkeypatch.delenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", raising=False)
+    runner = FakeRunner(lambda *_: {"outcome": "pre-start-failure"})
+    doc = _series(tmp_path, runner)
+    assert len(runner.calls) == 3
+    assert all(call["kind"] == "stock-start" for call in runner.calls)
+    result = R.build_report([doc], purpose="pilot")
+    assert not result["invalid"]
+    assert result["series"][0]["logical_sessions"] == 0
 
 
 def _run() -> int:
