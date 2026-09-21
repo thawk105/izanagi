@@ -2553,6 +2553,8 @@
   目録型 test を `plotting` / `provenance` の語で検索して「見つからない」と報告した (file 名を列挙する型は語検索で必ず落ちる、
   [T-2737] と同じ)。fix2 (Codex、`__main__` + `pytest.main` の 2 行) の後に焦点走を新 test + `test_plain_runner_coverage.py` +
   `test_check_subprocess_bytecode_guard.py` で回して閉じた。費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。
+
+- **再発: 2026-09-21** — [T-2797] で新設した `orchestrator/tests/test_b5_tier0.py` が自走入口 (`__main__`) を持たず、焦点走 f1 の `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` が赤になった。段 4 で「新規 test file」と決めたのに、段 5 の author prompt へ自走入口の定型を入れなかった (親の落ち度)。焦点走に同 meta-test を入れていたので受入は空振りしていない。段 6 fix1 で自走入口を足した。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -28170,6 +28172,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `git rev-parse` の出力から写さず、頭 9 桁 (`76b60f6e1`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、
   clone を作り直す前に止まったので実害は無い。`rev-parse` で完全 SHA を読み直して作り直した。恒久対応は既存どおり (memory `worktree-discipline` の「sha は 40 hex を
   rev-parse から」)。今回は worktree add ではなく clone の `update-ref` の引数で同じ型が出た — 既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。
+
+- **再発: 2026-09-21** — [T-2797] の段 6 で fix 用 branch の base を、統合 commit の短縮 SHA から 40 桁を推測で補完して指定し、`fatal: reference is not a tree` で失敗した (branch は作られず実害なし)。`git rev-parse` の出力を写して再実行した。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
@@ -28253,6 +28257,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   S8 は loader を直接呼ぶ test だけで検出させた。final は 21 件すべて期待どおり。memory `mutation-discipline` に「closure member への変異で停止・分岐を外すものは commit 群へ」を追記した。
 - 再発検知: closure member (`campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS`) を変異させる wave は、変異ごとに「等価変異では止まる経路を開くか」を見て、開くものは commit 群で走らせる。
 
+
+- **再発: 2026-09-21** — [T-2797] が contract loader closure の member (`orchestrator/campaign/p3_s4_loop.py`) を変異させる matrix を段 4 で登録する際、F1019 の追記と本エントリ (drift 集合) を読まず、変異 probe の初回で等価変異 (comment 1 行) までが新設の挿入点 test 16 node を `drive_iteration` 入口の `ident.ensure_resumable_attempts` → `contract-loader-drift` で落とした。本 wave は、検査対象でない identity 準備 (Tier0 より手前) を挿入点 fixture で差し替えて test を drift 非感応にし (fix1d)、再 probe で等価変異 SURVIVED・配線変異 18 件の kill を内容へ帰属させた (`output/insights/2026-09-21/t2797-tier0/README.md` §5 / §6)。drift 集合の除外・commit 群に加え、「identity が検査対象でない test では準備層として差し替える」が 3 つ目の手段になる。
 ### F1038. 拒否理由を握りつぶして汎用の outcome を返す既存関数の赤を、assert の文面だけから推測して fix を 1 巡空費した [誤前提] [手順漏れ]
 
 - 事象: [T-2632] の焦点走 f2 で `test_base_provenance_duplicate_reuses_selected_attempt` が `assert 'aborted' == 'duplicate'` で落ちた。親は fixture の attempt の並び

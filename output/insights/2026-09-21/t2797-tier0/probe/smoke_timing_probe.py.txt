@@ -1,0 +1,105 @@
+"""[T-2797] Tier0 固定スモークの所要実測 probe (repo 外、使い捨て)。
+
+試走 (T-2797 β) の build cache にある trace-disabled の silo binary を completion.json で選び、
+段 2 plan の固定スモーク argv を既存 gateway `orchestrator.calibrator.runner.run_once` で実行して、
+wall・rc・既存パーサの commit / throughput を記録する。性能値としては使わない (所要の実測だけ)。
+"""
+import json
+import math
+import os
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+WORKTREE = Path("/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0")
+sys.path.insert(0, str(WORKTREE))
+from orchestrator.calibrator import runner  # noqa: E402
+from orchestrator.calibrator import benchparse  # noqa: E402
+
+CACHE = Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/external/ccbench/build-variants/contracts")
+OUT = Path(sys.argv[1])
+REPS = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+FLAGS = ["-thread_num=4", "-ycsb_tuple_num=200", "-extime=1", "-ycsb_rratio=50",
+         "-ycsb_zipf_skew=0.9", "-ycsb_rmw=true", "-ycsb_max_ope=5", "-clocks_per_us=2100"]
+
+
+def walk(obj, key):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == key:
+                yield v
+            yield from walk(v, key)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from walk(v, key)
+
+
+def backoff_of(canonical):
+    import re
+    text = canonical if isinstance(canonical, str) else json.dumps(canonical, sort_keys=True)
+    m = re.search(r"BACKOFF_FIXED=(-?\d+)", text)
+    return int(m.group(1)) if m else None
+
+
+def main():
+    rows = {"host": socket.gethostname(), "pbs_jobid": os.environ.get("PBS_JOBID"),
+            "flags": FLAGS, "reps": REPS, "started_epoch": time.time()}
+    rows["pgrep_ycsb"] = subprocess.run(["pgrep", "-af", "ycsb_"], capture_output=True, text=True).stdout
+    rows["loadavg"] = Path("/proc/loadavg").read_text()
+    entries = []
+    for entry in sorted(p for p in CACHE.rglob("completion.json")):
+        try:
+            doc = json.loads(entry.read_text())
+        except (OSError, ValueError):
+            continue
+        traces = [t for t in walk(doc, "trace") if isinstance(t, bool)]
+        genomes = list(walk(doc, "genome_canonical"))
+        binary = entry.parent / "cc" / "silo" / "ycsb_silo.exe"
+        if not binary.exists() or not traces:
+            continue
+        entries.append({"dir": str(entry.parent), "trace": traces[0],
+                        "backoff": backoff_of(genomes[0]) if genomes else None,
+                        "binary": str(binary)})
+    rows["inventory"] = entries
+    perf = [e for e in entries if e["trace"] is False]
+    chosen, seen = [], set()
+    for e in sorted(perf, key=lambda e: (e["backoff"] is None, e["backoff"] or 0)):
+        if e["backoff"] in seen:
+            continue
+        seen.add(e["backoff"])
+        chosen.append(e)
+    # stock (-1) と値域の両端・中間を優先し最大 6 本
+    priority = [-1, 1, 2, 8, 698, 1000]
+    chosen.sort(key=lambda e: (priority.index(e["backoff"]) if e["backoff"] in priority else 99, e["backoff"] or 0))
+    chosen = chosen[:6]
+    results = []
+    for e in chosen:
+        for rep in range(1, REPS + 1):
+            t0 = time.monotonic()
+            record = {"backoff": e["backoff"], "binary": e["binary"], "rep": rep}
+            try:
+                metrics, _perf, wall = runner.run_once(
+                    e["binary"], FLAGS, numactl=[], timeout_s=120.0,
+                    strict_returncode=True, use_perf=False)
+                counts = benchparse.integer_abort_commit_counts(metrics)
+                tps = benchparse.throughput_tps(metrics)
+                record.update(ok=True, gateway_wall_s=wall, commits=counts,
+                              throughput_finite_positive=(tps is not None and math.isfinite(tps) and tps > 0))
+            except Exception as exc:  # 実測 probe: 失敗も記録する
+                record.update(ok=False, error=f"{type(exc).__name__}: {exc}"[:500])
+            record["outer_wall_s"] = time.monotonic() - t0
+            results.append(record)
+    rows["results"] = results
+    walls = [r["outer_wall_s"] for r in results if r.get("ok")]
+    rows["summary"] = {"n_ok": len(walls), "n_fail": sum(1 for r in results if not r.get("ok")),
+                       "outer_wall_min": min(walls) if walls else None,
+                       "outer_wall_max": max(walls) if walls else None,
+                       "outer_wall_median": sorted(walls)[len(walls) // 2] if walls else None}
+    rows["finished_epoch"] = time.time()
+    OUT.write_text(json.dumps(rows, indent=1, sort_keys=True, default=str))
+
+
+if __name__ == "__main__":
+    main()

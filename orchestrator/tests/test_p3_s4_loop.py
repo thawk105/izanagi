@@ -7484,7 +7484,7 @@ def test_base_provenance_skips_stock_and_entry_stop(base_provenance_case, monkey
     assert (path.read_bytes() if path.exists() else None) == before
 
 
-@pytest.mark.parametrize("outcome", ["duplicate-skip", "rejected-preprocess"])
+@pytest.mark.parametrize("outcome", ["duplicate-skip", "rejected-preprocess", "rejected-tier0"])
 def test_base_provenance_records_b5_early_returns(base_provenance_case, monkeypatch, outcome):
     def evaluate(*_a, **_k):
         return {"outcome": outcome, "variant": None, "records": {}}
@@ -10859,6 +10859,16 @@ def _b5_candidate_fixture(tmp_path, monkeypatch):
     layout, _, calls = _stock_cli_fixture(tmp_path, monkeypatch)
     template = _mk_template_dir(L.SOURCE_REL)
     monkeypatch.setattr(patchharness, "checkout", lambda *_a, **_k: contextlib.nullcontext(template))
+    # These seams exercise the campaign boundary after Tier0 has passed.
+    monkeypatch.setattr(L, "_b5_tier0_build_inputs", lambda *_a, **_k:
+                        (SimpleNamespace(src_token="fixture-source"), object(), "cc", "c++"))
+    def tier0_build(*_a, **_k):
+        return SimpleNamespace(binary=str(tmp_path / "tier0-perf"), cached=False,
+                               bin_sha256=hashlib.sha256(b"tier0-perf-fixture").hexdigest())
+    monkeypatch.setattr(L.buildcache, "build_v2", tier0_build)
+    monkeypatch.setattr(L.buildcache, "build", tier0_build)
+    monkeypatch.setattr(L, "_run_b5_tier0_smoke", lambda *_a, **_k:
+                        dict(status="passed", reason=None, smoke=None, error=None))
     proposal = tmp_path / "proposal.json"
     proposal.write_text(json.dumps({
         "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},

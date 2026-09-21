@@ -1,0 +1,1992 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 29%]
+....s.s..s...................................s.......................... [ 59%]
+...............................................................FFFFs.FFF [ 89%]
+.F......FFF.........FF.FFF                                               [100%]
+=================================== FAILURES ===================================
+_ test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io] _
+[gw38] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and0/campaig...38/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x148654777520>)
+boundary = 'preparation', kind = <class 'OSError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+___ test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess] ____
+[gw32] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_rejection_rc3_n0/campaig...32/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154487c17880>)
+failure = 'subprocess'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+______ test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke] ______
+[gw35] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_insertion_rejection_rc3_n0/campaig...35/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154ba4a47ac0>)
+failure = 'smoke'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+____ test_insertion_preparation_and_build_errors_propagate[legacy-build-io] ____
+[gw45] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_insertion_preparation_and0/campaig...45/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x152d7d842b90>)
+boundary = 'build', kind = <class 'OSError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+______ test_insertion_preparation_and_build_errors_propagate[v2-build-io] ______
+[gw29] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and0/campaig...29/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14c791577520>)
+boundary = 'build', kind = <class 'OSError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+___________ test_insertion_build_smoke_sidecar_submission_order[v2] ____________
+[gw41] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_insertion_build_smoke_sid0/campaig...41/test_insertion_build_smoke_sid0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x1468d21cee60>)
+
+    def test_insertion_build_smoke_sidecar_submission_order(insertion_case):
+        c = insertion_case
+        with c.observing(), pytest.raises(_PipelineBoundary):
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:269:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_insertion_build_smoke_sid0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+___ test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime] ___
+[gw44] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_insertion_rejection_rc3_n0/campaig...44/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14a482eb2f80>)
+failure = 'runtime'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_ test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess] __
+[gw37] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_rejection_rc3_n0/campaig...37/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x151c49233520>)
+failure = 'subprocess'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+____ test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke] ____
+[gw46] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_insertion_rejection_rc3_n0/campaig...46/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154e8ceec790>)
+failure = 'smoke'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_________ test_insertion_build_smoke_sidecar_submission_order[legacy] __________
+[gw40] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_insertion_build_smoke_sid0/campaig...40/test_insertion_build_smoke_sid0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x1469d3ce6170>)
+
+    def test_insertion_build_smoke_sidecar_submission_order(insertion_case):
+        c = insertion_case
+        with c.observing(), pytest.raises(_PipelineBoundary):
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:269:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_insertion_build_smoke_sid0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_____ test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime] _____
+[gw33] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_insertion_rejection_rc3_n0/campaig...33/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14678d75fc70>)
+failure = 'runtime'
+
+    @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+    def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+        c = insertion_case
+        if failure == 'smoke':
+            executable(c.binaries[False].parent, rc=7, require_lock=True)
+        else:
+            kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+            c.build_error = kind('fixture build failure')
+        with c.observing():
+>           assert L.main(c.args) == 3
+
+orchestrator/tests/test_b5_tier0.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_insertion_rejection_rc3_n0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_ test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime] _
+[gw32] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_preparation_and0/campaig...32/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154486f76e60>)
+boundary = 'preparation', kind = <class 'RuntimeError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+___ test_insertion_preparation_and_build_errors_propagate[v2-preparation-io] ___
+[gw38] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and1/campaig...38/test_insertion_preparation_and1/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14864fcdadd0>)
+boundary = 'preparation', kind = <class 'OSError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and1/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_ test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess] _
+[gw29] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and1/campaig...29/test_insertion_preparation_and1/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14c7907f2cb0>)
+boundary = 'preparation', kind = <class 'subprocess.SubprocessError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and1/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_ test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime] _
+[gw41] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_insertion_preparation_and0/campaig...41/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x1468d182f640>)
+boundary = 'preparation', kind = <class 'RuntimeError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+_ test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess] _
+[gw37] linux -- Python 3.10.12 /bin/python3.10
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+>           binding = contract_loader_binding.capture_contract_loader_binding()
+
+orchestrator/campaign/ident.py:283:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def capture_contract_loader_binding() -> ContractLoaderBinding:
+        """current HEAD blob と live closure bytes が一致する binding を取得する。"""
+        root = _validated_root()
+        commit = _head_commit(root)
+        digests: dict[str, str] = {}
+        for relative, blob in _iter_blobs(
+            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+        ):
+            disk = _read_regular_file_no_follow(root, relative)
+            if disk != blob:
+>               raise ContractLoaderBindingError(
+                    f"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}"
+                )
+E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+
+The above exception was the direct cause of the following exception:
+
+insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_preparation_and0/campaig...37/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x151c48892e60>)
+boundary = 'preparation', kind = <class 'subprocess.SubprocessError'>
+
+    @pytest.mark.parametrize('boundary,kind', [
+        pytest.param('build', OSError, id='build-io'),
+        pytest.param('preparation', OSError, id='preparation-io'),
+        pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+        pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+    ])
+    def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+        c = insertion_case
+        error = kind('fixture boundary failure')
+        setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+        with c.observing(), pytest.raises(kind) as caught:
+>           L.main(c.args)
+
+orchestrator/tests/test_b5_tier0.py:331:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+orchestrator/campaign/p3_s4_loop.py:3657: in main
+    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+    ident.ensure_resumable_attempts(
+orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+    ensure_campaign_identity(
+orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+    binding = _capture_current_loader_binding()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _capture_current_loader_binding(
+    ) -> contract_loader_binding.ContractLoaderBinding:
+        try:
+            binding = contract_loader_binding.capture_contract_loader_binding()
+            contract_loader_binding.verify_live_contract_loader_binding(binding)
+            return binding
+        except contract_loader_binding.ContractLoaderBindingError as exc:
+>           raise IdentityMismatch(
+                f"contract-loader-drift: {exc}",
+                reason="contract-loader-drift",
+            ) from exc
+E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/p3_s4_loop.py
+
+orchestrator/campaign/ident.py:287: IdentityMismatch
+----------------------------- Captured stdout call -----------------------------
+=== 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_preparation_and0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]
+FAILED orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]
+16 failed, 221 passed, 5 skipped in 5.92s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=3753 retained_bytes=3753 omitted_bytes=0 rendered_excerpt_bytes=3977 sha256=a01f734124f7d4c99e4d7e5feac435ead4acae6529cac29541f046451b3bd0a6
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw37] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_preparation_and0/campaig...37/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x151c48892e60>)
+> boundary = 'preparation', kind = <class 'subprocess.SubprocessError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=3753 retained_bytes=3753 omitted_bytes=0 rendered_excerpt_bytes=3977 sha256=be7737fa1f4be8022ee7153e71ff85505aab32179ef0335744a30643e4cc7c3f
+--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+> [gw29] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and1/campaig...29/test_insertion_preparation_and1/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14c7907f2cb0>)
+> boundary = 'preparation', kind = <class 'subprocess.SubprocessError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=2 END ---
+IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=3739 retained_bytes=3739 omitted_bytes=0 rendered_excerpt_bytes=3963 sha256=cc285172798e151efd9678d53f4f21db26aab3eba3884f13d161de41f273ef15
+--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+> [gw41] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_insertion_preparation_and0/campaig...41/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x1468d182f640>)
+> boundary = 'preparation', kind = <class 'RuntimeError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=3 END ---
+IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=3739 retained_bytes=3739 omitted_bytes=0 rendered_excerpt_bytes=3963 sha256=2f65962da075092cffdd5381fa1eec1f1ca637636de2beb50422d0733827b03e
+--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+> [gw32] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_preparation_and0/campaig...32/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154486f76e60>)
+> boundary = 'preparation', kind = <class 'RuntimeError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=4 END ---
+IZANAGI_FAILURE rank=5 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=3734 retained_bytes=3734 omitted_bytes=0 rendered_excerpt_bytes=3958 sha256=9aac0c1bc3092d07d03e380ea8a64f3a37eaa41561ff6d359053f1e87314bdb7
+--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---
+> [gw38] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and0/campaig...38/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x148654777520>)
+> boundary = 'preparation', kind = <class 'OSError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=5 END ---
+IZANAGI_FAILURE rank=6 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=3734 retained_bytes=3734 omitted_bytes=0 rendered_excerpt_bytes=3958 sha256=51d4cb07dcfb9de298d291a2d52f0fad4854fa1867611523c660098f8a495635
+--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---
+> [gw38] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_insertion_preparation_and1/campaig...38/test_insertion_preparation_and1/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14864fcdadd0>)
+> boundary = 'preparation', kind = <class 'OSError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=6 END ---
+IZANAGI_FAILURE rank=7 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=3728 retained_bytes=3728 omitted_bytes=0 rendered_excerpt_bytes=3952 sha256=f2302a4b1ca039406385dd05f249bcda394c4c89359e34e0e42afe2cc09117db
+--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---
+> [gw45] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_insertion_preparation_and0/campaig...45/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x152d7d842b90>)
+> boundary = 'build', kind = <class 'OSError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=7 END ---
+IZANAGI_FAILURE rank=8 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=3728 retained_bytes=3728 omitted_bytes=0 rendered_excerpt_bytes=3952 sha256=5fa4a06a40823a2ebd7b2ab17de6219e66251f7a5616e0212491c516c38df9ed
+--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---
+> [gw29] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_insertion_preparation_and0/campaig...29/test_insertion_preparation_and0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14c791577520>)
+> boundary = 'build', kind = <class 'OSError'>
+>
+>     @pytest.mark.parametrize('boundary,kind', [
+>         pytest.param('build', OSError, id='build-io'),
+>         pytest.param('preparation', OSError, id='preparation-io'),
+>         pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+>         pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+>     ])
+>     def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+>         c = insertion_case
+>         error = kind('fixture boundary failure')
+>         setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+>         with c.observing(), pytest.raises(kind) as caught:
+> >           L.main(c.args)
+>
+> orchestrator/tests/test_b5_tier0.py:331:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=8 END ---
+IZANAGI_FAILURE rank=9 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=3538 retained_bytes=3538 omitted_bytes=0 rendered_excerpt_bytes=3758 sha256=e3db34164f19b68dbb8eb85c6adfdfa7993ed032feb21f4bfac436eb3c50dc52
+--- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---
+> [gw37] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_insertion_rejection_rc3_n0/campaig...37/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x151c49233520>)
+> failure = 'subprocess'
+>
+>     @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+>     def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+>         c = insertion_case
+>         if failure == 'smoke':
+>             executable(c.binaries[False].parent, rc=7, require_lock=True)
+>         else:
+>             kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+>             c.build_error = kind('fixture build failure')
+>         with c.observing():
+> >           assert L.main(c.args) == 3
+>
+> orchestrator/tests/test_b5_tier0.py:293:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=9 END ---
+IZANAGI_FAILURE rank=10 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=3538 retained_bytes=3538 omitted_bytes=0 rendered_excerpt_bytes=3758 sha256=071a50c1ac6ec39a80b304ebe52f9deb62ece7b61b115eb87a45d485e83bc386
+--- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---
+> [gw32] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_insertion_rejection_rc3_n0/campaig...32/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x154487c17880>)
+> failure = 'subprocess'
+>
+>     @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+>     def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+>         c = insertion_case
+>         if failure == 'smoke':
+>             executable(c.binaries[False].parent, rc=7, require_lock=True)
+>         else:
+>             kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+>             c.build_error = kind('fixture build failure')
+>         with c.observing():
+> >           assert L.main(c.args) == 3
+>
+> orchestrator/tests/test_b5_tier0.py:293:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=10 END ---
+IZANAGI_FAILURE rank=11 category=failed when=call nodeid="orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=3535 retained_bytes=3535 omitted_bytes=0 rendered_excerpt_bytes=3755 sha256=4c36ad6a58d799163933227b3dedf58761b325a8ff189f9975a068b24016e242
+--- IZANAGI FAILURE EXCERPT rank=11 BEGIN ---
+> [gw44] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+> >           binding = contract_loader_binding.capture_contract_loader_binding()
+>
+> orchestrator/campaign/ident.py:283:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def capture_contract_loader_binding() -> ContractLoaderBinding:
+>         """current HEAD blob \u3068 live closure bytes \u304c\u4e00\u81f4\u3059\u308b binding \u3092\u53d6\u5f97\u3059\u308b\u3002"""
+>         root = _validated_root()
+>         commit = _head_commit(root)
+>         digests: dict[str, str] = {}
+>         for relative, blob in _iter_blobs(
+>             root, commit, CONTRACT_LOADER_RELATIVE_PATHS,
+>         ):
+>             disk = _read_regular_file_no_follow(root, relative)
+>             if disk != blob:
+> >               raise ContractLoaderBindingError(
+>                     f"contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: {relative}"
+>                 )
+> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError
+>
+> The above exception was the direct cause of the following exception:
+>
+> insertion_case = namespace(layout=CampaignLayout(root='/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_insertion_rejection_rc3_n0/campaig...44/test_insertion_rejection_rc3_n0/sidecar'], observing=<function insertion_case.<locals>.observing at 0x14a482eb2f80>)
+> failure = 'runtime'
+>
+>     @pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+>     def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+>         c = insertion_case
+>         if failure == 'smoke':
+>             executable(c.binaries[False].parent, rc=7, require_lock=True)
+>         else:
+>             kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+>             c.build_error = kind('fixture build failure')
+>         with c.observing():
+> >           assert L.main(c.args) == 3
+>
+> orchestrator/tests/test_b5_tier0.py:293:
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+> orchestrator/campaign/p3_s4_loop.py:3657: in main
+>     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+> orchestrator/campaign/p3_s4_loop.py:2972: in drive_iteration
+>     ident.ensure_resumable_attempts(
+> orchestrator/campaign/ident.py:518: in ensure_resumable_attempts
+>     ensure_campaign_identity(
+> orchestrator/campaign/ident.py:584: in ensure_campaign_identity
+>     binding = _capture_current_loader_binding()
+> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>
+>     def _capture_current_loader_binding(
+>     ) -> contract_loader_binding.ContractLoaderBinding:
+>         try:
+>             binding = contract_loader_binding.capture_contract_loader_binding()
+>             contract_loader_binding.verify_live_contract_loader_binding(binding)
+>             return binding
+>         except contract_loader_binding.ContractLoaderBindingError as exc:
+> >           raise IdentityMismatch(
+>                 f"contract-loader-drift: {exc}",
+>                 reason="contract-loader-drift",
+>             ) from exc
+> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \u304c HEAD blob \u3068\u4e0d\u4e00\u81f4: orchestrator/campaign/p3_s4_loop.py
+>
+> orchestrator/campaign/ident.py:287: IdentityMismatch
+--- IZANAGI FAILURE EXCERPT rank=11 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=16 failed=16 errors=0 selected=11 omitted_failures=5 source_bytes=57484 retained_bytes=40519 omitted_bytes=16965 budget_bytes=49152 rendered_bytes=48319 omitted_manifest_sha256=d46f32915b7c2fbd760898f318240c38c4c547224f498735b35400889da980d4
+=== IZANAGI FAILURE DIGEST v1 END ===

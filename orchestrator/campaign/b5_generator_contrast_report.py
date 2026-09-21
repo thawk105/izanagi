@@ -465,6 +465,7 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
     for ledger in loaded:
         h = ledger["header"]
         configuration = {k: h[k] for k in ("repo_head", "pin", "perf_config", "verify_mode", "bench_max_rounds")}
+        configuration.update({k: h.get(k) for k in ("tier0_status", "tier0_contract")})
         previous = configurations.setdefault(h["workload"], configuration)
         if configuration != previous:
             invalid.append({"category": "schema-inconsistent", "source": ledger["source"], "workload": h["workload"], "detail": "cohort configuration mismatch"})

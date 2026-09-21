@@ -1516,7 +1516,7 @@ _PROVENANCE_FIELDS = frozenset({
 })
 _PROVENANCE_OUTCOMES = frozenset({
     "certified", "aborted", "rejected", "dry-pass", "duplicate",
-    "duplicate-skip", "rejected-preprocess",
+    "duplicate-skip", "rejected-preprocess", "rejected-tier0",
 })
 
 
@@ -2174,6 +2174,91 @@ def _b5_sidecar_payload(cfg, genome, layout=None):
     return payload
 
 
+# One shared, JSON-serializable contract for the child, ledger and consumer.
+B5_TIER0_CONTRACT = {
+    "contract_id": "b5-tier0/v1",
+    "applies_to": ["search", "score"],
+    "build": {"trace": False, "count": 1, "inputs": "pipeline._build_one(trace=False)"},
+    "smoke_flags": ["--thread_num=4", "--ycsb_tuple_num=200", "--extime=1",
+                    "--ycsb_rratio=50", "--ycsb_zipf_skew=0.9", "--ycsb_rmw=true",
+                    "--ycsb_max_ope=5"],
+    "clocks_per_us": "env_contract.clocks_per_us",
+    "numactl": "env_contract.numactl",
+    "timeout_s": 32,
+    "strict_returncode": True,
+    "use_perf": False,
+    "pass_conditions": ["rc == 0", "benchparse.integer_abort_commit_counts: commits > 0",
+                        "benchparse.throughput_tps (including fallback): finite and > 0"],
+    "failure": {"build_exceptions": ["RuntimeError", "subprocess.SubprocessError"],
+                "smoke": "candidate", "budget": "A only", "retry": False},
+    "smoke_is_performance": False,
+}
+
+
+def _b5_tier0_build_inputs(cfg, genome, sub, build_context, capability_resolver,
+                           backoff_grammar_version):
+    """Resolve the same evidence and admission as pipeline before the build try."""
+    from .build_admission import (GeneratorReceipt,
+                                  derive_build_admission, require_build_admission)
+    cc, cxx = buildcache.compilers_for_current_site()
+    evidence = source_digest.resolve_evidence(
+        genome, cfg.ccbench_commit, ccbench_dir=sub, cxx=cxx,
+        backoff_grammar_version=backoff_grammar_version,
+    )
+    capability = capability_resolver(evidence) if capability_resolver is not None else None
+    generator = capability if type(capability) is GeneratorReceipt else None
+    if capability is not None and generator is None:
+        raise BuildAdmissionError(
+            "capability_resolver は sealed GeneratorReceipt/None だけを返せる")
+    admission = require_build_admission(
+        derive_build_admission(build_context, evidence,
+                               generator_receipt=generator),
+        expected_policy=build_context.policy, expected_source=evidence,
+    )
+    return evidence, admission, cc, cxx
+
+
+def _run_b5_tier0_smoke(binary, contract):
+    """Diagnostic only: real bounded gateway, parsers and machine-wide lock."""
+    import subprocess
+    from ..calibrator import benchparse
+    from ..calibrator.runner import run_once
+    from .lock import bench_lock
+
+    flags = [*B5_TIER0_CONTRACT["smoke_flags"],
+             f"--clocks_per_us={contract.clocks_per_us}"]
+    timeout_s = B5_TIER0_CONTRACT["timeout_s"]
+    smoke = dict(flags=flags, timeout_s=timeout_s, returncode=None, wall_s=None,
+                 commits=None, aborts=None, throughput_positive=False)
+    returncodes = []
+    reason = error = None
+    # Waiting for this lock is deliberately outside the subprocess timeout.
+    with bench_lock():
+        started = time.monotonic()
+        try:
+            metrics, _counters, wall = run_once(
+                binary, flags, numactl=list(contract.numactl), timeout_s=timeout_s,
+                strict_returncode=True, use_perf=False, rep_returncodes=returncodes,
+            )
+            smoke["wall_s"] = wall
+            aborts, commits = benchparse.integer_abort_commit_counts(metrics)
+            throughput = benchparse.throughput_tps(metrics)
+            positive = throughput is not None and math.isfinite(throughput) and throughput > 0
+            smoke.update(commits=commits, aborts=aborts, throughput_positive=positive)
+            if commits <= 0 or not positive:
+                reason = "smoke-failed"
+        except subprocess.TimeoutExpired as exc:
+            reason, error = "smoke-timeout", f"{type(exc).__name__}: {exc}"
+        except (RuntimeError, subprocess.SubprocessError, OSError, ValueError) as exc:
+            reason, error = "smoke-failed", f"{type(exc).__name__}: {exc}"
+        finally:
+            smoke["returncode"] = returncodes[-1] if returncodes else None
+            if smoke["wall_s"] is None:
+                smoke["wall_s"] = time.monotonic() - started
+    return {"status": "passed" if reason is None else "rejected",
+            "reason": reason, "smoke": smoke, "error": error}
+
+
 def _machine_proposal_capability_resolver(build_context, proposal_sha256):
     def resolve(evidence):
         if evidence.src_token != source_digest.STOCK:
@@ -2464,6 +2549,57 @@ def _run_one_iteration_resolved(
             })
         if b5_mode:
             campaign_options["bench_max_rounds"] = 3
+            import subprocess
+            # Preparation failures are not candidate build failures.
+            evidence, admission, cc, cxx = _b5_tier0_build_inputs(
+                cfg, genome, sub, build_context, capability_resolver,
+                backoff_grammar_version,
+            )
+            tier0 = dict(status="rejected", reason="build-error", build=None,
+                         smoke=None, error=None)
+            try:
+                if "env_contract" in campaign_options:
+                    build_options = {}
+                    if campaign_options.get("dependency_prefix"):
+                        build_options["dependency_prefix"] = campaign_options["dependency_prefix"]
+                    if fetchcontent_dependency_receipt is not None:
+                        build_options.update(
+                            fetchcontent_base_dir=fetchcontent_base_dir,
+                            masstree_source_dir=masstree_source_dir,
+                            mimalloc_source_dir=mimalloc_source_dir,
+                            googletest_source_dir=googletest_source_dir,
+                            fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
+                        )
+                    pf = buildcache.build_v2(
+                        genome, trace=False, contract=campaign_options["env_contract"],
+                        ccbench_commit=cfg.ccbench_commit, src_token=evidence.src_token,
+                        cc=cc, cxx=cxx, ccbench_dir=sub,
+                        cache_root=cache_root or os.path.join(buildcache._ccbench_dir(), "build-variants"),
+                        admission=admission, build_context=build_context, source_evidence=evidence,
+                        declared_use_class=DECLARED_USE_CLASS,
+                        backoff_grammar_version=backoff_grammar_version, **build_options,
+                    )
+                else:
+                    pf = buildcache.build(
+                        genome, cfg.ccbench_commit, trace=False, src_token=evidence.src_token,
+                        ccbench_dir=sub, cache_root=cache_root,
+                        admission=admission, build_context=build_context, source_evidence=evidence,
+                        backoff_grammar_version=backoff_grammar_version,
+                    )
+            except (RuntimeError, subprocess.SubprocessError) as exc:
+                tier0["error"] = f"{type(exc).__name__}: {exc}"
+            else:
+                tier0["build"] = dict(trace=False, binary=pf.binary,
+                                      bin_sha256=pf.bin_sha256, cached=pf.cached)
+                tier0.update(_run_b5_tier0_smoke(pf.binary, contract))
+            _write_b5_sidecar(
+                b5_sidecar_dir, "tier0.json",
+                {**_b5_sidecar_payload(cfg, genome), "schema": "p3-s4-loop-b5-tier0/v1",
+                 "contract": B5_TIER0_CONTRACT, **tier0},
+            )
+            if tier0["status"] != "passed":
+                return {"outcome": "rejected-tier0", "variant": None,
+                        "condition_gate": condition_gate}
         if b5_sidecar_dir is not None:
             _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json",
                               _b5_sidecar_payload(cfg, genome))
@@ -3072,7 +3208,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     })
     save_loop_state(layout, state)
 
-    if b5_mode and out["outcome"] in {"duplicate-skip", "rejected-preprocess"}:
+    if b5_mode and out["outcome"] in {"duplicate-skip", "rejected-preprocess", "rejected-tier0"}:
         post = check_stop(state)
         out.update(stop_reason=post.reason, iteration=state.iteration, ran=True,
                    critic_digest_generated=False)
@@ -3740,7 +3876,7 @@ def main(
                                           **({"agent_record": agent_record} if agent_record is not None else {}),
                                           **({"authorization_session": session} if session is not None else {}),
                                           **b5_options, **fetchcontent_options)
-                if a.b5_slot is not None and out["outcome"] == "rejected-preprocess":
+                if a.b5_slot is not None and out["outcome"] in {"rejected-preprocess", "rejected-tier0"}:
                     return 3
                 layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
                 print(f"  ran={out['ran']} outcome={out['outcome']} "

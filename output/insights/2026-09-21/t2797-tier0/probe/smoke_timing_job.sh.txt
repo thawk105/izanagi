@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=00:15:00
+# [T-2797] Tier0 固定スモークの所要実測 (使い捨て probe、repo 外)。B-5 本走ではない。
+set -u
+P=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-tier0/probe
+export TMPDIR=/scr/$USER/t2797-smoke-probe/${PBS_JOBID:-manual}
+mkdir -p -m 0700 "$TMPDIR"
+export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
+PY=python3.10
+command -v "$PY" >/dev/null 2>&1 || PY=/usr/bin/python3.10
+echo "host=$(hostname) start=$(date '+%F %T %Z') py=$PY"
+cd /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0 || exit 2
+"$PY" -B "$P/smoke_timing_probe.py" "$P/smoke-timing-result.json" 5
+rc=$?
+echo "rc=$rc end=$(date '+%F %T %Z')"
+rm -rf "$TMPDIR"
+echo "$rc" > "$P/smoke-timing.done"
+exit $rc

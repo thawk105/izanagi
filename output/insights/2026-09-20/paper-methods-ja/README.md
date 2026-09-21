@@ -1,5 +1,14 @@
 # 本体論文 (日本語) 方法節と実装対応メモの再導出 (2026-09-20 版) — wave 記録
 
+## 前方 pointer (2026-09-21 に追加)
+
+- **本 dir の `methods.md` / `implementation.md` (2026-09-20 版、worklog entry 1749) の改稿を
+  `output/insights/2026-09-21/paper-methods-ja/` (2026-09-21 版) に置いた。** 本 dir の 2 file の bytes は変えない。
+  新版は本稿を複製し、採用時点 `36fb14a3d` で次の三つだけを揃えた — B-8 の方法の追加 (2026-09-21 の発効と 3 値判定 `pass`、D2202、
+  entry 1791。本稿の methods §6 と implementation の境界節が書く「B-5 / B-8 の事前登録 v1 は未発効」は、本稿の照合時点 `482f19b88` では真)、
+  K2 の同 job stock 対照口 (D2187 = 初投入の不成立、D2205 = pair mode への修復、実機の再投入は未)、B-5 の状態 (D2200 項 1 の段階認可、
+  本走は未認可)。それ以外の記述は本稿を継承し、再照合していない。
+
 - wave: `worktree-dev-wave-paper-methods-ja-2026-09-20` (背景 job 898e8185、job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-methods-ja-2026-09-20/`)
 - 起点 local main: `fec4a8187` (2026-09-20 18:05 JST に fresh worktree、開始 gate `check_wave_startup.py --mode fresh` rc=0、main 乖離 0)。
   段 6 review の後 (18:39 JST) に、peer 通知を契機に読み直した local main `482f19b88` ([T-2304] pin 前進の着地) を自 commit 0 の状態で
