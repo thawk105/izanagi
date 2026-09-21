@@ -1,0 +1,473 @@
+{
+ "rows": [
+  {
+   "wave": "t2797-b5-contrast",
+   "first_attempt_jst": "04:54:42",
+   "landed_jst": "05:26:06",
+   "successful_attempt_start_jst": "05:21:30",
+   "land_phase_s": 1884,
+   "successful_attempt_s": 276,
+   "extra_s": 1608,
+   "inherent_wait_s": 0,
+   "avoidable_s": 1608,
+   "tool_rcs": [
+    23,
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 3,
+   "reacceptance_forced_by_land_side": "rc=23 (受入後の docs commit cf1c90e1f が tested tip 088bbdec7 の後に 1 親 commit) → final3 04:57:50→05:20:47 (22:57)",
+   "source": "land-loop-try1.log / land-loop.log / acceptance-final3-1.*.txt"
+  },
+  {
+   "wave": "branch-residue-cleanup",
+   "first_attempt_jst": "04:29:15",
+   "landed_jst": "04:32:25",
+   "successful_attempt_start_jst": "04:29:15",
+   "land_phase_s": 190,
+   "successful_attempt_s": 190,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log"
+  },
+  {
+   "wave": "t2817-acceptance-bottleneck-3",
+   "first_attempt_jst": "04:00:40",
+   "landed_jst": "04:07:19",
+   "successful_attempt_start_jst": "04:01:40",
+   "land_phase_s": 399,
+   "successful_attempt_s": 339,
+   "extra_s": 60,
+   "inherent_wait_s": 0,
+   "avoidable_s": 60,
+   "tool_rcs": [
+    23,
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 3,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.attempt1.log / land-loop.log (rc=23 の reason は land-1.stdout の上書きで消失、同じ landing tip 4cb00a851 を 42 秒後に再投入して landed)"
+  },
+  {
+   "wave": "t2810-g1-launch-validation",
+   "first_attempt_jst": "03:41:32",
+   "landed_jst": "03:44:27",
+   "successful_attempt_start_jst": "03:41:32",
+   "land_phase_s": 175,
+   "successful_attempt_s": 175,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log"
+  },
+  {
+   "wave": "t2814-cleanup-command",
+   "first_attempt_jst": "03:16:02",
+   "landed_jst": "03:19:32",
+   "successful_attempt_start_jst": "03:16:02",
+   "land_phase_s": 210,
+   "successful_attempt_s": 210,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log (forward merge 30d0323c1)"
+  },
+  {
+   "wave": "wall-decomp",
+   "first_attempt_jst": "02:51:57",
+   "landed_jst": "02:55:30",
+   "successful_attempt_start_jst": "02:51:57",
+   "land_phase_s": 213,
+   "successful_attempt_s": 213,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log (forward merge f6f3c16a1)"
+  },
+  {
+   "wave": "paper-story-20260921",
+   "first_attempt_jst": "02:44:18",
+   "landed_jst": "02:47:36",
+   "successful_attempt_start_jst": "02:44:18",
+   "land_phase_s": 198,
+   "successful_attempt_s": 198,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-go.log"
+  },
+  {
+   "wave": "paper-abstract-conclusion-ja",
+   "first_attempt_jst": "01:59:34",
+   "landed_jst": "02:02:28",
+   "successful_attempt_start_jst": "01:59:34",
+   "land_phase_s": 174,
+   "successful_attempt_s": 174,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-go.log"
+  },
+  {
+   "wave": "rulings-all-20260921",
+   "first_attempt_jst": "01:17:22",
+   "landed_jst": "01:20:46",
+   "successful_attempt_start_jst": "01:17:22",
+   "land_phase_s": 204,
+   "successful_attempt_s": 204,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log / land-1.done mtime"
+  },
+  {
+   "wave": "t2344-closure-stage",
+   "first_attempt_jst": "00:15:42",
+   "landed_jst": "00:21:24",
+   "successful_attempt_start_jst": "00:15:42",
+   "land_phase_s": 342,
+   "successful_attempt_s": 342,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log (forward merge 5733c0f08)"
+  },
+  {
+   "wave": "t2803-provenance-receipt",
+   "first_attempt_jst": "23:28:34",
+   "landed_jst": "00:12:00",
+   "successful_attempt_start_jst": "00:07:21",
+   "land_phase_s": 2606,
+   "successful_attempt_s": 279,
+   "extra_s": 2327,
+   "inherent_wait_s": 143,
+   "avoidable_s": 2184,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [
+    97,
+    92
+   ],
+   "acceptance_runs_started": 3,
+   "reacceptance_forced_by_land_side": "rc=92 (wrapper: main 側 1cc303534→6305f2d05 の差分が tools/dev_wave_land.py 9 行、run_tests.py は不変) → final2 (23:34 wrapper 赤 94) → final3 23:45:07→00:06:54 (21:47)",
+   "source": "land-1.log / land-2.log / land-3.log / acceptance-final3-1.*.txt"
+  },
+  {
+   "wave": "t2804-provenance-timeout-contract",
+   "first_attempt_jst": "23:26:46",
+   "landed_jst": "23:30:57",
+   "successful_attempt_start_jst": "23:26:46",
+   "land_phase_s": 251,
+   "successful_attempt_s": 251,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log"
+  },
+  {
+   "wave": "t2243-collection-diag",
+   "first_attempt_jst": "23:08:17",
+   "landed_jst": "23:13:14",
+   "successful_attempt_start_jst": "23:08:17",
+   "land_phase_s": 297,
+   "successful_attempt_s": 297,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-.pid mtime / land.log"
+  },
+  {
+   "wave": "t2807-b8-prerun",
+   "first_attempt_jst": "22:41:41",
+   "landed_jst": "22:54:55",
+   "successful_attempt_start_jst": "22:49:53",
+   "land_phase_s": 794,
+   "successful_attempt_s": 302,
+   "extra_s": 492,
+   "inherent_wait_s": 390,
+   "avoidable_s": 102,
+   "tool_rcs": [
+    10,
+    10,
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-final.log / land-final-2.log / land-final-3.log"
+  },
+  {
+   "wave": "t2813-o26-inventory",
+   "first_attempt_jst": "22:35:06",
+   "landed_jst": "22:49:08",
+   "successful_attempt_start_jst": "22:43:32",
+   "land_phase_s": 842,
+   "successful_attempt_s": 336,
+   "extra_s": 506,
+   "inherent_wait_s": 314,
+   "avoidable_s": 192,
+   "tool_rcs": [
+    31,
+    0
+   ],
+   "wrapper_stop_rcs": [
+    97
+   ],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log (22:35:06 開始) / land-2.log (22:36:53 開始) / land-3.log (wrapper 22:40:02 開始、走行中 land 0 を 210 秒待って 22:43:32 に merge 開始) / land-2.json"
+  },
+  {
+   "wave": "k2-loop-originals-lost-downstream",
+   "first_attempt_jst": "22:33:35",
+   "landed_jst": "22:42:57",
+   "successful_attempt_start_jst": "22:37:05",
+   "land_phase_s": 562,
+   "successful_attempt_s": 352,
+   "extra_s": 210,
+   "inherent_wait_s": 0,
+   "avoidable_s": 210,
+   "tool_rcs": [
+    31,
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log (it=2 は同じ landing tip bc66f8b4c を再投入)"
+  },
+  {
+   "wave": "fig13-b10-waiting-grid",
+   "first_attempt_jst": "22:13:05",
+   "landed_jst": "22:18:53",
+   "successful_attempt_start_jst": "22:13:05",
+   "land_phase_s": 348,
+   "successful_attempt_s": 348,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log (forward merge 0c951fd50)"
+  },
+  {
+   "wave": "paper-related-work-ja",
+   "first_attempt_jst": "22:02:52",
+   "landed_jst": "22:12:48",
+   "successful_attempt_start_jst": "22:07:29",
+   "land_phase_s": 596,
+   "successful_attempt_s": 319,
+   "extra_s": 277,
+   "inherent_wait_s": 243,
+   "avoidable_s": 34,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [
+    97
+   ],
+   "acceptance_runs_started": 1,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-go.log (go 1 は merge + dry-run 後に land processes running=1 で停止)"
+  },
+  {
+   "wave": "paper-story-20260920b",
+   "first_attempt_jst": "21:56:39",
+   "landed_jst": "22:06:55",
+   "successful_attempt_start_jst": "21:56:39",
+   "land_phase_s": 616,
+   "successful_attempt_s": 616,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-go.log (window 570 s)"
+  },
+  {
+   "wave": "cleanup-backup-loss-record",
+   "first_attempt_jst": "21:30:27",
+   "landed_jst": "21:49:33",
+   "successful_attempt_start_jst": "21:40:07",
+   "land_phase_s": 1146,
+   "successful_attempt_s": 566,
+   "extra_s": 580,
+   "inherent_wait_s": 490,
+   "avoidable_s": 90,
+   "tool_rcs": [
+    10,
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 3,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-loop.log (it=1 は t2153 の land 走行中 21:30:25 の 2 秒後に投入)"
+  }
+ ],
+ "annex_rows_21_to_23": [
+  {
+   "wave": "t2153-witness-requested-us",
+   "first_attempt_jst": "21:30:25",
+   "landed_jst": "21:38:37",
+   "successful_attempt_start_jst": "21:30:25",
+   "land_phase_s": 492,
+   "successful_attempt_s": 492,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": 2,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land.pid mtime / land-loop.log"
+  },
+  {
+   "wave": "paper-intro-ja",
+   "first_attempt_jst": "21:08:38",
+   "landed_jst": "21:18:25",
+   "successful_attempt_start_jst": "21:12:52",
+   "land_phase_s": 587,
+   "successful_attempt_s": 333,
+   "extra_s": 254,
+   "inherent_wait_s": 230,
+   "avoidable_s": 24,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [
+    97
+   ],
+   "acceptance_runs_started": 3,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-go.log (go 1 は t2766 の land 走行中に merge して停止)"
+  },
+  {
+   "wave": "t2766-pairing-adopt",
+   "first_attempt_jst": "21:03:48",
+   "landed_jst": "21:12:28",
+   "successful_attempt_start_jst": "21:03:48",
+   "land_phase_s": 520,
+   "successful_attempt_s": 520,
+   "extra_s": 0,
+   "inherent_wait_s": 0,
+   "avoidable_s": 0,
+   "tool_rcs": [
+    0
+   ],
+   "wrapper_stop_rcs": [],
+   "acceptance_runs_started": null,
+   "reacceptance_forced_by_land_side": "",
+   "source": "land-1.log (forward merge f94b61fc8、受入 receipt は job dir 外)"
+  }
+ ],
+ "summary": {
+  "n_waves": 20,
+  "single_attempt": {
+   "n": 12,
+   "land_phase_s_sum": 3218,
+   "land_phase_s_median": 211.5,
+   "land_phase_s_min": 174,
+   "land_phase_s_max": 616
+  },
+  "multi_attempt": {
+   "n": 8,
+   "land_phase_s_sum": 8829,
+   "land_phase_s_median": 818.0,
+   "extra_s_sum": 6060,
+   "inherent_wait_s_sum": 1580,
+   "avoidable_s_sum": 4480
+  },
+  "tool_invocations": 27,
+  "tool_rejections": 7,
+  "wrapper_stops": 4,
+  "rc_counts": {
+   "10": 3,
+   "23": 2,
+   "31": 2,
+   "wrapper-92": 1,
+   "wrapper-97": 3
+  },
+  "extra_by_cause_s": {
+   "rc=23 → 受入取り直し (t2797)": 1608,
+   "wrapper rc=92 → 受入取り直し (t2803、rc=97 停止 157 s を含む)": 2327,
+   "rc=10 (t2807 ×2 + cleanup-backup ×1)": 1072,
+   "rc=23 理由不明 (t2817、reason 消失)": 60,
+   "rc=31 EINTR (k2-loop + t2813 の EINTR 区間 22:36:53→22:43:32)": 609,
+   "wrapper rc=97 (paper-related + t2813 の 22:35:06→22:36:53)": 384
+  },
+  "extra_by_cause_check_sum_s": 6060
+ }
+}
