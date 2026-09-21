@@ -1,0 +1,139 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-control-comment",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "def _caption(data, number):\n",
+          "new": "def _caption(data, number):\n    # mutation control\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-suffix-rejected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "r\"\\d{4}-\\d{2}-\\d{2}[a-z]?\" if key",
+          "new": "r\"\\d{4}-\\d{2}-\\d{2}\" if key"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-suffix-multi-letter",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "[a-z]?\" if key",
+          "new": "[a-z]*\" if key"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-suffix-uppercase",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "[a-z]?\" if key",
+          "new": "[a-zA-Z]?\" if key"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-no-calendar-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "datetime.date.fromisoformat(value[:10] if key == \"story_version\" else value)",
+          "new": "datetime.date.fromisoformat(\"2000-01-01\" if key == \"story_version\" else value)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-figure-created-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "[a-z]?\" if key == \"story_version\" else",
+          "new": "[a-z]?\" if True else"
+        },
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "value[:10] if key == \"story_version\" else value",
+          "new": "value[:10] if True else value"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-path-date-part",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "f\"docs/paper-story/{data['story_version']}.md\"",
+          "new": "f\"docs/paper-story/{data['story_version'][:10]}.md\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-caption-always-legacy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION",
+          "new": "template = CAPTION"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-caption-always-generic",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION",
+          "new": "template = GENERIC_CAPTION"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
