@@ -1,0 +1,14 @@
+dev_wave_wait.py producer (receipt json): n=34 min=0 median=2 p90=4 max=5
+    5s  t2344-closure-stage focus-f1
+    4s  branch-residue-cleanup focus-f3
+    4s  branch-residue-cleanup focus-f4
+    4s  t2814-cleanup-command mutation-final
+self wrapper wait-file.sh (20 s poll): n=5 min=2 median=10 p90=18 max=18
+    18s  t2797-b5-contrast mutation-final
+    17s  t2797-b5-contrast acceptance-final3-1
+    10s  t2797-b5-contrast mutation-final2
+    6s  t2797-b5-contrast acceptance-final-1
+serial wait-all.sh (2nd TAG): n=3 min=47 median=315 p90=361 max=361
+    361s  t2807-b8-prerun run/prerun-v5-g_rt
+    315s  t2807-b8-prerun run/prerun-v4-g_rt
+    47s  t2807-b8-prerun run/prerun-g_rt

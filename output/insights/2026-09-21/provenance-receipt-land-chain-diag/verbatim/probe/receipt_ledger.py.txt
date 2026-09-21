@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Read-only receipt snapshot; no mode checks. Includes original bytes for replay.
+
+mtime is file write time, not os.replace visibility time. A concurrent change
+is retained as an error, not silently treated as an atomic store snapshot.
+Default store: git common-dir + checker's _RECEIPT_DIRECTORY (read via AST).
+"""
+import argparse
+import ast
+import base64
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+JST = timezone(timedelta(hours=9))
+
+
+def iso_ns(ns):
+    sec, nano = divmod(ns, 10**9)
+    return datetime.fromtimestamp(sec, JST).strftime('%Y-%m-%dT%H:%M:%S') + f'.{nano:09d}+09:00'
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--store', type=Path)
+    p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--diff', type=Path)
+    a = p.parse_args()
+    if a.store is None:
+        repo = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip())
+        tree = ast.parse((repo / 'tools/check_ai_provenance.py').read_text())
+        directory = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                         and any(isinstance(t, ast.Name) and t.id == '_RECEIPT_DIRECTORY' for t in n.targets))
+        common = Path(subprocess.check_output(['git', 'rev-parse', '--git-common-dir'], text=True).strip())
+        a.store = common.resolve() / directory
+    rows = []
+    parts = [x for x in sorted(a.store.iterdir()) if x.is_dir()]
+    for part in parts:
+        for file in sorted(part.glob('*.json')):
+            row = {'partition': part.name, 'file': file.name}
+            try:
+                with file.open('rb') as stream:
+                    import os
+                    before = os.fstat(stream.fileno())
+                    raw = stream.read()
+                    after = os.fstat(stream.fileno())
+                row.update(mtime_ns=before.st_mtime_ns, mtime_jst=iso_ns(before.st_mtime_ns),
+                           size=len(raw), sha256=hashlib.sha256(raw).hexdigest(),
+                           receipt_bytes_b64=base64.b64encode(raw).decode('ascii'))
+                if (before.st_mtime_ns, before.st_size, before.st_ino) != (after.st_mtime_ns, after.st_size, after.st_ino):
+                    raise ValueError('file changed during read')
+                r = json.loads(raw.decode('utf-8'))
+                if not isinstance(r, dict):
+                    raise ValueError('receipt is not an object')
+                row.update({k: r.get(k) for k in ('tip', 'schema', 'returncode', 'selection', 'candidate_count', 'bindings')})
+                row['records'] = {k: len(v) if isinstance(v, list) else None for k, v in (r.get('records') or {}).items()}
+            except (OSError, ValueError, UnicodeError, RecursionError, AttributeError, TypeError) as e:
+                row['error'] = str(e)
+            rows.append(row)
+    a.out.parent.mkdir(parents=True, exist_ok=True)
+    a.out.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in rows))
+    print(f'receipts={len(rows)} partitions={len(parts)} errors={sum("error" in r for r in rows)}')
+    bypart = defaultdict(list)
+    for r in rows:
+        bypart[r['partition']].append(r)
+    for part in parts:
+        rs = bypart[part.name]
+        envs = [(r.get('bindings') or {}).get('environment', {}) for r in rs]
+        print(json.dumps({'partition': part.name, 'count': len(rs),
+                          'checkers': sorted({e.get('checker', '') for e in envs}),
+                          'inherited': [json.loads(x) for x in sorted({json.dumps(e.get('inherited'), sort_keys=True) for e in envs})]}, ensure_ascii=False))
+    if a.diff:
+        old = {(r['partition'], r['file']): r for r in map(json.loads, a.diff.read_text().splitlines())}
+        new = {(r['partition'], r['file']): r for r in rows}
+        changes = []
+        for key in sorted(old.keys() | new.keys()):
+            kind = 'added' if key not in old else 'deleted' if key not in new else 'updated' if old[key] != new[key] else None
+            if kind:
+                changes.append({'change': kind, 'partition': key[0], 'file': key[1],
+                                'before': {k: old.get(key, {}).get(k) for k in ('mtime_ns', 'size', 'sha256', 'error')},
+                                'after': {k: new.get(key, {}).get(k) for k in ('mtime_ns', 'size', 'sha256', 'error')}})
+        print('DIFF')
+        for r in changes:
+            print(json.dumps(r, ensure_ascii=False))
+        print(f'diff_files={len(changes)}')
+
+
+if __name__ == '__main__':
+    main()

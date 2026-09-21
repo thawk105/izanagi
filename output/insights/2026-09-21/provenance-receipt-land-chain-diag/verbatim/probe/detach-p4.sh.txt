@@ -1,0 +1,11 @@
+#!/bin/bash
+# 親専用 detach: P-4 (launch-force-dispatch.sh、Codex author 作) を nohup setsid で切り離して 1 request 起動する。
+# usage: detach-p4.sh <n>
+J=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-provenance-cold-diag
+W=/work/1/SFC/tanab/izanagi/.claude/worktrees/dw-provenance-cold-diag
+N=${1:?n}
+nohup setsid bash "$J/probe/launch-force-dispatch.sh" "$W" "$J/measurements" "$N" </dev/null >"$J/measurements/force-dispatch-$N.spawn.log" 2>&1 &
+sleep 3
+echo "pid file: $(cat "$J/measurements/force-dispatch-$N.pid" 2>/dev/null)"
+ps -o pid,etime,stat,cmd -p "$(cat "$J/measurements/force-dispatch-$N.pid" 2>/dev/null)" | cut -c1-160
+echo "spawn.log bytes: $(wc -c < "$J/measurements/force-dispatch-$N.spawn.log")"

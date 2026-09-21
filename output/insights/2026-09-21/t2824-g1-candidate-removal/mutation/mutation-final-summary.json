@@ -1,0 +1,73 @@
+{
+ "phase": "final",
+ "spec_sha256": "1d6860be1e7e4ef92163c8cb2aa2cd084530d350d21a3809ecd596cb64ce5931",
+ "results_sha256": "a08e6a2d15134560b55b5370576b6c10df2dfdaf8b309f8ac716dbeed9ee3cca",
+ "repo_head": "ce84ed8da72168e49d54895bab92c07099a50ef9",
+ "date": "2026-09-21T00:19:12.078339+00:00",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+   "orchestrator/tests/test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+   "orchestrator/tests/test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+   "orchestrator/tests/test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+   "orchestrator/tests/test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+   "orchestrator/tests/test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2824-g1-candidate-removal/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2824-g1-candidate-removal/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "0a3bf63ea29633b97de4c3465111326989f36693",
+  "runner_mode": "dispatch"
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0
+ },
+ "mutations": [
+  {
+   "id": "M0-equivalent-comment",
+   "status": "SURVIVED",
+   "rc": 0,
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": []
+  },
+  {
+   "id": "M1-held-truth-first-element-pre-deletion",
+   "status": "KILLED",
+   "rc": 1,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal@real-repo",
+    "orchestrator/tests/test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing@real-repo",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated@real-repo",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing@real-repo"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing@real-repo",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated@real-repo",
+    "orchestrator/tests/test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing@real-repo",
+    "orchestrator/tests/test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal@real-repo",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused"
+   ]
+  }
+ ]
+}

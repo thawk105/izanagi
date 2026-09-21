@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""dev-wave-jobs 配下の land-loop*.log / acceptance*.chain.log から、T-2803 着地後 (既定 2026-09-20 23:41)
+の land / 受入 attempt の開始時刻と監査対象 tip を集め、共有 store の受領証 mtime と突き合わせて
+監査 wall の上限 (開始 → 受領証 publish) を出す。read-only。
+
+- land: `HH:MM:SS it=N land landing=<sha>` の時刻 → 同 sha の受領証 (land partition) の mtime。
+  land は lock 外で最初に監査を走らせる (dev_wave_land.py) ので差は「前処理 + 監査 wall」の上限。
+- 受入: `HH:MM:SS attempt N: main=...` (claim 前監査 = tip-before) と `HH:MM:SS merged: tip=<sha>`
+  (merge 後監査) の時刻 → 同 sha の受領証 (受入 partition) の mtime。
+- 直前の `gate: load=...` 行の load1 を混雑度として併記。
+日付は log file の mtime から取り、時刻が mtime の時刻より後なら前日とみなす。
+"""
+import json
+import re
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+JOBS = Path("/work/1/SFC/tanab/dev-wave-jobs")
+STORE = Path(sys.argv[1])
+SINCE = datetime.fromisoformat(sys.argv[2]) if len(sys.argv) > 2 else datetime(2026, 9, 20, 23, 41)
+OUT = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+JST = timezone(timedelta(hours=9))
+
+# 受領証: sha -> [(partition, mtime datetime)]
+receipts = {}
+for part in STORE.iterdir():
+    if not part.is_dir():
+        continue
+    for f in part.iterdir():
+        if f.is_file() and f.name.endswith(".json"):
+            sha = f.name[:-5]
+            mt = datetime.fromtimestamp(f.lstat().st_mtime)
+            receipts.setdefault(sha, []).append((part.name[:12], mt))
+
+
+def to_dt(file_mtime, hhmmss):
+    h, m, s = map(int, hhmmss.split(":"))
+    base = datetime.fromtimestamp(file_mtime)
+    d = base.replace(hour=h, minute=m, second=s, microsecond=0)
+    if d > base + timedelta(seconds=5):
+        d -= timedelta(days=1)
+    return d
+
+
+def match_receipt(sha, start, partition_hint=None):
+    """開始時刻以降で最も早い受領証 (sha 一致)。partition_hint があればそれを優先。"""
+    cands = [(p, mt) for p, mt in receipts.get(sha, []) if mt >= start - timedelta(seconds=2)]
+    if partition_hint:
+        pref = [c for c in cands if c[0] == partition_hint]
+        if pref:
+            cands = pref
+    if not cands:
+        return None
+    return min(cands, key=lambda c: c[1])
+
+
+rows = []
+for wave in sorted(JOBS.iterdir()):
+    if not wave.is_dir():
+        continue
+    # land
+    for log in wave.glob("land-loop*.log"):
+        if "spawn" in log.name or "wait" in log.name:
+            continue
+        mt = log.stat().st_mtime
+        try:
+            lines = log.read_text(errors="replace").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines):
+            m = re.match(r"(\d\d:\d\d:\d\d) it=(\d+) land landing=([0-9a-f]{40})", line)
+            if not m:
+                continue
+            start = to_dt(mt, m.group(1))
+            if start < SINCE:
+                continue
+            sha = m.group(3)
+            # 終了行
+            end = rc = status = None
+            for line2 in lines[i + 1:]:
+                m2 = re.match(rf"(\d\d:\d\d:\d\d) it={m.group(2)} rc=(\d+) status=(\S+)", line2)
+                if m2:
+                    end = to_dt(mt, m2.group(1))
+                    rc, status = int(m2.group(2)), m2.group(3)
+                    break
+            r = match_receipt(sha, start)
+            rows.append({
+                "kind": "land", "wave": wave.name, "log": log.name, "start": start.isoformat(sep=" "),
+                "tip": sha[:12], "rc": rc, "status": status,
+                "land_total_s": (end - start).total_seconds() if end else None,
+                "receipt_partition": r[0] if r else None,
+                "receipt_mtime": r[1].isoformat(sep=" ") if r else None,
+                "start_to_receipt_s": (r[1] - start).total_seconds() if r else None,
+            })
+    # acceptance
+    for log in wave.glob("acceptance*.chain.log"):
+        mt = log.stat().st_mtime
+        try:
+            lines = log.read_text(errors="replace").splitlines()
+        except OSError:
+            continue
+        stem = log.name[: -len(".chain.log")]
+        last_load = None
+        for i, line in enumerate(lines):
+            mg = re.match(r"(\d\d:\d\d:\d\d) gate: load=([\d.]+)/", line)
+            if mg:
+                last_load = float(mg.group(2))
+                continue
+            ma = re.match(r"(\d\d:\d\d:\d\d) attempt (\d+): main=([0-9a-f]{40}) behind=(\d+)", line)
+            if ma:
+                start = to_dt(mt, ma.group(1))
+                if start < SINCE:
+                    continue
+                n = ma.group(2)
+                tip_file = wave / f"{stem}-{n}.tip-before.txt"
+                tip = tip_file.read_text().strip() if tip_file.exists() else None
+                r = match_receipt(tip, start) if tip else None
+                rows.append({
+                    "kind": "accept-preclaim", "wave": wave.name, "log": log.name,
+                    "start": start.isoformat(sep=" "), "tip": (tip or "?")[:12],
+                    "behind": int(ma.group(4)), "load1": last_load,
+                    "receipt_partition": r[0] if r else None,
+                    "receipt_mtime": r[1].isoformat(sep=" ") if r else None,
+                    "start_to_receipt_s": (r[1] - start).total_seconds() if r else None,
+                })
+                continue
+            mm = re.match(r"(\d\d:\d\d:\d\d) merged: tip=([0-9a-f]{40})", line)
+            if mm:
+                start = to_dt(mt, mm.group(1))
+                if start < SINCE:
+                    continue
+                sha = mm.group(2)
+                r = match_receipt(sha, start)
+                rows.append({
+                    "kind": "accept-postmerge", "wave": wave.name, "log": log.name,
+                    "start": start.isoformat(sep=" "), "tip": sha[:12], "load1": last_load,
+                    "receipt_partition": r[0] if r else None,
+                    "receipt_mtime": r[1].isoformat(sep=" ") if r else None,
+                    "start_to_receipt_s": (r[1] - start).total_seconds() if r else None,
+                })
+
+rows.sort(key=lambda r: r["start"])
+if OUT:
+    OUT.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n")
+print(f"since={SINCE} rows={len(rows)}")
+for r in rows:
+    s = r.get("start_to_receipt_s")
+    extra = ""
+    if r["kind"] == "land":
+        extra = f"rc={r['rc']} status={r['status']} land_total={r['land_total_s']}"
+    else:
+        extra = f"load1={r.get('load1')}" + (f" behind={r['behind']}" if "behind" in r else "")
+    print(f"{r['start']} {r['kind']:16s} {r['wave'][:40]:40s} tip={r['tip']} "
+          f"receipt={r['receipt_partition']} Δ={s if s is None else round(s,1)}s {extra}")
