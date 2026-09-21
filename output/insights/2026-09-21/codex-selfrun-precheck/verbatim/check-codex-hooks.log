@@ -1,0 +1,7 @@
+2026-09-21 08:01:59 JST
+codex_version=codex-cli 0.155.0
+codex_executable=/home/SFC/tanab/.codex/packages/standalone/releases/0.155.0-x86_64-unknown-linux-musl/bin/codex
+codex_sha256=660e159a49e823ac8e5986cb238f73158ce4b957d40d9292f8de90862644b501
+OK: Codex PreToolUse live gate (apply_patch + Bash; allowed + protected)
+rc=0
+2026-09-21 08:02:46 JST

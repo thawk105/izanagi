@@ -1,0 +1,20 @@
+5c5
+< author
+---
+> fix
+7c7
+< dryrun-author
+---
+> dryrun-fix
+33c33
+< /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/artifacts/dev-wave-codex-selfrun-precheck/dryrun-author
+---
+> /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/artifacts/dev-wave-codex-selfrun-precheck/dryrun-fix
+35c35
+< /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/dryrun-author.md
+---
+> /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/dryrun-fix.md
+37c37
+< /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/artifacts/dev-wave-codex-selfrun-precheck/dryrun-author/receipt.json
+---
+> /work/1/SFC/tanab/dev-wave-jobs/dev-wave-codex-selfrun-precheck/codex/artifacts/dev-wave-codex-selfrun-precheck/dryrun-fix/receipt.json
