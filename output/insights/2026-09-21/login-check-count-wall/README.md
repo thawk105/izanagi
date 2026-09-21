@@ -159,8 +159,9 @@ DW-S07 の「docs commit 後の再走」は check_docs ではなく repo scan in
 
 ## 11. 検査と受入 (実施状況)
 
-- 記録 commit 前 (この節を書いた時点): 三軸語走査 = defang 前 hit 5 件 (うち本 wave の `verbatim/probe-ledger.md` 1 件) → 可逆 defang 9 箇所 (`verbatim/NORMALIZATION.md`) → 再走で hit 4 件 (main 既存のみ、rc=1 は既知の帰結)。`git diff --check` rc=0。
-- check_docs / fold dry-run / 全史監査 / 受入全走 / land: **未実施** (記録 commit の直前・直後に実走し、結果はこの節へ追記する)。
+- 記録 commit 前: 三軸語走査 = defang 前 hit 5 件 (うち本 wave の `verbatim/probe-ledger.md` 1 件) → 可逆 defang 9 箇所 → 再走で hit 4 件 (main 既存のみ、rc=1 は既知の帰結)。codex 報告 1 file の行末空白を可逆正規化 (38 行、`verbatim/NORMALIZATION.md`)。`check_docs` 違反なし (正規化後に再走)。fold dry-run rc=0 (`status=planned`、新規 2 件に `[T-2831]` / `[T-2832]` を割り当てる計画)。message preflight rc=0。行末空白検査 rc=0。
+- 記録 commit `3c2004a3d` (docs-only)。**commit 後の全史監査 rc=0 = 12,262 件・新規違反なし、wall 14.23 秒** (user 3.22 / sys 5.47、RSS 144,208 kB、load 5.71 → 6.76)。**warm の実測が前提値 22 秒より速い例**である (§8 の換算は前提値のまま据え置き、実測は幅として記録する)。
+- 受入全走と land: **未実施** (この節の後に投入し、結果を追記する)。
 
 ## 12. 言わないこと (限界)
 

@@ -23,6 +23,7 @@ title: dev-wave 1 本が login で回す検査の回数と wall を直近 landed
   **`find-fold-owned.py` を契約に載せる案はレビューの指摘で取り下げた** (痕跡 0・文書上の義務 0 から新契約を提案する形で材料不足、DW-G03 の独立 2 例にも足りない)。
   D908 (受入前の全史監査 2 本は削らない) を段 1 で引いたので、受入 tool 内の 2 本は最初から削減候補にしていない。
 - 逐語の凍結で三軸語走査が**本 wave の新 file 1 件**を hit した (標本 wave の走査 log の JSON を証拠行として引用していたため)。D88 と同型の可逆 defang (三軸 key 直後の `=` を全角へ 1:1、9 箇所) を当て、再走で hit が main 既存 4 file だけに戻ることを確認した (`verbatim/NORMALIZATION.md`)。
+- 段 8 (自己改善): 候補 2 件、いずれも**記録のみ**で docs / command は編集しない。(1) wave 撤去後は検査の回数・wall の一次資料が消える (transcript は撤去され、job dir に log を残した wave だけ再構成できる。12 wave のうち、いずれかの検査 log を残したのは 11、check_docs の log を残したのは 4)。「検査 log を job dir に残す」作法は契約に無いが、手順の追加は本依頼の scope 外で、段 6 レビューも観測限界の記録で足ると判定した (insight §9 の H)。(2) 診断 wave は標本の時点を固定する (`--as-of`) — 並走 wave が着地し続ける時間帯は、固定しないと同じ依頼の再走で標本が変わる。どちらも独立 2 例 (DW-G03) には足りないので制度化しない。
 - 工数: codex 子 4 本 (consult 1 / author 1 / fix 2 / review 1 = 5 本、うち fix 2 本は親の実機 blocker)、親の login 実走 = probe 3 巡 + 検査の直接計測 3 回 + 三軸語走査 2 回。計算ノード job は 0 (焦点走は docs-only のため insight を読む test に限定)。
 - 受入全走と land の結果は本 entry には書けない (fold 後に確定するため insight §11 に追記)。
 
