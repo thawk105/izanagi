@@ -1,0 +1,2118 @@
+{
+  "schema": "t2812-old-series-probe/v1",
+  "checks": [
+    {
+      "id": "K2-PIN-NEW",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.patchharness.assert_pinned_clean(sub, p3_s4_loop.PIN)",
+      "ok": false,
+      "error": {
+        "type": "RuntimeError",
+        "message": "patchharness: HEAD (e9e477ca1b55) が pin (511c9538e4e8efa54b45cda62e72389ed3b706ec) と不一致 — 別版の tree に patch を当てない (fails-closed)"
+      },
+      "elapsed_s": 0.28002652106806636
+    },
+    {
+      "id": "K2-PIN-H",
+      "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair",
+      "call": "orchestrator.campaign.patchharness.assert_pinned_clean(sub, p3_s4_loop.PIN)",
+      "ok": true,
+      "result": {
+        "pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+      },
+      "elapsed_s": 0.554557581897825
+    },
+    {
+      "id": "POLICY-CURRENT",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.build_admission.resolve_current_build_admission_policy()",
+      "ok": true,
+      "result": {
+        "sha256": "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a",
+        "preimage": {
+          "coder_authority": "cli-opt-in",
+          "generator_registry": [
+            "backoff-overthrottle",
+            "backoff-profile",
+            "backoff-repro",
+            "backoff-sweep",
+            "s1-extime-calibration",
+            "s6-sort-sweep",
+            "s8a-trigger-sweep"
+          ],
+          "repo_stock_pin": "e9e477c",
+          "review_registry": [
+            "s1-known-axes",
+            "s8b-floor",
+            "s8b-oracle"
+          ],
+          "schema": "build-admission-policy/v1"
+        },
+        "CURRENT_PIN": "e9e477c",
+        "CCBENCH_FULL_SHA": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "K2_PIN": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "A1_PIN": "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+      },
+      "elapsed_s": 0.7388532089535147
+    },
+    {
+      "id": "K2-LOCK-PAIR",
+      "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920/campaign/campaign.lock",
+      "call": "orchestrator.campaign.campaign_lock.decode_campaign_lock(text)",
+      "ok": false,
+      "result": {
+        "current_codec": {
+          "id": "current_codec",
+          "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920/campaign/campaign.lock",
+          "call": "orchestrator.campaign.campaign_lock.decode_campaign_lock(text)",
+          "ok": false,
+          "error": {
+            "type": "CampaignLockCodecError",
+            "message": "authority.contract_loader_blob_sha256s の exact key 集合が不正"
+          },
+          "elapsed_s": 0.00015272689051926136
+        },
+        "historical_codec": {
+          "id": "historical_codec",
+          "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920/campaign/campaign.lock",
+          "call": "orchestrator.campaign.campaign_lock.decode_historical_campaign_lock(text)",
+          "ok": true,
+          "result": {
+            "readable": true
+          },
+          "elapsed_s": 0.0002801909577101469
+        },
+        "checks": [
+          {
+            "id": "current_codec",
+            "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920/campaign/campaign.lock",
+            "call": "orchestrator.campaign.campaign_lock.decode_campaign_lock(text)",
+            "ok": false,
+            "error": {
+              "type": "CampaignLockCodecError",
+              "message": "authority.contract_loader_blob_sha256s の exact key 集合が不正"
+            },
+            "elapsed_s": 0.00015272689051926136
+          },
+          {
+            "id": "historical_codec",
+            "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/originals-copy-20260920/campaign/campaign.lock",
+            "call": "orchestrator.campaign.campaign_lock.decode_historical_campaign_lock(text)",
+            "ok": true,
+            "result": {
+              "readable": true
+            },
+            "elapsed_s": 0.0002801909577101469
+          }
+        ],
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "preimage": {
+          "coder_authority": "cli-opt-in",
+          "generator_registry": [
+            "backoff-overthrottle",
+            "backoff-profile",
+            "backoff-repro",
+            "backoff-sweep",
+            "s1-extime-calibration",
+            "s6-sort-sweep",
+            "s8a-trigger-sweep"
+          ],
+          "repo_stock_pin": "e9e477c",
+          "review_registry": [
+            "s1-known-axes",
+            "s8b-floor",
+            "s8b-oracle"
+          ],
+          "schema": "build-admission-policy/v1"
+        },
+        "comparison": {
+          "coder_authority": {
+            "recorded": "cli-opt-in",
+            "current": "cli-opt-in",
+            "equal": true
+          },
+          "generator_registry": {
+            "recorded": [
+              "backoff-overthrottle",
+              "backoff-profile",
+              "backoff-repro",
+              "backoff-sweep",
+              "s1-extime-calibration",
+              "s6-sort-sweep",
+              "s8a-trigger-sweep"
+            ],
+            "current": [
+              "backoff-overthrottle",
+              "backoff-profile",
+              "backoff-repro",
+              "backoff-sweep",
+              "s1-extime-calibration",
+              "s6-sort-sweep",
+              "s8a-trigger-sweep"
+            ],
+            "equal": true
+          },
+          "repo_stock_pin": {
+            "recorded": "e9e477c",
+            "current": "e9e477c",
+            "equal": true
+          },
+          "review_registry": {
+            "recorded": [
+              "s1-known-axes",
+              "s8b-floor",
+              "s8b-oracle"
+            ],
+            "current": [
+              "s1-known-axes",
+              "s8b-floor",
+              "s8b-oracle"
+            ],
+            "equal": true
+          },
+          "schema": {
+            "recorded": "build-admission-policy/v1",
+            "current": "build-admission-policy/v1",
+            "equal": true
+          }
+        }
+      },
+      "elapsed_s": 0.002126829931512475
+    },
+    {
+      "id": "A1-BOUNDARY-NEW",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.paper_story_a1_paired._load_policy_for_study(STUDY); orchestrator.campaign.paper_story_a1_paired._assert_ccbench_acceptance(root, policy, boundary='login-submit')",
+      "ok": false,
+      "error": {
+        "type": "PaperStoryError",
+        "message": "CCBench login-submit: canonical HEAD mismatch"
+      },
+      "elapsed_s": 0.012307659024372697
+    },
+    {
+      "id": "A1-BOUNDARY-H",
+      "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair",
+      "call": "orchestrator.campaign.paper_story_a1_paired._load_policy_for_study(STUDY); orchestrator.campaign.paper_story_a1_paired._assert_ccbench_acceptance(root, policy, boundary='login-submit')",
+      "ok": true,
+      "result": {
+        "policy_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a"
+      },
+      "elapsed_s": 0.06166924489662051
+    },
+    {
+      "id": "A1-SOURCE-NEW",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.paper_story_a1_source.load_contract(repo_root, STUDY); orchestrator.campaign.patchharness.assert_pinned_clean(sub, canonical_head)",
+      "ok": false,
+      "error": {
+        "type": "RuntimeError",
+        "message": "patchharness: HEAD (e9e477ca1b55) が pin (511c9538e4e8efa54b45cda62e72389ed3b706ec) と不一致 — 別版の tree に patch を当てない (fails-closed)"
+      },
+      "elapsed_s": 0.007705959957093
+    },
+    {
+      "id": "A1-SOURCE-H",
+      "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair",
+      "call": "orchestrator.campaign.paper_story_a1_source.load_contract(repo_root, STUDY); orchestrator.campaign.patchharness.assert_pinned_clean(sub, canonical_head)",
+      "ok": true,
+      "result": {
+        "pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+      },
+      "elapsed_s": 0.15152205200865865
+    },
+    {
+      "id": "A1-IDENTITY",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "recursive JSON identity search",
+      "ok": true,
+      "result": {
+        "state": "found",
+        "matches": [
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+            "location": "$.workloads[0].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+            "repo_stock_pin": "511c953",
+            "comparison": {
+              "coder_authority": {
+                "recorded": "cli-opt-in",
+                "current": "cli-opt-in",
+                "equal": true
+              },
+              "generator_registry": {
+                "recorded": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "current": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "equal": true
+              },
+              "repo_stock_pin": {
+                "recorded": "511c953",
+                "current": "e9e477c",
+                "equal": false
+              },
+              "review_registry": {
+                "recorded": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "current": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "equal": true
+              },
+              "schema": {
+                "recorded": "build-admission-policy/v1",
+                "current": "build-admission-policy/v1",
+                "equal": true
+              }
+            }
+          },
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+            "location": "$.workloads[1].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+            "repo_stock_pin": "511c953",
+            "comparison": {
+              "coder_authority": {
+                "recorded": "cli-opt-in",
+                "current": "cli-opt-in",
+                "equal": true
+              },
+              "generator_registry": {
+                "recorded": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "current": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "equal": true
+              },
+              "repo_stock_pin": {
+                "recorded": "511c953",
+                "current": "e9e477c",
+                "equal": false
+              },
+              "review_registry": {
+                "recorded": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "current": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "equal": true
+              },
+              "schema": {
+                "recorded": "build-admission-policy/v1",
+                "current": "build-admission-policy/v1",
+                "equal": true
+              }
+            }
+          },
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+            "location": "$.workloads[2].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+            "repo_stock_pin": "511c953",
+            "comparison": {
+              "coder_authority": {
+                "recorded": "cli-opt-in",
+                "current": "cli-opt-in",
+                "equal": true
+              },
+              "generator_registry": {
+                "recorded": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "current": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "equal": true
+              },
+              "repo_stock_pin": {
+                "recorded": "511c953",
+                "current": "e9e477c",
+                "equal": false
+              },
+              "review_registry": {
+                "recorded": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "current": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "equal": true
+              },
+              "schema": {
+                "recorded": "build-admission-policy/v1",
+                "current": "build-admission-policy/v1",
+                "equal": true
+              }
+            }
+          }
+        ],
+        "checks": [
+          {
+            "id": ".complete.json",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/.complete.json",
+            "call": "json.loads (including embedded JSON)",
+            "ok": true,
+            "result": null,
+            "elapsed_s": 0.0006098710000514984
+          },
+          {
+            "id": "receipt.json",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/receipt.json",
+            "call": "json.loads (including embedded JSON)",
+            "ok": true,
+            "result": null,
+            "elapsed_s": 0.0007662109564989805
+          },
+          {
+            "id": "result.json",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+            "call": "json.loads (including embedded JSON)",
+            "ok": true,
+            "result": null,
+            "elapsed_s": 0.005067354999482632
+          }
+        ]
+      },
+      "elapsed_s": 0.008618094027042389
+    },
+    {
+      "id": "G1-LOAD",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_ratified_freeze.load_ratified_freeze(root)",
+      "ok": true,
+      "result": {
+        "generation_number": 1,
+        "sha256": "7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06",
+        "generation_commit": "32ba8cae45001697f050bee377413153e6d798a5"
+      },
+      "elapsed_s": 9.580989952897653
+    },
+    {
+      "id": "G1-LAUNCH",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_ratified_freeze.launch_validate(ratified, root)",
+      "ok": false,
+      "error": {
+        "type": "RatifiedFreezeError",
+        "message": "[manifest-invalid] binaries[rr20::backoff_fixed_best] admission receipt が不正: receipt admission policy が現行 policy と不一致",
+        "reason": "manifest-invalid",
+        "cause": "binary-admission"
+      },
+      "elapsed_s": 0.39024866302497685
+    },
+    {
+      "id": "G1-BINARIES",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_ratified_freeze._source_record_path_sha; _capture_g_h_worktree; _strict_load; _validate_published_protocol(contract_resolver=_resolve_current_contract_sha256)",
+      "ok": true,
+      "result": {
+        "protocol_path": "output/s8b-freeze/floor-protocols/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01--511c9538e4e8efa54b45cda62e72389ed3b706ec.json",
+        "manifest_path": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+        "protocol": {
+          "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+          "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+        },
+        "cells": [
+          {
+            "cell_id": "rr20::backoff_fixed_best",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "16c299355ba7d786534b320e99eb2a566622a3a3f9fee59c6b0886519a1a479d",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::backoff_fixed_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "e6d002d8177afb0f234129b714350ffcccf4a6a0a5b3e6b86c7c47c86182f4ea",
+              "expected_binding_sha256": "7b99bc66269c37473b2ee88135aadf9558abc581fca4f7127b9ae6e076947868"
+            }
+          },
+          {
+            "cell_id": "rr20::ident_all",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "8ac2a15d7853ec07d892844603852e1bd3f2d4f88331e7701070731d3b0cdc48",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::ident_all",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "8b88668bfe49350ce62c649f8d50c2674171236cccbf05693b711c56be07b5c7",
+              "expected_binding_sha256": "f9a53b4af890e1154e7b0887822f99719afd53ccae99ed5875a009b7c5a2289f"
+            }
+          },
+          {
+            "cell_id": "rr20::p2_2_flag_opt",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "stock",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::p2_2_flag_opt",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "fc6e41b98d541d311c6c4fb35be25cfe88aa2759324ccdd1878494d6fa7c14e5",
+              "expected_binding_sha256": "ff106ea0561c26dfb94b52bb81cf32677f1ff0f969b7e7e36296712c1d3eeccf"
+            }
+          },
+          {
+            "cell_id": "rr20::sort_best",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "afa2439e4f75a2ca79bacceae403c4c58e244172a3e7fcd4d7b22cfbba6d9f88",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::sort_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+              "expected_binding_sha256": "5a967d310f5f534cc94ba672e4624b76059e05acd5d9d791ef6d58b3c176465d"
+            }
+          },
+          {
+            "cell_id": "rr20::stock_common",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "stock",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::stock_common",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            }
+          },
+          {
+            "cell_id": "rr20::system_gate",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::system_gate",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "f9e3b597519dc885a42eea5d0997fe0a46ec471596502e4603a476fbf1526a72",
+              "expected_binding_sha256": "ebeb6cefe8b26f48f0ed3fed376f79ab82144620bdb83d8fb4ea275098c65ab7"
+            }
+          },
+          {
+            "cell_id": "rr80::backoff_fixed_best",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "d786db5773136cbd55678e5d1808497c0fad66a2184f6c6298aee96d56632f18",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::backoff_fixed_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "95b5f69f9b08bf8ea34504fa735263512be74970e82a646d72f098c0d0085760",
+              "expected_binding_sha256": "844d9345a519f819a639961062928c86b22bbd2ae87779bdd22dc8c6677cdb3b"
+            }
+          },
+          {
+            "cell_id": "rr80::ident_all",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "8ac2a15d7853ec07d892844603852e1bd3f2d4f88331e7701070731d3b0cdc48",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::ident_all",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "7eba49e7e1b87a262a9229ecabb41b90b01506b2b656e0c0c1f0d5502d30b365",
+              "expected_binding_sha256": "877e132b03c9b70291f063c6815cf91f0401480e22efebfce6b7fc44e4b22d6c"
+            }
+          },
+          {
+            "cell_id": "rr80::p2_2_flag_opt",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "stock",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::p2_2_flag_opt",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "11eea6e86c387e29fa3cf15eefb3c64f09ff4ba8b34c4be9b00122d140a9ee2e",
+              "expected_binding_sha256": "97e209dfb502c8b36ba15d70881575c768be7da9afb07a1a538cfab04a264a97"
+            }
+          },
+          {
+            "cell_id": "rr80::sort_best",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "afa2439e4f75a2ca79bacceae403c4c58e244172a3e7fcd4d7b22cfbba6d9f88",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::sort_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+              "expected_binding_sha256": "b14f603a31b612c2102eb9299861f528ac0e88545b04d63756d1265d7e814950"
+            }
+          },
+          {
+            "cell_id": "rr80::stock_common",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "stock",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::stock_common",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            }
+          },
+          {
+            "cell_id": "rr80::system_gate",
+            "class": "human-reviewed",
+            "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+            "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+            "source.src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+            "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+            "validation_kwargs": {
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::system_gate",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "6b174daaade66de4113fa71267b4a1954bb2009e9dc54aa21c066402023f8a53",
+              "expected_binding_sha256": "9257cda7d61c817842a20ccfb6a025f92e3fa093ec2006b897345780f5638baa"
+            }
+          }
+        ]
+      },
+      "elapsed_s": 0.13698166399262846
+    },
+    {
+      "id": "G1-BIN-HIST",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record (stage 4 kwargs)",
+      "ok": true,
+      "result": {
+        "checks": [
+          {
+            "id": "rr20::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::backoff_fixed_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "e6d002d8177afb0f234129b714350ffcccf4a6a0a5b3e6b86c7c47c86182f4ea",
+              "expected_binding_sha256": "7b99bc66269c37473b2ee88135aadf9558abc581fca4f7127b9ae6e076947868"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "16c299355ba7d786534b320e99eb2a566622a3a3f9fee59c6b0886519a1a479d",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011587593937292695
+          },
+          {
+            "id": "rr20::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::ident_all",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "8b88668bfe49350ce62c649f8d50c2674171236cccbf05693b711c56be07b5c7",
+              "expected_binding_sha256": "f9a53b4af890e1154e7b0887822f99719afd53ccae99ed5875a009b7c5a2289f"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "8ac2a15d7853ec07d892844603852e1bd3f2d4f88331e7701070731d3b0cdc48",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011224749032407999
+          },
+          {
+            "id": "rr20::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::p2_2_flag_opt",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "fc6e41b98d541d311c6c4fb35be25cfe88aa2759324ccdd1878494d6fa7c14e5",
+              "expected_binding_sha256": "ff106ea0561c26dfb94b52bb81cf32677f1ff0f969b7e7e36296712c1d3eeccf"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "stock",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.01015293993987143
+          },
+          {
+            "id": "rr20::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::sort_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+              "expected_binding_sha256": "5a967d310f5f534cc94ba672e4624b76059e05acd5d9d791ef6d58b3c176465d"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "afa2439e4f75a2ca79bacceae403c4c58e244172a3e7fcd4d7b22cfbba6d9f88",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.010371520882472396
+          },
+          {
+            "id": "rr20::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::stock_common",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "stock",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.010975208133459091
+          },
+          {
+            "id": "rr20::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::system_gate",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "f9e3b597519dc885a42eea5d0997fe0a46ec471596502e4603a476fbf1526a72",
+              "expected_binding_sha256": "ebeb6cefe8b26f48f0ed3fed376f79ab82144620bdb83d8fb4ea275098c65ab7"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.010955473873764277
+          },
+          {
+            "id": "rr80::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::backoff_fixed_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "95b5f69f9b08bf8ea34504fa735263512be74970e82a646d72f098c0d0085760",
+              "expected_binding_sha256": "844d9345a519f819a639961062928c86b22bbd2ae87779bdd22dc8c6677cdb3b"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "d786db5773136cbd55678e5d1808497c0fad66a2184f6c6298aee96d56632f18",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011039778823032975
+          },
+          {
+            "id": "rr80::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::ident_all",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "7eba49e7e1b87a262a9229ecabb41b90b01506b2b656e0c0c1f0d5502d30b365",
+              "expected_binding_sha256": "877e132b03c9b70291f063c6815cf91f0401480e22efebfce6b7fc44e4b22d6c"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "8ac2a15d7853ec07d892844603852e1bd3f2d4f88331e7701070731d3b0cdc48",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.025323875015601516
+          },
+          {
+            "id": "rr80::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::p2_2_flag_opt",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "11eea6e86c387e29fa3cf15eefb3c64f09ff4ba8b34c4be9b00122d140a9ee2e",
+              "expected_binding_sha256": "97e209dfb502c8b36ba15d70881575c768be7da9afb07a1a538cfab04a264a97"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "stock",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011028610169887543
+          },
+          {
+            "id": "rr80::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::sort_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+              "expected_binding_sha256": "b14f603a31b612c2102eb9299861f528ac0e88545b04d63756d1265d7e814950"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "afa2439e4f75a2ca79bacceae403c4c58e244172a3e7fcd4d7b22cfbba6d9f88",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.010943475877866149
+          },
+          {
+            "id": "rr80::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::stock_common",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "stock",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011095838155597448
+          },
+          {
+            "id": "rr80::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null,
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::system_gate",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "6b174daaade66de4113fa71267b4a1954bb2009e9dc54aa21c066402023f8a53",
+              "expected_binding_sha256": "9257cda7d61c817842a20ccfb6a025f92e3fa093ec2006b897345780f5638baa"
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011213475838303566
+          }
+        ]
+      },
+      "elapsed_s": 0.14598766202107072
+    },
+    {
+      "id": "G1-BIN-CURRENT",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record (stage 4 kwargs)",
+      "ok": false,
+      "result": {
+        "checks": [
+          {
+            "id": "rr20::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::backoff_fixed_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "e6d002d8177afb0f234129b714350ffcccf4a6a0a5b3e6b86c7c47c86182f4ea",
+              "expected_binding_sha256": "7b99bc66269c37473b2ee88135aadf9558abc581fca4f7127b9ae6e076947868"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0036634630523622036
+          },
+          {
+            "id": "rr20::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::ident_all",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "8b88668bfe49350ce62c649f8d50c2674171236cccbf05693b711c56be07b5c7",
+              "expected_binding_sha256": "f9a53b4af890e1154e7b0887822f99719afd53ccae99ed5875a009b7c5a2289f"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.00364468595944345
+          },
+          {
+            "id": "rr20::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::p2_2_flag_opt",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "fc6e41b98d541d311c6c4fb35be25cfe88aa2759324ccdd1878494d6fa7c14e5",
+              "expected_binding_sha256": "ff106ea0561c26dfb94b52bb81cf32677f1ff0f969b7e7e36296712c1d3eeccf"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035195439122617245
+          },
+          {
+            "id": "rr20::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::sort_best",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+              "expected_binding_sha256": "5a967d310f5f534cc94ba672e4624b76059e05acd5d9d791ef6d58b3c176465d"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035521448589861393
+          },
+          {
+            "id": "rr20::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::stock_common",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035729350056499243
+          },
+          {
+            "id": "rr20::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr20::system_gate",
+              "expected_holdout_id": "rr20",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "f9e3b597519dc885a42eea5d0997fe0a46ec471596502e4603a476fbf1526a72",
+              "expected_binding_sha256": "ebeb6cefe8b26f48f0ed3fed376f79ab82144620bdb83d8fb4ea275098c65ab7"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.003683618037030101
+          },
+          {
+            "id": "rr80::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::backoff_fixed_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "backoff_fixed_best",
+              "expected_entry_sha256": "95b5f69f9b08bf8ea34504fa735263512be74970e82a646d72f098c0d0085760",
+              "expected_binding_sha256": "844d9345a519f819a639961062928c86b22bbd2ae87779bdd22dc8c6677cdb3b"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.003477926831692457
+          },
+          {
+            "id": "rr80::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::ident_all",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "ident_all",
+              "expected_entry_sha256": "7eba49e7e1b87a262a9229ecabb41b90b01506b2b656e0c0c1f0d5502d30b365",
+              "expected_binding_sha256": "877e132b03c9b70291f063c6815cf91f0401480e22efebfce6b7fc44e4b22d6c"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035115110222250223
+          },
+          {
+            "id": "rr80::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::p2_2_flag_opt",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "p2_2_flag_opt",
+              "expected_entry_sha256": "11eea6e86c387e29fa3cf15eefb3c64f09ff4ba8b34c4be9b00122d140a9ee2e",
+              "expected_binding_sha256": "97e209dfb502c8b36ba15d70881575c768be7da9afb07a1a538cfab04a264a97"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.003493000054731965
+          },
+          {
+            "id": "rr80::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::sort_best",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "sort_best",
+              "expected_entry_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+              "expected_binding_sha256": "b14f603a31b612c2102eb9299861f528ac0e88545b04d63756d1265d7e814950"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035436758771538734
+          },
+          {
+            "id": "rr80::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::stock_common",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "stock_common",
+              "expected_entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+              "expected_binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035639400593936443
+          },
+          {
+            "id": "rr80::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current",
+              "expected_ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "expected_contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "expected_cell_id": "rr80::system_gate",
+              "expected_holdout_id": "rr80",
+              "expected_configuration_id": "system_gate",
+              "expected_entry_sha256": "6b174daaade66de4113fa71267b4a1954bb2009e9dc54aa21c066402023f8a53",
+              "expected_binding_sha256": "9257cda7d61c817842a20ccfb6a025f92e3fa093ec2006b897345780f5638baa"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0035548650193959475
+          }
+        ]
+      },
+      "elapsed_s": 0.04284352296963334
+    },
+    {
+      "id": "B4-PROTOCOL",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.s8b_floor_campaign.resolve_current_floor_protocol(root=root)",
+      "ok": false,
+      "result": {
+        "checks": [
+          {
+            "id": "resolve",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.s8b_floor_campaign.resolve_current_floor_protocol(root=root)",
+            "ok": false,
+            "error": {
+              "type": "FloorCampaignError",
+              "message": "現行 env 契約の floor protocol を一意に解決できない: current_count=2 head_exact_count=0"
+            },
+            "elapsed_s": 0.0940833801869303
+          },
+          {
+            "id": "index",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.s8b_floor_campaign._scan_floor_protocol_index_at_commit(root=root, commit_oid=HEAD); _ccbench_gitlink; env_contract.lookup",
+            "ok": true,
+            "result": {
+              "head": "5efd69367b641b9bfbd6fb426478f66ae5762783",
+              "gitlink": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+              "records": [
+                {
+                  "path": "output/s8b-freeze/floor_protocol.json",
+                  "env_tag": "pegasus",
+                  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+                  "ccbench_pin": "d706650cdb31e442bef45b9b4216951d4fb40969"
+                },
+                {
+                  "path": "output/s8b-freeze/floor-protocols/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01--511c9538e4e8efa54b45cda62e72389ed3b706ec.json",
+                  "env_tag": "pegasus",
+                  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+                  "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+                }
+              ],
+              "current_contracts": {
+                "pegasus": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+              }
+            },
+            "elapsed_s": 0.08207174600102007
+          }
+        ]
+      },
+      "elapsed_s": 0.17630924400873482
+    },
+    {
+      "id": "B4-RECORD-HIST",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+      "call": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+      "ok": true,
+      "result": {
+        "receipt": {
+          "class": "human-reviewed",
+          "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+          "source.src_token": "stock",
+          "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+        },
+        "checks": [
+          {
+            "id": "record",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": null
+            },
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "source.src_token": "stock",
+              "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+            },
+            "elapsed_s": 0.011446361895650625
+          }
+        ]
+      },
+      "elapsed_s": 0.013443344971165061
+    },
+    {
+      "id": "B4-RECORD-CURRENT",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+      "call": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+      "ok": false,
+      "result": {
+        "receipt": {
+          "class": "human-reviewed",
+          "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "source.ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+          "source.src_token": "stock",
+          "subject.contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
+        },
+        "checks": [
+          {
+            "id": "record",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+            "call": {
+              "function": "orchestrator.campaign.s8b_binary_admission.validate_portable_binary_record",
+              "expected_policy": "current"
+            },
+            "ok": false,
+            "error": {
+              "type": "BinaryAdmissionError",
+              "message": "receipt admission policy が現行 policy と不一致"
+            },
+            "elapsed_s": 0.0036063669249415398
+          }
+        ]
+      },
+      "elapsed_s": 0.0036149320658296347
+    },
+    {
+      "id": "B4-W1-HEAD",
+      "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree",
+      "call": "git rev-parse HEAD; JSONL first line only",
+      "ok": true,
+      "result": {
+        "new_head": "5efd69367b641b9bfbd6fb426478f66ae5762783",
+        "b4_w1_head": "2ba4000870c63254132410b3002b5298c0c6a210",
+        "checks": [
+          {
+            "id": "window__env-pegasus__protocol-silo__threads-48__workload-rr5-s0.9-rmw0__campaign-t2288-f1-rr5-c1.jsonl",
+            "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree/output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr5-s0.9-rmw0__campaign-t2288-f1-rr5-c1.jsonl",
+            "call": "json.loads(stream.readline())[loaded_head]",
+            "ok": true,
+            "result": {
+              "loaded_head": "2ba4000870c63254132410b3002b5298c0c6a210",
+              "equals_new_head": false,
+              "equals_b4_w1_head": true
+            },
+            "elapsed_s": 0.002060911152511835
+          },
+          {
+            "id": "window__env-pegasus__protocol-silo__threads-48__workload-rr50-s0.9-rmw0__campaign-t2288-f1-rr50-c1.jsonl",
+            "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree/output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr50-s0.9-rmw0__campaign-t2288-f1-rr50-c1.jsonl",
+            "call": "json.loads(stream.readline())[loaded_head]",
+            "ok": true,
+            "result": {
+              "loaded_head": "2ba4000870c63254132410b3002b5298c0c6a210",
+              "equals_new_head": false,
+              "equals_b4_w1_head": true
+            },
+            "elapsed_s": 0.0020272841211408377
+          },
+          {
+            "id": "window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1.jsonl",
+            "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree/output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1.jsonl",
+            "call": "json.loads(stream.readline())[loaded_head]",
+            "ok": true,
+            "result": {
+              "loaded_head": "2ba4000870c63254132410b3002b5298c0c6a210",
+              "equals_new_head": false,
+              "equals_b4_w1_head": true
+            },
+            "elapsed_s": 0.0018964370246976614
+          }
+        ]
+      },
+      "elapsed_s": 0.01741150696761906
+    },
+    {
+      "id": "READMIT-STOCK",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.build_admission.derive_build_admission; source_digest.SourceEvidence.from_receipt",
+      "ok": true,
+      "result": {
+        "checks": [
+          {
+            "id": "collect-g1",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "captured manifest",
+            "ok": true,
+            "result": null,
+            "elapsed_s": 1.2713950127363205e-05
+          },
+          {
+            "id": "collect-b4",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+            "call": "record JSON read",
+            "ok": true,
+            "result": null,
+            "elapsed_s": 2.0849984139204025e-06
+          },
+          {
+            "id": "rr20::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::backoff_fixed_best",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00021320395171642303
+          },
+          {
+            "id": "rr20::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::ident_all",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.0001271029468625784
+          },
+          {
+            "id": "rr20::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::p2_2_flag_opt",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00012077204883098602
+          },
+          {
+            "id": "rr20::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::sort_best",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.0001155300997197628
+          },
+          {
+            "id": "rr20::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::stock_common",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00010936497710645199
+          },
+          {
+            "id": "rr20::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr20::system_gate",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00011116289533674717
+          },
+          {
+            "id": "rr80::backoff_fixed_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::backoff_fixed_best",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00011055311188101768
+          },
+          {
+            "id": "rr80::ident_all",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::ident_all",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00010811514221131802
+          },
+          {
+            "id": "rr80::p2_2_flag_opt",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::p2_2_flag_opt",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.0001066520344465971
+          },
+          {
+            "id": "rr80::sort_best",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::sort_best",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00010950211435556412
+          },
+          {
+            "id": "rr80::stock_common",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::stock_common",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.00010870606638491154
+          },
+          {
+            "id": "rr80::system_gate",
+            "target": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json:rr80::system_gate",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.0001073111779987812
+          },
+          {
+            "id": "rr20::stock_common",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+            "call": "stock predicate + derive, otherwise registry membership only",
+            "ok": true,
+            "result": {
+              "class": "human-reviewed",
+              "generator_id": {
+                "recorded": null,
+                "registered": false
+              },
+              "review_id": {
+                "recorded": "s8b-floor",
+                "registered": true
+              }
+            },
+            "elapsed_s": 0.0001063451636582613
+          }
+        ]
+      },
+      "elapsed_s": 0.0015950438100844622
+    },
+    {
+      "id": "POLICY-SERIES-PIN",
+      "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+      "call": "orchestrator.campaign.build_admission.resolve_current_build_admission_policy().as_preimage(); orchestrator.campaign.build_admission.decode_historical_build_admission_policy(preimage).sha256",
+      "ok": true,
+      "result": {
+        "g1_receipt_policy_sha256s": {
+          "rr20::backoff_fixed_best": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr20::ident_all": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr20::p2_2_flag_opt": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr20::sort_best": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr20::stock_common": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr20::system_gate": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::backoff_fixed_best": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::ident_all": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::p2_2_flag_opt": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::sort_best": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::stock_common": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+          "rr80::system_gate": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
+        },
+        "g1_policy_sha256s": [
+          "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
+        ],
+        "b4_policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+        "current_policy_sha256": "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a",
+        "a1_preimages_available": true,
+        "checks": [
+          {
+            "id": "g1.protocol.ccbench_pin",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.build_admission.decode_historical_build_admission_policy(preimage)",
+            "ok": true,
+            "result": {
+              "pin_full": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "pin_short": "511c953",
+              "preimage": {
+                "coder_authority": "cli-opt-in",
+                "generator_registry": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "repo_stock_pin": "511c953",
+                "review_registry": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "schema": "build-admission-policy/v1"
+              },
+              "sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "comparison": {
+                "g1_policy_sha256s": {
+                  "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44": true
+                },
+                "g1_policy_sha256_set_equal": true,
+                "b4_policy_sha256_equal": true,
+                "a1_preimages": [
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[0].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[1].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[2].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  }
+                ],
+                "k2_preimage_equal": false,
+                "current_policy_sha256_equal": false
+              }
+            },
+            "elapsed_s": 5.38600143045187e-05
+          },
+          {
+            "id": "p3_s4_loop.PIN",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.build_admission.decode_historical_build_admission_policy(preimage)",
+            "ok": true,
+            "result": {
+              "pin_full": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "pin_short": "511c953",
+              "preimage": {
+                "coder_authority": "cli-opt-in",
+                "generator_registry": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "repo_stock_pin": "511c953",
+                "review_registry": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "schema": "build-admission-policy/v1"
+              },
+              "sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "comparison": {
+                "g1_policy_sha256s": {
+                  "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44": true
+                },
+                "g1_policy_sha256_set_equal": true,
+                "b4_policy_sha256_equal": true,
+                "a1_preimages": [
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[0].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[1].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[2].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  }
+                ],
+                "k2_preimage_equal": false,
+                "current_policy_sha256_equal": false
+              }
+            },
+            "elapsed_s": 2.8749927878379822e-05
+          },
+          {
+            "id": "paper_story_a1_paired.CANONICAL_CCBENCH_OID",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.build_admission.decode_historical_build_admission_policy(preimage)",
+            "ok": true,
+            "result": {
+              "pin_full": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "pin_short": "511c953",
+              "preimage": {
+                "coder_authority": "cli-opt-in",
+                "generator_registry": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "repo_stock_pin": "511c953",
+                "review_registry": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "schema": "build-admission-policy/v1"
+              },
+              "sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+              "comparison": {
+                "g1_policy_sha256s": {
+                  "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44": true
+                },
+                "g1_policy_sha256_set_equal": true,
+                "b4_policy_sha256_equal": true,
+                "a1_preimages": [
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[0].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[1].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[2].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": true
+                  }
+                ],
+                "k2_preimage_equal": false,
+                "current_policy_sha256_equal": false
+              }
+            },
+            "elapsed_s": 2.3461179807782173e-05
+          },
+          {
+            "id": "pin.CURRENT_PIN",
+            "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+            "call": "orchestrator.campaign.build_admission.decode_historical_build_admission_policy(preimage)",
+            "ok": true,
+            "result": {
+              "pin_full": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+              "pin_short": "e9e477c",
+              "preimage": {
+                "coder_authority": "cli-opt-in",
+                "generator_registry": [
+                  "backoff-overthrottle",
+                  "backoff-profile",
+                  "backoff-repro",
+                  "backoff-sweep",
+                  "s1-extime-calibration",
+                  "s6-sort-sweep",
+                  "s8a-trigger-sweep"
+                ],
+                "repo_stock_pin": "e9e477c",
+                "review_registry": [
+                  "s1-known-axes",
+                  "s8b-floor",
+                  "s8b-oracle"
+                ],
+                "schema": "build-admission-policy/v1"
+              },
+              "sha256": "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a",
+              "comparison": {
+                "g1_policy_sha256s": {
+                  "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44": false
+                },
+                "g1_policy_sha256_set_equal": false,
+                "b4_policy_sha256_equal": false,
+                "a1_preimages": [
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[0].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": false
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[1].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": false
+                  },
+                  {
+                    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/result.json",
+                    "location": "$.workloads[2].campaign_binding.canonical_preimage:json.identity_preimage:json.search_config.build_admission",
+                    "equal": false
+                  }
+                ],
+                "k2_preimage_equal": true,
+                "current_policy_sha256_equal": true
+              },
+              "checks": [
+                {
+                  "id": "current-policy-control",
+                  "ok": true
+                }
+              ]
+            },
+            "elapsed_s": 2.3440923541784286e-05
+          }
+        ]
+      },
+      "elapsed_s": 0.0007007899694144726
+    },
+    {
+      "id": "READONLY",
+      "target": "{'new': PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment'), 'route_h': PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair'), 'b4_w1': PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree')}",
+      "call": "git status --porcelain=v1 --untracked-files=all --ignore-submodules=none; submodule rev-parse HEAD; Path.exists",
+      "ok": true,
+      "result": {
+        "before": {
+          "new": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": "",
+              "elapsed_s": 6.735984230181202
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+              "elapsed_s": 0.007746202172711492
+            }
+          },
+          "route_h": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": " M external/ccbench\n?? output/env/pegasus/claims/p3-s4-loop-s4-autonomous-b24749ae.claim\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/campaign.lock\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/knowledge_manifest_receipt.json\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/loop_state.json\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/runs/wal.jsonl\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/s4_loop_digest.txt\n?? output/exploration/namespace.json",
+              "elapsed_s": 5.466792944120243
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "elapsed_s": 0.0049442569725215435
+            }
+          },
+          "b4_w1": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": "?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr5-s0.9-rmw0__campaign-t2288-f1-rr5-c1.jsonl\n?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr50-s0.9-rmw0__campaign-t2288-f1-rr50-c1.jsonl\n?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1.jsonl",
+              "elapsed_s": 4.316815754165873
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "2ba4000870c63254132410b3002b5298c0c6a210",
+              "elapsed_s": 0.006239694077521563
+            }
+          }
+        },
+        "after": {
+          "new": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": "",
+              "elapsed_s": 4.883943147957325
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2812-old-series-realignment/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+              "elapsed_s": 0.0044689299538731575
+            }
+          },
+          "route_h": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": " M external/ccbench\n?? output/env/pegasus/claims/p3-s4-loop-s4-autonomous-b24749ae.claim\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/campaign.lock\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/knowledge_manifest_receipt.json\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/loop_state.json\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/runs/wal.jsonl\n?? output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/s4_loop_digest.txt\n?? output/exploration/namespace.json",
+              "elapsed_s": 4.518584679113701
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+              "elapsed_s": 0.004838007967919111
+            }
+          },
+          "b4_w1": {
+            "status": {
+              "id": "status",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree",
+              "call": [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignore-submodules=none"
+              ],
+              "ok": true,
+              "result": "?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr5-s0.9-rmw0__campaign-t2288-f1-rr5-c1.jsonl\n?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr50-s0.9-rmw0__campaign-t2288-f1-rr50-c1.jsonl\n?? output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1.jsonl",
+              "elapsed_s": 5.071073269005865
+            },
+            "submodule_head": {
+              "id": "submodule_head",
+              "target": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree/external/ccbench",
+              "call": [
+                "git",
+                "rev-parse",
+                "HEAD"
+              ],
+              "ok": true,
+              "result": "2ba4000870c63254132410b3002b5298c0c6a210",
+              "elapsed_s": 0.006036521168425679
+            }
+          }
+        },
+        "observations_available": true,
+        "snapshots_equal": true,
+        "binary_store_before": false,
+        "binary_store_after": false,
+        "output_reserved_before_baseline": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2812-old-series-realignment/evidence/probe-2.json",
+        "unchanged": true
+      },
+      "elapsed_s": 14.489933181088418
+    }
+  ]
+}

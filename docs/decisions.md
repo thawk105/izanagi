@@ -70218,3 +70218,63 @@ D2186 項 9 / D2194 項 13 を維持し、git author identity から推測しな
   T-2377 (再訪条件の後半が未成立)、T-2709 (関連実装が未着地)、T-1015 (D1780 = 成立 ≠ 着手)。
 - 凍結 v2 g1 の W-4 spec 承認 (人間手番) は前提未成立のまま (live は policy 拒否 = T-2812 系、historical は T-2824 の削除 commit 後に再実測)。
 - 稼働 wave 所有の項は無い。裁定の一次控えは repo 外 rulings-inbox の `2026-09-21-rulings-full28-verdicts.md`。
+
+## D2201. 旧系列 4 本の新 pin main への整合を実測で分け、B-4 床値 f1 の固定 checkout 継続は裁定へ返さず、g1 の live launch だけを設計択一として提示する (2026-09-21)
+
+**決定 (親の実施判断。ユーザー裁定ではない):** ccbench pin 前進 (D2150 項 1、D2184) の後に旧系列を新 main から再開・再投入するための整合を、login の read-only 実測に基づいて次のとおり分ける。実装・reseal の実行・候補 file の削除・認可改訂・再投入はいずれも本 wave では行わない。
+
+1. **K2 の巡と A-1 sized v3 は、pin の整合を追加で要しない。** D1777 (投入前に submodule を対象 PIN へ checkout し、gitlink の差は commit しない) の既存手順で、`patchharness.assert_pinned_clean` と A-1 の CCBench 境界・source 契約はいずれも通る (実測)。両系列の driver の独立 full OID は据え置き、新しい campaign は現行 policy の新 identity・新 lock を持つ。旧 lock の live な再消費は、pin とは別に enforcement source closure の前進 (exact-63 → 85) で現行 codec が拒否する。
+2. **B-4 床値 f1 の w2 と finalize は、既存の submit-tree から継続する。** 窓 JSONL の `loaded_head` と HEAD の一致を submitter が要求するので、これは系列の設計であって新しい択ではない。裁定へ返さない。新しい床値系列を始めるときだけ、successor protocol の発行 (AI reseal は commit 後に解決対象となる)・再 build・新 record・spec の再凍結・submitter の sha 束縛・B-10 grid の凍結木 pin の更新を一括して裁定する。B-4 本走は base driver 側の対応証拠の実装 (D2194 項 3) の着地に依存する。
+3. **凍結 v2 g1 の live launch だけが、新 main の code で塞がっている。** 観測された最初の拒否は manifest 内 binary の admission policy 不一致で、12 cell すべてが同一の文言である。同じ期待値のまま policy を記録値にすると 12/12 が通る。段階 4 の残部と段階 5 以降は未観測であり、protocol は現行 env 契約の `contract_sha256` も要求する。
+4. **「現行 registry + 系列自身の pin」で組み直した policy は、記録値に exact 一致する** (production の正規化関数で計算、g1 の 12 receipt・B-4 の portable record・A-1 の campaign identity preimage のいずれとも一致)。よって live の期待 policy を批准 protocol の pin で組み直す択 (以下 S') の要求値は到達可能である。S' の射程は launch 段階 4、W-5 の store 消費、記録済み binary を消費 checkout へ配置する経路の 3 入口に限る。
+5. **S' は D2184 が却下した 4 種 (policy 照合の除去、resolver の曖昧 fallback、receipt の張り替え、live への `expected_policy=None`) のいずれでもないが、「現行 repository の stock pin への依存を切り離す」効果では D2184 が「必要なら別の裁定」と書いた択と実質同じである。** したがって無裁定で実装せず、O' (pin 前進直前 main への修正移植) と N (新 pin の新世代。世代 1 以外を拒否する現行契約のため g2 の設計が別途要る) と並べて裁定パッケージとして提示する。
+6. **旧 binary の再 admission だけでは解消しない (D2184) の理由を実測で特定した。** 記録済み receipt に stock baseline の class は 1 件も無く、review の識別子は現行 registry に登載されているので、class の導出が障害なのではない。receipt を出し直すと receipt bytes が変わり、manifest から floor_source を経て批准世代へ至る sha の束縛が崩れる — これは却下済みの receipt 張り替えに当たる。
+
+**理由:**
+
+- D2150 項 1 は ②③⑤ を「各新系列の着手時」に置き、D2184 は「新 main へ移行するときは系列ごとに整合を揃える」と書いた。どの系列に何が要るかは系列ごとの実測でしか分けられず、実測すると 4 系列のうち 3 系列は既存手順と既存の固定 checkout で足りることが分かった。
+- 規律 7 により、記録済みの判定・測定・凍結 bytes は本 wave で 1 つも変えていない。新 main での拒否を過去の無効化と読まない。規律 2 により、policy 照合の除去・曖昧 fallback・receipt の張り替え・live への `expected_policy=None` はいずれも採らない。
+- 依頼は「設計と read-only 実測が本体、実装は裁定後の別 wave、gate・台帳・一般化の追加は scope 外」と定めた。本決定はその境界の中にある。
+- 既存手順 (submodule だけを対象 PIN へ checkout する投入) は 2026-09-08 のユーザー裁定 (D1777) であり、新 main からの投入実績もある。**手順そのものを新しい択として提示し直さない。** 裁定へ返すのは「旧系列の継続を固定 checkout に留める現行の既定を K2 については新 main のこの経路へ移すか」という採択と、pair 再投入 1 job + 4 巡目 1 job の予算である。
+
+**却下した選択肢:**
+
+- **B-4 床値 f1 の継続を裁定項として返す** — 依頼と D2184 の既定どおりであり、新しい択ではない。ユーザーの手番を増やすだけになる。
+- **g1 を O (pin 前進直前 main の固定 checkout) で再開する** — その commit は launch validator の修正を持たないので、policy 以外の理由で止まる。修正を移植した別 branch (O') は択として残すが、現行 main と同じ検査を主張するには移植の閉包が増える。
+- **旧 binary へ新しい receipt を発行して再 admission する** — 却下済みの receipt 張り替えに当たり、批准世代の sha 束縛も崩す。
+- **live 経路の policy 照合を外す / `expected_policy` を無指定にする** — D2184 の却下どおり。正しさ防壁を緩める。
+- **S' を無裁定で実装する** — 受理集合を広げる変更であり、D2184 が別の裁定へ返した択と効果が重なる。
+
+## D2202. B-8 事前登録 v1 の発効の形と、校正 → 本走 → 3 値判定の実施手順 (2026-09-21)
+
+**決定:** D2194 項 1 の承認に従い、事前登録 v1 (raw sha256 `6ccb18c7…`) を案 A の発効束で発効し、校正 3 job → 本走 6 job →
+3 値判定まで実施した。発効と実施の形は次のとおりとする。
+
+1. **発効束 JSON の作り方。** 前 wave の draft の**実験構成の値は 1 つも変えず**、`status` だけを `effective` へ置換し、
+   `effective` 節 (決定・承認日・承認の対象・承認を記録した commit・D 番号を振った fold・draft の出所と sha256・校正 walltime・
+   verifier hard timeout の 3 値) を足す。**発効 commit 自身の hash は bundle に書かない** (事前登録 §0 の自己参照禁止)。
+   承認情報は役割別の field に分ける — 承認の対象 (提示 snapshot 内の資料とその実値) と、承認を記録した commit と、
+   D 番号を振った fold は別物である。
+2. **束縛の掛け方。** 校正・本走・再検証は発効 commit の detached submit-tree (1 job 1 木) を `--repo-root` とし、
+   `--bundle` はその木の tracked path を指す。runner (repo 外、D95) は投入直前に sha256 を照合し、不一致なら投入しない。
+   集計は `--accept-ruling-sha` / `--accept-bundle-sha` を各 1 値で明示する。
+3. **本走の未完走の扱いは 2 分岐。** 保全済みで verifier 未開始の枠は元の `verify` に `--resume` を足して初回 verifier を
+   走らせ、verifier が起動済みで未完走の枠だけ同一 trace の `reverify` を 1 回許す。一律に `reverify` へ送ると前者を回復できない。
+4. **費用の判定基準は dispatch の Elapse の和**とし、runner の内部 monotonic 集計は暫定値として別記する。
+5. **論文ストーリーの限定の置き場。** 日付版は凍結物なので編集せず、腐らない入口 (`docs/paper-story/README.md`) の
+   stale 注記へ積む。新しい日付の版は作らない (D1858)。
+
+**理由:**
+- 発効束は「承認された実験構成」であり、値を変えれば承認の対象が変わる。`status` は発効という事実の記録であって構成値ではない。
+- 固定 checkout への束縛は D2186 項 1 の要求そのもので、木を分けるのは同一 worktree の dispatch が直列になるためである。
+- runner の bundle 検査は `status` を見ないので、draft のまま走らせる事故は手順 (tracked path の固定と投入直前の照合) で防ぐ。
+  新しい機械 gate は足さない (要求外)。
+- 未完走の 2 分岐は runner の実装 (`reverify` は verifier 起動済みの枠だけを受理し、保全済み・未開始は `verify --resume` を要求する)
+  と事前登録 §6.4 の両方に従う。
+- 費用の上限は「job 実消費 (dispatch Elapse の和)」と事前登録 §7 が定めており、runner の内部計時はこれを代行しない。
+
+**却下した選択肢:**
+- 発効束の `status` を検査する機械 gate の新設 — 要求外の追加防壁であり、手順と tracked path の固定で足りる。
+- 本走の未完走を一律 `reverify` に送る — 保全済み・verifier 未開始の枠を回復できず、未確定を増やす。
+- 論文ストーリーの日付版 §8 を書き換える / 新しい日付の版を作る — 前者は凍結規則違反、後者は一項目の決着のために版を作ることになる。
+- 発効 commit を先に main へ land してから校正を始める — D2186 項 1 は固定 checkout を要求するだけで main 着地を条件にしていない。

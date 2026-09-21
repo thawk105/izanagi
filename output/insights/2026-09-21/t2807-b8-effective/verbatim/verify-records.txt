@@ -1,0 +1,31 @@
+== balanced-j1 status=completed host=bnode020 wall_s=1030.2 F_s=30.0 skipped=[] failure=None
+   rep-1/attempt-1 status=completed out=completed bench_ok=True commits=7165219 verify_ok=True verify_s=218.4 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2773684
+   rep-2/attempt-1 status=completed out=completed bench_ok=True commits=7317347 verify_ok=True verify_s=220.2 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2776460
+   rep-3/attempt-1 status=completed out=completed bench_ok=True commits=7193168 verify_ok=True verify_s=220.0 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2779244
+   rep-4/attempt-1 status=completed out=completed bench_ok=True commits=7299329 verify_ok=True verify_s=222.0 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2782027
+== balanced-j2 status=completed host=bnode026 wall_s=1024.0 F_s=30.9 skipped=[] failure=None
+   rep-5/attempt-1 status=completed out=completed bench_ok=True commits=7285799 verify_ok=True verify_s=219.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1218976
+   rep-6/attempt-1 status=completed out=completed bench_ok=True commits=7223171 verify_ok=True verify_s=217.4 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1221752
+   rep-7/attempt-1 status=completed out=completed bench_ok=True commits=7223024 verify_ok=True verify_s=218.8 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1224527
+   rep-8/attempt-1 status=completed out=completed bench_ok=True commits=7234343 verify_ok=True verify_s=217.5 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1227319
+== read-heavy-j1 status=completed host=bnode023 wall_s=2259.5 F_s=30.6 skipped=[] failure=None
+   rep-1/attempt-1 status=completed out=completed bench_ok=True commits=19717024 verify_ok=True verify_s=495.7 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1306597
+   rep-2/attempt-1 status=completed out=completed bench_ok=True commits=19853694 verify_ok=True verify_s=498.2 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1309749
+   rep-3/attempt-1 status=completed out=completed bench_ok=True commits=19714103 verify_ok=True verify_s=492.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1312922
+   rep-4/attempt-1 status=completed out=completed bench_ok=True commits=19949054 verify_ok=True verify_s=500.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1316084
+== read-heavy-j2 status=completed host=bnode028 wall_s=2256.8 F_s=30.8 skipped=[] failure=None
+   rep-5/attempt-1 status=completed out=completed bench_ok=True commits=19769999 verify_ok=True verify_s=498.7 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1298302
+   rep-6/attempt-1 status=completed out=completed bench_ok=True commits=19780690 verify_ok=True verify_s=494.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1301476
+   rep-7/attempt-1 status=completed out=completed bench_ok=True commits=19689835 verify_ok=True verify_s=492.5 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1304618
+   rep-8/attempt-1 status=completed out=completed bench_ok=True commits=19779263 verify_ok=True verify_s=498.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1307788
+== write-heavy-j1 status=completed host=bnode019 wall_s=1340.8 F_s=30.2 skipped=[] failure=None
+   rep-1/attempt-1 status=completed out=completed bench_ok=True commits=8342453 verify_ok=True verify_s=295.4 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2114130
+   rep-2/attempt-1 status=completed out=completed bench_ok=True commits=8340934 verify_ok=True verify_s=295.3 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2116989
+   rep-3/attempt-1 status=completed out=completed bench_ok=True commits=8371389 verify_ok=True verify_s=296.0 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2119885
+   rep-4/attempt-1 status=completed out=completed bench_ok=True commits=8334626 verify_ok=True verify_s=294.9 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=2122747
+== write-heavy-j2 status=completed host=bnode025 wall_s=1338.3 F_s=30.6 skipped=[] failure=None
+   rep-5/attempt-1 status=completed out=completed bench_ok=True commits=8403053 verify_ok=True verify_s=296.5 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1027269
+   rep-6/attempt-1 status=completed out=completed bench_ok=True commits=8419456 verify_ok=True verify_s=295.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1030166
+   rep-7/attempt-1 status=completed out=completed bench_ok=True commits=8361588 verify_ok=True verify_s=293.9 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1033029
+   rep-8/attempt-1 status=completed out=completed bench_ok=True commits=8400554 verify_ok=True verify_s=294.6 verdict=serializable certified=True anomaly=0 rc=0 preserved=True pid=1035917
+-- record 数 = 24、pass 条件を満たす枠 = 24

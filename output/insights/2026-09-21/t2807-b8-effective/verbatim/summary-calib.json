@@ -1,0 +1,527 @@
+{
+  "schema_version": "b8-longrun-verify/v1",
+  "generated_at": "2026-09-21T00:11:53.936947+00:00",
+  "F_hat_s": 42.091,
+  "targets": {
+    "plan-A": {
+      "decision": "undetermined",
+      "reasons": [
+        "missing/out-of-range rep",
+        "not all 24 slots satisfy pass conditions"
+      ],
+      "evaluation_order": [
+        {
+          "rule": "1 disqualified",
+          "matched": false
+        },
+        {
+          "rule": "2 pass",
+          "matched": false
+        },
+        {
+          "rule": "3 undetermined",
+          "matched": true
+        }
+      ],
+      "judgment_set_count": 6,
+      "judgment_set_counts": {
+        "main": 0,
+        "calibration_completed": 6
+      },
+      "anomaly_verdict_count": 0,
+      "disqualification_records": [],
+      "calibration_uncertified_count": 0,
+      "calibration_uncertified": [],
+      "calibration_indeterminate_count": 0,
+      "calibration_indeterminate": [],
+      "bench_failure_count": 0,
+      "bench_failures": [],
+      "job_level_nonconformance_count": 0,
+      "job_level_nonconformance": [],
+      "nonconformance_count": 0,
+      "nonconformance": [],
+      "original_attempt_nonconformance_count": 0,
+      "original_attempt_nonconformance": [],
+      "ruling_sha_accepted": [
+        "6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5"
+      ],
+      "ruling_sha_policy": "accepted-set",
+      "ruling_sha_by_phase": {
+        "calibrate": {
+          "6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5": 6
+        },
+        "verify": {}
+      },
+      "bundle_sha_accepted": [
+        "059536a7359406182c622172354207e147ad2811ba0b4d9286982778b3807c1b"
+      ],
+      "bundle_sha_policy": "accepted-set",
+      "bundle_sha_by_phase": {
+        "calibrate": {
+          "059536a7359406182c622172354207e147ad2811ba0b4d9286982778b3807c1b": 6
+        },
+        "verify": {}
+      },
+      "calibration_table": [
+        {
+          "target": "plan-A",
+          "gate": "g_rl",
+          "workload": "balanced",
+          "extime": 6,
+          "eligible": true,
+          "verifier_wall_s": 129.793,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        },
+        {
+          "target": "plan-A",
+          "gate": "g_rl",
+          "workload": "balanced",
+          "extime": 10,
+          "eligible": true,
+          "verifier_wall_s": 221.016,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        },
+        {
+          "target": "plan-A",
+          "gate": "g_rl",
+          "workload": "read-heavy",
+          "extime": 6,
+          "eligible": true,
+          "verifier_wall_s": 290.51,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        },
+        {
+          "target": "plan-A",
+          "gate": "g_rl",
+          "workload": "read-heavy",
+          "extime": 10,
+          "eligible": true,
+          "verifier_wall_s": 491.428,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        },
+        {
+          "target": "plan-A",
+          "gate": "g_rt",
+          "workload": "write-heavy",
+          "extime": 6,
+          "eligible": true,
+          "verifier_wall_s": 173.474,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        },
+        {
+          "target": "plan-A",
+          "gate": "g_rt",
+          "workload": "write-heavy",
+          "extime": 10,
+          "eligible": true,
+          "verifier_wall_s": 296.682,
+          "verdict": "serializable",
+          "certified": true,
+          "anomaly_count": 0,
+          "outcome": "completed",
+          "stop_reason": null
+        }
+      ],
+      "eligible_sets": {
+        "write-heavy": [
+          6,
+          10
+        ],
+        "balanced": [
+          6,
+          10
+        ],
+        "read-heavy": [
+          6,
+          10
+        ]
+      },
+      "intersection": [
+        6,
+        10
+      ],
+      "initial_extime": 10,
+      "chosen_extime": 10,
+      "budget_estimates": {
+        "6": {
+          "T_s": 5071.137,
+          "A_s": 284.935,
+          "F_s": 252.545,
+          "total_s": 5608.616
+        },
+        "10": {
+          "T_s": 8601.18,
+          "A_s": 435.57,
+          "F_s": 252.545,
+          "total_s": 9289.295
+        }
+      },
+      "stepdown_history": [
+        {
+          "extime": 10,
+          "estimate": {
+            "T_s": 8601.18,
+            "A_s": 435.57,
+            "F_s": 252.545,
+            "total_s": 9289.295
+          },
+          "reason": "within budget"
+        }
+      ],
+      "selection_reason": null,
+      "stage_B_allowed": true,
+      "slots": [
+        {
+          "workload": "write-heavy",
+          "rep_id": 1,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 2,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 3,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 4,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 5,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 6,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 7,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "write-heavy",
+          "rep_id": 8,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 1,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 2,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 3,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 4,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 5,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 6,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 7,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "balanced",
+          "rep_id": 8,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 1,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 2,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 3,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 4,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 5,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 6,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 7,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        },
+        {
+          "workload": "read-heavy",
+          "rep_id": 8,
+          "verdict": null,
+          "certified": null,
+          "anomaly_count": null,
+          "operational_outcome": "missing-or-duplicate",
+          "bench_attempt": null,
+          "verify_attempt": null,
+          "result": null
+        }
+      ],
+      "indeterminate_count": 0,
+      "indeterminate": [],
+      "operational_indeterminate_count": 0,
+      "cli_indeterminate_count": 0,
+      "not_run_count": 0,
+      "consumed_job_wall_s": {
+        "A": 1904.705,
+        "B": 0
+      },
+      "total_job_wall_s": 1904.705,
+      "budget_constraint_satisfied": true,
+      "accounting_basis": "runner monotonic job wall; dispatch Elapse requires parent reconciliation"
+    }
+  },
+  "ruling_sha_accepted": [
+    "6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5"
+  ],
+  "ruling_sha_policy": "accepted-set",
+  "ruling_sha_by_phase": {
+    "calibrate": {
+      "6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5": 6
+    },
+    "verify": {}
+  },
+  "bundle_sha_accepted": [
+    "059536a7359406182c622172354207e147ad2811ba0b4d9286982778b3807c1b"
+  ],
+  "bundle_sha_policy": "accepted-set",
+  "bundle_sha_by_phase": {
+    "calibrate": {
+      "059536a7359406182c622172354207e147ad2811ba0b4d9286982778b3807c1b": 6
+    },
+    "verify": {}
+  },
+  "known_results": {
+    "in_judgment_set": false,
+    "bundles": {
+      "059536a7359406182c622172354207e147ad2811ba0b4d9286982778b3807c1b": [
+        {
+          "kind": "prerun",
+          "gate": "g_rl",
+          "record": "run/prerun-v5/g_rl/prerun.json",
+          "in_judgment_set": false,
+          "src_token": "b0f95b213e6d419cf31473a37c6be3246f9b0fefbd42ead2273d5ab7408a670d",
+          "hostname": "bnode041",
+          "finished_at": "2026-09-20T13:21:19.734290+00:00"
+        },
+        {
+          "kind": "prerun",
+          "gate": "g_rt",
+          "record": "run/prerun-v5/g_rt/prerun.json",
+          "in_judgment_set": false,
+          "src_token": "a0219ce0b258e339ac6489cb5b17b3acb4158ce0d6087ca6098d1e408862f833",
+          "hostname": "bnode022",
+          "finished_at": "2026-09-20T13:15:20.222755+00:00"
+        },
+        {
+          "kind": "historical",
+          "note": "07-16 S-1 検証相校正 (cygnus、旧 verifier、pin d706650c) g_rl read-heavy 3 s / 6 s serializable・certified、src_token 4608a96e… は旧 pin の値で期待値にしない (§2.4、§8)"
+        },
+        {
+          "kind": "historical",
+          "note": "D2160 検証相 (fixed-5 / fixed-10、案 B) 3 s × 24 + 校正 6 = 30 verify / 候補 anomaly 0、6 s 校正完走、10 s 未完走 (§8)"
+        }
+      ]
+    },
+    "prerun": []
+  }
+}
