@@ -10699,7 +10699,7 @@ def test_pair_cli_policy_mismatch_precedes_checkout(pair_cli_case, monkeypatch):
 
 
 def test_pair_session_forwarding_at_campaign_calls():
-    """Lock-free static pin for H/M18; runtime delegation is asserted below.
+    """Detect only deletion of the specified forwarding assignment.
 
     These two existing call sites must forward the optional session via their
     campaign options. No synthetic lock or resumability bypass is used here.
@@ -10748,6 +10748,13 @@ def pair_pegasus_case(tmp_path, monkeypatch, valid_reservation_environment):
     verified = ea.load_verified_calibration(contract, loop._repo_root())
     raw = ea.profile_to_dict(verified.attestation_profile)
     del raw["effective_clock"]["tolerance_pct"]
+    # Every observation is compared with the calibration median, not with
+    # its corresponding calibration sample (which may itself be an outlier).
+    import statistics
+    samples = raw["effective_clock"]["samples_mhz"]
+    raw["effective_clock"]["samples_mhz"] = [
+        float(statistics.median(samples))
+    ] * len(samples)
     observed = ea.normalize_observed_profile(raw)
     attest = execution_guard.attest_and_build_receipt
     monkeypatch.setattr(execution_guard, "attest_and_build_receipt",
@@ -10899,10 +10906,7 @@ def test_pair_main_pegasus_real_claim_and_wal(pair_pegasus_case, capsys):
     assert len(c.sessions) == 2 and c.sessions[0] is not None
     assert c.sessions[0] is c.sessions[1]
     assert c.snapshots[0] and c.snapshots[0] == c.snapshots[1]
-    # Whiteboard lives inside this checkpoint; compare its parsed value as well.
-    before, = c.snapshots[0].values()
-    after, = c.snapshots[1].values()
-    assert json.loads(before)["whiteboard"] == json.loads(after)["whiteboard"]
+    # The byte comparison includes the whiteboard stored in the checkpoint.
     output = capsys.readouterr().out
     assert "outcome=certified " in output and "outcome=certified-stock " in output
     assert "p3 S4 pair: candidate_rc=0 stock_rc=0" in output

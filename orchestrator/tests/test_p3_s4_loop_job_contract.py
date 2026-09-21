@@ -65,7 +65,7 @@ K2_REQUIRED_ARGV = (
 STOCK_PINS = {
     "stock-default-off": '${IZANAGI_S4_STOCK_CONTROL-0}',
     "stock-mode": 'pair_argv=(--stock-control)',
-    "pair-argv": '"${k2_argv[@]}" "${pair_argv[@]}"',
+    "pair-argv": '"${pair_argv[@]}"',
     "fixture-pair-refusal": 'refuse "IZANAGI_S4_STOCK_CONTROL=1 requires IZANAGI_S4_PROPOSAL_PATH"',
     "proposal-status-capture": (
         '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH" || candidate_rc=$?'
@@ -456,11 +456,9 @@ def _assert_static_job_contract(source: str) -> None:
         "driver": '"$PY" -B -m orchestrator.campaign.p3_s4_loop',
         "build-authority": "--allow-coder-derived-build",
         "isolation": "--isolate-worktree",
-        "proposal": (
-            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
-            '    "${k2_argv[@]}" \\\n'
-            '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"'
-        ),
+        # The proposal branch owns its receipt; argv expansions have separate
+        # pins, and proposal-status-capture owns --run-iteration and its status.
+        "proposal": '--fetchcontent-prebuild-receipt "$prebuild_receipt"',
         "fixture": (
             '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
             '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
@@ -472,10 +470,20 @@ def _assert_static_job_contract(source: str) -> None:
         line for line in source.splitlines(keepends=True)
         if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
     )
+    def pin_surface(label: str, text: str) -> str:
+        if label == "proposal":
+            # Scope this common option to proposal so the fixture's identical
+            # receipt option cannot hide its removal. Do not pin pair/K2 here.
+            return text.partition(
+                'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]; then\n'
+            )[2].partition("\nelse\n")[0]
+        return text
+
     missing = [
         label for label, fragment in required.items()
-        if fragment not in source
-        or (label != "job-body-comment" and fragment not in uncommented_source)
+        if fragment not in pin_surface(label, source)
+        or (label != "job-body-comment"
+            and fragment not in pin_surface(label, uncommented_source))
     ]
     if missing:
         raise AssertionError("job contract missing: " + ",".join(missing))
@@ -707,9 +715,10 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         pytest.param(
             "proposal",
             '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
-            '    "${k2_argv[@]}" \\\n'
+            '    "${k2_argv[@]}" "${pair_argv[@]}" \\\n'
             '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
-            '--run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
+            '    "${k2_argv[@]}" "${pair_argv[@]}" \\\n'
+            '    --run-iteration "$IZANAGI_S4_PROPOSAL_PATH"',
             id="proposal",
         ),
         pytest.param(
@@ -1459,7 +1468,7 @@ def test_omitted_optional_k2_declarations_add_no_driver_argv(
 
 def test_k2_argv_expansion_is_proposal_only() -> None:
     source = JOB.read_text(encoding="utf-8")
-    assert source.count('    "${k2_argv[@]}" \\\n') == 1
+    assert source.count('"${k2_argv[@]}"') == 1
     proposal_start = source.index(
         'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]'
     )

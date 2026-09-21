@@ -138,45 +138,63 @@ def authorization_session():
 
 def _authorize_with_session(
         session: _AuthorizationSession, cfg: CampaignConfig,
-        authorization_contract: AuthorizedContract, **kwargs,
+        authorization_contract: AuthorizedContract, *,
+        env_tag: str, clocks_per_us: int,
+        numactl: Optional[Sequence[str]],
+        env_contract: Optional[ExecutionEnvironmentContract],
+        declared_use_class: str,
+        output_root: str,
+        durable_root_policy,
+        pre_write_validator: Optional[Callable[[str], None]],
 ) -> _AuthorizationResult:
-    if (type(session) is not _AuthorizationSession
-            or session not in _AUTHORIZATION_SESSIONS):
+    if type(session) is not _AuthorizationSession:
         raise execution_guard.ExecutionGuardError("authorization session is unissued or closed")
-    issued_pid, saved = _AUTHORIZATION_SESSIONS[session]
+    entry = _AUTHORIZATION_SESSIONS.get(session)
+    if entry is None:
+        raise execution_guard.ExecutionGuardError("authorization session is unissued or closed")
+    issued_pid, saved = entry
     if issued_pid != os.getpid():
         raise execution_guard.ExecutionGuardError("authorization session PID mismatch")
+    if saved is None:
+        base_root = Path(resolve_campaign_output_root(
+            declared_use_class, output_root,
+        )).resolve()
+        result = _authorize_measurement(
+            cfg, authorization_contract,
+            env_tag=env_tag, clocks_per_us=clocks_per_us, numactl=numactl,
+            env_contract=env_contract, declared_use_class=declared_use_class,
+            output_root=output_root, durable_root_policy=durable_root_policy,
+            pre_write_validator=pre_write_validator,
+        )
+        claim = result.acquired_claim
+        binding = _SessionBinding(
+            contract_sha256=result.authorized_contract.contract_sha256,
+            campaign_identity=result.campaign_identity,
+            protocol_digest=hashlib.sha256(
+                ident.canonical_preimage(result.bound_cfg).encode("utf-8")
+            ).hexdigest(),
+            declared_use_class=declared_use_class,
+            output_root=base_root,
+            receipt_json=json.dumps(result.execution_receipt, allow_nan=False),
+            acquired_claim=(None if claim is None else campaign_claim.AcquiredClaim(
+                path=claim.path.resolve(), record=claim.record,
+            )),
+            reservation_binding=result.reservation_binding,
+        )
+        # Bind at the sink, before perf preflight, layout, lock or evaluation.
+        if _AUTHORIZATION_SESSIONS.get(session) != (issued_pid, None):
+            raise execution_guard.ExecutionGuardError("authorization session closed during authorization")
+        _AUTHORIZATION_SESSIONS[session] = (issued_pid, binding)
+        return result
+
     try:
         base_root = Path(resolve_campaign_output_root(
-            kwargs["declared_use_class"], kwargs["output_root"],
+            declared_use_class, output_root,
         )).resolve()
-        if saved is None:
-            result = _authorize_measurement(cfg, authorization_contract, **kwargs)
-            claim = result.acquired_claim
-            binding = _SessionBinding(
-                contract_sha256=result.authorized_contract.contract_sha256,
-                campaign_identity=result.campaign_identity,
-                protocol_digest=hashlib.sha256(
-                    ident.canonical_preimage(result.bound_cfg).encode("utf-8")
-                ).hexdigest(),
-                declared_use_class=kwargs["declared_use_class"],
-                output_root=base_root,
-                receipt_json=json.dumps(result.execution_receipt, allow_nan=False),
-                acquired_claim=(None if claim is None else campaign_claim.AcquiredClaim(
-                    path=claim.path.resolve(), record=claim.record,
-                )),
-                reservation_binding=result.reservation_binding,
-            )
-            # Bind at the sink, before perf preflight, layout, lock or evaluation.
-            if _AUTHORIZATION_SESSIONS.get(session) != (issued_pid, None):
-                raise execution_guard.ExecutionGuardError("authorization session closed during authorization")
-            _AUTHORIZATION_SESSIONS[session] = (issued_pid, binding)
-            return result
-
         contract = execution_guard.require_certified_writer_authorization(
-            authorization_contract, env_tag=kwargs["env_tag"],
-            clocks_per_us=kwargs["clocks_per_us"], numactl=kwargs["numactl"],
-            env_contract=kwargs["env_contract"],
+            authorization_contract, env_tag=env_tag,
+            clocks_per_us=clocks_per_us, numactl=numactl,
+            env_contract=env_contract,
         )
         bound_cfg = ident.bind_environment_contract(cfg, contract)
         identity = str(ident.campaign_id(bound_cfg))
@@ -187,12 +205,11 @@ def _authorize_with_session(
         if (contract.contract_sha256 != saved.contract_sha256
                 or identity != saved.campaign_identity
                 or digest != saved.protocol_digest
-                or kwargs["declared_use_class"] != saved.declared_use_class
+                or declared_use_class != saved.declared_use_class
                 or base_root != saved.output_root):
             raise execution_guard.ExecutionGuardError("authorization session binding mismatch")
-        validator = kwargs["pre_write_validator"]
-        if validator is not None:
-            validator(identity)
+        if pre_write_validator is not None:
+            pre_write_validator(identity)
         if reservation.is_reservation_required(contract.isolation_policy):
             binding = reservation.read_binding(os.environ)
             reservation.check_reservation(
@@ -203,13 +220,11 @@ def _authorize_with_session(
             claim_root = Path(env_scope_dir(contract.env_tag, base_root)) / "claims"
             if claim_root.is_symlink() or not claim_root.is_dir():
                 raise execution_guard.ExecutionGuardError("authorization session claim root invalid")
-            write_capability_for_directory(claim_root, policy=kwargs["durable_root_policy"])
+            write_capability_for_directory(claim_root, policy=durable_root_policy)
             claim = saved.acquired_claim
             if (claim is None
                     or claim.path != campaign_claim._claim_path(claim_root, identity)
-                    or claim.record.pid != os.getpid()
                     or claim.record.proc_starttime != campaign_claim.read_proc_starttime()
-                    or claim.record.protocol_digest != digest
                     or campaign_claim._read_existing_record(claim.path) != claim.record):
                 raise execution_guard.ExecutionGuardError("authorization session claim mismatch")
         receipt = json.loads(saved.receipt_json)

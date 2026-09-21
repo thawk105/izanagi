@@ -14276,26 +14276,38 @@ def test_no_session_second_authorization_keeps_claim_error(authorization_session
     assert c.writes == []
 
 
-@pytest.mark.parametrize("kind", ["foreign", "same-type", "copy", "deepcopy", "pickle"])
+@pytest.mark.parametrize("kind", ["foreign", "same-type", "raw-copy"])
 def test_authorization_session_rejects_unissued_and_copy(authorization_session_case, kind):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        if kind == "foreign":
+            other = {}
+        elif kind == "same-type":
+            other = c.L._AuthorizationSession()
+        else:
+            # The slotless handle has no state to copy; only identity differs.
+            other = object.__new__(type(session))
+        # Keep the claim absent so M4' can acquire and bind, not hit a conflict.
+        assert c.claims == []
+        try:
+            _assert_session_rejected(c, other)
+        finally:
+            assert len(c.claims) == 0
+        assert list(c.claim_root.glob("*.claim")) == []
+
+
+@pytest.mark.parametrize("kind", ["copy", "deepcopy", "pickle"])
+def test_authorization_session_rejects_copy_operations(authorization_session_case, kind):
     import copy
     import pickle
 
     c = authorization_session_case
     with c.L.authorization_session() as session:
-        _session_authorize(c, session)
-        if kind == "foreign":
-            other = {}
-        elif kind == "same-type":
-            other = object.__new__(type(session))
-        else:
-            operation = {"copy": copy.copy, "deepcopy": copy.deepcopy,
-                         "pickle": pickle.dumps}[kind]
-            with pytest.raises(TypeError):
-                operation(session)
-            # Even a raw allocation cannot manufacture issuer authority.
-            other = object.__new__(type(session))
-        _assert_session_rejected(c, other)
+        operation = {"copy": copy.copy, "deepcopy": copy.deepcopy,
+                     "pickle": pickle.dumps}[kind]
+        with pytest.raises(TypeError):
+            operation(session)
+    assert c.claims == []
 
 
 @pytest.mark.parametrize("exit_kind", ["normal", "exception", "explicit"])
@@ -14453,11 +14465,32 @@ def test_authorization_session_new_session_cannot_inherit_claim(authorization_se
     with c.L.authorization_session() as first:
         _session_authorize(c, first)
     with c.L.authorization_session() as second:
-        with pytest.raises(c.L.execution_guard.ExecutionGuardError) as caught:
+        with pytest.raises(c.L.campaign_claim.ClaimError) as caught:
             _session_authorize(c, second)
-        assert isinstance(caught.value.__cause__, c.L.campaign_claim.ClaimError)
+        assert caught.value.claim_path == next(c.claim_root.glob("*.claim"))
+        assert caught.value.existing_record is not None
     assert len(c.claims) == 2
     assert c.writes == []
+
+
+@pytest.mark.parametrize("error_type", [ValueError, TypeError, OSError])
+def test_authorization_session_initial_error_passes_through(
+        authorization_session_case, error_type):
+    c = authorization_session_case
+    error = error_type("initial validator failure")
+
+    def fail_validator(identity):
+        raise error
+
+    with c.L.authorization_session() as session:
+        with pytest.raises(error_type) as caught:
+            _session_authorize(c, session, pre_write_validator=fail_validator)
+        assert caught.value is error
+        assert c.claims == []
+        assert c.writes == []
+        _session_authorize(c, session)
+        _session_authorize(c, session)
+    assert len(c.claims) == 1
 
 
 def test_authorization_session_binds_before_perf_failure(authorization_session_case, monkeypatch):
