@@ -1,0 +1,33 @@
+submodule HEAD: e9e477ca1b55348ab4530de0b1cf663ce4555290
+submodule status lines: 0
+single instr-mocc-lock-coverage on e9e477ca: rc=0
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: e9e65b7876050865
+single broken-mocc-lockskip-validation on e9e477ca: rc=1
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: c0d4498946ca75ac
+single broken-mocc-permutation-erase on e9e477ca: rc=1
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: b2976ad3d076dcc5
+single broken-mocc-early-unlock on e9e477ca: rc=1
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: 5fc1b4c21e4413dd
+single broken-mocc-hot-update-unlock on e9e477ca: rc=1
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: 5562c566cf29153e
+single mocc-temperature-predicate-variant on e9e477ca: rc=0
+  touch: +++ b/cmake/Options.cmake +++ b/cc/mocc/transaction.cc
+  sha256: 229419efe1dffe87
+single instr-mocc-lock-coverage-temperature on e9e477ca: rc=1
+  touch: +++ b/cc/mocc/transaction.cc
+  sha256: 7e6c97bb4ad1cf40
+apply instr on scratch: rc=0
+stacked broken-mocc-lockskip-validation on e9e477ca+instr: rc=0
+stacked broken-mocc-permutation-erase on e9e477ca+instr: rc=0
+stacked broken-mocc-early-unlock on e9e477ca+instr: rc=0
+stacked broken-mocc-hot-update-unlock on e9e477ca+instr: rc=0
+instr transaction.cc sha256: bd0add59890a60150b9c650155943ddd0c1e91eeccc0121a6b674c834b3ed04c  cc/mocc/transaction.cc
+#line count: 7
+diff stat vs base:
+ cc/mocc/transaction.cc | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)
