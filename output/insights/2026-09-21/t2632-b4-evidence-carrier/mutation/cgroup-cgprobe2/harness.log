@@ -1,0 +1,6 @@
+spec_sha256=7fb11ba6967c5a1e61f0a9a17d9ee040fc493ecd848adfa9d9a610bba16ee832 base=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 kexpr=provenance test=orchestrator/tests/test_p3_s4_loop.py
+run baseline head=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 start=21:50:00
+done baseline rc=0 failed=0 end=21:50:32
+{"id": "S13-no-pre-evaluation-check", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S13-no-pre-evaluation-check head=7ccc543d903f196dfeabd29eadd20d0d78089805 start=21:50:41
+done S13-no-pre-evaluation-check rc=1 failed=8 end=21:51:13

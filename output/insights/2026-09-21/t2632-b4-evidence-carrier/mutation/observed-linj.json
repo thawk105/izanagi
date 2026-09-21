@@ -1,0 +1,35 @@
+{
+  "S3-refs-ignore-attempt-id": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+  ],
+  "S4-first-start-instead-of-commit": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+  ],
+  "S5-ref-hashes-payload-only": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+  ],
+  "S6-refs-compressed-by-stage": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+  ],
+  "S7-merge-drops-other-iterations": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent"
+  ],
+  "S8-corrupt-report-returns-empty": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]"
+  ],
+  "S9-file-fsync-removed": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]"
+  ],
+  "E1-equivalent-canonical-bytes": []
+}

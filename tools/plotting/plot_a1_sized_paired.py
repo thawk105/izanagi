@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pinned descriptive A-1 sized paired differences, attempt-0001."""
+"""Pinned descriptive A-1 sized paired differences, individual sized attempts."""
 from __future__ import annotations
 
 import argparse
@@ -53,6 +53,20 @@ REPS = 30
 DF = 29
 FLOOR_FRACTION = 0.03
 CAPTION_SOURCE = "docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md"
+ATTEMPT2_LEAF_DIR = "output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002"
+ATTEMPT2_CAPTION_SOURCE = "docs/paper-story/results/2026-09-20-a1-balanced5-sized-attempt2-descriptive.md"
+ATTEMPT2_PINNED_SHA256 = {
+    ATTEMPT2_LEAF_DIR + "/result.json": "b7e0518e197500f2daf875e841acabf63f5eddb82bc14e072dd28e3431fe5f74",
+    ATTEMPT2_LEAF_DIR + "/receipt.json": "98c35cca4fe0e9f12559b8f9dc3acb4c6c5c4c597e5f5cc01a6449533918ecbf",
+    ATTEMPT2_LEAF_DIR + "/.complete.json": "7ad34232eaf920babd783140c47018b5c9d2f7665635872d4c2ee3be6f464fb3",
+    POLICY_PATH: "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a",
+}
+ATTEMPTS = {
+    "attempt-0001": {"leaf_dir": LEAF_DIR, "pinned_sha256": PINNED_SHA256,
+                     "caption_source": CAPTION_SOURCE},
+    "attempt-0002": {"leaf_dir": ATTEMPT2_LEAF_DIR, "pinned_sha256": ATTEMPT2_PINNED_SHA256,
+                     "caption_source": ATTEMPT2_CAPTION_SOURCE},
+}
 CAPTION_SCOPE = "wording of limitations and conditions only; not measurement values or classification"
 COMPARISON_WARNING = "Panel y scales are workload-local and must not be compared across panels."
 FIXED_LANE = "formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only"
@@ -119,32 +133,36 @@ def _genome(arm):
     return "silo|" + ",".join(f"{key}={value}" for key, value in _flags(arm).items())
 
 
-def load_leaf(repo_root, *, expected_hashes=None):
+def load_leaf(repo_root, *, attempt="attempt-0001", expected_hashes=None):
     """Recompute statistics from pinned pairs and check recorded decisions."""
     try:
-        return _load_leaf(Path(repo_root).resolve(), expected_hashes)
+        return _load_leaf(Path(repo_root).resolve(), expected_hashes, attempt)
     except FigureDataError:
         raise
     except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
         raise FigureDataError(f"malformed leaf: {exc}") from exc
 
 
-def _load_leaf(root, expected_hashes):
-    hashes = PINNED_SHA256 if expected_hashes is None else expected_hashes
-    _require(set(hashes) == set(PINNED_SHA256), "input hash keys mismatch")
+def _load_leaf(root, expected_hashes, attempt):
+    _require(type(attempt) is str and attempt in ATTEMPTS, "unknown attempt")
+    selected = ATTEMPTS[attempt]
+    pins = selected["pinned_sha256"]
+    caption_source = selected["caption_source"]
+    hashes = pins if expected_hashes is None else expected_hashes
+    _require(set(hashes) == set(pins), "input hash keys mismatch")
     tracked = []
-    for path, kind in zip(PINNED_SHA256, INPUT_KINDS):
+    for path, kind in zip(pins, INPUT_KINDS):
         digest = _sha256(root / path)
         _require(digest == hashes[path], f"SHA-256 mismatch: {path}")
         tracked.append({"kind": kind, "path": path, "sha256": digest})
-    tracked.append({"kind": "caption_source", "path": CAPTION_SOURCE,
-                    "sha256": _sha256(root / CAPTION_SOURCE), "authority_scope": CAPTION_SCOPE})
+    tracked.append({"kind": "caption_source", "path": caption_source,
+                    "sha256": _sha256(root / caption_source), "authority_scope": CAPTION_SCOPE})
     result, receipt, complete, policy = [
-        json.loads((root / path).read_text(encoding="utf-8")) for path in PINNED_SHA256]
+        json.loads((root / path).read_text(encoding="utf-8")) for path in pins]
     _require(complete["schema_version"] == COMPLETE_SCHEMA, "completion schema mismatch")
     _require(set(complete["files"]) == {"README.md", "receipt.json", "result.json"}, "completion files mismatch")
     for name, digest in complete["files"].items():
-        _require(_sha256(root / LEAF_DIR / name) == digest, "completion file hash mismatch")
+        _require(_sha256(root / selected["leaf_dir"] / name) == digest, "completion file hash mismatch")
     for record, schema in ((result, RESULT_SCHEMA), (receipt, RECEIPT_SCHEMA)):
         _require(record["schema_version"] == schema, "schema mismatch")
         _require(record["study_id"] == STUDY_ID, "study mismatch")
@@ -233,7 +251,8 @@ def _load_leaf(root, expected_hashes):
                           "bounded-below-floor" if abs(mean) + h <= B else "unresolved")
         _require(stat["classification"] == expected_class, "classification mismatch")
         _require(stat["variance_plan_breach"] is (sd > sigma), "variance plan predicate mismatch")
-        _require(stat["variance_plan_breach"] is False, "variance plan breach outside scope")
+        if attempt == "attempt-0001":
+            _require(stat["variance_plan_breach"] is False, "variance plan breach outside scope")
         cells.append({"workload": name, "rratio": RRATIOS[name], "variant_arm": variant,
                       "baseline_arm": BASELINE_ARM, "request_id": _string(job["request_id"]),
                       "host": _string(job["reservation_binding"]["host"]), "n": REPS, "df": DF, "k": k,
@@ -248,11 +267,14 @@ def _load_leaf(root, expected_hashes):
                   "site": "pegasus-compute-only"}
     _require(type(result["limitations"]) is list and len(result["limitations"]) == 5 and
              all(type(v) is str for v in result["limitations"]), "limitations mismatch")
-    return {"repo_root": str(root), "tracked_inputs": tracked, "study_id": STUDY_ID,
+    data = {"repo_root": str(root), "tracked_inputs": tracked, "study_id": STUDY_ID,
             "measurement_source_commit": _string(result["source_binding"]["measurement_source_commit"]),
             "ccbench_pin": _string(policy["ccbench_acceptance"]["canonical_pin"]),
             "measurement_conditions": conditions, "workloads": cells,
             "limitations": copy.deepcopy(result["limitations"]), "authority_note": dict(AUTHORITY)}
+    if attempt == "attempt-0002":
+        data["attempt"] = attempt
+    return data
 
 
 def _figure_number(prefix):
@@ -262,6 +284,8 @@ def _figure_number(prefix):
 
 
 def _caption(data, prefix):
+    if data.get("attempt") == "attempt-0002":
+        return _caption_attempt2(data, prefix)
     cells = data["workloads"]
     columns = ", ".join(f"{c['workload']} (rr{c['rratio']}, {c['variant_arm']} minus {c['baseline_arm']})" for c in cells)
     jobs = ", ".join(c["request_id"] for c in cells)
@@ -286,13 +310,56 @@ def _caption(data, prefix):
     ])
 
 
+def _breach_caption(data):
+    return "; ".join(
+        f"{c['workload']}: variance_plan_breach={str(c['variance_plan_breach']).lower()}, "
+        f"sample sd={c['sd']:,.2f} tps, planned sigma={c['planned_sigma']:,.2f} tps"
+        for c in data["workloads"]) + "."
+
+
+def _caption_attempt2(data, prefix):
+    cells = data["workloads"]
+    columns = ", ".join(f"{c['workload']} (rr{c['rratio']}, {c['variant_arm']} minus {c['baseline_arm']})" for c in cells)
+    jobs = ", ".join(c["request_id"] for c in cells)
+    hosts = ", ".join(c["host"] for c in cells)
+    values = "; ".join(f"{c['workload']} mean {c['mean']/1e6:+.3f} M tps (h {c['h']/1e6:.3f} M, B {c['B']/1e6:.3f} M, baseline mean {c['baseline_mean']/1e6:.3f} M)" for c in cells)
+    classes = [c["classification"] for c in cells]
+    classification = (f"{classes[0]} in all three workloads" if len(set(classes)) == 1 else
+                      ", ".join(f"{c['workload']} {c['classification']}" for c in cells))
+    signs = ["positive" if c["mean"] > 0 else "negative" if c["mean"] < 0 else "zero" for c in cells]
+    c = data["measurement_conditions"]
+    return " ".join([
+        f"Figure {_figure_number(prefix)}. A-1 balanced five-rep paired comparison, sized run attempt-0002 (study {data['study_id']}; {FIXED_LANE}).",
+        f"Columns: {columns}, each an independent campaign in its own job (job IDs, respectively: {jobs}; hosts {hosts}).",
+        f"What is drawn: {REPS} paired differences (variant minus baseline, one per pair index under the balanced five-rep schedule, ten-pair groups in the order A^5 B^5 B^5 A^5 or B^5 A^5 A^5 B^5) as open markers; the arithmetic mean as a solid line with the registered interval mean ± h, h = k·s/√n, k = {cells[0]['k']} (t quantile at 1 − (1/120)/2 with df {DF}), s the sample standard deviation of the {REPS} differences; the zero line; and the registered floor boundary ±B, B = 3 % of the baseline-arm mean, as dashed lines. M tps means million transactions per second.",
+        f"Values: {values}. The registered classification is {classification} (sign {signs[0]}, {signs[1]} and {signs[2]}, respectively).",
+        "The interval and the classification are the descriptive outputs of the preregistered rule; they are not a hypothesis test and are not a performance certification.",
+        FIXED_SCOPE,
+        "Attempt-0001 is neither pooled nor compared with this attempt; no between-attempt difference, ratio, or reproducibility judgment is made.",
+        _breach_caption(data),
+        "No cause is attributed to variance_plan_breach.",
+        f"Conditions: Pegasus compute nodes, {c['threads']} threads, {c['records']:,} records, Zipf {c['skew']}, read-modify-write disabled, max operations {c['max_ope']}, {c['extime']} s per repetition, {c['reps']} pairs per workload, silo, CCBench pin {data['ccbench_pin'][:7]}, measurement source commit {data['measurement_source_commit'][:9]}, no perf, trace-disabled performance.",
+        "Correctness comes from separate trace-enabled verify runs under the recorded legacy check configuration, not the performance configuration: all 6 arms are recorded as certified (result.json correctness_evidence, verify_done frames bound by SHA-256); certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification.",
+        COMPARISON_WARNING,
+        "Pilot observations did not enter the estimate; the estimand is the difference under the balanced five-rep schedule, not a carryover-free steady-state effect.",
+    ])
+
+
 def _artist_series(data):
-    return [{"workload": c["workload"], "mean": c["mean"] / 1e6,
+    series = [{"workload": c["workload"], "mean": c["mean"] / 1e6,
              "interval": [v / 1e6 for v in c["interval"]],
              "floor": [-c["B"] / 1e6, c["B"] / 1e6], "zero": 0.0,
              "x": [p["pair_index"] for p in c["pairs"]],
              "y": [p["signed_difference"] / 1e6 for p in c["pairs"]]}
             for c in data["workloads"]]
+    if data.get("attempt") == "attempt-0002":
+        for c, series_cell in zip(data["workloads"], series):
+            series_cell["panel_title"] = (
+                f"{c['workload']} (rr{c['rratio']}): {c['variant_arm']} - {c['baseline_arm']}\n"
+                f"variance_plan_breach={str(c['variance_plan_breach']).lower()}\n"
+                f"sd {c['sd']:,.2f} tps; planned sigma {c['planned_sigma']:,.2f} tps")
+            series_cell["figure_note"] = "sized run attempt-0002; attempt-0001 is neither pooled nor compared with this attempt"
+    return series
 
 
 def make_figure(data):
@@ -301,6 +368,10 @@ def make_figure(data):
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), squeeze=False)
     fig.subplots_adjust(left=.075, right=.985, bottom=.18, top=.78, wspace=.30)
     series = _artist_series(data)
+    if data.get("attempt") == "attempt-0002":
+        fig.set_size_inches(12, 4.4)
+        fig.subplots_adjust(top=.72)
+        fig.text(.5, .98, series[0]["figure_note"], ha="center", va="top")
     color = "#2166ac"
     for ax, c, s in zip(axes.flat, data["workloads"], series):
         ax.plot(s["x"], s["y"], "o", linestyle="none", markerfacecolor="none",
@@ -317,7 +388,10 @@ def make_figure(data):
         ax.set_xlim(-1, REPS)
         ax.set_xticks(range(0, REPS, 5))
         ax.set_xlabel("pair index")
-        ax.set_title(f"{c['workload']} (rr{c['rratio']}): {c['variant_arm']} - {c['baseline_arm']}", fontsize=8)
+        if data.get("attempt") == "attempt-0002":
+            ax.set_title(s["panel_title"], fontsize=8)
+        else:
+            ax.set_title(f"{c['workload']} (rr{c['rratio']}): {c['variant_arm']} - {c['baseline_arm']}", fontsize=8)
         ax.ticklabel_format(axis="y", style="plain", useOffset=False)
     axes[0, 0].set_ylabel("paired difference (M tps)")
     fig.legend(handles=[
@@ -327,6 +401,8 @@ def make_figure(data):
         Line2D([], [], color="#b35806", linestyle="--", label="±B floor"),
         Line2D([], [], color="#555555", linewidth=.6, label="zero")],
         loc="upper center", ncol=5, frameon=False)
+    if data.get("attempt") == "attempt-0002":
+        fig.legends[0].set_bbox_to_anchor((.5, .93))
     fig._a1_artist_series = series
     return fig, axes
 
@@ -392,7 +468,7 @@ def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):
     """Bind landed images, caption source, cells, and projections to the current leaf."""
     try:
         root = Path(repo_root).resolve()
-        data = load_leaf(root, expected_hashes=expected_hashes)
+        data = load_leaf(root, attempt=provenance.get("attempt", "attempt-0001"), expected_hashes=expected_hashes)
         _require(provenance["schema"] == SCHEMA, "provenance schema mismatch")
         _require(provenance["generator"]["path"] == GENERATOR_PATH, "generator path mismatch")
         for key, value in data.items():
@@ -448,15 +524,18 @@ def _publish_outputs(fig, axes, prefix, data, argv):
 def main(argv=None, *, expected_hashes=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
+    parser.add_argument("--attempt", choices=tuple(ATTEMPTS), default="attempt-0001")
     parser.add_argument("out_prefix", type=Path)
     args = parser.parse_args(argv)
     root, prefix = args.repo_root.resolve(), args.out_prefix.resolve()
     figure = None
     try:
         _figure_number(prefix)
-        data = load_leaf(root, expected_hashes=expected_hashes)
+        data = load_leaf(root, attempt=args.attempt, expected_hashes=expected_hashes)
         figure, axes = make_figure(data)
         expanded = ["python3", GENERATOR_PATH, "--repo-root", str(root), os.path.relpath(prefix, root)]
+        if args.attempt == "attempt-0002":
+            expanded[-1:-1] = ["--attempt", args.attempt]
         _publish_outputs(figure, axes, prefix, data, expanded)
     except Exception as exc:
         print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)

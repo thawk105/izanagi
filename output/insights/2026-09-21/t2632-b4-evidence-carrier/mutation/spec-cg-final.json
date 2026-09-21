@@ -1,0 +1,172 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[duplicate-skip]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-preprocess]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted-unidentified]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[certified]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[dry-pass]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[duplicate]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[rejected]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_same_variant_use_distinct_attempts",
+    "orchestrator/tests/test_p3_s4_loop.py::test_direct_drive_provenance_hash_defaults_to_null",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S1-provenance-not-published",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    (lambda *_a: None)(layout, state.iteration, {\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S2-checkpoint-before-provenance",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    save_loop_state(layout, state)\n    _append_provenance_entry(layout, state.iteration, {\n        \"iteration\": state.iteration,\n        \"initial_proposal_sha256\": initial_proposal_sha256,\n        \"outcome\": out[\"outcome\"],\n        **_wal_attempt_provenance(layout, out),\n    })\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n        \"iteration\": state.iteration,\n        \"initial_proposal_sha256\": initial_proposal_sha256,\n        \"outcome\": out[\"outcome\"],\n        **_wal_attempt_provenance(layout, out),\n    })\n    save_loop_state(layout, state)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S10-raw-bytes-hash",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                    initial_proposal_sha256 = hashlib.sha256(\n                        proposal_capture[\"proposal_bytes\"]\n                    ).hexdigest()\n",
+     "old": "                    initial_proposal_sha256 = canonical_b4_proposal_sha256(\n                        proposal_capture[\"proposal_document\"]\n                    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S11-capture-only-with-agent-inputs",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                        **({\"capture\": agent_record} if agent_record is not None else {}),\n",
+     "old": "                        capture=proposal_capture,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[duplicate-skip]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-preprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S12-no-provenance-in-b5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    if not b5_mode: _append_provenance_entry(layout, state.iteration, {\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-[]]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-\\xff]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-{\"schema_version\":\"p3-s4-loop-provenance/v1\",\"axis\":\"silo-backoff-magnitude\",\"entries\":[]}]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-{]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-[]]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-\\xff]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-{\"schema_version\":\"p3-s4-loop-provenance/v1\",\"axis\":\"silo-backoff-magnitude\",\"entries\":[]}]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-{]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S13-no-pre-evaluation-check",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    if initial_proposal_sha256 is not None and (\n",
+     "old": "    _load_provenance(layout)\n    if initial_proposal_sha256 is not None and (\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_inputs_do_not_read_report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S14-critic-digest-reads-report",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    return green + \"\\n\\n\" + red + json.dumps(_load_provenance(view.layout), sort_keys=True)\n",
+     "old": "    return green + \"\\n\\n\" + red\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S15-noncanonical-hash-raises",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                except B4ProtocolError:\n                    raise\n",
+     "old": "                except B4ProtocolError:\n                    # canonical 化できない proposal は hash=null。\n                    initial_proposal_sha256 = None\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 9000
+}

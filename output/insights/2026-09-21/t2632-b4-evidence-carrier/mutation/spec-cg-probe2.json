@@ -1,0 +1,120 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S1-provenance-not-published",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    (lambda *_a: None)(layout, state.iteration, {\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S2-checkpoint-before-provenance",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    save_loop_state(layout, state)\n    _append_provenance_entry(layout, state.iteration, {\n        \"iteration\": state.iteration,\n        \"initial_proposal_sha256\": initial_proposal_sha256,\n        \"outcome\": out[\"outcome\"],\n        **_wal_attempt_provenance(layout, out),\n    })\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n        \"iteration\": state.iteration,\n        \"initial_proposal_sha256\": initial_proposal_sha256,\n        \"outcome\": out[\"outcome\"],\n        **_wal_attempt_provenance(layout, out),\n    })\n    save_loop_state(layout, state)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S10-raw-bytes-hash",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                    initial_proposal_sha256 = hashlib.sha256(\n                        proposal_capture[\"proposal_bytes\"]\n                    ).hexdigest()\n",
+     "old": "                    initial_proposal_sha256 = canonical_b4_proposal_sha256(\n                        proposal_capture[\"proposal_document\"]\n                    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S11-capture-only-with-agent-inputs",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                        **({\"capture\": agent_record} if agent_record is not None else {}),\n",
+     "old": "                        capture=proposal_capture,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S12-no-provenance-in-b5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    if not b5_mode: _append_provenance_entry(layout, state.iteration, {\n",
+     "old": "    _append_provenance_entry(layout, state.iteration, {\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S13-no-pre-evaluation-check",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    if initial_proposal_sha256 is not None and (\n",
+     "old": "    _load_provenance(layout)\n    if initial_proposal_sha256 is not None and (\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S14-critic-digest-reads-report",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    return green + \"\\n\\n\" + red + json.dumps(_load_provenance(view.layout), sort_keys=True)\n",
+     "old": "    return green + \"\\n\\n\" + red\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "S15-noncanonical-hash-raises",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "                except B4ProtocolError:\n                    raise\n",
+     "old": "                except B4ProtocolError:\n                    # canonical 化できない proposal は hash=null。\n                    initial_proposal_sha256 = None\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 9000
+}

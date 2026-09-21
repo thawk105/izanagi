@@ -1,0 +1,66 @@
+baseline: rcs=[0, 0] ['44 passed, 0 failed, 0 skipped, 0 errors', '27 passed, 0 failed, 0 skipped, 0 errors'] nodes=[]
+m0-a1-comment-only SURVIVED 0 rcs=[0, 0] ['44 passed, 0 failed, 0 skipped, 0 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+m1-a1-drop-attempt1-breach-rejection KILLED 1 rcs=[1, 0] ['43 passed, 1 failed, 0 skipped, 0 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected
+m2-a1-attempt2-result-pin-one-char KILLED 3 rcs=[1, 0] ['41 passed, 1 failed, 0 skipped, 2 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present
+m3-a1-attempt1-caption-one-word KILLED 1 rcs=[1, 0] ['43 passed, 0 failed, 0 skipped, 1 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present
+m4-a1-attempt2-drop-nonpooling-literal KILLED 2 rcs=[1, 0] ['42 passed, 1 failed, 0 skipped, 1 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present
+m5-a1-attempt2-drop-panel-breach-line KILLED 2 rcs=[1, 0] ['42 passed, 1 failed, 0 skipped, 1 errors', '27 passed, 0 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance
+    orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present
+m6-mocc-summary-pin-one-char KILLED 4 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '23 passed, 1 failed, 0 skipped, 3 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present
+m7-mocc-drop-summary-inputs-exact KILLED 2 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '25 passed, 2 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry
+m8-mocc-cp-upper-quantile KILLED 17 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '10 passed, 2 failed, 0 skipped, 15 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs
+m9-mocc-fisher-whole-support KILLED 6 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '21 passed, 4 failed, 0 skipped, 2 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered
+m10-mocc-commit-mean-denominator-240 KILLED 6 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '21 passed, 3 failed, 0 skipped, 3 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs
+m11-mocc-drop-not-performance-note KILLED 2 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '25 passed, 1 failed, 0 skipped, 1 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered
+m12-mocc-title-equivalent KILLED 2 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '25 passed, 2 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present
+m13-mocc-drop-publish-layout-check KILLED 1 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '26 passed, 1 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing
+m14-mocc-drop-exposure-ratio-notes KILLED 1 rcs=[0, 1] ['44 passed, 0 failed, 0 skipped, 0 errors', '26 passed, 1 failed, 0 skipped, 0 errors']
+    orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present

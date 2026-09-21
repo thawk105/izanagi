@@ -1,0 +1,22 @@
+#!/bin/bash
+# [T-2632] 親専用: 変異 harness 用の独立 clone (D1009) を作り、main を対象 commit に固定して submodule を初期化する。
+# usage: make-mutation-source.sh <target-commit>   (先例 = T-2795 の同名 script)
+set -u
+TARGET=${1:?target commit}
+MAIN=/work/1/SFC/tanab/izanagi
+J=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier
+SRC="$J/mutation-source"
+echo $$ > "$J/make-mutation-source.pid"
+if [ -e "$SRC" ]; then echo "exists: $SRC"; echo 2 > "$J/make-mutation-source.done"; exit 2; fi
+git clone --local --no-checkout "$MAIN" "$SRC" || { echo 3 > "$J/make-mutation-source.done"; exit 3; }
+cd "$SRC" || exit 4
+git fetch -q "$MAIN" refs/heads/worktree-dev-wave-t2632-b4-evidence-carrier || { echo 5 > "$J/make-mutation-source.done"; exit 5; }
+git update-ref refs/heads/main "$TARGET" || exit 6
+git checkout -q main || exit 7
+echo "HEAD=$(git rev-parse HEAD)"
+git submodule init || exit 8
+git config submodule.external/ccbench.url "$MAIN/.git/modules/external/ccbench" || exit 9
+git -c protocol.file.allow=always submodule update --init --recursive || { echo 10 > "$J/make-mutation-source.done"; exit 10; }
+git submodule status --recursive
+git status --porcelain --untracked-files=all --ignore-submodules=none | wc -l
+echo 0 > "$J/make-mutation-source.done"

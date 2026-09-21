@@ -1,0 +1,127 @@
+start 2026-09-21 21:35:31 JST tag=f4 targets=orchestrator/tests/test_p3_s4_loop.py
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-68d2424e2f)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2632-b4-evidence-carrier/output/pegasus-dispatch/orphan-holds/unknown-6d61416febac6c5d48299d70.json
+[Pegasus dispatch] request ID 15658.nqsv を受理しました
+[Pegasus dispatch] request 15658.nqsv の状態: QUE
+[Pegasus dispatch] request 15658.nqsv の状態: RUN
+[Pegasus dispatch] request 15658.nqsv の状態: END
+[Pegasus dispatch] request 15658.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2632-b4-evidence-carrier/output/pegasus-dispatch/orphan-holds/unknown-6d61416febac6c5d48299d70.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2632-b4-evidence-carrier/output/pegasus-dispatch/68d2424e2fc4a9b59de664c94ad42233/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 15658.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [ 10%]
+| ........................................................................ [ 21%]
+| ........................................................................ [ 32%]
+| ........................................................................ [ 43%]
+| ........................................................................ [ 54%]
+| ........................................................................ [ 65%]
+| ........................................................................ [ 76%]
+| ........................................................................ [ 87%]
+| ..............................................................F......... [ 98%]
+| .......                                                                  [100%]
+| =================================== FAILURES ===================================
+| ____________ test_base_provenance_duplicate_reuses_selected_attempt ____________
+| [gw10] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_base_provenance_duplicate0')
+|
+|     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
+|         layout = CampaignLayout(str(tmp_path / "duplicate")).ensure()
+|         variant = _base_selected_commit(layout, prior_failed_attempt=True)
+|         records = wal.read_records(layout)
+|         # The failed attempt precedes the selected certified attempt.
+|         prior_records, selected_records = records[:2], records[2:]
+|         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]
+|         assert selected_records[-1].stage == L.STAGE_COMMIT
+|         prior_attempt = prior_records[0].payload["build_attempt_id"]
+|         selected_attempt = selected_records[-1].payload["build_attempt_id"]
+|         assert prior_records[1].payload["build_attempt_id"] == prior_attempt
+|         assert prior_attempt != selected_attempt
+|         before = Path(layout.wal_file).read_bytes()
+|         out = L._resolve_duplicate(layout, _site_test_proposals()[0],
+|                                    L.LoopState(iteration=1), _dup_summary(variant))
+| >       assert out["outcome"] == "duplicate"
+| E       AssertionError: assert 'aborted' == 'duplicate'
+| E
+| E         - duplicate
+| E         + aborted
+|
+| orchestrator/tests/test_p3_s4_loop.py:7278: AssertionError
+| ----------------------------- Captured stdout call -----------------------------
+|   重複提案 (既存 variant carrier-selected の certified 証拠を拒否)
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt
+| 1 failed, 654 passed in 13.67s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1432 sha256=33777fc8602314e11ff772a387c6ccf250a4f43c9516be0efd712dac2d74aa5c
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw10] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_base_provenance_duplicate0')
+| >
+| >     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
+| >         layout = CampaignLayout(str(tmp_path / "duplicate")).ensure()
+| >         variant = _base_selected_commit(layout, prior_failed_attempt=True)
+| >         records = wal.read_records(layout)
+| >         # The failed attempt precedes the selected certified attempt.
+| >         prior_records, selected_records = records[:2], records[2:]
+| >         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]
+| >         assert selected_records[-1].stage == L.STAGE_COMMIT
+| >         prior_attempt = prior_records[0].payload["build_attempt_id"]
+| >         selected_attempt = selected_records[-1].payload["build_attempt_id"]
+| >         assert prior_records[1].payload["build_attempt_id"] == prior_attempt
+| >         assert prior_attempt != selected_attempt
+| >         before = Path(layout.wal_file).read_bytes()
+| >         out = L._resolve_duplicate(layout, _site_test_proposals()[0],
+| >                                    L.LoopState(iteration=1), _dup_summary(variant))
+| > >       assert out["outcome"] == "duplicate"
+| > E       AssertionError: assert 'aborted' == 'duplicate'
+| > E
+| > E         - duplicate
+| > E         + aborted
+| >
+| > orchestrator/tests/test_p3_s4_loop.py:7278: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2152 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 15658.nqsv child stdout end
+[Pegasus dispatch] request 15658.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1443612, "time_ns": 1789994140435131054}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1443633, "event": "direct-child-wait-start", "pid": 1443619, "time_ns": 1789994140463289442}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1443633, "event": "direct-child-wait-complete", "pid": 1443619, "time_ns": 1789994154710583832}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1443619, "rc": 0, "time_ns": 1789994154710667073}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1443612, "rc": 0, "time_ns": 1789994154715118960}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1443612}, {"comm": "bash", "pid": 1443593}, {"comm": "nqs_shpd", "pid": 1443592}, {"comm": "nqs_shpd", "pid": 1443395}, {"comm": "nqs_shpd", "pid": 4636}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1443612, "sid": 1443592, "time_ns": 1789994154715800721}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.89135003089905, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1443612, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789994154749741703, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1443612, "time_ns": 1789994154752057639}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1443612, "time_ns": 1789994154753524809}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1443612, "time_ns": 1789994154754115165}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1443612, "time_ns": 1789994154754123159}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1443612, "time_ns": 1789994154754888299}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1443612, "time_ns": 1789994154754895994}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1443612, "rc": 1, "time_ns": 1789994154754904423}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1443612, "rc": 1, "time_ns": 1789994154754920626}
+|
+| ============================================================
+| Request ID:             15658.nqsv
+| Request Name:           izdw-68d2424e2f
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 21:35:32 2026
+| Started Request Time:   Mon Sep 21 21:35:40 2026
+| Ended Request Time:     Mon Sep 21 21:35:54 2026
+| Resources Information:
+|   Elapse:               19S
+|   Remaining Elapse:     3581S
+| ============================================================
+[Pegasus dispatch] request 15658.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+end 2026-09-21 21:36:08 JST rc=1
