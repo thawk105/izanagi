@@ -366,12 +366,23 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/campaign/silo_ladder_rung1.py",
     "orchestrator/campaign/sort_swo_dependency_material.py",
     "orchestrator/critic/digest.py",
+    "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/b10_backoff_shape_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep_report.py",
+    "orchestrator/campaign/backoff_overthrottle.py",
+    "orchestrator/campaign/s8b_abort_reason_contract.py",
+    "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_outcome_stage_contract.py",
+    "orchestrator/reports/__init__.py",
+    "orchestrator/reports/calibration_report.py",
+    "orchestrator/reports/plot.py",
 )
 _FIXED_SYNTHETIC_E1_EPOCH = (
-    "E1:bc8a6c8c6fd792ab6f21f22107f5313fb64ef0be1d6f8c97a15065998c423dc7"
+    "E1:244d998f35b0f7deae215a4053d9dde5acf60fc0775e4ea4c7a315579e7da07a"
 )
 _FIXED_ORDERED_CLOSURE_PATHS_SHA256 = (
-    "bea3624661166dbe20df206ebd1e4f855f8c13e39721ab67e8b19d981bd6b5a1"
+    "5c2c4a6a45ec44f46d655f1d9c43f1d877d5547fc46ff308fbdaa61df6683af4"
 )
 _GIT_ENV_ALLOWLIST = (
     "LANG",
@@ -851,7 +862,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 85-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 96-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -1537,12 +1548,12 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
+        "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; "
         "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
-        "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
+        "2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)"
     )
     assert excinfo.value.excluded_scope == (
-        "同実測の発見集合の未収載 78 module、同発見集合に入らない module、"
+        "同実測の発見集合の未収載 77 module、同発見集合に入らない module、"
         "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
         "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
         "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
@@ -1664,14 +1675,14 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 85
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 96
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
 def test_certified_acceptance_admits_exact_e1_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 85
+    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 96
     assert _expected_fixture_epoch() == _FIXED_SYNTHETIC_E1_EPOCH
     assert (
         _ordered_fixture_path_list_sha256()
@@ -3450,6 +3461,102 @@ def test_t733_exact62_epoch_requires_matching_scope_and_paths() -> None:
             A._RecordedCampaignVerifierEpoch(diagnostic=diagnostic, blob_sha256s=blobs)
 
 
+_EXPECTED_T2344_EXACT85_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/agent_outputs.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/critic/digest.py",
+)
+
+_FIXED_T2344_EXACT85_EPOCH = (
+    "E1:bc8a6c8c6fd792ab6f21f22107f5313fb64ef0be1d6f8c97a15065998c423dc7"
+)
+_FIXED_T2344_EXACT85_PATH_SHA256 = (
+    "bea3624661166dbe20df206ebd1e4f855f8c13e39721ab67e8b19d981bd6b5a1"
+)
+
+
 def _rewrite_as_t2429_exact63_lock(campaign: Path) -> bytes:
     lock_path = campaign / "campaign.lock"
     value = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -3553,6 +3660,7 @@ def test_unknown_t2429_exact63_grammar_is_rejected_for_both_read_purposes(
     wire_paths = tuple(json.loads(text)["authority"]["contract_loader_blob_sha256s"])
     for known in (
         _EXPECTED_E1_CLOSURE_PATHS,
+        _EXPECTED_T2344_EXACT85_CLOSURE_PATHS,
         _EXPECTED_T2429_EXACT63_CLOSURE_PATHS,
         _EXPECTED_T733_EXACT62_CLOSURE_PATHS,
         _EXPECTED_PRE_T733_CLOSURE_PATHS,
@@ -3629,10 +3737,10 @@ def test_t2429_exact63_epoch_requires_matching_scope_and_paths() -> None:
         campaign_verifier_epoch=_FIXED_SYNTHETIC_E1_EPOCH,
         state="E1", reason_code="recorded-closure",
     )
-    blobs85 = MappingProxyType({p: "a" * 64 for p in _EXPECTED_E1_CLOSURE_PATHS})
+    blobs96 = MappingProxyType({p: "a" * 64 for p in _EXPECTED_E1_CLOSURE_PATHS})
     for diagnostic, blobs in (
         (epoch24, blobs63), (epoch, blobs24), (epoch, reordered),
-        (epoch62, blobs63), (epoch, blobs62), (current, blobs63), (epoch, blobs85),
+        (epoch62, blobs63), (epoch, blobs62), (current, blobs63), (epoch, blobs96),
     ):
         with pytest.raises(TypeError, match="exact path 順序"):
             A._RecordedCampaignVerifierEpoch(diagnostic=diagnostic, blob_sha256s=blobs)
@@ -3665,6 +3773,261 @@ def test_t2429_exact63_epoch_requires_matching_scope_and_paths() -> None:
     ),
 )
 def test_t2344_certified_acceptance_rejects_each_new_source_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source_path: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_path = campaign / "campaign.lock"
+    wal_path = campaign / "runs/wal.jsonl"
+    before_lock = lock_path.read_bytes()
+    before_wal = wal_path.read_bytes()
+    historical = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    expected_epoch = (
+        historical.campaign_verifier_epoch.campaign_verifier_epoch
+    )
+    verifier = repo / source_path
+
+    try:
+        verifier.write_bytes(verifier.read_bytes() + b"uncommitted verifier drift\n")
+        with pytest.raises(A.CampaignVerifierEpochRejected) as uncommitted:
+            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert uncommitted.value.epoch_state == "E1-stale"
+        assert uncommitted.value.reason_code == "current-closure-unavailable"
+        assert uncommitted.value.campaign_verifier_epoch == expected_epoch
+
+        _fixture_git(repo, "add", "--", source_path)
+        _fixture_git(
+            repo,
+            "-c", "user.email=epoch-fixture@example.invalid",
+            "-c", "user.name=epoch fixture",
+            "commit", "-q", "-m", "record verifier drift",
+        )
+        committed = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert type(committed) is A.CertifiedCampaignView
+        assert committed.read_purpose is CERTIFIED
+        assert committed.campaign_verifier_epoch.state == "E1"
+        assert committed.campaign_verifier_epoch.reason_code == "recorded-closure"
+        assert (
+            committed.campaign_verifier_epoch.campaign_verifier_epoch
+            == expected_epoch
+        )
+    finally:
+        assert lock_path.read_bytes() == before_lock
+        assert wal_path.read_bytes() == before_wal
+
+
+def _rewrite_as_t2344_exact85_lock(campaign: Path) -> bytes:
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path] for path in _EXPECTED_T2344_EXACT85_CLOSURE_PATHS
+    }
+    raw = _canonical_json(value).encode("utf-8")
+    lock_path.write_bytes(raw)
+    return raw
+
+
+def test_t2344_exact85_is_readable_only_as_recorded_historical_epoch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_t2344_exact85_lock(campaign)
+    wal_raw = (campaign / "runs/wal.jsonl").read_bytes()
+    assert campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_T2344_EXACT85_CLOSURE_PATHS
+    )
+    assert hashlib.sha256(b"".join(
+        path.encode("utf-8") + b"\0"
+        for path in campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS
+    )).hexdigest() == _FIXED_T2344_EXACT85_PATH_SHA256
+    for dirty in (False, True):
+        if dirty:
+            live = repo / "orchestrator/campaign/s8b_oracle_report.py"
+            live.write_bytes(live.read_bytes() + b"uncommitted live closure drift\n")
+        view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+        epoch = A.require_campaign_verifier_epoch(campaign, purpose=HISTORICAL)
+        assert type(view) is A.HistoricalCampaignView
+        assert view.read_purpose is HISTORICAL
+        assert view.campaign_verifier_epoch == epoch
+        assert type(epoch) is A.HistoricalCampaignVerifierEpoch
+        assert epoch.state == "E1"
+        assert epoch.reason_code == "recorded-closure"
+        assert epoch.campaign_verifier_epoch == _FIXED_T2344_EXACT85_EPOCH
+        assert epoch.identity_scope == (
+            "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
+            "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
+            "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
+        )
+        assert epoch.excluded_scope == (
+            "同実測の発見集合の未収載 78 module、同発見集合に入らない module、"
+            "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
+            "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
+            "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
+            "(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない"
+        )
+        assert epoch.current_verifier_conformance == "unknown"
+        assert view.current_verifier_conformance == "unknown"
+        assert (campaign / "campaign.lock").read_bytes() == lock_raw
+        assert (campaign / "runs/wal.jsonl").read_bytes() == wal_raw
+
+
+def test_t2344_exact85_is_rejected_for_certified_use(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_t2344_exact85_lock(campaign)
+    for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+        with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+            api(campaign, purpose=CERTIFIED)
+    with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+        A.classify_campaign(campaign)
+    assert (campaign / "campaign.lock").read_bytes() == lock_raw
+
+
+@pytest.mark.parametrize(
+    "mutation", ["subset", "superset", "same-count-replacement", "order"],
+)
+def test_unknown_t2344_exact85_grammar_is_rejected_for_both_read_purposes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_t2344_exact85_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    if mutation in {"subset", "same-count-replacement"}:
+        blobs.pop("orchestrator/campaign/env_contract.py")
+    if mutation in {"superset", "same-count-replacement"}:
+        extra = "orchestrator/campaign/unknown_t2344.py"
+        assert extra not in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        blobs[extra] = "f" * 64
+    if mutation == "order":
+        paths = tuple(blobs)
+        value["authority"]["contract_loader_blob_sha256s"] = {
+            p: blobs[p] for p in (paths[1], paths[0], *paths[2:])
+        }
+        text = json.dumps(value, sort_keys=False, separators=(",", ":"), ensure_ascii=False)
+    else:
+        text = _canonical_json(value)
+    wire_paths = tuple(json.loads(text)["authority"]["contract_loader_blob_sha256s"])
+    for known in (
+        _EXPECTED_E1_CLOSURE_PATHS,
+        _EXPECTED_T2344_EXACT85_CLOSURE_PATHS,
+        _EXPECTED_T2429_EXACT63_CLOSURE_PATHS,
+        _EXPECTED_T733_EXACT62_CLOSURE_PATHS,
+        _EXPECTED_PRE_T733_CLOSURE_PATHS,
+    ):
+        assert wire_paths != tuple(sorted(known))
+    lock_path.write_text(text, encoding="utf-8")
+    for purpose in (HISTORICAL, CERTIFIED):
+        for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+            with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+                api(campaign, purpose=purpose)
+    assert lock_path.read_bytes() == text.encode("utf-8")
+
+
+@pytest.mark.parametrize("relative", _EXPECTED_T2344_EXACT85_CLOSURE_PATHS)
+def test_t2344_exact85_rejects_each_recorded_commit_blob_mismatch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_t2344_exact85_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    recorded = blobs[relative]
+    blobs[relative] = ("0" if recorded[0] != "0" else "1") + recorded[1:]
+    lock_path.write_text(_canonical_json(value), encoding="utf-8")
+    for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+        with pytest.raises(
+            A.ArtifactAdmissionError, match="contract-loader-blob-mismatch",
+        ) as rejected:
+            api(campaign, purpose=HISTORICAL)
+        assert relative in str(rejected.value)
+
+
+def test_t2344_exact85_epoch_requires_matching_scope_and_paths() -> None:
+    from dataclasses import replace
+    from types import MappingProxyType
+
+    epoch = A.HistoricalCampaignVerifierEpoch(
+        campaign_verifier_epoch=_FIXED_T2344_EXACT85_EPOCH,
+        state="E1", reason_code="recorded-closure",
+        identity_scope=A.T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs85 = MappingProxyType({
+        p: hashlib.sha256(f"epoch closure fixture {i}\n".encode("ascii")).hexdigest()
+        for i, p in enumerate(_EXPECTED_T2344_EXACT85_CLOSURE_PATHS, start=1)
+    })
+    A._RecordedCampaignVerifierEpoch(diagnostic=epoch, blob_sha256s=blobs85)
+    for changes in (
+        {"identity_scope": A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE},
+        {"excluded_scope": A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE},
+        {"identity_scope": "unknown scope"},
+        {"excluded_scope": "unknown exclusions"},
+    ):
+        with pytest.raises(TypeError, match="diagnostic"):
+            replace(epoch, **changes)
+    epoch24 = replace(
+        epoch, identity_scope=A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs24 = MappingProxyType({p: blobs85[p] for p in _EXPECTED_PRE_T733_CLOSURE_PATHS})
+    paths = _EXPECTED_T2344_EXACT85_CLOSURE_PATHS
+    reordered = MappingProxyType({
+        p: blobs85[p] for p in (paths[1], paths[0], *paths[2:])
+    })
+    epoch62 = replace(
+        epoch, identity_scope=A.T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs62 = MappingProxyType({p: blobs85[p] for p in _EXPECTED_T733_EXACT62_CLOSURE_PATHS})
+    epoch63 = replace(
+        epoch, identity_scope=A.T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.T2429_EXACT63_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs63 = MappingProxyType({p: blobs85[p] for p in _EXPECTED_T2429_EXACT63_CLOSURE_PATHS})
+    current = A.CampaignVerifierEpoch(
+        campaign_verifier_epoch=_FIXED_SYNTHETIC_E1_EPOCH,
+        state="E1", reason_code="recorded-closure",
+    )
+    blobs96 = MappingProxyType({p: "a" * 64 for p in _EXPECTED_E1_CLOSURE_PATHS})
+    for diagnostic, blobs in (
+        (epoch63, blobs85), (epoch, blobs63),
+        (epoch24, blobs85), (epoch, blobs24), (epoch, reordered),
+        (epoch62, blobs85), (epoch, blobs62), (current, blobs85), (epoch, blobs96),
+    ):
+        with pytest.raises(TypeError, match="exact path 順序"):
+            A._RecordedCampaignVerifierEpoch(diagnostic=diagnostic, blob_sha256s=blobs)
+
+
+@pytest.mark.parametrize(
+    "source_path", (
+        "orchestrator/campaign/autonomous_trial_completeness.py",
+        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+        "orchestrator/campaign/backoff_extended_sweep.py",
+        "orchestrator/campaign/backoff_extended_sweep_report.py",
+        "orchestrator/campaign/backoff_overthrottle.py",
+        "orchestrator/campaign/s8b_abort_reason_contract.py",
+        "orchestrator/campaign/s8b_oracle_report.py",
+        "orchestrator/campaign/s8b_outcome_stage_contract.py",
+        "orchestrator/reports/__init__.py",
+        "orchestrator/reports/calibration_report.py",
+        "orchestrator/reports/plot.py",
+    ),
+)
+def test_t2344_certified_acceptance_rejects_each_emitter_stage_source_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source_path: str,
 ) -> None:
     repo = _committed_closure_repo(tmp_path)

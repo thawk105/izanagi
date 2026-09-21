@@ -125,10 +125,24 @@ _T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
     "orchestrator/campaign/sort_swo_dependency_material.py",
     "orchestrator/critic/digest.py",
 )
+_T2344_EMITTER_ENFORCEMENT_SOURCE_PATH_SUFFIX = (
+    "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/b10_backoff_shape_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep_report.py",
+    "orchestrator/campaign/backoff_overthrottle.py",
+    "orchestrator/campaign/s8b_abort_reason_contract.py",
+    "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_outcome_stage_contract.py",
+    "orchestrator/reports/__init__.py",
+    "orchestrator/reports/calibration_report.py",
+    "orchestrator/reports/plot.py",
+)
 _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     *_PRE_T733_ENFORCEMENT_SOURCE_PATHS,
     *_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX,
     *_T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX,
+    *_T2344_EMITTER_ENFORCEMENT_SOURCE_PATH_SUFFIX,
 )
 _PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[:14]
 _S8C_DECIDER_PATHS = _PRE_T733_ENFORCEMENT_SOURCE_PATHS[14:17]
@@ -292,7 +306,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths()
     assert len(_PRE_T733_ENFORCEMENT_SOURCE_PATHS) == 24
     assert len(_T733_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 39
     assert len(_T2344_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 22
-    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 85
+    assert len(_T2344_EMITTER_ENFORCEMENT_SOURCE_PATH_SUFFIX) == 11
+    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 96
     assert (
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
@@ -1635,7 +1650,7 @@ def test_batch_reader_rejects_one_missing_path_of_sixty_two(
                     for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS
                 ),
             ),
-            {"timeout_seconds": 850},
+            {"timeout_seconds": 960},
         ),
     ]
 
@@ -1714,13 +1729,13 @@ def test_capture_batches_blobs_but_reads_all_sixty_two_disk_paths(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 850},
+            {"timeout_seconds": 960},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 850,
+                "timeout_seconds": 960,
             },
         ),
     ]
@@ -1798,13 +1813,13 @@ def test_committed_verification_rejects_one_digest_mismatch(
                 "ls-tree", "-r", "-z", commit, "--",
                 *(f":(literal){relative}" for relative in paths),
             ),
-            {"timeout_seconds": 850},
+            {"timeout_seconds": 960},
         ),
         (
             ("cat-file", "--batch"),
             {
                 "input_bytes": b"".join(oid + b"\n" for oid in oids),
-                "timeout_seconds": 850,
+                "timeout_seconds": 960,
             },
         ),
     ]
