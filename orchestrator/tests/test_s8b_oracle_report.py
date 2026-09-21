@@ -1093,6 +1093,19 @@ def test_report_keeps_unreadable_epoch_as_structured_rejection(
         "campaign-verifier-epoch-unavailable"
     )
 
+    assert evidence["identity_scope"] == (
+        "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; "
+        "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
+        "2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)"
+    )
+    assert evidence["excluded_scope"] == (
+        "同実測の発見集合の未収載 77 module、同発見集合に入らない module、"
+        "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
+        "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
+        "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
+        "(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない"
+    )
+
 
 def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
     manifest = _manifest(tmp_path)

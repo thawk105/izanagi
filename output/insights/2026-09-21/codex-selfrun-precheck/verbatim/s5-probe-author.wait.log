@@ -1,0 +1,2 @@
+worktree-commit: clean
+producer: /proc/2667779/stat を読めないため pid-only へ縮退します

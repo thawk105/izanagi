@@ -581,7 +581,9 @@ def _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar):
             B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP),
         )
         campaign = support._new_schema_campaign(tmp_path / "recorded")
-    if grammar == 63:
+    if grammar == 85:
+        support._rewrite_as_t2344_exact85_lock(campaign)
+    elif grammar == 63:
         support._rewrite_as_t2429_exact63_lock(campaign)
     elif grammar == 62:
         support._rewrite_as_t733_exact62_lock(campaign)
@@ -1914,7 +1916,7 @@ def test_historical_build_report_projects_unknown_current_verifier_conformance(
     assert report["current_verifier_conformance"] == "unknown"
 
 
-@pytest.mark.parametrize("grammar", [63, 62, 24])
+@pytest.mark.parametrize("grammar", [85, 63, 62, 24])
 def test_historical_exact_grammar_build_report(tmp_path, monkeypatch, grammar):
     campaign = _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar)
     paths = [campaign / "campaign.lock", campaign / "runs/wal.jsonl"]
@@ -1932,6 +1934,7 @@ def test_historical_exact_grammar_build_report(tmp_path, monkeypatch, grammar):
     assert epoch["reason_code"] == "recorded-closure"
     # exact-24 was observed through real HISTORICAL_RAW admission of this fixture.
     expected_epochs = {
+        85: "E1:bc8a6c8c6fd792ab6f21f22107f5313fb64ef0be1d6f8c97a15065998c423dc7",
         63: "E1:73f334f62ec13c394aae3d4787b80117562187984b6e0e372f2c0f7058b8ced2",
         62: "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9",
         24: "E1:e1e397737e509b550482d3e815bcb69b87c0b5c42f6ac7feb6fccb657856cfc7",
@@ -1943,7 +1946,7 @@ def test_historical_exact_grammar_build_report(tmp_path, monkeypatch, grammar):
     layer3_report._validate_schema(report)
 
 
-@pytest.mark.parametrize("grammar", [63, 62, 24])
+@pytest.mark.parametrize("grammar", [85, 63, 62, 24])
 def test_accepted_report_rejects_historical_exact_grammar_at_lock(
     tmp_path, monkeypatch, grammar,
 ):
@@ -1994,7 +1997,7 @@ def test_read_campaign_lock_rejects_non_exact_purpose(tmp_path):
             )
 
 
-@pytest.mark.parametrize("grammar", [85, "v1"])
+@pytest.mark.parametrize("grammar", [96, "v1"])
 @pytest.mark.parametrize("purpose", list(layer3_report.CampaignReadPurpose))
 def test_read_campaign_lock_current_and_v1_by_purpose(tmp_path, grammar, purpose):
     identity = {
@@ -2002,7 +2005,7 @@ def test_read_campaign_lock_current_and_v1_by_purpose(tmp_path, grammar, purpose
         "search_tag": "fixture", "spec_content": "fixture", "trial": "fixture",
     }
     text = json.dumps(identity, sort_keys=True, separators=(",", ":"))
-    if grammar == 85:
+    if grammar == 96:
         text = build_v2_campaign_lock(text)
     path = tmp_path / "campaign.lock"
     path.write_text(text, encoding="utf-8")
@@ -2020,7 +2023,7 @@ def test_read_campaign_lock_current_and_v1_by_purpose(tmp_path, grammar, purpose
     assert positive.identity == identity
 
 
-@pytest.mark.parametrize("grammar", [63, 62, 24])
+@pytest.mark.parametrize("grammar", [85, 63, 62, 24])
 def test_historical_exact_grammar_uses_authority_head_fallback(
     tmp_path, monkeypatch, grammar,
 ):
@@ -2047,7 +2050,7 @@ def test_historical_exact_grammar_uses_authority_head_fallback(
     assert layer3_report._resolve_generated_from_head(campaign, decoded, None) == expected
 
 
-@pytest.mark.parametrize("grammar", [85, "v1"])
+@pytest.mark.parametrize("grammar", [96, "v1"])
 def test_material_knowledge_identity_argument_preserves_current_and_v1(
     tmp_path, grammar,
 ):

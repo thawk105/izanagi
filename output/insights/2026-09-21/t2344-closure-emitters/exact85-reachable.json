@@ -1,0 +1,10 @@
+{
+  "head": "5efd69367b641b9bfbd6fb426478f66ae5762783",
+  "tracked_dirty": [],
+  "binding_commit": "5efd69367b641b9bfbd6fb426478f66ae5762783",
+  "key_count": 85,
+  "keys_equal_declared_order": true,
+  "keys_equal_sorted": false,
+  "declared_count": 85,
+  "module_file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2344-source-bound-emitters/orchestrator/campaign/contract_loader_binding.py"
+}

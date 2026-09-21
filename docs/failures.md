@@ -365,6 +365,8 @@
   同 `verbatim/review-out.md` 所見 1〜7。恒久対応は変更なし — 版の全面再導出では、時刻・job・SHA・条件の対応表は entry の略記でなく
   insight の表から写し、時点語の機械置換後は「訂正 N」「この節は…から」型の参照を版名付きで全件再照合し (前 wave の教訓「未裁定・裁定待ち
   型の状態語は D 台帳で検索」と同じ手順を参照語にも当てる)、前 wave の条件 (同一 SHA 等) を次の wave に継承させない。
+
+- **再発: 2026-09-21 (near miss、2 件)** — 受領証の再利用診断 wave の親が、(1) checker の版と実装形式 (旧形 / 中間形 / 新形) の対応表を**一次資料から機械で導出せず手で書いて** Codex author の prompt に埋め、probe がそれを忠実に実装した結果、T-2804 枝の 2 版 (`89a60a88…` / `65476daf…`) が新形に分類され、参考母集団 3 件の cause が誤った (親が後から checker の中身を実測して気づき、author 3 巡目で訂正。着地後の母集団の結論は不変)。(2) 同 wave の insight 初稿で「main の checker が変わった回数」を手元の commit 一覧から目で数えて 2 回と書いたが、reflog を読む probe で 3 回だった (T-2804 の land 2026-09-20 23:29:54 を見落とし。段 6 レビューが出所不足として指摘し、probe を 1 本足して訂正)。型はどちらも「一次資料から転写・導出せず手で書く」で 2026-09-20 の再発と同じ。恒久対応は変更なし — **prompt に載せる対応表・分類表は、子が一次資料から導出できる形で渡すか、親が導出した出力 file を射影する** (memory `ruling-literals-in-prompts-point-to-the-file` の族)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -4306,6 +4308,8 @@
   実装面 Codex `role=author` を欠いたまま main へ land した。本 wave の記録後 provenance 監査
   (full history) で顕在化した。前回の再発時に判別条件を「親が実行可能ファイルを書くとき常に」へ
   広げたが、`--message-file` preflight は当該 wave の commit 経路では発火していない。
+
+- **再発: 2026-09-21 (near miss)** — 同 wave の親が、段 1 の前提実測と段 4 後の checker 系統の確認で read-only の診断 script (`.py` 3 本と `.sh` 1 本) を自分で書いて走らせた。repo へは入れず job dir と job tmp に置いたため `check_ai_provenance.py` の実装面契約には触れていないが、`.claude/commands/dev-wave.md` の凍結境界と memory `probe-must-not-enter-repo-without-codex-author` は「実行可能な probe / harness / script は所在を問わず Codex `role=author`」と定めており、判別条件 (2026-08-06 の再発で「親が実行可能ファイルを書くとき常に」へ拡張済み) に照らすと違反である。是正として親 script の出力は仮説に格下げし、確定値・分類・系統表はすべて Codex author が書いた probe 5 本の出力へ置き換え、親 script は `.txt` 逐語として insight に残した。恒久対応は F75 から変更なし。
 ### F76. sandbox 制約で実装子が検証できない差分を、親がテスト実測より先に敵対レビューへ回した [手順漏れ] [誤前提]
 
 **事象 (2026-08-01、[T-291])。** 段 5 の Codex 実装子が `tools/mutation_harness.py` (1,075 行) と
@@ -5593,6 +5597,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異完了後に worktree へ移した。
 
 - **再発: 2026-09-18** — [T-2724] 整合 wave の親が、wave worktree から投入した焦点走 (`focus-nochain-6`、bounded local) の走行中に、同 worktree へ insight の verbatim file 5 本を書いた。bounded local が MemoryMax に達して計算ノードへ再 dispatch する前の tree 状態検査が「local 試行の前後で tree / submodule 状態が変化」で止まり rc=16、走が 1 本無効になった (実害 = 再走 1 本、約 8 分)。恒久対応は F106 のまま。本 wave の親は同日中に前回 (fix-1 の統合前) は守れていたが、fix-4 の統合後に「待ち時間に段 7 を進める」誘因で踏んだ。
+
+- **再発: 2026-09-21** — [T-2344] 発行器収載 wave。**変異 probe の走行中に、親が段 7 の insight 下書きを
+  worktree の `output/insights/` へ作って untracked file を増やした。** `tools/mutation_harness.py` は
+  runner 実行前の preflight で検出し `rc=2` で停止した (baseline PASSED と M0 SURVIVED までは取れていた)。
+  防壁が機能したので実害は probe 1 回の再投入だけである。2026-08-05 / 08-06 の再発と同型で、
+  **待ち時間に別の段を進める誘因は注意書きでは消えない**という既載の知見をさらに 1 例増やす。
+  今回新しい情報は、親が `DW-M05` の「final の待ちは job dir で確定済み本文と検査の準備に充てる」を
+  読んだうえで、**probe の待ちには同じ文が明示的に掛かっていないと読んだ**点である。
+  恒久対応は F106 のままとし、本 wave では `DW-M05` の同文を probe / final の両方に掛かる形へ 1 語で明確化した。
+  以後の下書きは job dir に置き、走行完了後に `install_docs.py` で repo へ配置した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -20338,6 +20352,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   機序の候補 (未検証): `_FoldGateOuterWatchdog` が `setitimer(ITIMER_REAL, 0.1, 0.1)` で SIGALRM を 0.1 秒ごとに投げるため、登録
   worktree (68 本) を `resolve(strict=True)` する間に共有 FS の遅い syscall が中断され、PEP 475 の自動再試行外の呼び出しが `EINTR` を
   返す。受入 2 も捨て、受入 3 を取り直す。
+
+- **再発: 2026-09-20 (6・7 例目、事後集計で判明)** — 22:36:34 JST の k2-loop-originals-lost-downstream (land it=1、path `<job dir>/dev-wave-t1505-a1-sized-submit/submit-tree`) と 22:39:11 JST の [T-2813] (land-2、path `<job dir>/dev-wave-t2792-a1-sized-attempt2/submit-tree`) が同型 (`registered worktree path cannot be resolved: [Errno 4] Interrupted system call`、`release_safe=true` / `retryable_same_request=false`、main 不変)。どちらも他 wave の登録 path で、同時刻に land が 3 本並んだ混雑窓。**source で確認した呼び出し位置:** `_registered_worktree_paths` は `_run_fold_gate` の `with _FoldGateOuterWatchdog(...)` の中 (`_execute_fold_gate` 先頭) で呼ばれ、watchdog は `setitimer(ITIMER_REAL, 0.1, 0.1)` で SIGALRM を 100 ms 周期に handler 付きで送る。`Path.resolve(strict=True)` → `posixpath._joinrealpath` は `os.lstat` / `os.readlink` を使い、CPython 3.10.12 の C 実装に EINTR の自動再試行 loop は無い (PEP 475 の対象外)。「その SIGALRM が Lustre の遅い metadata 呼び出しを中断して `InterruptedError` になった」は整合する未検証の仮説 (静穏時 probe 460 回 × 2 で 0 回、混雑時の再現は未実施)。EINTR 型は既存 5 件 + 本 2 件 = 7 件 (別型の ENOENT 1 件は含めない)。**復旧の是正:** 本項の「受入を取り直して新しい request を作るしかない」は現行 source と合わない — 非 retryable の拒否は順番票の entry を削除するが receipt は消費されず main も不変で、同じ tested tip / landing tip / receipt の再投入は `_register_land_turn` が新しい seq で新規登録して検査を再実行する (成功は保証しない)。k2-loop は拒否の 31 秒後に再投入して landed (受入不要、失うのは順番)。恒久対応の候補 (`InterruptedError` を armed 区間内で有界に再試行、期限監督は保つ) は `output/insights/2026-09-21/land-roundtrip-diagnosis/README.md` §5.1 の裁定パッケージ。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
@@ -27866,6 +27882,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実装 wave の insight は「1 job も投入していない」「STOCK 成立は未測定」を正直に明記していたが、未測定の開示は統合欠陥の不存在を保証しない。
   恒久対応は未実施 (修復 wave が同 durable root・Pegasus 契約での候補→stock 連続起動の結合検査を含める、D2187)。補助参照 F81 / F722。
   一次資料 `output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §2。
+
+- **恒久対応の一部を実施 (2026-09-21)** — K2 同 job pair launcher と one-shot claim の整合を driver 設計で直し (D2205)、
+  **認可 / claim 結合の再発検査**を追加した: site `PEGASUS_COMPUTE`・`ec.lookup("pegasus")` (`single_process=True`)・実 reservation・実 `campaign_claim.acquire_claim`・
+  実 layout / campaign lock / WAL / `pipeline.evaluate` を `p3_s4_loop.main()` から通し、候補 `certified` → stock `certified-stock`・rc 0・同一 WAL に両 variant の
+  BUILD_START / BUILD_DONE / VERIFY_DONE / BENCH_DONE / COMMIT・`acquire_claim` 1 回・claim record 不変・候補 checkpoint 不変を固定する。
+  負例は「session 無しの 2 回目が `ClaimError`」「pair × B-5 / B-4 / value / emit / no-build の rc=2」「候補の検疫 reject 後も stock が初回 claim を取り測定へ到達」
+  「候補の認可後例外でも stock 測定・claim 取得 1 回・候補例外の再送出」「job body は driver 1 起動」「fixture + stock は rc=2」。
+  **未実施の範囲を明記する: 実 compiler による STOCK 成立、実 checkout / patch と実 build の統合、Pegasus production の pair 1 走。**
+  代用しているのは build・trace 実行・bench・attestation の観測・condition gate・patch 適用・checkout・compiler 依存の SourceEvidence・perf preflight であり、
+  この結合検査の緑は「stock 対照が成立した」ことを意味しない。production 1 走はユーザーの予算再提示 (D2172 項 3) が前提で本 wave では投入していない。
+- **併せて判明した検査条件 (2026-09-21 実測)** — `orchestrator/campaign/loop.py` と `orchestrator/campaign/p3_s4_loop.py` は `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS`
+  (85 path) に含まれ、環境契約付きの v2 campaign lock を作る経路は `contract_loader_binding.capture_contract_loader_binding()` で **live bytes = HEAD blob** を要求する。
+  変異 harness は固定 HEAD へ bytes を注入するため、この 2 file を変異させると「変異の内容と無関係に」lock を作る test が `contract-loader-drift` で落ちる。
+  等価変異 (comment 1 行) の probe で該当 node を実測し (114 node: `test_p3_s4_loop.py` 81 / `test_campaign.py` 33)、変異走行ではこれを `--deselect` して帰属を保った。
+  同 file 群を変異させる後続 wave は、同じ手順 (等価変異で drift 集合を実測 → 除外) を取るか、commit 済み状態で走らせる probe に切り替える必要がある。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と
