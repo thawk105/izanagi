@@ -37,5 +37,12 @@ title: 本体論文 (日本語) の方法節と実装対応メモを 2026-09-21 
   このテストは実 repo の worktree 登録を読み、登録が他 session の撤去で消える競合に 3 回の再試行 (`_with_live_authority_retry`) を持つ。
   消えたのは別 session の worktree で、判定時点で `.git/worktrees/` に無かった。判定: 非帰属 (`DW-O18` の差分到達不能 — 本 wave は docs と insight だけ)。
   計算ノードの単独再走 (request `15833.nqsv`) は 1 passed で非再現。同じ規則で受入を 1 回だけ再投入する。
+- 受入の再投入 (22:39 JST 投入、tested main `caf0f8a1a` = 第 30 回 /rulings の着地を post-claim merge、tip `80dfd3396`) も rc 70 (子 rc 16、
+  `dispatch-attestation-missing`)。shard 0 / 2 は赤 0 (4,204 / 12,084 tests)。shard 1 は
+  `orchestrator/tests/test_pegasus_floor_tools.py::test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound[write]` が
+  `AssertionError: diagnostic timeout did not interrupt the syscall` (5.1 秒の時間依存テスト) で落ち、続いて xdist の scheduler が
+  `KeyError: <WorkerController gw23>` の INTERNALERROR で止まった。判定: 非帰属 (`DW-O18` の差分到達不能)。計算ノードの単独再走
+  (request `15897.nqsv`) は parametrize 3 件とも passed で非再現。tip が変わったので、この tip について受入を 1 回だけ再投入する。
+- 記録 commit の後に取り込んだ D2211 (第 30 回) の項 1 が K2 の同 job pair の再投入を認可した。採用時点は動かさず、README §5 に「採用時点より後の着地」として書いた。
 
 ## 次の一手差分
