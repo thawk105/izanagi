@@ -171,7 +171,11 @@ double now_backoff = Backoff_.load(std::memory_order_acquire);
     proposal.write_text(json.dumps(B.machine_proposal_document(
         'random', 20, {'preimage': 'tier0-insertion-fixture'})))
     site = L.site_policy.OTHER if request.param == 'legacy' else L.site_policy.PEGASUS_COMPUTE
-    contract = replace(L.env_contract.lookup(L._SITE_ENV_TAGS[site]), numactl=())
+    # Both branches need an active contract for the real identity checks.
+    # OTHER still selects legacy build: no env_contract enters campaign_options.
+    contract = replace(L.env_contract.lookup(
+        L._SITE_ENV_TAGS[L.site_policy.PEGASUS_COMPUTE]), numactl=())
+    monkeypatch.setitem(L._SITE_ENV_TAGS, site, contract.env_tag)
     monkeypatch.setattr(L, '_repo_root', lambda: str(tmp_path))
     monkeypatch.setattr(L, '_current_site', lambda: site)
     monkeypatch.setattr(L, '_lookup', lambda _tag: contract)
