@@ -1,0 +1,492 @@
+{
+  "arms": {
+    "e9-witlight-wit": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.059629492286166874
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "identification": {
+        "g2_runs": 0,
+        "identified_g2_runs": 0,
+        "rate": null
+      },
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_sum": 36824488,
+      "commit_count_mean": 613741.4666666667,
+      "formatted": {
+        "k_over_m": "0/60",
+        "rate": "0%",
+        "cp95": "[0%, 5.963%]",
+        "mean_commits": "613,741.5"
+      }
+    },
+    "e9-witlight-nowit": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523420083,
+        0.08939905005748705
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "identification": {
+        "g2_runs": 1,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      },
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_sum": 42639565,
+      "commit_count_mean": 710659.4166666666,
+      "formatted": {
+        "k_over_m": "1/60",
+        "rate": "1.667%",
+        "cp95": "[0.042%, 8.940%]",
+        "mean_commits": "710,659.4"
+      }
+    },
+    "e9-witlight-wit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.059629492286166874
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "identification": {
+        "g2_runs": 0,
+        "identified_g2_runs": 0,
+        "rate": null
+      },
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_sum": 47333137,
+      "commit_count_mean": 788885.6166666667,
+      "formatted": {
+        "k_over_m": "0/60",
+        "rate": "0%",
+        "cp95": "[0%, 5.963%]",
+        "mean_commits": "788,885.6"
+      }
+    },
+    "e9-witlight-nowit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 60,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523420083,
+        0.08939905005748705
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 60
+      },
+      "identification": {
+        "g2_runs": 1,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      },
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_sum": 56017308,
+      "commit_count_mean": 933621.8,
+      "formatted": {
+        "k_over_m": "1/60",
+        "rate": "1.667%",
+        "cp95": "[0.042%, 8.940%]",
+        "mean_commits": "933,621.8"
+      }
+    }
+  },
+  "comparisons": [
+    {
+      "back_off": 0,
+      "table": [
+        [
+          0,
+          60
+        ],
+        [
+          1,
+          59
+        ]
+      ],
+      "direction": "on lower",
+      "adjustment": "unadjusted",
+      "p": 0.5,
+      "p_text": "0.500"
+    },
+    {
+      "back_off": 1,
+      "table": [
+        [
+          0,
+          60
+        ],
+        [
+          1,
+          59
+        ]
+      ],
+      "direction": "on lower",
+      "adjustment": "unadjusted",
+      "p": 0.5,
+      "p_text": "0.500"
+    }
+  ],
+  "exposure_ratios": [
+    {
+      "back_off": 0,
+      "ratio": 0.863622506467878,
+      "text": "0.8636"
+    },
+    {
+      "back_off": 1,
+      "ratio": 0.8449734321399379,
+      "text": "0.8450"
+    }
+  ],
+  "external_inputs": [
+    {
+      "path": "summary.json",
+      "kind": "summary",
+      "sha256": "b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698"
+    },
+    {
+      "path": "W1/result.json",
+      "kind": "block_result",
+      "sha256": "ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50"
+    },
+    {
+      "path": "W2/result.json",
+      "kind": "block_result",
+      "sha256": "473063aa741cc4c349931d987c902facbc5dcf6499b3692ea2cad3a27ac1e584"
+    },
+    {
+      "path": "W3/result.json",
+      "kind": "block_result",
+      "sha256": "f68876600f1cd5b7300b030fb3cfa75509cc7a687858d6f12985051ce46e3642"
+    },
+    {
+      "path": "W4/result.json",
+      "kind": "block_result",
+      "sha256": "197a2798de5ef53a7f6a32460f7ecfa5adbba8e853778b315d3b6e1839c36a6c"
+    }
+  ],
+  "source_inputs": [
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W1/result.json",
+      "sha256": "ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W2/result.json",
+      "sha256": "473063aa741cc4c349931d987c902facbc5dcf6499b3692ea2cad3a27ac1e584"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W3/result.json",
+      "sha256": "f68876600f1cd5b7300b030fb3cfa75509cc7a687858d6f12985051ce46e3642"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/W4/result.json",
+      "sha256": "197a2798de5ef53a7f6a32460f7ecfa5adbba8e853778b315d3b6e1839c36a6c"
+    }
+  ],
+  "measurement_conditions": {
+    "workload_argv": [
+      "-ycsb_tuple_num=10000",
+      "-thread_num=48",
+      "-ycsb_zipf_skew=0.9",
+      "-ycsb_rratio=50",
+      "-ycsb_rmw=0",
+      "-ycsb_max_ope=10",
+      "-extime=3"
+    ],
+    "threads": 48,
+    "records": 10000,
+    "zipf": 0.9,
+    "read_ratio": 50,
+    "rmw": 0,
+    "max_operations": 10,
+    "seconds": 3,
+    "trace": 1,
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": "X/P + witlight patches",
+    "location": "Pegasus compute nodes",
+    "blocks": [
+      "W1",
+      "W2",
+      "W3",
+      "W4"
+    ],
+    "rounds": 15,
+    "smoke_excluded": true
+  },
+  "blocks": [
+    {
+      "block": "W1",
+      "hostname": "bnode122",
+      "arms": {
+        "e9-witlight-wit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit": {
+          "m": 15,
+          "k": 1
+        },
+        "e9-witlight-wit-bo1": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit-bo1": {
+          "m": 15,
+          "k": 0
+        }
+      }
+    },
+    {
+      "block": "W2",
+      "hostname": "bnode119",
+      "arms": {
+        "e9-witlight-wit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-wit-bo1": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit-bo1": {
+          "m": 15,
+          "k": 0
+        }
+      }
+    },
+    {
+      "block": "W3",
+      "hostname": "bnode121",
+      "arms": {
+        "e9-witlight-wit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-wit-bo1": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit-bo1": {
+          "m": 15,
+          "k": 1
+        }
+      }
+    },
+    {
+      "block": "W4",
+      "hostname": "bnode109",
+      "arms": {
+        "e9-witlight-wit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-wit-bo1": {
+          "m": 15,
+          "k": 0
+        },
+        "e9-witlight-nowit-bo1": {
+          "m": 15,
+          "k": 0
+        }
+      }
+    }
+  ],
+  "tracked_inputs": [
+    {
+      "kind": "caption_source",
+      "path": "docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md",
+      "sha256": "77662b55f2b1f113626293ee530d5e0466249192ba2f6babefe4db4e74241d96"
+    }
+  ],
+  "schema": "izanagi-mocc-witlight-four-arm-figure-provenance/v1",
+  "generated_utc": "2026-09-21T12:38:06.982614+00:00",
+  "generator": {
+    "path": "tools/plotting/plot_mocc_witlight_four_arm.py",
+    "sha256": "fba1c0afb3e72d9796fd6237c0d31dcb7d72febdd3e06366c9c99803fd3aac5a"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig15_mocc_witlight_four_arm.png",
+      "sha256": "11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966"
+    },
+    {
+      "path": "docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf",
+      "sha256": "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018"
+    }
+  ],
+  "artist_series": {
+    "rows": [
+      {
+        "arm": "e9-witlight-wit",
+        "label": "on / BACK_OFF=0",
+        "y": 3,
+        "rate_pct": 0.0,
+        "cp95_pct": [
+          0.0,
+          5.962949228616687
+        ],
+        "k_over_m": "0/60",
+        "rate": "0%",
+        "cp95": "[0%, 5.963%]",
+        "mean_commits": "613,741.5"
+      },
+      {
+        "arm": "e9-witlight-nowit",
+        "label": "off / BACK_OFF=0",
+        "y": 2,
+        "rate_pct": 1.6666666666666667,
+        "cp95_pct": [
+          0.04218744523420083,
+          8.939905005748706
+        ],
+        "k_over_m": "1/60",
+        "rate": "1.667%",
+        "cp95": "[0.042%, 8.940%]",
+        "mean_commits": "710,659.4"
+      },
+      {
+        "arm": "e9-witlight-wit-bo1",
+        "label": "on / BACK_OFF=1",
+        "y": 1,
+        "rate_pct": 0.0,
+        "cp95_pct": [
+          0.0,
+          5.962949228616687
+        ],
+        "k_over_m": "0/60",
+        "rate": "0%",
+        "cp95": "[0%, 5.963%]",
+        "mean_commits": "788,885.6"
+      },
+      {
+        "arm": "e9-witlight-nowit-bo1",
+        "label": "off / BACK_OFF=1",
+        "y": 0,
+        "rate_pct": 1.6666666666666667,
+        "cp95_pct": [
+          0.04218744523420083,
+          8.939905005748706
+        ],
+        "k_over_m": "1/60",
+        "rate": "1.667%",
+        "cp95": "[0.042%, 8.940%]",
+        "mean_commits": "933,621.8"
+      }
+    ],
+    "headers": [
+      "k/m",
+      "Rate",
+      "CP 95%",
+      "mean commits per run"
+    ],
+    "exposure_notes": [
+      "BACK_OFF=0: on/off exposure ratio 0.8636",
+      "BACK_OFF=1: on/off exposure ratio 0.8450"
+    ],
+    "notes": [
+      "non-certifying; TRACE=1 build",
+      "Commits: exposure, not performance",
+      "BACK_OFF=0: one-sided Fisher (on lower, unadjusted) p = 0.500",
+      "BACK_OFF=1: one-sided Fisher (on lower, unadjusted) p = 0.500",
+      "Not significant is not equivalence; power 0.105 is calculated under design assumptions.",
+      "G2 signal: verifier detection; does not identify a root cause."
+    ]
+  },
+  "caption": "Figure 15. Stock MOCC lightweight witness observations: G2 signal detection rates with two-sided 95% Clopper\u2013Pearson (CP) intervals and descriptive mean commits per run. e9-witlight-wit (on / BACK_OFF=0): 0/60, 0%, CP [0%, 5.963%], mean commits per run 613,741.5. e9-witlight-nowit (off / BACK_OFF=0): 1/60, 1.667%, CP [0.042%, 8.940%], mean commits per run 710,659.4. e9-witlight-wit-bo1 (on / BACK_OFF=1): 0/60, 0%, CP [0%, 5.963%], mean commits per run 788,885.6. e9-witlight-nowit-bo1 (off / BACK_OFF=1): 1/60, 1.667%, CP [0.042%, 8.940%], mean commits per run 933,621.8. Primary comparison BACK_OFF=0: one-sided Fisher (on lower), unadjusted p = 0.500; on/off exposure ratio 0.8636. Secondary comparison BACK_OFF=1: one-sided Fisher (on lower), unadjusted p = 0.500; on/off exposure ratio 0.8450. G2 signal locations: W1 e9-witlight-nowit (1/15); W3 e9-witlight-nowit-bo1 (1/15). Non-significance does not establish equivalence, and zero detections do not establish absence. Power 0.105 is a calculation under the design assumptions, not a measured quantity: independent Bernoulli trials, 60 runs per arm, off probability 0.0417, on probability 0, and a one-sided Fisher test at alpha 0.05. TRACE=1 commit counts are exposure, not performance. G2 signals do not identify a root cause or distinguish a real anomaly from a torn read. This is a non-certifying observation; individual verifier certified flags and observational_only=false do not certify this wave, MOCC, or the witness. The denominator includes only 4 blocks x 15 rounds x 4 arms; smoke runs are excluded. CP intervals and Fisher p values assume independent Bernoulli trials and do not model within-node dependence, rotation order, or temporal variation. The discriminator was not reached: no on-arm G2 signals occurred, so it fired zero times and made zero comparisons. Detection rates are per fixed-time 3 s run, not a comparison at equal commit exposure. Values from earlier waves [T-1892], [T-2774], and [T-2779] are neither pooled nor compared here. Conditions: 48 threads, 10,000 records, Zipf 0.9, read ratio 50, rmw 0, max operations 10, 3 s, TRACE=1 build, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1\u2013W4 x 15 rounds x 4 arms, smoke excluded.",
+  "reproduction": {
+    "cwd": "repository-root",
+    "argv": [
+      "python3",
+      "tools/plotting/plot_mocc_witlight_four_arm.py",
+      "--repo-root",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures",
+      "--evidence-root",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W",
+      "docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    ],
+    "command": "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+  }
+}

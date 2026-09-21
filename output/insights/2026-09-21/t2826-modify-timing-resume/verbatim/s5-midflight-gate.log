@@ -1,0 +1,5 @@
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+NOTE: midflight は段 5 実装子 dispatch 直前専用で、開始 gate (fresh / resume) の代用ではない; HEAD/main 関係・clean tree・handoff を検査しない
+NOTE: local main より 0 commit 遅れている (gate の実測値; これは関門ではない)
+NOTE: working tree is clean (midflight は clean tree を検査しない)
+OK: wave startup checks passed (midflight; repo=/work/1/SFC/tanab/izanagi/.claude/worktrees/author-t2826r-probe; wave identity・branch 所有・--repo の同一性は認証しない)

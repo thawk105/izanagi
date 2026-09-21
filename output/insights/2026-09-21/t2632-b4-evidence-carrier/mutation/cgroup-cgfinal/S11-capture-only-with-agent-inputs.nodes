@@ -1,0 +1,4 @@
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key
+orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document
+orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs
+orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null

@@ -1,0 +1,28 @@
+#!/bin/bash
+# [T-2632] 親専用: 変異 harness を独立 clone の固定 commit で走らせる。detach-mutation.sh 経由で呼ぶ。
+# usage: run-mutation.sh <tag> <spec> <spec-sha256> <wrapper-attempt> <commit> <test file...>   (先例 = T-2830 の同名 script、対象 test を引数化)
+set -u
+TAG=${1:?tag}
+SPEC=${2:?spec}
+SHA=${3:?spec sha256}
+ATT=${4:?wrapper attempt}
+COMMIT=${5:?commit}
+shift 5
+J=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier
+SRC="$J/mutation-source"
+mkdir -p "$J/mutation-scratch-$TAG"
+echo $$ > "$J/mutation-$TAG.pid"
+cd "$SRC" || { echo 90 > "$J/mutation-$TAG.done"; exit 90; }
+export IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600
+export IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600
+python3 tools/mutation_worktree.py --source-repo "$SRC" --commit "$COMMIT" \
+  --scratch-root "$J/mutation-scratch-$TAG" \
+  --spec "$SPEC" --expected-spec-sha256 "$SHA" \
+  --out "$J/mutation-$TAG-results.json" \
+  --attempt-out "$J/mutation-$TAG-attempts.json" --wrapper-attempt "$ATT" \
+  --runner-mode dispatch --detached \
+  -- python3 tools/run_tests.py --force-dispatch "$@" -q -rf \
+  > "$J/mutation-$TAG.log" 2>&1
+rc=$?
+echo "$rc" > "$J/mutation-$TAG.done"
+exit "$rc"

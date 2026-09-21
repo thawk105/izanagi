@@ -1,0 +1,27 @@
+spec_sha256=bf234b40014572c1fd2c35177d3547fab21e9b0eb4df2176046a797bcc64675f base=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 kexpr=provenance test=orchestrator/tests/test_p3_s4_loop.py
+run baseline head=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 start=21:52:23
+done baseline rc=0 failed=0 end=21:52:55
+{"id": "S1-provenance-not-published", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S1-provenance-not-published head=35fdc266f6bd9fae23bd93724026f762f59343ab start=21:53:03
+done S1-provenance-not-published rc=1 failed=19 end=21:53:35
+{"id": "S2-checkpoint-before-provenance", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S2-checkpoint-before-provenance head=59d31cb43def1ec5ad2c61f89423555fb445589f start=21:53:42
+done S2-checkpoint-before-provenance rc=1 failed=5 end=21:54:14
+{"id": "S10-raw-bytes-hash", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S10-raw-bytes-hash head=6ee09aff537f3f75bd13b9e278d5931297e80149 start=21:54:22
+done S10-raw-bytes-hash rc=1 failed=4 end=21:54:59
+{"id": "S11-capture-only-with-agent-inputs", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S11-capture-only-with-agent-inputs head=71ca472b4e4137276b3436c499f8595659ff14f9 start=21:55:05
+done S11-capture-only-with-agent-inputs rc=1 failed=4 end=21:55:37
+{"id": "S12-no-provenance-in-b5", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S12-no-provenance-in-b5 head=ef3803e1148064bea02e10af5bb63a14c48abeb9 start=21:55:44
+done S12-no-provenance-in-b5 rc=1 failed=2 end=21:56:16
+{"id": "S13-no-pre-evaluation-check", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S13-no-pre-evaluation-check head=31a67f6d4340b67590369a4c58c601847e784e25 start=21:56:22
+done S13-no-pre-evaluation-check rc=1 failed=8 end=21:57:00
+{"id": "S14-critic-digest-reads-report", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S14-critic-digest-reads-report head=4d1c63304177ec8c8c894b8606d047e553982ada start=21:57:09
+done S14-critic-digest-reads-report rc=1 failed=1 end=21:57:41
+{"id": "S15-noncanonical-hash-raises", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S15-noncanonical-hash-raises head=018aa3e2e8722fcf2bb60e7b34290bea210909cb start=21:57:53
+done S15-noncanonical-hash-raises rc=1 failed=1 end=21:58:26

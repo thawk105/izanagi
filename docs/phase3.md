@@ -18,6 +18,13 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 論文結果節の図素材 2 枚を作成した (2026-09-21 の作図依頼、台帳 ID 未起票)。fig14 = A-1 balanced5 sized attempt-0002 の単独記述図
+  (fig9 と同形の兄弟。`tools/plotting/plot_a1_sized_paired.py` を attempt ごとの exact pin 表で拡張し、attempt-0001 の出力と fig9 の bytes・着地閉包は不変。
+  `variance_plan_breach` を panel 題に描き、2 attempt のプール・差・比・再現判定を描かない)、fig15 = stock mocc 軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4、smoke は数えない) の
+  G2 signal 検出率・Clopper–Pearson 区間・曝露量 (新規生成器が repo 外 5 file を SHA-256 束縛し、稿 §2 の値を逐語で描く。非有意を同等性、TRACE=1 の commit 数を性能、
+  G2 signal を根因として描かない)。README 2 本に節。results 稿・版は不変。図素材の完了であり、論文本文への組み込み・A-1 の充足・mocc の認証を意味しない。
+  記録 = `output/insights/2026-09-21/paper-results-figures/README.md`。
+
 - [x] 本体論文の日本語草稿 3 組へ B-8 の 3 値判定 `pass` (entry 1791、D2202) を反映した新版を置いた (2026-09-21 の執筆依頼、台帳 ID 未起票)。
   結果・考察と要旨・結論は同日第 2 版 (`output/insights/2026-09-21/paper-results-ja-b/results-discussion.md`、
   `output/insights/2026-09-21/paper-abstract-conclusion-ja-b/{abstract,conclusion}.md`)、限界節は `output/insights/2026-09-21/paper-intro-ja/limitations.md`
@@ -1425,7 +1432,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 - [T-237] role ごとの実所要時間の計測 — 理由: 目的である [T-236] の role_cap 裁定が設計凍結となったため、発火条件が成立しない。
 - [T-142] 旧 headline 候補の再起票 — 理由: (62) のユーザー再裁定で close 済み。formal selector と live campaign が揃った場合だけ新規に起票する。
-- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。
+- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。 2026-09-21 関連記録 (TPC-C の起票、未発火): D2212 項 2 で TPC-C を論文の必須経路に入れ [T-2854] / [T-2855] を起票した。発火条件「TPC-C 級 workload corpus を採るとき」は段 1 で corpus の実体が入るときに成立するとみなし、再評価はその wave で行う (本記録では再評価しない)。
 - [T-176] raw evidence bundle の保存形 (trace 圧縮) — 理由: (60) の裁定で driver 変更を伴うため次回 characterization に合流すると決まった。
 
 - [T-549] Pegasus 全 probe 共通の単独性 witness (process / cgroup / PSI) — 理由: 2026-08-09
@@ -1482,7 +1489,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-416] **in-domain 改竄 (rejected -> fail 等)** — 理由: 2026-08-15 棚卸し (価値小 = 防御的堅牢化)。2026-08-12 ユーザー方針 (研究最優先・プロトタイプ基準、防御的堅牢化は既定で見送り) に従う。値域検査では防げず、閉じるには entry 件数上限と origin 束縛が要る同一 UID 敵対者前提の面。再訪条件 = 同型の実害 1 件。
 - [T-421] **numactl prefix の代理条件の置き換え** — 理由: 2026-08-15 棚卸し (価値小 = 発火条件が成立していない、DW-G04)。Pegasus entry は numactl=() で当該分岐が発火しない。再訪条件 = 発火条件を満たす artifact path または計測 ID を書けるようになったとき。
 - [T-433] **意味的充足契約 v1 の採用 (D156 発効)** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。U1〜U4 が全問採用されて D156 として発効済み。機械実装は [T-941] P6 実装 wave の所有。再訪条件 = なし ([T-941] が所有)。
-- [T-436] **cap-lift 記述への実 D 番号の反映** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-07 に再訪条件 (同一 file 相乗り) が `docs/phase3.md` の編集で成立。第 13 回 /rulings が索引へ戻した。 2026-09-08 の /rulings 全件 第 14 回で維持を裁定 (D1780)。相乗り時に直す。
+- [T-436] **cap-lift 記述への実 D 番号の反映** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-07 に再訪条件 (同一 file 相乗り) が `docs/phase3.md` の編集で成立。第 13 回 /rulings が索引へ戻した。 2026-09-08 の /rulings 全件 第 14 回で維持を裁定 (D1780)。相乗り時に直す。 2026-09-21 に再訪条件 (同一 file 相乗り) が再び成立 (窓 entry 1787〜1808 の `docs/phase3.md` の編集、相乗りは未実施)。D2211 で D1780 の「相乗り時に直す」を維持し、次に同 file を触る wave の投げ文へ添える。
 - [T-444] **取得経路の proof chain 束縛 (acquisition receipt 新設)** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-457] **exploration campaign の resume root drift** — 理由: 2026-08-15 棚卸し (価値小 = 発火条件が成立していない、DW-G04)。本文自身が「発火 artifact が無い間は設計メモ (DW-G04)」と結論している。再訪条件 = 発火条件を満たす artifact path または計測 ID を書けるようになったとき。
 - [T-463] **予算・新鮮性を cell key で数える方向** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。方向は裁定済みで、詳細設計は P3 台帳面の実装 wave の設計入力に含めると決着した。再訪条件 = P3 台帳面の実装 wave の設計段。
@@ -2791,7 +2798,7 @@ bnode010 214.34 秒とノード間で 1.8 倍開き、180 秒を超えるノー�
 
 - [T-299] **test_s8b_oracle_driver の 40 件が local main で赤** — 理由: 2026-08-15 棚卸し (陳腐化 = 実測で解消)。2026-08-15 に当該 file を単独実走し **82 passed / 14 skipped / 赤 0** を実測した (敵対レビューが「440 件の緑受入は当該 nodeid の消失を示さない」と指摘したため、推論でなく直接測り直した)。再訪条件 = 同 file の系統的な gate 拒否が再発したとき。
 - [T-118] **provider neutral tree の残留の再測定** — 理由: 2026-08-15 棚卸し (陳腐化 = 所有が別 ID へ移り本項は参照のみ)。残留の帰属は [T-280] (production 例外経路) が持つ。再訪条件 = 所有 ID が終端し残余が宙に浮いたとき。
-- [T-281] **テスト側の素の mkdtemp 60 箇所** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-07 に再訪条件 (同一 file 相乗り) が `orchestrator/tests/test_p3_s4_loop.py` の編集で成立。第 13 回 /rulings が索引へ戻した。 2026-09-08 の /rulings 全件 第 14 回で維持を裁定 (D1780)。相乗り時に直す。
+- [T-281] **テスト側の素の mkdtemp 60 箇所** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-07 に再訪条件 (同一 file 相乗り) が `orchestrator/tests/test_p3_s4_loop.py` の編集で成立。第 13 回 /rulings が索引へ戻した。 2026-09-08 の /rulings 全件 第 14 回で維持を裁定 (D1780)。相乗り時に直す。 2026-09-21 に再訪条件 (同一 file 相乗り) が再び成立 ([T-2795] wave の `396c458ee`〜`7bafad4a0` が `orchestrator/tests/test_p3_s4_loop.py` を変更、mkdtemp は直さず)。D2211 で D1780 の「相乗り時に直す」を維持し、次に同 file を触る wave の投げ文へ添える。
 - [T-218] **中継まわりのテスト衛生 3 件** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
 - [T-134] **xdist 並列度の再最適化** — 理由: 2026-08-15 棚卸し (陳腐化 = 所有が別 ID へ移り本項は参照のみ)。受入 wall の実測最適化は [T-989] 系が保持する。再訪条件 = 所有 ID が終端し残余が宙に浮いたとき。
 - [T-123] **daemon.py の _atomic_json (デッドコード) の削除** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。

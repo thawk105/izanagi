@@ -1,0 +1,551 @@
+"""Wave-local collection instrumentation; never import repository modules."""
+import time
+
+T_IMPORT = {"epoch": time.time(), "monotonic": time.monotonic(),
+            "perf": time.perf_counter()}
+
+import contextlib
+import hashlib
+import resource
+import threading
+import functools
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+
+import pytest
+from xdist.scheduler import LoadGroupScheduling
+
+
+def stamp():
+    return {"epoch": time.time(), "monotonic": time.monotonic(),
+            "perf": time.perf_counter()}
+
+
+def state(config):
+    return config._t2826_probe_state
+
+
+def worker(config):
+    return hasattr(config, "workerinput")
+
+
+def facts(config):
+    ledger = getattr(config, "_izanagi_acceptance_duration_seconds_by_nodeid", None)
+    result = {
+        **{key: getattr(config.option, key, None) for key in
+           ("dist", "loadscopereorder", "numprocesses", "maxfail")},
+        "shard_spec": getattr(config, "_izanagi_acceptance_shard_spec", None) is not None,
+        "ledger_attr": hasattr(config, "_izanagi_acceptance_duration_seconds_by_nodeid"),
+        "ledger_entries": len(ledger) if isinstance(ledger, dict) else None,
+        "early_memo_attr": hasattr(config, "_izanagi_early_memo_job"),
+        "effective_scheduler_attr": hasattr(config, "_izanagi_effective_scheduler"),
+        "argv": list(sys.argv),
+        "env": {k: v for k, v in os.environ.items() if
+                k.startswith(("IZANAGI_", "PYTEST_", "T2826_")) or
+                k in ("PYTHONDONTWRITEBYTECODE", "TMPDIR")},
+    }
+    if worker(config):
+        workerinput = config.workerinput
+        ledger_key = "izanagi_acceptance_duration_ledger_v1"
+        payload = workerinput.get(ledger_key)
+        result.update(
+            workerinput_keys=sorted(workerinput.keys()),
+            ledger_payload_present=ledger_key in workerinput,
+            ledger_payload_entries=(
+                len(payload) if isinstance(payload, (dict, list)) else None),
+            early_memo_paths_present="izanagi_early_memo_paths" in workerinput,
+        )
+    else:
+        # Mirror conftest's parsed-option gate without importing repository code.
+        disabled_booleans = (
+            "stepwise", "stepwise_skip", "stepwise_reset", "failedfirst",
+            "newfirst", "lf", "collectonly", "setuponly", "setupplan",
+            "showfixtures", "show_fixtures_per_test", "trace",
+        )
+        option = config.option
+        inputs = {
+            "dist": getattr(option, "dist", None),
+            "maxfail": getattr(option, "maxfail", 0),
+            "loadscopereorder": getattr(option, "loadscopereorder", True),
+            "cacheshow": getattr(option, "cacheshow", None),
+            **{name: getattr(option, name, False) for name in disabled_booleans},
+        }
+        result["ledger_option_inputs"] = inputs
+        result["ledger_should_load"] = (
+            inputs["dist"] == "loadgroup"
+            and inputs["maxfail"] in (None, 0)
+            and not any(bool(inputs[name]) for name in disabled_booleans)
+            and inputs["cacheshow"] is None
+            and inputs["loadscopereorder"] is not False
+        )
+    return result
+
+
+def write(config):
+    if worker(config) or not os.environ.get("T2826_PROBE_OUT"):
+        return
+    data = state(config)
+    data["config"] = facts(config)
+    expected = getattr(config.option, "numprocesses", None)
+    data["complete"] = (type(expected) is int and expected > 0 and
+                        len(data["workers"]) == expected)
+    path = Path(os.environ["T2826_PROBE_OUT"])
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                         prefix=path.name + ".", delete=False) as stream:
+            temporary = stream.name
+            json.dump(data, stream, ensure_ascii=True, indent=2, allow_nan=False)
+            stream.write("\n")
+        os.replace(temporary, path)
+    except BaseException as exc:
+        data["errors"].append({"where": "write", "error": repr(exc)})
+        raise
+    finally:
+        if temporary is not None and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+@contextlib.contextmanager
+def record_errors(config, where):
+    try:
+        yield
+    except BaseException as exc:
+        state(config)["errors"].append({"where": where, "error": repr(exc)})
+        if not worker(config):
+            write(config)
+        raise
+
+
+def guarded(function):
+    @functools.wraps(function)
+    def call(*args, **kwargs):
+        first = args[0] if args else next(iter(kwargs.values()))
+        config = getattr(first, "config", first)
+        with record_errors(config, function.__name__):
+            return function(*args, **kwargs)
+    return call
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config):
+    config._t2826_probe_state = {
+        "schema_version": "t2826-probe/v1", "complete": False, "errors": [],
+        "times": {"t_import": T_IMPORT, "configure": stamp()},
+        "workers": {}, "nodes": {}, "item_count": 0,
+        "collection_mismatch": None,
+        "func_timers": os.environ.get("T2826_FUNC_TIMERS") == "1",
+        "resolve_memo": os.environ.get("T2826_RESOLVE_MEMO") == "1",
+        "tmpdir": os.environ.get("TMPDIR"), "calls": [],
+    }
+
+    with record_errors(config, "install"):
+        install(config)
+
+
+@pytest.hookimpl(tryfirst=True)
+@guarded
+def pytest_sessionstart(session):
+    state(session.config)["times"]["sessionstart"] = stamp()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_collection(session):
+    config = session.config
+    with record_errors(config, "pytest_collection"):
+        state(config)["times"]["collection_entry"] = stamp()
+        try:
+            return (yield)
+        finally:
+            state(config)["times"]["collection_exit"] = stamp()
+
+
+@guarded
+def pytest_itemcollected(item):
+    data = state(item.config)
+    now = stamp()
+    data["times"].setdefault("first_itemcollected", now)
+    data["times"]["last_itemcollected"] = now
+    data["item_count"] += 1
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_collection_finish(session):
+    config = session.config
+    with record_errors(config, "pytest_collection_finish"):
+        state(config)["times"]["cf_entry"] = stamp()
+        try:
+            return (yield)
+        finally:
+            state(config)["times"]["cf_exit"] = stamp()
+
+
+@pytest.hookimpl(optionalhook=True)
+@guarded
+def pytest_configure_node(node):
+    state(node.config)["nodes"].setdefault(node.gateway.id, {})["configure"] = stamp()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True, optionalhook=True)
+def pytest_xdist_node_collection_finished(node, ids):
+    config = node.config
+    with record_errors(config, "pytest_xdist_node_collection_finished"):
+        data = state(config)["nodes"].setdefault(node.gateway.id, {})
+        data.update(collection_entry=stamp(), ids_count=len(ids))
+        try:
+            return (yield)
+        finally:
+            data["collection_exit"] = stamp()
+
+
+@pytest.hookimpl(tryfirst=True, optionalhook=True)
+@guarded
+def pytest_xdist_make_scheduler(config, log):
+    if (worker(config) or os.environ.get("T2826_PROBE_COLLECT_ONLY") != "1" or
+            config.getoption("dist") != "loadgroup"):
+        return None
+    sched = LoadGroupScheduling(config, log)
+
+    def schedule():
+        with record_errors(config, "schedule"):
+            assert sched.collection_is_completed
+            if sched.collection is not None:
+                return
+            data = state(config)
+            data["times"]["all_collected"] = stamp()
+            ok = sched._check_nodes_have_same_collection()
+            data["times"]["collection_checked"] = stamp()
+            data["collection_mismatch"] = not ok
+            if not ok:
+                sched.log("**Different tests collected, aborting run**")
+                return
+            sched.collection = list(next(iter(sched.registered_collections.values())))
+            # Empty workqueue and assigned_work: DSession initiates shutdown.
+
+    sched.schedule = schedule
+    return sched
+
+
+@pytest.hookimpl(tryfirst=True, optionalhook=True)
+@guarded
+def pytest_testnodedown(node, error):
+    config = node.config
+    data = state(config)
+    now = stamp()
+    data["times"].setdefault("first_nodedown", now)
+    entry = data["nodes"].setdefault(node.gateway.id, {})
+    entry.update(nodedown=now, error=None if error is None else str(error))
+    payload = getattr(node, "workeroutput", {}).get("t2826")
+    if isinstance(payload, dict):
+        data["workers"][node.gateway.id] = payload
+    shard = getattr(node, "workeroutput", {}).get("izanagi_acceptance_shard")
+    if isinstance(shard, dict):
+        entry["shard"] = {k: shard.get(k) for k in ("records_digest", "selected_digest")}
+        if node.gateway.id == "gw0":
+            for key in ("records", "selected"):
+                if key in shard:
+                    entry["shard"][key + "_sha256"] = canonical_hash(shard[key])
+                    entry["shard"][key + "_count"] = len(shard[key])
+    write(config)
+
+
+@pytest.hookimpl(tryfirst=True)
+@guarded
+def pytest_sessionfinish(session, exitstatus):
+    config = session.config
+    data = state(config)
+    data["times"]["sessionfinish"] = stamp()
+    data["exitstatus"] = int(exitstatus)
+    data["config"] = facts(config)
+    if worker(config):
+        data["workerid"] = config.workerinput["workerid"]
+        shard = getattr(config, "_izanagi_acceptance_shard_state", None)
+        data["collection_finished_epoch_s"] = (
+            shard.get("collection_finished_epoch_s") if isinstance(shard, dict) else None)
+        data["selected_count"] = len(shard["selected"]) if isinstance(shard, dict) else None
+        if isinstance(shard, dict):
+            for key in ("records_digest", "selected_digest"):
+                data[key] = shard.get(key)
+        data["memo_paths"] = config.workerinput.get("izanagi_early_memo_paths")
+        config.workeroutput["t2826"] = data
+    else:
+        write(config)
+
+
+@guarded
+def pytest_unconfigure(config):
+    state(config)["times"]["unconfigure"] = stamp()
+    write(config)
+
+
+def canonical_hash(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False).encode()).hexdigest()
+
+
+def boundary(cpu=False):
+    result = {"epoch": time.time(), "perf": time.perf_counter()}
+    if cpu:
+        thread = resource.getrusage(resource.RUSAGE_THREAD)
+        process = os.times()
+        result["cpu"] = [thread.ru_utime, thread.ru_stime, process.user, process.system]
+    return result
+
+
+class Instrument:
+    """Only large intervals sample CPU; hot calls accumulate wall and counts."""
+    def __init__(self, data):
+        self.data = data
+        self.local = threading.local()
+        self.memo = {}
+        self.originals = []
+        self.b = data["b"] = {"hooks": [], "intervals": {}, "hot": {}, "bounds": {}}
+        for key in ("canonical.1", "canonical.2", "resolve.1", "resolve.2",
+                    "_strip_real_repo_loadgroup_suffix", "_records_payload", "_digest",
+                    "_ensure_flaky_test_holds_loaded", "_reorder_acceptance_items_by_duration",
+                    "_validate_real_repo_shard_state"):
+            self.b["hot"][key] = {"count": 0, "wall": 0.0, "hit": 0, "miss": 0}
+
+    def add(self, key, started, **counts):
+        try:
+            row = self.b["hot"][key]
+            row["count"] += 1
+            row["wall"] += time.perf_counter() - started
+            for name, value in counts.items():
+                row[name] += value
+        except BaseException as exc:
+            self.data["errors"].append({"where": "accumulate:" + key, "error": repr(exc)})
+            raise
+
+    @contextlib.contextmanager
+    def interval(self, key, cpu=False):
+        row = {"start": boundary(cpu), "exception": None,
+               "in_selection": bool(getattr(self.local, "shard", False)
+                                    and "selection_start" in self.b["bounds"]
+                                    and "state_start" not in self.b["bounds"])}
+        self.b["intervals"].setdefault(key, []).append(row)
+        try:
+            yield
+        except StopIteration:
+            raise
+        except BaseException as exc:
+            row["exception"] = repr(exc)
+            raise
+        finally:
+            row["end"] = boundary(cpu)
+
+    def delegated(self, original, key, cpu=False):
+        @functools.wraps(original)
+        def call(*args, **kwargs):
+            with self.interval(key, cpu):
+                return original(*args, **kwargs)
+        return call
+
+    def generator(self, original, key, cpu=False):
+        @functools.wraps(original)
+        def call(*args, **kwargs):
+            gen = original(*args, **kwargs)
+            try:
+                with self.interval(key + ".pre", cpu):
+                    value = next(gen)
+            except StopIteration as stop:
+                return stop.value
+            while True:
+                try:
+                    sent = yield value
+                except GeneratorExit:
+                    with self.interval(key + ".post", cpu):
+                        gen.close()
+                    raise
+                except BaseException:
+                    exc = sys.exc_info()
+                    try:
+                        with self.interval(key + ".post", cpu):
+                            value = gen.throw(*exc)
+                    except StopIteration as stop:
+                        return stop.value
+                else:
+                    try:
+                        with self.interval(key + ".post", cpu):
+                            value = gen.send(sent)
+                    except StopIteration as stop:
+                        return stop.value
+        return call
+
+    def replace(self, obj, name, replacement):
+        self.originals.append((obj, name, getattr(obj, name)))
+        setattr(obj, name, replacement)
+
+    def resolve_wrapper(self, original):
+        @functools.wraps(original)
+        def resolve(path, strict=False):
+            phase = getattr(self.local, "canonical", None)
+            if phase is None:
+                return original(path, strict=strict)
+            started = time.perf_counter()
+            hit = miss = 0
+            try:
+                if not self.data["resolve_memo"]:
+                    return original(path, strict=strict)
+                key = (os.fspath(path), strict)
+                if key in self.memo:
+                    hit = 1
+                    return self.memo[key]
+                miss = 1
+                result = original(path, strict=strict)
+                self.memo[key] = result
+                return result
+            finally:
+                self.add("resolve." + str(phase), started, hit=hit, miss=miss)
+        return resolve
+
+    def canonical_wrapper(self, original):
+        @functools.wraps(original)
+        def call(*args, **kwargs):
+            previous = getattr(self.local, "canonical", None)
+            phase = 1 if getattr(self.local, "records", False) else 2
+            self.local.canonical = phase
+            started = time.perf_counter()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                try:
+                    self.add("canonical." + str(phase), started)
+                finally:
+                    self.local.canonical = previous
+        return call
+
+    def helper(self, original, name):
+        @functools.wraps(original)
+        def call(*args, **kwargs):
+            if not getattr(self.local, "modify", False):
+                return original(*args, **kwargs)
+            if name == "records_from_items":
+                previous = getattr(self.local, "records", False)
+                self.local.records = True
+                try:
+                    with self.interval(name, True):
+                        return original(*args, **kwargs)
+                finally:
+                    self.local.records = previous
+            if name == "allocate":
+                try:
+                    with self.interval(name, True):
+                        return original(*args, **kwargs)
+                finally:
+                    self.b["bounds"]["selection_start"] = boundary(True)
+            if name == "_records_payload" and "state_start" not in self.b["bounds"]:
+                self.b["bounds"]["state_start"] = boundary(True)
+            started = time.perf_counter()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                self.add(name, started)
+                if name == "_digest":
+                    self.b["bounds"]["state_end"] = boundary(True)
+        return call
+
+    def hook(self, impl, index, hookname, conftest):
+        # xdist registers WorkerInteractor under str(id(instance)); retain that
+        # actual name in the inventory, but align intervals across processes by
+        # original callable identity and registration order.
+        original = impl.function
+        identity = original.__module__ + "." + original.__qualname__
+        key = hookname + ":" + str(index) + ":" + identity
+        is_cf = impl.plugin is conftest
+        is_shard = impl.plugin_name == "tools.acceptance_shards"
+        self.b["hooks"].append({"key": key, "hook": hookname, "plugin": impl.plugin_name,
+                                "call_order": index, "conftest": is_cf, "shard": is_shard,
+                                **{k: getattr(impl, k) for k in
+                                   ("wrapper", "hookwrapper", "tryfirst", "trylast")}})
+        wrap = self.generator if impl.wrapper or impl.hookwrapper else self.delegated
+        delegated = wrap(original, key, is_cf or is_shard)
+        if hookname == "pytest_collection_modifyitems":
+            if impl.wrapper or impl.hookwrapper:
+                @functools.wraps(original)
+                def call(*args, **kwargs):
+                    previous = getattr(self.local, "modify", False)
+                    previous_shard = getattr(self.local, "shard", False)
+                    self.local.modify = True
+                    self.local.shard = is_shard
+                    self.b["bounds"].setdefault("modify_entry", boundary())
+                    try:
+                        return (yield from delegated(*args, **kwargs))
+                    finally:
+                        self.b["bounds"]["modify_exit"] = boundary()
+                        self.local.modify = previous
+                        self.local.shard = previous_shard
+            else:
+                @functools.wraps(original)
+                def call(*args, **kwargs):
+                    previous = getattr(self.local, "modify", False)
+                    previous_shard = getattr(self.local, "shard", False)
+                    self.local.modify = True
+                    self.local.shard = is_shard
+                    self.b["bounds"].setdefault("modify_entry", boundary())
+                    try:
+                        return delegated(*args, **kwargs)
+                    finally:
+                        self.b["bounds"]["modify_exit"] = boundary()
+                        self.local.modify = previous
+                        self.local.shard = previous_shard
+        else:
+            call = delegated
+        self.replace(impl, "function", call)
+
+
+def common_wrapper(data, original, name):
+    @functools.wraps(original)
+    def call(*args, **kwargs):
+        row = {"name": name, "start_epoch": time.time(), "end_epoch": None,
+               "return_epoch": None, "exception": None,
+               "early": kwargs.get("early"), "hook": kwargs.get("hook")}
+        data["calls"].append(row)
+        try:
+            result = original(*args, **kwargs)
+            row["return_epoch"] = time.time()
+            return result
+        except BaseException as exc:
+            row["exception"] = repr(exc)
+            raise
+        finally:
+            row["end_epoch"] = time.time()
+    return call
+
+
+def install(config):
+    data = state(config)
+    pm = config.pluginmanager
+    target = Path(config.rootpath) / "orchestrator/tests/conftest.py"
+    matches = [p for p in pm.get_plugins()
+               if getattr(p, "__file__", None) and Path(p.__file__).resolve() == target.resolve()]
+    if len(matches) != 1:
+        raise RuntimeError("expected exactly one registered orchestrator conftest")
+    conftest = matches[0]
+    names = ("_wait_early_memo_job",) if worker(config) else (
+        "_prewarm_receipt_memo", "_prewarm_oracle_environment_memo", "_run_memo_prewarm_barrier")
+    for name in names:
+        setattr(conftest, name, common_wrapper(data, getattr(conftest, name), name))
+    if not worker(config) or not data["func_timers"]:
+        if data["resolve_memo"] and worker(config):
+            raise RuntimeError("resolve memo requires function timers")
+        return
+    instrument = Instrument(data)
+    config._t2826_instrument = instrument
+    for hookname in ("pytest_collection_modifyitems", "pytest_deselected"):
+        impls = getattr(pm.hook, hookname).get_hookimpls()
+        for index, impl in enumerate(reversed(impls)):
+            instrument.hook(impl, index, hookname, conftest)
+    shard = pm.get_plugin("tools.acceptance_shards")
+    if shard is None:
+        raise RuntimeError("function timer cell requires registered shard plugin")
+    for name in ("records_from_items", "allocate", "_records_payload", "_digest"):
+        instrument.replace(shard, name, instrument.helper(getattr(shard, name), name))
+    instrument.replace(shard, "_canonical_item", instrument.canonical_wrapper(shard._canonical_item))
+    for name in ("_validate_real_repo_shard_state", "_strip_real_repo_loadgroup_suffix",
+                 "_reorder_acceptance_items_by_duration", "_ensure_flaky_test_holds_loaded"):
+        instrument.replace(conftest, name, instrument.helper(getattr(conftest, name), name))
+    instrument.replace(Path, "resolve", instrument.resolve_wrapper(Path.resolve))
