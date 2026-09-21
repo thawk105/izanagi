@@ -1,0 +1,5 @@
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+NOTE: midflight は段 5 実装子 dispatch 直前専用で、開始 gate (fresh / resume) の代用ではない; HEAD/main 関係・clean tree・handoff を検査しない
+NOTE: local main より 0 commit 遅れている (gate の実測値; これは関門ではない)
+NOTE: working tree is clean (midflight は clean tree を検査しない)
+NG: submodule is not initialized (external/ccbench/CMakeLists.txt must be a non-symlink regular file and external/ccbench/.git must exist without being a symlink): 検査対象の worktree root で python3 tools/dev_wave_submodule_init.py --worktree <path> を実行し再検査する
