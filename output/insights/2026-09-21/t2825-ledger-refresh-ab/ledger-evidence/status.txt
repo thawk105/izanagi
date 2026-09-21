@@ -1,0 +1,12 @@
+ M orchestrator/tests/acceptance_duration_ledger.json
+?? t2825-author-l/coverage.log
+?? t2825-author-l/determinism.log
+?? t2825-author-l/input-sha256.json
+?? t2825-author-l/ledger-before.json
+?? t2825-author-l/main-nodeids.txt
+?? t2825-author-l/refresh.log
+?? t2825-author-l/removed.txt
+?? t2825-author-l/status.txt
+?? t2825-author-l/verify.json
+?? t2825-author-l/verify.md
+?? t2825-author-l/verify.py

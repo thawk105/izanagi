@@ -1,0 +1,79 @@
+{
+ "source_sha256": "b125b4f5fecd88803986ceb8de7613ec7e9ae0ced34ff6545940504ec1bbf95e",
+ "source_bytes": 982358,
+ "spec_sha256": "6429930def2b647830441620935b3a7e5abc59a47a4df99bc4b0348a64c36b15",
+ "repo_head": "26387b617cd75d1786cbf4b44958e6c516338b39",
+ "summary": {
+  "KILLED": 3,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 4,
+  "matching": 4,
+  "recorded": 4,
+  "registered": 4
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0,
+  "duration_s": 83.54,
+  "failed_nodes": [],
+  "collection_sha256": "735587d778851e8b91a87ffdc75dd53b1ceebd9cc0a2b1ecd6692f918c0dfc90",
+  "repo_head": "26387b617cd75d1786cbf4b44958e6c516338b39"
+ },
+ "mutations": [
+  {
+   "id": "P0",
+   "category": "positive",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": [],
+   "duration_s": 83.619,
+   "runner_rc": null
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "duration_s": 83.756,
+   "runner_rc": null
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "duration_s": 83.428,
+   "runner_rc": null
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+   ],
+   "duration_s": 83.47,
+   "runner_rc": null
+  }
+ ]
+}

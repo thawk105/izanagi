@@ -1,0 +1,73 @@
+{
+ "source_sha256": "aaa8bac643987796de09e5de7a09c940edb4e4240ecc0701f854990d1d150633",
+ "source_bytes": 1002149,
+ "spec_sha256": "1015f7cf167db5693955a0e2a1b3b6ea9dc6a042680963933f29526b930bf1cb",
+ "repo_head": "26387b617cd75d1786cbf4b44958e6c516338b39",
+ "summary": {
+  "KILLED": 0,
+  "MISMATCH": 3,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 4,
+  "matching": 1,
+  "recorded": 4,
+  "registered": 4
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0,
+  "duration_s": 83.546,
+  "failed_nodes": [],
+  "collection_sha256": "5f719982ec0583d7fdddcceac70029a8324c6044b52c621c89057ec2e819ab53",
+  "repo_head": "26387b617cd75d1786cbf4b44958e6c516338b39"
+ },
+ "mutations": [
+  {
+   "id": "P0",
+   "category": "positive",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": [],
+   "duration_s": 488.266,
+   "runner_rc": null
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "duration_s": 83.823,
+   "runner_rc": null
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": [
+    "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+   ],
+   "duration_s": 90.833,
+   "runner_rc": null
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "failed_nodes": [
+    "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+   ],
+   "duration_s": 1112.749,
+   "runner_rc": null
+  }
+ ]
+}
