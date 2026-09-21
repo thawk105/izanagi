@@ -270,5 +270,84 @@ def test_t8_cli_rejects_invalid_prefix(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_t9_default_caption_matches_independent_literal(production):
+    data, _, layout = production
+    prov = PLOT.build_provenance(data, layout, [], ["caption-probe"])
+    assert prov["caption"] == (
+        "Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: "
+        "act summaries from section 0 and evidence-item states from section 8. "
+        "Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. "
+        "Obtained records that a judgment or completion exists, not that a claim is supported: "
+        "B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. "
+        "A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. "
+        "B-7, B-9, and B-10 are neither promoted nor closed by this figure. "
+        "This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. "
+        "A-2 and A-6 retain the judgments made under the identity layer used at the time; "
+        "later identity fixes do not strengthen them retrospectively. "
+        "No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen."
+    )
+
+
+def _copy_story_states(root, **changes):
+    raw = _raw()
+    source = REPO / raw["story_path"]
+    raw.update(changes)
+    story = root / raw["story_path"]
+    story.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, story)
+    path = root / STATES.name
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    return path
+
+
+def test_t10_suffix_version_and_generic_caption(tmp_path):
+    path = _copy_story_states(tmp_path, story_version="2026-09-19c",
+                              story_path="docs/paper-story/2026-09-19c.md")
+    data = PLOT.load_states(tmp_path, path)
+    fig, layout = PLOT.make_figure(data)
+    try:
+        PLOT.check_figure_layout(fig, layout)
+        prov = PLOT.build_provenance(data, layout, [], ["caption-probe"], figure_number="3c")
+        assert prov["story_version"] == "2026-09-19c"
+        assert prov["caption"] == (
+            "Figure 3c. Status of the paper-story arc read from the frozen 2026-09-19c story: "
+            "act summaries from section 0 and evidence-item states from section 8. "
+            "Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. "
+            "Obtained records that a judgment or completion exists, not that a claim is supported; "
+            "each item's sublabel carries the recorded judgment words and limitations. "
+            "This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. "
+            "Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. "
+            "No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen."
+        )
+        assert "A-4 is adopted by ruling but inactive pending human action" not in prov["caption"]
+    finally:
+        PLOT.plt.close(fig)
+
+
+@pytest.mark.parametrize("version,reason", [
+    ("2026-02-30c", "day is out of range for month"),
+    ("2026-09-19C", "ISO date required"),
+    ("2026-09-19cc", "ISO date required"),
+], ids=["invalid-calendar-day", "uppercase-suffix", "multiple-suffix-letters"])
+def test_t11_invalid_story_version(tmp_path, version, reason):
+    path = _copy_story_states(tmp_path, story_version=version,
+                              story_path=f"docs/paper-story/{version}.md")
+    with pytest.raises(PLOT.FigureDataError, match=reason):
+        PLOT.load_states(tmp_path, path)
+
+
+def test_t12_figure_created_rejects_suffix(tmp_path):
+    path = _copy_story_states(tmp_path, figure_created="2026-09-21c")
+    with pytest.raises(PLOT.FigureDataError, match="ISO date required"):
+        PLOT.load_states(tmp_path, path)
+
+
+def test_t13_suffix_version_requires_matching_story_path(tmp_path):
+    path = _copy_story_states(tmp_path, story_version="2026-09-19c",
+                              story_path="docs/paper-story/2026-09-19.md")
+    with pytest.raises(PLOT.FigureDataError, match="story_path mismatch"):
+        PLOT.load_states(tmp_path, path)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-x"]))

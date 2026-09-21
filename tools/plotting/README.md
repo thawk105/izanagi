@@ -397,9 +397,9 @@ loader が照合し、不一致を fail-closed にする。model 側も元測定
 
 ## 論文ストーリーの現況図 (3 幕 + §8 A/B 群の状態、値なし) figure
 
-`plot_arc_status.py` は、論文ストーリー文書の凍結版 (現在は `docs/paper-story/2026-09-19.md`) の §0 の 3 幕の要約と §8 の
-証拠項目 (A 系列 5 + B 群 11) の【状態】だけを、値を 1 つも描かずに 1 枚の模式図にする専用生成器である
-(`fig3_arc_status.png` の後継図 `fig3b_`)。既存生成器を import しない (自己完結)。
+`plot_arc_status.py` は、論文ストーリー文書の凍結版 (fig3b は `docs/paper-story/2026-09-19.md`、fig3c は `docs/paper-story/2026-09-21c.md`) の
+§0 の 3 幕の要約と §8 の証拠項目 (A 系列 5 + B 群 11) の【状態】だけを、値を 1 つも描かずに 1 枚の模式図にする専用生成器である
+(`fig3_arc_status.png` の後継図 `fig3b_` と、その後継図 `fig3c_`)。既存生成器を import しない (自己完結)。
 
 ```bash
 python3 tools/plotting/plot_arc_status.py [--repo-root PATH] [--states PATH] OUT_PREFIX
@@ -407,22 +407,26 @@ python3 tools/plotting/plot_arc_status.py [--repo-root PATH] [--states PATH] OUT
 
 入力は状態 JSON (`--states` 省略時は `tools/plotting/arc_status_story_2026-09-19.json`、schema `izanagi-arc-status/v1`) と、
 JSON の `story_path` が指す凍結本文である。状態語の意味の正本は本文で、JSON は人がそこから写した射影である。
+`story_version` は `YYYY-MM-DD` に英小文字 1 字の接尾辞を許す (同日の版 `2026-09-21c` など。暦日検査は日付部分に掛け、`story_path` は
+接尾辞込みで `docs/paper-story/<story_version>.md` と一致させる)。`figure_created` は接尾辞の無い日付だけを受理する。
 
 - 4 状態 `obtained` / `uncertified` / `awaiting-ruling` / `not-obtained` を色とマーカー形 (塗り丸 / 中抜き菱形 / 中抜き三角 / ×)
   で描く。`obtained` は「判定または完了の記録がある」であって主張の支持ではない (B-1 の `not met`、A-6 の `reject` も obtained)。
 - 各項目の `source_anchor` (`§8 A-1` / `§0 item 3` / `§0 act 3`) が本文の該当節にちょうど 1 行の項目見出しとして存在することを
   検査する。意味の一致は検査しない。
 - 自由文 (label / sublabel / 状態定義文) に数量が混じると拒否する: `=`、`%`、単位語、数詞、および JSON で宣言した証拠項目 ID と
-  `reference_ids` 以外の数字入り token。caption と脚注の節番号・版日付・図番号は構造 field から組み立てる。
+  `reference_ids` 以外の数字入り token。caption と脚注の節番号・版名・図番号は構造 field から組み立てる。
 - key 集合の不一致 (未知・不足・重複 key、NaN / Infinity)、4 状態以外の `state`、ID 重複、`story_path` の不一致、prefix が
   `fig<N><letters>_` でない、既存の 3 出力のいずれかが存在する (上書きしない)、保存前の layout check (全 Text の figure 内包・
   所属領域内包・相互非交差・兄弟セル非交差・marker 非交差) の違反、のいずれでも成果物を出さない。
 - 判定・値・認証を再計算しない。図は「記録された状態の要約」であり、採用・認可・certification の根拠にしない。
+- caption は固定 template である。`story_version` が `2026-09-19` のときだけ fig3b の caption (2026-09-19 版の項目の状態を述べる文を含む) を
+  1 文字も変えずに使い、それ以外の版では項目の状態に依存しない固定 caption を使う (項目固有の判定語・限定は各項目の副ラベルが担い、正本は本文 §8)。
 
 出力は `OUT_PREFIX.png` (200 dpi)、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
 `izanagi-arc-status-figure-provenance/v1` で、入力 2 file (JSON・本文) と生成器・出力の SHA-256、描いた項目 (`drawn_items`: ID・
 状態・実表示文字列)、状態定義、caption、展開済み argv、matplotlib / numpy の版を持つ。論文図の再現コマンド、caption、proof chain、
-次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節を正本とする。
+次の版との整合手順は `docs/paper-story/figures/README.md` の fig3b 節と fig3c 節を正本とする。
 
 ## K2 手動 loop 3 巡のデータフロー (説明図、値なし) figure
 

@@ -1,0 +1,188 @@
+{
+  "schema": "izanagi-arc-status-figure-provenance/v1",
+  "generated_utc": "2026-09-21T07:25:58.274746+00:00",
+  "story_version": "2026-09-21c",
+  "story_path": "docs/paper-story/2026-09-21c.md",
+  "figure_created": "2026-09-21",
+  "state_definitions": {
+    "obtained": "A recorded judgment or completion exists; it need not support the claim.",
+    "uncertified": "Materials exist; the item is not certified, promoted, or closed.",
+    "awaiting-ruling": "A ruling or human action remains pending before the item can advance.",
+    "not-obtained": "The required evidence is not yet obtained, including blocked work."
+  },
+  "inputs": [
+    {
+      "kind": "states",
+      "path": "docs/paper-story/figures/arc_status_story_2026-09-21c.json",
+      "sha256": "e8a6b3e5cf12946d2d58cb4abe7a26ad09ab281a6113036d2ac9c317c12cba62"
+    },
+    {
+      "kind": "story",
+      "path": "docs/paper-story/2026-09-21c.md",
+      "sha256": "0317911a7791badeb4c29693dabf729bf85fde05bf12d787eff8e5d217133b40"
+    }
+  ],
+  "generator": {
+    "path": "tools/plotting/plot_arc_status.py",
+    "sha256": "076ad3828cae8cc1cd1d9ff97f418f128984a5b7914fe3f9096da594d1b51548"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig3c_arc_status_2026-09-21.png",
+      "sha256": "34d2b5e67377dfe8f914ae7034d3f9cc493eaa98f747f52b8135184c9d52fd1b"
+    },
+    {
+      "path": "docs/paper-story/figures/fig3c_arc_status_2026-09-21.pdf",
+      "sha256": "3ba27096c11f70a7a402d3565c3a37ecf117339137aaa9f72a0d941f9e9b4213"
+    }
+  ],
+  "drawn_items": [
+    {
+      "id": "Act 1",
+      "state": null,
+      "label": "Act 1: Trustworthy evaluator complete"
+    },
+    {
+      "id": "act1-evaluator",
+      "state": "obtained",
+      "label": "Build a trustworthy evaluator complete"
+    },
+    {
+      "id": "Act 2",
+      "state": null,
+      "label": "Act 2: Falsification and synthesis complete"
+    },
+    {
+      "id": "act2-hypothesis",
+      "state": "obtained",
+      "label": "Search hypothesis falsified"
+    },
+    {
+      "id": "act2-value",
+      "state": "obtained",
+      "label": "Value beyond the search space relocated to synthesis"
+    },
+    {
+      "id": "Act 3",
+      "state": null,
+      "label": "Act 3: Code-level synthesis in progress"
+    },
+    {
+      "id": "act3-claim",
+      "state": "obtained",
+      "label": "S' claim not met"
+    },
+    {
+      "id": "act3-mechanism",
+      "state": null,
+      "label": "Mechanism work advanced; claim remains unmet"
+    },
+    {
+      "id": "act3-formal",
+      "state": "obtained",
+      "label": "Adopted configuration A-2 observed-positive; A-6 reject; T-1998 accepted"
+    },
+    {
+      "id": "act3-descriptive",
+      "state": "uncertified",
+      "label": "A-1 descriptive attempts completed; non-certifying; observations only"
+    },
+    {
+      "id": "act3-final-candidate",
+      "state": "obtained",
+      "label": "Final-candidate check B-8 pass; correctness check on observed runs; no performance claim"
+    },
+    {
+      "id": "A-1",
+      "state": "uncertified",
+      "label": "A-1 Paired headline estimand descriptive; non-certifying; fulfilment undetermined; further attempts require human action"
+    },
+    {
+      "id": "A-2",
+      "state": "obtained",
+      "label": "A-2 Write-heavy / balanced certification observed-positive; limitations retained"
+    },
+    {
+      "id": "A-3",
+      "state": "obtained",
+      "label": "A-3 Reporting rule settled; rule only; not evidence"
+    },
+    {
+      "id": "A-5",
+      "state": "not-obtained",
+      "label": "A-5 Separate-boot reproduction not obtained; Pegasus cannot establish separate-boot reproduction"
+    },
+    {
+      "id": "A-6",
+      "state": "obtained",
+      "label": "A-6 Read-heavy certification reject; limitations retained"
+    },
+    {
+      "id": "A-4",
+      "state": "awaiting-ruling",
+      "label": "A-4 Official floor effective; historical reverify passes; live launch rejected; ruling pending"
+    },
+    {
+      "id": "B-1",
+      "state": "obtained",
+      "label": "B-1 Beyond best known axis not met"
+    },
+    {
+      "id": "B-2",
+      "state": "not-obtained",
+      "label": "B-2 Descriptor causal evidence not run; layered blockage"
+    },
+    {
+      "id": "B-3",
+      "state": "not-obtained",
+      "label": "B-3 Formal holdout series not completed; authority absent"
+    },
+    {
+      "id": "B-4",
+      "state": "not-obtained",
+      "label": "B-4 Detailed anomaly feedback not run; descriptive-only; eligible precursor absent; carrier ruled, not implemented"
+    },
+    {
+      "id": "B-5",
+      "state": "not-obtained",
+      "label": "B-5 Budget-matched generator comparison not obtained; staged approval only; main run not authorized"
+    },
+    {
+      "id": "B-6",
+      "state": "not-obtained",
+      "label": "B-6 Leak-controlled execution not achieved; pair driver repaired; pair rerun not submitted"
+    },
+    {
+      "id": "B-7",
+      "state": "obtained",
+      "label": "B-7 All-workload regression reporting fulfilled with limitations: single attempt; descriptive; non-certifying; repeat stability undetermined"
+    },
+    {
+      "id": "B-8",
+      "state": "obtained",
+      "label": "B-8 Seed-varied long-run check pass under effective preregistration; operational definitions; observed runs only; no performance claim"
+    },
+    {
+      "id": "B-9",
+      "state": "uncertified",
+      "label": "B-9 Mechanism reporting screening support scoped; deep check stopped by ruling; secondary view applied, non-certifying; originals lost"
+    },
+    {
+      "id": "B-10",
+      "state": "uncertified",
+      "label": "B-10 Extended mechanism evidence grid and tail judged; performance uncertified; not closed"
+    }
+  ],
+  "caption": "Figure 3c. Status of the paper-story arc read from the frozen 2026-09-21c story: act summaries from section 0 and evidence-item states from section 8. Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. Obtained records that a judgment or completion exists, not that a claim is supported; each item's sublabel carries the recorded judgment words and limitations. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.",
+  "argv": [
+    "python3",
+    "tools/plotting/plot_arc_status.py",
+    "--states",
+    "docs/paper-story/figures/arc_status_story_2026-09-21c.json",
+    "docs/paper-story/figures/fig3c_arc_status_2026-09-21"
+  ],
+  "versions": {
+    "matplotlib": "3.10.9",
+    "numpy": "2.2.6"
+  }
+}
