@@ -98,20 +98,111 @@ verifier wall は最大 491.4 s (適格の上限 1800 s の内側)。打ち切�
   4 × (bench 120 + count 19.4 + preserve 29.2 + verifier hard 1,800) + 終了余裕 300 ≈ 10,574 s ≤ 12,600 s。
   **この上限式は見積りであって強制される上限ではない** — 2,400 s は setup 完了後の事後検査で、count / preserve に個別 deadline は無い
   (段 3 相談の指摘を採用)。
-- **保全先と空き容量 (本 wave の実測、2026-09-21 09:1x JST):** 保全先 = job dir `run/` (`/work` lustre)。校正の 10 s の保全は
-  write-heavy 510 MB / balanced 613 MB / read-heavy 1.8 GB = 2.85 GiB。本走 24 枠 (各 8 反復) への外挿 ≈ **22.8 GiB**。
-  `df` の空き = **81 TB** (使用 5%)。校正全体 (6 行) の実消費は 4.6 GB。
+- **保全先と空き容量 (本 wave の実測、2026-09-21 09:1x JST):** 保全先 = job dir `run/` (`/work` lustre)。
+  保全量は record の `preservation.files[].stored_bytes` の和で数える (各行 48 file)。校正の 10 s は
+  write-heavy 534,242,457 B (509.5 MiB) / balanced 641,639,321 B (611.9 MiB) / read-heavy 1,888,746,616 B (1,801.2 MiB)
+  = 合計 3,064,628,394 B = **2.854 GiB**。本走 24 枠 (各 8 反復) への外挿 = × 8 = **22.833 GiB**。校正 6 行の合計は
+  4,878,177,766 B = **4.543 GiB**。`df` の空き = **81 TB** (使用 5%、親の login 実測。本走前の生出力は保存していない —
+  本走後の再実測 `refs/df-after-main.txt` (10:25 JST) も 81 TB / 使用 5%)。
 - 費用の照合は dispatch の Elapse の和で行う (runner の `consumed_job_wall_s` は内部 monotonic の暫定値として別記する)。
   校正の実消費 (別欄、§7) = 558 + 436 + 926 = **1,920 S**。
 
-## 4. 本走 (段 B)
+## 4. 本走 (段 B) — 2026-09-21 09:17〜10:13 JST、Pegasus gen_S 6 job、extime 10 s、24 verify
 
-(校正の summarize が `stage_B_allowed` を返した場合に追記する)
+投入形は校正と同じ (発効 commit の submit-tree `c1`〜`c6`、1 job 1 node、walltime 03:30:00、launcher が投入直前に
+runner / 事前登録 / 発効束の sha256 を照合)。`verify --workload <w> --extime 10 --rep-start <1|5> --job-index <1|2>`
+(各 4 反復)。6 job は独立なので並行投入した。**打ち切り・再投入・`--resume`・`reverify` はいずれも発生しなかった** (24 枠が初回で完走)。
 
-## 5. 3 値判定
+| workload | gate | job-index | request | node | job 所要 (runner) | dispatch Elapse |
+|---|---|---|---|---|---:|---:|
+| write-heavy | g_rt | 1 (rep 1–4) | 14686.nqsv | bnode019 | 1340.8 s | 1346 S |
+| write-heavy | g_rt | 2 (rep 5–8) | 14689.nqsv | bnode025 | 1338.3 s | 1344 S |
+| balanced | g_rl | 1 | 14687.nqsv | bnode020 | 1030.2 s | 1035 S |
+| balanced | g_rl | 2 | 14690.nqsv | bnode026 | 1024.0 s | 1029 S |
+| read-heavy | g_rl | 1 | 14688.nqsv | bnode023 | 2259.5 s | 2264 S |
+| read-heavy | g_rl | 2 | 14691.nqsv | bnode028 | 2256.8 s | 2262 S |
 
-(未)
+**24 枠すべてが bench 完走・trace 保全済み・verifier 完走・`serializable`・certified・`anomaly_count` = 0・identity 一致。**
+
+| workload | n | commit witness (= C 行数え直し) | verifier wall s (min–max / 平均) | bench s | count s | preserve s | 保全 (zstd) |
+|---|---:|---|---|---|---|---|---:|
+| write-heavy | 8 | 8,334,626 – 8,419,456 | 293.9 – 296.5 / 295.3 | 10.33–10.36 | 8.3–8.4 | 12.6–13.4 | 3.97 GiB |
+| balanced | 8 | 7,165,219 – 7,317,347 | 217.4 – 222.0 / 219.2 | 10.34–10.37 | 7.1–7.2 | 11.9–12.4 | 4.75 GiB |
+| read-heavy | 8 | 19,689,835 – 19,949,054 | 492.5 – 500.6 / 496.4 | 10.34–10.39 | 19.7–20.3 | 29.1–29.8 | 14.20 GiB |
+
+- 「種を変えた」の記録 (§2 の定義): 24 枠の bench PID は重複なし (各 job 内 4 個、job ごとに別 process)、rep-id・開始時刻・argv 全文・
+  node 名・binary sha256・source identity・trace の byte 数 / 行数 / commit witness は各 record にある。**seed 値は記録していない。**
+- 保全先は job dir `run/verify/<workload>-j<n>/rep-*/` (`/work` lustre)。保全量は record の `preservation.files[].stored_bytes` の和で、
+  write-heavy 4,266,593,102 B (3.974 GiB) / balanced 5,098,636,774 B (4.748 GiB) / read-heavy 15,249,205,661 B (14.202 GiB)、
+  合計 24,614,435,537 B = **22.924 GiB** (本走前の外挿 22.833 GiB とほぼ一致)。
+- **費用 (§7):** 段 B の実消費 = dispatch Elapse の和 **9,280 S** ≤ 14,400 s (予算内)。段 A (校正) は別欄で 1,920 S。
+  runner の内部 monotonic 集計 (`consumed_job_wall_s`) は A 1,904.7 s / B 9,249.5 s で、これは暫定値として併記する
+  (規則の費用判定は dispatch Elapse の和で行った)。queue 待ちと親の待機は含まない (別欄、投入 09:17 → 最終 job 終了 10:13 JST)。
+
+## 5. 3 値判定 — `pass`
+
+`summarize` (runner v5、`--accept-ruling-sha 6ccb18c7…` / `--accept-bundle-sha 059536a7…`) の出力
+(`run/summary-final.json`、`run/summary-final.md`):
+
+- **`decision` = `pass`。** 評価順序の記録 = 「1 失格 → 不一致」「2 pass → 一致」(§6.1 の順序付き 3 値を 1 度だけ評価)。
+- 判定集合 = **30 枠** (本走 24 + 校正の完走 verdict 6)。`anomaly_verdict_count` = 0、失格 record 0 件。
+- 校正の certified でない verdict 0 件、校正の未完走 0 件、bench 失敗 0 件、job 段の規約不適合 0 件、規約不適合 0 件、
+  `not_run` 0 件、`indeterminate` 0 件 (operational・CLI とも)。
+- 規則 file の sha256 は 30 record すべて `6ccb18c7…`、発効束の sha256 は 30 record すべて `059536a7…` (段別の内訳も一致)。
+- extime = 10 (初期選択も 10、段下げ無し)、`stage_B_allowed` = true。
+
+**したがって B-8 の 3 要件 (対象 = 案 A の S-1 最終候補 / 種 = 独立 process の自己シード / 長時間 = extime 10 s > 開発相・D2160 の 3 s) が
+揃い、その下で `pass` が出た。** 「B-8 を取得した」と書けるのはこの 3 要素が揃った場合だけで、本走はそれを満たす。
 
 ## 6. 限定
 
-(判定後に書く)
+1. **`pass` は runner が §6 の規則を機械適用した出力であって、研究の成功宣告ではない** (D12)。
+2. **certified の保証範囲を超えない。** verifier は観測した trace の依存グラフについて判定するのであり、predicate / phantom /
+   fairness / 未観測の実行を保証しない。「serializable であることが示された」「証明した」「保証」「信頼度」とは書かない (§1.2、§13)。
+3. **「種を変えた」は §3.2 の定義** (独立 process の自己シード)。seed 値は記録していない。乱数列の独立性は検証していない (§3.4)。
+4. **「長時間」は extime 10 s** という操作的定義 (開発相・D2160 の 3 s より長い)。検出力・反復数の効能は主張しない (§14)。
+5. **性能値を含まない。** 本走は trace-enabled build の正しさ専用走で、throughput は測っていない (規律 1)。
+6. **identity は現行 pin `e9e477ca` と現行 patch に束縛される。** 旧 pin (`d706650c`) の S-1 campaign とは source bytes が異なり、
+   07-16 校正の `src_token` `4608a96e…` とは一致しない。「同一 binary で 24 反復」とは書かない (binary は node ごとの別 build)。
+7. **S-1a の不成立・S-1b の性格を変えない。** 本結果は S-1 事前登録 (iv 付属) の充足ではなく、B-8 の別登録 (本書 v1) の結果である。
+   S-1 campaign の certified 記録・`s_prime_final_report.md`・`known_axes_freeze.json` の bytes は変えない (規律 7)。
+8. **案 B (採用静的 backoff 2 genome、D2160) の判定を変えない。** 対象が違う。D2160 の 3 s の記録も変えない。
+9. **失敗条件 (a) 以外は扱わない** (§9)。(b)〜(e) について本結果から何も言えない。
+10. **10 s が適格になったのは発効時点の verifier (D2181 改修版) での実測である。** D2160 の校正で 10 s が未完走だったのは
+    別の対象・別の版であり、両者を「改善した」と比較しない (条件が違う)。
+
+---
+
+## 7. 段 3 相談と段 6 レビューの所見・対応
+
+いずれも Codex (`gpt-6-astra`、read-only、独立コンテキスト)。逐語は job dir の `codex/s3-consult.md` / `codex/s6-review.md`
+(本 insight の `verbatim/` に写す)。
+
+### 7.1 段 3 敵対相談 (投入前、high 1 / mid 5)
+
+| # | 所見 | 裁定 | 反映 |
+|---|---|---|---|
+| H1 | 本走の未完走を一律 `reverify` へ送ると「保全済み・verifier 未開始」の枠を回復できない | real・採用 | 手順を 2 分岐に (保全済み・未開始 → `verify --resume`、起動済み・未完走 → `reverify` 1 回)。**本走では両方とも発生しなかった (24 枠が初回で完走)** |
+| M1 | 承認 commit の役割が曖昧 (承認の記録 ≠ 承認の対象) | real・採用 | 発効束 JSON と §1 の表を役割別 field に分けた |
+| M2 | 「draft の値を 1 つも変えない」は文字どおりでない (`status` は置換) | real・採用 | 「実験構成の既存値は不変、`status` を置換、`effective` 節を追加」と書いた (bundle の `effective.value_policy` にも記載) |
+| M3 | 上限式の 2,400 s は watchdog でない (count / preserve に個別 deadline 無し) | real・採用 | §3.1 で「見積式であって強制される上限ではない」と明記 |
+| M4 | 集計の探索範囲に退避物・別 cohort が入りうる | real・採用 (手順) | `run/` には本 cohort の正規成果物だけを置き、退避・複製をしなかった。集計の record 数は校正 6 + 本走 24 + job 9 で、混入 0 |
+| M5 | 本走前の記録と費用照合の不足 | real・採用 | §3.1 に校正 6 行・extime・B(E)・walltime の根拠・保全容量・空き容量を本走前の commit (`c8fc23d4d`、09:14:39 JST、本走投入 09:17:38 の前) で記録し、費用は dispatch Elapse の和で照合した |
+| M6 | 「同 SHA だから再利用可」は運用状態を含まない | real・採用 | 校正の request 3 本の receipt (`outcome.rc` = 0、`accounting_verified` = true) と木の状態 (HEAD = 発効 SHA、clean、その木を使う process 0) を再利用前に確認した。**ただし投入前の確認出力そのものは file に残していない** (本走後の再実測は `refs/check-trees-after-main.txt`)。レビューはこの点を「実施の逐語証拠までは確認できなかった」と記録している |
+
+### 7.2 段 6 敵対レビュー (成果物、GO、must-fix 0 / should 2 / nit 1)
+
+レビューは校正 6 record・本走 24 record・9 job を直接走査し、平均・範囲・保全量・予算・Elapse を独立に再計算した。
+`pass`・判定集合 30・identity の束縛・種と長時間の限定を覆す反証は無かった (攻撃項目 2・3・4・5・6・9 は不成立)。
+
+| # | 所見 | 対応 |
+|---|---|---|
+| should 1 | 校正の保全量が十進・二進単位の混在で、record の合計と対応しない (「510 MB / 613 MB / 1.8 GB」「4.6 GB」) | 採用。保全量を record の `preservation.files[].stored_bytes` の和へ統一し、bytes と GiB を併記した (§3.1・§4)。親も独立に再計算し、レビューの値と一致 (校正 6 行 4,878,177,766 B、本走 24 枠 24,614,435,537 B) |
+| should 2 | 判定の転記元 `summary-final.json` の sha256 が結果稿に無い | 採用。結果稿 §5 に `ee94bdf2044976fddf9a22c439ca78ec493dda0fd43a31e51c758668e46c5001` を記載 (親が再計算して一致を確認) |
+| nit 1 | 論文ストーリー入口の「draft の値を 1 つも変えず」が M2 の表現と揃っていない | 採用。入口も「実験構成値を維持し `status` を置換して承認情報を追加」へ揃えた |
+
+レビューが「照合できなかった」と記録した 2 点は、そのまま限界として残す。
+
+- **本走前の `df` の生出力を保存していない。** 記載の 81 TB / 使用 5% は親の login 実測で、本走後の再実測
+  (`refs/df-after-main.txt`、10:25 JST) も同じ値だった。
+- **submit-tree 再利用の直前確認の逐語出力を保存していない** (§7.1 の M6)。receipt と現在の木の状態は残っている。
