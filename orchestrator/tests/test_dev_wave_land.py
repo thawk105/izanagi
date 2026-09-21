@@ -10758,6 +10758,176 @@ def test_registered_worktree_paths_fail_closed_for_other_resolution_errors(
                     LAND._registered_worktree_paths(repository)
 
 
+@pytest.mark.parametrize("interruptions", (1, 4))
+def test_registered_worktree_paths_retry_interrupted_resolve(
+    interruptions: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        with _verified_repository(repo, repo.waves["one"]) as repository:
+            expected = LAND._registered_worktree_paths(repository)
+            original_resolve = LAND.Path.resolve
+            calls = 0
+
+            def resolve(path: Path, *, strict: bool = False):
+                nonlocal calls
+                if path == repo.main and strict:
+                    calls += 1
+                    if calls <= interruptions:
+                        raise InterruptedError(errno.EINTR, "synthetic interruption")
+                return original_resolve(path, strict=strict)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(LAND.Path, "resolve", resolve)
+                assert LAND._registered_worktree_paths(repository) == expected
+            assert calls == interruptions + 1
+
+
+def test_registered_worktree_paths_exhaust_interrupted_resolve(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        with _verified_repository(repo, repo.waves["one"]) as repository:
+            original_resolve = LAND.Path.resolve
+            calls = 0
+            interruption = InterruptedError(errno.EINTR, "synthetic interruption")
+
+            def resolve(path: Path, *, strict: bool = False):
+                nonlocal calls
+                if path == repo.main and strict:
+                    calls += 1
+                    if calls > 5:
+                        raise AssertionError("sixth resolve must not be called")
+                    raise interruption
+                return original_resolve(path, strict=strict)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(LAND.Path, "resolve", resolve)
+                with pytest.raises(
+                    LAND._FoldGateFailure,
+                    match="registered worktree path cannot be resolved",
+                ) as raised:
+                    LAND._registered_worktree_paths(repository)
+            assert calls == 5
+            assert type(raised.value) is LAND._FoldGateFailure
+            assert raised.value.retryable_same_request is False
+            assert isinstance(raised.value.__cause__, InterruptedError)
+            assert raised.value.__cause__ is interruption
+
+
+@pytest.mark.parametrize(
+    "failure,interrupt_first",
+    (
+        (PermissionError(errno.EACCES, "synthetic denial"), False),
+        (BlockingIOError(errno.EAGAIN, "synthetic unavailable"), False),
+        (OSError(errno.EIO, "synthetic I/O error"), False),
+        (PermissionError(errno.EACCES, "synthetic denial"), True),
+    ),
+    ids=("permission", "eagain", "eio", "eintr-then-permission"),
+)
+def test_registered_worktree_paths_do_not_retry_other_oserrors(
+    failure: OSError,
+    interrupt_first: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        with _verified_repository(repo, repo.waves["one"]) as repository:
+            original_resolve = LAND.Path.resolve
+            calls = 0
+
+            def resolve(path: Path, *, strict: bool = False):
+                nonlocal calls
+                if path == repo.main and strict:
+                    calls += 1
+                    if interrupt_first and calls == 1:
+                        raise InterruptedError(errno.EINTR, "synthetic interruption")
+                    raise failure
+                return original_resolve(path, strict=strict)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(LAND.Path, "resolve", resolve)
+                with pytest.raises(
+                    LAND._FoldGateFailure,
+                    match="registered worktree path cannot be resolved",
+                ) as raised:
+                    LAND._registered_worktree_paths(repository)
+            assert calls == (2 if interrupt_first else 1)
+            assert type(raised.value) is LAND._FoldGateFailure
+            assert raised.value.retryable_same_request is False
+            assert raised.value.__cause__ is failure
+
+
+def test_registered_worktree_paths_keep_absent_after_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        with _verified_repository(repo, repo.waves["one"]) as repository:
+            original_resolve = LAND.Path.resolve
+            expected = tuple(
+                repo.main.absolute() if path == original_resolve(repo.main, strict=True)
+                else path
+                for path in LAND._registered_worktree_paths(repository)
+            )
+            calls = 0
+
+            def resolve(path: Path, *, strict: bool = False):
+                nonlocal calls
+                if path == repo.main and strict:
+                    calls += 1
+                    if calls == 1:
+                        raise InterruptedError(errno.EINTR, "synthetic interruption")
+                    raise FileNotFoundError(errno.ENOENT, "synthetic absent path")
+                return original_resolve(path, strict=strict)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(LAND.Path, "resolve", resolve)
+                registered = LAND._registered_worktree_paths(repository)
+            assert registered == expected
+            assert repo.main.absolute() in registered
+            assert calls == 2
+
+
+def test_registered_worktree_paths_propagate_watchdog_during_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        with _verified_repository(repo, repo.waves["one"]) as repository:
+            original_resolve = LAND.Path.resolve
+            previous_handler = signal.getsignal(signal.SIGALRM)
+            assert signal.getitimer(signal.ITIMER_REAL) == (0.0, 0.0)
+            now = 0.0
+            calls = 0
+            watchdog = LAND._FoldGateOuterWatchdog(10.0)
+
+            def resolve(path: Path, *, strict: bool = False):
+                nonlocal calls, now
+                if path == repo.main and strict:
+                    calls += 1
+                    if calls == 1:
+                        raise InterruptedError(errno.EINTR, "synthetic interruption")
+                    if calls == 2:
+                        now = watchdog.deadline + 1.0
+                        signal.raise_signal(signal.SIGALRM)
+                    raise AssertionError("watchdog must escape the second resolve")
+                return original_resolve(path, strict=strict)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(LAND.Path, "resolve", resolve)
+                patch.setattr(LAND, "_fold_gate_now", lambda: now)
+                try:
+                    with pytest.raises(
+                        LAND._FoldGateInfrastructureFailure,
+                        match="outer watchdog fired",
+                    ) as raised:
+                        with watchdog:
+                            LAND._registered_worktree_paths(repository)
+                finally:
+                    assert signal.getitimer(signal.ITIMER_REAL) == (0.0, 0.0)
+                    assert signal.getsignal(signal.SIGALRM) == previous_handler
+            assert type(raised.value) is LAND._FoldGateInfrastructureFailure
+            assert calls == 2
+
+
 @pytest.mark.parametrize(
     "raw",
     (b"", b"prunable fake-marker\n\n"),
