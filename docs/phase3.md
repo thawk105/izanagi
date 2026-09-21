@@ -24,7 +24,8 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   (別表は同 dir の README)。B-8 は条件語 (対象 = 案 A、本走 = 独立 8 反復 × 3 workload・extime 10 s の 24 枠、判定集合 30 枠 = 本走 24 + 校正の
   完走 6) を落とさず、`pass` を研究の成功宣告・性能主張・S-1 の充足として書かない。採用時点 `d99c556df` で前稿の記述を偽にしていた状態語
   (g1 の起動検査の拒否段階、K2 pair の driver 修復、B-5 の試走完走、限界節の A-1 attempt-0002 と「非列挙は未裁定」) を最小限に揃えた。
-  段 6 の独立レビューは Codex の利用上限 (2026-09-26 まで) のため Claude の独立 context の子 2 本で代替した。前稿本文・版・凍結物は不変 (前稿 dir の README に前方 pointer を追記)。
+  段 6 の独立レビューは Codex の利用上限 (2026-09-26 まで) のため Claude の独立 context の子 2 本 + 焦点 1 本で代替した (同系統モデルで、
+  Codex と同等の独立性は主張しない。詳細は `output/insights/2026-09-21/paper-results-ja-b/README.md` §4)。前稿本文・版・凍結物は不変 (前稿 dir の README に前方 pointer を追記)。
   文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
 
 - [x] [T-2824] 凍結 v2 g1 の未発効候補文書 (`output/s8b-freeze-candidates/` 配下の `holdout_freeze.v2.g1.json`) を削除し (D2194 項 5 の択 (a)、候補 path の役割が
