@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""[T-2830] 変異 spec を生成する (段 4 事前登録 M1〜M9、s4-adjudication.md)。
+
+probe: expected_nodes 空 (全件 SURVIVED 期待で走らせ観測 node を集める)。
+final: observed-nodes.json (login self-run の観測、DW-M08) を注入する。先例 = T-2795 の同名 script。
+"""
+import hashlib
+import json
+import pathlib
+import sys
+
+J = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2830-b5-node-local-lock")
+SH = "tools/pegasus/p3_s4_loop_pegasus.sh"
+LAUNCH = "tools/pegasus/b5_contrast_launch.py"
+LOCK_LINE = '  export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"\n'
+
+MUTATIONS = [
+    # id, category, [(file, old, new), ...]  (同一 file の複数置換は累積適用、DW-M04)
+    ("m1-b5-lock-line-deleted", "negative", [(SH, LOCK_LINE, "")]),
+    ("m2-b5-lock-home-default", "negative", [
+        (SH, 'export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"',
+         'export IZANAGI_BENCH_LOCK="$HOME/.izanagi/bench.lock"')]),
+    ("m3-b5-lock-moved-job-wide", "negative", [
+        (SH, LOCK_LINE, ""),
+        (SH, "export TMPDIR=$scratch\n",
+         'export TMPDIR=$scratch\nexport IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"\n')]),
+    ("m4-b5-lock-not-exported", "negative", [
+        (SH, LOCK_LINE, '  IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"\n')]),
+    ("m5-launch-env-uses-random-tree", "negative", [
+        (LAUNCH, "        env = build_job_environment(job, tree)\n",
+         '        env = build_job_environment(job, trees_by_arm["random"])\n')]),
+    ("m6-launch-cwd-uses-first-tree", "negative", [
+        (LAUNCH, "result = runner(argv, cwd=tree.repo)",
+         "result = runner(argv, cwd=commands[0][1].repo)")]),
+    ("m7-pair-argv-empty", "negative", [
+        (SH, "  pair_argv=(--stock-control)\n", "  pair_argv=()\n")]),
+    ("m8-fixture-default-21", "negative", [
+        (SH, '--value "${IZANAGI_S4_FIXTURE_VALUE:-20}"', '--value "${IZANAGI_S4_FIXTURE_VALUE:-21}"')]),
+    ("m9-proposal-isolate-dropped", "negative", [
+        (SH, '    --isolate-worktree \\\n    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n    "${k2_argv[@]}"',
+         '    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n    "${k2_argv[@]}"')]),
+    # M10 は段 6 の再照準 (DW-M03): M8 は STOCK_PINS の静的 pin とメタ test にも掛かる過剰決定 (46 node) だったので、
+    # fixture 経路の argv 固定を単一理由で示す差し替えとして M9 と同形の変異を足す (s4-adjudication の erratum 参照)。
+    ("m10-fixture-isolate-dropped", "negative", [
+        (SH, '    --isolate-worktree \\\n    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n    --value',
+         '    --fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n    --value')]),
+]
+
+
+def build(expected):
+    out = []
+    for mid, category, reps in MUTATIONS:
+        nodes = [] if expected is None else sorted(expected.get(mid, []))
+        out.append({
+            "id": mid,
+            "category": category,
+            "replacements": [{"file": f, "old": o, "new": n} for f, o, n in reps],
+            "expected_nodes": nodes,
+            "expected_status": "SURVIVED" if not nodes else "KILLED",
+            "hang_risk": False,
+        })
+    return {
+        "schema": "izanagi-dev-wave-mutation-spec/v1",
+        "estimated_run_seconds": 180,
+        "timeout_seconds": 9000,
+        "hang_timeout_seconds": 3000,
+        "mutations": out,
+    }
+
+
+def main() -> int:
+    mode = sys.argv[1] if len(sys.argv) > 1 else "probe"
+    if mode == "list":
+        print(json.dumps([[m, [[f, o, n] for f, o, n in r]] for m, _, r in MUTATIONS], ensure_ascii=False))
+        return 0
+    if mode == "probe":
+        spec, target = build(None), J / "mutation-spec-probe.json"
+    else:
+        observed = json.loads((J / "observed-nodes.json").read_text(encoding="utf-8"))
+        spec, target = build(observed), J / "mutation-spec-final.json"
+    text = json.dumps(spec, ensure_ascii=False, indent=1) + "\n"
+    target.write_text(text, encoding="utf-8")
+    print(target, hashlib.sha256(text.encode("utf-8")).hexdigest(), len(spec["mutations"]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

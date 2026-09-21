@@ -658,6 +658,7 @@ if [[ -n "$b5_mode" ]]; then
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM")
   fi
   b5_rc=0
+  export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
   "$PY" -B -m orchestrator.campaign.b5_generator_contrast "${b5_argv[@]}" || b5_rc=$?
   exit "$b5_rc"
 fi

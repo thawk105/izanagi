@@ -95,18 +95,21 @@ def test_validate_submit_tree_rejects_symlink(submit_tree, tmp_path):
 def _pilot(tmp_path):
     thirdparty = tmp_path / "thirdparty"
     thirdparty.mkdir(exist_ok=True)
-    tree = launch.SubmitTree(tmp_path / "submit-tree", "a" * 40,
-                             tmp_path / "main-repo", thirdparty)
+    trees_by_arm = {
+        arm: launch.SubmitTree(tmp_path / f"submit-tree-{arm}", "a" * 40,
+                               tmp_path / "main-repo", thirdparty)
+        for arm in launch.PILOT_ARMS
+    }
     jobs = launch.pilot_jobs("write-heavy", tmp_path / "ledgers", tmp_path / "evidence",
                              launch.K2(tmp_path / "knowledge.json",
                                        "known_result_conditioned_derivative", "false"))
-    return tree, jobs
+    return trees_by_arm, jobs
 
 
 def _expected_environment(tmp_path, arm):
     name = "block-stock" if arm == "stock" else arm
     env = {
-        "IZANAGI_S4_REPO_ROOT": str(tmp_path / "submit-tree"),
+        "IZANAGI_S4_REPO_ROOT": str(tmp_path / f"submit-tree-{arm}"),
         "IZANAGI_S4_EXPECTED_HEAD": "a" * 40,
         "IZANAGI_S4_EVIDENCE_ROOT": str(tmp_path / "evidence" / name),
         "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(tmp_path / "thirdparty"),
@@ -128,17 +131,17 @@ def _expected_environment(tmp_path, arm):
 
 
 def test_four_qsub_argv_and_explicit_environment_are_exact(tmp_path):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     assert [job.arm for job in jobs] == ["random", "sweep-matched", "llm", "stock"]
     for job, arm in zip(jobs, ["random", "sweep-matched", "llm", "stock"]):
         env = _expected_environment(tmp_path, arm)
-        assert launch.build_job_environment(job, tree) == env
+        assert launch.build_job_environment(job, trees_by_arm[job.arm]) == env
         evidence = env["IZANAGI_S4_EVIDENCE_ROOT"]
         expected = ["qsub", "-v", ",".join(f"{k}={v}" for k, v in env.items()),
                     "-l", "elapstim_req=03:00:00" if arm == "stock" else "elapstim_req=08:00:00",
                     "-o", evidence + "/job.stdout", "-e", evidence + "/job.stderr",
                     "tools/pegasus/p3_s4_loop_pegasus.sh"]
-        assert launch.qsub_argv(job, tree) == expected
+        assert launch.qsub_argv(job, trees_by_arm[job.arm]) == expected
 
 
 def test_pilot_cap_is_literal_60_and_four_jobs_53_sessions(tmp_path):
@@ -180,85 +183,96 @@ def test_changed_budget_cannot_construct_pilot(tmp_path, monkeypatch, name, valu
 @pytest.mark.parametrize("field,value", [("workload", "balanced"), ("series", 2),
                                        ("block", 2), ("mode", "block-stock")])
 def test_pilot_coordinates_cannot_expand(tmp_path, field, value):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     with pytest.raises(ValueError, match="pilot requires"):
-        launch.qsub_argv(replace(jobs[0], **{field: value}), tree)
+        launch.qsub_argv(replace(jobs[0], **{field: value}), trees_by_arm[jobs[0].arm])
 
 
 @pytest.mark.parametrize("value", ["has space", "has,comma", "has\ttab", "has\nnewline"])
 def test_qsub_rejects_ambiguous_path_values(tmp_path, value):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     with pytest.raises(ValueError, match="qsub -v"):
-        launch.qsub_argv(replace(jobs[0], ledger_root=tmp_path / value), tree)
+        launch.qsub_argv(replace(jobs[0], ledger_root=tmp_path / value), trees_by_arm[jobs[0].arm])
 
 
-@pytest.mark.parametrize("root", ["submit-tree", "main-repo"])
+@pytest.mark.parametrize("root", ["submit-tree-random", "main-repo"])
 @pytest.mark.parametrize("field", ["ledger_root", "evidence_root"])
 def test_output_paths_must_be_outside_both_repositories(tmp_path, root, field):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     with pytest.raises(ValueError, match="inside a repository"):
-        launch.qsub_argv(replace(jobs[0], **{field: tmp_path / root / "output"}), tree)
+        launch.qsub_argv(replace(jobs[0], **{field: tmp_path / root / "output"}), trees_by_arm[jobs[0].arm])
 
 
 def test_dry_run_prints_final_argv_without_runner_or_mkdir(tmp_path, monkeypatch, capsys):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     def forbidden(*args, **kwargs):
         pytest.fail("dry-run invoked subprocess or mkdir")
     monkeypatch.setattr(launch.subprocess, "run", forbidden)
     monkeypatch.setattr(Path, "mkdir", forbidden)
-    assert launch.launch(jobs, tree, submit=False, runner=forbidden) == 0
+    assert launch.launch(jobs, trees_by_arm, submit=False, runner=forbidden) == 0
     records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert len(records) == 4
     for record, job in zip(records, jobs):
         assert record["environment"] == _expected_environment(tmp_path, job.arm)
-        assert record["argv"] == launch.qsub_argv(job, tree)
+        assert record["argv"] == launch.qsub_argv(job, trees_by_arm[job.arm])
     assert not (tmp_path / "evidence").exists()
     assert not (tmp_path / "ledgers").exists()
 
 
 @pytest.mark.parametrize("rc", [0, 9])
 def test_submit_only_mkdir_then_argv_runner(tmp_path, rc):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     calls = []
     def runner(argv, *, cwd):
         evidence = Path(argv[argv.index("-o") + 1]).parent
         assert evidence.is_dir() and list(evidence.iterdir()) == []
         assert evidence.stat().st_mode & 0o777 == 0o700
-        assert cwd == tree.repo
-        calls.append(argv)
+        env = dict(value.split("=", 1) for value in argv[argv.index("-v") + 1].split(","))
+        assert env["IZANAGI_S4_REPO_ROOT"] == str(cwd)
+        calls.append((argv, cwd))
         return SimpleNamespace(returncode=rc)
-    assert launch.launch(jobs, tree, submit=True, runner=runner) == rc
-    assert calls == [launch.qsub_argv(j, tree) for j in (jobs if rc == 0 else jobs[:1])]
+    assert launch.launch(jobs, trees_by_arm, submit=True, runner=runner) == rc
+    assert calls == [(launch.qsub_argv(j, trees_by_arm[j.arm]), trees_by_arm[j.arm].repo)
+                     for j in (jobs if rc == 0 else jobs[:1])]
     assert not (tmp_path / "ledgers").exists()
 
 
 def test_preexisting_attempt_rejected_before_any_submission(tmp_path):
-    tree, jobs = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
     jobs[-1].evidence_root.mkdir(parents=True)
     with pytest.raises(ValueError, match="not fresh"):
-        launch.launch(jobs, tree, submit=True, runner=lambda *a, **k: pytest.fail("qsub"))
+        launch.launch(jobs, trees_by_arm, submit=True, runner=lambda *a, **k: pytest.fail("qsub"))
     assert not jobs[0].evidence_root.exists()
 
 
 def test_main_dry_run_validates_tree_and_prints_four_jobs(tmp_path, monkeypatch, capsys):
-    tree, _ = _pilot(tmp_path)
+    trees_by_arm, jobs = _pilot(tmp_path)
+    expected_head = "a" * 40
     checked = []
     def validate(repo, head):
         checked.append((repo, head))
-        return tree
+        return next(replace(tree, thirdparty_source_root=None)
+                    for tree in trees_by_arm.values() if tree.repo == repo)
     monkeypatch.setattr(launch, "validate_submit_tree", validate)
     monkeypatch.setattr(launch.subprocess, "run", lambda *a, **k: pytest.fail("qsub"))
     assert launch.main([
-        "--repo-root", str(tree.repo), "--expected-head", tree.expected_head,
-        "--thirdparty-source-root", str(tree.thirdparty_source_root),
+        *[value for arm in launch.PILOT_ARMS
+          for value in (f"--repo-root-{arm}", str(trees_by_arm[arm].repo))],
+        "--expected-head", expected_head,
+        "--thirdparty-source-root", str(tmp_path / "thirdparty"),
         "--ledger-root", str(tmp_path / "ledgers"),
         "--evidence-root", str(tmp_path / "evidence"),
         "--knowledge-manifest", str(tmp_path / "knowledge.json"),
         "--knowledge-classification", "known_result_conditioned_derivative",
         "--knowledge-de-novo-claim", "false", "--dry-run",
     ]) == 0
-    assert checked == [(tree.repo, tree.expected_head)]
-    assert len(capsys.readouterr().out.splitlines()) == 4
+    assert checked == [(trees_by_arm[arm].repo, expected_head) for arm in launch.PILOT_ARMS]
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert len(records) == 4
+    for record, job in zip(records, jobs):
+        assert record["arm"] == job.arm
+        assert record["environment"] == _expected_environment(tmp_path, job.arm)
+        assert record["argv"] == launch.qsub_argv(job, trees_by_arm[job.arm])
     assert not (tmp_path / "evidence").exists()
 
 
