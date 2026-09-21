@@ -1,6 +1,16 @@
-# 本体論文 (日本語) の結果・考察草稿 (2026-09-21 版) — 09-20 の前稿を supersede し、A-1 sized attempt-0002 (認可済み独立再現) の完走と登録済み解析の出力を attempt-0001 と並記した (docs のみ、台帳 ID 未起票の執筆依頼)
+# 本体論文 (日本語) の結果・考察草稿 (2026-09-21 版) — 09-20 の前稿を supersede し、A-1 sized attempt-0002 (認可済み独立再現) の完走と登録済み解析の出力を attempt-0001 と並記した (docs のみ、台帳 ID 未起票の執筆依頼) — **2026-09-21b 版に supersede された**
 
 authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾と現行 phase doc)
+
+## 前方 pointer (2026-09-21 に追加)
+
+- **本 dir の `results-discussion.md` (2026-09-21 版、worklog entry 1772) は、同日のうちに
+  `output/insights/2026-09-21/paper-results-ja-b/results-discussion.md` (2026-09-21b 版、同日第 2 版) に置き換えられた (supersede)。** 本稿の bytes は変えない。
+  新版は本稿の骨格と本文を継承し、本稿の採用時点 (`285477c00`) より後に main へ着地した事実のうち本稿の記述に触るものだけを現在地へ揃えた —
+  B-8 事前登録 v1 の発効と 3 値判定 `pass` (entry 1791、D2202。本稿 §12 が「発効 commit と本走の認可は再提示待ち」と書く箇所は本稿の採用時点
+  (`285477c00`) では真であり、新版 §6.2 に表 8b)、凍結 v2 g1 の launch validator の整合と live の起動検査の段階 4 の拒否の実測記録 (D2196、entry 1776 /
+  1787 / 1790)、K2 同 job pair の driver の修復 (D2205、entry 1795)、B-5 の上限付き試走の完走 (entry 1779。本稿 §12 の「未実走」)。
+- 執筆材料には新版を使い、本稿は当時の採用時点の記録として残す。本 README の以下の節は 2026-09-21 版の wave の記録であり、変えていない。
 
 - 成果物: `results-discussion.md` (本 dir)。**前稿 `output/insights/2026-09-20/paper-results-ja/results-discussion.md` (worklog entry 1750) を
   supersede する。前稿の bytes は変えず (sha256 `a2068a93…` を wave 開始時と記録 commit 時に照合)、前稿 dir の `README.md` の冒頭に前方 pointer の節を足した
