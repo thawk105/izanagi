@@ -24,7 +24,11 @@ title: [T-2833] land の登録 worktree path 解決を InterruptedError のと�
   `test_local_timeout_with_unreadable_dispatch_request_stops_as_evidence_unavailable[malformed]` / `[missing]`、いずれも `assert 0 == 2`)。
   本 wave の差分 (`tools/dev_wave_land.py` と `orchestrator/tests/test_dev_wave_land.py`) はこの試験から import で到達せず、取り込んだ main 側の tools / orchestrator の差分は 0。
   同じ tip で同 file を単独再走すると 148 passed / 赤 0 だった。同じ試験群は同日の第 29 回 /rulings の受入 final-1 でも 1 件赤になっている (同日 2 wave 目)。
-  揺れの機序は確かめていない。本項を含む tip で取り直した受入の緑は land の記録と受領証が持つ。
+  揺れの機序は確かめていない。
+- **受入 final2 (tested main `a8ae5f5d6`、tip `d1efcd79a`、16:12〜16:19) も赤 1 件で rc=70、非帰属と判定して受入を取り直した。** 赤は
+  `orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` (`subprocess.TimeoutExpired`、`tools/codex_worker_launch.py` を子 process で走らせる試験)。
+  本 wave の差分から import で到達せず、取り込んだ main 側の tools / orchestrator の差分は 0。同じ tip で同 file を単独再走すると 216 passed / 赤 0 だった。
+  本項を含む tip で取り直した受入の緑は land の記録と受領証が持つ。
 - 工数: Codex 子 = author 1 本 (4 分) + review 2 本 (上限で即死、出力 0)。Claude 子 = review 2 本 (各 10〜12 分)。親の計算ノード走行 = 焦点走 1 + 変異 probe 1 + 変異 final 1 + 全史 provenance 監査 1。
 
 ## 次の一手差分
