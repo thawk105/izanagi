@@ -169,14 +169,14 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 
 ## DW-O23 — 並行 session の local main land
 
-`tools/dev_wave_land.py`へmain/wave絶対path、tested main/tip、着地tip、監査列を渡す。cwd=wave必須。
-監査列は`<tested main>..<tested tip>`固定。
+`tools/dev_wave_land.py`へmain/wave絶対path、tested main/tip、着地tip、監査列(`<tested main>..<tested tip>`固定)を渡す。cwd=wave必須。
 協調lock内で再照合・着地tipへff-only・`docs/spool/`をfold。
-T/D/F採番・canonical3台帳追記・worklogローテは1度だけ。fold赤は`landed`を返さず、0件はno-op。
+fold赤は`landed`を返さず、0件はno-op。
 tracked/index/submodule dirt・incoming衝突untrackedは拒否。
 docs/handoff直下・Git adminに双方向束縛のClaude/Codex worktreeは書式不問で非接触。
 成功=`landed`/`already-landed`。postcondition failureは停止。stale/busyは継続し、他sessionの処理中dirtyは非接触で終端待ち。
-新main監査・固定SHAのwave側merge・条件再評価を既存branchでlandedまで再試行。他session所有物・rebase・force・remote・pushで解消しない。
+新main監査・固定SHAのwave側merge・条件再評価を既存branchでlandedまで再試行。remoteで解消しない。
+取込由来の追加再受入はtested mainと固定SHAの`tools/run_tests.py` blob差だけ(D987)。他の拒否は維持。
 旧branch群はF266（一括merge・各親差分確認）に従う。
 ## DW-O25 — ff-only land の全史 provenance 関門
 
