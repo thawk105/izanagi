@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""done → waiter を待ち手の種類別 (dev_wave_wait.py producer の receipt json / 自前 wrapper の wait-*.done / 直列 wait-all) に分ける。"""
+from __future__ import annotations
+
+import json
+import statistics as st
+from pathlib import Path
+
+HERE = Path(__file__).parent
+rows = json.load(open(HERE / "collect_latency.rows.json"))
+
+
+def f(x):
+    return None if x in (None, "None", "") else float(x)
+
+
+for r in rows:
+    for k in ("started", "ended", "result", "spool", "receipt", "done", "waiter"):
+        r[k] = f(r.get(k))
+
+# 待ち手 file の種類を再解決する (collect_latency.py の find_waiter と同じ候補順)
+import re
+ROOT = Path("/work/1/SFC/tanab/dev-wave-jobs")
+
+
+def waiter_kind(wave: str, done_ts: float | None, waiter_ts: float | None, producer: str) -> str:
+    if waiter_ts is None:
+        return "-"
+    job = ROOT / wave
+    sub = ""
+    stem = producer
+    if "/" in producer:
+        sub, stem = producer.split("/", 1)
+        job = job / sub
+    # producer 名 → done stem の解決は collect_latency.py と同じ規則
+    cands = []
+    for s in {stem, re.sub(r"-(\d+)$", "", stem), "acceptance-" + stem}:
+        cands += [job / f"{s}.wait-receipt.json", job / f"{s}-wait-receipt.json", job / f"{s}-wait.json"]
+        cands += [job / f"wait-{s}.done"]
+        cands += [job / f"{s}.wait.log", job / f"{s}-wait.log", job / f"{s}.wait.out"]
+    for g in list(job.glob("gate-loop*.wait-receipt.json")) + list(job.glob("gate-loop*-wait.json")) + list(job.glob("gate-loop*.wait.log")):
+        cands.append(g)
+    for c in cands:
+        if c.exists() and abs(c.stat().st_mtime - waiter_ts) < 1:
+            if c.suffix == ".json":
+                return "dev_wave_wait.py producer (receipt json)"
+            if c.name.startswith("wait-"):
+                return "self wrapper wait-file.sh (20 s poll)"
+            return "log mtime"
+    return "?"
+
+
+by_prod: dict[tuple, dict] = {}
+for r in rows:
+    if r["done"] is None or r["ended"] is None:
+        continue
+    key = (r["wave"], r["producer"])
+    if key not in by_prod or r["ended"] > by_prod[key]["ended"]:
+        by_prod[key] = r
+groups: dict[str, list] = {}
+for r in by_prod.values():
+    if r["waiter"] is None:
+        continue
+    k = waiter_kind(r["wave"], r["done"], r["waiter"], r["producer"])
+    if r["wave"].endswith("t2807-b8-prerun") and r["producer"].endswith("g_rt"):
+        k = "serial wait-all.sh (2nd TAG)"
+    groups.setdefault(k, []).append((r["waiter"] - r["done"], r["wave"].replace("dev-wave-", ""), r["producer"]))
+for k, vals in groups.items():
+    v = sorted(x[0] for x in vals)
+    print(f"{k}: n={len(v)} min={v[0]:.0f} median={st.median(v):.0f} p90={v[min(len(v)-1, int(round(0.9*(len(v)-1))))]:.0f} max={v[-1]:.0f}")
+    for d, w, p in sorted(vals, key=lambda t: -t[0])[:4]:
+        print(f"    {d:.0f}s  {w} {p}")

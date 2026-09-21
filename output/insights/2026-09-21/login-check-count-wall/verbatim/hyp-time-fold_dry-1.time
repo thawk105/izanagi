@@ -1,0 +1,7 @@
+loadavg-before 34.70 14.49 8.38 6/11758 2812155
+rc=0
+loadavg-after 34.70 14.49 8.38 6/11753 2812284
+	User time (seconds): 0.11
+	System time (seconds): 0.06
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.33
+	Maximum resident set size (kbytes): 38928

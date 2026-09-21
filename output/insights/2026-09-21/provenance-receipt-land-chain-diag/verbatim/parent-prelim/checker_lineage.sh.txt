@@ -1,0 +1,9 @@
+#!/bin/bash
+# 親の read-only 確認: 各 commit の checker の sha256 と、D2192 の新方式 (merge の第 1 親 diff 由来の候補) を含むか
+cd /work/1/SFC/tanab/izanagi/.claude/worktrees/dw-provenance-cold-diag || exit 2
+for c in f94b61fc8 4c532aa0b aa81e3c64 62ed683ab 00d781372 65966f4d8; do
+  s=$(git show "$c:tools/check_ai_provenance.py" | sha256sum | cut -c1-12)
+  n=$(git show "$c:tools/check_ai_provenance.py" | grep -c "diff-merges=first-parent")
+  a=$(git show "$c:tools/check_ai_provenance.py" | grep -c "OUTER_DEADLINE")
+  echo "$c sha256=$s d2192_first_parent_lines=$n t2804_outer_deadline_lines=$a"
+done

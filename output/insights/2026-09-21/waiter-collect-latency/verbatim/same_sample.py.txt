@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""同一 producer 群で END → 待ち手戻りを 4 区間に分解し、周期由来 (poll の内側) の寄与率を producer ごとに出す。
+
+対象 = 親の待ち手が `dev_wave_wait.py producer` の receipt json で戻り時刻を残した producer だけ (自前 wrapper・直列 wait-all・receipt 不在は除く)。
+受入は最後に END した shard を代表にする。
+区間: END→spool (NQSV の stderr file mtime; 焦点走は撤去済み worktree 側で欠測) / spool→receipt (dispatcher の収集 poll 5 秒の内側 + 収集処理) /
+      receipt→done (producer 側の処理) / done→waiter (親の待ち手 poll 5 秒の内側)。
+周期由来の上限 = spool→receipt + done→waiter (どちらも poll の sleep と処理を含む観測値なので「上限」)。
+"""
+from __future__ import annotations
+
+import json
+import statistics as st
+from pathlib import Path
+
+HERE = Path(__file__).parent
+rows = json.load(open(HERE / "collect_latency.rows.json"))
+ROOT = Path("/work/1/SFC/tanab/dev-wave-jobs")
+
+
+def f(x):
+    return None if x in (None, "None", "") else float(x)
+
+
+for r in rows:
+    for k in ("started", "ended", "result", "spool", "receipt", "done", "waiter"):
+        r[k] = f(r.get(k))
+
+
+def waiter_is_receipt_json(r) -> bool:
+    """collect_latency.py が選んだ待ち手 file が receipt json か (mtime 一致で逆引き)。"""
+    wave, producer = r["wave"], r["producer"]
+    job = ROOT / wave
+    if "/" in producer:
+        sub, _ = producer.split("/", 1)
+        job = job / sub
+    for c in list(job.glob("*.wait-receipt.json")) + list(job.glob("*-wait-receipt.json")) + list(job.glob("*-wait.json")):
+        if abs(c.stat().st_mtime - r["waiter"]) < 1:
+            return True
+    return False
+
+
+by_prod: dict[tuple, dict] = {}
+for r in rows:
+    if r["done"] is None or r["ended"] is None or r["waiter"] is None:
+        continue
+    key = (r["wave"], r["producer"])
+    if key not in by_prod or r["ended"] > by_prod[key]["ended"]:
+        by_prod[key] = r
+sel = [r for r in by_prod.values() if waiter_is_receipt_json(r)]
+# t2807 の 2 本目 TAG (直列 wait-all) は receipt json でも待ち手の周期ではないので除く
+sel = [r for r in sel if not (r["wave"].endswith("t2807-b8-prerun") and r["producer"].endswith("g_rt"))]
+
+print(f"対象 producer n={len(sel)} (種別: " + ", ".join(f"{k}={sum(1 for r in sel if r['kind']==k)}" for k in ("focus", "log", "acceptance", "mutation")) + ")")
+print("wave | producer | 種別 | END→spool | spool→receipt | receipt→done | done→waiter | END→waiter 合計 | 周期由来上限 (spool→receipt + done→waiter) | 寄与率")
+ratios, tots, periods = [], [], []
+per_kind = {}
+for r in sorted(sel, key=lambda r: (r["kind"], r["wave"], r["producer"])):
+    e2s = None if r["spool"] is None else r["spool"] - r["ended"]
+    s2r = None if r["spool"] is None else r["receipt"] - r["spool"]
+    if s2r is None:
+        # 焦点走: spool file が欠測。END→receipt から代理 10 秒を引いた値は使わず、END→receipt をそのまま「spool + poll」の合算として扱う
+        s2r_txt = f"(END→receipt {r['receipt'] - r['ended']:.0f}, spool 欠測)"
+        period = None
+    else:
+        s2r_txt = f"{s2r:.0f}"
+        period = s2r + (r["waiter"] - r["done"])
+    r2d = r["done"] - r["receipt"]
+    d2w = r["waiter"] - r["done"]
+    total = r["waiter"] - r["ended"]
+    ratio = None if period is None else period / total
+    if ratio is not None:
+        ratios.append(ratio); tots.append(total); periods.append(period)
+        per_kind.setdefault(r["kind"], []).append((ratio, total, period))
+    print(f"{r['wave'].replace('dev-wave-', '')} | {r['producer']} | {r['kind']} | {'-' if e2s is None else f'{e2s:.0f}'} | {s2r_txt} | {r2d:.0f} | {d2w:.0f} | {total:.0f} | {'-' if period is None else f'{period:.0f}'} | {'-' if ratio is None else f'{ratio*100:.0f}%'}")
+
+print()
+print(f"spool を観測できた producer (受入・変異) n={len(ratios)}: 寄与率 median={st.median(ratios)*100:.0f}% max={max(ratios)*100:.0f}% / END→waiter 合計 median={st.median(tots):.0f} max={max(tots):.0f} / 周期由来上限 median={st.median(periods):.0f} max={max(periods):.0f}")
+for k, v in per_kind.items():
+    print(f"  {k}: n={len(v)} 寄与率 median={st.median([x[0] for x in v])*100:.0f}% max={max(x[0] for x in v)*100:.0f}% 合計 median={st.median([x[1] for x in v]):.0f} 周期上限 median={st.median([x[2] for x in v]):.0f}")
+foc = [r for r in sel if r["spool"] is None]
+if foc:
+    tt = [r["waiter"] - r["ended"] for r in foc]
+    dw = [r["waiter"] - r["done"] for r in foc]
+    er = [r["receipt"] - r["ended"] for r in foc]
+    print(f"焦点走/単発 (spool 欠測) n={len(foc)}: END→waiter median={st.median(tt):.0f} max={max(tt):.0f} / END→receipt median={st.median(er):.0f} max={max(er):.0f} / done→waiter median={st.median(dw):.0f} max={max(dw):.0f}")
+    print("  焦点走の END→receipt には NQSV spool 到着 (受入・変異では 9〜11 秒) と dispatcher の収集 poll が未分離で入る。")
