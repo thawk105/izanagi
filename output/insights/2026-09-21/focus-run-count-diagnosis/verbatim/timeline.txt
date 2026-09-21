@@ -1,0 +1,102 @@
+=== t2243 (dev-wave-t2243-collection-diag)
+  09-20 21:06:21 → 09-20 22:43:08  codex dev-wave-t2243-collection-diag
+  09-20 22:53:53 → 09-20 22:55:12  acceptance acceptance-final-1 走
+  09-20 22:57:43 → 09-20 23:07:30  acceptance acceptance-final-2 走
+  09-20 23:13:14 →         -  land land-.stdout
+=== t2804 (dev-wave-t2804-provenance-timeout-contract)
+  09-20 21:11:53 → 09-20 21:59:51  codex dev-wave-t2804-provenance-timeout-contract
+  09-20 21:41:20 → 09-20 21:49:23  FOCUS focus-1.log [compute] 3893 passed, 7 skipped in 85.51s (0:01:25)
+  09-20 22:02:04 → 09-20 22:03:53  FOCUS focus-2.log [compute] 3893 passed, 7 skipped in 85.87s (0:01:25)
+  09-20 22:10:54 → 09-20 22:30:51  mutation probe (15 job)
+  09-20 22:38:14 → 09-20 23:03:07  mutation final (15 job)
+  09-20 23:11:55 → 09-20 23:13:06  acceptance acceptance-final-1 走
+  09-20 23:16:38 → 09-20 23:26:31  acceptance acceptance-final-2 走
+  09-20 23:30:57 →         -  land land-1.json
+=== t2803 (dev-wave-t2803-provenance-receipt)
+  09-20 21:04:05 → 09-20 23:40:02  codex dev-wave-t2803-provenance-receipt
+  09-20 21:27:23 → 09-20 21:40:20  FOCUS focus-1.log [compute] 2738 passed, 5 skipped in 71.03s (0:01:11)
+  09-20 21:40:52 → 09-20 21:41:40  FOCUS focus-2.log [compute] 575 passed in 19.37s
+  09-20 22:06:08 → 09-20 22:07:42  FOCUS focus-3.log [compute] 2 failed, 2716 passed, 5 skipped in 70.94s (0:01:1
+  09-20 22:14:46 → 09-20 22:16:20  FOCUS focus-5.log [compute] 1 failed, 2717 passed, 5 skipped in 71.03s (0:01:1
+  09-20 22:19:47 → 09-20 22:23:44  FOCUS focus-6.log [compute] 2718 passed, 5 skipped in 70.98s (0:01:10)
+  09-20 22:23:59 → 09-20 22:24:57  FOCUS focus-7.log [compute] 23 failed, 532 passed in 20.17s
+  09-20 22:26:31 → 09-20 22:27:18  FOCUS focus-8.log [compute] 555 passed in 24.16s
+  09-20 22:31:32 → 09-20 22:54:02  mutation probe (7 job)
+  09-20 22:58:37 → 09-20 23:04:21  mutation final (7 job)
+  09-20 23:16:40 → 09-20 23:28:02  acceptance acceptance-final-1 走
+  09-20 23:45:07 → 09-21 00:06:54  acceptance acceptance-final3-1 走
+  09-21 00:12:00 →         -  land land-3.json
+=== t2344 (dev-wave-t2344-closure-stage)
+  09-20 21:56:19 → 09-20 21:57:17  FOCUS focus-f1.log [compute] 3 failed, 3112 passed in 34.23s
+  09-20 22:09:23 → 09-20 22:17:05  FOCUS focus-f2.log [compute] 3115 passed in 34.39s
+  09-20 23:15:30 → 09-20 23:27:33  FOCUS focus-f3.log [compute] 1721 passed, 3 skipped in 38.09s
+  09-20 23:35:44 → 09-20 23:48:04  acceptance acceptance-final-1 走
+  09-20 23:58:06 → 09-20 23:58:38  FOCUS focus-f4.log [compute] 69 passed in 8.27s
+  09-21 00:02:39 → 09-21 00:14:58  acceptance acceptance-final2-1 走
+  09-21 00:21:24 →         -  land land-1.json
+=== abstract (dev-wave-paper-abstract-conclusion-ja)
+  09-21 01:43:40 → 09-21 01:58:51  acceptance acceptance-final-1 走
+  09-21 02:02:28 →         -  land land-attempt-1.json
+=== story21 (dev-wave-paper-story-20260921)
+  09-21 02:36:10 → 09-21 02:43:38  acceptance acceptance-final-1 走
+  09-21 02:47:36 →         -  land land-attempt-1.json
+=== walldecomp (dev-wave-wall-decomp)
+  09-21 01:27:28 → 09-21 02:03:09  codex dev-wave-wall-decomp
+  09-21 01:44:08 → 09-21 01:45:05  FOCUS focus-1.log [compute] 580 passed, 3 skipped in 11.61s
+  09-21 01:59:09 → 09-21 02:16:47  FOCUS focus-2.log [compute] 580 passed, 3 skipped in 11.75s
+  09-21 02:28:14 → 09-21 02:50:28  acceptance acceptance-final-1 走
+  09-21 02:55:30 →         -  land land-1.json
+=== t2814 (dev-wave-t2814-cleanup-command)
+  09-21 01:04:25 → 09-21 02:16:31  codex dev-wave-t2814-cleanup-command
+  09-21 01:30:19 → 09-21 01:34:17  mutation probe (7 job)
+  09-21 02:10:57 → 09-21 02:12:37  FOCUS focus/focus-1.log [compute] 1 failed, 3869 passed, 16 skipped in 76.52s (0:01:
+  09-21 02:13:51 → 09-21 02:17:49  mutation final (7 job)
+  09-21 02:23:38 → 09-21 02:31:35  FOCUS focus/focus-2.log [compute] 3870 passed, 16 skipped in 76.78s (0:01:16)
+  09-21 02:46:42 → 09-21 02:47:28  acceptance acceptance-final-1 走
+  09-21 02:50:30 → 09-21 03:15:00  acceptance acceptance-final-2 走
+  09-21 03:19:32 →         -  land land-1.json
+=== t2810 (dev-wave-t2810-g1-launch-validation)
+  09-20 19:24:14 → 09-20 19:28:20  codex t2810-s2-plan-1
+  09-20 19:28:47 → 09-20 19:32:41  codex t2810-s3-consult-A-1
+  09-20 19:28:52 → 09-20 19:32:27  codex t2810-s3-consult-B-1
+  09-20 19:42:57 → 09-20 20:00:21  codex t2810-s5-author-1
+  09-20 20:08:59 → 09-20 20:23:00  FOCUS focus/focus-impl-1.log [compute] 1 failed, 974 passed, 13 skipped in 249.79s (0:04:
+  09-20 20:11:15 → 09-20 20:15:26  codex t2810-s6-review-A-1
+  09-20 20:11:21 → 09-20 20:15:10  codex t2810-s6-review-B-1
+  09-20 20:17:32 → 09-20 20:18:40  codex t2810-s6-fix1
+  09-20 20:27:19 → 09-20 20:30:21  codex t2810-s6-fix2
+  09-20 20:32:35 → 09-20 20:37:03  FOCUS focus/focus-fix2-1.log [compute] 1876 passed, 13 skipped in 245.64s (0:04:05)
+  09-20 20:37:24 → 09-20 20:51:01  FOCUS focus/focus-held-1.log [compute] ========================= 9 passed in 80.81s (0:01
+  09-20 20:38:59 → 09-20 20:42:53  codex t2810-s6-focus-1
+  09-20 20:41:23 → 09-20 23:14:30  mutation probe (17 job)
+  09-20 23:18:49 → 09-21 02:54:55  mutation final (17 job)
+  09-21 03:12:15 → 09-21 03:17:06  acceptance acceptance-final-1 走
+  09-21 03:29:14 → 09-21 03:41:01  acceptance acceptance-final2-1 走
+  09-21 03:44:27 →         -  land land-1.json
+=== t2817 (dev-wave-t2817-acceptance-bottleneck-3)
+  09-21 01:04:43 → 09-21 02:53:48  codex dev-wave-t2817-acceptance-bottleneck-3
+  09-21 02:12:09 → 09-21 02:23:47  acceptance acceptance-ref-1 走
+  09-21 02:59:51 → 09-21 03:09:31  acceptance acceptance-final-1 走
+  09-21 03:11:06 → 09-21 03:11:19  FOCUS rerun-single.log [login-bounded-local] [32m============================== [32m[1m1 pas
+  09-21 03:18:33 → 09-21 03:30:36  acceptance acceptance-final3-1 走
+  09-21 03:31:37 → 09-21 03:32:07  FOCUS rerun-single2.log [login-bounded-local] [32m============================= [32m[1m45 pas
+  09-21 03:36:03 → 09-21 03:58:52  acceptance acceptance-final4-1 走
+  09-21 04:07:19 →         -  land land-1.stdout
+=== residue (dev-wave-branch-residue-cleanup)
+  09-21 01:53:42 → 09-21 02:02:20  FOCUS focus-f1.log [compute] 92 failed, 853 passed, 5 skipped, 65 errors in 125
+  09-21 02:09:48 → 09-21 02:29:09  FOCUS focus-f2.log [compute] 1011 passed, 5 skipped in 125.87s (0:02:05)
+  09-21 03:29:58 → 09-21 03:32:33  FOCUS focus-f3.log [compute] 2 failed, 2436 passed, 10 skipped in 131.94s (0:02
+  09-21 03:37:57 → 09-21 03:57:22  FOCUS focus-f4.log [compute] 2438 passed, 10 skipped in 130.98s (0:02:10)
+  09-21 04:19:14 → 09-21 04:28:37  acceptance acceptance-final-1 走
+  09-21 04:32:25 →         -  land land-1.json
+=== t2797 (dev-wave-t2797-b5-contrast)
+  09-20 19:29:04 → 09-21 04:36:42  codex dev-wave-t2797-b5-contrast
+  09-20 21:13:18 → 09-20 21:21:11  FOCUS focus/focus-1.log [compute] 2475 passed, 10 skipped in 121.53s (0:02:01)
+  09-20 21:52:28 → 09-20 21:54:53  FOCUS focus/focus-2.log [compute] 2521 passed, 10 skipped in 123.87s (0:02:03)
+  09-20 22:08:24 → 09-20 23:09:43  mutation probe (31 job)
+  09-20 23:19:20 → 09-21 00:31:29  mutation final (36 job)
+  09-21 04:16:35 → 09-21 04:19:00  FOCUS focus/focus-3.log [compute] 2526 passed, 10 skipped in 122.25s (0:02:02)
+  09-21 04:21:32 → 09-21 04:29:06  acceptance acceptance-final-1 走
+  09-21 04:40:32 → 09-21 04:52:36  acceptance acceptance-final2-1 走
+  09-21 04:57:50 → 09-21 05:20:47  acceptance acceptance-final3-1 走
+  09-21 05:26:06 →         -  land land-1.json

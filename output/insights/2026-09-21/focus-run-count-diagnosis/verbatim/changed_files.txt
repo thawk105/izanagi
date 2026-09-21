@@ -1,0 +1,24 @@
+== t2804 (1cc303534..1e5fb5705)
+  test: test_check_ai_provenance.py test_dev_wave_land.py test_t2337_dispatch_timeout_overrides.py
+  production/tools: tools/check_ai_provenance.py tools/dev_wave_land.py
+== t2803 (6305f2d05..65966f4d8)
+  test: test_check_ai_provenance.py
+  production/tools: tools/check_ai_provenance.py
+== t2344 (5733c0f08..c383bac07)
+  test: test_artifact_admission.py test_b10_backoff_static_tail_formal.py test_campaign_lock_codec.py test_layer3_report.py test_s1_9pair_figure_provenance.py test_t671_source_binding.py
+  production/tools: orchestrator/campaign/artifact_admission.py orchestrator/campaign/campaign_lock.py orchestrator/campaign/contract_loader_binding.py
+== walldecomp (f6f3c16a1..4566c64b4)
+  test: (none)
+  production/tools: (none)
+== t2814 (30d0323c1..8621eb641)
+  test: test_check_docs.py
+  production/tools: tools/check_docs.py
+== t2810 (e07c220a0..ab0374ccb)
+  test: test_s8b_oracle_driver.py test_s8b_ratified_verify.py
+  production/tools: orchestrator/campaign/s8b_ratified_freeze.py
+== residue (9389277b0..98e946f9d)
+  test: test_check_docs.py test_dev_wave_cleanup.py
+  production/tools: tools/check_docs.py tools/dev_wave_cleanup.py
+== t2797 (3dbe5a41e..cf1c90e1f)
+  test: test_b5_contrast_launch.py test_b5_generator_contrast.py test_b5_generator_contrast_report.py test_ccbench_spawn_sites.py test_hooks.py test_p3_s4_loop.py test_p3_s4_loop_job_contract.py
+  production/tools: orchestrator/campaign/b5_generator_contrast.py orchestrator/campaign/b5_generator_contrast_report.py orchestrator/campaign/p3_s4_loop.py tools/pegasus/b5_contrast_launch.py

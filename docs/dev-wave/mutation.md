@@ -54,13 +54,7 @@ collectionの既存Q+G gateは元specで維持。有限の余裕は任意の遅�
 
 ## DW-M08 — 失敗 node と検出力
 
-harness は rc と失敗 node を毎回記録する。pytest は `-rf`、node 抽出は F71 に従う
-（rc≠0 で 0 件は fail-closed 停止）。
-**期待 node は完全集合**で、同形式へ正規化した記録 node との完全一致だけを KILLED とする（F33）。
-期待 node は login self-run（変異ごとに注入 → 自走 harness の FAIL / ERROR を観測・正規化 →
-`DW-O19` で復元し sha256 も照合）か初回と明記した dispatch probe で集め、erratum・再登録後に
-dispatch final を走らせる。適用は自走の全 node が `--collect-only` と同形式で照合でき login 実行が許される file に限り、pytest 専用
-allowlist・parametrize・fixture（conftest / autouse）・環境変数・import 副作用への依存や対応不明は
-dispatch probe へ戻す。
-受理集合を変えず構造化シグナルだけを pin する変異は kill でなく diagnostic sensitivity pin へ
-別枠記録する。テスト強化だけの wave は新テストと変更前 HEAD 版の双方へ変異を走らせ、新テストだけが検出する差分を示す。
+harnessはrcと失敗nodeを毎回記録する。pytestは`-rf`、node抽出はF71に従う（rc≠0で0件はfail-closed停止）。
+**期待nodeは完全集合**で、同形式へ正規化した記録nodeとの完全一致だけをKILLEDとする（F33）。
+期待nodeはlogin self-run（対象commitの木へ変異ごとに注入→`PYTHONPATH=. python3`の自走harnessでFAIL / ERRORを観測・正規化→`DW-O19`で復元しsha256と`--porcelain`空も照合）か初回と明記したdispatch probeで集め、erratum・再登録後にdispatch finalを走らせる。適用は自走の全nodeが`--collect-only`と同形式で照合できlogin実行が許されるfileに限り、pytest専用allowlist・parametrize・skip・fixture（conftest / autouse）・環境変数・import副作用への依存や対応不明はdispatch probeへ戻す。
+受理集合を変えず構造化シグナルだけをpinする変異はkillでなくdiagnostic sensitivity pinへ別枠記録する。テスト強化だけのwaveは新テストと変更前HEAD版の双方へ変異を走らせ、新テストだけが検出する差分を示す。

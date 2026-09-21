@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""直近 landed wave の job dir から「NQSV END → 回収」の遅延を実測する (読み取りのみ)。
+
+観測点 (すべて JST、秒解像度):
+  END      = 会計本文の `Ended Request Time:` (NQSV の終端時刻)
+  result   = 計算ノード側 result.json の mtime (job body が result を書いた時刻、あれば)
+  spool    = NQSV の stderr file (`*.e<req>`) の mtime (会計本文が login 側へ着いた時刻)
+  receipt  = dispatcher の receipt.json の mtime (dispatcher が回収を終えた時刻)
+  done     = その compute job を包む producer の `.done` の mtime (親の待ち手が見る file)
+  waiter   = 親の待ち手 (`dev_wave_wait.py producer`) の receipt / log の mtime (待ち手が戻った時刻)
+
+出力: 1 行 1 compute job の tsv と、集計。
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path("/work/1/SFC/tanab/dev-wave-jobs")
+SHARDS = Path("/work/1/SFC/tanab/.izanagi-acceptance-shards")
+WAVES = [
+    "dev-wave-t2797-b5-contrast",
+    "dev-wave-branch-residue-cleanup",
+    "dev-wave-t2817-acceptance-bottleneck-3",
+    "dev-wave-t2810-g1-launch-validation",
+    "dev-wave-t2814-cleanup-command",
+    "dev-wave-wall-decomp",
+    "dev-wave-paper-story-20260921",
+    "dev-wave-paper-abstract-conclusion-ja",
+    "dev-wave-t2344-closure-stage",
+    "dev-wave-t2803-provenance-receipt",
+    "dev-wave-t2804-provenance-timeout-contract",
+    "dev-wave-t2807-b8-prerun",
+]
+END_RE = re.compile(r"Ended Request Time:\s+(\w{3} \w{3} +\d+ \d\d:\d\d:\d\d \d{4})")
+START_RE = re.compile(r"Started Request Time:\s+(\w{3} \w{3} +\d+ \d\d:\d\d:\d\d \d{4})")
+REQ_RE = re.compile(r"Request ID:\s+(\d+\.nqsv)")
+SESSION_RE = re.compile(r'"session_root":\s*"([^"]+)"')
+
+
+def parse_nqsv(s: str) -> float:
+    return time.mktime(datetime.strptime(s, "%a %b %d %H:%M:%S %Y").timetuple())
+
+
+def fmt(t: float | None) -> str:
+    if t is None:
+        return "-"
+    return time.strftime("%m-%d %H:%M:%S", time.localtime(t))
+
+
+def mtime(p: Path | None) -> float | None:
+    if p is None or not p.exists():
+        return None
+    return p.stat().st_mtime
+
+
+def accounting_blocks(text: str):
+    """会計本文の block ごとに (request_id, started, ended) を返す。"""
+    out = []
+    # block は `Request ID:` 行で始まる。
+    for m in REQ_RE.finditer(text):
+        seg = text[m.start(): m.start() + 2000]
+        e = END_RE.search(seg)
+        s = START_RE.search(seg)
+        if e:
+            out.append((m.group(1), parse_nqsv(s.group(1)) if s else None, parse_nqsv(e.group(1))))
+    return out
+
+
+rows: list[dict] = []
+
+
+def add(wave, kind, producer, req, started, ended, result_p, spool_p, receipt_p, done_p, waiter_p, note="", request_p=None):
+    rows.append(
+        dict(
+            request=mtime(request_p),
+            wave=wave,
+            kind=kind,
+            producer=producer,
+            req=req,
+            started=started,
+            ended=ended,
+            result=mtime(result_p),
+            spool=mtime(spool_p),
+            receipt=mtime(receipt_p),
+            done=mtime(done_p),
+            waiter=mtime(waiter_p),
+            note=note,
+        )
+    )
+
+
+def find_done(job: Path, stem: str) -> Path | None:
+    for cand in (
+        job / f"{stem}.done",
+        job / f"{stem}.log.done",
+    ):
+        if cand.exists():
+            return cand
+    # acceptance-final-1 -> acceptance-final.done / acceptance-final-1.done
+    m = re.match(r"(.*)-(\d+)$", stem)
+    if m:
+        for cand in (job / f"{m.group(1)}.done", job / f"{m.group(1)}-{m.group(2)}.done"):
+            if cand.exists():
+                return cand
+    return None
+
+
+def find_waiter(job: Path, done: Path | None) -> Path | None:
+    if done is None:
+        return None
+    stem = done.name[: -len(".done")]
+    if stem.endswith(".log"):
+        stem = stem[:-4]
+    cands = [
+        job / f"{stem}.wait-receipt.json",
+        job / f"{stem}-wait-receipt.json",
+        job / f"{stem}-wait.json",
+        job / f"{stem}.wait.log",
+        job / f"{stem}-wait.log",
+        job / f"{stem}.wait.out",
+        job / f"wait-{stem}.done",
+    ]
+    m = re.match(r"(.*)-(\d+)$", stem)
+    if m:
+        b = m.group(1)
+        cands += [job / f"{b}.wait-receipt.json", job / f"{b}-wait-receipt.json", job / f"{b}-wait.json",
+                  job / f"{b}.wait.log", job / f"{b}.wait.out", job / f"wait-{b}.done"]
+    for c in cands:
+        if c.exists() and (c.suffix == ".json" or c.stat().st_size > 0):
+            return c
+    return None
+
+
+def outer_done(job: Path, done: Path | None) -> tuple[Path | None, Path | None]:
+    """門番 loop (gate-loop-*.sh) が受入を包む wave では、親の待ち手は外側の gate-loop-*.done を見る。"""
+    if done is None:
+        return None, None
+    dm = done.stat().st_mtime
+    best = None
+    for g in list(job.glob("gate-loop*.done")) + list(job.glob("wait-*.done")):
+        gm = g.stat().st_mtime
+        if gm >= dm and (best is None or gm < best.stat().st_mtime):
+            best = g
+    if best is None:
+        return None, None
+    return best, find_waiter(job, best)
+
+
+for wave in WAVES:
+    job = ROOT / wave
+    # (A) job dir 直下と focus/ run/ live/ の log に会計本文が中継されているもの (焦点走・単発 dispatch)
+    logs = sorted(job.glob("*.log"))
+    for sub in ("focus", "run", "live"):
+        if (job / sub).is_dir():
+            logs += sorted((job / sub).glob("*.log")) + sorted((job / sub).glob("*.stderr.txt"))
+    for lg in logs:
+        try:
+            text = lg.read_text(errors="replace")
+        except OSError:
+            continue
+        if "Ended Request Time:" not in text:
+            continue
+        jdir = lg.parent
+        stem = lg.name[: -len(".log")] if lg.name.endswith(".log") else lg.name[: -len(".stderr.txt")]
+        done = find_done(jdir, stem)
+        waiter = find_waiter(jdir, done)
+        if jdir != job:
+            stem = jdir.name + "/" + stem
+        blocks = accounting_blocks(text)
+        for i, (req, st, en) in enumerate(blocks):
+            add(wave, "focus" if "focus" in stem else "log", stem, req, st, en, None, None,
+                lg if i == len(blocks) - 1 else None, done if i == len(blocks) - 1 else None, waiter if i == len(blocks) - 1 else None,
+                note=f"block {i + 1}/{len(blocks)}")
+    # (B) 受入: acceptance-child-*.log の session root → shard dispatcher.log
+    for lg in sorted(job.glob("acceptance-child-*.log")):
+        text = lg.read_text(errors="replace")
+        m = SESSION_RE.search(text)
+        stem = lg.name[len("acceptance-child-"): -len(".log")]
+        done = find_done(job, "acceptance-" + stem)
+        waiter = find_waiter(job, done)
+        odone, owaiter = outer_done(job, done)
+        if waiter is None and odone is not None:
+            waiter = owaiter
+        if not m:
+            add(wave, "acceptance", "acceptance-" + stem, "-", None, None, None, None, None, done, waiter, note="no session_root in child log")
+            continue
+        sess = Path(m.group(1))
+        if not sess.exists():
+            add(wave, "acceptance", "acceptance-" + stem, "-", None, None, None, None, None, done, waiter, note=f"session dir gone: {sess.name}")
+            continue
+        shard_dirs = sorted(sess.glob("shard-*"))
+        for sd in shard_dirs:
+            dl = sd / "dispatcher.log"
+            if not dl.exists():
+                add(wave, "acceptance", "acceptance-" + stem, "-", None, None, None, None, None, done, waiter, note=f"{sd.name}: no dispatcher.log")
+                continue
+            blocks = accounting_blocks(dl.read_text(errors="replace"))
+            sub = None
+            for cand in sd.glob("dispatch/*"):
+                if (cand / "receipt.json").exists():
+                    sub = cand
+            for req, st, en in blocks:
+                spool = None
+                if sub is not None:
+                    es = list(sub.glob(f"*.e{req.split('.')[0]}"))
+                    spool = es[0] if es else None
+                add(wave, "acceptance", "acceptance-" + stem, req, st, en,
+                    (sub / "result.json") if sub else None, spool, (sub / "receipt.json") if sub else dl, done, waiter,
+                    note=f"{sd.name} of {len(shard_dirs)}; session {sess.name[:8]}"
+                    + (f"; outer {odone.name}@{fmt(mtime(odone))}" if odone is not None else ""))
+    # (C) 変異: *.dispatch-evidence/<hash>/ の写し
+    for ev in sorted(job.glob("*.dispatch-evidence")):
+        base = ev.name[: -len(".dispatch-evidence")]  # e.g. mutation-final-results.json
+        stem = base.replace("-results.json", "").replace(".json", "")
+        done = find_done(job, stem)
+        waiter = find_waiter(job, done)
+        subs = [d for d in ev.iterdir() if d.is_dir()]
+        obs = []
+        for d in subs:
+            efiles = list(d.glob("*.e*"))
+            en = st = req = None
+            for ef in efiles:
+                blocks = accounting_blocks(ef.read_text(errors="replace"))
+                if blocks:
+                    req, st, en = blocks[-1]
+            obs.append((en, d, efiles[0] if efiles else None, req, st))
+        obs.sort(key=lambda t: (t[0] is None, t[0] or 0))
+        for i, (en, d, ef, req, st) in enumerate(obs):
+            last = i == len(obs) - 1
+            add(wave, "mutation", stem, req or "-", st, en, d / "result.json", ef, d / "receipt.json",
+                done if last else None, waiter if last else None,
+                note=f"attempt {i + 1}/{len(obs)} {d.name[:8]}" + ("" if en else " (no END in evidence)"),
+                request_p=d / "request.json")
+
+# ---- 出力 ----
+hdr = ["wave", "kind", "producer", "req", "started", "ended", "result", "spool", "receipt", "done", "waiter",
+       "END→spool", "END→receipt", "END→done", "done→waiter", "note"]
+print("\t".join(hdr))
+
+
+def d(a, b):
+    if a is None or b is None:
+        return ""
+    return f"{b - a:.0f}"
+
+
+for r in rows:
+    print("\t".join([
+        r["wave"].replace("dev-wave-", ""), r["kind"], r["producer"], r["req"],
+        fmt(r["started"]), fmt(r["ended"]), fmt(r["result"]), fmt(r["spool"]), fmt(r["receipt"]), fmt(r["done"]), fmt(r["waiter"]),
+        d(r["ended"], r["spool"]), d(r["ended"], r["receipt"]), d(r["ended"], r["done"]), d(r["done"], r["waiter"]), r["note"],
+    ]))
+
+json.dump(rows, open(Path(__file__).with_name("collect_latency.rows.json"), "w"), ensure_ascii=False, indent=1, default=str)
