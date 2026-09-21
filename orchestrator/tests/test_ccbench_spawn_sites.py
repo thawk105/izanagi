@@ -39,6 +39,7 @@ _GATEWAY = Counter({("calibrator/runner.py", "<module>.run_once"): 1})
 # inventory from the subprocess site itself.  This keeps measurement callers
 # visible without misclassifying them as additional raw process launch sites.
 _BOUNDED_RUN_ONCE_CLIENTS = Counter({
+    ("campaign/p3_s4_loop.py", "<module>._run_b5_tier0_smoke"): 1,
     ("campaign/b10_backoff_shape_sweep.py", "<module>.measure_performance_cell"): 1,
     ("campaign/backoff_overthrottle.py", "<module>._run_rep"): 1,
 })

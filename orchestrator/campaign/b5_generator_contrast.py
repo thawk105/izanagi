@@ -1,7 +1,8 @@
 """B-5 pilot generator contrast: immutable opportunities and fresh CLI sessions.
 
-This is a pilot producer, not authorization for the registered cohort. Tier0 is
-not implemented. Saved inputs do not prove delivery or absence of parent advice.
+This is a pilot producer, not authorization for the registered cohort. Candidate
+search and score slots share the child's compile and fixed-smoke Tier0 contract.
+Saved inputs do not prove delivery or absence of parent advice.
 """
 from __future__ import annotations
 
@@ -332,6 +333,33 @@ def classify_slot(sidecar_dir, campaign_root, expected_reps, expected_genome):
                 return result
             result.update(submitted=True, outcome="submitted-unresolved",
                           failure_class="unclassified-missing")
+        tier0_path = sidecar_dir / "tier0.json"
+        candidate = expected_genome.flags.get("BACKOFF_FIXED") != -1
+        if tier0_path.exists():
+            # Read and hash the same bytes. No smoke measurements enter the ledger.
+            result["outcome"] = "unclassified-missing"
+            raw = tier0_path.read_bytes()
+            tier0 = json.loads(raw)
+            if (not candidate or not isinstance(tier0, dict)
+                    or tier0.get("schema") != "p3-s4-loop-b5-tier0/v1"
+                    or any(tier0.get(k) != start[k] for k in ("b5_slot", "campaign_id", "genome"))
+                    or tier0.get("contract") != loop_driver.B5_TIER0_CONTRACT
+                    or (tier0.get("status"), tier0.get("reason")) not in {
+                        ("passed", None), ("rejected", "build-error"),
+                        ("rejected", "smoke-failed"), ("rejected", "smoke-timeout")}):
+                result.update(outcome="unclassified-missing")
+                return result
+            result["tier0"] = {"status": tier0["status"], "reason": tier0["reason"],
+                               "sidecar_sha256": hashlib.sha256(raw).hexdigest()}
+            if tier0["status"] == "rejected":
+                result.update(outcome="unclassified-missing" if result["submitted"] else "rejected-tier0",
+                              failure_class="unclassified-missing" if result["submitted"] else "candidate")
+                return result
+            if result["submitted"]:
+                result["outcome"] = "submitted-unresolved"
+        elif candidate and result["submitted"]:
+            result.update(outcome="unclassified-missing")
+            return result
         # CLI output is evidence of a duplicate, never evidence of certification.
         stdout = sidecar_dir / "stdout.txt"
         if stdout.exists() and any(token in stdout.read_text(errors="replace")
@@ -548,7 +576,8 @@ def _header(arm, workload, series, block, repo_root):
         "perf_config": asdict(loop_driver.calibrated_perf(workload)),
         "verify_mode": "legacy+performance", "bench_max_rounds": 3,
         "B": B_EVALUATIONS, "A": A_PROPOSALS, "N_eval": N_EVAL,
-        "tier0_status": "not-implemented", "job": {"PBS_JOBID": os.environ.get("PBS_JOBID"), "host": socket.gethostname()},
+        "tier0_status": "implemented", "tier0_contract": loop_driver.B5_TIER0_CONTRACT,
+        "job": {"PBS_JOBID": os.environ.get("PBS_JOBID"), "host": socket.gethostname()},
         "allocation_deadline_epoch": deadline,
         "allocation_deadline_status": "unknown" if deadline is None else "known",
         "limits": ["Parent intervention and actual input delivery are not mechanically guaranteed.",

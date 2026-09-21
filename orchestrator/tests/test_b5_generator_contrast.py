@@ -123,6 +123,18 @@ def _genome(value):
                            "WAL": 0, "BACK_OFF": 1, "BACKOFF_FIXED": value})
 
 
+def _write_tier0(sidecar, start, *, status="passed", reason=None):
+    payload = {k: start[k] for k in ("b5_slot", "campaign_id", "genome", "ts_utc")}
+    payload.update(schema="p3-s4-loop-b5-tier0/v1", contract=L.B5_TIER0_CONTRACT,
+                   status=status, reason=reason, error=None,
+                   build={"trace": False, "binary": "/fixture/perf", "bin_sha256": "a" * 64,
+                          "cached": False},
+                   smoke={"flags": [*L.B5_TIER0_CONTRACT["smoke_flags"], "--clocks_per_us=2100"],
+                          "timeout_s": 32, "returncode": 0, "wall_s": 1., "commits": 987654321,
+                          "aborts": 123456789, "throughput_positive": True})
+    L._write_b5_sidecar(sidecar, "tier0.json", payload)
+
+
 def _write_attempt(sidecar, *, key="b5-generator-contrast-v1|fixture", value=20,
                    outcome="certified", bench=None, abort_reason="build-error", src=None):
     """Synthetic producer bytes at the subprocess boundary, never a WAL reader stub."""
@@ -140,6 +152,11 @@ def _write_attempt(sidecar, *, key="b5-generator-contrast-v1|fixture", value=20,
     (sidecar / "slot-start.json").write_text(json.dumps(start))
     (root / "campaign.lock").write_text(json.dumps({"identity_preimage": preimage}))
     if outcome == "unclassified-missing":
+        return root
+    if value != -1 and outcome != "rejected-preprocess":
+        _write_tier0(sidecar, start, status="rejected" if outcome == "rejected-tier0" else "passed",
+                     reason="smoke-failed" if outcome == "rejected-tier0" else None)
+    if outcome == "rejected-tier0":
         return root
     if outcome != "rejected-preprocess":
         submitted = {k: start[k] for k in ("b5_slot", "campaign_id", "genome", "ts_utc")}
@@ -306,7 +323,7 @@ def test_series_scores_fresh_sessions_after_endpoint_fix(tmp_path):
     score_bytes = {c["proposal_bytes"] for c in runner.calls if c["kind"] == "score"}
     assert score_bytes == {Path(endpoint["proposal_path"]).read_bytes()}
     assert result["header"]["allocation_deadline_status"] == "unknown"
-    assert result["header"]["tier0_status"] == "not-implemented"
+    assert result["header"]["tier0_status"] == "implemented"
 
 
 def test_submitted_abort_consumes_B_and_history_does_not_stop_next_slot(tmp_path):
@@ -911,6 +928,173 @@ def test_fix2_producer_mutants_killed(tmp_path, monkeypatch, mutation):
             test_attempt_start_durable_before_runner_exception_m23(tmp_path)
         else:
             test_both_critic_diagnoses_required_m27(tmp_path)
+
+
+@pytest.mark.parametrize("arm,count,reason", [("random", 30, "a-exhausted"),
+                                             ("sweep-matched", 28, "grid-exhausted")])
+def test_tier0_rejection_consumes_A_only_without_retry(tmp_path, arm, count, reason):
+    runner = FakeRunner(lambda kind, n, attempt: {"outcome": "rejected-tier0"}
+                        if kind == "search" else {})
+    result = _series(tmp_path, runner, arm)
+    end = result["events"][-1]
+    assert (end["a"], end["b"], end["reason"]) == (count, 0, reason)
+    assert len(runner.calls) == count + 1
+    assert [c["attempt"] for c in runner.calls] == [0] * (count + 1)
+    assert _events(result, "machine-retry") == []
+    assert _events(result, "evaluation-result") == []
+    rejected = _events(result, "proposal-rejected")
+    assert len(rejected) == count
+    for event in rejected:
+        assert (event["outcome"], event["submitted"], event["failure_class"]) == (
+            "rejected-tier0", False, "candidate")
+        assert set(event["tier0"]) == {"status", "reason", "sidecar_sha256"}
+        assert event["tier0"]["status"] == "rejected"
+
+
+def test_retry_then_tier0_reject_retains_B(tmp_path):
+    def policy(kind, n, attempt):
+        if kind == "search":
+            return ({"outcome": "abort", "abort_reason": "bench-probe-error"}
+                    if attempt == 0 else {"outcome": "rejected-tier0"})
+        return {}
+    runner = FakeRunner(policy)
+    result = _series(tmp_path, runner)
+    assert (result["events"][-1]["a"], result["events"][-1]["b"]) == (10, 10)
+    assert len(_events(result, "machine-retry")) == 10
+    assert len(runner.calls) == 21
+    evaluations = _events(result, "evaluation-result")
+    assert [e["b"] for e in evaluations] == list(range(1, 11))
+    assert [(e["outcome"], e["submitted"], e["tier0"]["status"]) for e in evaluations] == [
+        ("rejected-tier0", True, "rejected")] * 10
+
+
+def test_score_tier0_reject_stops_without_fallback(tmp_path):
+    runner = FakeRunner(lambda kind, n, attempt: {"outcome": "rejected-tier0"}
+                        if kind == "score" else {})
+    result = _series(tmp_path, runner)
+    end = result["events"][-1]
+    assert (end["a"], end["b"], end["reason"], end["score"]) == (10, 10, "unclassified-missing", None)
+    assert not end.get("fallback")
+    assert len(_events(result, "endpoint-fixed")) == len(_events(result, "score-session")) == 1
+    assert _events(result, "machine-retry") == []
+    assert len(runner.calls) == 12
+
+
+@pytest.mark.parametrize("tamper", ["missing", "json", "list", "schema", "b5_slot",
+                                    "campaign_id", "genome", "contract", "rejected", "status"])
+def test_submitted_requires_valid_passed_tier0(tmp_path, tamper):
+    root = _write_attempt(tmp_path)
+    path = tmp_path / "tier0.json"
+    if tamper == "missing":
+        path.unlink()
+    elif tamper == "json":
+        path.write_text("{")
+    elif tamper == "list":
+        path.write_text("[]")
+    else:
+        doc = json.loads(path.read_text())
+        if tamper == "rejected":
+            doc.update(status="rejected", reason="smoke-failed")
+        else:
+            doc[tamper] = "invalid"
+        path.write_text(json.dumps(doc))
+    observed = B.classify_slot(tmp_path, root, 5, _genome(20))
+    assert (observed["outcome"], observed["submitted"], observed["failure_class"], observed["fitness_tps"]) == (
+        "unclassified-missing", True, "unclassified-missing", None)
+
+
+def test_missing_tier0_stops_series_with_B_retained(tmp_path):
+    base = FakeRunner()
+    def runner(argv, *, cwd):
+        done = base(argv, cwd=cwd)
+        sidecar = Path(argv[argv.index("--b5-sidecar-dir") + 1])
+        if base.calls[-1]["kind"] == "search":
+            (sidecar / "tier0.json").unlink()
+        return done
+    result = _series(tmp_path, runner)
+    end = result["events"][-1]
+    assert (end["a"], end["b"], end["reason"]) == (1, 1, "unclassified-missing")
+    assert len(base.calls) == 2
+    assert _events(result, "endpoint-fixed") == _events(result, "machine-retry") == []
+
+
+def test_stock_with_tier0_is_unclassified(tmp_path):
+    root = _write_attempt(tmp_path, value=-1)
+    _write_tier0(tmp_path, json.loads((tmp_path / "slot-start.json").read_text()))
+    observed = B.classify_slot(tmp_path, root, 5, _genome(-1))
+    assert (observed["outcome"], observed["submitted"], observed["fitness_tps"]) == (
+        "unclassified-missing", True, None)
+
+
+@pytest.mark.parametrize("reason", ["build-error", "smoke-failed", "smoke-timeout"])
+def test_tier0_rejected_evidence_without_submission(tmp_path, reason):
+    root = _write_attempt(tmp_path, outcome="unclassified-missing")
+    start = json.loads((tmp_path / "slot-start.json").read_text())
+    _write_tier0(tmp_path, start, status="rejected", reason=reason)
+    observed = B.classify_slot(tmp_path, root, 5, _genome(20))
+    assert (observed["outcome"], observed["submitted"], observed["failure_class"], observed["fitness_tps"]) == (
+        "rejected-tier0", False, "candidate", None)
+    assert observed["tier0"] == {
+        "status": "rejected", "reason": reason,
+        "sidecar_sha256": hashlib.sha256((tmp_path / "tier0.json").read_bytes()).hexdigest()}
+
+
+def test_passed_without_submission_is_unresolved(tmp_path):
+    root = _write_attempt(tmp_path)
+    (tmp_path / "pipeline-submitted.json").unlink()
+    observed = B.classify_slot(tmp_path, root, 5, _genome(20))
+    assert (observed["outcome"], observed["submitted"], observed["fitness_tps"]) == (
+        "unclassified-missing", False, None)
+
+
+def test_tier0_pass_does_not_replace_anomaly_gate(tmp_path):
+    runner = FakeRunner(lambda kind, n, attempt: {"outcome": "anomaly", "abort_reason": "verify-red"}
+                        if kind == "search" and n == 1 else {})
+    result = _series(tmp_path, runner)
+    first = _events(result, "evaluation-result")[0]
+    assert (first["outcome"], first["b"], first["submitted"], first["fitness_tps"]) == (
+        "anomaly", 1, True, None)
+    assert first["tier0"]["status"] == "passed"
+    endpoint = _events(result, "endpoint-fixed")[0]["endpoint"]
+    assert endpoint["value"] != first["value"]
+    assert endpoint["outcome"] == "certified"
+
+
+def test_smoke_numbers_never_enter_events_inputs_or_endpoint(tmp_path):
+    result = _series(tmp_path, FakeRunner())
+    ledger = B.SeriesLedger(tmp_path / "ledger")
+    inputs = B.expected_inputs(ledger, 11)
+    assert inputs["current_perf"]["throughput_tps"] == 100.
+    assert _events(result, "endpoint-fixed")[0]["endpoint"]["fitness_tps"] == 100.
+    for event in result["events"]:
+        if "tier0" in event:
+            assert set(event["tier0"]) == {"status", "reason", "sidecar_sha256"}
+    text = json.dumps([result["events"], inputs])
+    assert "987654321" not in text and "123456789" not in text
+    assert '"smoke"' not in text and '"throughput_positive"' not in text
+    for path in (tmp_path / "ledger/handshake").glob("slot-*.json"):
+        assert set(json.loads(path.read_text())["tier0"]) == {"status", "reason", "sidecar_sha256"}
+
+
+def test_llm_tier0_rejection_preserves_expected_inputs(tmp_path):
+    ledger = _input_ledger(tmp_path)
+    before = B.expected_inputs(ledger, 3)
+    sidecar = tmp_path / "rejection"
+    root = _write_attempt(sidecar, outcome="rejected-tier0")
+    observed = B.classify_slot(sidecar, root, 5, _genome(20))
+    ledger.append("proposal-rejected", a=3, b=2, **observed)
+    assert observed["outcome"] == "rejected-tier0"
+    assert B.expected_inputs(ledger, 3) == before
+
+
+def test_header_declares_shared_tier0_contract():
+    h = B._header("random", "write-heavy", 1, 1, ROOT)
+    assert h["tier0_status"] == "implemented"
+    assert h["tier0_contract"] == L.B5_TIER0_CONTRACT
+    assert h["tier0_contract"]["contract_id"] == "b5-tier0/v1"
+    assert h["tier0_contract"]["applies_to"] == ["search", "score"]
+    assert h["tier0_contract"]["timeout_s"] == 32
+    assert h["tier0_contract"]["build"]["trace"] is False
 
 
 def _run() -> int:

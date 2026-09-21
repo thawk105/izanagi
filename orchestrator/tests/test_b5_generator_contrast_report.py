@@ -75,6 +75,14 @@ def ledger(arm="llm", series=1, workload="write-heavy", purpose="registered", sc
     return {"header": h, "events": events}
 
 
+def tier0_ledger(**kwargs):
+    """New contract fixture; ledger() preserves the historical pilot bytes."""
+    from orchestrator.campaign.p3_s4_loop import B5_TIER0_CONTRACT
+    doc = ledger(**kwargs)
+    doc["header"].update(tier0_status="implemented", tier0_contract=deepcopy(B5_TIER0_CONTRACT))
+    return doc
+
+
 def registered(llm=200, random=100, sweep=100):
     return [ledger(a, r, w, score={"llm": llm, "random": random, "sweep-matched": sweep}[a])
             for w in WORKLOADS for a in ARMS for r in range(1, 13)] + [
@@ -703,6 +711,43 @@ def test_logical_sessions_zero_for_stock_pre_start_failure(tmp_path, monkeypatch
     result = R.build_report([doc], purpose="pilot")
     assert not result["invalid"]
     assert result["series"][0]["logical_sessions"] == 0
+
+
+@pytest.mark.parametrize("change", ["status", "contract", "timeout", "applies_to"])
+def test_tier0_contract_mismatch_rejected(change):
+    left = tier0_ledger(series=1, purpose="pilot")
+    right = tier0_ledger(series=2, purpose="pilot")
+    assert R.build_report([left, right], purpose="pilot")["invalid"] == []
+    if change == "status":
+        right["header"]["tier0_status"] = "not-implemented"
+    elif change == "contract":
+        del right["header"]["tier0_contract"]
+    elif change == "timeout":
+        right["header"]["tier0_contract"]["timeout_s"] = 31
+    else:
+        right["header"]["tier0_contract"]["applies_to"] = ["search"]
+    result = R.build_report([left, right], purpose="pilot")
+    assert [(i["category"], i["detail"]) for i in result["invalid"]] == [
+        ("schema-inconsistent", "cohort configuration mismatch")]
+
+
+def test_tier0_and_historical_ledger_reading_preserve_AB():
+    old = R.build_report([ledger(purpose="pilot")], purpose="pilot")
+    new = R.build_report([tier0_ledger(purpose="pilot")], purpose="pilot")
+    assert old["invalid"] == new["invalid"] == []
+    assert old["series"] == new["series"]
+    row, = new["series"]
+    assert (row["A"], row["B"], row["score"], row["logical_sessions"]) == (10, 10, 200, 16)
+
+
+def test_tier0_rejection_report_does_not_recover_B(tmp_path):
+    from orchestrator.tests.test_b5_generator_contrast import FakeRunner, _series
+    doc = _series(tmp_path, FakeRunner(lambda kind, n, attempt: {"outcome": "rejected-tier0"}
+                                     if kind == "search" else {}))
+    report = R.build_report([doc], purpose="pilot")
+    assert report["invalid"] == []
+    row, = report["series"]
+    assert (row["A"], row["B"], row["logical_sessions"], row["physical_attempts"]) == (30, 0, 1, 31)
 
 
 def _run() -> int:
