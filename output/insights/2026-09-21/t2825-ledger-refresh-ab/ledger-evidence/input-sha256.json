@@ -1,0 +1,22 @@
+[
+  {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/input/shard-0/junit.xml",
+    "sha256": "ce3441365bb528c2f99b4e03c44e4c31b0523976a639c098eb7b3f9150b9cebe",
+    "pass": true
+  },
+  {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/input/shard-1/junit.xml",
+    "sha256": "1c75c851f7ef70f0cdd35964ee672ce40cb72df55bf686efe47b53335465644d",
+    "pass": true
+  },
+  {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/input/shard-2/junit.xml",
+    "sha256": "f11588e4cbb59e60108e05af5e00e5e29cd4fd97fb1526abaf285b7387abd7da",
+    "pass": true
+  },
+  {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/input/login-collection.log",
+    "sha256": "319e1307a3e06521a0c08cd4cff6cd68dcd9cc39af332889d863b1eb52ef7c57",
+    "pass": true
+  }
+]

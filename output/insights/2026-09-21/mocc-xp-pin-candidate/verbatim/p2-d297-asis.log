@@ -1,0 +1,6 @@
+apply rc=0
+probe new oid: 5e0fda494f6b6717af68b8e1f71dbaea645cc404
+checker rc=1
+--- stderr:
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: include 行文字列（順序込み）が不一致: cc/mocc/transaction.cc
+--- stdout bytes: 0

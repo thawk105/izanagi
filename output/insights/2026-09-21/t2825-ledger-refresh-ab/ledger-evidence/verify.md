@@ -1,0 +1,14 @@
+# T-2825 author L verification
+
+- (a) PASS: `{"pass": true, "before_count": 426, "after_count": 426, "line_bytes_equal": true}`
+- (b) PASS: `{"pass": true, "value": 0.19}`
+- (c) PASS: `{"pass": true, "before_count": 24379, "after_count": 26605, "bytes": 3435562}`
+- (d) PASS: `{"pass": true, "values_seconds": {"test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity": 0.004, "test_t080_active_v2_delegation_accepts_full_receipt": 190.0, "test_t080_delegated_campaign_start_rechecks_receipt[changed]": 190.0, "test_t080_active_v2_preserves_nonlayer2_receipt_refusal": 190.0, "test_v1_gate_does_not_delegate_with_active_v2": 41.0, "test_t080_failed_launch_preserves_receipt_refusal": 48.0, "test_t080_delegated_campaign_start_rejects_late_hit_file": 44.0, "test_t080_delegated_campaign_start_rechecks_receipt[missing]": 39.0}}`
+- (e) PASS: `{"pass": true, "rc": 0, "collection_count": 26808, "covered": 26587, "ratio": 0.9917561921814384, "generator_stdout": "excluded_failure_or_error=0\nmode=refresh\npreserved_frozen=426\nreplaced=26179\nadded=0\nremoved=0\nexcluded_frozen_suite=629\ncovered=26587 total=26808 ratio=0.992\n"}`
+- (f) PASS: `{"pass": true, "rc": 0, "bytes_unchanged": true}`
+- (g) PASS: `{"pass": true, "removed_count": 140, "in_main_count": 0, "frozen_count": 0}`
+- (h) PASS: `{"pass": true, "added_count": 2366, "outside_main_count": 0}`
+- (i) PASS: `{"pass": true, "tracked_changed_count": 1, "status": [" M orchestrator/tests/acceptance_duration_ledger.json", "?? t2825-author-l/coverage.log", "?? t2825-author-l/determinism.log", "?? t2825-author-l/input-sha256.json", "?? t2825-author-l/ledger-before.json", "?? t2825-author-l/main-nodeids.txt", "?? t2825-author-l/refresh.log", "?? t2825-author-l/removed.txt", "?? t2825-author-l/status.txt", "?? t2825-author-l/verify.json", "?? t2825-author-l/verify.md", "?? t2825-author-l/verify.py"]}`
+- (j) PASS: `{"pass": true, "before_sha256": "1edbb7929a7b341e050fd37ea32f19c93f4d63d8f95afd760018b7cf7ac3273a", "after_sha256": "27fd84c265373b4039a978ebb074d5b4f71c2d78d935fa76446534881448040f"}`
+
+pytest: 未実走。consumer / test の判断は静的確認のみ。

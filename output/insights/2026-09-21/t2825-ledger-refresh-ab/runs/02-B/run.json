@@ -1,0 +1,33 @@
+{
+  "tag": "02-B",
+  "run": "02",
+  "condition": "B",
+  "pair_slot": 1,
+  "condition_worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2825-ledger-refresh-ab",
+  "expected_sha": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "tracked_diff_stat_sha256": "763356385447318b6f32b5cab3f549fddfaee11ff47589b03a01c6f8e644d7ec",
+  "valid_tree": true,
+  "measurement_tip": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "tip_sha": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "tip_sha_after": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "main_sha_at_launch": "1c1105cd371bab1763cd05ac52cb408eee39b052",
+  "submitted_at": "2026-09-21T10:22:18+0900",
+  "finished_at": "2026-09-21T10:43:42+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/41fd024b88aa0c1d6292abf47348851e",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 9.14,
+  "rc": 0,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 1,
+    "load1_max_inclusive": 60.0,
+    "leader_query": "argv-start python dev_wave_wait.py acceptance; exclude slug"
+  }
+}

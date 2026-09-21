@@ -1,0 +1,65 @@
+{
+  "main_sha256": "0009601d0a6f182bfe0ce28df36b23f6ffe85a906bae9217b126a21f5f2af97b",
+  "main_count": 24812,
+  "generated_count": 26605,
+  "nodeid_count_valid": true,
+  "a": {
+    "sha256": "27fd84c265373b4039a978ebb074d5b4f71c2d78d935fa76446534881448040f",
+    "measurement_B_sha256": "27fd84c265373b4039a978ebb074d5b4f71c2d78d935fa76446534881448040f",
+    "passed": true
+  },
+  "b": "一致",
+  "c": {
+    "dropped_count": 312,
+    "t2344_added_count": 433,
+    "dropped_t2344_count": 172,
+    "dropped_other_count": 140,
+    "frozen_dropped_count": 0,
+    "dropped_by_suite": {
+      "orchestrator/tests/test_artifact_admission.py": 103,
+      "orchestrator/tests/test_audit_dangling_commits.py": 1,
+      "orchestrator/tests/test_autonomous_trial_completeness.py": 3,
+      "orchestrator/tests/test_between_run_floor.py": 1,
+      "orchestrator/tests/test_campaign_lock_codec.py": 19,
+      "orchestrator/tests/test_condition_meaning_gate.py": 5,
+      "orchestrator/tests/test_dev_wave_cleanup.py": 5,
+      "orchestrator/tests/test_dev_wave_land.py": 5,
+      "orchestrator/tests/test_insights_date_layout.py": 62,
+      "orchestrator/tests/test_layer3_report.py": 9,
+      "orchestrator/tests/test_migrate_output_gzip.py": 12,
+      "orchestrator/tests/test_p3_s4_loop.py": 7,
+      "orchestrator/tests/test_paper_story_a2_certification.py": 4,
+      "orchestrator/tests/test_paper_story_a2_job_contract.py": 3,
+      "orchestrator/tests/test_pegasus_dispatch_compute.py": 1,
+      "orchestrator/tests/test_plot_t2266_tail_mechanism.py": 22,
+      "orchestrator/tests/test_s8b_holdout_freeze.py": 1,
+      "orchestrator/tests/test_s8b_ratified_freeze.py": 4,
+      "orchestrator/tests/test_t671_source_binding.py": 44,
+      "orchestrator/tests/test_wave_land_window.py": 1
+    },
+    "passed": true
+  },
+  "d": {
+    "main_frozen_count": 426,
+    "generated_frozen_count": 426,
+    "values_equal": true,
+    "line_bytes_equal": true,
+    "passed": true
+  },
+  "e": {
+    "rc": 0,
+    "bytes_unchanged": true,
+    "passed": true
+  },
+  "f": {
+    "tracked_lines": [],
+    "untracked_count": 10,
+    "passed": false,
+    "head_sha256": "27fd84c265373b4039a978ebb074d5b4f71c2d78d935fa76446534881448040f",
+    "index_sha256": "27fd84c265373b4039a978ebb074d5b4f71c2d78d935fa76446534881448040f",
+    "equals_head": true,
+    "equals_index": true,
+    "ownership_scope_passed": true,
+    "explanation": "生成結果が既存 HEAD および index の台帳 bytes と一致するため、tracked変更は0行。要求の1行には不一致だが、所有外変更は0件。"
+  }
+}

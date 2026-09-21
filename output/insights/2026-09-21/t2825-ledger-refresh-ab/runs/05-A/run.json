@@ -1,0 +1,33 @@
+{
+  "tag": "05-A",
+  "run": "05",
+  "condition": "A",
+  "pair_slot": 2,
+  "condition_worktree": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2825-base-a",
+  "expected_sha": "21641fee777d24642d54119b660a7b7880636e71",
+  "tracked_diff_stat_sha256": "763356385447318b6f32b5cab3f549fddfaee11ff47589b03a01c6f8e644d7ec",
+  "valid_tree": true,
+  "measurement_tip": "21641fee777d24642d54119b660a7b7880636e71",
+  "tip_sha": "21641fee777d24642d54119b660a7b7880636e71",
+  "tip_sha_after": "21641fee777d24642d54119b660a7b7880636e71",
+  "main_sha_at_launch": "6496ab2dc1a5e219ea2ec773f46c8531415463a9",
+  "submitted_at": "2026-09-21T12:19:14+0900",
+  "finished_at": "2026-09-21T12:39:51+0900",
+  "session_dir": "session",
+  "session_dir_origin": "/work/1/SFC/tanab/.izanagi-acceptance-shards/b25973f0abc295769d013e9edf749ed5",
+  "copy_ok": true,
+  "env": {
+    "IZANAGI_ACCEPTANCE_SHARDS": "3",
+    "PYTHONDONTWRITEBYTECODE_SET": "no"
+  },
+  "other_leaders": 1,
+  "load1": 11.94,
+  "rc": 0,
+  "dirty_lines_before": 0,
+  "dirty_lines_after": 0,
+  "gate": {
+    "leaders_max": 1,
+    "load1_max_inclusive": 60.0,
+    "leader_query": "argv-start python dev_wave_wait.py acceptance; exclude slug"
+  }
+}

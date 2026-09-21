@@ -1,0 +1,26 @@
+[
+  {
+    "path": "shard-0/junit.xml",
+    "expected": "ce3441365bb528c2f99b4e03c44e4c31b0523976a639c098eb7b3f9150b9cebe",
+    "actual": "ce3441365bb528c2f99b4e03c44e4c31b0523976a639c098eb7b3f9150b9cebe",
+    "passed": true
+  },
+  {
+    "path": "shard-1/junit.xml",
+    "expected": "1c75c851f7ef70f0cdd35964ee672ce40cb72df55bf686efe47b53335465644d",
+    "actual": "1c75c851f7ef70f0cdd35964ee672ce40cb72df55bf686efe47b53335465644d",
+    "passed": true
+  },
+  {
+    "path": "shard-2/junit.xml",
+    "expected": "f11588e4cbb59e60108e05af5e00e5e29cd4fd97fb1526abaf285b7387abd7da",
+    "actual": "f11588e4cbb59e60108e05af5e00e5e29cd4fd97fb1526abaf285b7387abd7da",
+    "passed": true
+  },
+  {
+    "path": "login-collection.log",
+    "expected": "319e1307a3e06521a0c08cd4cff6cd68dcd9cc39af332889d863b1eb52ef7c57",
+    "actual": "319e1307a3e06521a0c08cd4cff6cd68dcd9cc39af332889d863b1eb52ef7c57",
+    "passed": true
+  }
+]

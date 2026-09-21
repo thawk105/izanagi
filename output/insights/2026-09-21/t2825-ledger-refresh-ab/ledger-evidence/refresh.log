@@ -1,0 +1,10 @@
+stdout:
+excluded_failure_or_error=0
+mode=refresh
+preserved_frozen=426
+replaced=23813
+added=2366
+removed=140
+excluded_frozen_suite=629
+stderr:
+rc=0

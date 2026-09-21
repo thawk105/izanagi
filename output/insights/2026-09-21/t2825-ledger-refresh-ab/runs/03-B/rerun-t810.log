@@ -1,0 +1,53 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-cd6f030292)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2825-ledger-refresh-ab/output/pegasus-dispatch/orphan-holds/unknown-e0b8a6e34a60c8751c97d7e8.json
+[Pegasus dispatch] request ID 14912.nqsv を受理しました
+[Pegasus dispatch] request 14912.nqsv の状態: QUE
+[Pegasus dispatch] request 14912.nqsv の状態: RUN
+[Pegasus dispatch] request 14912.nqsv の状態: END
+[Pegasus dispatch] request 14912.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2825-ledger-refresh-ab/output/pegasus-dispatch/orphan-holds/unknown-e0b8a6e34a60c8751c97d7e8.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2825-ledger-refresh-ab/output/pegasus-dispatch/cd6f030292586fe9f3cad92fe556c949/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 14912.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ...                                                                      [100%]
+| 3 passed in 4.38s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 14912.nqsv child stdout end
+[Pegasus dispatch] request 14912.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 910140, "time_ns": 1789957988328078768}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 910161, "event": "direct-child-wait-start", "pid": 910147, "time_ns": 1789957988356593686}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 910161, "event": "direct-child-wait-complete", "pid": 910147, "time_ns": 1789957993394005843}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 910147, "rc": 0, "time_ns": 1789957993394091825}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 910140, "rc": 0, "time_ns": 1789957993398524084}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 910140}, {"comm": "bash", "pid": 910121}, {"comm": "nqs_shpd", "pid": 910120}, {"comm": "nqs_shpd", "pid": 909921}, {"comm": "nqs_shpd", "pid": 4582}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 910140, "sid": 910120, "time_ns": 1789957993399156031}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 34.42980599356815, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 910140, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789957993433628024, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 910140, "time_ns": 1789957993435772748}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 910140, "time_ns": 1789957993437344035}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 910140, "time_ns": 1789957993437906780}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 910140, "time_ns": 1789957993437914843}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 910140, "time_ns": 1789957993438590300}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 910140, "time_ns": 1789957993438596726}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 910140, "rc": 0, "time_ns": 1789957993438605226}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 910140, "rc": 0, "time_ns": 1789957993438621213}
+|
+| ============================================================
+| Request ID:             14912.nqsv
+| Request Name:           izdw-cd6f030292
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 11:26:37 2026
+| Started Request Time:   Mon Sep 21 11:33:07 2026
+| Ended Request Time:     Mon Sep 21 11:33:13 2026
+| Resources Information:
+|   Elapse:               10S
+|   Remaining Elapse:     3590S
+| ============================================================
+[Pegasus dispatch] request 14912.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=0
