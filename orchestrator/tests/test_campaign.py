@@ -14186,5 +14186,361 @@ def _run():
     return 1 if failed else 0
 
 
+@pytest.fixture
+def authorization_session_case(tmp_path, monkeypatch):
+    """Real authorization/claim/reservation, without creating a campaign lock."""
+    from types import SimpleNamespace
+    from orchestrator.campaign import loop as L
+
+    base = tmp_path / "output"
+    claim_root = base / "env" / "pegasus" / "claims"
+    claim_root.mkdir(parents=True)
+    contract = ec.lookup("pegasus")
+    cfg = ident.bind_admission_policy(CampaignConfig(
+        spec_slug="session", search_tag="enum", spec_content="session-pair",
+        ccbench_commit="deadbeef",
+    ), _BUILD_CONTEXT.policy)
+    kwargs = dict(
+        authorization_contract=ec.authorize(contract.env_tag),
+        env_tag=contract.env_tag, clocks_per_us=contract.clocks_per_us,
+        numactl=contract.numactl, env_contract=contract,
+        declared_use_class="official", output_root=str(base),
+        durable_root_policy=_single_process_test_policy(base),
+    )
+    claims, writes, order = [], [], []
+    acquire = L.campaign_claim.acquire_claim
+
+    def claim_spy(*args, **kw):
+        claims.append((args, kw))
+        return acquire(*args, **kw)
+
+    monkeypatch.setattr(L.campaign_claim, "acquire_claim", claim_spy)
+    for owner, name in ((L, "campaign_layout"), (L, "exploration_campaign_layout"),
+                        (L, "campaign_lock"), (L.wal, "append")):
+        original = getattr(owner, name)
+
+        def spy(*args, _name=name, _original=original, **kw):
+            writes.append(_name)
+            return _original(*args, **kw)
+
+        monkeypatch.setattr(owner, name, spy)
+    with _campaign_reservation_environment(), _mock_required_attestation(L, order) as receipt:
+        yield SimpleNamespace(
+            L=L, cfg=cfg, kwargs=kwargs, base=base, claim_root=claim_root,
+            claims=claims, writes=writes, order=order, receipt=receipt,
+        )
+
+
+def _session_authorize(case, session=None, **overrides):
+    cfg = overrides.pop("cfg", case.cfg)
+    kwargs = {**case.kwargs, **overrides}
+    if session is not None:
+        kwargs["authorization_session"] = session
+    return case.L._authorize_measurement(cfg, **kwargs)
+
+
+def _assert_session_rejected(case, session, **overrides):
+    count = len(case.claims)
+    with pytest.raises(case.L.execution_guard.ExecutionGuardError):
+        _session_authorize(case, session, **overrides)
+    assert len(case.claims) == count
+    assert case.writes == []
+    assert not (case.base / "campaigns").exists()
+
+
+def test_authorization_session_reuses_one_real_claim(authorization_session_case):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        first = _session_authorize(c, session)
+        path, = c.claim_root.glob("*.claim")
+        before = path.read_bytes()
+        second = _session_authorize(c, session)
+        assert first.campaign_identity == second.campaign_identity
+        assert second.acquired_claim.record == first.acquired_claim.record
+        assert path.read_bytes() == before
+        assert list(c.claim_root.glob("*.claim")) == [path]
+    assert len(c.claims) == 1
+    assert c.order == ["load", "attest", "matches", "load", "matches"]
+    assert c.writes == []
+
+
+def test_no_session_second_authorization_keeps_claim_error(authorization_session_case):
+    c = authorization_session_case
+    _session_authorize(c)
+    path, = c.claim_root.glob("*.claim")
+    before = path.read_bytes()
+    with pytest.raises(c.L.campaign_claim.ClaimError):
+        _session_authorize(c)
+    assert len(c.claims) == 2
+    assert path.read_bytes() == before
+    assert c.writes == []
+
+
+@pytest.mark.parametrize("kind", ["foreign", "same-type", "copy", "deepcopy", "pickle"])
+def test_authorization_session_rejects_unissued_and_copy(authorization_session_case, kind):
+    import copy
+    import pickle
+
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        if kind == "foreign":
+            other = {}
+        elif kind == "same-type":
+            other = object.__new__(type(session))
+        else:
+            operation = {"copy": copy.copy, "deepcopy": copy.deepcopy,
+                         "pickle": pickle.dumps}[kind]
+            with pytest.raises(TypeError):
+                operation(session)
+            # Even a raw allocation cannot manufacture issuer authority.
+            other = object.__new__(type(session))
+        _assert_session_rejected(c, other)
+
+
+@pytest.mark.parametrize("exit_kind", ["normal", "exception", "explicit"])
+def test_authorization_session_rejects_closed(authorization_session_case, exit_kind):
+    c = authorization_session_case
+    try:
+        with c.L.authorization_session() as session:
+            _session_authorize(c, session)
+            if exit_kind == "exception":
+                raise RuntimeError("body failed")
+            if exit_kind == "explicit":
+                session.close()
+                session.close()
+                _assert_session_rejected(c, session)
+    except RuntimeError as exc:
+        assert str(exc) == "body failed"
+    _assert_session_rejected(c, session)
+
+
+def test_authorization_session_rejects_pid_mismatch(authorization_session_case, monkeypatch):
+    from types import SimpleNamespace
+
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        # Replace only loop's reference; AuthorizedContract still sees the real PID.
+        monkeypatch.setattr(c.L, "os", SimpleNamespace(
+            getpid=lambda: os.getpid() + 1, environ=os.environ,
+        ))
+        _assert_session_rejected(c, session)
+
+
+@pytest.mark.parametrize("change", ["created_utc", "missing", "symlink"])
+def test_authorization_session_rejects_claim_change(authorization_session_case, change):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        path, = c.claim_root.glob("*.claim")
+        if change == "created_utc":
+            payload = json.loads(path.read_text())
+            payload["created_utc"] = "2000-01-01T00:00:00+00:00"
+            path.write_text(json.dumps(payload))
+        else:
+            payload = path.read_bytes()
+            path.unlink()
+            if change == "symlink":
+                target = c.base / "record-copy"
+                target.write_bytes(payload)
+                path.symlink_to(target)
+        _assert_session_rejected(c, session)
+
+
+def test_authorization_session_rechecks_expired_reservation(authorization_session_case, monkeypatch):
+    c = authorization_session_case
+    # Same binding bytes, real elapsed time: the equality gate cannot mask M3.
+    started = time.time()
+    monkeypatch.setenv("IZANAGI_RESERVATION_REQUESTED_S", "4")
+    monkeypatch.setenv("IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH", str(started))
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", str(started + 4))
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        time.sleep(max(0, started + 4.05 - time.time()))
+        _assert_session_rejected(c, session)
+
+
+def test_authorization_session_rejects_changed_reservation(authorization_session_case, monkeypatch):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        monkeypatch.setenv("IZANAGI_RESERVATION_NONCE", "another-valid-binding")
+        _assert_session_rejected(c, session)
+
+
+def test_authorization_session_rechecks_receipt(authorization_session_case):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        with _mock_required_attestation(c.L, [], matches=False):
+            _assert_session_rejected(c, session)
+
+
+def test_authorization_session_receipt_is_detached(authorization_session_case):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        first = _session_authorize(c, session)
+        expected = dict(first.execution_receipt)
+        summary = c.L.CampaignSummary(
+            campaign_id=first.campaign_identity, layout_root="unused",
+            execution_receipt=first.execution_receipt,
+        )
+        summary.execution_receipt["schema"] = "caller-modified"
+        second = _session_authorize(c, session)
+        assert second.execution_receipt == expected
+        second.execution_receipt.clear()
+        assert _session_authorize(c, session).execution_receipt == expected
+    assert len(c.claims) == 1
+
+
+def test_authorization_session_rechecks_prewrite_validator(authorization_session_case):
+    c = authorization_session_case
+    calls = []
+
+    def validator(identity):
+        calls.append(identity)
+        if len(calls) == 2:
+            raise c.L.execution_guard.ExecutionGuardError("validator rejected reuse")
+
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session, pre_write_validator=validator)
+        _assert_session_rejected(c, session, pre_write_validator=validator)
+    assert len(calls) == 2
+    assert calls[0] == calls[1]
+
+
+@pytest.mark.parametrize("change", ["identity", "root", "use-class", "contract"])
+def test_authorization_session_rejects_changed_binding(authorization_session_case, change):
+    from dataclasses import replace
+
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        _session_authorize(c, session)
+        overrides = {}
+        if change == "identity":
+            overrides["cfg"] = replace(c.cfg, spec_content="another-protocol")
+        elif change == "root":
+            other = c.base.parent / "other-output"
+            (other / "env" / "pegasus" / "claims").mkdir(parents=True)
+            overrides.update(output_root=str(other),
+                             durable_root_policy=_single_process_test_policy(other))
+        elif change == "use-class":
+            overrides["declared_use_class"] = "exploration"
+        else:
+            contract = ec.lookup("linux-baremetal")
+            overrides.update(
+                authorization_contract=ec.authorize(contract.env_tag),
+                env_contract=contract, env_tag=contract.env_tag,
+                clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+            )
+        _assert_session_rejected(c, session, **overrides)
+
+
+def test_authorization_session_failed_authorization_does_not_bind(authorization_session_case):
+    c = authorization_session_case
+    with c.L.authorization_session() as session:
+        with _mock_required_attestation(c.L, [], matches=False):
+            _assert_session_rejected(c, session)
+        assert c.claims == []
+        _session_authorize(c, session)
+        _session_authorize(c, session)
+    assert len(c.claims) == 1
+
+
+def test_authorization_session_new_session_cannot_inherit_claim(authorization_session_case):
+    c = authorization_session_case
+    with c.L.authorization_session() as first:
+        _session_authorize(c, first)
+    with c.L.authorization_session() as second:
+        with pytest.raises(c.L.execution_guard.ExecutionGuardError) as caught:
+            _session_authorize(c, second)
+        assert isinstance(caught.value.__cause__, c.L.campaign_claim.ClaimError)
+    assert len(c.claims) == 2
+    assert c.writes == []
+
+
+def test_authorization_session_binds_before_perf_failure(authorization_session_case, monkeypatch):
+    c = authorization_session_case
+
+    def fail_preflight(*args, **kwargs):
+        raise RuntimeError("post-authorization preflight failure")
+
+    monkeypatch.setattr(c.L, "_perform_perf_preflight", fail_preflight)
+    with c.L.authorization_session() as session:
+        with pytest.raises(RuntimeError, match="post-authorization preflight failure"):
+            c.L.run_campaign(
+                c.cfg, [], PerfConfig(records=1, threads=1),
+                build_context=_BUILD_CONTEXT, authorization_session=session,
+                **c.kwargs,
+            )
+        assert len(c.claims) == 1
+        assert c.writes == []
+        _session_authorize(c, session)
+        assert len(c.claims) == 1
+        assert c.writes == []
+
+
+def test_authorization_session_two_campaigns_one_claim(authorization_session_case, monkeypatch):
+    """Commit-only integration: real layout/lock; exclude from injection group H."""
+    c = authorization_session_case
+    evaluations = []
+
+    def evaluate(genome, *args, **kwargs):
+        evaluations.append(genome)
+        return EvalResult(
+            genome=genome, variant=pipeline.variant_id(genome, kwargs["src_token"]),
+            certified=True, aborted=False,
+        )
+
+    monkeypatch.setattr(c.L, "evaluate", evaluate)
+    monkeypatch.setattr(c.L, "source_digest", _sd_mock("stock"))
+    genomes = [Genome("silo", {"BACK_OFF": value}) for value in (0, 1)]
+    with c.L.authorization_session() as session:
+        summaries = []
+        for genome in genomes:
+            summaries.append(c.L.run_campaign(
+                c.cfg, [genome], PerfConfig(records=1, threads=1),
+                do_bench=False, log=lambda *args: None,
+                build_context=_BUILD_CONTEXT, authorization_session=session,
+                **c.kwargs,
+            ))
+            path, = c.claim_root.glob("*.claim")
+            if len(summaries) == 1:
+                record = path.read_bytes()
+                summaries[0].execution_receipt["schema"] = "caller-modified"
+            else:
+                assert path.read_bytes() == record
+        assert summaries[1].execution_receipt["schema"] == "fixture-required-receipt"
+    assert len(c.claims) == 1
+    assert evaluations == genomes
+    assert [s.evaluated for s in summaries] == [1, 1]
+    assert [s.committed for s in summaries] == [1, 1]
+    assert summaries[0].campaign_id == summaries[1].campaign_id
+
+
+def test_authorization_session_non_single_process_binding(authorization_session_case):
+    from dataclasses import replace
+
+    c = authorization_session_case
+    contract = ec.lookup("linux-baremetal")
+    assert not contract.isolation_policy.single_process
+    kwargs = dict(
+        authorization_contract=ec.authorize(contract.env_tag),
+        env_contract=contract, env_tag=contract.env_tag,
+        clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+    )
+    with c.L.authorization_session() as session:
+        first = _session_authorize(c, session, **kwargs)
+        second = _session_authorize(c, session, **kwargs)
+        assert first.campaign_identity == second.campaign_identity
+        _assert_session_rejected(c, session,
+                                 cfg=replace(c.cfg, spec_content="different"), **kwargs)
+        _assert_session_rejected(c, session, output_root=str(c.base.parent), **kwargs)
+        _assert_session_rejected(c, session)  # Cannot change to Pegasus later.
+    assert c.claims == []
+    assert list(c.claim_root.glob("*.claim")) == []
+
+
 if __name__ == "__main__":
     sys.exit(_run())
