@@ -1,0 +1,384 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-07afffb219)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0/output/pegasus-dispatch/orphan-holds/unknown-5c5288b37c5b21f233650d9b.json
+[Pegasus dispatch] request ID 15644.nqsv を受理しました
+[Pegasus dispatch] request 15644.nqsv の状態: QUE
+[Pegasus dispatch] request 15644.nqsv の状態: RUN
+[Pegasus dispatch] request 15644.nqsv の状態: END
+[Pegasus dispatch] request 15644.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0/output/pegasus-dispatch/orphan-holds/unknown-5c5288b37c5b21f233650d9b.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0/output/pegasus-dispatch/07afffb219a5bfd6273b39cdbd986d56/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 15644.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ssssss.................................................................. [  1%]
+| ..................s..................s.................................. [  3%]
+| ........................................................................ [  4%]
+| ........................................................................ [  6%]
+| ........................s............................................... [  7%]
+| ........................................................................ [  9%]
+| .....................................ss................................. [ 10%]
+| ........................................................................ [ 12%]
+| .......................................................F................ [ 13%]
+| ........................................................................ [ 15%]
+| .....................F.................................................. [ 16%]
+| ........................................................................ [ 18%]
+| ........................................................................ [ 19%]
+| ........................................................................ [ 21%]
+| ........................................................................ [ 22%]
+| ........................................................................ [ 24%]
+| ........................................................................ [ 25%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 28%]
+| ........................................................................ [ 30%]
+| ........................................................................ [ 31%]
+| ........................................................................ [ 33%]
+| ........................................................................ [ 34%]
+| ........................................................................ [ 36%]
+| ........................................................................ [ 37%]
+| ........................................................................ [ 39%]
+| ........................................................................ [ 40%]
+| ........................................................................ [ 42%]
+| ........................................................................ [ 43%]
+| ........................................................................ [ 45%]
+| ........................................................................ [ 46%]
+| .....................s.................................................. [ 48%]
+| ........................................................................ [ 49%]
+| ........................................................................ [ 51%]
+| ........................................................................ [ 52%]
+| ........................................................................ [ 54%]
+| ........................................................................ [ 55%]
+| ........................................................................ [ 57%]
+| ........................................................................ [ 58%]
+| ........................................................................ [ 60%]
+| ........................................................................ [ 61%]
+| ........................................................................ [ 63%]
+| ........................................................................ [ 64%]
+| ........................................................................ [ 66%]
+| ........................................................................ [ 67%]
+| ........................................................................ [ 69%]
+| ........................................................................ [ 70%]
+| ........................................................................ [ 72%]
+| ........................................................................ [ 73%]
+| ........................................................................ [ 75%]
+| ........................................................................ [ 76%]
+| ........................................................................ [ 78%]
+| ...............................................................s........ [ 79%]
+| ..s..................................................................... [ 81%]
+| ........................................................................ [ 82%]
+| ........................................................................ [ 84%]
+| ........................................................................ [ 85%]
+| ........................................................................ [ 87%]
+| ........................................................................ [ 88%]
+| ........................................................................ [ 90%]
+| ........................................................................ [ 91%]
+| .....................s.................................................. [ 93%]
+| ........................................................................ [ 94%]
+| ........................................................................ [ 96%]
+| ........................................................................ [ 97%]
+| ..............................................................s...s..... [ 99%]
+| .s...................s.........s..                                       [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":7,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented","reason":"Consumes the session-scoped repository_scan fixture; holding only five consumers leaves the full source scan running while removing its detection power.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_campaign_package_uses_relative_sibling_imports","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root","reason":"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| =================================== FAILURES ===================================
+| ____________ test_b5_duplicate_skip_returns_failure_without_restore ____________
+| [gw31] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_b5_duplicate_skip_returns0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e25e9576d0>
+| capsys = <_pytest.capture.CaptureFixture object at 0x14e25dcd8e50>
+|
+|     def test_b5_duplicate_skip_returns_failure_without_restore(tmp_path, monkeypatch, capsys):
+|         layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+|         monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+|                             SimpleNamespace(results=[], skipped=1, skipped_variants=["prior"]))
+|         # Real duplicate resolver would need an admitted previous COMMIT. There is
+|         # none: the test passes only if B-5 refuses before attempting restoration.
+| >       assert L.main(args) == 1
+|
+| orchestrator/tests/test_p3_s4_loop.py:10417:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| orchestrator/campaign/p3_s4_loop.py:3656: in main
+|     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+| orchestrator/campaign/p3_s4_loop.py:2993: in drive_iteration
+|     out = _run_one_iteration_resolved(
+| orchestrator/campaign/p3_s4_loop.py:2368: in _run_one_iteration_resolved
+|     evidence, admission, cc, cxx = _b5_tier0_build_inputs(
+| orchestrator/campaign/p3_s4_loop.py:2018: in _b5_tier0_build_inputs
+|     evidence = source_digest.resolve_evidence(
+| orchestrator/campaign/source_digest.py:2431: in resolve_evidence
+|     tracked_paths = _tracked_status_paths(sub)
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| ccbench_dir = '/tmp/izanagi_s4loop_an2p0z5f'
+|
+|     def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
+|         """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
+|
+|         sub = ccbench_dir or _ccbench_dir()
+|         try:
+|             r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
+|                                capture_output=True, text=True, env=_sanitized_git_env())
+|         except (OSError, subprocess.SubprocessError) as e:
+|             raise RuntimeError(
+|                 f"source_digest: git status 起動失敗 ({e}) — working-tree の健全性を "
+|                 "確認できず fails-closed (D23)") from e
+|         if r.returncode != 0:
+| >           raise RuntimeError(
+|                 f"source_digest: git status 失敗 (rc={r.returncode}) → fails-closed。\n"
+|                 f"  {r.stderr.strip()[-300:]}")
+| E           RuntimeError: source_digest: git status 失敗 (rc=128) → fails-closed。
+| E             fatal: not a git repository (or any of the parent directories): .git
+|
+| orchestrator/campaign/source_digest.py:2350: RuntimeError
+| ----------------------------- Captured stdout call -----------------------------
+| === 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_b5_duplicate_skip_returns0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+| _________ test_machine_no_authority_guard_and_sidecar_before_campaign __________
+| [gw33] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_machine_no_authority_guar0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c835a28df0>
+|
+|     def test_machine_no_authority_guard_and_sidecar_before_campaign(tmp_path, monkeypatch):
+|         layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+|         contexts = []
+|         real_context = L.build_run_context
+|         def observe_context(**kwargs):
+|             contexts.append(kwargs)
+|             return real_context(**kwargs)
+|         monkeypatch.setattr(L, "build_run_context", observe_context)
+|         class CampaignBoundary(Exception):
+|             pass
+|         def campaign(cfg, genomes, perf, *_a, **kwargs):
+|             assert kwargs["bench_max_rounds"] == 3
+|             start = json.loads((sidecar / "slot-start.json").read_text())
+|             submitted = json.loads((sidecar / "pipeline-submitted.json").read_text())
+|             assert start["schema"] == "p3-s4-loop-b5-slot-start/v1"
+|             assert submitted["schema"] == "p3-s4-loop-b5-submission/v1"
+|             assert start["genome"] == submitted["genome"] == genomes[0].canonical()
+|             assert start["campaign_id"] == submitted["campaign_id"] == str(ident.campaign_id(cfg))
+|             assert start["campaign_root"] == str(Path(layout.root).resolve())
+|             assert start["identity_preimage_sha256"] == hashlib.sha256(ident.canonical_preimage(cfg).encode()).hexdigest()
+|             evidence = replace(_prebuild_source_evidence(genomes[0], Path(template), L.PIN), src_token="d" * 64)
+|             resolver = kwargs["capability_resolver"]
+|             receipt = resolver(evidence).as_receipt()
+|             raw_sha = hashlib.sha256(proposal.read_bytes()).hexdigest()
+|             assert receipt["generator_input_sha256"] == hashlib.sha256(
+|                 f"p3-s4-loop-machine-proposal/v1|{raw_sha}|{evidence.genome_sha256}".encode()).hexdigest()
+|             assert receipt["generator_id"] == "backoff-sweep"
+|             assert resolver(replace(evidence, src_token=source_digest.STOCK)) is None
+|             raise CampaignBoundary
+|         monkeypatch.setattr(L, "run_campaign", campaign)
+|         with pytest.raises(CampaignBoundary):
+| >           L.main(args)
+|
+| orchestrator/tests/test_p3_s4_loop.py:10406:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| orchestrator/campaign/p3_s4_loop.py:3656: in main
+|     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+| orchestrator/campaign/p3_s4_loop.py:2993: in drive_iteration
+|     out = _run_one_iteration_resolved(
+| orchestrator/campaign/p3_s4_loop.py:2368: in _run_one_iteration_resolved
+|     evidence, admission, cc, cxx = _b5_tier0_build_inputs(
+| orchestrator/campaign/p3_s4_loop.py:2018: in _b5_tier0_build_inputs
+|     evidence = source_digest.resolve_evidence(
+| orchestrator/campaign/source_digest.py:2431: in resolve_evidence
+|     tracked_paths = _tracked_status_paths(sub)
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| ccbench_dir = '/tmp/izanagi_s4loop_6zza0my3'
+|
+|     def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
+|         """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
+|
+|         sub = ccbench_dir or _ccbench_dir()
+|         try:
+|             r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
+|                                capture_output=True, text=True, env=_sanitized_git_env())
+|         except (OSError, subprocess.SubprocessError) as e:
+|             raise RuntimeError(
+|                 f"source_digest: git status 起動失敗 ({e}) — working-tree の健全性を "
+|                 "確認できず fails-closed (D23)") from e
+|         if r.returncode != 0:
+| >           raise RuntimeError(
+|                 f"source_digest: git status 失敗 (rc={r.returncode}) → fails-closed。\n"
+|                 f"  {r.stderr.strip()[-300:]}")
+| E           RuntimeError: source_digest: git status 失敗 (rc=128) → fails-closed。
+| E             fatal: not a git repository (or any of the parent directories): .git
+|
+| orchestrator/campaign/source_digest.py:2350: RuntimeError
+| ----------------------------- Captured stdout call -----------------------------
+| === 段 4b iteration (proposal=/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_machine_no_authority_guar0/proposal.json, reflux=on, build=True, prior_critic_reverse=None, isolate_worktree=True) ===
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore
+| FAILED orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign
+| 2 failed, 4764 passed, 20 skipped in 159.93s (0:02:39)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=4206 retained_bytes=3889 omitted_bytes=317 rendered_excerpt_bytes=4096 sha256=b3f2acbc6a50ff0a4096ef5ec12fea071e1826d800a9b19a1be42f50790add40
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| >   layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+| >         contexts = []
+| >         real_context = L.build_run_context
+| >         def observe_context(**kwargs):
+| >             contexts.append(kwargs)
+| >             return real_context(**kwargs)
+| >         monkeypatch.setattr(L, "build_run_context", observe_context)
+| >         class CampaignBoundary(Exception):
+| >             pass
+| >         def campaign(cfg, genomes, perf, *_a, **kwargs):
+| >             assert kwargs["bench_max_rounds"] == 3
+| >             start = json.loads((sidecar / "slot-start.json").read_text())
+| >             submitted = json.loads((sidecar / "pipeline-submitted.json").read_text())
+| >             assert start["schema"] == "p3-s4-loop-b5-slot-start/v1"
+| >             assert submitted["schema"] == "p3-s4-loop-b5-submission/v1"
+| >             assert start["genome"] == submitted["genome"] == genomes[0].canonical()
+| >             assert start["campaign_id"] == submitted["campaign_id"] == str(ident.campaign_id(cfg))
+| >             assert start["campaign_root"] == str(Path(layout.root).resolve())
+| >             assert start["identity_preimage_sha256"] == hashlib.sha256(ident.canonical_preimage(cfg).encode()).hexdigest()
+| >             evidence = replace(_prebuild_source_evidence(genomes[0], Path(template), L.PIN), src_token="d" * 64)
+| >             resolver = kwargs["capability_resolver"]
+| >             receipt = resolver(evidence).as_receipt()
+| >             raw_sha = hashlib.sha256(proposal.read_bytes()).hexdigest()
+| >             assert receipt["generator_input_sha256"] == hashlib.sha256(
+| >                 f"p3-s4-loop-machine-proposal/v1|{raw_sha}|{evidence.genome_sha256}".encode()).hexdigest()
+| >             assert receipt["generator_id"] == "backoff-sweep"
+| >             assert resolver(replace(evidence, src_token=source_digest.STOCK)) is None
+| >             raise CampaignBoundary
+| >         monkeypatch.setattr(L, "run_campaign", campaign)
+| >         with pytest.raises(CampaignBoundary):
+| > >           L.main(args)
+| >
+| > orchestrator/tests/test_p3_s4_loop.py:10406:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/campaign/p3_s4_loop.py:3656: in main
+| >     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+| > orchestrator/campaign/p3_s4_loop.py:2993: in drive_iteration
+| >     out = _run_one_iteration_resolved(
+| > orchestrator/campaign/p3_s4_loop.py:2368: in _run_one_iteration_resolved
+| >     evidence, admission, cc, cxx = _b5_tier0_build_inputs(
+| > orchestrator/campaign/p3_s4_loop.py:2018: in _b5_tier0_build_inputs
+| >     evidence = source_digest.resolve_evidence(
+| > orchestrator/campaign/source_digest.py:2431: in resolve_evidence
+| >     tracked_paths = _tracked_status_paths(sub)
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > ccbench_dir = '/tmp/izanagi_s4loop_6zza0my3'
+| >
+| >     def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
+| >         """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
+| >
+| >         sub = ccbench_dir or _ccbench_dir()
+| >         try:
+| >             r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
+| >                                capture_output=True, text=True, env=_sanitized_git_env())
+| >         except (OSError, subprocess.SubprocessError) as e:
+| >             raise RuntimeError(
+| >                 f"source_digest: git status \u8d77\u52d5\u5931\u6557 ({e}) \u2014 working-tree \u306e\u5065\u5168\u6027\u3092 "
+| >                 "\u78ba\u8a8d\u3067\u304d\u305a fails-closed (D23)") from e
+| >         if r.returncode != 0:
+| > >           raise RuntimeError(
+| >                 f"source_digest: git status \u5931\u6557 (rc={r.returncode}) \u2192 fails-closed\u3002\x5cn"
+| >                 f"  {r.stderr.strip()[-300:]}")
+| > E           RuntimeError: source_digest: git status \u5931\u6557 (rc=128) \u2192 fails-closed\u3002
+| > E             fatal: not a git repository (or any of the parent directories): .git
+| >
+| > orchestrator/campaign/source_digest.py:2350: RuntimeError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2751 retained_bytes=2751 omitted_bytes=0 rendered_excerpt_bytes=2922 sha256=502e8898c3b8d1d13d029a2a185688d21d9ffc945b802d607fcf5ed00bb7c616
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > [gw31] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_b5_duplicate_skip_returns0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e25e9576d0>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x14e25dcd8e50>
+| >
+| >     def test_b5_duplicate_skip_returns_failure_without_restore(tmp_path, monkeypatch, capsys):
+| >         layout, template, proposal, sidecar, args = _b5_candidate_fixture(tmp_path, monkeypatch)
+| >         monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+| >                             SimpleNamespace(results=[], skipped=1, skipped_variants=["prior"]))
+| >         # Real duplicate resolver would need an admitted previous COMMIT. There is
+| >         # none: the test passes only if B-5 refuses before attempting restoration.
+| > >       assert L.main(args) == 1
+| >
+| > orchestrator/tests/test_p3_s4_loop.py:10417:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/campaign/p3_s4_loop.py:3656: in main
+| >     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+| > orchestrator/campaign/p3_s4_loop.py:2993: in drive_iteration
+| >     out = _run_one_iteration_resolved(
+| > orchestrator/campaign/p3_s4_loop.py:2368: in _run_one_iteration_resolved
+| >     evidence, admission, cc, cxx = _b5_tier0_build_inputs(
+| > orchestrator/campaign/p3_s4_loop.py:2018: in _b5_tier0_build_inputs
+| >     evidence = source_digest.resolve_evidence(
+| > orchestrator/campaign/source_digest.py:2431: in resolve_evidence
+| >     tracked_paths = _tracked_status_paths(sub)
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > ccbench_dir = '/tmp/izanagi_s4loop_an2p0z5f'
+| >
+| >     def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
+| >         """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
+| >
+| >         sub = ccbench_dir or _ccbench_dir()
+| >         try:
+| >             r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
+| >                                capture_output=True, text=True, env=_sanitized_git_env())
+| >         except (OSError, subprocess.SubprocessError) as e:
+| >             raise RuntimeError(
+| >                 f"source_digest: git status \u8d77\u52d5\u5931\u6557 ({e}) \u2014 working-tree \u306e\u5065\u5168\u6027\u3092 "
+| >                 "\u78ba\u8a8d\u3067\u304d\u305a fails-closed (D23)") from e
+| >         if r.returncode != 0:
+| > >           raise RuntimeError(
+| >                 f"source_digest: git status \u5931\u6557 (rc={r.returncode}) \u2192 fails-closed\u3002\x5cn"
+| >                 f"  {r.stderr.strip()[-300:]}")
+| > E           RuntimeError: source_digest: git status \u5931\u6557 (rc=128) \u2192 fails-closed\u3002
+| > E             fatal: not a git repository (or any of the parent directories): .git
+| >
+| > orchestrator/campaign/source_digest.py:2350: RuntimeError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6957 retained_bytes=6640 omitted_bytes=317 budget_bytes=49152 rendered_bytes=8180 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 15644.nqsv child stdout end
+[Pegasus dispatch] request 15644.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 46878, "time_ns": 1789993615064153268}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 46899, "event": "direct-child-wait-start", "pid": 46885, "time_ns": 1789993615092475381}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_MEMO_PREWARM_V1 {"barrier_s":0.08627621299820021,"hook":"xdist_node_collection_finished","oracle_environment_memo_s":0.07815668301191181,"receipt_memo_s":null}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 46899, "event": "direct-child-wait-complete", "pid": 46885, "time_ns": 1789993775675705501}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 46885, "rc": 0, "time_ns": 1789993775675794616}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 46878, "rc": 0, "time_ns": 1789993775680365783}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 46878}, {"comm": "bash", "pid": 46859}, {"comm": "nqs_shpd", "pid": 46858}, {"comm": "nqs_shpd", "pid": 46662}, {"comm": "nqs_shpd", "pid": 4577}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 46878, "sid": 46858, "time_ns": 1789993775680784508}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 88.21706002345309, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 46878, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789993775769040580, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 46878, "time_ns": 1789993775771822983}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 46878, "time_ns": 1789993775781001429}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 46878, "time_ns": 1789993775781905209}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 46878, "time_ns": 1789993775781915825}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 46878, "time_ns": 1789993775782660103}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 46878, "time_ns": 1789993775782666972}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 46878, "rc": 1, "time_ns": 1789993775782675427}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 46878, "rc": 1, "time_ns": 1789993775782693108}
+|
+| ============================================================
+| Request ID:             15644.nqsv
+| Request Name:           izdw-07afffb219
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 21:26:41 2026
+| Started Request Time:   Mon Sep 21 21:26:54 2026
+| Ended Request Time:     Mon Sep 21 21:29:35 2026
+| Resources Information:
+|   Elapse:               166S
+|   Remaining Elapse:     3434S
+| ============================================================
+[Pegasus dispatch] request 15644.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

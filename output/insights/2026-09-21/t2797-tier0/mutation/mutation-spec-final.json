@@ -1,0 +1,413 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    \"\"\"Diagnostic only: real bounded gateway, parsers and machine-wide lock.\"\"\"\n",
+     "new": "    \"\"\"Diagnostic only: real bounded gateway, parsers and machine-wide lock.\"\"\"\n    # equivalent mutation marker: comment only\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-tier0-block-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            campaign_options[\"bench_max_rounds\"] = 3\n            import subprocess\n",
+     "new": "            campaign_options[\"bench_max_rounds\"] = 3\n        if False:\n            import subprocess\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_non_b5_stock_and_dry_run_do_not_reach_tier0"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-submission-before-tier0",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            import subprocess\n            # Preparation failures are not candidate build failures.\n",
+     "new": "            import subprocess\n            _write_b5_sidecar(b5_sidecar_dir, \"pipeline-submitted.json\", _b5_sidecar_payload(cfg, genome))\n            # Preparation failures are not candidate build failures.\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        if b5_sidecar_dir is not None:\n            _write_b5_sidecar(b5_sidecar_dir, \"pipeline-submitted.json\",\n                              _b5_sidecar_payload(cfg, genome))\n        if capability_resolver is not None:\n            campaign_options[\"capability_resolver\"]",
+     "new": "        if capability_resolver is not None:\n            campaign_options[\"capability_resolver\"]"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-tier0-build-trace-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "                    pf = buildcache.build_v2(\n                        genome, trace=False,",
+     "new": "                    pf = buildcache.build_v2(\n                        genome, trace=True,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-smoke-rratio-95",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "\"--ycsb_rratio=50\", \"--ycsb_zipf_skew=0.9\"",
+     "new": "\"--ycsb_rratio=95\", \"--ycsb_zipf_skew=0.9\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_smoke_exact_argv_and_parser"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-smoke-rc-not-strict",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "strict_returncode=True, use_perf=False, rep_returncodes=returncodes,",
+     "new": "strict_returncode=False, use_perf=False, rep_returncodes=returncodes,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_smoke_rejects_nonzero_or_invalid_output[nonzero]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-smoke-commit-check-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            if commits <= 0 or not positive:\n",
+     "new": "            if not positive:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_smoke_rejects_nonzero_or_invalid_output[zero-commit]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-smoke-timeout-default",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "binary, flags, numactl=list(contract.numactl), timeout_s=timeout_s,",
+     "new": "binary, flags, numactl=list(contract.numactl), timeout_s=120.0,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_smoke_timeout"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-smoke-lock-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    with bench_lock():\n        started = time.monotonic()\n",
+     "new": "    with open(os.devnull):\n        started = time.monotonic()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_smoke_uses_bench_lock"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-reject-writes-submission",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            if tier0[\"status\"] != \"passed\":\n                return {\"outcome\": \"rejected-tier0\",",
+     "new": "            if tier0[\"status\"] != \"passed\":\n                _write_b5_sidecar(b5_sidecar_dir, \"pipeline-submitted.json\", _b5_sidecar_payload(cfg, genome))\n                return {\"outcome\": \"rejected-tier0\","
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-early-return-set-drops-tier0",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "{\"duplicate-skip\", \"rejected-preprocess\", \"rejected-tier0\"}",
+     "new": "{\"duplicate-skip\", \"rejected-preprocess\"}"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10b-cli-rc3-drops-tier0",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "out[\"outcome\"] in {\"rejected-preprocess\", \"rejected-tier0\"}:",
+     "new": "out[\"outcome\"] in {\"rejected-preprocess\"}:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-build-catch-widened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "            except (RuntimeError, subprocess.SubprocessError) as exc:\n                tier0[\"error\"]",
+     "new": "            except Exception as exc:\n                tier0[\"error\"]"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_build_exception_boundary_and_preparation_order",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-tier0-reject-consumes-b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "failure_class=\"unclassified-missing\" if result[\"submitted\"] else \"candidate\")\n",
+     "new": "failure_class=\"unclassified-missing\" if result[\"submitted\"] else \"candidate\", submitted=True)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[build-error]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-failed]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-timeout]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_rejection_report_does_not_recover_B"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-tier0-reject-retried",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "retryable = observation[\"outcome\"] in {\"pre-start-failure\", \"machine-failure\"}",
+     "new": "retryable = observation[\"outcome\"] in {\"pre-start-failure\", \"machine-failure\", \"rejected-tier0\"}"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_retry_then_tier0_reject_retains_B",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_score_tier0_reject_stops_without_fallback",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_rejection_report_does_not_recover_B"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m14-submitted-without-tier0-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "        elif candidate and result[\"submitted\"]:\n",
+     "new": "        elif candidate and result[\"submitted\"] and False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_missing_tier0_stops_series_with_B_retained",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_submitted_requires_valid_passed_tier0[missing]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m15-smoke-numbers-into-event",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "result[\"tier0\"] = {\"status\": tier0[\"status\"], \"reason\": tier0[\"reason\"],",
+     "new": "result[\"tier0\"] = {\"status\": tier0[\"status\"], \"reason\": tier0[\"reason\"], \"smoke\": tier0.get(\"smoke\"),"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_smoke_numbers_never_enter_events_inputs_or_endpoint",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[build-error]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-failed]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-timeout]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m16-report-config-drops-tier0",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+     "old": "        configuration.update({k: h.get(k) for k in (\"tier0_status\", \"tier0_contract\")})\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[applies_to]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[contract]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[status]",
+    "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[timeout]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m17-header-not-implemented",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/b5_generator_contrast.py",
+     "old": "\"tier0_status\": \"implemented\", \"tier0_contract\"",
+     "new": "\"tier0_status\": \"not-implemented\", \"tier0_contract\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_generator_contrast.py::test_header_declares_shared_tier0_contract",
+    "orchestrator/tests/test_b5_generator_contrast.py::test_series_scores_fresh_sessions_after_endpoint_fix"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m18-provenance-outcomes-drop-tier0",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "    \"duplicate-skip\", \"rejected-preprocess\", \"rejected-tier0\",\n})",
+     "new": "    \"duplicate-skip\", \"rejected-preprocess\",\n})"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+    "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

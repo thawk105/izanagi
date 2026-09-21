@@ -1,0 +1,142 @@
+{
+ "m0-equivalent-comment": [],
+ "m1-tier0-block-skipped": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_non_b5_stock_and_dry_run_do_not_reach_tier0"
+ ],
+ "m10-early-return-set-drops-tier0": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ],
+ "m10b-cli-rc3-drops-tier0": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ],
+ "m11-build-catch-widened": [
+  "orchestrator/tests/test_b5_tier0.py::test_build_exception_boundary_and_preparation_order",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]"
+ ],
+ "m12-tier0-reject-consumes-b": [
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[build-error]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-failed]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-timeout]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]",
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_rejection_report_does_not_recover_B"
+ ],
+ "m13-tier0-reject-retried": [
+  "orchestrator/tests/test_b5_generator_contrast.py::test_retry_then_tier0_reject_retains_B",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_score_tier0_reject_stops_without_fallback",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]",
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_rejection_report_does_not_recover_B"
+ ],
+ "m14-submitted-without-tier0-accepted": [
+  "orchestrator/tests/test_b5_generator_contrast.py::test_missing_tier0_stops_series_with_B_retained",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_submitted_requires_valid_passed_tier0[missing]"
+ ],
+ "m15-smoke-numbers-into-event": [
+  "orchestrator/tests/test_b5_generator_contrast.py::test_smoke_numbers_never_enter_events_inputs_or_endpoint",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[build-error]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-failed]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejected_evidence_without_submission[smoke-timeout]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[random-30-a-exhausted]",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_tier0_rejection_consumes_A_only_without_retry[sweep-matched-28-grid-exhausted]"
+ ],
+ "m16-report-config-drops-tier0": [
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[applies_to]",
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[contract]",
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[status]",
+  "orchestrator/tests/test_b5_generator_contrast_report.py::test_tier0_contract_mismatch_rejected[timeout]"
+ ],
+ "m17-header-not-implemented": [
+  "orchestrator/tests/test_b5_generator_contrast.py::test_header_declares_shared_tier0_contract",
+  "orchestrator/tests/test_b5_generator_contrast.py::test_series_scores_fresh_sessions_after_endpoint_fix"
+ ],
+ "m18-provenance-outcomes-drop-tier0": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ],
+ "m2-submission-before-tier0": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[legacy-preparation-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-preparation-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ],
+ "m3-tier0-build-trace-true": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_preparation_and_build_errors_propagate[v2-build-io]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ],
+ "m4-smoke-rratio-95": [
+  "orchestrator/tests/test_b5_tier0.py::test_smoke_exact_argv_and_parser"
+ ],
+ "m5-smoke-rc-not-strict": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_smoke_rejects_nonzero_or_invalid_output[nonzero]"
+ ],
+ "m6-smoke-commit-check-dropped": [
+  "orchestrator/tests/test_b5_tier0.py::test_smoke_rejects_nonzero_or_invalid_output[zero-commit]"
+ ],
+ "m7-smoke-timeout-default": [
+  "orchestrator/tests/test_b5_tier0.py::test_smoke_timeout"
+ ],
+ "m8-smoke-lock-dropped": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[legacy]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_build_smoke_sidecar_submission_order[v2]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_smoke_uses_bench_lock"
+ ],
+ "m9-reject-writes-submission": [
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[legacy-subprocess]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-runtime]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-smoke]",
+  "orchestrator/tests/test_b5_tier0.py::test_insertion_rejection_rc3_no_submission_wal_or_digest[v2-subprocess]"
+ ]
+}

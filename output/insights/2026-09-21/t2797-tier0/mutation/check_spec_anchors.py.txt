@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""[T-2797] 変異 spec の置換文字列が wave worktree の現物で一意かを読み取りだけで確かめる (累積適用を模擬、書き込みなし)。"""
+import json
+import pathlib
+import subprocess
+import sys
+
+J = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-tier0")
+W = pathlib.Path("/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2797-tier0")
+spec = json.loads(subprocess.run([sys.executable, str(J / "make_mutation_spec.py"), "list"],
+                                 check=True, capture_output=True, text=True).stdout)
+bad = 0
+for mid, reps in spec:
+    texts = {}
+    for f, old, new in reps:
+        text = texts.get(f) or (W / f).read_text(encoding="utf-8")
+        n = text.count(old)
+        if n != 1:
+            bad += 1
+            print(f"NG {mid}: {f} count={n}")
+        texts[f] = text.replace(old, new, 1)
+    if not any(line for line in [mid] if line.startswith("NG")):
+        print(f"ok {mid}")
+print("bad", bad)
+sys.exit(1 if bad else 0)

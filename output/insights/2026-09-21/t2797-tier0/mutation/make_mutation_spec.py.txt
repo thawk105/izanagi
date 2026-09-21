@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""[T-2797] 変異 spec を生成する (段 4 事前登録 M1〜M17、s4-adjudication.md §5、段 6 裁定で M1〜M3・M9〜M11 の kill 先を通常走 test へ再照準)。
+
+probe: expected_nodes 空 (全件 SURVIVED 期待)。final: observed-nodes.json (login self-run の観測、DW-M08) を注入する。
+M0 は等価変異 (comment のみ) の正例。M10b は M10 と同じ裁定項目の CLI 側 (rc 3 分岐)。先例 = T-2830 / T-2795 の同名 script。
+"""
+import hashlib
+import json
+import pathlib
+import sys
+
+J = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-tier0")
+L = "orchestrator/campaign/p3_s4_loop.py"
+D = "orchestrator/campaign/b5_generator_contrast.py"
+R = "orchestrator/campaign/b5_generator_contrast_report.py"
+
+MUTATIONS = [
+    # id, category, [(file, old, new), ...]  (同一 file の複数置換は累積適用、DW-M04)
+    ("m0-equivalent-comment", "positive", [
+        (L, '    """Diagnostic only: real bounded gateway, parsers and machine-wide lock."""\n',
+         '    """Diagnostic only: real bounded gateway, parsers and machine-wide lock."""\n    # equivalent mutation marker: comment only\n')]),
+    ("m1-tier0-block-skipped", "negative", [
+        (L, '            campaign_options["bench_max_rounds"] = 3\n            import subprocess\n',
+         '            campaign_options["bench_max_rounds"] = 3\n        if False:\n            import subprocess\n')]),
+    ("m2-submission-before-tier0", "negative", [
+        (L, '            import subprocess\n            # Preparation failures are not candidate build failures.\n',
+         '            import subprocess\n            _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json", _b5_sidecar_payload(cfg, genome))\n'
+         '            # Preparation failures are not candidate build failures.\n'),
+        (L, '        if b5_sidecar_dir is not None:\n            _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json",\n'
+            '                              _b5_sidecar_payload(cfg, genome))\n        if capability_resolver is not None:\n            campaign_options["capability_resolver"]',
+         '        if capability_resolver is not None:\n            campaign_options["capability_resolver"]')]),
+    ("m3-tier0-build-trace-true", "negative", [
+        (L, "                    pf = buildcache.build_v2(\n                        genome, trace=False,",
+         "                    pf = buildcache.build_v2(\n                        genome, trace=True,")]),
+    # M4 は probe2 で rr20 (holdout 保護 ratio) だと gateway の保護層が smoke 全体を拒否して単一理由にならなかった (DW-M01 / M03、erratum は
+    # s6-adjudication.md 追補 2)。保護対象でない workload 値 rr95 へ再照準し、固定 argv の検査だけが検出するかを取り直す。
+    ("m4-smoke-rratio-95", "negative", [
+        (L, '"--ycsb_rratio=50", "--ycsb_zipf_skew=0.9"', '"--ycsb_rratio=95", "--ycsb_zipf_skew=0.9"')]),
+    ("m5-smoke-rc-not-strict", "negative", [
+        (L, "strict_returncode=True, use_perf=False, rep_returncodes=returncodes,",
+         "strict_returncode=False, use_perf=False, rep_returncodes=returncodes,")]),
+    ("m6-smoke-commit-check-dropped", "negative", [
+        (L, "            if commits <= 0 or not positive:\n", "            if not positive:\n")]),
+    ("m7-smoke-timeout-default", "negative", [
+        (L, "binary, flags, numactl=list(contract.numactl), timeout_s=timeout_s,",
+         "binary, flags, numactl=list(contract.numactl), timeout_s=120.0,")]),
+    ("m8-smoke-lock-dropped", "negative", [
+        (L, "    with bench_lock():\n        started = time.monotonic()\n",
+         "    with open(os.devnull):\n        started = time.monotonic()\n")]),
+    ("m9-reject-writes-submission", "negative", [
+        (L, '            if tier0["status"] != "passed":\n                return {"outcome": "rejected-tier0",',
+         '            if tier0["status"] != "passed":\n                _write_b5_sidecar(b5_sidecar_dir, "pipeline-submitted.json", _b5_sidecar_payload(cfg, genome))\n'
+         '                return {"outcome": "rejected-tier0",')]),
+    ("m10-early-return-set-drops-tier0", "negative", [
+        (L, '{"duplicate-skip", "rejected-preprocess", "rejected-tier0"}', '{"duplicate-skip", "rejected-preprocess"}')]),
+    ("m10b-cli-rc3-drops-tier0", "negative", [
+        (L, 'out["outcome"] in {"rejected-preprocess", "rejected-tier0"}:', 'out["outcome"] in {"rejected-preprocess"}:')]),
+    ("m11-build-catch-widened", "negative", [
+        (L, '            except (RuntimeError, subprocess.SubprocessError) as exc:\n                tier0["error"]',
+         '            except Exception as exc:\n                tier0["error"]')]),
+    ("m12-tier0-reject-consumes-b", "negative", [
+        (D, 'failure_class="unclassified-missing" if result["submitted"] else "candidate")\n',
+         'failure_class="unclassified-missing" if result["submitted"] else "candidate", submitted=True)\n')]),
+    ("m13-tier0-reject-retried", "negative", [
+        (D, 'retryable = observation["outcome"] in {"pre-start-failure", "machine-failure"}',
+         'retryable = observation["outcome"] in {"pre-start-failure", "machine-failure", "rejected-tier0"}')]),
+    ("m14-submitted-without-tier0-accepted", "negative", [
+        (D, '        elif candidate and result["submitted"]:\n', '        elif candidate and result["submitted"] and False:\n')]),
+    ("m15-smoke-numbers-into-event", "negative", [
+        (D, 'result["tier0"] = {"status": tier0["status"], "reason": tier0["reason"],',
+         'result["tier0"] = {"status": tier0["status"], "reason": tier0["reason"], "smoke": tier0.get("smoke"),')]),
+    ("m16-report-config-drops-tier0", "negative", [
+        (R, '        configuration.update({k: h.get(k) for k in ("tier0_status", "tier0_contract")})\n', "")]),
+    ("m17-header-not-implemented", "negative", [
+        (D, '"tier0_status": "implemented", "tier0_contract"', '"tier0_status": "not-implemented", "tier0_contract"')]),
+    # 段 6 追補 3 (F7、[T-2632] 取り込み後の意味上の衝突) で fix 前に事前登録。
+    ("m18-provenance-outcomes-drop-tier0", "negative", [
+        (L, '    "duplicate-skip", "rejected-preprocess", "rejected-tier0",\n})',
+         '    "duplicate-skip", "rejected-preprocess",\n})')]),
+]
+
+
+def build(expected):
+    out = []
+    for mid, category, reps in MUTATIONS:
+        nodes = [] if expected is None else sorted(expected.get(mid, []))
+        out.append({
+            "id": mid,
+            "category": category,
+            "replacements": [{"file": f, "old": o, "new": n} for f, o, n in reps],
+            "expected_nodes": nodes,
+            "expected_status": "SURVIVED" if not nodes else "KILLED",
+            "hang_risk": False,
+        })
+    return {
+        "schema": "izanagi-dev-wave-mutation-spec/v1",
+        "estimated_run_seconds": 240,
+        "timeout_seconds": 10800,
+        "hang_timeout_seconds": 3000,
+        "mutations": out,
+    }
+
+
+def main() -> int:
+    mode = sys.argv[1] if len(sys.argv) > 1 else "probe"
+    if mode == "list":
+        print(json.dumps([[m, [[f, o, n] for f, o, n in r]] for m, _, r in MUTATIONS], ensure_ascii=False))
+        return 0
+    if mode == "probe":
+        spec, target = build(None), J / "mutation-spec-probe.json"
+    elif mode == "probe-subset":
+        ids = set(sys.argv[2:])
+        spec = build(None)
+        spec["mutations"] = [m for m in spec["mutations"] if m["id"] in ids]
+        target = J / "mutation-spec-probe-subset.json"
+    else:
+        observed = json.loads((J / "observed-nodes.json").read_text(encoding="utf-8"))
+        spec, target = build(observed), J / "mutation-spec-final.json"
+    text = json.dumps(spec, ensure_ascii=False, indent=1) + "\n"
+    target.write_text(text, encoding="utf-8")
+    print(target, hashlib.sha256(text.encode("utf-8")).hexdigest(), len(spec["mutations"]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
