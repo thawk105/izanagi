@@ -1,0 +1,1 @@
+b4-binary-record: binary store preflight admission 不一致: cell=rr20::stock_common: receipt admission policy が現行 policy と不一致

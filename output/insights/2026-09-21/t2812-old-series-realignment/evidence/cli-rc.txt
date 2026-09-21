@@ -1,0 +1,8 @@
+# 親が login pegasus02 で観測した既存 CLI の終了コード (2026-09-21、新 main 5efd69367)
+# 各 CLI の stdout / stderr は同 dir の他 file。rc は shell で観測した値であり、
+# 保存された JSON / stderr からは復元できない (独立レビューの should 指摘に従い明記する)。
+
+python3 -m orchestrator.campaign.floor_pair_driver --validate-only (rr95 spec、期待 sha 990e3a6f…)  rc=1
+python3 -B -m orchestrator.campaign.b4_binary_record place (record rr20--stock_common.json)          rc=1
+python3 orchestrator/campaign/s8b_oracle_driver.py gate-check --freeze …holdout_freeze.v2.g1.json    rc=2
+python3 -B <job dir>/probe/t2812_old_series_probe.py (probe-1 / probe-2)                             rc=0 / rc=0
