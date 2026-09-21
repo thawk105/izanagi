@@ -1,0 +1,117 @@
+"""[T-2826 再開] 集計 JSON から README 用の要約表を機械的に抜き出す (読取りのみ、親の補助 script、repo 外)。
+
+出力は markdown。値は集計 JSON の値を丸めるだけで、新しい判定はしない。
+"""
+import json
+import statistics
+import sys
+
+src = sys.argv[1]
+d = json.load(open(src))
+
+
+def find(obj, key):
+    """cell dict の中から key を持つ値を探す (集計器の in-memory 構造と JSON の差を吸収する)。"""
+    if isinstance(obj, dict):
+        if key in obj:
+            return obj[key]
+        for v in obj.values():
+            r = find(v, key)
+            if r is not None:
+                return r
+    return None
+
+
+def f(x, n=2):
+    if x is None:
+        return "n/a"
+    if isinstance(x, dict) and "median" in x:
+        return f(x["median"], n)
+    return f"{x:.{n}f}"
+
+
+cells = {c["cell"]: c for c in d["cells"]}
+order = ["S1-a", "S2f-a", "S3u-a", "S3f-a", "S3cf-a", "S3cf-b", "S3f-b", "S3u-b", "S2f-b", "S1-b"]
+
+print("## セル表 (秒、worker 分布は中央値)\n")
+print("| cell | valid | wall | pre_junit | W_w | M | collect | modify | wait (cf_exit−cf_entry) | process user | process sys | intent_lock 差 |")
+print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+for name in order:
+    c = cells[name]
+    x = c.get("xdist") or {}
+    il = d["R7"].get(name, {})
+    ilv = il.get("intent_lock") if isinstance(il, dict) else None
+    if ilv is None:
+        ilv = find(il, "intent_lock_delta")
+    print(f"| {name} | {c['valid']} | {f(c['wall'])} | {f(x.get('pre_junit'))} | {f(x.get('pre_entry'))} | {f(x.get('M'))} | "
+          f"{f(x.get('collect'))} | {f(x.get('modify'))} | {f(x.get('wait'))} | {f(c.get('user'))} | {f(c.get('sys'))} | {ilv if ilv is not None else 'n/a'} |")
+
+print("\n## R1 閉包\n")
+print("| cell | 閉包 | median(|残差|) | 閾値 | 残差 min / median / max | W worker | W の残差 |")
+print("| --- | --- | --- | --- | --- | --- | --- |")
+for name, r in d["R1"].items():
+    rd = r["residual_distribution"]
+    print(f"| {name} | {r['pass']} | {f(r['median_abs_residual'],3)} | {f(r['threshold'],3)} | {f(rd['min'],3)} / {f(rd['median'],3)} / {f(rd['max'],3)} | {r['W_worker']} | {f(r['W_worker_residual'],3)} |")
+
+print("\n## R2 葉 (worker 中央値の wall 秒と share)\n")
+keys = ["resolve.1", "resolve.2", "canonical_rest.1", "canonical_rest.2", "records_rest", "allocate", "selection_rest", "deselected", "state", "shard_rest",
+        "conftest_pre", "conftest_validate", "conftest_strip", "conftest_reorder", "conftest_post_rest", "E0", "E4"]
+fcells = list(d["R2"].keys())
+print("| 葉 | " + " | ".join(fcells) + " |")
+print("| --- | " + " | ".join("---" for _ in fcells) + " |")
+for k in keys:
+    row = []
+    for name in fcells:
+        leaves = d["R2"][name].get("leaves", {})
+        v = leaves.get(k)
+        if isinstance(v, dict):
+            row.append(f"{f(v.get('median'),3)} ({f(v.get('share'),3)})")
+        else:
+            row.append("n/a")
+    print(f"| {k} | " + " | ".join(row) + " |")
+others = sorted({k for name in fcells for k in d["R2"][name].get("leaves", {}) if k.startswith("other:")})
+for k in others:
+    row = []
+    for name in fcells:
+        v = d["R2"][name].get("leaves", {}).get(k)
+        row.append(f"{f(v.get('median'),3)} ({f(v.get('share'),3)})" if isinstance(v, dict) else "n/a")
+    print(f"| {k} | " + " | ".join(row) + " |")
+print("\n主因 (事前登録 R2 の条件を満たす葉):", d.get("principal_leaves"))
+
+print("\n## R2 resolve の回数・hit・miss (worker 中央値)\n")
+print("| cell | pass | count | wall | hit | miss |")
+print("| --- | --- | --- | --- | --- | --- |")
+for name in fcells:
+    hot = d["R2"][name].get("hot", {})
+    for p in ("resolve.1", "resolve.2"):
+        h = hot.get(p, {})
+        print(f"| {name} | {p} | {f(h.get('count'),0)} | {f(h.get('wall'),3)} | {f(h.get('hit'),0)} | {f(h.get('miss'),0)} |")
+
+print("\n## R2 大区間の CPU (秒、worker 中央値 / 48 worker 合計)\n")
+print("| cell | 区間 | thread user | thread sys | process user | process sys |")
+print("| --- | --- | --- | --- | --- | --- |")
+for name in fcells:
+    for interval, m in d["R2"][name].get("cpu", {}).items():
+        cols = []
+        for k in ("thread_user", "thread_sys", "process_user", "process_sys"):
+            v = m.get(k) or {}
+            cols.append(f"{f(v.get('median'))} / {f(v.get('sum_workers'),1)}")
+        print(f"| {name} | {interval} | " + " | ".join(cols) + " |")
+
+print("\n## R3 / R4 / R5\n")
+for half in ("a", "b"):
+    r3, r4, r5 = d["R3"][half], d["R4"][half], d["R5"][half]
+    print(f"- half {half}: R3 = {json.dumps(r3, ensure_ascii=False)}")
+    print(f"  R4 = pass {r4.get('pass')}, reasons {r4.get('reasons')}")
+    print(f"  R5 = {json.dumps(r5, ensure_ascii=False)}")
+
+print("\n## R6\n")
+for name, r in d["R6"].items():
+    if name.startswith("prediction"):
+        print(f"- {name}: {json.dumps(r, ensure_ascii=False)}")
+    else:
+        print(f"- {name}: 残差_pre {f(r.get('residual_pre'),3)}, 適合 {r.get('pass')}, 待ち中央値 {f(r.get('wait'),3)}")
+
+print("\n## R8\n")
+for name, r in d["R8"].items():
+    print(f"- {name}: {json.dumps(r, ensure_ascii=False)[:200]}")
