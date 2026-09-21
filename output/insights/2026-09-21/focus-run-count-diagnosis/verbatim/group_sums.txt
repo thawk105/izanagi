@@ -1,0 +1,16 @@
+a 統合 tip 初回: 8 本 wall 3405 queue 2380 fixed 2498
+b fix 後再確認: 10 本 wall 4212 queue 3024 fixed 3161
+c 単独確認: 4 本 wall 185 queue 51 fixed 108
+d 改訂追随: 1 本 wall 723 queue 669 fixed 683
+e docs 影響確認: 2 本 wall 1115 queue 1015 fixed 1090
+f held 診断: 1 本 wall 817 queue 715 fixed 735
+g merge 後再確認: 1 本 wall 145 queue 7 fixed 21
+total 27 本 wall 10602 queue 7861
+('t2803', 'focus-2') fixed 27.0 wall 48.0 RUN 21.0
+('t2803', 'focus-8') fixed 22.0 wall 47.0 RUN 25.0
+('t2344', 'focus-f4') fixed 22.0 wall 32.0 RUN 10.0
+('t2810', 'focus-held-1') fixed 735.0 wall 817.0 RUN 82.0
+('t2797', 'focus-3') fixed 21.0 wall 145.0 RUN 124.0
+('t2803', 'focus-7') fixed 37.0 wall 58.0 RUN 21.0
+('t2814', 'focus-1') fixed 22.0 wall 100.0 RUN 78.0
+('t2814', 'focus-2') fixed 398.0 wall 477.0 RUN 79.0

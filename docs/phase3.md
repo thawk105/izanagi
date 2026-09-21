@@ -18,6 +18,12 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2824] 凍結 v2 g1 の未発効候補文書 (`output/s8b-freeze-candidates/` 配下の `holdout_freeze.v2.g1.json`) を削除し (D2194 項 5 の択 (a)、候補 path の役割が
+  批准済み世代へ移って終了)、held 真値 `_ACTIVATED_G1_REFUSALS` を削除後の live P3 実測へ追随した (2026-09-21)。実 repo の historical reverify
+  (`reverify_published_freeze`) は成功、live は現行 policy 照合で拒否のまま ([T-2812] 系)。P3 の拒否内容の差は走査 hit から候補 path が消えたこと
+  (4→3 件) だけで、候補 bytes と来歴は世代文書 (同一 blob) と X2 の履歴で保持する。certified 選択・レポート値・台帳・live の受理条件・W-4 / W-5 は不変。
+  記録 = `output/insights/2026-09-21/t2824-g1-candidate-removal/README.md`。
+
 - [x] [T-2810] 凍結 v2 g1 の launch validator を official 成果物の現物形へ整合した (2026-09-20)。
   journal allowlist に `reservation-preflight` と binding 2 key を足し、段階 6 lineage を「一意・非 merge 導入 i について C ≤ i ≤ G」+
   「G 自身が追加した世代文書の導入 == {G}」へ改めた。実 repo の historical reverify は段階 8 (未発効候補の scan hit) まで到達、
@@ -2799,7 +2805,7 @@ bnode010 214.34 秒とノード間で 1.8 倍開き、180 秒を超えるノー�
 - [T-772] **launcher 終了観測フレークの帰属** — 理由: 2026-08-15 棚卸し (陳腐化 = 実測で解消)。帰属先の production 欠陥はエントリ 548 で修正済み。再訪条件 = 同上。
 - [T-844] **launcher 終了検査の受入フレーク** — 理由: 2026-08-15 棚卸し (陳腐化 = 実測で解消)。エントリ 548 が production 欠陥 (/proc 全走査中の一過性読取失敗で residual=None) を特定して修正し、永続 unknown と一過性の双方を検査する試験を新設した。再訪条件 = 同 2 述語の余剰が再発したとき。
 - [T-888] **test_t793_report の supersession 走査が D305 で赤** — 理由: 2026-08-15 棚卸し (陳腐化 = 実測で解消)。同実測で緑。main を止める赤は解消済み。再訪条件 = 同 file の supersession 固定が再び破れたとき。
-- [T-992] **real_repo_receipt_memo の flock 待ち 950 node 秒** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
+- [T-992] **real_repo_receipt_memo の flock 待ち 950 node 秒** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-21 に T-2810 の受入 attempt 1 (shard-1 が `real_repo_receipt_memo` の lock 取得で errno 110 `lock-acquire-failed`、非帰属で再投入して緑、entry 1776) で再訪条件「実害 1 件」が文言上発火。D2200 項 5 で見送り維持 — 既存の診断系 (T-2817 / T-2444 / T-2826) に渡し、独立の計装 wave は起こさない。
 - [T-993] **benchmark_snapshots の worker 跨ぎ重複構築 165 node 秒** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-07 に再訪条件 (同一 file 相乗り) が `orchestrator/tests/test_codex_reasoning_ab.py` の編集で成立。第 13 回 /rulings が索引へ戻した。 2026-09-08 の /rulings 全件 第 14 回で維持を裁定 (D1780)。相乗り時に直す。
 - [T-996] **保留の import 時拒否が session 印の残留で無効化される** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
 - [T-1003] **_assert_history_transition の n 親一般化と main の赤** — 理由: 2026-08-15 棚卸し (陳腐化 = 実測で解消)。2026-08-15 の実測で test_s8c_preregistration_invariant.py + test_t793_report.py が 17 passed。赤は解消済み。残る「3 親以上の merge を禁じるか」は防御的堅牢化の既定見送り側。再訪条件 = octopus merge 由来の赤が再発したとき。
@@ -3022,7 +3028,7 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 - [T-1083] **evidence_grace_s の receipt v4 での封印** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-1100] **受入試行の一次資料の所在 2 行** — 理由: 2026-08-15 棚卸し (価値小 = docs 予算で機械的に発火しない)。docs/dev-wave/** の削除経路は 3 度の棚卸しと独立 2 wave が候補ゼロを実証しており、予算上限の引き上げは既裁定で不可。再訪条件 = [T-959] が L2 の空き枠を設計し収容先ができたとき。
 
-- [T-1933] 受入 wall の nodeid から worker への対応表 — 理由: 裁定 2026-08-31 2026-09-16 に再訪条件が発火 (entry 1493 の実測 = 112 走中 106 走が 300 秒超、最遅 shard が shard-2 から 112 走中 103 走で shard-0 へ変化)。D2044 項 30 で「対応表は新設せず、今回必要な観測だけ採る」と裁定。見送りは維持。
+- [T-1933] 受入 wall の nodeid から worker への対応表 — 理由: 裁定 2026-08-31 2026-09-16 に再訪条件が発火 (entry 1493 の実測 = 112 走中 106 走が 300 秒超、最遅 shard が shard-2 から 112 走中 103 走で shard-0 へ変化)。D2044 項 30 で「対応表は新設せず、今回必要な観測だけ採る」と裁定。見送りは維持。 2026-09-21 に再訪条件 (実害 + 構成変化) が T-2817 (最遅 shard-0 の W 353.3 秒、律速が L の worker から ledger 未収載の active_v2 系 node を抱える別 worker へ移った、entry 1777) で再発火。D2200 項 6 で見送り維持 (D2044 項 30 と同型) — T-2817 は対応表なしで保存済み 21 session から worker 帰属を得た。
   (/rulings 全件、推奨どおり見送り): D1298 が単一 node の短縮では makespan が動かないことを
   実測で確定しており、内訳が分かっても打ち手が増えない (D1327)。
   再訪条件 = 受入 wall が再び実害として観測され、かつ frontier の構成が変わったとき。
