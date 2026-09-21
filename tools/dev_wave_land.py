@@ -4080,6 +4080,9 @@ def _select_fold_gate_nodes(repo: Path, plan: object) -> _FoldGateSelection:
     )
 
 
+_REGISTERED_WORKTREE_RESOLVE_ATTEMPTS = 5
+
+
 def _registered_worktree_paths(repository: _Repository) -> tuple[Path, ...]:
     raw = _require_git(
         _git(repository.wave, "worktree", "list", "--porcelain"),
@@ -4093,7 +4096,13 @@ def _registered_worktree_paths(repository: _Repository) -> tuple[Path, ...]:
         try:
             path = Path(os.fsdecode(record.removeprefix(b"worktree ")))
             try:
-                path = path.resolve(strict=True)
+                for attempt in range(_REGISTERED_WORKTREE_RESOLVE_ATTEMPTS):
+                    try:
+                        path = path.resolve(strict=True)
+                        break
+                    except InterruptedError:
+                        if attempt + 1 == _REGISTERED_WORKTREE_RESOLVE_ATTEMPTS:
+                            raise
             except FileNotFoundError:
                 path = path.absolute()
             paths.append(path)
