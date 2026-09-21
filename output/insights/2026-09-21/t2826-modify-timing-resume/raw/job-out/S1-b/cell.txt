@@ -1,0 +1,15 @@
+cell=S1-b
+stage=S1
+half=b
+start_epoch=1789992337.051711464
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume
+argv=python3.10 -m pytest /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume/orchestrator/tests -n 48 --dist loadgroup --no-loadscope-reorder --junitxml=/scr/tanab/t2826-4133803/out/S1-b/junit.xml -p no:cacheprovider -p t2826_probe_plugin
+tmpdir=/scr/tanab/t2826-4133803/out/S1-b/tmp
+workers=48
+others=0
+stale_pytest=0
+memo_files_begin
+memo_files_end
+end_epoch=1789992392.443520771
+wall=55.391809225
+rc=0

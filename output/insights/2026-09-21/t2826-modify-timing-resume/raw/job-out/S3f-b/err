@@ -1,0 +1,4 @@
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_MEMO_PREWARM_V1 {"barrier_s":52.266427876020316,"hook":"configure_node","oracle_environment_memo_s":0.050560909032355994,"receipt_memo_s":52.2661469670129}
