@@ -37,6 +37,12 @@ title: VLDB 投稿へ向けた研究方針をユーザーとの協議改訂と�
   hit は本 wave 以前 (commit `cc82edc8c`、2026-09-17) から main にある official 床値の run dir の 3 file だけで、本 wave の file は 0 件 (非帰属)。
 - 受入全走は計算ノードを使う。1 走の上限見積りは 3 shard × 外側 25 分 ≈ 1.25 node 時間で、確認ライン (2 node 時間) 未満として 1 回だけ投入する。
   再投入が要るときは累計を見積もってから判断する。
+- 受入 attempt 1 (22:03:54 投入、tested main `36fb14a3d`、tip `99ebe166b`) は rc 70 (子 rc 1)、1 failed / 26,979 passed / 69 skipped。赤は
+  `orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_subprocess_focus_collection_does_not_run_stale_check` の 1 件で、本文は
+  `-n 2` の xdist 子 pytest の出力で 2 worker の注入 marker (JSON) が 1 行に連結され、test 自身の `json.loads` が `Extra data: line 1 column 187`
+  で落ちたもの。この test は tmp_path の plugin と repo の焦点 node だけを使い、本 wave の差分 (roadmap・spool fragment・insight) を読まない
+  (DW-O18 の差分到達不能)。同じ tip で単独再走 1 回 (22:16:57 終了) は 1 passed で非再現 → 非帰属と判定し、受入を 1 回だけ取り直す。
+  計算使用は 1 回目が外側 11 分 50 秒 × 3 shard で上限約 0.59 node 時間、取り直しを足しても確認ライン未満の見込み。
 
 ## 次の一手差分
 
