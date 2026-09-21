@@ -1,0 +1,18 @@
+#!/bin/bash
+# [T-2826 再開] 親の login 生死確認 (原裁定 §5): 複製した probe を login で T2826_WORKERS=2 で走らせ、
+# A / B / C の計時点と反実仮想の配線を実データで確かめる。本走の比較には使わない。出力は job dir の login-out。
+D=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2826-resume
+W=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume
+echo $$ > "$D/login-liveness.pid"
+export PYTHONDONTWRITEBYTECODE=1
+export T2826_OUT="$D/login-out"
+export T2826_WORKERS=2
+export T2826_CELLS="${T2826_CELLS_OVERRIDE:-S1-a S2f-a S3u-a S3f-a S3cf-a}"
+cd "$W" || { echo "rc=3" > "$D/login-liveness.done"; exit 3; }
+date "+%Y-%m-%dT%H:%M:%S%z start cells=[$T2826_CELLS]" >>"$D/login-liveness.times"
+/usr/bin/time -v -o "$D/login-liveness.timev" bash "$D/probe/t2826_modify_timing_probe.sh" > "$D/login-liveness.log" 2>&1
+rc=$?
+date "+%Y-%m-%dT%H:%M:%S%z end rc=$rc" >> "$D/login-liveness.times"
+git status --porcelain > "$D/login-liveness.status-after.txt"
+echo "rc=$rc" > "$D/login-liveness.done"
+exit "$rc"

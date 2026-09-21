@@ -1,0 +1,97 @@
+### /proc/fs/lustre/mdc/lustre-MDT0000-mdc-ff1b7e2ec3ed7800/md_stats
+snapshot_time             1789991755.566496076 secs.nsecs
+start_time                1789519343.058054283 secs.nsecs
+elapsed_time              472412.508441793 secs.nsecs
+close                     1457 samples [reqs]
+create                    2431 samples [reqs]
+getattr                   123 samples [reqs]
+intent_lock               7279 samples [reqs]
+setattr                   966 samples [reqs]
+setxattr                  483 samples [reqs]
+getxattr                  7 samples [reqs]
+revalidate_lock           990 samples [reqs]
+### /proc/fs/lustre/mdc/lustre-MDT0000-mdc-ff1b7e2f5f438000/md_stats
+snapshot_time             1789991755.567104242 secs.nsecs
+start_time                1789519343.102363766 secs.nsecs
+elapsed_time              472412.464740476 secs.nsecs
+close                     111979 samples [reqs]
+create                    856 samples [reqs]
+enqueue                   140 samples [reqs]
+getattr                   31 samples [reqs]
+intent_lock               73172659 samples [reqs]
+rename                    7 samples [reqs]
+setattr                   320 samples [reqs]
+fsync                     7 samples [reqs]
+read_page                 17809 samples [reqs]
+unlink                    408 samples [reqs]
+getxattr                  35 samples [reqs]
+intent_getattr_async      70 samples [reqs]
+revalidate_lock           34352 samples [reqs]
+### /proc/fs/lustre/mdc/lustre-MDT0000-mdc-ff1b7e2f7c23c000/md_stats
+snapshot_time             1789991755.567725093 secs.nsecs
+start_time                1789519343.006493601 secs.nsecs
+elapsed_time              472412.561231492 secs.nsecs
+close                     50168232 samples [reqs]
+create                    292832 samples [reqs]
+enqueue                   910 samples [reqs]
+getattr                   821232 samples [reqs]
+intent_lock               3731671370 samples [reqs]
+link                      10866 samples [reqs]
+rename                    67722 samples [reqs]
+setattr                   59726 samples [reqs]
+fsync                     1460 samples [reqs]
+read_page                 17355842 samples [reqs]
+unlink                    269465 samples [reqs]
+setxattr                  2268 samples [reqs]
+getxattr                  15233 samples [reqs]
+intent_getattr_async      709092 samples [reqs]
+revalidate_lock           9599107 samples [reqs]
+### /proc/fs/lustre/mdc/lustre-MDT0001-mdc-ff1b7e2ec3ed7800/md_stats
+snapshot_time             1789991755.568344256 secs.nsecs
+start_time                1789519343.058663201 secs.nsecs
+elapsed_time              472412.509681055 secs.nsecs
+close                     225994 samples [reqs]
+create                    2059 samples [reqs]
+getattr                   242 samples [reqs]
+intent_lock               22526147 samples [reqs]
+rename                    17 samples [reqs]
+setattr                   2733 samples [reqs]
+read_page                 155388 samples [reqs]
+unlink                    982 samples [reqs]
+getxattr                  18610 samples [reqs]
+intent_getattr_async      309 samples [reqs]
+revalidate_lock           67196 samples [reqs]
+### /proc/fs/lustre/mdc/lustre-MDT0001-mdc-ff1b7e2f5f438000/md_stats
+snapshot_time             1789991755.568964517 secs.nsecs
+start_time                1789519343.102975553 secs.nsecs
+elapsed_time              472412.465988964 secs.nsecs
+close                     8783998 samples [reqs]
+create                    173 samples [reqs]
+enqueue                   3326 samples [reqs]
+getattr                   68 samples [reqs]
+intent_lock               51520359 samples [reqs]
+rename                    4 samples [reqs]
+setattr                   3 samples [reqs]
+read_page                 1121867 samples [reqs]
+unlink                    12 samples [reqs]
+getxattr                  344 samples [reqs]
+intent_getattr_async      144 samples [reqs]
+revalidate_lock           1373566 samples [reqs]
+### /proc/fs/lustre/mdc/lustre-MDT0001-mdc-ff1b7e2f7c23c000/md_stats
+snapshot_time             1789991755.569569568 secs.nsecs
+start_time                1789519343.007252147 secs.nsecs
+elapsed_time              472412.562317421 secs.nsecs
+close                     93743 samples [reqs]
+create                    3139 samples [reqs]
+enqueue                   6078 samples [reqs]
+getattr                   10 samples [reqs]
+intent_lock               136534455 samples [reqs]
+rename                    1296 samples [reqs]
+setattr                   1059 samples [reqs]
+fsync                     496 samples [reqs]
+read_page                 11874 samples [reqs]
+unlink                    454 samples [reqs]
+setxattr                  4 samples [reqs]
+getxattr                  595 samples [reqs]
+intent_getattr_async      8404 samples [reqs]
+revalidate_lock           60008 samples [reqs]
