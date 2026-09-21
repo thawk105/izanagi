@@ -23,5 +23,6 @@
 | `raw/login-out/S3f-a/cell.txt` | `e3d3814100cc9973e59b663f0f7c2cc90cebc8cbe1a8890c16652a93a848c158` | 546 | 6: b' ' | `9182c68ceac8aec47bfce6edcee8412c8e0f3f6bba4851d0acdf60e80091e2c4` | 545 |
 | `raw/login-out/S3u-a/cell.txt` | `3b90c1145f7a4d9fb50317bf99d56d1cec707051040c63299cf173b5675f04be` | 546 | 6: b' ' | `94b10e3ce1543dd7e44b38850fe9c3a8848750f9b85b6a013571b9ed49273b3f` | 545 |
 | `verbatim/run-probe.log` | `4b98a2b0fcd261b1b7ecec23f405a4831360e4053a435a13ad3fc90669b9e6da` | 3949 | 26: b' ' | `a09fc59826537493597576bf58619cb3c029e027e83ea83f66a2d7f64298f43c` | 3948 |
+| `verbatim/s6-review-out.md` | `e1a8d7c44ccfa10b704fac85a302b50becfdea5f693114c86e2db1f013df2d96` | 9823 | 38: b'  '; 39: b'  '; 40: b'  '; 43: b'  '; 44: b'  '; 45: b'  '; 48: b'  '; 49: b'  '; 50: b'  '; 53: b'  '; 54: b'  '; 55: b'  '; 58: b'  '; 59: b'  '; 60: b'  '; 63: b'  '; 64: b'  '; 65: b'  '; 68: b'  '; 69: b'  '; 70: b'  '; 73: b'  '; 74: b'  '; 75: b'  ' | `003b7936d9b8d34c2d474c0fa0000d6b12aca9439512ab91f65c01573200a40f` | 9775 |
 
-計 17 file・17 行。
+計 18 file・41 行 (最初の記録 commit の 17 file・17 行に、段 6 review の逐語 1 file・24 行 (Markdown の改行用の行末空白 2 byte) を追加)。
