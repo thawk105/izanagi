@@ -1,7 +1,7 @@
 """Report campaign input gaps and reach the B-4 prerun issuer.
 
-非空 batch は現行の保存形式 (checkpoint の whiteboard 5 field、WAL の
-genome / src_token) から構成できない。本 module は現物からの不足報告と、
+非空 batch はこの caller が読む checkpoint (whiteboard 5 field) と lock
+だけでは構成できない。本 module はその静的な不足分類の報告と、
 候補 0 のときの空 batch による発行器到達までを担う。予定 attempt の全件性、
 bootstrap 集合への所属、201 の適格行の調達、封印発行の成功は証明しない。
 rejected だけを候補にするのは供給源を赤 precursor に限る依頼 (D1936 項 8)
@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from . import campaign_lock
 from . import p3_b4_analysis_ledgers as ledgers
 from . import p3_b4_prerun_issuer as issuer
 
@@ -53,9 +54,9 @@ def collect_scheduled_batch(
 
     Candidate order is argv order followed by whiteboard array order (the
     prospective zero-based registry ordinal). No incomplete ledger rows are made.
-    The twelve missing sources are a static classification based on known limits
-    of the current storage format (checkpoint whiteboard's five fields and WAL
-    genome/src_token), not the result of searching individual artifacts.
+    The twelve missing sources are a static classification of what cannot be
+    assembled from the checkpoint (whiteboard's five fields) and lock read by
+    this caller, not the result of searching individual artifacts.
     artifact_path and artifact_key are null because no source was referenced.
     """
     candidates = []
@@ -64,13 +65,15 @@ def collect_scheduled_batch(
         checkpoint_path = root / "loop_state.json"
         try:
             checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-            lock = json.loads((root / "campaign.lock").read_text(encoding="utf-8"))
-            if not isinstance(checkpoint, dict) or not isinstance(lock, dict):
-                raise ValueError("checkpoint and lock must be JSON objects")
+            decoded = campaign_lock.decode_campaign_lock_bytes(
+                (root / "campaign.lock").read_bytes()
+            )
+            if not isinstance(checkpoint, dict):
+                raise ValueError("checkpoint must be a JSON object")
             whiteboard = checkpoint.get("whiteboard")
             if not isinstance(whiteboard, list):
                 raise ValueError("whiteboard must be a list")
-            trial = lock.get("trial")
+            trial = decoded.identity.get("trial")
             if not isinstance(trial, str) or trial not in _DRIVERS:
                 raise ValueError(f"unknown trial: {trial!r}")
             rejected = []
@@ -89,7 +92,8 @@ def collect_scheduled_batch(
             "rejected_rows": len(rejected),
         })
 
-    # All twelve sources are absent in the current storage format.
+    # Static gaps from only the checkpoint (whiteboard five fields) and lock
+    # read by this caller; these inputs cannot supply the twelve sources.
     missing = tuple(
         {
             "campaign_root": str(root),
