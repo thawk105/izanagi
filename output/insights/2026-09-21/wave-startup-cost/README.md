@@ -113,7 +113,9 @@ impl wave は wave 木 1 + Codex unit 木 1〜3 + mutation-source 1 + submit-tre
 ## 9. 検査・受入 (この記録 commit 時点の実測)
 
 - 記録 commit 前: `python3 tools/check_docs.py` 違反なし (insight + fragment 2 本)、NFC 検査 ok (結合文字 0)、codex 逐語 3 file (`s3-consult-A.md` / `s6-review-A.md` / `s6-focus-A.md`) は行末空白だけを可逆に除去し `verbatim/NORMALIZATION.md` に原文 sha256・bytes・除去位置を記録 (可視文字不変、`git diff --check` rc 0)、三軸走査 `s8b_holdout_freeze search` は本 wave の file に hit 0 (repo の既知 hit は別 file)、`python3 tools/spool_fold.py --dry-run` rc 0 (planned、worklog rotation あり)。
-- 焦点走 (実 repo を読む test、DW-S04) と受入全走は、この記録 commit 時点では未実施。記録 commit 後に焦点走 (`orchestrator/tests/test_check_docs.py` + `test_spool_fold.py`、login → 計算ノード dispatch) を走らせ、結果を本節へ追記する。受入全走は最終 tip へ land 前に投入する。
+- 記録 commit `71f7c5fbb` の後: 全史 provenance 監査 (login) 12,262 件・新規違反なし、rc 0 (08:17:08 → 08:17:22)。
+- 焦点走 (実 repo を読む test、DW-S04) `orchestrator/tests/test_check_docs.py` + `orchestrator/tests/test_spool_fold.py` を `71f7c5fbb` で実行: login の bounded local が cap-oom で退避し計算ノードへ dispatch (request 14593.nqsv)、**748 passed / 3 skipped**、pytest 13.27 秒、rc 0、wall 08:17:31 → 08:28:16 (job dir `focus-1.log`)。
+- 受入全走: この記録時点では未実施。最終 tip へ land 前に投入する。結果は worklog に書けない (fold 後に確定) ので、land 後の次 wave か本 README の追記で残す。
 
 ## 10. 言わないこと
 
