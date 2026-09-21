@@ -670,7 +670,7 @@ def test_attempt2_visible_text_forbidden_claims_and_negative_control(tmp_path):
         try:
             check()
         except AssertionError as exc:
-            assert str(exc) == "forbidden claim: reproducibility confirmed"
+            assert str(exc).split("\n", 1)[0] == "forbidden claim: reproducibility confirmed"
         else:
             raise AssertionError("visible forbidden claim was accepted")
     finally:
@@ -806,7 +806,7 @@ def test_landed_fig14_rejects_missing_or_partial_bundle(tmp_path):
         try:
             _assert_landed_fig14(root)
         except AssertionError as exc:
-            assert str(exc) == "fig14 integration bundle is incomplete"
+            assert str(exc).split("\n", 1)[0] == "fig14 integration bundle is incomplete"
         else:
             raise AssertionError("missing fig14 bundle was accepted")
 

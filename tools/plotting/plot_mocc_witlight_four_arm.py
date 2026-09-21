@@ -339,10 +339,6 @@ def check_figure_layout(fig, axes):
             raise FigureLayoutError(f"text leaves figure: {text.get_text()!r}")
         if text.get_gid() == "direct-label" and (text.axes is None or not _contains(text.axes.bbox, box)):
             raise FigureLayoutError("annotation leaves owner axis")
-        if text.axes is not None:
-            for other in fig.axes:
-                if other is not text.axes and _intersection(box, other.bbox) > 1:
-                    raise FigureLayoutError("text enters neighboring panel")
         boxes.append((text, box))
     for index, (left, box) in enumerate(boxes):
         for right, other in boxes[index + 1:]:

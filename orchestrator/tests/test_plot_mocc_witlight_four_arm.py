@@ -17,9 +17,11 @@ from functools import lru_cache
 
 import numpy as np
 from matplotlib.text import Text
-from orchestrator.tests.skiputil import Skip, skip
 
-REPO = Path(__file__).resolve().parents[2]
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+from skiputil import Skip, skip
 _spec = importlib.util.spec_from_file_location('mocc_figure_under_test', REPO/'tools/plotting/plot_mocc_witlight_four_arm.py')
 PLOT = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(PLOT)
@@ -349,7 +351,7 @@ def test_caption_fixed_literals_and_forbidden_claims():
         try:
             _check_claims(caption,fig)
         except AssertionError as exc:
-            assert str(exc)=='equivalent'
+            assert str(exc).partition('\n')[0]=='equivalent'
         else:
             raise AssertionError('visible forbidden claim escaped detection')
     finally:
@@ -441,7 +443,7 @@ def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
             try:
                 test_landed_fig15_repo_closure_and_caption_when_present()
             except AssertionError as exc:
-                assert str(exc)=='fig15 integration bundle is incomplete'
+                assert str(exc).partition('\n')[0]=='fig15 integration bundle is incomplete'
             else:
                 raise AssertionError('incomplete bundle accepted')
     finally:
@@ -471,6 +473,11 @@ def test_real_evidence_matches_results_document_when_root_present():
         assert [s.strip() for s in row[2:4]]==[data['arms'][a]['formatted']['mean_commits'] for a in PLOT.ARMS[2*bo:2*bo+2]]
     fig, axes = PLOT.make_figure(data)
     try:
+        # Independent literals from the results document, section 2.6.
+        visible = _visible(fig)
+        for literal in ('BACK_OFF=0: on/off exposure ratio 0.8636',
+                        'BACK_OFF=1: on/off exposure ratio 0.8450'):
+            assert literal in visible, literal
         PLOT.check_figure_layout(fig,axes)
         _check_claims(PLOT._caption(data,'fig15_real'),fig)
     finally:
