@@ -1,0 +1,15 @@
+wave                                  serial jobs (focus/acc/mut)  dispatcher poll 由来 [s]  待ち手 poll 由来 [s] (n)  合計 [s]
+branch-residue-cleanup                  5 (4/1/0)         15         12 (5)         27
+paper-abstract-conclusion-ja            1 (0/1/0)          5          0 (1)          5
+paper-story-20260921                    1 (0/1/0)          1          4 (1)          5
+t2344-closure-stage                     6 (4/2/0)         21         14 (6)         35
+t2797-b5-contrast                      73 (3/3/67)        156          3 (1)        159
+t2803-provenance-receipt               23 (7/2/14)         68         32 (11)        100
+t2804-provenance-timeout-contract      35 (4/1/30)         69          0 (0)         69
+t2807-b8-prerun                         7 (6/1/0)         16          9 (4)         25
+t2810-g1-launch-validation             39 (3/2/34)         89          0 (0)         89
+t2814-cleanup-command                  17 (2/1/14)         32         12 (5)         44
+t2817-acceptance-bottleneck-3           6 (2/4/0)         12          0 (0)         12
+wall-decomp                             3 (2/1/0)          8          0 (0)          8
+平均 48 秒 / 最大 159 秒 (wave 所要 平均 154 分 = 9240 秒に対し 0.5% / 1.7%)
+注: 待ち手 poll 由来は dev_wave_wait.py producer の receipt json で戻り時刻が取れた producer だけ積算 (mtime 一致で逆引き。自前 wrapper wait-*.done・直列 wait-all の 2 本目・receipt 不在は除外)。dispatcher poll 由来は spool が無い焦点走・単発で END→receipt 相当−10 秒を代理にした。

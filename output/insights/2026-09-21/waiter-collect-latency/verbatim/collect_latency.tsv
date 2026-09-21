@@ -1,0 +1,255 @@
+wave	kind	producer	req	started	ended	result	spool	receipt	done	waiter	END→spool	END→receipt	END→done	done→waiter	note
+t2797-b5-contrast	focus	focus/focus-1	13573.nqsv	09-20 21:18:57	09-20 21:21:00	-	-	09-20 21:21:11	09-20 21:21:11	09-20 21:21:14		11	11	3	block 1/1
+t2797-b5-contrast	focus	focus/focus-2	13623.nqsv	09-20 21:52:36	09-20 21:54:42	-	-	09-20 21:54:53	09-20 21:54:53	-		11	11		block 1/1
+t2797-b5-contrast	focus	focus/focus-3	14257.nqsv	09-21 04:16:44	09-21 04:18:48	-	-	09-21 04:19:00	09-21 04:19:00	-		12	12		block 1/1
+t2797-b5-contrast	acceptance	acceptance-final-1	14267.nqsv	09-21 04:22:15	09-21 04:28:46	09-21 04:28:46	09-21 04:28:56	09-21 04:28:57	09-21 04:29:06	09-21 04:29:12	10	11	20	6	shard-0 of 3; session 6611f85b; outer wait-acceptance-final.done@09-21 04:29:12
+t2797-b5-contrast	acceptance	acceptance-final-1	14268.nqsv	09-21 04:22:16	09-21 04:26:43	09-21 04:26:43	09-21 04:26:53	09-21 04:26:55	09-21 04:29:06	09-21 04:29:12	10	12	143	6	shard-1 of 3; session 6611f85b; outer wait-acceptance-final.done@09-21 04:29:12
+t2797-b5-contrast	acceptance	acceptance-final-1	14266.nqsv	09-21 04:22:13	09-21 04:25:09	09-21 04:25:09	09-21 04:25:19	09-21 04:25:21	09-21 04:29:06	09-21 04:29:12	10	12	237	6	shard-2 of 3; session 6611f85b; outer wait-acceptance-final.done@09-21 04:29:12
+t2797-b5-contrast	acceptance	acceptance-final2-1	14338.nqsv	09-21 04:41:17	09-21 04:47:39	09-21 04:47:39	09-21 04:47:49	09-21 04:47:54	09-21 04:52:36	09-21 04:52:38	10	15	297	2	shard-0 of 3; session 1b6b147a; outer wait-acceptance-final2.done@09-21 04:52:38
+t2797-b5-contrast	acceptance	acceptance-final2-1	14336.nqsv	09-21 04:47:54	09-21 04:52:13	09-21 04:52:13	09-21 04:52:23	09-21 04:52:28	09-21 04:52:36	09-21 04:52:38	10	15	23	2	shard-1 of 3; session 1b6b147a; outer wait-acceptance-final2.done@09-21 04:52:38
+t2797-b5-contrast	acceptance	acceptance-final2-1	14337.nqsv	09-21 04:41:16	09-21 04:44:03	09-21 04:44:03	09-21 04:44:13	09-21 04:44:17	09-21 04:52:36	09-21 04:52:38	10	14	513	2	shard-2 of 3; session 1b6b147a; outer wait-acceptance-final2.done@09-21 04:52:38
+t2797-b5-contrast	acceptance	acceptance-final3-1	14341.nqsv	09-21 05:05:20	09-21 05:11:45	09-21 05:11:45	09-21 05:11:55	09-21 05:11:56	09-21 05:20:47	09-21 05:21:04	10	11	542	17	shard-0 of 3; session ed4bb837; outer wait-acceptance-final3.done@09-21 05:21:04
+t2797-b5-contrast	acceptance	acceptance-final3-1	14342.nqsv	09-21 05:16:09	09-21 05:20:28	09-21 05:20:28	09-21 05:20:38	09-21 05:20:39	09-21 05:20:47	09-21 05:21:04	10	11	19	17	shard-1 of 3; session ed4bb837; outer wait-acceptance-final3.done@09-21 05:21:04
+t2797-b5-contrast	acceptance	acceptance-final3-1	14340.nqsv	09-21 05:04:45	09-21 05:07:22	09-21 05:07:22	09-21 05:07:32	09-21 05:07:34	09-21 05:20:47	09-21 05:21:04	10	12	805	17	shard-2 of 3; session ed4bb837; outer wait-acceptance-final3.done@09-21 05:21:04
+t2797-b5-contrast	mutation	mutation-final	13869.nqsv	09-20 23:19:05	09-20 23:19:09	09-20 23:19:09	09-20 23:19:18	09-20 23:19:20	-	-	9	11			attempt 1/32 d46593fa
+t2797-b5-contrast	mutation	mutation-final	13872.nqsv	09-20 23:19:36	09-20 23:19:52	09-20 23:19:52	09-20 23:20:02	09-20 23:20:03	-	-	10	11			attempt 2/32 67faef5c
+t2797-b5-contrast	mutation	mutation-final	13873.nqsv	09-20 23:20:24	09-20 23:20:40	09-20 23:20:40	09-20 23:20:50	09-20 23:20:51	-	-	10	11			attempt 3/32 3fa74ee9
+t2797-b5-contrast	mutation	mutation-final	13874.nqsv	09-20 23:21:14	09-20 23:21:30	09-20 23:21:30	09-20 23:21:39	09-20 23:21:43	-	-	9	13			attempt 4/32 3cf8d48f
+t2797-b5-contrast	mutation	mutation-final	13875.nqsv	09-20 23:21:58	09-20 23:22:13	09-20 23:22:13	09-20 23:22:23	09-20 23:22:26	-	-	10	13			attempt 5/32 01bd4a96
+t2797-b5-contrast	mutation	mutation-final	13876.nqsv	09-20 23:22:40	09-20 23:22:56	09-20 23:22:56	09-20 23:23:06	09-20 23:23:08	-	-	10	12			attempt 6/32 4949f01c
+t2797-b5-contrast	mutation	mutation-final	13877.nqsv	09-20 23:23:29	09-20 23:23:44	09-20 23:23:44	09-20 23:23:54	09-20 23:23:55	-	-	10	11			attempt 7/32 537e254f
+t2797-b5-contrast	mutation	mutation-final	13879.nqsv	09-20 23:35:16	09-20 23:35:32	09-20 23:35:32	09-20 23:35:42	09-20 23:35:43	-	-	10	11			attempt 8/32 be7d760f
+t2797-b5-contrast	mutation	mutation-final	13887.nqsv	09-20 23:47:15	09-20 23:47:31	09-20 23:47:31	09-20 23:47:40	09-20 23:47:41	-	-	9	10			attempt 9/32 5e3ea444
+t2797-b5-contrast	mutation	mutation-final	13894.nqsv	09-20 23:48:06	09-20 23:48:21	09-20 23:48:21	09-20 23:48:31	09-20 23:48:32	-	-	10	11			attempt 10/32 a77324b2
+t2797-b5-contrast	mutation	mutation-final	13895.nqsv	09-20 23:48:56	09-20 23:49:11	09-20 23:49:11	09-20 23:49:21	09-20 23:49:22	-	-	10	11			attempt 11/32 362d018a
+t2797-b5-contrast	mutation	mutation-final	13897.nqsv	09-20 23:49:46	09-20 23:50:01	09-20 23:50:01	09-20 23:50:11	09-20 23:50:12	-	-	10	11			attempt 12/32 4ef1e06b
+t2797-b5-contrast	mutation	mutation-final	13898.nqsv	09-20 23:50:44	09-20 23:50:59	09-20 23:50:59	09-20 23:51:09	09-20 23:51:13	-	-	10	14			attempt 13/32 177d730d
+t2797-b5-contrast	mutation	mutation-final	13901.nqsv	09-20 23:51:44	09-20 23:51:59	09-20 23:51:59	09-20 23:52:09	09-20 23:52:14	-	-	10	15			attempt 14/32 51d1d789
+t2797-b5-contrast	mutation	mutation-final	13902.nqsv	09-20 23:52:44	09-20 23:52:59	09-20 23:52:59	09-20 23:53:09	09-20 23:53:09	-	-	10	10			attempt 15/32 73da1b8e
+t2797-b5-contrast	mutation	mutation-final	13903.nqsv	09-20 23:53:44	09-20 23:53:59	09-20 23:53:59	09-20 23:54:09	09-20 23:54:10	-	-	10	11			attempt 16/32 e1b824e2
+t2797-b5-contrast	mutation	mutation-final	13904.nqsv	09-20 23:54:46	09-20 23:55:01	09-20 23:55:01	09-20 23:55:11	09-20 23:55:12	-	-	10	11			attempt 17/32 debd3eb4
+t2797-b5-contrast	mutation	mutation-final	13905.nqsv	09-20 23:55:56	09-20 23:56:11	09-20 23:56:11	09-20 23:56:21	09-20 23:56:22	-	-	10	11			attempt 18/32 494f3d1b
+t2797-b5-contrast	mutation	mutation-final	13906.nqsv	09-20 23:57:07	09-20 23:57:22	09-20 23:57:22	09-20 23:57:32	09-20 23:57:33	-	-	10	11			attempt 19/32 a0a3f729
+t2797-b5-contrast	mutation	mutation-final	13907.nqsv	09-20 23:58:06	09-20 23:58:21	09-20 23:58:21	09-20 23:58:31	09-20 23:58:32	-	-	10	11			attempt 20/32 a402a7bb
+t2797-b5-contrast	mutation	mutation-final	13909.nqsv	09-20 23:58:57	09-20 23:59:12	09-20 23:59:12	09-20 23:59:22	09-20 23:59:23	-	-	10	11			attempt 21/32 ab4b2499
+t2797-b5-contrast	mutation	mutation-final	13910.nqsv	09-20 23:59:39	09-20 23:59:54	09-20 23:59:54	09-21 00:00:04	09-21 00:00:07	-	-	10	13			attempt 22/32 a1c94a32
+t2797-b5-contrast	mutation	mutation-final	13911.nqsv	09-21 00:00:27	09-21 00:00:43	09-21 00:00:43	09-21 00:00:52	09-21 00:00:54	-	-	9	11			attempt 23/32 52316a45
+t2797-b5-contrast	mutation	mutation-final	13912.nqsv	09-21 00:01:18	09-21 00:01:33	09-21 00:01:33	09-21 00:01:43	09-21 00:01:44	-	-	10	11			attempt 24/32 b619962d
+t2797-b5-contrast	mutation	mutation-final	13913.nqsv	09-21 00:02:07	09-21 00:02:21	09-21 00:02:21	09-21 00:02:31	09-21 00:02:33	-	-	10	12			attempt 25/32 2dbf56be
+t2797-b5-contrast	mutation	mutation-final	13914.nqsv	09-21 00:02:54	09-21 00:03:09	09-21 00:03:09	09-21 00:03:19	09-21 00:03:21	-	-	10	12			attempt 26/32 bd3fc17b
+t2797-b5-contrast	mutation	mutation-final	13918.nqsv	09-21 00:03:37	09-21 00:03:53	09-21 00:03:52	09-21 00:04:02	09-21 00:04:05	-	-	9	12			attempt 27/32 b8bded55
+t2797-b5-contrast	mutation	mutation-final	13919.nqsv	09-21 00:21:18	09-21 00:21:35	09-21 00:21:35	09-21 00:21:44	09-21 00:21:47	-	-	9	12			attempt 28/32 e3332d19
+t2797-b5-contrast	mutation	mutation-final	13940.nqsv	09-21 00:22:16	09-21 00:22:33	09-21 00:22:33	09-21 00:22:43	09-21 00:22:48	-	-	10	15			attempt 29/32 824687ab
+t2797-b5-contrast	mutation	mutation-final	13941.nqsv	09-21 00:23:19	09-21 00:23:35	09-21 00:23:35	09-21 00:23:45	09-21 00:23:45	-	-	10	10			attempt 30/32 ad4ee5b2
+t2797-b5-contrast	mutation	mutation-final	13942.nqsv	09-21 00:24:14	09-21 00:24:31	09-21 00:24:31	09-21 00:24:41	09-21 00:24:45	-	-	10	14			attempt 31/32 64050484
+t2797-b5-contrast	mutation	mutation-final	13943.nqsv	09-21 00:25:09	09-21 00:25:24	09-21 00:25:24	09-21 00:25:34	09-21 00:25:37	09-21 00:26:20	09-21 00:26:38	10	13	56	18	attempt 32/32 6f7ed48f
+t2797-b5-contrast	mutation	mutation-final2	13944.nqsv	09-21 00:28:54	09-21 00:28:57	09-21 00:28:57	09-21 00:29:07	09-21 00:29:10	-	-	10	13			attempt 1/4 f13d2f82
+t2797-b5-contrast	mutation	mutation-final2	13945.nqsv	09-21 00:29:23	09-21 00:29:38	09-21 00:29:38	09-21 00:29:48	09-21 00:29:51	-	-	10	13			attempt 2/4 60358421
+t2797-b5-contrast	mutation	mutation-final2	13946.nqsv	09-21 00:30:13	09-21 00:30:28	09-21 00:30:28	09-21 00:30:38	09-21 00:30:43	-	-	10	15			attempt 3/4 6e957614
+t2797-b5-contrast	mutation	mutation-final2	13947.nqsv	09-21 00:31:02	09-21 00:31:17	09-21 00:31:17	09-21 00:31:27	09-21 00:31:29	09-21 00:31:58	09-21 00:32:08	10	12	41	10	attempt 4/4 0a08feca
+t2797-b5-contrast	mutation	mutation-probe	13642.nqsv	09-20 22:08:07	09-20 22:08:10	09-20 22:08:10	09-20 22:08:20	09-20 22:08:24	-	-	10	14			attempt 1/31 e3cabb4a
+t2797-b5-contrast	mutation	mutation-probe	13647.nqsv	09-20 22:25:10	09-20 22:25:26	09-20 22:25:26	09-20 22:25:36	09-20 22:25:37	-	-	10	11			attempt 2/31 f31804a8
+t2797-b5-contrast	mutation	mutation-probe	13731.nqsv	09-20 22:42:30	09-20 22:42:45	09-20 22:42:45	09-20 22:42:55	09-20 22:42:59	-	-	10	14			attempt 3/31 68b73a0f
+t2797-b5-contrast	mutation	mutation-probe	13775.nqsv	09-20 22:43:25	09-20 22:43:40	09-20 22:43:40	09-20 22:43:50	09-20 22:43:53	-	-	10	13			attempt 4/31 70108057
+t2797-b5-contrast	mutation	mutation-probe	13777.nqsv	09-20 22:44:17	09-20 22:44:32	09-20 22:44:32	09-20 22:44:41	09-20 22:44:43	-	-	9	11			attempt 5/31 df75f6ab
+t2797-b5-contrast	mutation	mutation-probe	13779.nqsv	09-20 22:45:04	09-20 22:45:19	09-20 22:45:19	09-20 22:45:29	09-20 22:45:31	-	-	10	12			attempt 6/31 c5993e5d
+t2797-b5-contrast	mutation	mutation-probe	13781.nqsv	09-20 22:46:00	09-20 22:46:15	09-20 22:46:15	09-20 22:46:24	09-20 22:46:26	-	-	9	11			attempt 7/31 208d2be0
+t2797-b5-contrast	mutation	mutation-probe	13784.nqsv	09-20 22:46:47	09-20 22:47:02	09-20 22:47:02	09-20 22:47:12	09-20 22:47:14	-	-	10	12			attempt 8/31 e3e35ba9
+t2797-b5-contrast	mutation	mutation-probe	13787.nqsv	09-20 22:48:50	09-20 22:49:06	09-20 22:49:06	09-20 22:49:16	09-20 22:49:20	-	-	10	14			attempt 9/31 9490a04f
+t2797-b5-contrast	mutation	mutation-probe	13792.nqsv	09-20 22:49:44	09-20 22:49:59	09-20 22:49:59	09-20 22:50:09	09-20 22:50:13	-	-	10	14			attempt 10/31 e19fbb5b
+t2797-b5-contrast	mutation	mutation-probe	13795.nqsv	09-20 22:51:22	09-20 22:51:38	09-20 22:51:38	09-20 22:51:48	09-20 22:51:49	-	-	10	11			attempt 11/31 3d91c331
+t2797-b5-contrast	mutation	mutation-probe	13801.nqsv	09-20 22:53:21	09-20 22:53:36	09-20 22:53:36	09-20 22:53:46	09-20 22:53:50	-	-	10	14			attempt 12/31 2cb0d058
+t2797-b5-contrast	mutation	mutation-probe	13808.nqsv	09-20 22:54:13	09-20 22:54:29	09-20 22:54:29	09-20 22:54:39	09-20 22:54:40	-	-	10	11			attempt 13/31 47f1fd88
+t2797-b5-contrast	mutation	mutation-probe	13811.nqsv	09-20 22:55:05	09-20 22:55:20	09-20 22:55:20	09-20 22:55:30	09-20 22:55:32	-	-	10	12			attempt 14/31 b808a802
+t2797-b5-contrast	mutation	mutation-probe	13813.nqsv	09-20 22:55:51	09-20 22:56:06	09-20 22:56:06	09-20 22:56:16	09-20 22:56:18	-	-	10	12			attempt 15/31 82ae0865
+t2797-b5-contrast	mutation	mutation-probe	13815.nqsv	09-20 22:56:39	09-20 22:56:54	09-20 22:56:54	09-20 22:57:04	09-20 22:57:07	-	-	10	13			attempt 16/31 25f3b030
+t2797-b5-contrast	mutation	mutation-probe	13818.nqsv	09-20 22:57:27	09-20 22:57:42	09-20 22:57:42	09-20 22:57:52	09-20 22:57:53	-	-	10	11			attempt 17/31 1f7204a4
+t2797-b5-contrast	mutation	mutation-probe	13822.nqsv	09-20 22:58:18	09-20 22:58:33	09-20 22:58:33	09-20 22:58:43	09-20 22:58:45	-	-	10	12			attempt 18/31 e362bea5
+t2797-b5-contrast	mutation	mutation-probe	13827.nqsv	09-20 22:58:59	09-20 22:59:16	09-20 22:59:15	09-20 22:59:25	09-20 22:59:28	-	-	9	12			attempt 19/31 bd53e60d
+t2797-b5-contrast	mutation	mutation-probe	13829.nqsv	09-20 22:59:53	09-20 23:00:08	09-20 23:00:08	09-20 23:00:18	09-20 23:00:20	-	-	10	12			attempt 20/31 8dcd2070
+t2797-b5-contrast	mutation	mutation-probe	13831.nqsv	09-20 23:00:44	09-20 23:00:59	09-20 23:00:59	09-20 23:01:09	09-20 23:01:13	-	-	10	14			attempt 21/31 c428f00b
+t2797-b5-contrast	mutation	mutation-probe	13837.nqsv	09-20 23:01:37	09-20 23:01:56	09-20 23:01:56	09-20 23:02:05	09-20 23:02:08	-	-	9	12			attempt 22/31 01f62841
+t2797-b5-contrast	mutation	mutation-probe	13839.nqsv	09-20 23:02:35	09-20 23:02:52	09-20 23:02:52	09-20 23:03:02	09-20 23:03:02	-	-	10	10			attempt 23/31 c4e6682d
+t2797-b5-contrast	mutation	mutation-probe	13842.nqsv	09-20 23:03:33	09-20 23:03:48	09-20 23:03:48	09-20 23:03:58	09-20 23:04:01	-	-	10	13			attempt 24/31 c0cbc459
+t2797-b5-contrast	mutation	mutation-probe	13844.nqsv	09-20 23:04:22	09-20 23:04:37	09-20 23:04:37	09-20 23:04:47	09-20 23:04:49	-	-	10	12			attempt 25/31 98ced8e3
+t2797-b5-contrast	mutation	mutation-probe	13845.nqsv	09-20 23:05:13	09-20 23:05:28	09-20 23:05:28	09-20 23:05:39	09-20 23:05:41	-	-	11	13			attempt 26/31 c22787d3
+t2797-b5-contrast	mutation	mutation-probe	13848.nqsv	09-20 23:06:02	09-20 23:06:17	09-20 23:06:17	09-20 23:06:27	09-20 23:06:29	-	-	10	12			attempt 27/31 8669c073
+t2797-b5-contrast	mutation	mutation-probe	13849.nqsv	09-20 23:06:49	09-20 23:07:04	09-20 23:07:04	09-20 23:07:14	09-20 23:07:16	-	-	10	12			attempt 28/31 2a64b7fc
+t2797-b5-contrast	mutation	mutation-probe	13850.nqsv	09-20 23:07:36	09-20 23:07:51	09-20 23:07:51	09-20 23:08:01	09-20 23:08:02	-	-	10	11			attempt 29/31 47845f14
+t2797-b5-contrast	mutation	mutation-probe	13851.nqsv	09-20 23:08:24	09-20 23:08:39	09-20 23:08:39	09-20 23:08:50	09-20 23:08:51	-	-	11	12			attempt 30/31 52467aea
+t2797-b5-contrast	mutation	mutation-probe	13852.nqsv	09-20 23:09:17	09-20 23:09:32	09-20 23:09:32	09-20 23:09:42	09-20 23:09:43	09-20 23:10:11	-	10	11	39		attempt 31/31 a09b0b52
+branch-residue-cleanup	focus	focus-f1	14109.nqsv	09-21 01:59:58	09-21 02:02:06	-	-	09-21 02:02:20	09-21 02:02:20	09-21 02:02:20		14	14	0	block 1/1
+branch-residue-cleanup	focus	focus-f2	14113.nqsv	09-21 02:26:50	09-21 02:28:57	-	-	09-21 02:29:09	09-21 02:29:09	09-21 02:29:11		12	12	2	block 1/1
+branch-residue-cleanup	focus	focus-f3	14182.nqsv	09-21 03:30:07	09-21 03:32:20	-	-	09-21 03:32:33	09-21 03:32:33	09-21 03:32:37		13	13	4	block 1/1
+branch-residue-cleanup	focus	focus-f4	14189.nqsv	09-21 03:54:58	09-21 03:57:10	-	-	09-21 03:57:22	09-21 03:57:22	09-21 03:57:26		12	12	4	block 1/1
+branch-residue-cleanup	acceptance	acceptance-final-1	14262.nqsv	09-21 04:19:54	09-21 04:28:15	09-21 04:28:15	09-21 04:28:25	09-21 04:28:29	09-21 04:28:37	09-21 04:28:39	10	14	22	2	shard-0 of 3; session 383bb119
+branch-residue-cleanup	acceptance	acceptance-final-1	14261.nqsv	09-21 04:19:53	09-21 04:24:16	09-21 04:24:16	09-21 04:24:27	09-21 04:24:27	09-21 04:28:37	09-21 04:28:39	11	11	261	2	shard-1 of 3; session 383bb119
+branch-residue-cleanup	acceptance	acceptance-final-1	14260.nqsv	09-21 04:19:51	09-21 04:22:45	09-21 04:22:45	09-21 04:22:55	09-21 04:22:58	09-21 04:28:37	09-21 04:28:39	10	13	352	2	shard-2 of 3; session 383bb119
+t2817-acceptance-bottleneck-3	log	run-probe-a	14108.nqsv	09-21 02:00:01	09-21 02:07:19	-	-	09-21 02:07:30	09-21 02:07:30	-		11	11		block 1/1
+t2817-acceptance-bottleneck-3	log	run-probe-b	14038.nqsv	09-21 01:57:18	09-21 02:04:19	-	-	09-21 02:04:30	09-21 02:04:31	-		11	12		block 1/1
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final-1	14165.nqsv	09-21 03:00:54	09-21 03:09:11	09-21 03:09:11	09-21 03:09:21	09-21 03:09:23	09-21 03:09:31	-	10	12	20		shard-0 of 3; session f70466a8
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final-1	14164.nqsv	09-21 03:00:58	09-21 03:05:19	09-21 03:05:19	09-21 03:05:29	09-21 03:05:32	09-21 03:09:31	-	10	13	252		shard-1 of 3; session f70466a8
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final-1	14166.nqsv	09-21 03:00:55	09-21 03:04:37	09-21 03:04:37	09-21 03:04:47	09-21 03:04:48	09-21 03:09:31	-	10	11	294		shard-2 of 3; session f70466a8
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final3-1	14174.nqsv	09-21 03:19:43	09-21 03:26:07	09-21 03:26:07	09-21 03:26:17	09-21 03:26:20	09-21 03:30:36	-	10	13	269		shard-0 of 3; session fe92879e
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final3-1	14175.nqsv	09-21 03:25:53	09-21 03:30:15	09-21 03:30:14	09-21 03:30:25	09-21 03:30:26	09-21 03:30:36	-	10	11	21		shard-1 of 3; session fe92879e
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final3-1	14173.nqsv	09-21 03:19:41	09-21 03:23:45	09-21 03:23:45	09-21 03:23:55	09-21 03:23:55	09-21 03:30:36	-	10	10	411		shard-2 of 3; session fe92879e
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final4-1	14187.nqsv	09-21 03:37:16	09-21 03:43:33	09-21 03:43:32	09-21 03:43:43	09-21 03:43:46	09-21 03:58:52	-	10	13	919		shard-0 of 3; session 6d9e3709
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final4-1	14188.nqsv	09-21 03:54:06	09-21 03:58:31	09-21 03:58:31	09-21 03:58:41	09-21 03:58:43	09-21 03:58:52	-	10	12	21		shard-1 of 3; session 6d9e3709
+t2817-acceptance-bottleneck-3	acceptance	acceptance-final4-1	14186.nqsv	09-21 03:43:22	09-21 03:46:54	09-21 03:46:54	09-21 03:47:04	09-21 03:47:05	09-21 03:58:52	-	10	11	718		shard-2 of 3; session 6d9e3709
+t2817-acceptance-bottleneck-3	acceptance	acceptance-ref-1	14116.nqsv	09-21 02:17:22	09-21 02:23:24	09-21 02:23:24	09-21 02:23:34	09-21 02:23:39	09-21 02:23:47	-	10	15	23		shard-0 of 3; session 73684ba6
+t2817-acceptance-bottleneck-3	acceptance	acceptance-ref-1	14115.nqsv	09-21 02:13:17	09-21 02:17:38	09-21 02:17:38	09-21 02:17:48	09-21 02:17:50	09-21 02:23:47	-	10	12	369		shard-1 of 3; session 73684ba6
+t2817-acceptance-bottleneck-3	acceptance	acceptance-ref-1	14117.nqsv	09-21 02:13:19	09-21 02:16:57	09-21 02:16:57	09-21 02:17:07	09-21 02:17:12	09-21 02:23:47	-	10	15	410		shard-2 of 3; session 73684ba6
+t2810-g1-launch-validation	focus	focus/focus-fix2-1	13525.nqsv	09-20 20:32:44	09-20 20:36:52	-	-	09-20 20:37:03	09-20 20:37:03	-		11	11		block 1/1
+t2810-g1-launch-validation	focus	focus/focus-held-1	13527.nqsv	09-20 20:49:25	09-20 20:50:47	-	-	09-20 20:51:01	09-20 20:51:01	-		14	14		block 1/1
+t2810-g1-launch-validation	focus	focus/focus-impl-1	13500.nqsv	09-20 20:18:37	09-20 20:22:48	-	-	09-20 20:23:00	09-20 20:23:00	-		12	12		block 1/1
+t2810-g1-launch-validation	acceptance	acceptance-final-1	14170.nqsv	09-21 03:13:00	09-21 03:16:46	09-21 03:16:46	09-21 03:16:56	09-21 03:16:58	09-21 03:17:06	-	10	12	20		shard-1 of 3; session 17c956e6; outer gate-loop-final.done@09-21 03:17:06
+t2810-g1-launch-validation	acceptance	acceptance-final2-1	14183.nqsv	09-21 03:30:14	09-21 03:36:22	09-21 03:36:22	09-21 03:36:32	09-21 03:36:36	09-21 03:41:01	-	10	14	279		shard-0 of 3; session e0c49943; outer gate-loop-final2.done@09-21 03:41:01
+t2810-g1-launch-validation	acceptance	acceptance-final2-1	14184.nqsv	09-21 03:36:25	09-21 03:40:41	09-21 03:40:41	09-21 03:40:51	09-21 03:40:53	09-21 03:41:01	-	10	12	20		shard-1 of 3; session e0c49943; outer gate-loop-final2.done@09-21 03:41:01
+t2810-g1-launch-validation	acceptance	acceptance-final2-1	14185.nqsv	09-21 03:36:31	09-21 03:39:10	09-21 03:39:10	09-21 03:39:20	09-21 03:39:22	09-21 03:41:01	-	10	12	111		shard-2 of 3; session e0c49943; outer gate-loop-final2.done@09-21 03:41:01
+t2810-g1-launch-validation	mutation	mutation-final	13861.nqsv	09-20 23:18:34	09-20 23:18:37	09-20 23:18:37	09-20 23:18:47	09-20 23:18:49	-	-	10	12			attempt 1/17 ff6d0e0e
+t2810-g1-launch-validation	mutation	mutation-final	13870.nqsv	09-20 23:19:07	09-20 23:23:36	09-20 23:23:36	09-20 23:23:46	09-20 23:23:48	-	-	10	12			attempt 2/17 b8b8a62d
+t2810-g1-launch-validation	mutation	mutation-final	13878.nqsv	09-20 23:24:13	09-20 23:28:09	09-20 23:28:09	09-20 23:28:20	09-20 23:28:20	-	-	11	11			attempt 3/17 01e56115
+t2810-g1-launch-validation	mutation	mutation-final	13882.nqsv	09-20 23:29:53	09-20 23:33:47	09-20 23:33:47	09-20 23:33:58	09-20 23:33:59	-	-	11	12			attempt 4/17 bca18f5b
+t2810-g1-launch-validation	mutation	mutation-final	13886.nqsv	09-20 23:45:11	09-20 23:48:56	09-20 23:48:56	09-20 23:49:07	09-20 23:49:07	-	-	11	11			attempt 5/17 d1255e4e
+t2810-g1-launch-validation	mutation	mutation-final	13896.nqsv	09-21 00:00:29	09-21 00:04:46	09-21 00:04:46	09-21 00:04:56	09-21 00:05:00	-	-	10	14			attempt 6/17 350e7b93
+t2810-g1-launch-validation	mutation	mutation-final	13920.nqsv	09-21 00:16:23	09-21 00:20:15	09-21 00:20:15	09-21 00:20:25	09-21 00:20:25	-	-	10	10			attempt 7/17 b3a39001
+t2810-g1-launch-validation	mutation	mutation-final	13939.nqsv	09-21 00:31:52	09-21 00:35:54	09-21 00:35:54	09-21 00:36:04	09-21 00:36:09	-	-	10	15			attempt 8/17 0813c263
+t2810-g1-launch-validation	mutation	mutation-final	13953.nqsv	09-21 00:47:27	09-21 00:51:17	09-21 00:51:17	09-21 00:51:27	09-21 00:51:31	-	-	10	14			attempt 9/17 24c7102c
+t2810-g1-launch-validation	mutation	mutation-final	13987.nqsv	09-21 01:02:47	09-21 01:06:33	09-21 01:06:33	09-21 01:06:43	09-21 01:06:48	-	-	10	15			attempt 10/17 ec2eb8b2
+t2810-g1-launch-validation	mutation	mutation-final	14022.nqsv	09-21 01:18:12	09-21 01:22:02	09-21 01:22:02	09-21 01:22:12	09-21 01:22:15	-	-	10	13			attempt 11/17 04c45d4e
+t2810-g1-launch-validation	mutation	mutation-final	14027.nqsv	09-21 01:33:47	09-21 01:37:32	09-21 01:37:31	09-21 01:37:42	09-21 01:37:44	-	-	10	12			attempt 12/17 dce3253e
+t2810-g1-launch-validation	mutation	mutation-final	14037.nqsv	09-21 01:49:01	09-21 01:52:53	09-21 01:52:52	09-21 01:53:03	09-21 01:53:06	-	-	10	13			attempt 13/17 875c15e1
+t2810-g1-launch-validation	mutation	mutation-final	14107.nqsv	09-21 02:04:25	09-21 02:08:42	09-21 02:08:42	09-21 02:08:52	09-21 02:08:54	-	-	10	12			attempt 14/17 ca2e5f7e
+t2810-g1-launch-validation	mutation	mutation-final	14112.nqsv	09-21 02:20:14	09-21 02:23:58	09-21 02:23:58	09-21 02:24:08	09-21 02:24:13	-	-	10	15			attempt 15/17 1bc5b424
+t2810-g1-launch-validation	mutation	mutation-final	14128.nqsv	09-21 02:35:29	09-21 02:39:19	09-21 02:39:19	09-21 02:39:29	09-21 02:39:29	-	-	10	10			attempt 16/17 3c2e8c25
+t2810-g1-launch-validation	mutation	mutation-final	14139.nqsv	09-21 02:50:51	09-21 02:54:42	09-21 02:54:42	09-21 02:54:52	09-21 02:54:55	09-21 02:55:14	-	10	13	32		attempt 17/17 d8666267
+t2810-g1-launch-validation	mutation	mutation-probe	13526.nqsv	09-20 20:41:06	09-20 20:41:11	09-20 20:41:11	09-20 20:41:20	09-20 20:41:23	-	-	9	12			attempt 1/17 4689b469
+t2810-g1-launch-validation	mutation	mutation-probe	13529.nqsv	09-20 20:41:42	09-20 20:45:39	09-20 20:45:39	09-20 20:45:49	09-20 20:45:50	-	-	10	11			attempt 2/17 ae312b66
+t2810-g1-launch-validation	mutation	mutation-probe	13537.nqsv	09-20 20:46:18	09-20 20:50:11	09-20 20:50:11	09-20 20:50:22	09-20 20:50:22	-	-	11	11			attempt 3/17 d8279ce7
+t2810-g1-launch-validation	mutation	mutation-probe	13544.nqsv	09-20 21:02:11	09-20 21:05:56	09-20 21:05:56	09-20 21:06:07	09-20 21:06:12	-	-	11	16			attempt 4/17 66e13c78
+t2810-g1-launch-validation	mutation	mutation-probe	13571.nqsv	09-20 21:06:43	09-20 21:10:57	09-20 21:10:57	09-20 21:11:07	09-20 21:11:07	-	-	10	10			attempt 5/17 ec497238
+t2810-g1-launch-validation	mutation	mutation-probe	13572.nqsv	09-20 21:22:41	09-20 21:27:03	09-20 21:27:03	09-20 21:27:14	09-20 21:27:15	-	-	11	12			attempt 6/17 a4174d2a
+t2810-g1-launch-validation	mutation	mutation-probe	13589.nqsv	09-20 21:33:42	09-20 21:37:35	09-20 21:37:35	09-20 21:37:45	09-20 21:37:48	-	-	10	13			attempt 7/17 6d5cde31
+t2810-g1-launch-validation	mutation	mutation-probe	13600.nqsv	09-20 21:54:48	09-20 21:58:51	09-20 21:58:51	09-20 21:59:01	09-20 21:59:02	-	-	10	11			attempt 8/17 2c80062c
+t2810-g1-launch-validation	mutation	mutation-probe	13635.nqsv	09-20 21:59:42	09-20 22:03:41	09-20 22:03:41	09-20 22:03:51	09-20 22:03:56	-	-	10	15			attempt 9/17 cd23d1bf
+t2810-g1-launch-validation	mutation	mutation-probe	13641.nqsv	09-20 22:15:41	09-20 22:19:52	09-20 22:19:52	09-20 22:20:03	09-20 22:20:03	-	-	11	11			attempt 10/17 ae852718
+t2810-g1-launch-validation	mutation	mutation-probe	13668.nqsv	09-20 22:31:24	09-20 22:35:19	09-20 22:35:19	09-20 22:35:29	09-20 22:35:32	-	-	10	13			attempt 11/17 8ead2e52
+t2810-g1-launch-validation	mutation	mutation-probe	13764.nqsv	09-20 22:47:06	09-20 22:50:47	09-20 22:50:47	09-20 22:50:57	09-20 22:50:59	-	-	10	12			attempt 12/17 be20dff6
+t2810-g1-launch-validation	mutation	mutation-probe	13800.nqsv	09-20 22:52:16	09-20 22:56:11	09-20 22:56:11	09-20 22:56:21	09-20 22:56:24	-	-	10	13			attempt 13/17 6210d3b0
+t2810-g1-launch-validation	mutation	mutation-probe	13816.nqsv	09-20 22:56:48	09-20 23:00:45	09-20 23:00:45	09-20 23:00:56	09-20 23:01:00	-	-	11	15			attempt 14/17 0a2e1228
+t2810-g1-launch-validation	mutation	mutation-probe	13836.nqsv	09-20 23:01:14	09-20 23:05:15	09-20 23:05:15	09-20 23:05:25	09-20 23:05:28	-	-	10	13			attempt 15/17 d86d46e4
+t2810-g1-launch-validation	mutation	mutation-probe	13847.nqsv	09-20 23:05:55	09-20 23:09:48	09-20 23:09:48	09-20 23:09:58	09-20 23:09:58	-	-	10	10			attempt 16/17 d50a4bd0
+t2810-g1-launch-validation	mutation	mutation-probe	13853.nqsv	09-20 23:10:23	09-20 23:14:16	09-20 23:14:16	09-20 23:14:27	09-20 23:14:30	09-20 23:14:53	-	11	14	37		attempt 17/17 b2a9bebe
+t2814-cleanup-command	focus	focus/focus-1	14114.nqsv	09-21 02:11:06	09-21 02:12:24	-	-	09-21 02:12:37	09-21 02:12:37	09-21 02:12:39		13	13	2	block 1/1
+t2814-cleanup-command	focus	focus/focus-2	14127.nqsv	09-21 02:30:03	09-21 02:31:22	-	-	09-21 02:31:35	09-21 02:31:35	09-21 02:31:37		13	13	2	block 1/1
+t2814-cleanup-command	acceptance	acceptance-final-2	14157.nqsv	09-21 03:08:32	09-21 03:14:38	09-21 03:14:38	09-21 03:14:49	09-21 03:14:52	09-21 03:15:00	09-21 03:15:01	11	14	22	1	shard-0 of 3; session b4edef35; outer gate-loop-final.done@09-21 03:15:00
+t2814-cleanup-command	acceptance	acceptance-final-2	14155.nqsv	09-21 02:58:04	09-21 03:02:22	09-21 03:02:22	09-21 03:02:32	09-21 03:02:35	09-21 03:15:00	09-21 03:15:01	10	13	758	1	shard-1 of 3; session b4edef35; outer gate-loop-final.done@09-21 03:15:00
+t2814-cleanup-command	acceptance	acceptance-final-2	14156.nqsv	09-21 02:51:47	09-21 02:55:37	09-21 02:55:37	09-21 02:55:47	09-21 02:55:51	09-21 03:15:00	09-21 03:15:01	10	14	1163	1	shard-2 of 3; session b4edef35; outer gate-loop-final.done@09-21 03:15:00
+t2814-cleanup-command	mutation	mutation-final	14118.nqsv	09-21 02:13:37	09-21 02:13:40	09-21 02:13:40	09-21 02:13:50	09-21 02:13:51	-	-	10	11			attempt 1/7 52a6e0ca
+t2814-cleanup-command	mutation	mutation-final	14121.nqsv	09-21 02:14:06	09-21 02:14:20	09-21 02:14:20	09-21 02:14:30	09-21 02:14:32	-	-	10	12			attempt 2/7 07cd930d
+t2814-cleanup-command	mutation	mutation-final	14122.nqsv	09-21 02:14:46	09-21 02:14:59	09-21 02:14:59	09-21 02:15:09	09-21 02:15:10	-	-	10	11			attempt 3/7 ae1470bc
+t2814-cleanup-command	mutation	mutation-final	14123.nqsv	09-21 02:15:23	09-21 02:15:35	09-21 02:15:35	09-21 02:15:45	09-21 02:15:47	-	-	10	12			attempt 4/7 e20bafcd
+t2814-cleanup-command	mutation	mutation-final	14124.nqsv	09-21 02:16:07	09-21 02:16:18	09-21 02:16:18	09-21 02:16:28	09-21 02:16:29	-	-	10	11			attempt 5/7 cf8fdee5
+t2814-cleanup-command	mutation	mutation-final	14125.nqsv	09-21 02:16:45	09-21 02:16:58	09-21 02:16:58	09-21 02:17:08	09-21 02:17:08	-	-	10	10			attempt 6/7 081454a5
+t2814-cleanup-command	mutation	mutation-final	14126.nqsv	09-21 02:17:21	09-21 02:17:35	09-21 02:17:35	09-21 02:17:44	09-21 02:17:49	09-21 02:18:08	09-21 02:18:12	9	14	33	4	attempt 7/7 0fec2a8b
+t2814-cleanup-command	mutation	mutation-probe	14028.nqsv	09-21 01:30:03	09-21 01:30:05	09-21 01:30:05	09-21 01:30:15	09-21 01:30:19	-	-	10	14			attempt 1/7 b1a35491
+t2814-cleanup-command	mutation	mutation-probe	14031.nqsv	09-21 01:30:37	09-21 01:30:50	09-21 01:30:50	09-21 01:31:00	09-21 01:31:03	-	-	10	13			attempt 2/7 3f15ec8e
+t2814-cleanup-command	mutation	mutation-probe	14032.nqsv	09-21 01:31:16	09-21 01:31:29	09-21 01:31:29	09-21 01:31:39	09-21 01:31:39	-	-	10	10			attempt 3/7 d04acf58
+t2814-cleanup-command	mutation	mutation-probe	14033.nqsv	09-21 01:31:53	09-21 01:32:04	09-21 01:32:04	09-21 01:32:14	09-21 01:32:16	-	-	10	12			attempt 4/7 1707972b
+t2814-cleanup-command	mutation	mutation-probe	14034.nqsv	09-21 01:32:37	09-21 01:32:48	09-21 01:32:48	09-21 01:32:58	09-21 01:33:00	-	-	10	12			attempt 5/7 c1e8a048
+t2814-cleanup-command	mutation	mutation-probe	14035.nqsv	09-21 01:33:16	09-21 01:33:29	09-21 01:33:29	09-21 01:33:39	09-21 01:33:39	-	-	10	10			attempt 6/7 399899be
+t2814-cleanup-command	mutation	mutation-probe	14036.nqsv	09-21 01:33:54	09-21 01:34:07	09-21 01:34:07	09-21 01:34:17	09-21 01:34:17	09-21 01:34:36	09-21 01:34:39	10	10	29	3	attempt 7/7 d68ef6ef
+wall-decomp	focus	focus-1	14042.nqsv	09-21 01:44:37	09-21 01:44:50	-	-	09-21 01:45:04	09-21 01:45:05	-		14	15		block 1/1
+wall-decomp	focus	focus-2	14110.nqsv	09-21 02:16:25	09-21 02:16:37	-	-	09-21 02:16:47	09-21 02:16:47	-		10	10		block 1/1
+wall-decomp	acceptance	acceptance-final-1	14130.nqsv	09-21 02:28:52	09-21 02:36:58	09-21 02:36:58	09-21 02:37:09	09-21 02:37:12	09-21 02:50:28	-	11	14	810		shard-0 of 3; session 24e98985
+wall-decomp	acceptance	acceptance-final-1	14129.nqsv	09-21 02:45:46	09-21 02:50:04	09-21 02:50:04	09-21 02:50:14	09-21 02:50:18	09-21 02:50:28	-	10	14	24		shard-1 of 3; session 24e98985
+wall-decomp	acceptance	acceptance-final-1	14131.nqsv	09-21 02:35:04	09-21 02:38:44	09-21 02:38:44	09-21 02:38:54	09-21 02:38:55	09-21 02:50:28	-	10	11	704		shard-2 of 3; session 24e98985
+paper-story-20260921	acceptance	acceptance-final-1	14135.nqsv	09-21 02:36:52	09-21 02:43:18	09-21 02:43:18	09-21 02:43:28	09-21 02:43:29	09-21 02:43:38	09-21 02:43:42	10	11	20	4	shard-0 of 3; session 1da3c72f
+paper-story-20260921	acceptance	acceptance-final-1	14134.nqsv	09-21 02:36:51	09-21 02:41:22	09-21 02:41:22	09-21 02:41:33	09-21 02:41:35	09-21 02:43:38	09-21 02:43:42	11	13	136	4	shard-1 of 3; session 1da3c72f
+paper-story-20260921	acceptance	acceptance-final-1	14133.nqsv	09-21 02:36:57	09-21 02:40:40	09-21 02:40:40	09-21 02:40:50	09-21 02:40:53	09-21 02:43:38	09-21 02:43:42	10	13	178	4	shard-2 of 3; session 1da3c72f
+paper-abstract-conclusion-ja	acceptance	acceptance-final-1	14040.nqsv	09-21 01:50:41	09-21 01:58:26	09-21 01:58:26	09-21 01:58:36	09-21 01:58:41	09-21 01:58:51	09-21 01:58:51	10	15	25	0	shard-0 of 3; session 56a4a404
+paper-abstract-conclusion-ja	acceptance	acceptance-final-1	14039.nqsv	09-21 01:44:27	09-21 01:49:06	09-21 01:49:06	09-21 01:49:16	09-21 01:49:17	09-21 01:58:51	09-21 01:58:51	10	11	585	0	shard-1 of 3; session 56a4a404
+paper-abstract-conclusion-ja	acceptance	acceptance-final-1	14041.nqsv	09-21 01:44:30	09-21 01:48:23	09-21 01:48:23	09-21 01:48:33	09-21 01:48:33	09-21 01:58:51	09-21 01:58:51	10	10	628	0	shard-2 of 3; session 56a4a404
+t2344-closure-stage	focus	focus-f1	13633.nqsv	09-20 21:56:28	09-20 21:57:03	-	-	09-20 21:57:17	09-20 21:57:17	09-20 21:57:22		14	14	5	block 1/1
+t2344-closure-stage	focus	focus-f2	13649.nqsv	09-20 22:16:17	09-20 22:16:53	-	-	09-20 22:17:05	09-20 22:17:05	09-20 22:17:07		12	12	2	block 1/1
+t2344-closure-stage	focus	focus-f3	13858.nqsv	09-20 23:26:40	09-20 23:27:20	-	-	09-20 23:27:33	09-20 23:27:33	09-20 23:27:37		13	13	4	block 1/1
+t2344-closure-stage	focus	focus-f4	13908.nqsv	09-20 23:58:14	09-20 23:58:24	-	-	09-20 23:58:38	09-20 23:58:38	09-20 23:58:38		14	14	0	block 1/1
+t2344-closure-stage	acceptance	acceptance-final-1	13888.nqsv	09-20 23:37:13	09-20 23:43:31	09-20 23:43:31	09-20 23:43:42	09-20 23:43:42	09-20 23:48:05	09-20 23:48:07	11	11	274	2	shard-0 of 3; session e637a58c
+t2344-closure-stage	acceptance	acceptance-final-1	13889.nqsv	09-20 23:37:07	09-20 23:41:43	09-20 23:41:43	09-20 23:41:53	09-20 23:41:56	09-20 23:48:05	09-20 23:48:07	10	13	382	2	shard-1 of 3; session e637a58c
+t2344-closure-stage	acceptance	acceptance-final-1	13890.nqsv	09-20 23:44:05	09-20 23:47:38	09-20 23:47:38	09-20 23:47:48	09-20 23:47:51	09-20 23:48:05	09-20 23:48:07	10	13	27	2	shard-2 of 3; session e637a58c
+t2344-closure-stage	acceptance	acceptance-final2-1	13916.nqsv	09-21 00:03:33	09-21 00:09:44	09-21 00:09:43	09-21 00:09:54	09-21 00:09:58	09-21 00:14:58	09-21 00:14:59	10	14	314	1	shard-0 of 3; session b292af15
+t2344-closure-stage	acceptance	acceptance-final2-1	13915.nqsv	09-21 00:09:58	09-21 00:14:19	09-21 00:14:19	09-21 00:14:29	09-21 00:14:34	09-21 00:14:58	09-21 00:14:59	10	15	39	1	shard-1 of 3; session b292af15
+t2344-closure-stage	acceptance	acceptance-final2-1	13917.nqsv	09-21 00:03:28	09-21 00:07:07	09-21 00:07:07	09-21 00:07:17	09-21 00:07:21	09-21 00:14:58	09-21 00:14:59	10	14	471	1	shard-2 of 3; session b292af15
+t2803-provenance-receipt	focus	focus-1	13590.nqsv	09-20 21:38:54	09-20 21:40:06	-	-	09-20 21:40:20	09-20 21:40:20	09-20 21:40:22		14	14	2	block 1/1
+t2803-provenance-receipt	focus	focus-2	13606.nqsv	09-20 21:41:07	09-20 21:41:28	-	-	09-20 21:41:40	09-20 21:41:40	09-20 21:41:44		12	12	4	block 1/1
+t2803-provenance-receipt	focus	focus-3	13643.nqsv	09-20 22:06:17	09-20 22:07:29	-	-	09-20 22:07:42	09-20 22:07:42	09-20 22:07:45		13	13	3	block 1/1
+t2803-provenance-receipt	focus	focus-5	13658.nqsv	09-20 22:14:55	09-20 22:16:07	-	-	09-20 22:16:20	09-20 22:16:20	09-20 22:16:21		13	13	1	block 1/1
+t2803-provenance-receipt	focus	focus-6	13666.nqsv	09-20 22:22:20	09-20 22:23:32	-	-	09-20 22:23:44	09-20 22:23:44	09-20 22:23:48		12	12	4	block 1/1
+t2803-provenance-receipt	focus	focus-7	13677.nqsv	09-20 22:24:23	09-20 22:24:44	-	-	09-20 22:24:57	09-20 22:24:57	09-20 22:24:59		13	13	2	block 1/1
+t2803-provenance-receipt	focus	focus-8	13733.nqsv	09-20 22:26:40	09-20 22:27:05	-	-	09-20 22:27:18	09-20 22:27:18	09-20 22:27:22		13	13	4	block 1/1
+t2803-provenance-receipt	acceptance	acceptance-final-1	13862.nqsv	09-20 23:19:07	09-20 23:25:24	09-20 23:25:24	09-20 23:25:34	09-20 23:25:36	09-20 23:28:02	09-20 23:28:04	10	12	158	2	shard-0 of 3; session daa50127
+t2803-provenance-receipt	acceptance	acceptance-final-1	13864.nqsv	09-20 23:17:56	09-20 23:22:26	09-20 23:22:26	09-20 23:22:36	09-20 23:22:40	09-20 23:28:02	09-20 23:28:04	10	14	336	2	shard-1 of 3; session daa50127
+t2803-provenance-receipt	acceptance	acceptance-final-1	13863.nqsv	09-20 23:24:36	09-20 23:27:38	09-20 23:27:38	09-20 23:27:48	09-20 23:27:51	09-20 23:28:02	09-20 23:28:04	10	13	24	2	shard-2 of 3; session daa50127
+t2803-provenance-receipt	acceptance	acceptance-final3-1	13892.nqsv	09-20 23:52:22	09-21 00:03:29	09-21 00:03:29	09-21 00:03:39	09-21 00:03:39	09-21 00:06:54	09-21 00:06:57	10	10	205	3	shard-0 of 3; session 29430742
+t2803-provenance-receipt	acceptance	acceptance-final3-1	13893.nqsv	09-20 23:51:21	09-20 23:55:35	09-20 23:55:35	09-20 23:55:45	09-20 23:55:50	09-21 00:06:54	09-21 00:06:57	10	15	679	3	shard-1 of 3; session 29430742
+t2803-provenance-receipt	acceptance	acceptance-final3-1	13891.nqsv	09-21 00:03:00	09-21 00:06:32	09-21 00:06:32	09-21 00:06:42	09-21 00:06:43	09-21 00:06:54	09-21 00:06:57	10	11	22	3	shard-2 of 3; session 29430742
+t2803-provenance-receipt	mutation	mutation-final	13817.nqsv	09-20 22:58:21	09-20 22:58:24	09-20 22:58:24	09-20 22:58:34	09-20 22:58:37	-	-	10	13			attempt 1/7 b4c1e557
+t2803-provenance-receipt	mutation	mutation-final	13823.nqsv	09-20 22:58:58	09-20 22:59:21	09-20 22:59:21	09-20 22:59:30	09-20 22:59:35	-	-	9	14			attempt 2/7 35f687cf
+t2803-provenance-receipt	mutation	mutation-final	13830.nqsv	09-20 22:59:56	09-20 23:00:18	09-20 23:00:18	09-20 23:00:28	09-20 23:00:33	-	-	10	15			attempt 3/7 18d44632
+t2803-provenance-receipt	mutation	mutation-final	13832.nqsv	09-20 23:00:59	09-20 23:01:20	09-20 23:01:19	09-20 23:01:29	09-20 23:01:31	-	-	9	11			attempt 4/7 fa1148ae
+t2803-provenance-receipt	mutation	mutation-final	13838.nqsv	09-20 23:01:56	09-20 23:02:17	09-20 23:02:17	09-20 23:02:27	09-20 23:02:29	-	-	10	12			attempt 5/7 c2a22b26
+t2803-provenance-receipt	mutation	mutation-final	13840.nqsv	09-20 23:02:44	09-20 23:03:05	09-20 23:03:05	09-20 23:03:15	09-20 23:03:18	-	-	10	13			attempt 6/7 2639735d
+t2803-provenance-receipt	mutation	mutation-final	13843.nqsv	09-20 23:03:43	09-20 23:04:08	09-20 23:04:08	09-20 23:04:18	09-20 23:04:21	09-20 23:04:40	09-20 23:04:44	10	13	32	4	attempt 7/7 43476ccb
+t2803-provenance-receipt	mutation	mutation-probe	13755.nqsv	09-20 22:31:17	09-20 22:31:20	09-20 22:31:20	09-20 22:31:29	09-20 22:31:32	-	-	9	12			attempt 1/7 f7677525
+t2803-provenance-receipt	mutation	mutation-probe	13757.nqsv	09-20 22:31:48	09-20 22:32:13	09-20 22:32:13	09-20 22:32:23	09-20 22:32:27	-	-	10	14			attempt 2/7 d7b1da85
+t2803-provenance-receipt	mutation	mutation-probe	13758.nqsv	09-20 22:49:18	09-20 22:49:39	09-20 22:49:39	09-20 22:49:49	09-20 22:49:54	-	-	10	15			attempt 3/7 b5ef1cf9
+t2803-provenance-receipt	mutation	mutation-probe	13793.nqsv	09-20 22:50:25	09-20 22:50:50	09-20 22:50:50	09-20 22:51:00	09-20 22:51:03	-	-	10	13			attempt 4/7 0becbf11
+t2803-provenance-receipt	mutation	mutation-probe	13798.nqsv	09-20 22:51:35	09-20 22:51:56	09-20 22:51:56	09-20 22:52:06	09-20 22:52:08	-	-	10	12			attempt 5/7 7b59ea8a
+t2803-provenance-receipt	mutation	mutation-probe	13803.nqsv	09-20 22:52:32	09-20 22:52:53	09-20 22:52:53	09-20 22:53:02	09-20 22:53:05	-	-	9	12			attempt 6/7 d1f4ac28
+t2803-provenance-receipt	mutation	mutation-probe	13807.nqsv	09-20 22:53:30	09-20 22:53:51	09-20 22:53:51	09-20 22:54:01	09-20 22:54:02	09-20 22:54:40	09-20 22:54:43	10	11	49	3	attempt 7/7 240da884
+t2804-provenance-timeout-contract	focus	focus-1	13607.nqsv	09-20 21:47:41	09-20 21:49:08	-	-	09-20 21:49:23	09-20 21:49:23	-		15	15		block 1/1
+t2804-provenance-timeout-contract	focus	focus-2	13640.nqsv	09-20 22:02:12	09-20 22:03:39	-	-	09-20 22:03:53	09-20 22:03:53	-		14	14		block 1/1
+t2804-provenance-timeout-contract	log	live/L1	13650.nqsv	09-20 22:10:27	09-20 22:10:58	-	-	09-20 22:11:11	09-20 22:11:11	-		13	13		block 1/1
+t2804-provenance-timeout-contract	log	live/L3	13654.nqsv	09-20 22:12:20	09-20 22:12:25	-	-	09-20 22:12:38	09-20 22:12:38	-		13	13		block 1/1
+t2804-provenance-timeout-contract	acceptance	acceptance-final-2	13866.nqsv	09-20 23:19:35	09-20 23:26:10	09-20 23:26:10	09-20 23:26:20	09-20 23:26:21	09-20 23:26:31	-	10	11	21		shard-0 of 3; session 4e63a0b3; outer gate-loop-final.done@09-20 23:26:31
+t2804-provenance-timeout-contract	acceptance	acceptance-final-2	13867.nqsv	09-20 23:19:02	09-20 23:23:19	09-20 23:23:19	09-20 23:23:29	09-20 23:23:34	09-20 23:26:31	-	10	15	192		shard-1 of 3; session 4e63a0b3; outer gate-loop-final.done@09-20 23:26:31
+t2804-provenance-timeout-contract	acceptance	acceptance-final-2	13868.nqsv	09-20 23:19:04	09-20 23:22:38	09-20 23:22:38	09-20 23:22:48	09-20 23:22:49	09-20 23:26:31	-	10	11	233		shard-2 of 3; session 4e63a0b3; outer gate-loop-final.done@09-20 23:26:31
+t2804-provenance-timeout-contract	mutation	mutation-final	13766.nqsv	09-20 22:37:57	09-20 22:38:00	09-20 22:38:00	09-20 22:38:10	09-20 22:38:14	-	-	10	14			attempt 1/15 f87c85dc
+t2804-provenance-timeout-contract	mutation	mutation-final	13768.nqsv	09-20 22:38:36	09-20 22:38:58	09-20 22:38:58	09-20 22:39:08	09-20 22:39:11	-	-	10	13			attempt 2/15 4b501c7b
+t2804-provenance-timeout-contract	mutation	mutation-final	13769.nqsv	09-20 22:39:37	09-20 22:39:59	09-20 22:39:59	09-20 22:40:09	09-20 22:40:10	-	-	10	11			attempt 3/15 54a0061e
+t2804-provenance-timeout-contract	mutation	mutation-final	13771.nqsv	09-20 22:40:34	09-20 22:40:57	09-20 22:40:57	09-20 22:41:07	09-20 22:41:07	-	-	10	10			attempt 4/15 09b6c36e
+t2804-provenance-timeout-contract	mutation	mutation-final	13773.nqsv	09-20 22:41:33	09-20 22:41:55	09-20 22:41:55	09-20 22:42:05	09-20 22:42:06	-	-	10	11			attempt 5/15 1136c5eb
+t2804-provenance-timeout-contract	mutation	mutation-final	13774.nqsv	09-20 22:42:33	09-20 22:42:55	09-20 22:42:55	09-20 22:43:05	09-20 22:43:06	-	-	10	11			attempt 6/15 43ae4e38
+t2804-provenance-timeout-contract	mutation	mutation-final	13776.nqsv	09-20 22:43:21	09-20 22:43:44	09-20 22:43:44	09-20 22:43:53	09-20 22:43:55	-	-	9	11			attempt 7/15 a17a7ccf
+t2804-provenance-timeout-contract	mutation	mutation-final	13778.nqsv	09-20 22:44:21	09-20 22:44:43	09-20 22:44:43	09-20 22:44:53	09-20 22:44:54	-	-	10	11			attempt 8/15 9ebab825
+t2804-provenance-timeout-contract	mutation	mutation-final	13780.nqsv	09-20 22:45:26	09-20 22:45:48	09-20 22:45:48	09-20 22:45:58	09-20 22:45:59	-	-	10	11			attempt 9/15 fe11fa2e
+t2804-provenance-timeout-contract	mutation	mutation-final	13782.nqsv	09-20 22:46:29	09-20 22:46:51	09-20 22:46:51	09-20 22:47:01	09-20 22:47:02	-	-	10	11			attempt 10/15 6c5b5bc1
+t2804-provenance-timeout-contract	mutation	mutation-final	13786.nqsv	09-20 22:47:20	09-20 22:47:42	09-20 22:47:42	09-20 22:47:51	09-20 22:47:54	-	-	9	12			attempt 11/15 5a72f314
+t2804-provenance-timeout-contract	mutation	mutation-final	13789.nqsv	09-20 22:48:24	09-20 22:48:46	09-20 22:48:46	09-20 22:48:56	09-20 22:48:57	-	-	10	11			attempt 12/15 409b4651
+t2804-provenance-timeout-contract	mutation	mutation-final	13791.nqsv	09-20 22:49:25	09-20 22:49:50	09-20 22:49:50	09-20 22:50:00	09-20 22:50:03	-	-	10	13			attempt 13/15 9d816435
+t2804-provenance-timeout-contract	mutation	mutation-final	13794.nqsv	09-20 22:50:23	09-20 22:50:49	09-20 22:50:49	09-20 22:50:58	09-20 22:51:00	-	-	9	11			attempt 14/15 11d955d9
+t2804-provenance-timeout-contract	mutation	mutation-final	13797.nqsv	09-20 23:02:32	09-20 23:02:54	09-20 23:02:54	09-20 23:03:04	09-20 23:03:07	09-20 23:03:35	-	10	13	41		attempt 15/15 29118c17
+t2804-provenance-timeout-contract	mutation	mutation-probe	13651.nqsv	09-20 22:10:37	09-20 22:10:41	09-20 22:10:41	09-20 22:10:51	09-20 22:10:54	-	-	10	13			attempt 1/15 58384f36
+t2804-provenance-timeout-contract	mutation	mutation-probe	13652.nqsv	09-20 22:11:09	09-20 22:11:30	09-20 22:11:30	09-20 22:11:40	09-20 22:11:42	-	-	10	12			attempt 2/15 cd7d2552
+t2804-provenance-timeout-contract	mutation	mutation-probe	13653.nqsv	09-20 22:11:59	09-20 22:12:21	09-20 22:12:21	09-20 22:12:31	09-20 22:12:32	-	-	10	11			attempt 3/15 8c49f47f
+t2804-provenance-timeout-contract	mutation	mutation-probe	13655.nqsv	09-20 22:18:24	09-20 22:18:46	09-20 22:18:46	09-20 22:18:56	09-20 22:18:56	-	-	10	10			attempt 4/15 58a07f18
+t2804-provenance-timeout-contract	mutation	mutation-probe	13664.nqsv	09-20 22:19:23	09-20 22:19:45	09-20 22:19:45	09-20 22:19:55	09-20 22:19:56	-	-	10	11			attempt 5/15 68743cff
+t2804-provenance-timeout-contract	mutation	mutation-probe	13667.nqsv	09-20 22:20:20	09-20 22:20:46	09-20 22:20:46	09-20 22:20:56	09-20 22:20:58	-	-	10	12			attempt 6/15 1d95a339
+t2804-provenance-timeout-contract	mutation	mutation-probe	13669.nqsv	09-20 22:21:25	09-20 22:21:47	09-20 22:21:47	09-20 22:21:57	09-20 22:21:58	-	-	10	11			attempt 7/15 8d2e11fc
+t2804-provenance-timeout-contract	mutation	mutation-probe	13671.nqsv	09-20 22:22:22	09-20 22:22:44	09-20 22:22:44	09-20 22:22:53	09-20 22:22:55	-	-	9	11			attempt 8/15 57c6a1ab
+t2804-provenance-timeout-contract	mutation	mutation-probe	13675.nqsv	09-20 22:24:07	09-20 22:24:29	09-20 22:24:29	09-20 22:24:39	09-20 22:24:42	-	-	10	13			attempt 9/15 c987c2d8
+t2804-provenance-timeout-contract	mutation	mutation-probe	13679.nqsv	09-20 22:25:07	09-20 22:25:29	09-20 22:25:29	09-20 22:25:39	09-20 22:25:40	-	-	10	11			attempt 10/15 1249db5e
+t2804-provenance-timeout-contract	mutation	mutation-probe	13732.nqsv	09-20 22:26:04	09-20 22:26:26	09-20 22:26:26	09-20 22:26:36	09-20 22:26:41	-	-	10	15			attempt 11/15 c961f48d
+t2804-provenance-timeout-contract	mutation	mutation-probe	13734.nqsv	09-20 22:27:05	09-20 22:27:33	09-20 22:27:32	09-20 22:27:42	09-20 22:27:43	-	-	9	10			attempt 12/15 f0effe45
+t2804-provenance-timeout-contract	mutation	mutation-probe	13743.nqsv	09-20 22:28:09	09-20 22:28:32	09-20 22:28:32	09-20 22:28:42	09-20 22:28:42	-	-	10	10			attempt 13/15 218f9d5e
+t2804-provenance-timeout-contract	mutation	mutation-probe	13751.nqsv	09-20 22:29:08	09-20 22:29:33	09-20 22:29:33	09-20 22:29:43	09-20 22:29:46	-	-	10	13			attempt 14/15 628b1070
+t2804-provenance-timeout-contract	mutation	mutation-probe	13753.nqsv	09-20 22:30:17	09-20 22:30:40	09-20 22:30:40	09-20 22:30:50	09-20 22:30:51	09-20 22:31:19	-	10	11	39		attempt 15/15 a4a051f3
+t2807-b8-prerun	log	run/prerun-g_rl	13588.nqsv	09-20 21:24:33	09-20 21:25:04	-	-	09-20 21:25:16	09-20 21:25:16	09-20 21:25:17		12	12	1	block 1/1
+t2807-b8-prerun	log	run/prerun-g_rt	13587.nqsv	09-20 21:23:47	09-20 21:24:18	-	-	09-20 21:24:30	09-20 21:24:30	09-20 21:25:17		12	12	47	block 1/1
+t2807-b8-prerun	log	run/prerun-v4-g_rl	13622.nqsv	09-20 21:54:47	09-20 21:55:18	-	-	09-20 21:55:32	09-20 21:55:32	09-20 21:55:34		14	14	2	block 1/1
+t2807-b8-prerun	log	run/prerun-v4-g_rt	13621.nqsv	09-20 21:49:36	09-20 21:50:07	-	-	09-20 21:50:19	09-20 21:50:19	09-20 21:55:34		12	12	315	block 1/1
+t2807-b8-prerun	log	run/prerun-v5-g_rl	13657.nqsv	09-20 22:20:49	09-20 22:21:19	-	-	09-20 22:21:31	09-20 22:21:31	09-20 22:21:34		12	12	3	block 1/1
+t2807-b8-prerun	log	run/prerun-v5-g_rt	13656.nqsv	09-20 22:14:49	09-20 22:15:20	-	-	09-20 22:15:33	09-20 22:15:33	09-20 22:21:34		13	13	361	block 1/1
+t2807-b8-prerun	acceptance	acceptance-final-1	13761.nqsv	09-20 22:34:22	09-20 22:40:26	09-20 22:40:26	09-20 22:40:36	09-20 22:40:37	09-20 22:40:47	09-20 22:40:50	10	11	21	3	shard-0 of 3; session 026f448e
+t2807-b8-prerun	acceptance	acceptance-final-1	13759.nqsv	09-20 22:34:53	09-20 22:39:14	09-20 22:39:14	09-20 22:39:24	09-20 22:39:27	09-20 22:40:47	09-20 22:40:50	10	13	93	3	shard-1 of 3; session 026f448e
+t2807-b8-prerun	acceptance	acceptance-final-1	13760.nqsv	09-20 22:33:47	09-20 22:37:00	09-20 22:37:00	09-20 22:37:10	09-20 22:37:10	09-20 22:40:47	09-20 22:40:50	10	10	227	3	shard-2 of 3; session 026f448e
