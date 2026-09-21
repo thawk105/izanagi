@@ -511,7 +511,9 @@ python3 tools/plotting/plot_mocc_witlight_four_arm.py [--repo-root PATH] [--evid
 
 入力は repo 外の `--evidence-root` (既定 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W`) 配下の `summary.json` と `W1/result.json`〜`W4/result.json` の 5 file だけで、
 生成器の定数 `EXTERNAL_SHA256` で SHA-256 束縛する (CLI から渡せない)。`summary.json.inputs` が W1〜W4 の 4 件と exact に一致することを要求する (smoke を数えない)。
-240 走から k / m / CP / 片側 Fisher / commit 数平均を計算して `summary.json` と照合し、稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` §2 と同じ書式の文字列で描く
+240 走から k / m / CP / 片側 Fisher / commit 数平均・on/off 比を計算する。`summary.json` と照合するのは summary が持つ量 (N / m / k / failure / indeterminate /
+decisive_m / k_over_m / cp95 / discriminator_counts / identification) だけで、Fisher p・commit 数平均・on/off 比は summary に無いので、
+稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` §2 の表セルとの逐語一致を test が照合する。表示は稿 §2 と同じ書式の文字列
 (稿を `caption_source` として SHA-256 付きで記録する)。failure / indeterminate の走は拒否する。図中の注記と caption は、非有意を同等性として、commit 数を性能として、
 G2 signal を根因の同定として書かない。出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本 (provenance schema `izanagi-mocc-witlight-four-arm-figure-provenance/v1`。
 repo 内の閉包 `validate_repo_closure` と外部原本の閉包 `validate_external_sources` を分ける)。拒否条件・図の形・caption の固定文・再現コマンド・proof chain は

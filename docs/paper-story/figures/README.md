@@ -1891,7 +1891,7 @@ attempt-0001 とプールせず、2 attempt の差・比・区間の重なり・
 - 拒否条件: fig9 と同じ (SHA-256 不一致、lane の 3 値、`valid` / `errors`、n、対の差、`pairs` と `raw_tps`、genome、統計、分類の述語、breach の述語、`correctness_evidence`、
   policy SHA-256、caption_source の不在) に加え、未知の attempt と pin の key 集合の不一致。いずれでも成果物を出さない。
 - **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-20-a1-balanced5-sized-attempt2-descriptive.md` の path と
-  SHA-256 を記録する (`authority_scope` = 限定と条件の言い方の出所であって、数値・分類の出所ではない)。稿は provenance の SHA-256 を持たない (F36 の自己参照回避)。
+  SHA-256 を記録する (`authority_scope` = 限定と条件の言い方の出所であって、数値・分類の出所ではない)。稿は provenance の SHA-256 を持たない (稿と provenance が互いの hash を持つ循環を避けるため)。
 
 ## 再現
 
@@ -2000,7 +2000,7 @@ W3 の `e9-witlight-nowit-bo1` (round 2) にある (block 内の分母は 15)。
 - block の検査: block ID W1〜W4、`status=completed`、rounds 15、planned 60、`not_started` 0、runs 60、round ごとの 4 arm と回転、run と `bindings` の arm / witness / `BACK_OFF`、4 block で同じ `workload_argv`。
 - 拒否条件: 5 file の SHA-256 不一致、`summary.json.inputs` の余剰・重複・欠落・順序・path・digest の不一致、block・run・回転・bindings の不一致、failure / indeterminate / 未知 status、集計の不一致、
   caption_source (稿) の不在。いずれでも成果物を出さない。
-- **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` の path と SHA-256 を記録する (稿は provenance の SHA-256 を持たない、F36)。
+- **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` の path と SHA-256 を記録する (稿は provenance の SHA-256 を持たない。稿と provenance が互いの hash を持つ循環を避けるため)。
   repo 外の 5 file は `external_inputs` (root 相対 path・kind・SHA-256) と `source_inputs` (`summary.json` が記録する原保存先の絶対 path) に分けて記録する。
 
 ## 再現
