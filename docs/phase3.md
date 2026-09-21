@@ -28,6 +28,13 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   追記)。wave の記録は同 dir の `README.md`。
   文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
 
+- [x] 論文結果節の図素材 2 枚を作成した (2026-09-21 の作図依頼、台帳 ID 未起票)。fig14 = A-1 balanced5 sized attempt-0002 の単独記述図
+  (fig9 と同形の兄弟。`tools/plotting/plot_a1_sized_paired.py` を attempt ごとの exact pin 表で拡張し、attempt-0001 の出力と fig9 の bytes・着地閉包は不変。
+  `variance_plan_breach` を panel 題に描き、2 attempt のプール・差・比・再現判定を描かない)、fig15 = stock mocc 軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4、smoke は数えない) の
+  G2 signal 検出率・Clopper–Pearson 区間・曝露量 (新規生成器が repo 外 5 file を SHA-256 束縛し、稿 §2 の値を逐語で描く。非有意を同等性、TRACE=1 の commit 数を性能、
+  G2 signal を根因として描かない)。README 2 本に節。results 稿・版は不変。図素材の完了であり、論文本文への組み込み・A-1 の充足・mocc の認証を意味しない。
+  記録 = `output/insights/2026-09-21/paper-results-figures/README.md`。
+
 - [x] 本体論文の日本語草稿 3 組へ B-8 の 3 値判定 `pass` (entry 1791、D2202) を反映した新版を置いた (2026-09-21 の執筆依頼、台帳 ID 未起票)。
   結果・考察と要旨・結論は同日第 2 版 (`output/insights/2026-09-21/paper-results-ja-b/results-discussion.md`、
   `output/insights/2026-09-21/paper-abstract-conclusion-ja-b/{abstract,conclusion}.md`)、限界節は `output/insights/2026-09-21/paper-intro-ja/limitations.md`
@@ -1435,7 +1442,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 - [T-237] role ごとの実所要時間の計測 — 理由: 目的である [T-236] の role_cap 裁定が設計凍結となったため、発火条件が成立しない。
 - [T-142] 旧 headline 候補の再起票 — 理由: (62) のユーザー再裁定で close 済み。formal selector と live campaign が揃った場合だけ新規に起票する。
-- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。
+- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。 2026-09-21 関連記録 (TPC-C の起票、未発火): D2212 項 2 で TPC-C を論文の必須経路に入れ [T-2854] / [T-2855] を起票した。発火条件「TPC-C 級 workload corpus を採るとき」は段 1 で corpus の実体が入るときに成立するとみなし、再評価はその wave で行う (本記録では再評価しない)。
 - [T-176] raw evidence bundle の保存形 (trace 圧縮) — 理由: (60) の裁定で driver 変更を伴うため次回 characterization に合流すると決まった。
 
 - [T-549] Pegasus 全 probe 共通の単独性 witness (process / cgroup / PSI) — 理由: 2026-08-09

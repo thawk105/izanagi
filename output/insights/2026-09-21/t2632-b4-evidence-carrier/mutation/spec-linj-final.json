@@ -1,0 +1,145 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S3-refs-ignore-attempt-id",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    selected_records = [record for record in records\n                        if record.variant == variant]\n",
+     "old": "    selected_records = [record for record in records\n                        if record.variant == variant\n                        and record.payload.get(\"build_attempt_id\") == attempt]\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S4-first-start-instead-of-commit",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        attempt = next(r.payload.get(\"build_attempt_id\") for r in records if r.variant == variant and r.stage == STAGE_BUILD_START)\n",
+     "old": "        attempt = selected.get(STAGE_COMMIT, {}).get(\"build_attempt_id\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S5-ref-hashes-payload-only",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        \"wal:\" + agent_outputs.canonical_sha256(record.payload)\n",
+     "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S6-refs-compressed-by-stage",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        for record in {r.stage: r for r in selected_records}.values()\n    ])\n",
+     "old": "        for record in selected_records\n    ])\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S7-merge-drops-other-iterations",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "    prov[\"entries\"] = {str(iteration): dict(entry)}\n",
+     "old": "    prov[\"entries\"][str(iteration)] = dict(entry)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S8-corrupt-report-returns-empty",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        return {}\n",
+     "old": "        raise RuntimeError(f\"base provenance corrupt; repair {quarantine}\") from exc\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "S9-file-fsync-removed",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "            stream.write(raw)\n            stream.flush()\n        os.replace(tmp, path)\n",
+     "old": "            stream.write(raw)\n            stream.flush()\n            os.fsync(stream.fileno())\n        os.replace(tmp, path)\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "E1-equivalent-canonical-bytes",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        \"wal:\" + hashlib.sha256(agent_outputs.canonical_bytes(vars(record))).hexdigest()\n",
+     "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 9000
+}

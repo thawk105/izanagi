@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""[T-2632] 変異 spec を生成する (段 4 事前登録 S1〜S14・C1〜C5・E1、段 6 追加 S15)。
+
+usage: make_mutation_spec.py <group> <out.json> [observed-nodes.json]
+  group = caller (C1〜C5、p3_b4_prerun_caller.py への注入群) | loop (S1〜S15・E1、p3_s4_loop.py) | e1 (E1 だけ、drift probe)
+observed-nodes.json を渡さなければ expected_nodes は空 (probe: 観測 node を集める走)。
+先例 = T-2830 の同名 script。同一 file の複数置換は累積適用 (DW-M04)。
+"""
+import hashlib
+import json
+import pathlib
+import sys
+
+LOOP = "orchestrator/campaign/p3_s4_loop.py"
+CALLER = "orchestrator/campaign/p3_b4_prerun_caller.py"
+
+APPEND = ("    _append_provenance_entry(layout, state.iteration, {\n"
+          "        \"iteration\": state.iteration,\n"
+          "        \"initial_proposal_sha256\": initial_proposal_sha256,\n"
+          "        \"outcome\": out[\"outcome\"],\n"
+          "        **_wal_attempt_provenance(layout, out),\n"
+          "    })\n"
+          "    save_loop_state(layout, state)\n")
+APPEND_AFTER_SAVE = ("    save_loop_state(layout, state)\n"
+                     "    _append_provenance_entry(layout, state.iteration, {\n"
+                     "        \"iteration\": state.iteration,\n"
+                     "        \"initial_proposal_sha256\": initial_proposal_sha256,\n"
+                     "        \"outcome\": out[\"outcome\"],\n"
+                     "        **_wal_attempt_provenance(layout, out),\n"
+                     "    })\n")
+REF_FILTER = ("    selected_records = [record for record in records\n"
+              "                        if record.variant == variant\n"
+              "                        and record.payload.get(\"build_attempt_id\") == attempt]\n")
+REF_FILTER_NO_ID = ("    selected_records = [record for record in records\n"
+                    "                        if record.variant == variant]\n")
+REF_HASH = "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+FSYNC = ("            stream.write(raw)\n"
+         "            stream.flush()\n"
+         "            os.fsync(stream.fileno())\n"
+         "        os.replace(tmp, path)\n")
+HASH_TRY = ("                except B4ProtocolError:\n"
+            "                    # canonical 化できない proposal は hash=null。\n"
+            "                    initial_proposal_sha256 = None\n")
+
+MUTATIONS = {
+    "loop": [
+        ("S1-provenance-not-published", "negative",
+         [(LOOP, "    _append_provenance_entry(layout, state.iteration, {\n",
+           "    (lambda *_a: None)(layout, state.iteration, {\n")]),
+        ("S2-checkpoint-before-provenance", "negative", [(LOOP, APPEND, APPEND_AFTER_SAVE)]),
+        ("S3-refs-ignore-attempt-id", "negative", [(LOOP, REF_FILTER, REF_FILTER_NO_ID)]),
+        # 段 6 再照準 (erratum、根拠は stage6-ruling §4.1・§4.2): 失敗した先行 attempt を採用 attempt の前に持つ fixture で、
+        # 「同 variant の最初の start」へ置換すると採用 commit の attempt と異なる ID を選ぶので、選択違いとして検出できる。
+        ("S4-first-start-instead-of-commit", "negative",
+         [(LOOP, "        attempt = selected.get(STAGE_COMMIT, {}).get(\"build_attempt_id\")\n",
+           "        attempt = next(r.payload.get(\"build_attempt_id\") for r in records"
+           " if r.variant == variant and r.stage == STAGE_BUILD_START)\n")]),
+        ("S5-ref-hashes-payload-only", "negative",
+         [(LOOP, REF_HASH, "        \"wal:\" + agent_outputs.canonical_sha256(record.payload)\n")]),
+        ("S6-refs-compressed-by-stage", "negative",
+         [(LOOP, "        for record in selected_records\n    ])\n",
+           "        for record in {r.stage: r for r in selected_records}.values()\n    ])\n")]),
+        ("S7-merge-drops-other-iterations", "negative",
+         [(LOOP, "    prov[\"entries\"][str(iteration)] = dict(entry)\n",
+           "    prov[\"entries\"] = {str(iteration): dict(entry)}\n")]),
+        ("S8-corrupt-report-returns-empty", "negative",
+         [(LOOP, "        raise RuntimeError(f\"base provenance corrupt; repair {quarantine}\") from exc\n",
+           "        return {}\n")]),
+        ("S9-file-fsync-removed", "negative",
+         [(LOOP, FSYNC, FSYNC.replace("            os.fsync(stream.fileno())\n", ""))]),
+        ("S10-raw-bytes-hash", "negative",
+         [(LOOP, "                    initial_proposal_sha256 = canonical_b4_proposal_sha256(\n"
+                 "                        proposal_capture[\"proposal_document\"]\n"
+                 "                    )\n",
+           "                    initial_proposal_sha256 = hashlib.sha256(\n"
+           "                        proposal_capture[\"proposal_bytes\"]\n"
+           "                    ).hexdigest()\n")]),
+        ("S11-capture-only-with-agent-inputs", "negative",
+         [(LOOP, "                        capture=proposal_capture,\n",
+           "                        **({\"capture\": agent_record} if agent_record is not None else {}),\n")]),
+        ("S12-no-provenance-in-b5", "negative",
+         [(LOOP, "    _append_provenance_entry(layout, state.iteration, {\n",
+           "    if not b5_mode: _append_provenance_entry(layout, state.iteration, {\n")]),
+        ("S13-no-pre-evaluation-check", "negative",
+         [(LOOP, "    _load_provenance(layout)\n    if initial_proposal_sha256 is not None and (\n",
+           "    if initial_proposal_sha256 is not None and (\n")]),
+        ("S14-critic-digest-reads-report", "negative",
+         [(LOOP, "    return green + \"\\n\\n\" + red\n",
+           "    return green + \"\\n\\n\" + red + json.dumps(_load_provenance(view.layout), sort_keys=True)\n")]),
+        ("S15-noncanonical-hash-raises", "positive", [(LOOP, HASH_TRY, "                except B4ProtocolError:\n                    raise\n")]),
+        ("E1-equivalent-canonical-bytes", "positive",
+         [(LOOP, REF_HASH,
+           "        \"wal:\" + hashlib.sha256(agent_outputs.canonical_bytes(vars(record))).hexdigest()\n")]),
+    ],
+    "caller": [
+        ("C1-raw-top-level-trial", "negative",
+         [(CALLER, "            trial = decoded.identity.get(\"trial\")\n",
+           "            trial = json.loads((root / \"campaign.lock\").read_text(encoding=\"utf-8\")).get(\"trial\")\n")]),
+        ("C2-codec-bypassed", "negative",
+         [(CALLER, "            decoded = campaign_lock.decode_campaign_lock_bytes(\n"
+                   "                (root / \"campaign.lock\").read_bytes()\n"
+                   "            )\n",
+           "            _raw = json.loads((root / \"campaign.lock\").read_text(encoding=\"utf-8\"))\n"
+           "            decoded = type(\"D\", (), {\"identity\": json.loads(_raw[\"identity_preimage\"]) if \"identity_preimage\" in _raw else _raw})\n")]),
+        ("C3-v1-over-rejected", "positive",
+         [(CALLER, "            if not isinstance(checkpoint, dict):\n",
+           "            if decoded.is_v1:\n                raise ValueError(\"v1 rejected\")\n            if not isinstance(checkpoint, dict):\n")]),
+        ("C4-codec-error-not-caught", "negative",
+         [(CALLER, "        except (OSError, UnicodeError, ValueError, RecursionError) as exc:\n",
+           "        except (OSError, UnicodeError, RecursionError) as exc:\n")]),
+        ("C5-trial-indexed", "negative",
+         [(CALLER, "            trial = decoded.identity.get(\"trial\")\n",
+           "            trial = decoded.identity[\"trial\"]\n")]),
+    ],
+}
+MUTATIONS["e1"] = [m for m in MUTATIONS["loop"] if m[0].startswith("E1-")]
+# 段 6 裁定 §5 の割り振り: 注入群 L (drift を受けない新設 test で検出) と commit 群 (drift を受ける test でだけ検出)。
+_LINJ = ("S3-", "S4-", "S5-", "S6-", "S7-", "S8-", "S9-", "E1-")
+_CG = ("S1-", "S2-", "S10-", "S11-", "S12-", "S13-", "S14-", "S15-")
+MUTATIONS["linj"] = [m for m in MUTATIONS["loop"] if m[0].startswith(_LINJ)]
+MUTATIONS["cg"] = [m for m in MUTATIONS["loop"] if m[0].startswith(_CG)]
+
+
+def build(group, expected):
+    out = []
+    for mid, category, reps in MUTATIONS[group]:
+        nodes = [] if expected is None else sorted(expected.get(mid, []))
+        out.append({
+            "id": mid,
+            "category": category,
+            "replacements": [{"file": f, "old": o, "new": n} for f, o, n in reps],
+            "expected_nodes": nodes,
+            "expected_status": "SURVIVED" if not nodes else "KILLED",
+            "hang_risk": False,
+        })
+    return {
+        "schema": "izanagi-dev-wave-mutation-spec/v1",
+        "estimated_run_seconds": 240,
+        "hang_timeout_seconds": 3000,
+        "timeout_seconds": 9000,
+        "mutations": out,
+    }
+
+
+def main(argv):
+    group, out_path = argv[1], pathlib.Path(argv[2])
+    expected = json.loads(pathlib.Path(argv[3]).read_text(encoding="utf-8")) if len(argv) > 3 else None
+    spec = build(group, expected)
+    raw = (json.dumps(spec, ensure_ascii=False, indent=1, sort_keys=True) + "\n").encode("utf-8")
+    out_path.write_bytes(raw)
+    print(hashlib.sha256(raw).hexdigest())
+
+
+if __name__ == "__main__":
+    main(sys.argv)

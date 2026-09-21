@@ -1,0 +1,67 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-bc7bd4add4)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/orphan-holds/unknown-61ffdf708d292db145c01ad2.json
+[Pegasus dispatch] request ID 15745.nqsv を受理しました
+[Pegasus dispatch] request 15745.nqsv の状態: QUE
+[Pegasus dispatch] request 15745.nqsv の状態: RUN
+[Pegasus dispatch] request 15745.nqsv の状態: END
+[Pegasus dispatch] request 15745.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/orphan-holds/unknown-61ffdf708d292db145c01ad2.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/bc7bd4add4065adf1ea3135c15aa43f9/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 15745.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [  8%]
+| ........................................................................ [ 17%]
+| ........................................................................ [ 26%]
+| ........................................................................ [ 35%]
+| ..................................................s..................... [ 44%]
+| ........................................................................ [ 53%]
+| ........................................................................ [ 62%]
+| ........................................................................ [ 71%]
+| ........................................................................ [ 80%]
+| ........................................................................ [ 89%]
+| ................s..s.................................................... [ 98%]
+| ...............                                                          [100%]
+| =========================== short test summary info ============================
+| SKIPPED [1] orchestrator/tests/skiputil.py:31: 条件付き未実走: template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し — repo 内の前提で満たせるが受入 suite では窓を開けない — 分類と理由は `orchestrator/tests/README.md`
+| SKIPPED [1] orchestrator/tests/skiputil.py:31: 条件付き未実走: template patch 未適用: backoff.hh に BACKOFF_FIXED 骨格なし — repo 内の前提で満たせるが受入 suite では窓を開けない — 分類と理由は `orchestrator/tests/README.md`
+| SKIPPED [1] orchestrator/tests/skiputil.py:31: 条件付き未実走: template patch 未適用: Options.cmake に BACKOFF_FIXED 既定なし — repo 内の前提で満たせるが受入 suite では窓を開けない — 分類と理由は `orchestrator/tests/README.md`
+| 804 passed, 3 skipped in 44.49s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 15745.nqsv child stdout end
+[Pegasus dispatch] request 15745.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2503142, "time_ns": 1789996061210887701}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2503164, "event": "direct-child-wait-start", "pid": 2503150, "time_ns": 1789996061239730289}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2503164, "event": "direct-child-wait-complete", "pid": 2503150, "time_ns": 1789996106348846774}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2503150, "rc": 0, "time_ns": 1789996106348955920}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2503142, "rc": 0, "time_ns": 1789996106353464145}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 2503142}, {"comm": "bash", "pid": 2503123}, {"comm": "nqs_shpd", "pid": 2503122}, {"comm": "nqs_shpd", "pid": 2502916}, {"comm": "nqs_shpd", "pid": 2340}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 2503142, "sid": 2503122, "time_ns": 1789996106353880878}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 34.9903991445899, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 2503142, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789996106388912042, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2503142, "time_ns": 1789996106406343443}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2503142, "time_ns": 1789996106458275820}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2503142, "time_ns": 1789996106459529299}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2503142, "time_ns": 1789996106459542563}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2503142, "time_ns": 1789996106462100668}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2503142, "time_ns": 1789996106462110157}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2503142, "rc": 0, "time_ns": 1789996106462120168}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2503142, "rc": 0, "time_ns": 1789996106462137559}
+|
+| ============================================================
+| Request ID:             15745.nqsv
+| Request Name:           izdw-bc7bd4add4
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 22:01:13 2026
+| Started Request Time:   Mon Sep 21 22:07:40 2026
+| Ended Request Time:     Mon Sep 21 22:08:26 2026
+| Resources Information:
+|   Elapse:               50S
+|   Remaining Elapse:     3550S
+| ============================================================
+[Pegasus dispatch] request 15745.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

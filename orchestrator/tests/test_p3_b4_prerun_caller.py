@@ -4,16 +4,26 @@ The 201-row fixture tests only issue/serialization, not the ability to assemble
 a nonempty batch from actual campaigns or to obtain a production publication.
 """
 
-from functools import wraps
+from functools import lru_cache, wraps
 import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
+from orchestrator.campaign import campaign_lock
 from orchestrator.campaign import p3_b4_analysis_ledgers as ledgers
 from orchestrator.campaign import p3_b4_prerun_caller as caller
+from campaign_lock_test_support import (
+    _binding_from_recorded_head, build_v2_campaign_lock,
+)
 from p3_b4_proposal_binding_support import preregistered_publication_root
+
+
+@lru_cache(maxsize=1)
+def _lock_binding():
+    """Read HEAD blobs once per module, lazily when a campaign is needed."""
+    return _binding_from_recorded_head()
 
 
 def _campaign(parent, name, trial, results):
@@ -24,13 +34,16 @@ def _campaign(parent, name, trial, results):
         "p3-s5-sort-loop": "silo-writeset-sort",
         "p3-s8a-trigger-loop": "silo-backoff-trigger-gating",
     }[trial]
-    (root / "campaign.lock").write_text(json.dumps({
+    identity = {
         "trial": trial,
         "search_config": {"axis": axis, "records": 100000, "reflux": "on",
                           "scale": "silo", "threads": 4},
         "ccbench_commit": "fixture-commit", "search_tag": "fixture",
         "spec_content": "synthetic campaign",
-    }), encoding="utf-8")
+    }
+    (root / "campaign.lock").write_text(build_v2_campaign_lock(
+        campaign_lock.canonical_json(identity), binding=_lock_binding(),
+    ), encoding="utf-8")
     (root / "loop_state.json").write_text(json.dumps({
         "iteration": len(results), "start_wall": 1.0, "reverse_recommendations": 0,
         "whiteboard": [
@@ -96,6 +109,48 @@ def test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root(
          "whiteboard_rows": count, "rejected_rows": 0}
         for campaign, (_, driver, count) in zip(campaigns, specs)
     ]
+
+
+def test_v1_campaigns_remain_readable(tmp_path, capsys, observed_issuer):
+    root, calls = observed_issuer
+    specs = [("p3-s4-loop", "base"), ("p3-s5-sort-loop", "sort"),
+             ("p3-s8a-trigger-loop", "trigger")]
+    campaigns = []
+    for index, (trial, _) in enumerate(specs):
+        campaign = _campaign(tmp_path, f"legacy-{index}", trial, ["success"])
+        lock = campaign / "campaign.lock"
+        decoded = campaign_lock.decode_campaign_lock_bytes(lock.read_bytes())
+        # Same five top-level identity fields as the tracked v1 campaigns;
+        # v1 does not require canonical formatting.
+        lock.write_text(json.dumps(decoded.identity, indent=2) + "\n", encoding="utf-8")
+        campaigns.append(campaign)
+    assert caller.main(["--campaign-root", *map(str, campaigns)]) == 2
+    payload = _read_payload(capsys)
+    _assert_empty_rejection(payload, root, calls)
+    assert payload["campaigns"] == [
+        {"campaign_root": str(campaign), "driver": driver,
+         "whiteboard_rows": 1, "rejected_rows": 0}
+        for campaign, (_, driver) in zip(campaigns, specs)
+    ]
+
+
+def test_missing_v1_trial_is_campaign_input_unreadable(
+    tmp_path, capsys, observed_issuer,
+):
+    root, calls = observed_issuer
+    campaign = _campaign(tmp_path, "missing-trial", "p3-s4-loop", ["success"])
+    lock = campaign / "campaign.lock"
+    identity = campaign_lock.decode_campaign_lock_bytes(lock.read_bytes()).identity
+    del identity["trial"]
+    lock.write_text(json.dumps(identity), encoding="utf-8")
+    assert caller.main(["--campaign-root", str(campaign)]) == 2
+    assert _read_payload(capsys) == {
+        "reason": "campaign_input_unreadable",
+        "campaign_root": str(campaign),
+        "detail": "unknown trial: None",
+    }
+    assert calls == []
+    assert not root.exists()
 
 
 def test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer(
@@ -213,7 +268,9 @@ def test_issue_half_serializes_real_receipt_for_a_complete_batch(observed_issuer
 
 @pytest.mark.parametrize("broken", ["checkpoint_absent", "lock_absent", "json",
                                        "whiteboard", "trial", "row",
-                                       "result_absent", "deep_json"])
+                                       "result_absent", "deep_json", "non_certifying",
+                                       "noncanonical_inner", "noncanonical_outer",
+                                       "authority", "invalid_utf8"])
 def test_unreadable_campaign_never_calls_issuer(
     tmp_path, capsys, observed_issuer, broken,
 ):
@@ -230,7 +287,40 @@ def test_unreadable_campaign_never_calls_issuer(
     elif broken == "whiteboard":
         checkpoint.write_text('{"whiteboard": {}}', encoding="utf-8")
     elif broken == "trial":
-        lock.write_text('{"trial": "unknown"}', encoding="utf-8")
+        decoded = campaign_lock.decode_campaign_lock_bytes(lock.read_bytes())
+        identity = dict(decoded.identity, trial="unknown")
+        lock.write_text(campaign_lock.encode_campaign_lock_v2(
+            campaign_lock.canonical_json(identity), decoded.authority,
+        ), encoding="utf-8")
+    elif broken == "non_certifying":
+        decoded = campaign_lock.decode_campaign_lock_bytes(lock.read_bytes())
+        common = {
+            "mode": "registered-formal-non-certifying", "certifying": False,
+            "study_id": "fixture", "source_commit": "1" * 40,
+            "campaign_ids": ["first", "second", "third"],
+            **{key: "2" * 64 for key in (
+                "policy_sha256", "preregistration_sha256", "source_binding_sha256",
+                "environment_contract_sha256", "intent_sha256",
+            )},
+        }
+        lock.write_text(campaign_lock.encode_non_certifying_campaign_lock(
+            decoded.identity_preimage, common_record=common,
+            workload_binding={"workload": "fixture", "campaign_id": "first", "ordinal": 0},
+        ), encoding="utf-8")
+    elif broken == "noncanonical_inner":
+        value = json.loads(lock.read_text(encoding="utf-8"))
+        value["identity_preimage"] = json.dumps(
+            json.loads(value["identity_preimage"]), indent=2,
+        )
+        lock.write_text(campaign_lock.canonical_json(value), encoding="utf-8")
+    elif broken == "noncanonical_outer":
+        lock.write_text(lock.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    elif broken == "authority":
+        value = json.loads(lock.read_text(encoding="utf-8"))
+        value["authority"]["activation_serial"] = 0
+        lock.write_text(campaign_lock.canonical_json(value), encoding="utf-8")
+    elif broken == "invalid_utf8":
+        lock.write_bytes(b"\xff")
     elif broken == "result_absent":
         checkpoint.write_text('{"whiteboard": [{"iteration": 1}]}', encoding="utf-8")
     elif broken == "deep_json":
@@ -245,6 +335,8 @@ def test_unreadable_campaign_never_calls_issuer(
     assert payload["reason"] == "campaign_input_unreadable"
     assert payload["campaign_root"] == str(campaign)
     assert payload["detail"]
+    if broken == "trial":
+        assert payload["detail"] == "unknown trial: 'unknown'"
     assert calls == []
     assert not root.exists()
 
