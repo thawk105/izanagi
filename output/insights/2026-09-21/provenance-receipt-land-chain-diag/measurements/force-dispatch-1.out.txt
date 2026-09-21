@@ -1,0 +1,19 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-595488f3d6)
+[Pegasus dispatch] request ID 14603.nqsv を受理しました
+[Pegasus dispatch] request 14603.nqsv の状態: QUE
+[Pegasus dispatch] request 14603.nqsv の状態: RUN
+[Pegasus dispatch] request 14603.nqsv の状態: END
+[Pegasus dispatch] request 14603.nqsv の成果物収集を開始します
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dw-provenance-cold-diag/output/pegasus-dispatch/595488f3d6ba8dd4de4ce5df26bc4fab/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 14603.nqsv child stdout begin (size=33768 bytes, omitted_bytes=29672)
+| ools/check_docs.py) を検出した。
+| check_ai_provenance: known-violation sha=94815c57976806da56a3f067ade91c0041b2e2d1 finding=missing-codex-author note=commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。
+| check_ai_provenance: known-violation sha=3a5e5feb5f5c65e5e91752f847c623ce37e9b14d finding=missing-codex-author note=commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は `orchestrator/tests/test_check_ai_provenance.py` の `test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit `94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。
+| check_ai_provenance: known-violation sha=9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf finding=missing-codex-author note=違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。
+| check_ai_provenance: known-violation sha=9bb9024aab25dc7c49f497e462a9cc21216418bc finding=missing-codex-author note=親が作成した local main 取り込み merge `9bb9024aab25dc7c49f497e462a9cc21216418bc`。実装面 3 path を個別に `git diff-tree --cc 9bb9024aab25dc7c49f497e462a9cc21216418bc -- <path>` で確認した。`orchestrator/tests/test_s6_sort_sweep.py` は condition gate を隔離する fixture と candidate evaluation より先行する gate の検査、および stock genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_s8a_trigger_sweep.py` は同 fixture と candidate evaluation / characterization build より先行する gate の検査、および ident baseline genome protocol の転送検査を両側から温存して競合解決している。`orchestrator/tests/test_t1416_backoff_compiler_binding.py` は compiler tuple の期待値変更と `prepare_calls[0]["protocol"] == "silo"` の検査追加を自動 merge している。前 2 者は競合を両側温存で解決し、3 者目は自動 merge。親が作成した merge のため Codex 著者とは記さない。
+| check_ai_provenance: known-violation sha=c12e25078ad155486c19eae633fde14e59753272 finding=missing-codex-author note=commit c12e25078 は [T-2412] wave の親 (claude, role=manager) が主 checkout で `git add -A` を実行した際、untracked だった `.codex/worktrees/` 配下の Codex 子 worktree 110 本を gitlink (mode 160000) として誤って追加したもの。message が言う mutation-ledger-n-final.json は含まれず、変更は gitlink 110 本だけ (`git diff-tree -r --name-status c12e25078`)。`.codex/` 配下の非 .md path なので checker は実装面と判定し、Codex role=author が無いため missing-codex-author を検出した (2026-09-08 job 982930.nqsv、8802 件中 1 新規違反)。gitlink は本登録と同じ commit で `git rm --cached -r .codex/worktrees` により index から除去した。
+| check_ai_provenance: known-violations=56
+| check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb
+| check_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb
+| check_ai_provenance: 12261 件、新規違反なし
+[Pegasus dispatch] request 14603.nqsv child stdout end
