@@ -7,8 +7,9 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 - **本 dir の `results-discussion.md` (2026-09-21 版、worklog entry 1772) は、同日のうちに
   `output/insights/2026-09-21/paper-results-ja-b/results-discussion.md` (2026-09-21b 版、同日第 2 版) に置き換えられた (supersede)。** 本稿の bytes は変えない。
   新版は本稿の骨格と本文を継承し、本稿の採用時点 (`285477c00`) より後に main へ着地した事実のうち本稿の記述に触るものだけを現在地へ揃えた —
-  B-8 事前登録 v1 の発効と 3 値判定 `pass` (entry 1791、D2202。本稿 §12 が「発効 commit と本走の認可は再提示待ち」と書く箇所は執筆時点では真であり、
-  新版 §6.2 に表 8b)、凍結 v2 g1 の launch validator の整合と live の起動検査の拒否段階 (D2196)、K2 同 job pair の driver の修復 (D2205)。
+  B-8 事前登録 v1 の発効と 3 値判定 `pass` (entry 1791、D2202。本稿 §12 が「発効 commit と本走の認可は再提示待ち」と書く箇所は本稿の採用時点
+  (`285477c00`) では真であり、新版 §6.2 に表 8b)、凍結 v2 g1 の launch validator の整合と live の起動検査の段階 4 の拒否の実測記録 (D2196、entry 1776 /
+  1787 / 1790)、K2 同 job pair の driver の修復 (D2205、entry 1795)、B-5 の上限付き試走の完走 (entry 1779。本稿 §12 の「未実走」)。
 - 執筆材料には新版を使い、本稿は当時の採用時点の記録として残す。本 README の以下の節は 2026-09-21 版の wave の記録であり、変えていない。
 
 - 成果物: `results-discussion.md` (本 dir)。**前稿 `output/insights/2026-09-20/paper-results-ja/results-discussion.md` (worklog entry 1750) を

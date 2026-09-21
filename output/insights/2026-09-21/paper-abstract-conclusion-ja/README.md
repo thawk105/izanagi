@@ -7,8 +7,8 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 - **本 dir の `abstract.md` と `conclusion.md` (2026-09-21 版、worklog entry 1772) は、同日のうちに
   `output/insights/2026-09-21/paper-abstract-conclusion-ja-b/{abstract,conclusion}.md` (2026-09-21b 版、同日第 2 版) に置き換えられた (supersede)。**
   本稿の bytes は変えない。新版は本稿の本文を継承し、B-8 の 3 値判定 `pass` (entry 1791、D2202) を要旨の標準版・構造化版と結論 §3 / §5 に条件語込みで
-  足し (本稿の結論 §5 が「事前登録は作られ試走が認可されたが未発効」と書く箇所は執筆時点では真)、結論 §7 の K2 pair と g1 の状態語を採用時点
-  `d99c556df` へ揃えた。
+  足し (本稿の結論 §5 が「事前登録は作られ試走が認可されたが未発効」と書く箇所は本稿の採用時点 (`285477c00`) では真)、結論 §7 の K2 pair
+  (entry 1795)・g1 (entry 1776 / 1787 / 1790)・B-5 の試走 (entry 1779) の状態語を採用時点 `d99c556df` へ揃えた。
 - 執筆材料には新版を使い、本稿は当時の採用時点の記録として残す。本 README の以下の節は 2026-09-21 版の wave の記録であり、変えていない。
 
 - 依頼: ユーザー (2026-09-21、dev-wave 引数、台帳 ID 未起票)。逐語は job dir `HANDOFF.md` の冒頭。
