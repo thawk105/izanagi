@@ -1,0 +1,79 @@
+2026-09-21T15:18:11+0900 start S09-set23 argc=23
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-0026d3c763)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-r29-items4-9-diagnosis/output/pegasus-dispatch/orphan-holds/unknown-9c2601f005dec4cecfc2bdda.json
+[Pegasus dispatch] request ID 15313.nqsv を受理しました
+[Pegasus dispatch] request 15313.nqsv の状態: QUE
+[Pegasus dispatch] request 15313.nqsv の状態: RUN
+[Pegasus dispatch] request 15313.nqsv の状態: END
+[Pegasus dispatch] request 15313.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-r29-items4-9-diagnosis/output/pegasus-dispatch/orphan-holds/unknown-9c2601f005dec4cecfc2bdda.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-r29-items4-9-diagnosis/output/pegasus-dispatch/0026d3c76356c63ba3e008e680510be1/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 15313.nqsv child stdout begin (size=5458 bytes, omitted_bytes=1362)
+| ................................. [ 45%]
+| ........................................................................ [ 48%]
+| ........................................................................ [ 51%]
+| ........................................................................ [ 53%]
+| ..............................................................s......... [ 56%]
+| ........................................................................ [ 59%]
+| ........................................................................ [ 61%]
+| ........................................................................ [ 64%]
+| ........................................................................ [ 67%]
+| ........................................................................ [ 70%]
+| ........................................................................ [ 72%]
+| ........................................................................ [ 75%]
+| ........................................................................ [ 78%]
+| ........................................................................ [ 80%]
+| ................s....................................................... [ 83%]
+| ........................................................................ [ 86%]
+| .............................................s.......................... [ 88%]
+| ........................................................................ [ 91%]
+| ........................................................................ [ 94%]
+| ........................................................................ [ 97%]
+| .................................................s...................... [ 99%]
+| ........                                                                 [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":6,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented","reason":"Consumes the session-scoped repository_scan fixture; holding only five consumers leaves the full source scan running while removing its detection power.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_campaign_package_uses_relative_sibling_imports","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels","reason":"Parses the real operational source and documentation tree.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| 2660 passed, 12 skipped in 135.09s (0:02:15)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 15313.nqsv child stdout end
+[Pegasus dispatch] request 15313.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 39782, "time_ns": 1789971501371965196}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 39803, "event": "direct-child-wait-start", "pid": 39789, "time_ns": 1789971501399749347}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 39803, "event": "direct-child-wait-complete", "pid": 39789, "time_ns": 1789971637096010204}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 39789, "rc": 0, "time_ns": 1789971637096098871}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 39782, "rc": 0, "time_ns": 1789971637100514414}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 39782}, {"comm": "bash", "pid": 39763}, {"comm": "nqs_shpd", "pid": 39762}, {"comm": "nqs_shpd", "pid": 39567}, {"comm": "nqs_shpd", "pid": 4577}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 39782, "sid": 39762, "time_ns": 1789971637100929195}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.60299099585973, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 39782, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789971637134568491, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 39782, "time_ns": 1789971637137270602}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 39782, "time_ns": 1789971637169739990}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 39782, "time_ns": 1789971637170770194}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 39782, "time_ns": 1789971637170780292}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 39782, "time_ns": 1789971637173265099}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 39782, "time_ns": 1789971637173274685}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 39782, "rc": 0, "time_ns": 1789971637173283636}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 39782, "rc": 0, "time_ns": 1789971637173301021}
+|
+| ============================================================
+| Request ID:             15313.nqsv
+| Request Name:           izdw-0026d3c763
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 15:18:12 2026
+| Started Request Time:   Mon Sep 21 15:18:20 2026
+| Ended Request Time:     Mon Sep 21 15:20:37 2026
+| Resources Information:
+|   Elapse:               141S
+|   Remaining Elapse:     3459S
+| ============================================================
+[Pegasus dispatch] request 15313.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+2026-09-21T15:20:51+0900 end rc=0

@@ -1,0 +1,11 @@
+{
+ "M1": [
+  "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+ ],
+ "M2": [
+  "orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact"
+ ],
+ "M3": [
+  "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection"
+ ]
+}
