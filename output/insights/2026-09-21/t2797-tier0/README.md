@@ -102,9 +102,14 @@ commit (wave branch `worktree-dev-wave-t2797-tier0`): 統合 `b5935b88e` → fix
 ## 7. 受入全走・検査
 
 - 焦点走 f1〜f4 は `focus/` (最終 f4 = 全緑)。全史 provenance 監査: 統合後 12,443 件・merge 後 12,475 件でいずれも新規違反なし。bytecode guard rc 0。
-- **受入全走: 未実施 (本 insight の記録 commit 時点)。** 1 wave の job 合計が 2 node 時間以上になる投入はユーザーの事前確認が要る (2026-09-21 のユーザー指示、VLDB 方針控え項 4)。
-  本 wave の積算は上限 ≈ 1.47 node 時間 (変異 job の queue 待ちを含む wall、焦点走 4 回の外側 wall、smoke 実測) で、受入 1 回 (3 shard × 13〜25 分 ≈ 0.65〜1.25) を足すと
-  線を越えるため、確認を得てから投入する。
+- **受入全走 final-1 (門番付き script、2026-09-22 00:22〜00:29 JST、直前に local main `a43f3a4fd` を自動取り込み = tested main、tested tip `02fc6a39e`):
+  child-green、27,136 passed / 74 skipped、赤 0・flake 0** (受領証 `acceptance-receipt-final-1.json`、job dir)。3 shard の Elapse 361 / 276 / 265 s。
+- 本 insight と worklog fragment の訂正 commit を final-1 の後に足したので、land 道具 (tested tip から着地 tip までは main の前進 merge だけを許す) に合わせ、その commit を tip として
+  受入を取り直した (final2)。land は child-green の受領証を要するので、着地したこと自体が final2 の緑を意味する (件数は handoff と land の記録に残す)。
+- **計算量 (2026-09-21 のユーザー指示「2 node 時間以上は事前確認」、VLDB 方針控え項 4):** 当初は変異 job の queue 待ち込みの wall と受入の外側 wall (13〜25 分 × 3) で見積もり、
+  受入を足すと線を越える (≈ 1.8〜2.4) としてユーザーへ確認を求めた。その後に実測の job Elapse で積算し直した — 焦点走 4 回 729 s (166 / 167 / 167 / 229)、smoke 35 s、
+  変異 67 走 ≤ 4,056 s (queue 込みの上限)、受入 1 回 ≈ 890〜902 s (直近 3 回と final-1 の shard Elapse) — ので、受入 2 回を含めても ≤ 1.84 node 時間で線の内側と判断し、
+  確認の返事を待たずに受入を投入した (再走は 1 回までに上限を設けた)。
 
 ## 7. 受入全走・検査
 
