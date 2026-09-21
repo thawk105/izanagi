@@ -1,0 +1,33 @@
+"""[T-2826 再開] R8 の親の再照合: 原裁定 §4 R8 の「作成時刻」(stat %W = birth time) で候補を全数抽出する (読取りのみ)。
+
+入力: stat 出力 (`%W %Y %n` 1 行 1 session)、job-out の各セル cell.txt (start_epoch / end_epoch)。
+出力: markdown。候補があれば session 名と作成時刻を列挙する (区間の重なり判定は集計器と同じ方法で別途行う)。
+"""
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+JST = timezone(timedelta(hours=9))
+stat_path, job_out = Path(sys.argv[1]), Path(sys.argv[2])
+rows = []
+for line in stat_path.read_text().splitlines():
+    birth, mtime, name = line.split(" ", 2)
+    rows.append((int(birth), int(mtime), name))
+births = [b for b, _, _ in rows]
+
+
+def ts(x):
+    return datetime.fromtimestamp(x, JST).strftime("%Y-%m-%d %H:%M:%S")
+
+
+print(f"session 数 {len(rows)}、birth time 不明 (0) {sum(1 for b in births if b == 0)} 件、"
+      f"最新の作成時刻 {ts(max(births))}、最新の mtime {ts(max(m for _, m, _ in rows))}")
+print()
+print("| cell | 開始 − 900 秒 | 終了 | 作成時刻が区間内の session 数 | 候補 |")
+print("| --- | --- | --- | --- | --- |")
+for cell in ["warm", "S1-a", "S2f-a", "S3u-a", "S3f-a", "S3cf-a", "S3cf-b", "S3f-b", "S3u-b", "S2f-b", "S1-b"]:
+    fields = dict(l.split("=", 1) for l in (job_out / cell / "cell.txt").read_text().splitlines() if "=" in l)
+    start, end = float(fields["start_epoch"]), float(fields["end_epoch"])
+    lo = start - 900
+    hits = [(b, n) for b, _, n in rows if lo <= b <= end]
+    print(f"| {cell} | {ts(lo)} | {ts(end)} | {len(hits)} | {', '.join(n + '@' + ts(b) for b, n in hits) or 'なし'} |")

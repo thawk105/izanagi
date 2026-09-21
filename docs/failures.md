@@ -367,6 +367,8 @@
   型の状態語は D 台帳で検索」と同じ手順を参照語にも当てる)、前 wave の条件 (同一 SHA 等) を次の wave に継承させない。
 
 - **再発: 2026-09-21 (near miss、2 件)** — 受領証の再利用診断 wave の親が、(1) checker の版と実装形式 (旧形 / 中間形 / 新形) の対応表を**一次資料から機械で導出せず手で書いて** Codex author の prompt に埋め、probe がそれを忠実に実装した結果、T-2804 枝の 2 版 (`89a60a88…` / `65476daf…`) が新形に分類され、参考母集団 3 件の cause が誤った (親が後から checker の中身を実測して気づき、author 3 巡目で訂正。着地後の母集団の結論は不変)。(2) 同 wave の insight 初稿で「main の checker が変わった回数」を手元の commit 一覧から目で数えて 2 回と書いたが、reflog を読む probe で 3 回だった (T-2804 の land 2026-09-20 23:29:54 を見落とし。段 6 レビューが出所不足として指摘し、probe を 1 本足して訂正)。型はどちらも「一次資料から転写・導出せず手で書く」で 2026-09-20 の再発と同じ。恒久対応は変更なし — **prompt に載せる対応表・分類表は、子が一次資料から導出できる形で渡すか、親が導出した出力 file を射影する** (memory `ruling-literals-in-prompts-point-to-the-file` の族)。
+
+- **再発: 2026-09-21 (near miss、2 件)** — [T-2826] の前 wave (entry 1800) の親が、段 5 author の prompt に段 4 裁定 §4 の判定式を**手で要約して**書いた。(1) R8 の候補抽出で裁定の「session の作成時刻」を「dir の mtime を近似に使ってよい」に置き換え、(2) R6 (ii) の予測から「worker の待ちが伸びる」を落とした。再開 wave (`dev-wave-t2826-resume`) は起動引数どおりこの prompt を雛形にして wave 固有値だけを差し替えたため、集計器がその要約どおりに実装された。段 6 の read-only review が must-fix 2 件として捕捉した。親が作成時刻 (stat の birth time) で全 2,207 session を再照合して全セル候補 0、R6 は 3 条件で出し直して的中のままで、結論への実害は無い。転写元が裁定 file の逐語でなく親の要約である点で、2026-09-20 [T-2804] の再発 (裁定の literal を prompt へ手打ち) と同型。一次資料 `output/insights/2026-09-21/t2826-modify-timing-resume/README.md` §8、同 `verbatim/s6-review-out.md` 所見 1・2。恒久対応は変更なし — memory `ruling-literals-in-prompts-point-to-the-file` (判定式・定数・文面は裁定 file を正本と指し、逐語は file から機械的に切り出す) を、前 wave の prompt を雛形に流用する再開 wave にも当て、判定式の節は投入前に裁定 file の逐語と照合する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の

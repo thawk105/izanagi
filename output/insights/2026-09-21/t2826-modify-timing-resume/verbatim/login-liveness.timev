@@ -1,0 +1,23 @@
+	Command being timed: "bash /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2826-resume/probe/t2826_modify_timing_probe.sh"
+	User time (seconds): 236.10
+	System time (seconds): 77.29
+	Percent of CPU this job got: 95%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 5:28.07
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1263904
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 3889
+	Minor (reclaiming a frame) page faults: 10136675
+	Voluntary context switches: 1382323
+	Involuntary context switches: 24962
+	Swaps: 0
+	File system inputs: 4889888
+	File system outputs: 118200
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

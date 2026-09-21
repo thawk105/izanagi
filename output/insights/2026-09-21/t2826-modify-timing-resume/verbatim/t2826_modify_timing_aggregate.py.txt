@@ -1,0 +1,659 @@
+#!/usr/bin/env python3.10
+"""Aggregate Job A without importing the checkout or executing pytest."""
+import argparse
+import hashlib
+from datetime import datetime
+import json
+import math
+from pathlib import Path
+import re
+import statistics
+import xml.etree.ElementTree as ET
+
+CELLS = ('warm', 'S1-a', 'S2f-a', 'S3u-a', 'S3f-a', 'S3cf-a',
+         'S3cf-b', 'S3f-b', 'S3u-b', 'S2f-b', 'S1-b')
+A_KEYS = ('t_import', 'configure', 'sessionstart', 'collection_entry', 'collection_exit',
+          'first_itemcollected', 'last_itemcollected', 'cf_entry', 'cf_exit', 'sessionfinish')
+CPU_KEYS = ('thread_user', 'thread_sys', 'process_user', 'process_sys')
+
+
+def read(path):
+    try:
+        return path.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return ''
+
+
+def number(value):
+    try:
+        n = float(value)
+        return n if math.isfinite(n) else None
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+def difference(a, b):
+    return a - b if a is not None and b is not None else None
+
+
+def summary(values):
+    values = [v for v in values if v is not None]
+    return {'min': min(values), 'median': statistics.median(values), 'max': max(values)} if values else {
+        'min': None, 'median': None, 'max': None}
+
+
+def all_max(values):
+    return max(values) if values and all(v is not None for v in values) else None
+
+
+def mean_pair(values):
+    return statistics.mean(values) if len(values) == 2 and all(v is not None for v in values) else None
+
+
+def timing(path):
+    for line in reversed(read(path).splitlines()):
+        parts = line.split()
+        if len(parts) == 4 and all(number(p) is not None for p in parts):
+            return dict(zip(('wall', 'user', 'sys', 'maxrss'), map(float, parts)))
+    return dict.fromkeys(('wall', 'user', 'sys', 'maxrss'))
+
+
+def epoch(data, key):
+    value = data.get('times', {}).get(key, {})
+    return number(value.get('epoch')) if isinstance(value, dict) else None
+
+
+def perf(data, key):
+    value = data.get('times', {}).get(key, {})
+    return number(value.get('perf')) if isinstance(value, dict) else None
+
+
+def lustre(path):
+    raw = read(path)
+    if not raw or 'lustre_stats=unreadable' in raw:
+        return None
+    section = None
+    counts = {}
+    for line in raw.splitlines():
+        if line.startswith('### '):
+            section = line[4:]
+        elif section:
+            match = re.match(r'^(\S+)\s+(\d+)\s+samples\b', line)
+            if match:
+                counts[section + ':' + match[1]] = int(match[2])
+    return counts or None
+
+
+def lustre_delta(before, after):
+    if before is None or after is None:
+        return None
+    # Include every llite/mdc operation; preserve device identities and resets.
+    return {k: (after[k] - before[k] if k in before and k in after and after[k] >= before[k] else None)
+            for k in sorted(before.keys() | after.keys())}
+
+
+def loadavg(path):
+    values = read(path).split()
+    return [number(v) for v in values[:3]] if len(values) >= 3 else None
+
+
+def memory(path):
+    match = re.search(r'MemAvailable:\s*(\d+)', read(path))
+    return int(match[1]) if match else None
+
+
+def junit_timestamp(path, missing):
+    try:
+        root = ET.parse(path).getroot()
+        suite = root if root.tag == 'testsuite' else root.find('.//testsuite')
+        if suite is None:
+            raise ValueError('testsuite absent')
+        timestamp = suite.attrib['timestamp']
+        parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            raise ValueError('timezone absent')
+        return timestamp, parsed.timestamp()
+    except (OSError, ET.ParseError, KeyError, ValueError, TypeError, OverflowError) as exc:
+        missing.append('junit timestamp: ' + str(exc))
+        return None, None
+
+
+def log_records(directory, prefix, missing):
+    records = []
+    for filename in ('out', 'err'):
+        for line in read(directory / filename).splitlines():
+            if prefix not in line:
+                continue
+            raw = line.split(prefix, 1)[1].strip()
+            try:
+                records.append({'source': filename, 'value': json.loads(raw)})
+            except ValueError:
+                missing.append('malformed ' + prefix.strip() + ' in ' + filename)
+                records.append({'source': filename, 'raw': raw})
+    return records
+
+
+def canonical_hash(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                     ensure_ascii=False).encode()).hexdigest()
+
+
+def json_object(path, missing):
+    try:
+        value = json.loads(read(path))
+        if not isinstance(value, dict):
+            raise ValueError('object required')
+        return value
+    except (ValueError, TypeError) as exc:
+        missing.append(str(path.name) + ': ' + str(exc))
+        return {}
+
+
+def span(row):
+    return difference(number(row.get('end', {}).get('perf')),
+                      number(row.get('start', {}).get('perf')))
+
+
+def total(rows):
+    values = [span(row) for row in rows]
+    return sum(values) if all(v is not None for v in values) else None
+
+
+def cpu_total(rows):
+    values = []
+    for row in rows:
+        a, b = row.get('start', {}).get('cpu'), row.get('end', {}).get('cpu')
+        if not isinstance(a, list) or not isinstance(b, list) or len(a) != 4 or len(b) != 4:
+            return dict.fromkeys(CPU_KEYS)
+        if any(number(x) is None for x in a + b):
+            return dict.fromkeys(CPU_KEYS)
+        values.append([y-x for x, y in zip(a, b)])
+    return {k: sum(v[i] for v in values) for i, k in enumerate(CPU_KEYS)}
+
+
+def decompose(w):
+    """Exclusive leaves; inclusive totals never enter the closure sum twice."""
+    b = w.get('b', {})
+    intervals, hot, bounds = (b.get(k, {}) for k in ('intervals', 'hot', 'bounds'))
+    leaves, inclusive, cpu, missing = {}, {}, {}, []
+    def duration(key, required=True):
+        rows = intervals.get(key, [])
+        if required and not rows:
+            missing.append('B interval ' + key)
+            return None
+        value = total(rows)
+        if any(number(row.get(side, {}).get('epoch')) is None
+               for row in rows for side in ('start', 'end')):
+            missing.append('B epoch endpoints ' + key)
+        if any(row.get('exception', 'missing') is not None for row in rows):
+            missing.append('B interval exception ' + key)
+        if value is None:
+            missing.append('B endpoints ' + key)
+        return value
+    def h(key):
+        value = number(hot.get(key, {}).get('wall'))
+        if value is None or number(hot.get(key, {}).get('count')) is None:
+            missing.append('B hot ' + key)
+        return value
+    def subtract(value, *parts):
+        return value - sum(parts) if value is not None and all(x is not None for x in parts) else None
+    for key in ('modify_entry', 'modify_exit', 'selection_start', 'state_start', 'state_end'):
+        if any(number(bounds.get(key, {}).get(k)) is None for k in ('epoch', 'perf')):
+            missing.append('B boundary ' + key)
+    leaves['E0'] = difference(number(bounds.get('modify_entry', {}).get('perf')), perf(w, 'last_itemcollected'))
+    leaves['E4'] = difference(perf(w, 'cf_entry'), number(bounds.get('modify_exit', {}).get('perf')))
+    if leaves['E0'] is None or leaves['E4'] is None:
+        missing.append('B A/perf endpoints')
+    for name, start, end in (('selection', 'selection_start', 'state_start'), ('state', 'state_start', 'state_end')):
+        row = {'start': bounds.get(start, {}), 'end': bounds.get(end, {})}
+        inclusive[name] = span(row)
+        cpu[name] = cpu_total([row])
+    for name in ('records_from_items', 'allocate'):
+        inclusive[name] = duration(name)
+        cpu[name] = cpu_total(intervals.get(name, []))
+    hooks = b.get('hooks', [])
+    if not hooks:
+        missing.append('B hook inventory')
+    deselected = 0.0
+    seen_cf = seen_shard = False
+    for impl in hooks:
+        key = impl['key']
+        segments = [key + '.pre', key + '.post'] if impl.get('wrapper') or impl.get('hookwrapper') else [key]
+        # A deselected hook may legitimately not run when no items are removed.
+        required = impl['hook'] == 'pytest_collection_modifyitems'
+        values = [duration(s, required) for s in segments]
+        value = sum(values) if all(v is not None for v in values) else None
+        inclusive[key] = value
+        if impl['hook'] == 'pytest_deselected':
+            # Calls made by another modify impl are already inside that leaf.
+            selected_rows = [r for s in segments for r in intervals.get(s, [])
+                             if r.get('in_selection') is True]
+            selected_value = total(selected_rows)
+            deselected = None if selected_value is None or deselected is None else deselected + selected_value
+        elif impl.get('conftest'):
+            seen_cf = True
+            leaves['conftest_pre'] = values[0]
+            post = values[-1] if len(values) == 2 else None
+            for label, func in (('validate', '_validate_real_repo_shard_state'),
+                                ('strip', '_strip_real_repo_loadgroup_suffix'),
+                                ('reorder', '_reorder_acceptance_items_by_duration')):
+                leaves['conftest_' + label] = h(func)
+            leaves['conftest_post_rest'] = subtract(post, *(leaves['conftest_' + k] for k in ('validate', 'strip', 'reorder')))
+            for suffix in ('pre', 'post'):
+                cpu['conftest_' + suffix] = cpu_total(intervals.get(key + '.' + suffix, []))
+        elif impl.get('shard'):
+            seen_shard = True
+            inclusive['shard'] = value
+            cpu['shard'] = cpu_total(intervals.get(key, []))
+        else:
+            leaves['other:' + key] = value
+    if not seen_cf or not seen_shard:
+        missing.append('B conftest/shard hook absent')
+    for phase in ('1', '2'):
+        leaves['resolve.' + phase] = h('resolve.' + phase)
+        leaves['canonical_rest.' + phase] = subtract(h('canonical.' + phase), leaves['resolve.' + phase])
+    leaves['records_rest'] = subtract(inclusive['records_from_items'], h('canonical.1'))
+    leaves['allocate'] = inclusive['allocate']
+    leaves['deselected'] = deselected
+    leaves['selection_rest'] = subtract(inclusive['selection'], h('canonical.2'), deselected)
+    leaves['state'] = inclusive['state']
+    leaves['shard_rest'] = subtract(inclusive.get('shard'), *(inclusive[k] for k in ('records_from_items', 'allocate', 'selection', 'state')))
+    for name, values in cpu.items():
+        if any(v is None for v in values.values()):
+            missing.append('B CPU boundary ' + name)
+    modify = difference(perf(w, 'cf_entry'), perf(w, 'last_itemcollected'))
+    residual = subtract(modify, *leaves.values())
+    return {'leaves': leaves, 'inclusive': inclusive, 'cpu': cpu, 'hot': hot,
+            'modify': modify, 'residual': residual, 'missing': missing}
+
+
+def cell(directory):
+    name = directory.name
+    stage, _, half = name.partition('-')
+    missing, reasons = [], []
+    fields = dict(line.split('=', 1) for line in read(directory / 'cell.txt').splitlines() if '=' in line)
+    r = {'cell': name, 'stage': stage, 'half': half, 'missing': missing, 'invalid_reasons': reasons,
+         **{k: number(fields.get(k)) for k in ('rc', 'start_epoch', 'end_epoch', 'others', 'stale_pytest')},
+         'tmpdir': fields.get('tmpdir'), 'cell_metadata': fields, **timing(directory / 'time.txt'),
+         'loadavg_before': loadavg(directory / 'loadavg-before.txt'),
+         'loadavg_after': loadavg(directory / 'loadavg-after.txt'),
+         'MemAvailable_before_kB': memory(directory / 'mem-before.txt'),
+         'MemAvailable_after_kB': memory(directory / 'mem-after.txt'),
+         'lustre_count_delta': lustre_delta(lustre(directory / 'lustre-before.txt'), lustre(directory / 'lustre-after.txt'))}
+    raw_metadata = read(directory / 'cell.txt')
+    r['memo_files'] = (raw_metadata.split('memo_files_begin\n', 1)[1].split('memo_files_end', 1)[0].splitlines()
+                       if 'memo_files_begin\n' in raw_metadata else None)
+    if r['rc'] != 0:
+        reasons.append('rc is not 0')
+    if r['lustre_count_delta'] is None:
+        missing.append('Lustre stats absent/unreadable')
+    if stage == 'warm':
+        r['valid'] = not reasons
+        return r
+    p = json_object(directory / 'probe.json', missing)
+    r['probe'] = p
+    _, j = junit_timestamp(directory / 'junit.xml', missing)
+    workers, nodes = p.get('workers', {}), p.get('nodes', {})
+    n = number(fields.get('workers')) or p.get('config', {}).get('numprocesses') or 48
+    f, cf, shard = stage in ('S2f', 'S3f', 'S3cf'), stage == 'S3cf', stage.startswith(('S2', 'S3'))
+    if p.get('schema_version') != 't2826-probe/v1':
+        reasons.append('probe schema')
+    if p.get('complete') is not True or len(workers) != n or n <= 0:
+        reasons.append('complete/worker count')
+    if p.get('func_timers') is not f or p.get('resolve_memo') is not cf:
+        reasons.append('instrument flags')
+    if p.get('collection_mismatch') is not False:
+        reasons.append('collection mismatch/unknown')
+    if p.get('errors') != []:
+        reasons.append('probe errors/missing')
+    if j is None:
+        reasons.append('junit timestamp')
+    for key in ('t_import', 'configure', 'collection_entry', 'collection_exit', 'sessionstart', 'all_collected', 'collection_checked', 'first_nodedown', 'sessionfinish'):
+        if epoch(p, key) is None:
+            reasons.append('controller A ' + key)
+    if set(nodes) != set(workers):
+        reasons.append('node payload set')
+    decomposition = {}
+    waits = []
+    for wid, w in workers.items():
+        if not isinstance(w, dict):
+            reasons.append(wid + ': invalid payload')
+            continue
+        absent = [k for k in A_KEYS if epoch(w, k) is None or perf(w, k) is None]
+        if absent:
+            reasons.append(wid + ': A ' + ','.join(absent))
+        if w.get('errors') != [] or w.get('exitstatus') != 0:
+            reasons.append(wid + ': worker errors/exit')
+        if w.get('func_timers') is not f or w.get('resolve_memo') is not cf:
+            reasons.append(wid + ': instrument flags')
+        node = nodes.get(wid, {})
+        if node.get('error', 'missing') is not None:
+            reasons.append(wid + ': node error/missing')
+        if any(number(node.get(k, {}).get('epoch')) is None for k in ('configure', 'collection_entry', 'collection_exit', 'nodedown')):
+            reasons.append(wid + ': node A')
+        calls = [c for c in w.get('calls', []) if c.get('name') == '_wait_early_memo_job']
+        good = [c for c in calls if all(number(c.get(k)) is not None for k in ('start_epoch', 'end_epoch', 'return_epoch')) and c.get('exception') is None]
+        if shard and (not good or len(good) != len(calls)):
+            reasons.append(wid + ': C worker wait')
+        waits.extend(c['end_epoch'] - c['start_epoch'] for c in good)
+        if shard and any(w.get(k) is None for k in ('records_digest', 'selected_digest', 'selected_count', 'collection_finished_epoch_s')):
+            reasons.append(wid + ': shard state')
+        if f:
+            decomposition[wid] = decompose(w)
+            reasons.extend(wid + ': ' + s for s in decomposition[wid]['missing'])
+    publications = []
+    for name in ('_prewarm_receipt_memo', '_prewarm_oracle_environment_memo'):
+        values = [number(c.get('return_epoch')) for c in p.get('calls', [])
+                  if c.get('name') == name and c.get('early') is True and c.get('exception') is None]
+        publications.append(all_max(values))
+    if shard and any(v is None for v in publications):
+        reasons.append('C early publication missing')
+    r['xdist'] = {'junit_epoch': j, 'M': difference(all_max(publications), j),
+                  'pre_junit': difference(all_max([epoch(w, 'cf_exit') for w in workers.values()]), j),
+                  'pre_entry': difference(all_max([epoch(w, 'cf_entry') for w in workers.values()]), j),
+                  'pre_plugin': difference(all_max([number(w.get('collection_finished_epoch_s')) for w in workers.values()]), j),
+                  'worker_wait': summary(waits), 'memo_calls': p.get('calls', []),
+                  'memo': log_records(directory, 'IZANAGI_MEMO_PREWARM_V1 ', missing),
+                  'effective_scheduler': log_records(directory, 'IZANAGI_EFFECTIVE_SCHEDULER_V1 ', missing)}
+    x = r['xdist']
+    for label, end, start in (('collect', 'last_itemcollected', 'collection_entry'),
+                               ('modify', 'cf_entry', 'last_itemcollected'), ('wait', 'cf_exit', 'cf_entry')):
+        x[label] = summary([difference(perf(w, end), perf(w, start)) for w in workers.values()])
+    for key in ('all_collected', 'first_nodedown', 'sessionfinish'):
+        x[key] = difference(epoch(p, key), epoch(p, 'sessionstart'))
+    starts = [epoch(w, 'sessionstart') for w in workers.values()]
+    x['spawn'] = difference(min(starts), epoch(p, 'sessionstart')) if starts and all(v is not None for v in starts) else None
+    r['decomposition'] = decomposition
+    r['report_hashes'] = {}
+    if shard:
+        report = json_object(directory / 'session/shard-0/report.json', missing)
+        for key in ('observed_universe', 'selected'):
+            if not isinstance(report.get(key), list):
+                reasons.append('report missing ' + key)
+            else:
+                r['report_hashes'][key] = canonical_hash(report[key])
+    if shard:
+        reasons.extend(signature(r)[1])
+    r['valid'] = not reasons
+    return r
+
+
+def signature(c):
+    """Check within-cell worker agreement without comparing volatile payloads."""
+    p = c.get('probe', {})
+    workers, nodes = p.get('workers', {}), p.get('nodes', {})
+    sig, reasons = {}, []
+    for key in ('records_digest', 'selected_digest'):
+        values = [n.get('shard', {}).get(key) for n in nodes.values()]
+        if not values or any(not isinstance(v, str) or not v for v in values) or len(set(values)) != 1:
+            reasons.append('nonunique/missing ' + key)
+        else:
+            sig[key] = values[0]
+        if set(nodes) != set(workers) or any(w.get(key) != nodes.get(wid, {}).get('shard', {}).get(key)
+                                            for wid, w in workers.items()):
+            reasons.append('worker/node ' + key)
+    gw = nodes.get('gw0', {}).get('shard', {})
+    for key, reportkey in (('records', 'observed_universe'), ('selected', 'selected')):
+        value, report = gw.get(key + '_sha256'), c.get('report_hashes', {}).get(reportkey)
+        if not value or not report or value != report:
+            reasons.append('gw0/report ' + key)
+        sig[key], sig['report_' + key] = value, report
+        sig[key + '_count'] = gw.get(key + '_count')
+        if type(sig[key + '_count']) is not int:
+            reasons.append('missing count ' + key)
+    return sig, reasons
+
+
+def safe_cell(directory):
+    # Corrupt or incomplete JSON is a missing observation, never a speed sample.
+    try:
+        return cell(directory)
+    except (TypeError, ValueError, KeyError, AttributeError, IndexError) as exc:
+        stage, _, half = directory.name.partition('-')
+        return {'cell': directory.name, 'stage': stage, 'half': half, 'valid': False,
+                'invalid_reasons': ['malformed payload: ' + str(exc)], 'missing': [],
+                'rc': None, 'wall': None, 'lustre_count_delta': None}
+
+
+def equivalence(cells):
+    reasons, signatures = [], []
+    for c in cells:
+        sig, errors = signature(c)
+        if not c.get('valid'):
+            errors.append('base invalid')
+        reasons.extend(c['cell'] + ': ' + error for error in errors)
+        signatures.append(sig)
+    if len(cells) != 3 or any(s != signatures[0] for s in signatures[1:]):
+        reasons.append('cross-cell signature mismatch/missing cells')
+    return {'pass': not reasons, 'reasons': reasons, 'signatures': signatures}
+
+
+def closure(c):
+    rows = c.get('decomposition', {})
+    residuals = [r['residual'] for r in rows.values()]
+    median_modify = summary([r['modify'] for r in rows.values()])['median']
+    absolute = summary([abs(v) for v in residuals if v is not None])['median']
+    threshold = max(2, .05 * median_modify) if median_modify is not None else None
+    workers = c.get('probe', {}).get('workers', {})
+    candidates = [wid for wid in rows if epoch(workers.get(wid, {}), 'cf_entry') is not None]
+    slowest = max(candidates, key=lambda wid: epoch(workers[wid], 'cf_entry')) if candidates else None
+    return {'pass': absolute <= threshold if absolute is not None and threshold is not None and all(v is not None for v in residuals) else None,
+            'median_abs_residual': absolute, 'threshold': threshold, 'residual_distribution': summary(residuals),
+            'W_worker': slowest, 'W_worker_residual': rows[slowest]['residual'] if slowest else None,
+            'workers': rows}
+
+
+def structure(x):
+    pre, w, m = (x.get(k) for k in ('pre_junit', 'pre_entry', 'M'))
+    residual = pre - max(w, m) if all(v is not None for v in (pre, w, m)) else None
+    return {'residual_pre': residual, 'pass': abs(residual) <= 2 if residual is not None else None,
+            'wait': x.get('wait'), 'worker_wait': x.get('worker_wait')}
+
+
+def prediction(base, cf):
+    fit = structure(cf)['pass']
+    dw = difference(base.get('pre_entry'), cf.get('pre_entry'))
+    dp = difference(base.get('pre_junit'), cf.get('pre_junit'))
+    w, m = cf.get('pre_entry'), cf.get('M')
+    if any(v is None for v in (w, m, dw, dp)):
+        return {'pass': None, 'branch': None}
+    if w < m:
+        wait_delta = difference(cf.get('wait', {}).get('median'), base.get('wait', {}).get('median'))
+        timing = dp < dw and abs(cf['pre_junit'] - m) <= 2
+        return {'pass': bool(fit and timing),
+                'branch': 'memo-limited', 'timing_pass': timing, 'wait_median_delta': wait_delta,
+                'wait_increased': wait_delta > 0 if wait_delta is not None else None}
+    return {'pass': bool(fit and abs(dp-dw) <= 2), 'branch': 'worker-limited', 'delta_pre_minus_delta_W': dp-dw}
+
+
+def overlap(c, root):
+    result = {'status': '不明', 'candidates': [], 'mtime_is_creation_proxy': True}
+    start, end = c.get('start_epoch'), c.get('end_epoch')
+    if start is None or end is None:
+        return result
+    try:
+        dirs = list(root.iterdir())
+    except OSError as exc:
+        result['error'] = str(exc)
+        return result
+    unknown = False
+    for path in dirs:
+        try:
+            if not path.is_dir() or not start-900 <= path.stat().st_mtime <= end:
+                continue
+            shards = list(path.glob('shard-*'))
+        except OSError:
+            unknown = True
+            continue
+        entry = {'session': str(path), 'status': '不明', 'shards': []}
+        for shard in shards:
+            missing = []
+            _, a = junit_timestamp(shard / 'junit.xml', missing)
+            report = json_object(shard / 'report.json', missing)
+            timeline = report.get('session_timeline')
+            b = number(timeline.get('collection_finished_epoch_s')) if isinstance(timeline, dict) else None
+            status = '不明' if a is None or b is None or b < a else ('重複あり' if a <= end and b >= start else 'なし')
+            entry['shards'].append({'start': a, 'end': b, 'status': status, 'missing': missing})
+        states = [s['status'] for s in entry['shards']]
+        entry['status'] = '重複あり' if '重複あり' in states else ('不明' if not states or '不明' in states else 'なし')
+        unknown |= entry['status'] == '不明'
+        result['candidates'].append(entry)
+    result['status'] = '重複あり' if any(s['status'] == '重複あり' for s in result['candidates']) else ('不明' if unknown else 'なし')
+    return result
+
+
+def aggregate(root, acceptance_root=None):
+    cells = [safe_cell(root / name) for name in CELLS]
+    by = {c['cell']: c for c in cells}
+    out = {'cells': cells, **{'R' + str(i): {} for i in range(1, 9)}}
+    for half in ('a', 'b'):
+        group = [by[s + '-' + half] for s in ('S3cf', 'S3f', 'S3u')]
+        result = equivalence(group)
+        out['R4'][half] = result
+        if not result['pass']:
+            group[0]['invalid_reasons'].append('R4 failed: ' + '; '.join(result['reasons']))
+            group[0]['valid'] = False
+    for c in cells:
+        name = c['cell']
+        if not c['valid'] or c['stage'] == 'warm':
+            continue
+        x = c['xdist']
+        if c['decomposition']:
+            out['R1'][name] = closure(c)
+            rows = list(c['decomposition'].values())
+            med = x['modify']['median']
+            leaves = {key: summary([r['leaves'].get(key) for r in rows]) for key in rows[0]['leaves']}
+            for v in leaves.values():
+                v['share'] = v['median']/med if v['median'] is not None and med else None
+                v['max_share'] = v['max']/x['modify']['max'] if v['max'] is not None and x['modify']['max'] else None
+            cpu = {key: {metric: {'median': summary([r['cpu'][key][metric] for r in rows])['median'],
+                                  'sum_workers': sum(r['cpu'][key][metric] for r in rows) if all(r['cpu'][key][metric] is not None for r in rows) else None}
+                         for metric in CPU_KEYS} for key in rows[0]['cpu']}
+            out['R2'][name] = {'leaves': leaves, 'cpu': cpu, 'worker_count': len(rows),
+                              'inclusive': {key: summary([r['inclusive'].get(key) for r in rows]) for key in rows[0]['inclusive']},
+                              'hot': {key: {metric: summary([r['hot'].get(key, {}).get(metric) for r in rows])
+                                            for metric in ('wall', 'count', 'hit', 'miss')} for key in rows[0]['hot']}}
+        if c['stage'].startswith(('S2', 'S3')):
+            out['R6'][name] = structure(x)
+        delta = c['lustre_count_delta']
+        intent = {k: v for k, v in (delta or {}).items() if k.endswith('md_stats:intent_lock')}
+        out['R7'][name] = {'intent_lock_devices': intent,
+                          'intent_lock': sum(intent.values()) if intent and all(v is not None for v in intent.values()) else None,
+                          'process_group_user': c['user'], 'process_group_sys': c['sys']}
+    f_names = ('S2f-a', 'S2f-b', 'S3f-a', 'S3f-b')
+    out['principal_leaves'] = [key for key in out['R2'].get('S2f-a', {}).get('leaves', {})
+                               if all((out['R2'].get(name, {}).get('leaves', {}).get(key, {}).get('share') or 0) >= .5 for name in f_names)]
+    def metrics(name):
+        c = by[name]
+        return c.get('xdist', {}) if c['valid'] else {}
+    def deltas(a, b):
+        return {'delta_W': difference(a.get('pre_entry'), b.get('pre_entry')),
+                'delta_modify': difference(a.get('modify', {}).get('median'), b.get('modify', {}).get('median')),
+                'delta_pre': difference(a.get('pre_junit'), b.get('pre_junit')),
+                'delta_M': difference(a.get('M'), b.get('M'))}
+    for half in ('a', 'b'):
+        f, u, cf = (metrics(s + '-' + half) for s in ('S3f', 'S3u', 'S3cf'))
+        d = deltas(f, u)
+        values = [d[k] for k in ('delta_W', 'delta_modify', 'delta_pre')]
+        d['pass'] = all(abs(v) <= 2 for v in values) if all(v is not None for v in values) else None
+        out['R3'][half] = d
+        out['R5'][half] = deltas(f, cf)
+        out['R6']['prediction-' + half] = prediction(f, cf)
+    if acceptance_root is not None:
+        for c in cells:
+            out['R8'][c['cell']] = overlap(c, acceptance_root)
+        out['R8']['repeat_halves_once_same_order'] = [h for h in ('a', 'b') if any(out['R8'][s + '-' + h]['status'] == '重複あり' for s in ('S3f', 'S3cf'))]
+    out['missing'] = {c['cell']: c['missing'] + c['invalid_reasons'] for c in cells if c['missing'] or c['invalid_reasons']}
+    return out
+
+
+def display(value):
+    if value is None:
+        return 'n/a'
+    if isinstance(value, float):
+        return f'{value:.6f}'
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False).replace('null', '"n/a"').replace('|', '\\|')
+    return str(value).replace('|', '\\|').replace('\n', ' ')
+
+
+def table(headers, rows):
+    return '\n'.join(['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join('---' for _ in headers) + ' |'] +
+                     ['| ' + ' | '.join(display(v) for v in row) + ' |' for row in rows])
+
+
+def markdown(data):
+    cells = data['cells']
+    out = ['## cell 表', '時間は秒。欠測は n/a。無効セルは比較から除外する。',
+           table(['cell', 'rc', 'valid', 'wall', 'pre_junit', 'W_w (pre_entry)', 'M', 'pre_plugin', 'collect', 'modify', 'wait', 'spawn'],
+                 [[c['cell'], c['rc'], c['valid'], c['wall'],
+                   *[c.get('xdist', {}).get(k) for k in ('pre_junit', 'pre_entry', 'M', 'pre_plugin', 'collect', 'modify', 'wait', 'spawn')]] for c in cells]),
+           table(['cell', 'others', 'stale_pytest', 'load before/after', 'MemAvailable kB before/after', 'TMPDIR', 'memo files'],
+                 [[c['cell'], c.get('others'), c.get('stale_pytest'),
+                   [c.get('loadavg_before'), c.get('loadavg_after')],
+                   [c.get('MemAvailable_before_kB'), c.get('MemAvailable_after_kB')],
+                   c.get('tmpdir'), c.get('memo_files')] for c in cells]),
+           table(['cell', 'all_collected', 'first_nodedown', 'sessionfinish', 'memo rows', 'scheduler'],
+                 [[c['cell'], *[c.get('xdist', {}).get(k) for k in
+                    ('all_collected', 'first_nodedown', 'sessionfinish', 'memo', 'effective_scheduler')]] for c in cells]),
+           'controller 時間は sessionstart 起点。worker 個別時刻・config・node 通知境界は JSON の cells/probe に保持。',
+           '## 有効性', table(['cell', 'invalid_reasons'], [[c['cell'], c['invalid_reasons']] for c in cells]),
+           '## R1', table(['cell', '閉包', 'median(abs(residual))', 'threshold', 'residual min/median/max', 'W worker', 'W residual'],
+                 [[name, *[r.get(k) for k in ('pass', 'median_abs_residual', 'threshold', 'residual_distribution', 'W_worker', 'W_worker_residual')]]
+                  for name, r in data['R1'].items()]),
+           '閾値 max(2秒, modify median の5%) は診断上の許容値で精度保証ではない。',
+           table(['cell', 'worker', 'modify', 'sum leaves', 'residual'],
+                 [[name, wid, r['modify'], sum(r['leaves'].values()) if all(v is not None for v in r['leaves'].values()) else None, r['residual']]
+                  for name, result in data['R1'].items() for wid, r in result['workers'].items()]),
+           '## R2', table(['cell', 'leaf', 'wall median', 'wall max', 'median share', 'max share'],
+                 [[name, leaf, *[r.get(k) for k in ('median', 'max', 'share', 'max_share')]]
+                  for name, result in data['R2'].items() for leaf, r in result['leaves'].items()]),
+           'inclusive 値（閉包へ重複加算しない）',
+           table(['cell', 'interval', 'wall median', 'wall max'],
+                 [[name, key, r['median'], r['max']] for name, result in data['R2'].items() for key, r in result['inclusive'].items()]),
+           'resolve / canonical と helper の累積値（worker 分布）',
+           table(['cell', 'function/pass', 'count', 'wall', 'hit', 'miss'],
+                 [[name, key, *[r.get(k) for k in ('count', 'wall', 'hit', 'miss')]]
+                  for name, result in data['R2'].items() for key, r in result['hot'].items()]),
+           table(['cell', 'interval', 'CPU metric', 'worker median', 'sum workers', 'workers'],
+                 [[name, key, metric, r['median'], r['sum_workers'], result['worker_count']]
+                  for name, result in data['R2'].items() for key, values in result['cpu'].items() for metric, r in values.items()]),
+           '主因: ' + display(data['principal_leaves']) + '。4つの有効 f セルすべてで share >= 0.5 の葉だけ。該当しなければ最大の区間と呼ぶ。process 群の sys と thread sys 合計は同じ量ではない。',
+           '## R3', table(['half', 'Δmodify median', 'ΔW_w', 'Δpre', '判定閾値内'],
+                 [[h, *[r.get(k) for k in ('delta_modify', 'delta_W', 'delta_pre', 'pass')]] for h, r in data['R3'].items()]),
+           'Δ = f − u。3値とも絶対値 <= 2 秒で閾値内。超過時は計装下の値として扱い、無計装へ外挿しない。',
+           '## R4', table(['half', '集合一致', 'reasons', 'signatures'],
+                 [[h, r['pass'], r['reasons'], r['signatures']] for h, r in data['R4'].items()]),
+           '観測標本の一致であり、一般的同値の証明ではない。',
+           '## R5', table(['half', 'ΔW', 'Δmodify', 'Δpre', 'ΔM'],
+                 [[h, *[r.get(k) for k in ('delta_W', 'delta_modify', 'delta_pre', 'delta_M')]] for h, r in data['R5'].items()]),
+           '主比較 Δ = f − cf。W、modify、pre、M を別々に評価する。',
+           '## R6', table(['cell', '残差_pre (signed)', 'max式適合', 'cf_exit−cf_entry', 'C wait'],
+                 [[name, *[r.get(k) for k in ('residual_pre', 'pass', 'wait', 'worker_wait')]] for name, r in data['R6'].items() if not name.startswith('prediction-')]),
+           table(['half', '予測'], [[name, r] for name, r in data['R6'].items() if name.startswith('prediction-')]),
+           'M は early=True の receipt/oracle 正常復帰の最大（公開の近似）。M の変化原因は識別しない。2 秒は適合判定閾値。待ちの伸長も別掲する。',
+           table(['cell', 'memo/barrier boundaries'], [[c['cell'], c.get('xdist', {}).get('memo_calls')] for c in cells]),
+           '## R7', table(['cell', 'intent_lock delta', 'devices', 'process group user', 'process group sys'],
+                 [[name, *[r.get(k) for k in ('intent_lock', 'intent_lock_devices', 'process_group_user', 'process_group_sys')]] for name, r in data['R7'].items()]),
+           table(['cell', 'Lustre full delta'], [[c['cell'], c['lustre_count_delta']] for c in cells]),
+           '## R8', table(['cell/half', '外乱'], list(data['R8'].items())) if data['R8'] else 'n/a (--acceptance-root 未指定)',
+           '候補抽出では directory mtime を作成時刻の近似に使用。他 node・他ユーザーの MDS 負荷は検知できない。重複した half は同順の5セルを別 job で1度だけ再測定し、再重複なら結論を限定する。',
+           '## 欠測', table(['cell', '欠測'], list(data['missing'].items())),
+           '順序反転2走は記述的診断。外乱除去・効果確立の証明ではない。T-2817 は tip と台帳差 (+15,645 / −13,419 行) があり参照に留める。']
+    return '\n\n'.join(out) + '\n'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('out_root', type=Path)
+    parser.add_argument('--markdown', required=True, type=Path)
+    parser.add_argument('--json', required=True, type=Path)
+    parser.add_argument('--acceptance-root', type=Path)
+    args = parser.parse_args()
+    data = aggregate(args.out_root, args.acceptance_root)
+    args.json.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+    args.markdown.write_text(markdown(data), encoding='utf-8')
+
+
+if __name__ == '__main__':
+    main()
