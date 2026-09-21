@@ -1,0 +1,16 @@
+{
+  "condition": "B",
+  "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2825-ledger-refresh-ab",
+  "sha": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "head_before": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "head_after": "26387b617cd75d1786cbf4b44958e6c516338b39",
+  "clean_before": true,
+  "clean_after": true,
+  "pyc_before": 398,
+  "pyc_after": 398,
+  "dispatch_request": "[Pegasus dispatch] request ID 14739.nqsv \u3092\u53d7\u7406\u3057\u307e\u3057\u305f",
+  "PYTHONDONTWRITEBYTECODE": "",
+  "started_at": "2026-09-21T00:52:00.623686+00:00",
+  "finished_at": "2026-09-21T00:52:41.814086+00:00",
+  "rc": 0
+}

@@ -1,0 +1,16 @@
+{
+  "condition": "A",
+  "worktree": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2825-base-a",
+  "sha": "21641fee777d24642d54119b660a7b7880636e71",
+  "head_before": "21641fee777d24642d54119b660a7b7880636e71",
+  "head_after": "21641fee777d24642d54119b660a7b7880636e71",
+  "clean_before": true,
+  "clean_after": true,
+  "pyc_before": 0,
+  "pyc_after": 398,
+  "dispatch_request": "[Pegasus dispatch] request ID 14737.nqsv \u3092\u53d7\u7406\u3057\u307e\u3057\u305f",
+  "PYTHONDONTWRITEBYTECODE": "",
+  "started_at": "2026-09-21T00:48:32.157948+00:00",
+  "finished_at": "2026-09-21T00:51:44.320496+00:00",
+  "rc": 0
+}
