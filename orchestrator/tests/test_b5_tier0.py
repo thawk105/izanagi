@@ -8,10 +8,13 @@ buildcache, evidence/admission, run_once, parsers, sidecar writer or classifier.
 from __future__ import annotations
 
 import ast
+import contextlib
+from dataclasses import replace
 import hashlib
 import inspect
 import json
 import os
+import subprocess
 from pathlib import Path
 import sys
 import textwrap
@@ -141,6 +144,197 @@ def _live_args(tmp_path, monkeypatch):
 
 class _PipelineBoundary(Exception):
     pass
+
+
+@pytest.fixture(params=['legacy', 'v2'])
+def insertion_case(tmp_path, monkeypatch, smoke_environment, request):
+    """Prepare the CLI seam; keep insertion, gateway, writer and driver real."""
+    from orchestrator.campaign import patchharness, p2_2
+    from orchestrator.calibrator import runner
+
+    layout = L.CampaignLayout(str(tmp_path / 'campaign'))
+    sub = tmp_path / 'checkout'
+    source = sub / L.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text('''#pragma once
+// EVOLVE-BLOCK-BEGIN silo-backoff-magnitude
+#if BACKOFF_FIXED >= 0
+double now_backoff = static_cast<double>(BACKOFF_FIXED);
+#else
+double now_backoff = Backoff_.load(std::memory_order_acquire);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-magnitude
+''')
+    sidecar = tmp_path / 'sidecar'
+    sidecar.mkdir()
+    proposal = tmp_path / 'proposal.json'
+    proposal.write_text(json.dumps(B.machine_proposal_document(
+        'random', 20, {'preimage': 'tier0-insertion-fixture'})))
+    site = L.site_policy.OTHER if request.param == 'legacy' else L.site_policy.PEGASUS_COMPUTE
+    contract = replace(L.env_contract.lookup(L._SITE_ENV_TAGS[site]), numactl=())
+    monkeypatch.setattr(L, '_repo_root', lambda: str(tmp_path))
+    monkeypatch.setattr(L, '_current_site', lambda: site)
+    monkeypatch.setattr(L, '_lookup', lambda _tag: contract)
+    monkeypatch.setattr(L, 'exploration_campaign_layout', lambda _cid: layout)
+    monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
+    monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
+    monkeypatch.setattr(patchharness, 'checkout', lambda *_a, **_k: contextlib.nullcontext(str(sub)))
+    monkeypatch.setattr(patchharness, 'applied', lambda *_a: contextlib.nullcontext())
+    monkeypatch.setattr(L, '_require_condition_gate', lambda *_a, **_k: None)
+    case = SimpleNamespace(
+        layout=layout, sidecar=sidecar, builds=[], events=[], gateway=[], outcomes=[],
+        build_error=None, preparation_error=None, preparations=0,
+        api='build' if request.param == 'legacy' else 'build_v2',
+    )
+    binaries = {}
+    captures = {}
+    for trace in (False, True):
+        directory = tmp_path / ('trace' if trace else 'perf')
+        directory.mkdir()
+        # The trace executable leaves its own capture and fails if launched.
+        binaries[trace], captures[trace] = executable(
+            directory, rc=91 if trace else 0, require_lock=True)
+    case.binaries, case.captures = binaries, captures
+
+    def prepare(*_a, **_k):
+        case.preparations += 1
+        if case.preparation_error is not None:
+            raise case.preparation_error
+        return SimpleNamespace(src_token='fixture-source'), object(), 'cc', 'c++'
+
+    def build(api, *_a, trace, **_k):
+        case.builds.append((api, trace))
+        case.events.append('build')
+        if case.build_error is not None:
+            raise case.build_error
+        binary = binaries[trace]
+        return SimpleNamespace(binary=str(binary), trace=trace, cached=False,
+                               bin_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
+
+    monkeypatch.setattr(L, '_b5_tier0_build_inputs', prepare)
+    monkeypatch.setattr(L.buildcache, 'build', lambda *a, **k: build('build', *a, **k))
+    monkeypatch.setattr(L.buildcache, 'build_v2', lambda *a, **k: build('build_v2', *a, **k))
+
+    def campaign(*_a, **_k):
+        case.events.append('campaign')
+        assert (sidecar / 'pipeline-submitted.json').is_file()
+        raise _PipelineBoundary
+
+    monkeypatch.setattr(L, 'run_campaign', campaign)
+    case.args = ['--run-iteration', str(proposal), '--machine-generated-proposal',
+                 '--isolate-worktree', '--calibrated-perf', '--perf-workload', 'balanced',
+                 '--verify-performance', '--b5-slot', 'b5-generator-contrast-v1|tier0-fixture',
+                 '--b5-sidecar-dir', str(sidecar)]
+
+    def observe(frame, event, arg):
+        # Observe real code objects; do not substitute any mechanism under test.
+        code = frame.f_code
+        if code is L._run_b5_tier0_smoke.__code__ and event == 'call':
+            case.events.append('smoke')
+            assert not (sidecar / 'tier0.json').exists()
+            assert not (sidecar / 'pipeline-submitted.json').exists()
+        if code is runner.run_once.__code__ and event == 'call':
+            case.gateway.append(frame.f_locals['binary'])
+        if code is L._write_b5_sidecar.__code__:
+            name = frame.f_locals['name']
+            if name in {'tier0.json', 'pipeline-submitted.json'}:
+                if event == 'call' and name == 'pipeline-submitted.json':
+                    assert json.loads((sidecar / 'tier0.json').read_text())['status'] == 'passed'
+                if event == 'return':
+                    assert (sidecar / name).is_file()
+                    case.events.append(name)
+        if code is L.drive_iteration.__code__ and event == 'return' and arg is not None:
+            case.outcomes.append(dict(arg))
+
+    @contextlib.contextmanager
+    def observing():
+        previous = sys.getprofile()
+        try:
+            sys.setprofile(observe)
+            yield
+        finally:
+            sys.setprofile(previous)
+
+    case.observing = observing
+    return case
+
+
+def test_insertion_build_smoke_sidecar_submission_order(insertion_case):
+    c = insertion_case
+    with c.observing(), pytest.raises(_PipelineBoundary):
+        L.main(c.args)
+    assert c.events == ['build', 'smoke', 'tier0.json', 'pipeline-submitted.json', 'campaign']
+    assert c.preparations == 1
+    assert c.builds == [(c.api, False)]
+    assert c.gateway == [str(c.binaries[False])]
+    assert json.loads(c.captures[False].read_text())['argv'][0] == str(c.binaries[False])
+    assert json.loads(c.captures[False].read_text())['locked'] is True
+    assert not c.captures[True].exists()
+    tier0 = json.loads((c.sidecar / 'tier0.json').read_text())
+    assert (tier0['status'], tier0['reason']) == ('passed', None)
+    assert tier0['build'] == dict(
+        trace=False, binary=str(c.binaries[False]), cached=False,
+        bin_sha256=hashlib.sha256(c.binaries[False].read_bytes()).hexdigest())
+
+
+@pytest.mark.parametrize('failure', ['smoke', 'runtime', 'subprocess'])
+def test_insertion_rejection_rc3_no_submission_wal_or_digest(insertion_case, failure):
+    c = insertion_case
+    if failure == 'smoke':
+        executable(c.binaries[False].parent, rc=7, require_lock=True)
+    else:
+        kind = RuntimeError if failure == 'runtime' else subprocess.SubprocessError
+        c.build_error = kind('fixture build failure')
+    with c.observing():
+        assert L.main(c.args) == 3
+    assert c.builds == [(c.api, False)]
+    assert c.preparations == 1
+    assert c.events == (['build', 'smoke', 'tier0.json'] if failure == 'smoke'
+                        else ['build', 'tier0.json'])
+    assert len(c.outcomes) == 1
+    assert c.outcomes[0]['outcome'] == 'rejected-tier0'
+    assert c.outcomes[0]['critic_digest_generated'] is False
+    tier0 = json.loads((c.sidecar / 'tier0.json').read_text())
+    assert tier0['status'] == 'rejected'
+    assert tier0['reason'] == ('smoke-failed' if failure == 'smoke' else 'build-error')
+    if failure == 'smoke':
+        assert tier0['smoke']['returncode'] == 7
+        assert c.gateway == [str(c.binaries[False])]
+        assert c.captures[False].is_file()
+    else:
+        assert tier0['build'] is None and tier0['smoke'] is None
+        assert tier0['error'] == f'{type(c.build_error).__name__}: {c.build_error}'
+        assert c.gateway == [] and not c.captures[False].exists()
+    assert not c.captures[True].exists()
+    assert not (c.sidecar / 'pipeline-submitted.json').exists()
+    assert not Path(c.layout.root, 's4_loop_digest.txt').exists()
+    assert not Path(c.layout.root, 'runs/wal.jsonl').exists()
+    state = L.load_loop_state(c.layout)
+    assert state.iteration == 1 and state.whiteboard == []
+
+
+@pytest.mark.parametrize('boundary,kind', [
+    pytest.param('build', OSError, id='build-io'),
+    pytest.param('preparation', OSError, id='preparation-io'),
+    pytest.param('preparation', RuntimeError, id='preparation-runtime'),
+    pytest.param('preparation', subprocess.SubprocessError, id='preparation-subprocess'),
+])
+def test_insertion_preparation_and_build_errors_propagate(insertion_case, boundary, kind):
+    c = insertion_case
+    error = kind('fixture boundary failure')
+    setattr(c, 'build_error' if boundary == 'build' else 'preparation_error', error)
+    with c.observing(), pytest.raises(kind) as caught:
+        L.main(c.args)
+    assert caught.value is error
+    assert c.preparations == 1
+    assert c.builds == ([(c.api, False)] if boundary == 'build' else [])
+    assert c.events == (['build'] if boundary == 'build' else [])
+    assert c.gateway == [] and c.outcomes == []
+    assert (c.sidecar / 'slot-start.json').is_file()
+    assert not (c.sidecar / 'tier0.json').exists()
+    assert not (c.sidecar / 'pipeline-submitted.json').exists()
+    assert not Path(c.layout.root, 's4_loop_digest.txt').exists()
+    assert not Path(c.layout.root, 'runs/wal.jsonl').exists()
 
 
 @pytest.mark.usefixtures('_detect_site_under_test')
@@ -295,3 +489,7 @@ def test_non_b5_stock_and_dry_run_do_not_reach_tier0():
     stock = ast.parse(textwrap.dedent(inspect.getsource(L._run_stock_control_resolved)))
     assert [c for c in ast.walk(stock) if isinstance(c, ast.Call)
             and ast.unparse(c.func) in {'_run_b5_tier0_smoke', '_b5_tier0_build_inputs'}] == []
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

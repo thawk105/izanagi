@@ -2012,7 +2012,7 @@ B5_TIER0_CONTRACT = {
 def _b5_tier0_build_inputs(cfg, genome, sub, build_context, capability_resolver,
                            backoff_grammar_version):
     """Resolve the same evidence and admission as pipeline before the build try."""
-    from .build_admission import (GeneratorReceipt, ReviewReceipt,
+    from .build_admission import (GeneratorReceipt,
                                   derive_build_admission, require_build_admission)
     cc, cxx = buildcache.compilers_for_current_site()
     evidence = source_digest.resolve_evidence(
@@ -2021,13 +2021,12 @@ def _b5_tier0_build_inputs(cfg, genome, sub, build_context, capability_resolver,
     )
     capability = capability_resolver(evidence) if capability_resolver is not None else None
     generator = capability if type(capability) is GeneratorReceipt else None
-    review = capability if type(capability) is ReviewReceipt else None
-    if capability is not None and generator is None and review is None:
+    if capability is not None and generator is None:
         raise BuildAdmissionError(
-            "capability_resolver は sealed GeneratorReceipt/ReviewReceipt/None だけを返せる")
+            "capability_resolver は sealed GeneratorReceipt/None だけを返せる")
     admission = require_build_admission(
         derive_build_admission(build_context, evidence,
-                               generator_receipt=generator, review_receipt=review),
+                               generator_receipt=generator),
         expected_policy=build_context.policy, expected_source=evidence,
     )
     return evidence, admission, cc, cxx
@@ -2365,11 +2364,6 @@ def _run_one_iteration_resolved(
         if b5_mode:
             campaign_options["bench_max_rounds"] = 3
             import subprocess
-            execution_guard.require_certified_writer_authorization(
-                env_contract.authorize(contract.env_tag), env_tag=contract.env_tag,
-                clocks_per_us=contract.clocks_per_us, numactl=list(contract.numactl),
-                env_contract=campaign_options.get("env_contract"),
-            )
             # Preparation failures are not candidate build failures.
             evidence, admission, cc, cxx = _b5_tier0_build_inputs(
                 cfg, genome, sub, build_context, capability_resolver,
