@@ -7253,7 +7253,7 @@ def _base_selected_commit(layout, *, prior_failed_attempt=False):
     for tag in ("legacy", "s2"):
         wal.log(layout, variant, STAGE_VERIFY_DONE, L.ENV_TAG,
                 {"build_attempt_id": attempt, "verdict": "serializable",
-                 "certified": True, "workload": {"tag": tag}})
+                 "certified": True, "anomalies": 0, "workload": {"tag": tag}})
     commit_receipt_support.log_receipted_commit(
         layout, variant, L.ENV_TAG,
         {"build_attempt_id": attempt, "fitness_tps": 1.0}, operation_identity=attempt)
