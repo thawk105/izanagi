@@ -223,6 +223,25 @@ repo 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 (稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig9 節を正本とする。
 
+## A-1 balanced5 sized attempt-0002 (対差平均 ± 登録済み区間、`variance_plan_breach` 表示) figure
+
+`plot_a1_sized_paired.py` は attempt ごとの repo 所有 exact pin 表 (`ATTEMPTS`、`attempt-0001` / `attempt-0002` の 2 entry だけ) を持ち、`--attempt` で
+sized 本走の 1 attempt を選んで単独の記述図を描く。attempt-0001 (上の節、fig9) の定数・返り値・caption・描画・既定 CLI は変えていない。2 attempt をプールした図・差・比・
+再現判定を描く経路は持たない (D1993 項 6、D2194 項 6)。
+
+```bash
+python3 tools/plotting/plot_a1_sized_paired.py [--repo-root PATH] [--attempt {attempt-0001,attempt-0002}] OUT_PREFIX
+```
+
+- attempt-0002 の入力は `output/insights/2026-09-13/paper-story-a1-balanced5-sized-attempt-0002/` の 3 file と共通 policy の 4 件で、pin 表で SHA-256 束縛する。
+  pin は CLI から渡せない (D1752、test は `expected_hashes` 注入 seam)。未知の attempt・pin の key 集合の不一致は拒否する。
+- `variance_plan_breach` は両 attempt で述語 (`sd > planned sigma`) との一致を検査する。true の拒否は attempt-0001 だけに残し、attempt-0002 は記録値を写して
+  panel 題の 2・3 行目 (`variance_plan_breach=true|false`、sd と planned sigma の 2 量。比は作らない) に描く。図の上端に「attempt-0001 とプールも比較もしない」旨の 1 行を描く。
+- caption は attempt-0002 用の組み立て (固定文 `Attempt-0001 is neither pooled nor compared with this attempt; ...` と `No cause is attributed to variance_plan_breach.`、
+  lane の 3 値、workload ごとの breach・sd・planned sigma) で、`docs/paper-story/results/2026-09-20-a1-balanced5-sized-attempt2-descriptive.md` を `caption_source` として SHA-256 付きで記録する。
+  provenance は同じ schema に `attempt` を足す (attempt-0001 の provenance には足さない)。
+- 論文図 fig14 の再現コマンド、caption、proof chain は `docs/paper-story/figures/README.md` の fig14 節を正本とする。
+
 ## B-7 fixed 5 µs 三 workload 退行 (床値判定の記述図) figure
 
 `plot_b7_fixed5_regression.py` は、採用候補 fixed 5 µs を 3 workload で同一 attempt に測った study
@@ -479,3 +498,21 @@ repo 外の report phase の投入受領証と job 結果 (`--evidence-root` 配
 出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本 (provenance schema `izanagi-b10-waiting-grid-forest-figure-provenance/v1`。稿
 `docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md` を `caption_source` として SHA-256 付きで記録する)。
 拒否条件・図の形・caption の固定文・再現コマンド・proof chain は `docs/paper-story/figures/README.md` の fig13 節を正本とする。
+
+## stock mocc 軽量 witness 4 arm (G2 signal 検出率・Clopper–Pearson 区間・曝露量) figure
+
+`plot_mocc_witlight_four_arm.py` は、stock mocc の軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4 × 15 round × 4 arm、smoke は含めない、非 certifying・TRACE=1 の観測) の
+G2 signal 検出率と Clopper–Pearson 両側 95% 区間を 1 axes の forest で描き、走あたり commit 数の平均 (曝露量) と on/off 比を数値列で添える専用生成器である。
+既存生成器を import しない (自己完結、matplotlib + numpy + 標準 library。CP と片側 Fisher は標準 library で計算する)。
+
+```bash
+python3 tools/plotting/plot_mocc_witlight_four_arm.py [--repo-root PATH] [--evidence-root PATH] OUT_PREFIX
+```
+
+入力は repo 外の `--evidence-root` (既定 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W`) 配下の `summary.json` と `W1/result.json`〜`W4/result.json` の 5 file だけで、
+生成器の定数 `EXTERNAL_SHA256` で SHA-256 束縛する (CLI から渡せない)。`summary.json.inputs` が W1〜W4 の 4 件と exact に一致することを要求する (smoke を数えない)。
+240 走から k / m / CP / 片側 Fisher / commit 数平均を計算して `summary.json` と照合し、稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` §2 と同じ書式の文字列で描く
+(稿を `caption_source` として SHA-256 付きで記録する)。failure / indeterminate の走は拒否する。図中の注記と caption は、非有意を同等性として、commit 数を性能として、
+G2 signal を根因の同定として書かない。出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本 (provenance schema `izanagi-mocc-witlight-four-arm-figure-provenance/v1`。
+repo 内の閉包 `validate_repo_closure` と外部原本の閉包 `validate_external_sources` を分ける)。拒否条件・図の形・caption の固定文・再現コマンド・proof chain は
+`docs/paper-story/figures/README.md` の fig15 節を正本とする。
