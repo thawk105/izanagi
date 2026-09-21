@@ -1,0 +1,1 @@
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: source_digest: preprocess 出力が空入力の環境 prefix と不一致 — identity を確定できないため fails-closed
