@@ -7237,6 +7237,8 @@ def test_base_provenance_rejects_same_variant_use_distinct_attempts(base_provena
 
 
 def _base_selected_commit(layout):
+    from orchestrator.campaign.model import STAGE_VERIFY_DONE
+
     _write_duplicate_lock(layout)
     variant = "carrier-selected"
     attempt = L.secrets.token_hex(16)
@@ -7275,6 +7277,8 @@ def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
 
 
 def test_base_provenance_keeps_all_attempt_records(tmp_path):
+    from orchestrator.campaign.model import STAGE_VERIFY_DONE
+
     layout = CampaignLayout(str(tmp_path / "all-records")).ensure()
     variant = _base_selected_commit(layout)
     records = wal.read_records(layout)
@@ -7382,7 +7386,7 @@ def test_base_provenance_corrupt_report_stops(base_provenance_case, monkeypatch,
         monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
         case.update(cfg=cfg, do_build=True, _b4_launch_context=_b4_production_context(cfg))
     path = Path(L._provenance_path(layout))
-    path.parent.mkdir()
+    path.parent.mkdir(exist_ok=True)
     path.write_bytes(raw)
     L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
     checkpoint = Path(L.loop_state_path(layout)).read_bytes()
@@ -7482,7 +7486,8 @@ def test_direct_drive_provenance_hash_defaults_to_null(base_provenance_case):
 
 def test_base_provenance_inputs_do_not_read_report(base_provenance_case):
     layout = base_provenance_case["layout"]
-    state, cfg = L.LoopState(iteration=1), L.default_cfg()
+    state, cfg = L.LoopState(iteration=1), base_provenance_case["cfg"]
+    _seed_b4_empty_admitted_history(layout, cfg)
     L.project_whiteboard(state, _site_test_proposals()[0], "success")
     outputs = []
     for digest in (None, "a" * 64, "b" * 64):
@@ -7551,6 +7556,19 @@ def test_main_provenance_hash_without_agent_inputs(base_provenance_cli):
     assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
     assert L._load_provenance(layout)["entries"]["1"]["initial_proposal_sha256"] == L.canonical_b4_proposal_sha256(document)
     assert not Path(layout.agent_outputs_file).exists()
+
+
+def test_main_provenance_noncanonical_proposal_hash_is_null(base_provenance_cli, monkeypatch):
+    layout, document, path = base_provenance_cli
+    document["planner"]["uncertainty"] = float("nan")
+    path.write_text(json.dumps(document), encoding="utf-8")
+    evaluate = unittest.mock.Mock(return_value={"outcome": "dry-pass", "variant": None})
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    evaluate.assert_called_once()
+    entry = L._load_provenance(layout)["entries"]["1"]
+    assert entry["outcome"] == "dry-pass"
+    assert entry["initial_proposal_sha256"] is None
 
 
 def test_main_provenance_hash_uses_loaded_document(base_provenance_cli, monkeypatch):

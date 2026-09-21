@@ -1556,7 +1556,10 @@ def _validate_provenance(prov: Dict) -> None:
 
 
 def _load_provenance(layout: CampaignLayout) -> Dict:
-    """Read without creating a report; quarantine corruption and stop on retries."""
+    """Read without creating a report; quarantine corruption and stop.
+
+    退避済み .corrupt.* による停止は、原本が不在の場合だけ。
+    """
     path = Path(_provenance_path(layout))
     if not path.exists():
         if any(path.parent.glob(path.name + ".corrupt.*")):
@@ -1613,8 +1616,9 @@ def _append_provenance_entry(layout: CampaignLayout, iteration: int, entry: Dict
     保証は provenance を公開できない iteration を checkpoint に確定しないことだけ。
     公開後・checkpoint 前の中断では、非 B-4 certified は再実行で duplicate に
     なり得る。検疫 reject は新 attempt を追加し entry を上書きするため、旧 attempt
-    は WAL にだけ残る。B-4 bootstrap/continuation は履歴・receipt 検査により
-    再実行を拒否し、公開済み entry が残る。二 file の transaction や並行 merge
+    は WAL にだけ残る。B-4 は WAL に履歴が残る bootstrap と continuation が
+    それぞれ履歴・receipt 検査により再実行を拒否し、公開済み entry が残る。
+    二 file の transaction や並行 merge
     の排他は保証しない。
     """
     prov = _load_provenance(layout)
@@ -3707,9 +3711,13 @@ def main(
                         raise
                     _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
                     return 3
-                initial_proposal_sha256 = canonical_b4_proposal_sha256(
-                    proposal_capture["proposal_document"]
-                )
+                try:
+                    initial_proposal_sha256 = canonical_b4_proposal_sha256(
+                        proposal_capture["proposal_document"]
+                    )
+                except B4ProtocolError:
+                    # canonical 化できない proposal は hash=null。
+                    initial_proposal_sha256 = None
                 print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
                       f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
                       f"isolate_worktree={a.isolate_worktree}) ===")
