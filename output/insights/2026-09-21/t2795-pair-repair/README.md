@@ -121,6 +121,39 @@ F1019 の恒久対応として、site `PEGASUS_COMPUTE`・pegasus 契約・実 r
 | C2 | 束縛済み session でも claim を取り直す | rc=1、同じ 2 node が `ClaimError` で赤 |
 | C3 | stock の bench を落とす (`do_bench=False`) | rc=1、3 node が `assert c.benches == [1] and c.builds == [(1, True), (1, False)]` で赤 |
 
+**注入群 H (22 本、`mutation_worktree.py --runner-mode dispatch`、対象 = `test_campaign.py` / `test_p3_s4_loop.py` / `test_p3_s4_loop_job_contract.py` から drift node 114 と `test_run_one_iteration_preserves_outer_quarantine_rejection_order` を除外、spec sha256 `ef1ba814…`、rc=0、baseline PASSED):**
+
+| ID | 変異 | 向き | 判定 | 殺した node 数 |
+|---|---|---|---|---|
+| m0-equivalence-comment | comment 1 行 (等価対照) | 正 | **SURVIVED** | 0 |
+| m4-registry-accepts-unissued | 発行台帳の照合を外し、欠落時に新規束縛する (未発行・コピーの受理) | 負 | **KILLED** | 5 |
+| m1-binding-mismatch-accepted | 再利用時の束縛照合 (契約 sha / identity / digest / use class / root) を外す | 負 | **KILLED** | 3 |
+| m2-claim-record-not-rechecked | claim file の record 照合を外す | 負 | **KILLED** | 3 |
+| m3-reservation-not-rechecked | reservation の再取得・再検査を外す | 負 | **KILLED** | 2 |
+| m5-close-is-reversible | close を可逆にする (close 後の session を受理) | 負 | **KILLED** | 9 |
+| m6-pid-not-checked | 発行 pid の照合を外す | 負 | **SURVIVED** | 0 |
+| m7-receipt-not-rechecked | required 契約の receipt 再検算を外す | 負 | **KILLED** | 2 |
+| m8-prewrite-validator-skipped | 再利用時の pre-write validator を呼ばない | 負 | **KILLED** | 1 |
+| m9-binding-deferred | 束縛を認可直後でなく後段へ遅らせる | 負 | **KILLED** | 17 |
+| m10-valid-reuse-rejected | 正しい束縛の再利用も拒否する (過剰拒否) | 正 | **KILLED** | 8 |
+| m11-sessionless-skips-claim | session 無し経路で claim 取得を省く | 負 | **KILLED** | 13 |
+| m12-pair-b5-not-rejected | pair × B-5 / machine-generated の拒否を外す | 負 | **KILLED** | 1 |
+| m13-pair-candidate-optin-dropped | pair 候補の coder opt-in 必須を外す | 負 | **KILLED** | 1 |
+| m14-stock-gets-candidate-context | stock に候補の build context (authority 付き) を渡す | 負 | **KILLED** | 7 |
+| m15-stock-reuses-shared-tree | stock が候補と同じ共有 tree を使う (別 checkout を作らない) | 負 | **KILLED** | 8 |
+| m16-candidate-exception-skips-stock | 候補の例外で stock を試さず即 raise する | 負 | **KILLED** | 2 |
+| m17-stock-rc-overrides-candidate | 候補非零優先を外し stock rc を返す | 負 | **KILLED** | 2 |
+| m18-session-not-forwarded-to-stock | stock の `run_campaign` へ session を渡さない | 負 | **KILLED** | 6 |
+| m19-job-restores-second-driver | job body の pair argv を空にする (旧 2 起動へ戻す) | 負 | **KILLED** | 81 |
+| m20-job-accepts-fixture-pair | job body の fixture + stock 拒否を外す | 負 | **KILLED** | 74 |
+| m21-job-default-adds-stock | job body の既定でも `--stock-control` を足す (過剰) | 正 | **KILLED** | 6 |
+
+**合計 20 KILLED / 2 SURVIVED。** SURVIVED は 2 本とも意図どおり:
+
+- `m0` は等価対照 (comment だけの変更)。drift node を除外した対象集合が「内容非依存の赤」を拾わないことの witness でもある。
+- `m6` は **冗長防御による survivor**。fix で保存 record の pid 比較を重複として削った後も、再利用の最後に `_AUTHORIZATION_SESSIONS.get(session) != (issued_pid, saved)` が同じ process 束縛を強制するため、発行 pid の比較を単独で外しても受理集合は広がらない (段 6 レビュー A-R3 / B-B2 が予告した冗長防御の型)。pid 束縛そのものの正例・負例は残っている。
+
+DW-M01 の単一理由性は、各変異が殺した node が事前登録した性質の負例と一致することで確認した (例: `m4` は未発行 / コピー / close 後の 3 種、`m18` は session 転送の 6 param、`m19` / `m20` は job contract の静的検査群)。`m8` / `m12` / `m13` のように 1 node だけを殺す変異は、その node が当該性質の専用負例である。
 ## 6. 一次資料と正規化
 
 - `verbatim/T-2795-repair-origin.md` (依頼の逐語)、`verbatim/{D2183,D2187,D464,D553,D2194-item2,F1019}.md` (裁定・failures の見出し単位の切出し)。
@@ -135,3 +168,16 @@ F1019 の恒久対応として、site `PEGASUS_COMPUTE`・pegasus 契約・実 r
   いずれも job root の原本と `diff -w -B` で一致 (rc=0 を実測)。復元は行末空白の再付与で、原本は job root に残る。
 - job root (repo 外、複製しない): 変異 spec と結果 (`mutation-spec-{probe,final}.json`、`mutation-{probe2,final}-results.json`)、drift node 一覧 (`drift-nodes.txt`)、
   commit 群 probe の log (`cprobe-c{1,2,3}.log`)、焦点走 log (`focus-{1,2,3}.log`)、受入の受領証。
+
+## 7. 段 8 (skill 自己改善) — 候補 2 件は予算超過で見送り
+
+本 wave で観測した dev-wave の作法の候補は 2 件。いずれも該当 leaf 節への統合を試したが、**`docs/dev-wave/**` の L1.5 予算 (9,696 bytes) を超えたため撤回した**
+(1 件目を入れた時点で 10,056 bytes、両方を最短形に縮めても 9,913 bytes)。`docs/skill-self-improvement.md` は「予算のために安全義務を削除・弱化しない」「予算値を上げる変更は
+通常の自己改善に含めず独立審査」と定めるので、本 wave では候補の記録だけを行う。
+
+1. **fix prompt の編集対象の区別** (`DW-S06-B` 想定): 「同 wave が今回作った未 land の test」と「main の tracked test」を区別して書く。区別が無いと子は
+   「既存テストの期待値を変更しない」を正しく守って停止し、1 巡を失う (本 wave の fix1 が実例。変更 0 行で停止し、区別を明記した fix1b が rc=0)。
+2. **closure 束縛 file の変異手順** (`DW-M04` 想定): 85 path closure に入る file を変異させる走は、等価変異 1 本で「内容非依存に落ちる node」を実測して対象集合から外す。
+   `--deselect` は param に `/` を含む nodeid へ効かないので test 名で外す必要がある (本 wave で実測した 114 node + 1 node)。
+
+どちらも failures / decisions へは送らない (新しい失敗型ではなく、既存節への手順追記に当たるため)。予算を見直す独立 wave が立った時に再提示する。
