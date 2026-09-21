@@ -28131,6 +28131,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   出力を逐語で写すか、短縮 sha をそのまま渡す (補完しない)。
 - 再発検知: `nonexistent object` / `bad object` の失敗を見たら推測 SHA を疑い、`git rev-parse` の出力と比較する。
 
+
+- **再発: 2026-09-21 (near miss、論文ストーリー 2026-09-21c 版の wave)** — 変異用の独立 clone を作る script に、統合 commit の 40 hex SHA を
+  `git rev-parse` の出力から写さず、頭 9 桁 (`76b60f6e1`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、
+  clone を作り直す前に止まったので実害は無い。`rev-parse` で完全 SHA を読み直して作り直した。恒久対応は既存どおり (memory `worktree-discipline` の「sha は 40 hex を
+  rev-parse から」)。今回は worktree add ではなく clone の `update-ref` の引数で同じ型が出た — 既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
