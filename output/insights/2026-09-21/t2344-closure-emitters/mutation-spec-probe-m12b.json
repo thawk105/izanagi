@@ -1,0 +1,22 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m12b-recorded-epoch-allows-63-map-under-85-scope",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "                expected_paths = campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n            else:\n                raise TypeError(\"historical campaign verifier epoch scope の組が不正\")\n",
+          "new": "                expected_paths = campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n                if (tuple(self.blob_sha256s)\n                        == campaign_lock.T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS):\n                    expected_paths = (\n                        campaign_lock.T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS)\n            else:\n                raise TypeError(\"historical campaign verifier epoch scope の組が不正\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

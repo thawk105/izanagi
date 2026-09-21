@@ -76,12 +76,12 @@ CURRENT_E0_EPOCH = {
     "state": "E0",
     "reason_code": "v1-authority-absent",
     "identity_scope": (
-        "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
+        "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; "
         "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
-        "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
+        "2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)"
     ),
     "excluded_scope": (
-        "同実測の発見集合の未収載 78 module、同発見集合に入らない module、"
+        "同実測の発見集合の未収載 77 module、同発見集合に入らない module、"
         "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
         "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
         "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "

@@ -44,7 +44,7 @@ NON_CERTIFYING_WORKLOAD_KEYS = frozenset({
 })
 _DISCLOSED_IDENTITY_KEY_DOMAIN = b"izanagi-a1-disclosed-identity-key/v1\0"
 _LOCK_IDENTITY_TAG_DOMAIN = b"izanagi-a1-lock-identity-tag/v1\0"
-# ``contract_loader_*`` は歴史的名称であり、この値は exact 85 path の
+# ``contract_loader_*`` は歴史的名称であり、この値は exact 96 path の
 # enforcement source closure である。
 CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/env_contract.py",
@@ -132,6 +132,17 @@ CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/silo_ladder_rung1.py",
     "orchestrator/campaign/sort_swo_dependency_material.py",
     "orchestrator/critic/digest.py",
+    "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/b10_backoff_shape_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep.py",
+    "orchestrator/campaign/backoff_extended_sweep_report.py",
+    "orchestrator/campaign/backoff_overthrottle.py",
+    "orchestrator/campaign/s8b_abort_reason_contract.py",
+    "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_outcome_stage_contract.py",
+    "orchestrator/reports/__init__.py",
+    "orchestrator/reports/calibration_report.py",
+    "orchestrator/reports/plot.py",
 )
 
 # T-733 より前に実在した v2 lock の歴史閲覧 grammar。現行 closure の
@@ -297,6 +308,95 @@ T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS = (
     "orchestrator/campaign/verify_fanout_worker.py",
 )
 
+# Frozen declaration order of the preceding exact-85 grammar.
+T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/agent_outputs.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/critic/digest.py",
+)
+
 _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
 _HEX64_RE = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -370,6 +470,7 @@ class HistoricalCampaignLockAuthority:
             PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,
             T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS,
             T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS,
+            T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS,
         ):
             raise TypeError("historical authority の記録 grammar が不正")
         if (type(self.contract_loader_blob_sha256s) is not dict
@@ -671,6 +772,51 @@ def _validate_t2429_exact63_historical_authority(
     )
 
 
+def _validate_t2344_exact85_historical_authority(
+        value: Any,
+) -> HistoricalCampaignLockAuthority:
+    if type(value) is not dict or set(value) != AUTHORITY_KEYS:
+        raise CampaignLockCodecError("authority の exact key 集合が不正")
+    activation_serial = value["activation_serial"]
+    if type(activation_serial) is not int or activation_serial <= 0:
+        raise CampaignLockCodecError(
+            "authority.activation_serial は正の exact int が必要"
+        )
+    blob_sha256s = value["contract_loader_blob_sha256s"]
+    expected_wire_order = tuple(sorted(T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS))
+    if (type(blob_sha256s) is not dict
+            or tuple(blob_sha256s) != expected_wire_order):
+        raise CampaignLockCodecError(
+            "authority.contract_loader_blob_sha256s の歴史 grammar が不正"
+        )
+    checked_blobs = {
+        path: _require_hex(
+            blob_sha256s[path], width=64,
+            label=f"authority.contract_loader_blob_sha256s[{path!r}]",
+        )
+        for path in T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    return HistoricalCampaignLockAuthority(
+        environment_contract_sha256=_require_hex(
+            value["environment_contract_sha256"], width=64,
+            label="authority.environment_contract_sha256",
+        ),
+        activation_serial=activation_serial,
+        activation_state_sha256=_require_hex(
+            value["activation_state_sha256"], width=64,
+            label="authority.activation_state_sha256",
+        ),
+        contract_loader_commit=_require_hex(
+            value["contract_loader_commit"], width=40,
+            label="authority.contract_loader_commit",
+        ),
+        contract_loader_blob_sha256s=checked_blobs,
+        recorded_contract_loader_relative_paths=(
+            T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS
+        ),
+    )
+
+
 def _require_non_empty_str(value: Any, *, label: str) -> str:
     if type(value) is not str or not value:
         raise CampaignLockCodecError(f"{label} は non-empty exact str が必要")
@@ -815,7 +961,7 @@ def _historical_decoded_from_current(
 def decode_historical_campaign_lock(
         text: str,
 ) -> DecodedHistoricalCampaignLock:
-    """現行・T2429 exact-63・T733 exact-62・pre-T733 exact-24 を歴史閲覧用に decode する。"""
+    """現行・T2344 exact-85・T2429 exact-63・T733 exact-62・pre-T733 exact-24 を歴史閲覧用に decode する。"""
     value = _loads(text, label="historical campaign.lock")
     if type(value) is not dict:
         raise CampaignLockCodecError("campaign.lock top-level は object が必要")
@@ -848,6 +994,10 @@ def decode_historical_campaign_lock(
     if canonical_json(identity) != identity_preimage:
         raise CampaignLockCodecError("identity_preimage が canonical JSON でない")
     if (type(blob_sha256s) is dict
+            and tuple(blob_sha256s)
+            == tuple(sorted(T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS))):
+        authority = _validate_t2344_exact85_historical_authority(authority_value)
+    elif (type(blob_sha256s) is dict
             and tuple(blob_sha256s)
             == tuple(sorted(T2429_EXACT63_CONTRACT_LOADER_RELATIVE_PATHS))):
         authority = _validate_t2429_exact63_historical_authority(authority_value)
