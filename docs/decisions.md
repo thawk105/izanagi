@@ -70881,3 +70881,163 @@ D2186 項 7 / D2194 項 12 / D2200 項 10 / D2206 項 14 の実行手番の継�
   項 4、項 5 (次段 wave の再走査)、項 7 (予算に入る場合の収容)、項 9 (計測 wave)。
 - 主経路との距離: 項 1 (K2) が CC 自動合成の主経路に最も近い。項 2 (g1) は certified 選択の前段で、VLDB 方針 項 5 が論文の必須経路から外した。
   項 3〜9・11・12 は開発基盤・運用。裁定の一次控えは repo 外 rulings-inbox の `2026-09-21-rulings-full30-verdicts.md`。
+
+## D2212. VLDB 投稿へ向けた研究方針の 9 項 — EA&B を第一候補にし、TPC-C を段 1・段 2 で必須に入れ、関数単位のコード空間を開き (正しさゲートは不変)、計算は 1 タスク合計 2 node 時間以上で都度確認し、旧系列の再開を論文の必須経路から外し、当面は ComSys 2026 を優先する (2026-09-21)
+
+**決定 (ユーザー裁定):** VLDB 向け差分分析の §7 (ユーザーに決めてほしい 8 項) に対し、ユーザーは次のとおり回答した。
+
+- 先行の発話 (逐語): 「進めていいよ。vldb狙ってます」
+- 回答 (逐語、2026-09-21 21:1x JST): 「基本推奨通りで。TPC-Cを後回しにする理由はわからない。計算費用は私に確認を取って欲しい。重大な話ですそれは。失敗した候補を含む実験一式は公開可能です。目先はComSys2026に出す予定で10/16締切に向かって論文を書いています。」
+- 追補 (逐語、21:3x JST): 「計算予算を2ノード時間以上使うものは確認が欲しいな。つまりこれは2ノードで一時間ずつか、1ノードで2時間か。4ノードで30分ずつか。」
+
+一次資料は `output/insights/2026-09-21/vldb-direction/` (差分分析 `gap-analysis.md`、Codex の独立見解 `codex-consult-1.md`、
+裁定控え `verdicts.md` の逐語写し、受領時点の main `36fb14a3d`)。本決定は研究方針の記録であり、実験の実施や計算投入の承認ではない。
+roadmap は同じ内容を協議改訂として in-place に反映した (`docs/roadmap-history/README.md` の協議改訂なので、版は上げず history にも凍結しない)。
+実験項目は worklog の新規 T として起票した。絶対規律 1〜7 は変えない。
+
+### 項 1 — 投稿区分
+
+VLDB (PVLDB Vol.20 = VLDB 2027) は **EA&B (Experiments, Analysis & Benchmark) トラックを第一候補**にする。中心命題の案は
+「CC の最適化において、探索空間の構造・正しさ検証の費用・未知 workload への転移が、LLM と非 LLM の探索の有効性をどう決めるか」。
+**LLM が勝たない結果も主要成果として扱う。** ただし EA&B は Systems で勝てなかった論文の受け皿ではない。差分分析 §6 (Codex の判定基準) は
+「4〜6 週を目安に、強い基準との比較から新しい境界・原因・評価方法が出なければ、EA&B に名前を変えて投稿せず研究課題の組み替えを検討する」
+と提案している。この判定時期と条件は提案であり、本裁定では確定していない。
+
+### 項 2 — 主張の射程と TPC-C
+
+差分分析の推奨 (当面は point read/write の CC 最適化に限定し、TPC-C は後の投資判断) にユーザーが疑義を示したので、親が推奨を改訂し
+**TPC-C を必須に入れる**。
+
+- **段 1:** NewOrder / Payment の混合 (CCBench 既定比で 45% + 43% = 88%、点読み・点書き・insert のみで `tx.scan` を使わない) を
+  正しさ認定の対象にする。要るのは trace の表識別子、insert の意味、app 層 abort の計数。
+- **段 2:** Delivery / OrderStatus / StockLevel (各 4%、`tx.scan` の範囲読みを使う) を含む全 5 取引へ広げる。範囲読みを述語読みとして扱い、
+  範囲への insert との依存 (phantom) を検出する verifier 拡張が要る。
+- 第 1〜2 週に設計と工数の見積り (precheck) を行う。
+
+改訂推奨へのユーザーの明示確認は受領時点では未取得で、「反対が無ければこれで進める」の扱いである。本決定を記録した wave の依頼
+(ユーザーが起動) が段 1・段 2 の起票を指示した。
+
+### 項 3 — 探索空間
+
+LLM が関数単位でコードを書ける合成空間を 1 つ開く。**現行の編集面の制限 (合成枝の中身だけ・#include / 関数 / 型の追加禁止・coder が
+編集できる 3 file) を広げてよい。正しさゲートは不変** — anomaly を検出した候補は即 reject (規律 2)、trace は compile 時に除去し
+(規律 1、D14)、毎回検証して構造化フィードバックを返す (規律 3)。編集面の拡大は designated source と verifier を外すことではなく、
+roadmap §10 が除外する「制約なしのコード生成」には当たらない。拡大の実装 (編集面 hook・coder の権限・designated source の定義) は
+別 wave で Codex author が行い、`hooks/README.md` の契約とテストに従う。
+
+### 項 4 — 計算費用
+
+**実験の計算投入は、都度 node 時間の見積りを示してユーザーの確認を取る。** 試走・本比較の一括承認はしない (差分分析 §7 項 4 の
+「段階ごとに承認」を採らない)。確認ラインは**1 つのタスク (1 本の実験、または 1 本の wave) で投げる job の合計が 2 node 時間以上**で、
+2 node 時間未満は確認不要。開発の検査 (受入・焦点走・変異) も同じ線で数える — これは親の解釈で、ユーザーの明示確認は取っていない。
+LLM の直列時間 (サブスクの CLI 呼び出し) は node 時間と別に見積りへ併記する。
+
+### 項 5 — 止まっている手続き
+
+旧系列の再開 (8b / 8c の official 系列 — 凍結 v2 g1 の live launch と W-4 / W-5、8c の本走、および T-2812 が束ねる再開・再投入) を
+**論文の必須経路から外し、凍結 chain を新設しない** (D328 の凍結検証の保留と同じ向き)。既存の凍結記録・凍結 bytes・記録済みの判定は
+変えない (規律 7)。
+
+T-2812 の択一そのもの (g1 live launch の S' / O' / N) と K2 の次巡の認可は、本決定では決めない。21:1x の本裁定の控えは
+「T-2812 の択一そのものは保留」とし、同時刻の /rulings 全件 第 30 回の一括承認 (21:3x、「推奨通りで」) は索引 1 で K2 pair 再投入 1 job と
+4 巡目 1 job を認可し、索引 2 で S' を採る推奨を含んでいた。第 30 回の記録側がこの食い違いをユーザーに確認し、ユーザーは 21:37 頃
+「codexと相談して決めて」と答えた。したがって T-2812 の択一と K2 の認可は第 30 回側の決定台帳の記録を正本とし、本決定はそれを覆さない。
+本決定の記録時点で第 30 回側から受けた結論 (Codex の決定・攻撃の 2 レンズ相談による) は次のとおり — (1)(4) g1 の S' / O' / N は本決定どおり
+保留を継続し、凍結 chain も新設しない。K2 は「項 5 の対象外」とする解釈ではなく衝突を示したうえでの委任による解決として、K2 に限り保留を解き、
+D1777 の経路で pair 再投入 1 job を採り、成立したときだけ 4 巡目 1 job を採る (投入前にタスク合計の node 時間を見積もり、2 node 時間以上なら
+項 4 の確認を取る。pair 不成立なら停止)。K2 も論文の必須経路には戻さない。(3) A-1 sized v3 の 3 本目は走らせない。T-2812 と T-2795 の
+carry は第 30 回側が更新し、本決定を記録した wave は両項に触れない。
+
+### 項 6 — 公開
+
+失敗候補と否定的結果を含む実験一式は公開可能 (ユーザー明言)。EA&B は初回投稿時に全実験の再現パッケージのリンクを要するので、
+再現パッケージは実験と並行で作る。provenance は粗い粒度 (システム名・モデル表示名・おおよその時期、D320) で足り、凍結 chain は足さない。
+
+### 項 7 — 目標締切
+
+VLDB の投稿月はユーザー未指定。推奨は 2027-02-01、最終締切は 2027-03-01 (PVLDB Vol.20 は毎月 1 日締切)。研究トラックで却下された研究は
+1 年間再投稿できないので、見切り投稿はしない (いずれも 2026-09-21 に公式の投稿規定で確認)。
+
+### 項 8 — 計算ノードの H100 で open-weight のコード LLM を動かす案
+
+裁定なし。全体共通の鉄則 (サブスクのログインが無いホストから LLM を呼ぶ設計は実装せずユーザーに諮る) により実装しない。
+
+### 項 9 — 当面の優先
+
+**ComSys 2026 (第 38 回コンピュータシステム・シンポジウム、12/2〜4 金沢) への投稿論文を優先する。** ユーザーは「10/16 締切」と発言した。
+公式の募集要項 (2026-09-21 取得) では 10/16 は発表申込の締切、論文原稿の締切は 10/30 (一般発表・論文あり、研究報告の書式、査読なし)。
+VLDB 向けの作業は、実験の計算を使わない設計から並行して始める。
+
+**理由:**
+
+- 差分分析 §0・§1 の実測では、中心主張「合成が既知最良を超える」(B-1) は S-1a で不成立 (既知最良 `p2_2_flag_opt` に −9.3% / −37.4% / −55.1%)、
+  LLM の必要性 (B-5) は未取得、唯一の成功例 (Silo の静的 backoff) は Polyjuice (OSDI'21 §4.5) が既に示した内容、評価は Silo・YCSB 3 種・
+  48 スレッドだけである。Systems トラックの中心命題には届かず、EA&B の命題 (探索空間・検証費用・転移が探索法の有効性をどう決めるか) は
+  S-1a・P2-5 を出発点にできる。
+- 現行の合成空間 (backoff の数値 1 個・79 値の施錠順序・5 bit の発火条件) は列挙し尽くせるので、LLM の出番も、LLM が壊した候補を verifier が
+  捕まえる機会もほぼ無い (B-5 試走で LLM・random・sweep の差 1.06% は床 3% の内側)。関数単位の空間 (項 3) を開いて初めて両方が生まれる。
+- TPC-C を後回しにした理由は「走らせられない」ではなく「現行 verifier (YCSB の点読み・点書きの G2 のみ、`orchestrator/campaign/pipeline.py` が
+  trace 取得の前に `ycsb_` 以外の binary を allowlist 方式で拒否、trace に表識別子なし、TPC-C の abort は app 層) では合成候補の直列化可能性を
+  認定できない」ことだった。
+  VLDB ではまず TPC-C が期待され、Polyjuice の利得も TPC-C / TPC-E 系で示されているので、工事の費用を理由に外すのは誤りと判断した。
+- 凍結・批准・受領証の手続きで止まっている旧系列は、2026-08-12 のユーザー裁定 (D328) 以後も実験を止めており、論文の図・比較・説明に
+  対応する前進を生んでいない。
+
+**却下した選択肢:**
+
+- **TPC-C を後の投資判断にする (差分分析 §7 項 2 と Codex 見解の元の推奨)** — ユーザーの疑義を受けて撤回した (理由は上記)。
+- **試走・本比較を段階ごとに一括承認する (§7 項 4 の元の推奨)** — ユーザーが都度の確認を求めた。
+- **旧系列の再開を論文の必須経路に残す** — 研究の帯域を凍結・批准の手続きへ割き続ける。記録と凍結 bytes は保持するので、外しても失うものは無い。
+- **編集面の拡大に合わせて正しさゲートを緩める・verifier を外した ablation を置く** — 規律 2・3 に反する。
+- **roadmap を自律改訂のセレモニー (版上げ・history 凍結・改訂理由の D) で改める** — ユーザーとの協議で合意した改訂なので不要。
+- **H100 で open-weight LLM を動かす構成を実装する** — 鉄則によりユーザーへ諮る項目で、裁定が無い。
+
+## D2213. B-4 の対応証拠の carrier は base driver の iteration keyed side channel とし、参照点の定義は docstring と記録で確定する。中断時の保証は「公開できない iteration を checkpoint に確定しない」だけにする (2026-09-21)
+
+**決定:** D2194 項 3 の実装形として次を採る。
+
+1. **carrier:** `orchestrator/campaign/p3_s4_loop.py` が `<campaign root>/reports/p3_s4_loop_provenance.json` に iteration ごとの entry
+   (`iteration` / `variant` / `build_attempt_id` / `initial_proposal_sha256` / `wal_refs` / `outcome` の 6 field ちょうど) を、評価と whiteboard 射影の後・
+   `save_loop_state` の前に書く。file の意味 (path・iteration key の上書き merge) は trigger driver の `_append_provenance_entry` 系、書き込みの堅さ
+   (排他 tmp・fsync・atomic 公開・directory fsync) は `_write_source_preimage_artifact` 系に合わせる。base に source preimage artifact は足さない。
+   stock 対照と入口停止は iteration を消費しないので書かない。dry-pass・duplicate・duplicate-skip・rejected は書く。
+2. **束縛:** `initial_proposal_sha256` は `load_proposal_file` が読んで検証した document の `canonical_b4_proposal_sha256`。canonical 化できない
+   proposal は mode を問わず null で走行を続ける (canonical hash を既に要求するのは B-4 bootstrap の registry 束縛だけで、他の経路で止めると受理集合が縮む)。
+   `wal_refs` は当該 variant かつ当該 `build_attempt_id` の WAL record 全体の `agent_outputs.canonical_sha256`。certified / duplicate / rejected で
+   attempt を特定できないときは記録不能として停止する (証拠不足を別 attempt で救済しない)。
+3. **評価前の検証:** layout が決まった直後、B-4 認可の検査・消費と評価より前に既存 report を読み検証する。破損は元 bytes を退避して停止し、
+   1 回限りの B-4 認可を消費しない。
+4. **保証の限界:** 保証は「provenance を公開できない iteration は checkpoint に確定しない」だけとし、中断後の経路別帰結 (非 B-4 certified は
+   duplicate になり得る / 検疫 reject は新 attempt で entry が上書きされ旧 attempt は WAL にだけ残る / WAL 履歴のある B-4 は再実行を拒否し
+   公開済み entry が残る) を docstring に書く。「回復可能」「対応を失わない」とは主張しない。
+5. **参照点の定義 (事前登録 §5.1.1 の解釈の確定):** 祖先 = 同一 campaign 内の時間順 (precursor の iteration より前の最後の whiteboard `success` に
+   対応する certified attempt を本 carrier で引く)。`reference_snapshot_hash` / `reference_receipt_hash` = その attempt の WAL `commit` / `bench_done`
+   record 全体の `agent_outputs.canonical_bytes` の sha256。祖先なし・同着・record 非一意・`PerfConfig` / `env_tag` の一致を確認できないときは不適格で、
+   別基準へ切り替えない。`reps` と `ycsb_max_ope` は run_cmd で確認できない不足として残す。定義は `_wal_attempt_provenance` の docstring と
+   本決定に置き、resolver・新 object・`reference` 欄は作らない。凍結された事前登録本文は編集しない。
+6. **caller:** `p3_b4_prerun_caller` は lock を `campaign_lock.decode_campaign_lock_bytes` で読み `decoded.identity.get("trial")` を使う。受理は
+   有効な v2 へ広がり、旧 `json.loads` が受理していた不正な v1 (duplicate key・非有限値・reserved field) は拒否へ移る。独自の救済分岐は足さない。
+
+**理由:**
+
+- 先例 2 つが動いており、凍結型 (D1846) と leak 防壁 (D39 決定 3) に触れない (D2194 項 3 の理由どおり)。whiteboard の 5 field と planner / coder /
+  critic の入力 bytes が report の有無・内容で変わらないことを test で固定した。
+- 評価前の検証は、B-4 continuation の receipt を消費した後に破損で止まると、その 1 回限りの認可を失うため (段 3 相談 A)。
+- 保証の限定は、段 3 相談 A と段 6 レビュー A が、検疫 reject の再実行・B-4 の再実行拒否・bootstrap の WAL 不在で「回復可能」が成り立たない経路を
+  示したため。
+- hash 失敗の null 化は、段 6 レビュー A が非 B-4 / B-5 slot の過剰拒否 (rc=3 sidecar を経由しない停止) を示したため。
+
+**却下した選択肢:**
+
+- 同 iteration の差分がある再書込みを拒否する (source preimage 型) — 中断後の正当な再評価 (certified → duplicate) を塞ぐ。
+- entry を append-only の列にする — 対応は失わないが trigger 同型から外れ、D2194 項 3 の「iteration ごと」の形を変える。本 wave では採らず、
+  上書きで失われ得る対応は WAL に残ることを docstring に書いた。
+- side channel に `reference` 欄を持たせる — D2194 項 3 (1) の field 列挙に無く、定義 (項 3 (2)) は既存 field から引ける (段 3 相談 B)。
+- base の provenance を admission が検査する — 依頼と D2194 の「gate を足さない」の外 (scope 外、起票しない)。
+- B-4 mode だけ hash 失敗で停止する — B-4 continuation は canonical hash を要求しておらず、受理集合が縮む。
+
+**変異:** commit 群 (変異を commit として焼いて contract loader の drift を避ける自作 harness、段 6 裁定 §5 で走行前に登録) S1・S2・S10〜S15 の
+8 件、注入群 S3〜S9 と E1 (等価対照)、caller の C1〜C5 (結果は insight §6)。
+
+**研究状態への影響:** 新規 base campaign から赤 precursor が出たとき、proposal・attempt・参照点候補を harness の記録で辿れるようになる。
+適格行・certified 判定・台帳の値は本決定では変わらない (caller の不足報告は候補 1 件につき 12 件のまま)。B-4 本走・床値は未投入。

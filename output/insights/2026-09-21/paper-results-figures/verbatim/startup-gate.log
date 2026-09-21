@@ -1,0 +1,5 @@
+2026-09-21 20:46 JST
+$ python3 tools/check_wave_startup.py --repo /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --mode fresh --external-handoff /home/SFC/tanab/.claude/jobs/7ece8830/handoff.md
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+OK: wave startup checks passed (fresh; repo=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures; wave identity・branch 所有・--repo の同一性は認証しない)
+rc=0

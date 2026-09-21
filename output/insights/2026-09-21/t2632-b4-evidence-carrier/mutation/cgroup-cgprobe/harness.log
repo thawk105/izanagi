@@ -1,0 +1,24 @@
+spec_sha256=df2abd0d765e381be128726a376bbe45606a2efc9777f4ecffc06495eff4b196 base=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 kexpr=provenance test=orchestrator/tests/test_p3_s4_loop.py
+run baseline head=92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51 start=21:43:45
+done baseline rc=0 failed=0 end=21:44:17
+{"id": "S1-provenance-not-published", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S1-provenance-not-published head=ee981dbfabd013b7be62c7fdbb6129044c95e030 start=21:44:26
+done S1-provenance-not-published rc=1 failed=19 end=21:44:58
+{"id": "S2-checkpoint-before-provenance", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S2-checkpoint-before-provenance head=a6e1161d26700796090cf2ebd161b80f7dcd15ee start=21:45:12
+done S2-checkpoint-before-provenance rc=1 failed=5 end=21:45:45
+{"id": "S10-raw-bytes-hash", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S10-raw-bytes-hash head=c5196d21256d6d93558785ae03556176b6880db3 start=21:45:57
+done S10-raw-bytes-hash rc=1 failed=4 end=21:46:29
+{"id": "S11-capture-only-with-agent-inputs", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S11-capture-only-with-agent-inputs head=4561f357c8b4b1926dc84fbeeb4df39e0e4a7cca start=21:46:48
+done S11-capture-only-with-agent-inputs rc=1 failed=4 end=21:47:20
+{"id": "S12-no-provenance-in-b5", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S12-no-provenance-in-b5 head=2a0876ee754b055da200029cfc05392011cda1b9 start=21:47:31
+done S12-no-provenance-in-b5 rc=1 failed=2 end=21:48:04
+{"id": "S14-critic-digest-reads-report", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S14-critic-digest-reads-report head=c0b23c9a9a2c4705b322966b378bba7884923749 start=21:48:11
+done S14-critic-digest-reads-report rc=1 failed=1 end=21:48:49
+{"id": "S15-noncanonical-hash-raises", "files": ["orchestrator/campaign/p3_s4_loop.py"]}
+run S15-noncanonical-hash-raises head=e9c2d67ab1f2c216e1754d37542214a1223ca4dd start=21:48:55
+done S15-noncanonical-hash-raises rc=1 failed=1 end=21:49:27

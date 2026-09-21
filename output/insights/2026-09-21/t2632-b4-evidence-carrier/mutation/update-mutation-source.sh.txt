@@ -1,0 +1,16 @@
+#!/bin/bash
+# [T-2632] 親専用: 変異用独立 clone に wave branch の新しい commit を取り込み、その commit に detach する。
+# usage: update-mutation-source.sh <target-commit>
+set -u
+TARGET=${1:?target commit}
+MAIN=/work/1/SFC/tanab/izanagi
+SRC=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-source
+cd "$SRC" || exit 2
+git fetch -q "$MAIN" refs/heads/worktree-dev-wave-t2632-b4-evidence-carrier || exit 3
+git cat-file -e "$TARGET^{commit}" || exit 4
+git update-ref refs/heads/main "$TARGET" || exit 5
+git checkout -q main || exit 6
+git reset -q --hard HEAD || exit 8
+echo "HEAD=$(git rev-parse HEAD)"
+git -c protocol.file.allow=always submodule update --init --recursive || exit 7
+git status --porcelain --untracked-files=all --ignore-submodules=none | wc -l

@@ -2746,12 +2746,16 @@ def test_launcher_positive_uses_real_factory_and_real_base_main_for_commit(
         layout, _contract, _resolved_site, **_kwargs,
     ):
         assert do_build is True
-        payload = {"launcher_positive": True}
+        attempt = L.secrets.token_hex(16)
+        wal.log(layout, "launcher-positive-variant", L.STAGE_BUILD_START,
+                L.ENV_TAG, {"build_attempt_id": attempt})
+        payload = {"launcher_positive": True, "build_attempt_id": attempt}
         record = commit_receipt_support.log_receipted_commit(
             layout,
             "launcher-positive-variant",
             L.ENV_TAG,
             payload,
+            operation_identity=attempt,
         )
         commit_calls.append(record)
         L.project_whiteboard(state, planner, "success", delta_pct=None)

@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""[T-2632] commit 群 probe の log から、変異ごとの失敗 node を -rf 要約行 (`| FAILED <nodeid>`) で抽出し JSON にまとめる。
+
+usage: collect_cg_observed.py <out.json> <probe-dir>...
+run-commit-group.sh の final と同じ抽出規則 (行頭 `| FAILED ` / `| ERROR `、末尾 ` - 理由` を除く、重複除去、整列)。
+"""
+import json
+import pathlib
+import re
+import sys
+
+LINE = re.compile(r"^\| (?:FAILED|ERROR) (.*?)(?: - .*)?$")
+
+
+def nodes(log: pathlib.Path):
+    found = set()
+    for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = LINE.match(line)
+        if m:
+            found.add(m.group(1))
+    return sorted(found)
+
+
+def main(argv):
+    out = {}
+    for d in argv[2:]:
+        for log in sorted(pathlib.Path(d).glob("*.log")):
+            if log.name in {"harness.log", "baseline.log"}:
+                continue
+            out[log.stem] = nodes(log)
+    pathlib.Path(argv[1]).write_text(json.dumps(out, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({k: len(v) for k, v in out.items()}, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main(sys.argv)

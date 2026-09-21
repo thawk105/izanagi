@@ -6563,7 +6563,13 @@ def test_emit_context_and_run_iteration_share_manifest_campaign_identity(
         justification="route fixture",
         confidence="low",
     )
-    monkeypatch.setattr(L, "load_proposal_file", lambda *_a, **_k: (planner, coder, None))
+    def load_fixture(_path, **kwargs):
+        document = {"planner": vars(planner), "coder": vars(coder)}
+        kwargs["capture"].update(proposal_document=document,
+                                 proposal_bytes=json.dumps(document).encode())
+        return planner, coder, None
+
+    monkeypatch.setattr(L, "load_proposal_file", load_fixture)
 
     def fake_drive(cfg, *_args, **_kwargs):
         campaign_id = str(ident.campaign_id(cfg))
@@ -6616,6 +6622,9 @@ def test_main_passes_resolved_knowledge_projection_to_proposal_loader(
     )
 
     def load_spy(_path, **kwargs):
+        document = {"planner": vars(planner), "coder": vars(coder)}
+        kwargs["capture"].update(proposal_document=document,
+                                 proposal_bytes=json.dumps(document).encode())
         observed.update(kwargs)
         return planner, coder, None
 
@@ -7118,6 +7127,496 @@ def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(
     assert out["outcome"] == "dry-pass"
     assert out["critic_digest_generated"] is False
     assert not os.path.exists(os.path.join(lay.root, "s4_loop_digest.txt"))
+
+
+# Base provenance fixtures keep all carrier I/O real. Only evaluation itself may
+# use the existing mechanical-test seam; identity/binding checks stay enabled.
+@pytest.fixture(scope="module")
+def base_provenance_binding(real_repo_fixture_lock):
+    from campaign_lock_test_support import _binding_from_recorded_head
+    with real_repo_fixture_lock("read", None):
+        return _binding_from_recorded_head()
+
+
+@pytest.fixture
+def base_provenance_case(tmp_path, monkeypatch, ratified_enforcement_source,
+                         base_provenance_binding, real_repo_fixture_lock):
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    with real_repo_fixture_lock("read", None):
+        layout = CampaignLayout(str(tmp_path / "base-provenance")).ensure()
+        context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        cfg = ident.bind_admission_policy(
+            L._campaign_cfg_for_site(L.default_cfg(), site_policy.OTHER), context.policy)
+        wal.write_lock(layout, build_v2_lock(
+            ident.canonical_preimage(cfg), binding=base_provenance_binding))
+        monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+        monkeypatch.setattr(patchharness, "applied",
+                            lambda *_a, **_k: contextlib.nullcontext())
+        planner, coder = _site_test_proposals()
+        yield dict(cfg=cfg, perf=L.default_perf(), planner=planner, coder=coder,
+                    prior_critic_reverse=None, sub=_mk_template_dir(L.SOURCE_REL),
+                    do_build=False, layout=layout, build_context=context,
+                    log=lambda *_a: None)
+
+
+def _base_entry(iteration=1, *, outcome="dry-pass", variant=None,
+                attempt=None, refs=None, digest=None):
+    return {"iteration": iteration, "variant": variant, "build_attempt_id": attempt,
+            "initial_proposal_sha256": digest, "wal_refs": [] if refs is None else refs,
+            "outcome": outcome}
+
+
+def _base_refs(records):
+    return ["wal:" + L.agent_outputs.canonical_sha256(vars(record)) for record in records]
+
+
+def _base_reject_case(case):
+    return {**case, "coder": L.CoderProposal(
+        L.MARKER_ID, 20, "#define EVIL 1\ndouble now_backoff = 20;")}
+
+
+@pytest.mark.parametrize("outcome", ["dry-pass", "rejected", "certified", "aborted",
+                                     "aborted-unidentified", "duplicate"])
+def test_base_provenance_records_each_outcome(base_provenance_case, monkeypatch, outcome):
+    case = base_provenance_case
+    layout = case["layout"]
+    if outcome == "rejected":
+        case = _base_reject_case(case)
+    elif outcome != "dry-pass":
+        def evaluate(_cfg, _perf, planner, _coder, state, *_a, **_k):
+            if outcome == "aborted-unidentified":
+                L.project_whiteboard(state, planner, "fail")
+                return {"outcome": "aborted", "variant": None, "records": {}}
+            variant = "carrier-evaluated"
+            attempt = L.secrets.token_hex(16)
+            wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+                    {"build_attempt_id": attempt})
+            if outcome == "aborted":
+                wal.log(layout, variant, STAGE_ABORT, L.ENV_TAG,
+                        {"build_attempt_id": attempt, "reason": "fixture-abort"})
+                stage = STAGE_ABORT
+            else:
+                commit_receipt_support.log_receipted_commit(
+                    layout, variant, L.ENV_TAG,
+                    {"build_attempt_id": attempt, "fitness_tps": 1.0},
+                    operation_identity=attempt)
+                stage = L.STAGE_COMMIT
+            records = wal.read_records(layout)
+            L.project_whiteboard(state, planner, "fail" if outcome == "aborted" else "success")
+            return {"outcome": outcome, "variant": variant,
+                    "records": {stage: records[-1].payload}}
+        monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    digest = L.canonical_b4_proposal_sha256({"fixture": "proposal"})
+    out = L.drive_iteration(**case, initial_proposal_sha256=digest)
+    records = wal.read_records(layout)
+    attempt = records[-1].payload["build_attempt_id"] if records else None
+    assert L._load_provenance(layout) == {
+        "schema_version": "p3-s4-loop-provenance/v1", "axis": L.MARKER_ID,
+        "entries": {"1": _base_entry(outcome=out["outcome"], variant=out["variant"],
+            attempt=attempt, refs=_base_refs(records), digest=digest)},
+    }
+    assert L.load_loop_state(layout).iteration == 1
+
+
+def test_base_provenance_rejects_same_variant_use_distinct_attempts(base_provenance_case):
+    case = _base_reject_case(base_provenance_case)
+    first = L.drive_iteration(**case)
+    first_records = wal.read_records(case["layout"])
+    second = L.drive_iteration(**case)
+    records = wal.read_records(case["layout"])
+    assert first["variant"] == second["variant"]
+    assert len(first_records) == 2 and len(records) == 4
+    entries = L._load_provenance(case["layout"])["entries"]
+    for index, pair in enumerate((first_records, records[2:]), 1):
+        assert entries[str(index)] == _base_entry(
+            index, outcome="rejected", variant=first["variant"],
+            attempt=pair[0].payload["build_attempt_id"], refs=_base_refs(pair))
+    assert entries["1"]["build_attempt_id"] != entries["2"]["build_attempt_id"]
+
+
+def _base_selected_commit(layout, *, prior_failed_attempt=False):
+    from orchestrator.campaign.model import STAGE_VERIFY_DONE
+
+    _write_duplicate_lock(layout)
+    variant = "carrier-selected"
+    if prior_failed_attempt:
+        other = L.secrets.token_hex(16)
+        wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+                {"build_attempt_id": other, "genome": _G.canonical(), "src_token": "fixture"})
+        wal.log(layout, variant, STAGE_ABORT, L.ENV_TAG,
+                {"build_attempt_id": other, "reason": "fixture-abort"})
+    attempt = L.secrets.token_hex(16)
+    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+            {"build_attempt_id": attempt, "genome": _G.canonical(), "src_token": "fixture"})
+    for tag in ("legacy", "s2"):
+        wal.log(layout, variant, STAGE_VERIFY_DONE, L.ENV_TAG,
+                {"build_attempt_id": attempt, "verdict": "serializable",
+                 "certified": True, "anomalies": 0, "workload": {"tag": tag}})
+    commit_receipt_support.log_receipted_commit(
+        layout, variant, L.ENV_TAG,
+        {"build_attempt_id": attempt, "fitness_tps": 1.0}, operation_identity=attempt,
+        tags=("legacy", "s2"))
+    return variant
+
+
+def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
+    layout = CampaignLayout(str(tmp_path / "duplicate")).ensure()
+    variant = _base_selected_commit(layout, prior_failed_attempt=True)
+    records = wal.read_records(layout)
+    # The failed attempt precedes the selected certified attempt.
+    prior_records, selected_records = records[:2], records[2:]
+    assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert selected_records[-1].stage == L.STAGE_COMMIT
+    prior_attempt = prior_records[0].payload["build_attempt_id"]
+    selected_attempt = selected_records[-1].payload["build_attempt_id"]
+    assert prior_records[1].payload["build_attempt_id"] == prior_attempt
+    assert prior_attempt != selected_attempt
+    before = Path(layout.wal_file).read_bytes()
+    out = L._resolve_duplicate(layout, _site_test_proposals()[0],
+                               L.LoopState(iteration=1), _dup_summary(variant))
+    assert out["outcome"] == "duplicate"
+    evidence = L._wal_attempt_provenance(layout, out)
+    assert evidence == {"variant": variant,
+        "build_attempt_id": selected_records[-1].payload["build_attempt_id"],
+        "wal_refs": _base_refs(selected_records)}
+    assert evidence["build_attempt_id"] != prior_attempt
+    L._append_provenance_entry(layout, 1, {
+        "iteration": 1, "outcome": out["outcome"],
+        "initial_proposal_sha256": None, **evidence})
+    entry = L._load_provenance(layout)["entries"]["1"]
+    assert entry == _base_entry(outcome="duplicate", variant=variant,
+        attempt=selected_attempt, refs=_base_refs(selected_records))
+    assert set(entry["wal_refs"]).isdisjoint(_base_refs(prior_records))
+    assert Path(layout.wal_file).read_bytes() == before
+
+
+def test_base_provenance_keeps_all_attempt_records(tmp_path):
+    from orchestrator.campaign.model import STAGE_VERIFY_DONE
+
+    layout = CampaignLayout(str(tmp_path / "all-records")).ensure()
+    variant = _base_selected_commit(layout)
+    records = wal.read_records(layout)
+    assert [r.stage for r in records] == [STAGE_BUILD_START, STAGE_VERIFY_DONE,
+                                         STAGE_VERIFY_DONE, L.STAGE_COMMIT]
+    assert L.RECEIPT_PAYLOAD_KEY in records[-1].payload
+    out = {"outcome": "certified", "variant": variant,
+           "records": {L.STAGE_COMMIT: records[-1].payload}}
+    assert L._wal_attempt_provenance(layout, out)["wal_refs"] == _base_refs(records)
+
+
+def test_base_provenance_preserves_whiteboard_projection(monkeypatch):
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("provenance input read"))
+    monkeypatch.setattr(L, "_load_provenance", forbidden)
+    state = L.LoopState(iteration=1)
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    entry = L.project_whiteboard(state, planner, "success")
+    expected = {"iteration": 1, "direction": "increase", "magnitude": "small",
+                "result": "success", "delta_pct": None}
+    assert vars(entry) == expected
+    assert L.whiteboard_for_planner(state) == [expected]
+    forbidden.assert_not_called()
+
+
+def test_base_provenance_precedes_checkpoint(base_provenance_case, monkeypatch):
+    calls = []
+    publish, save = L._write_provenance, L.save_loop_state
+    def observed_publish(layout, prov):
+        publish(layout, prov)
+        calls.append("provenance")
+    def observed_save(layout, state):
+        assert L._load_provenance(layout)["entries"][str(state.iteration)]["iteration"] == state.iteration
+        calls.append("checkpoint")
+        return save(layout, state)
+    monkeypatch.setattr(L, "_write_provenance", observed_publish)
+    monkeypatch.setattr(L, "save_loop_state", observed_save)
+    L.drive_iteration(**base_provenance_case)
+    assert calls == ["provenance", "checkpoint"]
+
+
+@pytest.mark.parametrize("failure", ["publish", "checkpoint"])
+@pytest.mark.parametrize("existing", [False, True])
+def test_base_provenance_failure_keeps_checkpoint(base_provenance_case, monkeypatch,
+                                                 failure, existing):
+    case = _base_reject_case(base_provenance_case)
+    layout = case["layout"]
+    if existing:
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+    checkpoint = Path(L.loop_state_path(layout))
+    before = checkpoint.read_bytes() if existing else None
+    real_replace = os.replace
+    destination = L._provenance_path(layout) if failure == "publish" else str(checkpoint)
+    def fail_replace(src, dst):
+        if os.fspath(dst) == destination:
+            raise OSError("injected publication failure")
+        return real_replace(src, dst)
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "replace", fail_replace)
+        with pytest.raises(OSError, match="injected publication failure"):
+            L.drive_iteration(**case)
+    assert (checkpoint.read_bytes() if checkpoint.exists() else None) == before
+    old_records = wal.read_records(layout)
+    assert len(old_records) == 2
+    if failure == "checkpoint":
+        assert L._load_provenance(layout)["entries"]["1"]["build_attempt_id"] == old_records[0].payload["build_attempt_id"]
+    else:
+        assert not Path(L._provenance_path(layout)).exists()
+    assert L.drive_iteration(**case)["iteration"] == 1
+    records = wal.read_records(layout)
+    assert records[:2] == old_records
+    assert len(records) == 4
+    entry = L._load_provenance(layout)["entries"]["1"]
+    assert entry == _base_entry(outcome="rejected", variant=records[-1].variant,
+        attempt=records[-1].payload["build_attempt_id"], refs=_base_refs(records[2:]))
+    assert entry["build_attempt_id"] != old_records[0].payload["build_attempt_id"]
+
+
+def test_base_provenance_merge_is_idempotent(tmp_path):
+    layout = CampaignLayout(str(tmp_path / "merge"))
+    first = _base_entry(outcome="certified", variant="v", attempt="a")
+    second = _base_entry(2)
+    L._append_provenance_entry(layout, 1, first)
+    L._append_provenance_entry(layout, 2, second)
+    path = Path(L._provenance_path(layout))
+    before = path.read_bytes()
+    L._append_provenance_entry(layout, 1, first)
+    assert path.read_bytes() == before
+    updated = {**first, "outcome": "duplicate"}
+    L._append_provenance_entry(layout, 1, updated)
+    assert L._load_provenance(layout)["entries"] == {"1": updated, "2": second}
+
+
+@pytest.mark.parametrize("raw", [b"{", b"\xff", b"[]",
+    b'{"schema_version":"p3-s4-loop-provenance/v1","axis":"silo-backoff-magnitude","entries":[]}'])
+@pytest.mark.parametrize("b4", [False, True])
+def test_base_provenance_corrupt_report_stops(base_provenance_case, monkeypatch, raw, b4,
+                                              base_provenance_binding):
+    case = dict(base_provenance_case)
+    layout = case["layout"]
+    if b4:
+        cfg = L._campaign_cfg_for_site(L.default_cfg(
+            b4_reflux_ablation=True, _b4_launch_context=_B4_TEST_CONTEXT), site_policy.OTHER)
+        Path(layout.lock_file).write_text(build_v2_lock(
+            ident.canonical_preimage(cfg), binding=base_provenance_binding), encoding="utf-8")
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        case.update(cfg=cfg, do_build=True, _b4_launch_context=_b4_production_context(cfg))
+    path = Path(L._provenance_path(layout))
+    path.parent.mkdir(exist_ok=True)
+    path.write_bytes(raw)
+    L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+    checkpoint = Path(L.loop_state_path(layout)).read_bytes()
+    evaluate = unittest.mock.Mock(return_value={"outcome": "dry-pass", "variant": None})
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    # Spies preserve the real authorization implementations. With S13 removed,
+    # valid bootstrap authorization/evaluation reaches the later corrupt loader.
+    with unittest.mock.patch.object(L, "require_b4_iteration_authorization",
+            wraps=L.require_b4_iteration_authorization) as require, unittest.mock.patch.object(
+            L, "consume_b4_iteration_authorization",
+            wraps=L.consume_b4_iteration_authorization) as consume:
+        for _ in range(2):
+            with pytest.raises(RuntimeError, match="provenance"):
+                L.drive_iteration(**case)
+            assert Path(L.loop_state_path(layout)).read_bytes() == checkpoint
+            evaluate.assert_not_called()
+            require.assert_not_called()
+            consume.assert_not_called()
+    assert not path.exists()
+    backups = list(path.parent.glob(path.name + ".corrupt.*"))
+    assert len(backups) == 1 and backups[0].read_bytes() == raw
+    assert list(Path(layout.root).glob("b4_closed_critic_consumption_*.json")) == []
+
+
+
+@pytest.mark.parametrize("failure", ["write", "fsync", "replace"])
+def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):
+    layout = CampaignLayout(str(tmp_path / "publish"))
+    L._append_provenance_entry(layout, 1, _base_entry())
+    path = Path(L._provenance_path(layout))
+    before = path.read_bytes()
+    real_fdopen, real_fsync = os.fdopen, os.fsync
+    def fail_file_fsync(fd):
+        if stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError("injected fsync failure")
+        return real_fsync(fd)
+    class FailedWrite:
+        def __init__(self, fd, mode):
+            self.stream = real_fdopen(fd, mode)
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            self.stream.close()
+        def write(self, raw):
+            raise OSError("injected write failure")
+    with monkeypatch.context() as patch:
+        if failure == "write":
+            patch.setattr(os, "fdopen", FailedWrite)
+        elif failure == "fsync":
+            patch.setattr(os, "fsync", fail_file_fsync)
+        else:
+            patch.setattr(os, failure, unittest.mock.Mock(
+                side_effect=OSError("injected " + failure + " failure")))
+        with pytest.raises(OSError, match="injected"):
+            L._append_provenance_entry(layout, 2, _base_entry(2))
+    assert path.read_bytes() == before
+    assert list(path.parent.iterdir()) == [path]
+    L._append_provenance_entry(layout, 2, _base_entry(2))
+    assert L._load_provenance(layout)["entries"] == {"1": _base_entry(), "2": _base_entry(2)}
+
+
+@pytest.mark.parametrize("present", [False, True])
+def test_base_provenance_skips_stock_and_entry_stop(base_provenance_case, monkeypatch, present):
+    case = base_provenance_case
+    layout = case["layout"]
+    path = Path(L._provenance_path(layout))
+    if present:
+        L._append_provenance_entry(layout, 1, _base_entry())
+    before = path.read_bytes() if present else None
+    L.save_loop_state(layout, L.LoopState(start_wall=time.time(), reverse_recommendations=100))
+    assert L.drive_iteration(**case)["outcome"] == "stopped-before"
+    monkeypatch.setattr(L, "run_campaign", lambda *_a, **_k:
+                        SimpleNamespace(results=[], skipped=1, skipped_variants=[]))
+    assert L._run_stock_control_resolved(
+        case["cfg"], case["perf"], case["sub"], layout,
+        env_contract.lookup(L.ENV_TAG), site_policy.OTHER,
+        stock_root=case["sub"], build_context=case["build_context"],
+    )["outcome"] == "skipped"
+    assert (path.read_bytes() if path.exists() else None) == before
+
+
+@pytest.mark.parametrize("outcome", ["duplicate-skip", "rejected-preprocess"])
+def test_base_provenance_records_b5_early_returns(base_provenance_case, monkeypatch, outcome):
+    def evaluate(*_a, **_k):
+        return {"outcome": outcome, "variant": None, "records": {}}
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    out = L.drive_iteration(**base_provenance_case, b5_mode=True)
+    assert out["critic_digest_generated"] is False
+    assert L._load_provenance(base_provenance_case["layout"])["entries"] == {
+        "1": _base_entry(outcome=outcome)}
+
+
+def test_direct_drive_provenance_hash_defaults_to_null(base_provenance_case):
+    L.drive_iteration(**base_provenance_case)
+    assert L._load_provenance(base_provenance_case["layout"])["entries"]["1"]["initial_proposal_sha256"] is None
+
+
+def test_base_provenance_inputs_do_not_read_report(base_provenance_case):
+    layout = base_provenance_case["layout"]
+    state, cfg = L.LoopState(iteration=1), base_provenance_case["cfg"]
+    _seed_b4_empty_admitted_history(layout, cfg)
+    L.project_whiteboard(state, _site_test_proposals()[0], "success")
+    outputs = []
+    for digest in (None, "a" * 64, "b" * 64):
+        if digest is not None:
+            L._append_provenance_entry(layout, 1, _base_entry(digest=digest))
+        view = require_admitted_campaign(layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
+        outputs.append((
+            L.agent_outputs.canonical_bytes(L.whiteboard_for_planner(state)),
+            L.agent_outputs.canonical_bytes(L.planner_context_payload(state, cfg)),
+            L.make_critic_digest(view, identity_projection=L.make_critic_identity_projection(view)).encode(),
+        ))
+    assert outputs[0] == outputs[1] == outputs[2]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("iteration", True), ("iteration", 0), ("variant", ""),
+    ("build_attempt_id", 1), ("initial_proposal_sha256", "A" * 64),
+    ("wal_refs", ["wal:bad"]), ("outcome", "unknown"),
+])
+def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):
+    layout = CampaignLayout(str(tmp_path / "invalid-entry"))
+    path = Path(L._provenance_path(layout))
+    path.parent.mkdir(parents=True)
+    prov = {"schema_version": "p3-s4-loop-provenance/v1", "axis": L.MARKER_ID,
+            "entries": {"1": {**_base_entry(), field: value}}}
+    raw = json.dumps(prov).encode()
+    path.write_bytes(raw)
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="provenance"):
+            L._load_provenance(layout)
+    backups = list(path.parent.glob(path.name + ".corrupt.*"))
+    assert len(backups) == 1 and backups[0].read_bytes() == raw
+
+
+@pytest.mark.parametrize("starts", [0, 2])
+def test_base_provenance_rejects_missing_or_conflicting_start(tmp_path, starts):
+    layout = CampaignLayout(str(tmp_path / "attempt-start")).ensure()
+    _write_duplicate_lock(layout)
+    for _ in range(starts):
+        wal.log(layout, "v", STAGE_BUILD_START, L.ENV_TAG,
+                {"build_attempt_id": "attempt"})
+    wal.log(layout, "v", STAGE_ABORT, L.ENV_TAG,
+            {"build_attempt_id": "attempt", "reason": "fixture-abort"})
+    with pytest.raises(RuntimeError, match="start missing/conflicting"):
+        L._wal_attempt_provenance(layout, {"outcome": "rejected", "variant": "v"})
+    assert not Path(L._provenance_path(layout)).exists()
+
+
+@pytest.fixture
+def base_provenance_cli(base_provenance_case, tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness
+    case = base_provenance_case
+    layout = case["layout"]
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", lambda *_a, **_k:
+                        {"outcome": "dry-pass", "variant": None})
+    document = _b4_proposal_document()
+    path = tmp_path / "proposal.json"
+    path.write_text(json.dumps(document, indent=2), encoding="utf-8")
+    return layout, document, path
+
+
+def test_main_provenance_hash_without_agent_inputs(base_provenance_cli):
+    layout, document, path = base_provenance_cli
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    assert L._load_provenance(layout)["entries"]["1"]["initial_proposal_sha256"] == L.canonical_b4_proposal_sha256(document)
+    assert not Path(layout.agent_outputs_file).exists()
+
+
+def test_main_provenance_noncanonical_proposal_hash_is_null(base_provenance_cli, monkeypatch):
+    layout, document, path = base_provenance_cli
+    document["planner"]["uncertainty"] = float("nan")
+    path.write_text(json.dumps(document), encoding="utf-8")
+    evaluate = unittest.mock.Mock(return_value={"outcome": "dry-pass", "variant": None})
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    evaluate.assert_called_once()
+    entry = L._load_provenance(layout)["entries"]["1"]
+    assert entry["outcome"] == "dry-pass"
+    assert entry["initial_proposal_sha256"] is None
+
+
+def test_main_provenance_hash_uses_loaded_document(base_provenance_cli, monkeypatch):
+    layout, document, path = base_provenance_cli
+    original = L.load_proposal_file
+    def load_then_replace(*args, **kwargs):
+        result = original(*args, **kwargs)
+        path.write_text('{"replaced":true}', encoding="utf-8")
+        return result
+    monkeypatch.setattr(L, "load_proposal_file", load_then_replace)
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    assert L._load_provenance(layout)["entries"]["1"]["initial_proposal_sha256"] == L.canonical_b4_proposal_sha256(document)
+    assert json.loads(path.read_bytes()) == {"replaced": True}
+
+
+def test_base_provenance_hash_excludes_receipt_key(base_provenance_cli, tmp_path):
+    layout, document, path = base_provenance_cli
+    receipt_digest = "c" * 64
+    bound_document = {**document, L.B4_PROPOSAL_RECEIPT_SHA256_KEY: receipt_digest}
+    bound_path = tmp_path / "bound.json"
+    bound_path.write_text(json.dumps(bound_document, sort_keys=True), encoding="utf-8")
+    capture = {}
+    L.load_proposal_file(str(bound_path), b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_digest, capture=capture)
+    assert capture["proposal_document"] == bound_document
+    expected = L.canonical_b4_proposal_sha256(capture["proposal_document"])
+    assert expected == L.canonical_b4_proposal_sha256(document)
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    assert L._load_provenance(layout)["entries"]["1"]["initial_proposal_sha256"] == expected
+    path.write_text(json.dumps(document, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+    assert L.main(["--run-iteration", str(path), "--no-build"]) == 0
+    assert L._load_provenance(layout)["entries"]["2"]["initial_proposal_sha256"] == expected
 
 
 def _k2_proposal_document(*, knowledge_use=None, instruction_like=False):
@@ -10576,7 +11075,13 @@ def pair_cli_case(tmp_path, monkeypatch):
     from orchestrator.campaign import patchharness
     layout, _, _ = _stock_cli_fixture(tmp_path, monkeypatch)
     planner, coder = _site_test_proposals()
-    monkeypatch.setattr(L, "load_proposal_file", lambda *_a, **_k: (planner, coder, None))
+    def load_fixture(_path, **kwargs):
+        document = {"planner": vars(planner), "coder": vars(coder)}
+        kwargs["capture"].update(proposal_document=document,
+                                 proposal_bytes=json.dumps(document).encode())
+        return planner, coder, None
+
+    monkeypatch.setattr(L, "load_proposal_file", load_fixture)
     c = SimpleNamespace(events=[], calls=[], candidate="certified", stock="certified-stock",
                         candidate_error=None, stock_error=None, layout=layout)
 
