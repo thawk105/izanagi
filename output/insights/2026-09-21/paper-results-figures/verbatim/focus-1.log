@@ -1,0 +1,635 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+bounded local に与えた予算: 4294967296 bytes。ログインノードで 4294967296 bytes の予算を予約しました（予約控除後の観測余裕=7638824472 bytes、算出予算=4294967296 bytes、現在使用量=15022915584 bytes、回収不能量=5246077416 bytes、判定占有量=5246077416 bytes、実効天井=15032385536 bytes、生存中の予約=0 bytes）。
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+bounded scope の観測ピーク: 4294967296 bytes
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:scope-outcome-cap-oom
+[Pegasus dispatch] job を gen_S へ投入します (izdw-bb7abc6ee6)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/orphan-holds/unknown-c5225241dd996ded724fc702.json
+[Pegasus dispatch] request ID 15694.nqsv を受理しました
+[Pegasus dispatch] request 15694.nqsv の状態: QUE
+[Pegasus dispatch] request 15694.nqsv の状態: RUN
+[Pegasus dispatch] request 15694.nqsv の状態: END
+[Pegasus dispatch] request 15694.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/orphan-holds/unknown-c5225241dd996ded724fc702.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures/output/pegasus-dispatch/bb7abc6ee60584de084b781120260476/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 15694.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [  8%]
+| ...............F.......F......F......F.................................. [ 17%]
+| ........................................................................ [ 26%]
+| ........................................................................ [ 35%]
+| ........................................................................ [ 44%]
+| ........................................................................ [ 53%]
+| .............................................s.......................... [ 62%]
+| ........................................................................ [ 71%]
+| ........................................................................ [ 80%]
+| ........................................................................ [ 89%]
+| ...............................ss....................................... [ 98%]
+| ...............                                                          [100%]
+| =================================== FAILURES ===================================
+| _____________ test_landed_fig14_rejects_missing_or_partial_bundle ______________
+| [gw32] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0')
+|
+|     def test_landed_fig14_rejects_missing_or_partial_bundle(tmp_path):
+|         suffixes = (".png", ".pdf", ".provenance.json")
+|         cases = [()] + [tuple(s for s in suffixes if s != missing) for missing in suffixes]
+|         for i, present in enumerate(cases):
+|             root = tmp_path / str(i)
+|             prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+|             prefix.parent.mkdir(parents=True)
+|             for suffix in present:
+|                 Path(f"{prefix}{suffix}").write_bytes(b"presence only")
+|             try:
+| >               _assert_landed_fig14(root)
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:807:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0/0')
+|
+|     def _assert_landed_fig14(root):
+|         prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+|         paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
+| >       assert all(path.is_file() for path in paths), "fig14 integration bundle is incomplete"
+| E       AssertionError: fig14 integration bundle is incomplete
+| E       assert False
+| E        +  where False = all(<generator object _assert_landed_fig14.<locals>.<genexpr> at 0x14e9cefbe030>)
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:775: AssertionError
+|
+| During handling of the above exception, another exception occurred:
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0')
+|
+|     def test_landed_fig14_rejects_missing_or_partial_bundle(tmp_path):
+|         suffixes = (".png", ".pdf", ".provenance.json")
+|         cases = [()] + [tuple(s for s in suffixes if s != missing) for missing in suffixes]
+|         for i, present in enumerate(cases):
+|             root = tmp_path / str(i)
+|             prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+|             prefix.parent.mkdir(parents=True)
+|             for suffix in present:
+|                 Path(f"{prefix}{suffix}").write_bytes(b"presence only")
+|             try:
+|                 _assert_landed_fig14(root)
+|             except AssertionError as exc:
+| >               assert str(exc) == "fig14 integration bundle is incomplete"
+| E               AssertionError: assert 'fig14 integr...4e9cefbe030>)' == 'fig14 integr...is incomplete'
+| E
+| E                 - fig14 integration bundle is incomplete
+| E                 + fig14 integration bundle is incomplete
+| E                 ?                                       +
+| E                 + assert False
+| E                 +  +  where False = all(<generator object _assert_landed_fig14.<locals>.<genexpr> at 0x14e9cefbe030>)
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:809: AssertionError
+| _______ test_attempt2_visible_text_forbidden_claims_and_negative_control _______
+| [gw44] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_attempt2_visible_text_for0')
+|
+|     def test_attempt2_visible_text_forbidden_claims_and_negative_control(tmp_path):
+|         from matplotlib.text import Text
+|         data = _attempt2_data(tmp_path)
+|         fig, axes = PLOT.make_figure(data)
+|         def check():
+|             _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+|                                                 [t.get_text() for t in fig.findobj(Text) if t.get_visible()])
+|         try:
+|             check()
+|             axes[0, 0].set_title(axes[0, 0].get_title() + "\nreproducibility confirmed")
+|             try:
+| >               check()
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:671:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| orchestrator/tests/test_plot_a1_sized_paired.py:665: in check
+|     _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| texts = ['Figure 14. A-1 balanced five-rep paired comparison, sized run attempt-0002 (study paper-story-a1-20260901-balanced5-...ce under the balanced five-rep schedule, not a carryover-free steady-state effect.', 'pair index', '', '', '', '', ...]
+|
+|     def _assert_no_attempt2_forbidden_claims(texts):
+|         forbidden = ("headline result", "reproduces C1", "reproduction of C1 confirmed",
+|                      "certified performance", "performance certified", "A-1 is satisfied", "formal result",
+|                      "reproduced", "reproducibility confirmed", "replicates attempt-0001", "pooled estimate",
+|                      "difference between attempts", "ratio to attempt-0001", "overlap with attempt-0001",
+|                      "breach caused by", "because of the breach", "improvement", "regression", "significant")
+|         for text in texts:
+|             for phrase in forbidden:
+| >               assert phrase.lower() not in text.lower(), f"forbidden claim: {phrase}"
+| E               AssertionError: forbidden claim: reproducibility confirmed
+| E               assert 'reproducibility confirmed' not in 'write-heavy...ty confirmed'
+| E
+| E                 'reproducibility confirmed' is contained here:
+| E                   403.45 tps
+| E                   reproducibility confirmed
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:653: AssertionError
+|
+| During handling of the above exception, another exception occurred:
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_attempt2_visible_text_for0')
+|
+|     def test_attempt2_visible_text_forbidden_claims_and_negative_control(tmp_path):
+|         from matplotlib.text import Text
+|         data = _attempt2_data(tmp_path)
+|         fig, axes = PLOT.make_figure(data)
+|         def check():
+|             _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+|                                                 [t.get_text() for t in fig.findobj(Text) if t.get_visible()])
+|         try:
+|             check()
+|             axes[0, 0].set_title(axes[0, 0].get_title() + "\nreproducibility confirmed")
+|             try:
+|                 check()
+|             except AssertionError as exc:
+| >               assert str(exc) == "forbidden claim: reproducibility confirmed"
+| E               AssertionError: assert 'forbidden cl...ity confirmed' == 'forbidden cl...ity confirmed'
+| E
+| E                 - forbidden claim: reproducibility confirmed
+| E                 + forbidden claim: reproducibility confirmed
+| E                 ?                                           +
+| E                 + assert 'reproducibility confirmed' not in 'write-heavy...ty confirmed'
+| E                 +
+| E                 +   'reproducibility confirmed' is contained here:
+| E                 +     403.45 tps
+| E                 +     reproducibility confirmed
+|
+| orchestrator/tests/test_plot_a1_sized_paired.py:673: AssertionError
+| _____________ test_landed_fig15_rejects_missing_or_partial_bundle ______________
+| [gw32] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0')
+|
+|     def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
+|         global REPO
+|         original = REPO
+|         try:
+|             for i, present in enumerate([()] + [tuple(s for s in SUFFIXES if s != missing) for missing in SUFFIXES]):
+|                 REPO = tmp_path/str(i)
+|                 for s in present:
+|                     path = REPO/(LANDED+s)
+|                     path.parent.mkdir(parents=True,exist_ok=True)
+|                     path.write_bytes(b'presence only')
+|                 try:
+| >                   test_landed_fig15_repo_closure_and_caption_when_present()
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:442:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:420: in test_landed_fig15_repo_closure_and_caption_when_present
+|     paths, prov = _landed(REPO)
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0/0')
+|
+|     def _landed(root):
+|         paths = [root/(LANDED+s) for s in SUFFIXES]
+| >       assert all(p.is_file() for p in paths), 'fig15 integration bundle is incomplete'
+| E       AssertionError: fig15 integration bundle is incomplete
+| E       assert False
+| E        +  where False = all(<generator object _landed.<locals>.<genexpr> at 0x14e9cf05b140>)
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:413: AssertionError
+|
+| During handling of the above exception, another exception occurred:
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0')
+|
+|     def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
+|         global REPO
+|         original = REPO
+|         try:
+|             for i, present in enumerate([()] + [tuple(s for s in SUFFIXES if s != missing) for missing in SUFFIXES]):
+|                 REPO = tmp_path/str(i)
+|                 for s in present:
+|                     path = REPO/(LANDED+s)
+|                     path.parent.mkdir(parents=True,exist_ok=True)
+|                     path.write_bytes(b'presence only')
+|                 try:
+|                     test_landed_fig15_repo_closure_and_caption_when_present()
+|                 except AssertionError as exc:
+| >                   assert str(exc)=='fig15 integration bundle is incomplete'
+| E                   AssertionError: assert 'fig15 integr...4e9cf05b140>)' == 'fig15 integr...is incomplete'
+| E
+| E                     - fig15 integration bundle is incomplete
+| E                     + fig15 integration bundle is incomplete
+| E                     ?                                       +
+| E                     + assert False
+| E                     +  +  where False = all(<generator object _landed.<locals>.<genexpr> at 0x14e9cf05b140>)
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:444: AssertionError
+| _______________ test_caption_fixed_literals_and_forbidden_claims _______________
+| [gw29] linux -- Python 3.10.12 /bin/python3.10
+|
+|     def test_caption_fixed_literals_and_forbidden_claims():
+|         data, fig, axes = _rendered()
+|         caption = PLOT._caption(data,'fig15_test')
+|         literals = (
+|             'Non-significance does not establish equivalence, and zero detections do not establish absence.',
+|             'Power 0.105 is a calculation under the design assumptions, not a measured quantity: independent Bernoulli trials, 60 runs per arm, off probability 0.0417, on probability 0, and a one-sided Fisher test at alpha 0.05.',
+|             'TRACE=1 commit counts are exposure, not performance.',
+|             'G2 signals do not identify a root cause or distinguish a real anomaly from a torn read.',
+|             'This is a non-certifying observation; individual verifier certified flags and observational_only=false do not certify this wave, MOCC, or the witness.',
+|             'The denominator includes only 4 blocks x 15 rounds x 4 arms; smoke runs are excluded.',
+|             'CP intervals and Fisher p values assume independent Bernoulli trials and do not model within-node dependence, rotation order, or temporal variation.',
+|             'Conditions: 48 threads, 10,000 records, Zipf 0.9, read ratio 50, rmw 0, max operations 10, 3 s, TRACE=1 build, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1–W4 x 15 rounds x 4 arms, smoke excluded.',
+|             'Primary comparison BACK_OFF=0: one-sided Fisher (on lower), unadjusted p = 0.500',
+|             'Secondary comparison BACK_OFF=1: one-sided Fisher (on lower), unadjusted p = 0.500',
+|             'W1 e9-witlight-nowit (1/15)', 'W3 e9-witlight-nowit-bo1 (1/15)',
+|             'fired zero times and made zero comparisons', 'not a comparison at equal commit exposure',
+|             'Values from earlier waves [T-1892], [T-2774], and [T-2779] are neither pooled nor compared here.',
+|         )
+|         for literal in literals:
+|             assert literal in caption, literal
+|         _check_claims(caption,fig)
+|         original = axes[0].get_title()
+|         axes[0].set_title(original+' equivalent')
+|         try:
+|             try:
+| >               _check_claims(caption,fig)
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:350:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| caption = 'Figure 15. Stock MOCC lightweight witness observations: G2 signal detection rates with two-sided 95% Clopper–Pearson ...ld, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1–W4 x 15 rounds x 4 arms, smoke excluded.'
+| fig = <Figure size 1400x640 with 1 Axes>
+|
+|     def _check_claims(caption, fig):
+|         text = '\n'.join([caption]+_visible(fig)).lower()
+|         for phrase in FORBIDDEN:
+| >           assert phrase.lower() not in text, phrase
+| E           AssertionError: equivalent
+| E           assert 'equivalent' not in 'figure 15. ... root cause.'
+| E
+| E             'equivalent' is contained here:
+| E               ck_off=1
+| E                equivalent
+| E               stock mocc lightweight witness: g2 signal detection
+| E               k/m
+| E               rate...
+| E
+| E             ...Full output truncated (26 lines hidden), use '-vv' to show
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:322: AssertionError
+|
+| During handling of the above exception, another exception occurred:
+|
+|     def test_caption_fixed_literals_and_forbidden_claims():
+|         data, fig, axes = _rendered()
+|         caption = PLOT._caption(data,'fig15_test')
+|         literals = (
+|             'Non-significance does not establish equivalence, and zero detections do not establish absence.',
+|             'Power 0.105 is a calculation under the design assumptions, not a measured quantity: independent Bernoulli trials, 60 runs per arm, off probability 0.0417, on probability 0, and a one-sided Fisher test at alpha 0.05.',
+|             'TRACE=1 commit counts are exposure, not performance.',
+|             'G2 signals do not identify a root cause or distinguish a real anomaly from a torn read.',
+|             'This is a non-certifying observation; individual verifier certified flags and observational_only=false do not certify this wave, MOCC, or the witness.',
+|             'The denominator includes only 4 blocks x 15 rounds x 4 arms; smoke runs are excluded.',
+|             'CP intervals and Fisher p values assume independent Bernoulli trials and do not model within-node dependence, rotation order, or temporal variation.',
+|             'Conditions: 48 threads, 10,000 records, Zipf 0.9, read ratio 50, rmw 0, max operations 10, 3 s, TRACE=1 build, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1–W4 x 15 rounds x 4 arms, smoke excluded.',
+|             'Primary comparison BACK_OFF=0: one-sided Fisher (on lower), unadjusted p = 0.500',
+|             'Secondary comparison BACK_OFF=1: one-sided Fisher (on lower), unadjusted p = 0.500',
+|             'W1 e9-witlight-nowit (1/15)', 'W3 e9-witlight-nowit-bo1 (1/15)',
+|             'fired zero times and made zero comparisons', 'not a comparison at equal commit exposure',
+|             'Values from earlier waves [T-1892], [T-2774], and [T-2779] are neither pooled nor compared here.',
+|         )
+|         for literal in literals:
+|             assert literal in caption, literal
+|         _check_claims(caption,fig)
+|         original = axes[0].get_title()
+|         axes[0].set_title(original+' equivalent')
+|         try:
+|             try:
+|                 _check_claims(caption,fig)
+|             except AssertionError as exc:
+| >               assert str(exc)=='equivalent'
+| E               assert "equivalent\n...'-vv' to show" == 'equivalent'
+| E
+| E                 - equivalent
+| E                 + equivalent
+| E                 ?           +
+| E                 + assert 'equivalent' not in 'figure 15. ... root cause.'
+| E                 +
+| E                 +   'equivalent' is contained here:...
+| E
+| E                 ...Full output truncated (7 lines hidden), use '-vv' to show
+|
+| orchestrator/tests/test_plot_mocc_witlight_four_arm.py:352: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_rejects_missing_or_partial_bundle
+| FAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_visible_text_forbidden_claims_and_negative_control
+| FAILED orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_rejects_missing_or_partial_bundle
+| FAILED orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims
+| 4 failed, 800 passed, 3 skipped in 36.70s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=6101 retained_bytes=3944 omitted_bytes=2157 rendered_excerpt_bytes=4096 sha256=d51039576cd7a7c3e84b36209b83e303aa0aa790582c1b7fc4986487114a2acd
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > _claims(caption,fig)
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:350:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > caption = 'Figure 15. Stock MOCC lightweight witness observations: G2 signal detection rates with two-sided 95% Clopper\u2013Pearson ...ld, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1\u2013W4 x 15 rounds x 4 arms, smoke excluded.'
+| > fig = <Figure size 1400x640 with 1 Axes>
+| >
+| >     def _check_claims(caption, fig):
+| >         text = '\x5cn'.join([caption]+_visible(fig)).lower()
+| >         for phrase in FORBIDDEN:
+| > >           assert phrase.lower() not in text, phrase
+| > E           AssertionError: equivalent
+| > E           assert 'equivalent' not in 'figure 15. ... root cause.'
+| > E
+| > E             'equivalent' is contained here:
+| > E               ck_off=1
+| > E                equivalent
+| > E               stock mocc lightweight witness: g2 signal detection
+| > E               k/m
+| > E               rate...
+| > E
+| > E             ...Full output truncated (26 lines hidden), use '-vv' to show
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:322: AssertionError
+| >
+| > During handling of the above exception, another exception occurred:
+| >
+| >     def test_caption_fixed_literals_and_forbidden_claims():
+| >         data, fig, axes = _rendered()
+| >         caption = PLOT._caption(data,'fig15_test')
+| >         literals = (
+| >             'Non-significance does not establish equivalence, and zero detections do not establish absence.',
+| >             'Power 0.105 is a calculation under the design assumptions, not a measured quantity: independent Bernoulli trials, 60 runs per arm, off probability 0.0417, on probability 0, and a one-sided Fisher test at alpha 0.05.',
+| >             'TRACE=1 commit counts are exposure, not performance.',
+| >             'G2 signals do not identify a root cause or distinguish a real anomaly from a torn read.',
+| >             'This is a non-certifying observation; individual verifier certified flags and observational_only=false do not certify this wave, MOCC, or the witness.',
+| >             'The denominator includes only 4 blocks x 15 rounds x 4 arms; smoke runs are excluded.',
+| >             'CP intervals and Fisher p values assume independent Bernoulli trials and do not model within-node dependence, rotation order, or temporal variation.',
+| >             'Conditions: 48 threads, 10,000 records, Zipf 0.9, read ratio 50, rmw 0, max operations 10, 3 s, TRACE=1 build, pin e9e477ca + X/P + witlight patches, Pegasus compute nodes, 4 blocks W1\u2013W4 x 15 rounds x 4 arms, smoke excluded.',
+| >             'Primary comparison BACK_OFF=0: one-sided Fisher (on lower), unadjusted p = 0.500',
+| >             'Secondary comparison BACK_OFF=1: one-sided Fisher (on lower), unadjusted p = 0.500',
+| >             'W1 e9-witlight-nowit (1/15)', 'W3 e9-witlight-nowit-bo1 (1/15)',
+| >             'fired zero times and made zero comparisons', 'not a comparison at equal commit exposure',
+| >             'Values from earlier waves [T-1892], [T-2774], and [T-2779] are neither pooled nor compared here.',
+| >         )
+| >         for literal in literals:
+| >             assert literal in caption, literal
+| >         _check_claims(caption,fig)
+| >         original = axes[0].get_title()
+| >         axes[0].set_title(original+' equivalent')
+| >         try:
+| >             try:
+| >                 _check_claims(caption,fig)
+| >             except AssertionError as exc:
+| > >               assert str(exc)=='equivalent'
+| > E               assert "equivalent\x5cn...'-vv' to show" == 'equivalent'
+| > E
+| > E                 - equivalent
+| > E                 + equivalent
+| > E                 ?           +
+| > E                 + assert 'equivalent' not in 'figure 15. ... root cause.'
+| > E                 +
+| > E                 +   'equivalent' is contained here:...
+| > E
+| > E                 ...Full output truncated (7 lines hidden), use '-vv' to show
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:352: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_visible_text_forbidden_claims_and_negative_control" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=3992 retained_bytes=3945 omitted_bytes=47 rendered_excerpt_bytes=4096 sha256=3529f100306188bf04d66732c11e38efec61926be4ca7e94e8dab615614b5273
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_attempt2_visible_text_for0')
+| >
+| >     def test_attempt2_visible_text_forbidden_claims_and_negative_control(tmp_path):
+| >         from matplotlib.text import Text
+| >         data = _attempt2_data(tmp_path)
+| >         fig, axes = PLOT.make_figure(data)
+| >         def check():
+| >             _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+| >                                                 [t.get_text() for t in fig.findobj(Text) if t.get_visible()])
+| >         try:
+| >             check()
+| >             axes[0, 0].set_title(axes[0, 0].get_title() + "\x5cnreproducibility confirmed")
+| >             try:
+| > >               check()
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:671:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/tests/test_plot_a1_sized_paired.py:665: in check
+| >     _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > texts = ['Figure 14. A-1 balanced five-rep paired comparison, sized run attempt-0002 (study paper-story-a1-20260901-balanced5-...ce under the balanced five-rep schedule, not a carryover-free steady-state effect.', 'pair index', '', '', '', '', ...]
+| >
+| >     def _assert_no_attempt2_forbidden_claims(texts):
+| >         forbidden = ("headline result", "reproduces C1", "reproduction of C1 confirmed",
+| >                      "certified performance", "performance certified", "A-1 is satisfied", "formal result",
+| >                      "reproduced", "reproducibility confirmed", "replicates attempt-0001", "pooled estimate",
+| >                      "difference between attempts", "ratio to attempt-0001", "overlap with attempt-0001",
+| >                      "breach caused by", "because of the breach", "improvement", "regression", "significant")
+| >         for text in texts:
+| >             for phrase in forbidden:
+| > >               assert phrase.lower() not in text.lower(), f"forbidden claim: {phrase}"
+| > E               AssertionError: forbidden claim: reproducibility confirmed
+| > E               assert 'reproducibility confirmed' not in 'write-heavy...ty confirmed'
+| > E
+| > E                 'reproducibility confirmed' is contained here:
+| > E                   403.45 tps
+| > E                   reproducibility confirmed
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:653: AssertionError
+| >
+| > During handling of the above exception, another exception occurred:
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_attempt2_visible_text_for0')
+| >
+| >     def test_attempt2_visible_text_forbidden_claims_and_negative_control(tmp_path):
+| >         from matplotlib.text import Text
+| >         data = _attempt2_data(tmp_path)
+| >         fig, axes = PLOT.make_figure(data)
+| >         def check():
+| >             _assert_no_attempt2_forbidden_claims([PLOT._caption(data, "fig14_test")] +
+| >                                                 [t.get_text() for t in fig.findobj(Text) if t.get_visible()])
+| >         try:
+| >             check()
+| >             axes[0, 0].set_title(axes[0, 0].get_title() + "\x5cnreproducibility confirmed")
+| >             try:
+| >                 check()
+| >             except AssertionError as exc:
+| > >               assert str(exc) == "forbidden claim: reproducibility confirmed"
+| > E               AssertionError: assert 'forbidden cl...ity confirmed' == 'forbidden cl...ity confirmed'
+| > E
+| > E                 - forbidden claim: reproducibility confirmed
+| > E                 + forbidden claim: reproducibility confirmed
+| > E                 ?                                           +
+| > E                 + assert 'reproducibility confirmed' not in 'write-heavy...ty confirmed'
+| > E                 +
+| > E                 +   'reproducibility confirmed' is contained here:
+| > E                 +     403.45 tps
+| > E                 +     reproducibility confirmed
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:673: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_rejects_missing_or_partial_bundle" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=3037 retained_bytes=3037 omitted_bytes=0 rendered_excerpt_bytes=3160 sha256=860eda7f7a30a20283a1cb4f118a159dfc8442dcaa1bd507d3bc678f94f54156
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > [gw32] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0')
+| >
+| >     def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
+| >         global REPO
+| >         original = REPO
+| >         try:
+| >             for i, present in enumerate([()] + [tuple(s for s in SUFFIXES if s != missing) for missing in SUFFIXES]):
+| >                 REPO = tmp_path/str(i)
+| >                 for s in present:
+| >                     path = REPO/(LANDED+s)
+| >                     path.parent.mkdir(parents=True,exist_ok=True)
+| >                     path.write_bytes(b'presence only')
+| >                 try:
+| > >                   test_landed_fig15_repo_closure_and_caption_when_present()
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:442:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:420: in test_landed_fig15_repo_closure_and_caption_when_present
+| >     paths, prov = _landed(REPO)
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0/0')
+| >
+| >     def _landed(root):
+| >         paths = [root/(LANDED+s) for s in SUFFIXES]
+| > >       assert all(p.is_file() for p in paths), 'fig15 integration bundle is incomplete'
+| > E       AssertionError: fig15 integration bundle is incomplete
+| > E       assert False
+| > E        +  where False = all(<generator object _landed.<locals>.<genexpr> at 0x14e9cf05b140>)
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:413: AssertionError
+| >
+| > During handling of the above exception, another exception occurred:
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig15_rejects_miss0')
+| >
+| >     def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
+| >         global REPO
+| >         original = REPO
+| >         try:
+| >             for i, present in enumerate([()] + [tuple(s for s in SUFFIXES if s != missing) for missing in SUFFIXES]):
+| >                 REPO = tmp_path/str(i)
+| >                 for s in present:
+| >                     path = REPO/(LANDED+s)
+| >                     path.parent.mkdir(parents=True,exist_ok=True)
+| >                     path.write_bytes(b'presence only')
+| >                 try:
+| >                     test_landed_fig15_repo_closure_and_caption_when_present()
+| >                 except AssertionError as exc:
+| > >                   assert str(exc)=='fig15 integration bundle is incomplete'
+| > E                   AssertionError: assert 'fig15 integr...4e9cf05b140>)' == 'fig15 integr...is incomplete'
+| > E
+| > E                     - fig15 integration bundle is incomplete
+| > E                     + fig15 integration bundle is incomplete
+| > E                     ?                                       +
+| > E                     + assert False
+| > E                     +  +  where False = all(<generator object _landed.<locals>.<genexpr> at 0x14e9cf05b140>)
+| >
+| > orchestrator/tests/test_plot_mocc_witlight_four_arm.py:444: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_rejects_missing_or_partial_bundle" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2953 retained_bytes=2953 omitted_bytes=0 rendered_excerpt_bytes=3068 sha256=7f3438693c0c6d3703472f406ce8d1058a453265c56e5f24ef4462e815955f09
+| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+| > [gw32] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0')
+| >
+| >     def test_landed_fig14_rejects_missing_or_partial_bundle(tmp_path):
+| >         suffixes = (".png", ".pdf", ".provenance.json")
+| >         cases = [()] + [tuple(s for s in suffixes if s != missing) for missing in suffixes]
+| >         for i, present in enumerate(cases):
+| >             root = tmp_path / str(i)
+| >             prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+| >             prefix.parent.mkdir(parents=True)
+| >             for suffix in present:
+| >                 Path(f"{prefix}{suffix}").write_bytes(b"presence only")
+| >             try:
+| > >               _assert_landed_fig14(root)
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:807:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0/0')
+| >
+| >     def _assert_landed_fig14(root):
+| >         prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+| >         paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
+| > >       assert all(path.is_file() for path in paths), "fig14 integration bundle is incomplete"
+| > E       AssertionError: fig14 integration bundle is incomplete
+| > E       assert False
+| > E        +  where False = all(<generator object _assert_landed_fig14.<locals>.<genexpr> at 0x14e9cefbe030>)
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:775: AssertionError
+| >
+| > During handling of the above exception, another exception occurred:
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_landed_fig14_rejects_miss0')
+| >
+| >     def test_landed_fig14_rejects_missing_or_partial_bundle(tmp_path):
+| >         suffixes = (".png", ".pdf", ".provenance.json")
+| >         cases = [()] + [tuple(s for s in suffixes if s != missing) for missing in suffixes]
+| >         for i, present in enumerate(cases):
+| >             root = tmp_path / str(i)
+| >             prefix = root / "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+| >             prefix.parent.mkdir(parents=True)
+| >             for suffix in present:
+| >                 Path(f"{prefix}{suffix}").write_bytes(b"presence only")
+| >             try:
+| >                 _assert_landed_fig14(root)
+| >             except AssertionError as exc:
+| > >               assert str(exc) == "fig14 integration bundle is incomplete"
+| > E               AssertionError: assert 'fig14 integr...4e9cefbe030>)' == 'fig14 integr...is incomplete'
+| > E
+| > E                 - fig14 integration bundle is incomplete
+| > E                 + fig14 integration bundle is incomplete
+| > E                 ?                                       +
+| > E                 + assert False
+| > E                 +  +  where False = all(<generator object _assert_landed_fig14.<locals>.<genexpr> at 0x14e9cefbe030>)
+| >
+| > orchestrator/tests/test_plot_a1_sized_paired.py:809: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=4 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=16083 retained_bytes=13879 omitted_bytes=2204 budget_bytes=49152 rendered_bytes=16505 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 15694.nqsv child stdout end
+[Pegasus dispatch] request 15694.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2316749, "time_ns": 1789994695778766527}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2316770, "event": "direct-child-wait-start", "pid": 2316756, "time_ns": 1789994695807518189}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2316770, "event": "direct-child-wait-complete", "pid": 2316756, "time_ns": 1789994733130810048}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2316756, "rc": 0, "time_ns": 1789994733130892727}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2316749, "rc": 0, "time_ns": 1789994733135294124}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 2316749}, {"comm": "bash", "pid": 2316730}, {"comm": "nqs_shpd", "pid": 2316729}, {"comm": "nqs_shpd", "pid": 2316531}, {"comm": "nqs_shpd", "pid": 4571}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 2316749, "sid": 2316729, "time_ns": 1789994733135706481}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.102258981671184, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 2316749, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789994733168847804, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2316749, "time_ns": 1789994733171260369}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2316749, "time_ns": 1789994733189217230}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2316749, "time_ns": 1789994733190222290}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2316749, "time_ns": 1789994733190233290}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2316749, "time_ns": 1789994733191907371}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2316749, "time_ns": 1789994733191918067}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2316749, "rc": 1, "time_ns": 1789994733191927682}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2316749, "rc": 1, "time_ns": 1789994733191944587}
+|
+| ============================================================
+| Request ID:             15694.nqsv
+| Request Name:           izdw-bb7abc6ee6
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 21 21:44:47 2026
+| Started Request Time:   Mon Sep 21 21:44:54 2026
+| Ended Request Time:     Mon Sep 21 21:45:33 2026
+| Resources Information:
+|   Elapse:               43S
+|   Remaining Elapse:     3557S
+| ============================================================
+[Pegasus dispatch] request 15694.nqsv child stderr end

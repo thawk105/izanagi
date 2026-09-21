@@ -1,0 +1,1051 @@
+{
+  "source": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/mutation-final1-results.json",
+    "sha256": "134a69603326a8d5c07779175d762eac63a499eb73c0959a33697c01f086ab4d",
+    "bytes": 391606
+  },
+  "note": "artifact (dispatch stdout / receipt path) と test_output_tail を省いた要約。各 record の test_output_sha256 と collection_sha256 は保持する。",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "date": "2026-09-21T13:06:28.364709+00:00",
+  "updated_at": "2026-09-21T13:23:27.839167+00:00",
+  "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+  "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+  "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+  "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f",
+  "summary": {
+    "KILLED": 14,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 15,
+    "matching": 15,
+    "recorded": 15,
+    "registered": 15
+  },
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-paper-figs/output/pegasus-dispatch/5c96aeffdb6e18449defb14ab12e1068/izdw-5c96aeffdb.o15763",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/mut-paper-figs/output/pegasus-dispatch/5c96aeffdb6e18449defb14ab12e1068/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_a1_sized_paired.py::test_fixture_has_production_shape_and_recomputes_statistics\norchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics\norchestrator/tests/test_plot_a1_sized_paired.py::test_real_figure_passes_layout_check\norchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure\norchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_avoids_forbidden_claims\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_figure_number_comes_from_prefix\norchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source\norchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override\norchestrator/tests/test_plot_a1_sized_paired.py::test_generator_comment_change_preserves_provenance_closure\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_output_paths_reject_same_basename_in_other_directory\norchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_input_hashes_match_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_cli_writes_three_outputs_and_provenance_closure\norchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_prefix_without_fig_number\norchestrator/tests/test_plot_a1_sized_paired.py::test_real_leaf_loads_and_matches_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_partial_missing_outputs\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt1_default_and_explicit_data_are_identical\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_fixture_has_production_shape\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt_hash_key_sets_are_exact\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_variance_plan_breach_true_is_accepted\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_variance_plan_predicate_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_avoids_forbidden_claims\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_visible_text_forbidden_claims_and_negative_control\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_figure_passes_layout_check\norchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_cli_and_provenance_closure\norchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_unknown_attempt_and_hash_options\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_rejects_missing_or_partial_bundle\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_hash_drift_is_rejected\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_disagreement_is_rejected\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_smoke_or_duplicate_run_in_main_block_is_rejected\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_arm_bindings_and_rotation_are_checked\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_failure_or_indeterminate_is_rejected\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_rejects_missing_or_partial_bundle\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present\norchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present\n\n71 tests collected in 0.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "06b878ed38c2e800162212b7fc4dcc343fa25a611a08f886ee1ac93148cbb680"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_prefix_without_fig_number",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_real_leaf_loads_and_matches_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_partial_missing_outputs",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt1_default_and_explicit_data_are_identical",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_fixture_has_production_shape",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt_hash_key_sets_are_exact",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_variance_plan_breach_true_is_accepted",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_variance_plan_predicate_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_visible_text_forbidden_claims_and_negative_control",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_cli_and_provenance_closure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_unknown_attempt_and_hash_options",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_rejects_missing_or_partial_bundle",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_disagreement_is_rejected",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_smoke_or_duplicate_run_in_main_block_is_rejected",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_arm_bindings_and_rotation_are_checked",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_failure_or_indeterminate_is_rejected",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_rejects_missing_or_partial_bundle",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present"
+      ],
+      "duration_s": 26.895,
+      "rc": 0,
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "PASSED",
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-a1-comment-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bcbab4e0c1157b1f8b72c708b168575959b2ab5d04cdf4a08d639e59db1426e6",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "# Equivalence control: comment only.\nCAPTION_SCOPE = \"wording of limitations and conditions only; not measurement values or classification\"\n",
+            "old": "CAPTION_SCOPE = \"wording of limitations and conditions only; not measurement values or classification\"\n"
+          }
+        ]
+      },
+      "m1-a1-drop-attempt1-breach-rejection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "24c379d42f5bd519c1bbe9984eec28a59fda5d575bae756177a979b1545c208d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "",
+            "old": "        if attempt == \"attempt-0001\":\n            _require(stat[\"variance_plan_breach\"] is False, \"variance plan breach outside scope\")\n"
+          }
+        ]
+      },
+      "m10-mocc-commit-mean-denominator-240": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26eaf52e252546d00360406962e51300b67cae27cb2ff373c86b6a25b55307a1",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "                 commit_count_sum=total, commit_count_mean=total/240)\n",
+            "old": "                 commit_count_sum=total, commit_count_mean=total/n)\n"
+          }
+        ]
+      },
+      "m11-mocc-drop-not-performance-note": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "27fe42e48535c44235b9e54072f510654785a9594f0e6920bb866f02d355ba1c",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "    notes = ['non-certifying; TRACE=1 build', 'Commits: exposure']\n",
+            "old": "    notes = ['non-certifying; TRACE=1 build', 'Commits: exposure, not performance']\n"
+          }
+        ]
+      },
+      "m12-mocc-title-equivalent": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aa99e6897fe4ddbb4cc3e401338bcb8ee4a877f3b0d0935ed1c35ef4f310d3e6",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "    fig.suptitle('Stock MOCC lightweight witness: G2 signal detection equivalent', y=.96, fontsize=14)\n",
+            "old": "    fig.suptitle('Stock MOCC lightweight witness: G2 signal detection', y=.96, fontsize=14)\n"
+          }
+        ]
+      },
+      "m13-mocc-drop-publish-layout-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a57b2b1523efea778417829b135babbbd05bfff5fcfaa4730cf2aaf4afe77d8f",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "    _figure_number(prefix)\n    prefix.parent.mkdir(parents=True, exist_ok=True)\n",
+            "old": "    _figure_number(prefix)\n    check_figure_layout(fig, axes)\n    prefix.parent.mkdir(parents=True, exist_ok=True)\n"
+          }
+        ]
+      },
+      "m14-mocc-drop-exposure-ratio-notes": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "48063a9d537dec0fc28aacc54c1395c90592f0101e7458c472513b1704a18996",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "",
+            "old": "    for i, text in enumerate(series['exposure_notes']):\n        fig.text(.53, .415-i*.038, text, fontsize=10)\n"
+          }
+        ]
+      },
+      "m2-a1-attempt2-result-pin-one-char": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "373b6e8d0353d6d8c4ffbb960e8a651dd4059c56089064d06360540362b88c38",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "ATTEMPT2_LEAF_DIR + \"/result.json\": \"b7e0518e197500f2daf875e841acabf63f5eddb82bc14e072dd28e3431fe5f75\",",
+            "old": "ATTEMPT2_LEAF_DIR + \"/result.json\": \"b7e0518e197500f2daf875e841acabf63f5eddb82bc14e072dd28e3431fe5f74\","
+          }
+        ]
+      },
+      "m3-a1-attempt1-caption-one-word": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1ab53429d6f0b6cfdad5474f20e3a91e46cfef0ad2588cd5575d12e2c4a44f8d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "sized  run attempt-0001 (study {data['study_id']}; {FIXED_LANE}).",
+            "old": "sized run attempt-0001 (study {data['study_id']}; {FIXED_LANE})."
+          }
+        ]
+      },
+      "m4-a1-attempt2-drop-nonpooling-literal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e5ab7d116e47e41330e9d77cd74d97d34fc78fb780ed94cd656649e96ce65d55",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "",
+            "old": "        \"Attempt-0001 is neither pooled nor compared with this attempt; no between-attempt difference, ratio, or reproducibility judgment is made.\",\n"
+          }
+        ]
+      },
+      "m5-a1-attempt2-drop-panel-breach-line": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7afb671ffbb4be540e0c02ab3f1b69501a972cf3f344bc08266049d2f9e90117",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "",
+            "old": "                f\"variance_plan_breach={str(c['variance_plan_breach']).lower()}\\n\"\n"
+          }
+        ]
+      },
+      "m6-mocc-summary-pin-one-char": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3247b264da5f9492f6e35890241c2d559411c6006cf05fc5bd29445273321605",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "    'summary.json': 'b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310699',",
+            "old": "    'summary.json': 'b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698',"
+          }
+        ]
+      },
+      "m7-mocc-drop-summary-inputs-exact": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b5d4a09081b6c7e20faff0a23ca800dc991084ac8b23bf0e0638c031a8caa7f6",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "",
+            "old": "    _require(summary['inputs'] == _source_inputs(pins), 'summary inputs exact mismatch')\n"
+          }
+        ]
+      },
+      "m8-mocc-cp-upper-quantile": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b192cbda715b1d66ec47c4fafc1bc1c006c8a8f6a402bfea8b71d73324b8724e",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "            1. if k == m else _beta_quantile(.95, k+1, m-k)]\n",
+            "old": "            1. if k == m else _beta_quantile(.975, k+1, m-k)]\n"
+          }
+        ]
+      },
+      "m9-mocc-fisher-whole-support": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+          "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "32a5a7b4754bf71c10805b040ff5d2395353bd52cdd05875baa164560da2fb49",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+            "new": "                     for x in range(max(0, n-(total-successes)), min(n, successes)+1))\n",
+            "old": "                     for x in range(max(0, n-(total-successes)), min(a, successes)+1))\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c2e204c63deb990fb2ac8d7f9c2705f2a8b3cc5c7f883318f4e8682519dd58ac",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_a1_sized_paired.py",
+      "orchestrator/tests/test_plot_mocc_witlight_four_arm.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "baseline": {
+    "artifact_error": null,
+    "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+    "duration_s": 32.216,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c2e204c63deb990fb2ac8d7f9c2705f2a8b3cc5c7f883318f4e8682519dd58ac",
+    "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+    "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+    "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+    "status": "PASSED",
+    "test_output_sha256": "a97f058ec25d3798e4e6c65da09b99d3f334bedad5dca7cf30a41674f4ea87fc",
+    "timed_out": false,
+    "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+  },
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.018,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-a1-comment-only",
+      "injection_diff_sha256": "bcbab4e0c1157b1f8b72c708b168575959b2ab5d04cdf4a08d639e59db1426e6",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "16b9e3d1d40430f5cfb5a3d596a5e36a18139086c099361e28c4337167bd4b93",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "# Equivalence control: comment only.\nCAPTION_SCOPE = \"wording of limitations and conditions only; not measurement values or classification\"\n",
+          "old": "CAPTION_SCOPE = \"wording of limitations and conditions only; not measurement values or classification\"\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "SURVIVED",
+      "test_output_sha256": "656fa3dfa0fdd83043431d2f5b2c104066193f4b52d5ee7a73aa6a06ab689b11",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 37.408,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m1-a1-drop-attempt1-breach-rejection",
+      "injection_diff_sha256": "24c379d42f5bd519c1bbe9984eec28a59fda5d575bae756177a979b1545c208d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c759078e9376dd9c175361fd37bf4e515dbd668c9e3335760194832884ae5a5e",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "",
+          "old": "        if attempt == \"attempt-0001\":\n            _require(stat[\"variance_plan_breach\"] is False, \"variance plan breach outside scope\")\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "4910809ba9ee881b3021ca327d730b9d02ae442c4984ef6fbc84066aa73920b7",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.175,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_real_leaf_loads_and_matches_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m2-a1-attempt2-result-pin-one-char",
+      "injection_diff_sha256": "373b6e8d0353d6d8c4ffbb960e8a651dd4059c56089064d06360540362b88c38",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8a56358eca0e2eb262c494a16bad05a1afbe251f22a0d1e903ddda92a61499d7",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "ATTEMPT2_LEAF_DIR + \"/result.json\": \"b7e0518e197500f2daf875e841acabf63f5eddb82bc14e072dd28e3431fe5f75\",",
+          "old": "ATTEMPT2_LEAF_DIR + \"/result.json\": \"b7e0518e197500f2daf875e841acabf63f5eddb82bc14e072dd28e3431fe5f74\","
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "eb773191ef906ab0e7db1973021f9bf7015aa59402bd4e69c14ff2b4e6b40fda",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 415.947,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m3-a1-attempt1-caption-one-word",
+      "injection_diff_sha256": "1ab53429d6f0b6cfdad5474f20e3a91e46cfef0ad2588cd5575d12e2c4a44f8d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9e11a59e61f54306655618a129732f804ab213a28fa3c665fddad764b73ad302",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "sized  run attempt-0001 (study {data['study_id']}; {FIXED_LANE}).",
+          "old": "sized run attempt-0001 (study {data['study_id']}; {FIXED_LANE})."
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "406da14d44674107a66894ae8d5d6de4a81fcc4b7e77fe098a0177565b7e601f",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.512,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_caption_contains_fixed_literals_and_breach_values",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m4-a1-attempt2-drop-nonpooling-literal",
+      "injection_diff_sha256": "e5ab7d116e47e41330e9d77cd74d97d34fc78fb780ed94cd656649e96ce65d55",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a2a51a353cace1db952ab831322f9ece96c07a9083ea4426d23417a91b7aa23f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "",
+          "old": "        \"Attempt-0001 is neither pooled nor compared with this attempt; no between-attempt difference, ratio, or reproducibility judgment is made.\",\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "df200adf733cf3779e0593fd4e4a36be5822ce6bdd4a5e9e35d7e36ba5b465a6",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.339,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_attempt2_rendered_breach_and_statistics_match_provenance",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig14_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m5-a1-attempt2-drop-panel-breach-line",
+      "injection_diff_sha256": "7afb671ffbb4be540e0c02ab3f1b69501a972cf3f344bc08266049d2f9e90117",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fa84d7f7bfe714b050312c6f26dd74aa8fc5c826153f4bf05e235762a764d335",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "",
+          "old": "                f\"variance_plan_breach={str(c['variance_plan_breach']).lower()}\\n\"\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "b24e8d74c08d9954dc85649d316157e83a2c93a81c6bffadc0dbe89e9da26c5d",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.425,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_production_pins_match_results_document"
+      ],
+      "hang_risk": false,
+      "id": "m6-mocc-summary-pin-one-char",
+      "injection_diff_sha256": "3247b264da5f9492f6e35890241c2d559411c6006cf05fc5bd29445273321605",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2bf12d63bf8a63478bab00293c4390359570f1ed3367e8ece309bb22ae3ff15a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "    'summary.json': 'b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310699',",
+          "old": "    'summary.json': 'b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698',"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "16c95d14498b3657f6de631ac808c16ff2ef83991ccedadcddcbfd61b30ca04d",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.072,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_reject_smoke_extra_entry",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_summary_inputs_are_exact"
+      ],
+      "hang_risk": false,
+      "id": "m7-mocc-drop-summary-inputs-exact",
+      "injection_diff_sha256": "b5d4a09081b6c7e20faff0a23ca800dc991084ac8b23bf0e0638c031a8caa7f6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "55be5db68d835610828c08e1ee2e89eac31d49491ddf296ec79b91ea547c821d",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "",
+          "old": "    _require(summary['inputs'] == _source_inputs(pins), 'summary inputs exact mismatch')\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "8f25114045cbbedf158a539feec635b48c0b58d2fa11c58e6cca42c81bf0f5fa",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.096,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cp95_matches_reference_values_and_boundaries",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fixture_has_production_shape_and_rotation",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_relocated_evidence_keeps_original_input_paths",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_rendered_artists_equal_provenance",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_rejects_overlap_wrong_axes_and_escape",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm"
+      ],
+      "hang_risk": false,
+      "id": "m8-mocc-cp-upper-quantile",
+      "injection_diff_sha256": "b192cbda715b1d66ec47c4fafc1bc1c006c8a8f6a402bfea8b71d73324b8724e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0d5562cff4ff8f7989fe6bc1f7fd1ebc88e5fb30af028efc72ddcbf2c9a9ea81",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "            1. if k == m else _beta_quantile(.95, k+1, m-k)]\n",
+          "old": "            1. if k == m else _beta_quantile(.975, k+1, m-k)]\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "592f8c1e34c162fe8d874f02df0661a507bbb91f79112a9c7471062455dcaf4d",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.066,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_fisher_is_one_sided_on_lower",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present"
+      ],
+      "hang_risk": false,
+      "id": "m9-mocc-fisher-whole-support",
+      "injection_diff_sha256": "32a5a7b4754bf71c10805b040ff5d2395353bd52cdd05875baa164560da2fb49",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c2fd4bdf25073d017a5015f7accba15805065e821bc6fffa1febe2bd49f8071c",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "                     for x in range(max(0, n-(total-successes)), min(n, successes)+1))\n",
+          "old": "                     for x in range(max(0, n-(total-successes)), min(a, successes)+1))\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "8e1c07acda8ed7a145d6e2ba9ca3231e5cbdb4ac51e387c16a4202bcd7e2a11c",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.583,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_statistics_recomputed_from_runs",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_external_sources_and_repo_closure_have_separate_roots",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_commit_mean_uses_all_runs_of_each_arm",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_outputs_and_provenance_closure"
+      ],
+      "hang_risk": false,
+      "id": "m10-mocc-commit-mean-denominator-240",
+      "injection_diff_sha256": "26eaf52e252546d00360406962e51300b67cae27cb2ff373c86b6a25b55307a1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "84c63a68638a67fd9008bba2f88ff78e9cfdb9687778069343ee665c00a83f8a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "                 commit_count_sum=total, commit_count_mean=total/240)\n",
+          "old": "                 commit_count_sum=total, commit_count_mean=total/n)\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "bd19c51458ae3969f280d69310734cf4c0fe33dd798e58921d986f574247546e",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 37.51,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_required_disclosures_are_rendered",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m11-mocc-drop-not-performance-note",
+      "injection_diff_sha256": "27fe42e48535c44235b9e54072f510654785a9594f0e6920bb866f02d355ba1c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a41f74f0dbdf76b19e1e8fd36c342d7393ef3a50d8fd6cc34d7ceb0c65f7b24b",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "    notes = ['non-certifying; TRACE=1 build', 'Commits: exposure']\n",
+          "old": "    notes = ['non-certifying; TRACE=1 build', 'Commits: exposure, not performance']\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "070196e928ab17c70cb29407c097151a4c5eca680975c458086502eefc38a3d1",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.454,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_caption_fixed_literals_and_forbidden_claims",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "hang_risk": false,
+      "id": "m12-mocc-title-equivalent",
+      "injection_diff_sha256": "aa99e6897fe4ddbb4cc3e401338bcb8ee4a877f3b0d0935ed1c35ef4f310d3e6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1d94eec8887f91bc78b6868ce76843639845f18f6b3331ec068704aab1321ce6",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "    fig.suptitle('Stock MOCC lightweight witness: G2 signal detection equivalent', y=.96, fontsize=14)\n",
+          "old": "    fig.suptitle('Stock MOCC lightweight witness: G2 signal detection', y=.96, fontsize=14)\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "95b584097c42e0399d6149d14a82c80972451e09746bc34c2a9bdb3e8b45d5ea",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.254,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_layout_failure_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m13-mocc-drop-publish-layout-check",
+      "injection_diff_sha256": "a57b2b1523efea778417829b135babbbd05bfff5fcfaa4730cf2aaf4afe77d8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a343def8fdea5b214e7bfc2837c1b512d4de3a84bdfb8c43c468299aaac30323",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "    _figure_number(prefix)\n    prefix.parent.mkdir(parents=True, exist_ok=True)\n",
+          "old": "    _figure_number(prefix)\n    check_figure_layout(fig, axes)\n    prefix.parent.mkdir(parents=True, exist_ok=True)\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "894ed48c6d7b2817196224aea34846dc174532ec88b7219ff0e8368387a52f97",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7092bf0d8a3a29c68a599b6878da899b8e8e1f34f730b198a0f07a33d3327467",
+      "duration_s": 32.212,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "hang_risk": false,
+      "id": "m14-mocc-drop-exposure-ratio-notes",
+      "injection_diff_sha256": "48063a9d537dec0fc28aacc54c1395c90592f0101e7458c472513b1704a18996",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f4c3efc5a1b52d96e5979384304bab91cf9da017d50a31104ca012c4e0ee4254",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "new": "",
+          "old": "    for i, text in enumerate(series['exposure_notes']):\n        fig.text(.53, .415-i*.038, text, fontsize=10)\n"
+        }
+      ],
+      "repo_head": "fc6c4f836d8797c2a52d4a0daf57ed965d4c5578",
+      "runner_sha256": "fc9186991bb4af811cff3c12965ba71bb1ddfe79531ac50d714569832636344f",
+      "spec_sha256": "b7e713b8676f9359372f0a746af545691a792a3984afdd1405c7f93c3b3d7898",
+      "status": "KILLED",
+      "test_output_sha256": "ae5612ac2255f8b9c8ceaacad0be340d0304bd1c0a0ee831224b2e2b97dc0623",
+      "timed_out": false,
+      "tool_sha256": "71747eae405ba6edc90cdcdec42f492a50fada3fa9a56914e4d07584bfc2ce0f"
+    }
+  ]
+}
