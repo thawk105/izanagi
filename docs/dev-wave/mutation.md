@@ -33,7 +33,7 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
 実行時間上限内の経路で起動する。
 生存process照合はERE/literalで`\|`を避け、worktree pathで待ち手自身と並行waveの子を除く。
-final の待ちは job dir で確定済み本文と検査の準備に充てる（未測定欄・placeholder 禁止）。
+走行中の待ちは job dir で確定済み本文と検査の準備に充てる（未測定欄・placeholder 禁止）。
 
 ## DW-M06 — hang 変異
 
