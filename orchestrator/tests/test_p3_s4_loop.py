@@ -9772,7 +9772,7 @@ def test_stock_control_does_not_touch_loop_state(tmp_path, monkeypatch, existing
 
 
 @pytest.mark.parametrize("extra,flag", [
-    (["--run-iteration", "missing"], "run-iteration"), (["--value", "20"], "value"),
+    (["--value", "20"], "value"),
     (["--emit-planner-context", "missing"], "emit-planner-context"),
     (["--no-build"], "no-build"),
     (["--coder-role", "coder-v4-autonomous-k2"], "coder-role"),
@@ -10530,6 +10530,413 @@ def test_b5_rejection_sidecar_mutant_m20(tmp_path, monkeypatch):
     monkeypatch.setattr(L, "_b5_proposal_rejected", namespace["_b5_proposal_rejected"])
     with pytest.raises(AssertionError):
         test_b5_candidate_rejection_sidecar_rc3_m20(tmp_path, monkeypatch, "schema", "schema")
+
+@pytest.mark.parametrize("extra", [
+    ["--b5-slot", "b5-generator-contrast-v1|fixture", "--calibrated-perf",
+     "--perf-workload", "balanced", "--verify-performance"],
+    ["--b4-reflux-ablation"], ["--value", "20"],
+    ["--emit-planner-context", "missing"], ["--no-build"],
+    ["--machine-generated-proposal"],
+])
+def test_pair_cli_rejects_conflicts_before_layout_or_claim(monkeypatch, extra):
+    from orchestrator.campaign import campaign_claim
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("pair preflight was late"))
+    monkeypatch.setattr(L, "exploration_campaign_layout", forbidden)
+    monkeypatch.setattr(campaign_claim, "acquire_claim", forbidden)
+    monkeypatch.setattr(L, "_current_site", forbidden)
+    with pytest.raises(SystemExit) as exc:
+        L.main(["--run-iteration", "missing", "--stock-control",
+                "--isolate-worktree", "--allow-coder-derived-build", *extra])
+    assert exc.value.code == 2
+    forbidden.assert_not_called()
+
+
+def test_pair_cli_requires_candidate_opt_in(monkeypatch):
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("late opt-in check"))
+    monkeypatch.setattr(L, "_current_site", forbidden)
+    with pytest.raises(L.BuildAdmissionError, match="opt-in"):
+        L.main(["--run-iteration", "missing", "--stock-control", "--isolate-worktree"])
+    forbidden.assert_not_called()
+
+
+def test_pair_cli_requires_isolation(monkeypatch):
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("late isolation check"))
+    monkeypatch.setattr(L, "_current_site", forbidden)
+    with pytest.raises(SystemExit) as exc:
+        L.main(["--run-iteration", "missing", "--stock-control",
+                "--allow-coder-derived-build"])
+    assert exc.value.code == 2
+    forbidden.assert_not_called()
+
+
+@pytest.fixture
+def pair_cli_case(tmp_path, monkeypatch):
+    """CLI orchestration only: no campaign lock, suitable for H mutations."""
+    import contextlib
+    from orchestrator.campaign import patchharness
+    layout, _, _ = _stock_cli_fixture(tmp_path, monkeypatch)
+    planner, coder = _site_test_proposals()
+    monkeypatch.setattr(L, "load_proposal_file", lambda *_a, **_k: (planner, coder, None))
+    c = SimpleNamespace(events=[], calls=[], candidate="certified", stock="certified-stock",
+                        candidate_error=None, stock_error=None, layout=layout)
+
+    @contextlib.contextmanager
+    def checkout(pin, *, base_dir):
+        assert pin == L.PIN and base_dir == str(tmp_path / "external/ccbench")
+        arm = "candidate" if not c.events else "stock"
+        assert c.events == ([] if arm == "candidate" else ["candidate-enter", "candidate-exit"])
+        root = str(tmp_path / arm)
+        c.events.append(arm + "-enter")
+        try:
+            yield root
+        finally:
+            c.events.append(arm + "-exit")
+
+    def drive(*args, **kwargs):
+        c.calls.append(("candidate", args[5], kwargs))
+        if c.candidate_error is not None:
+            raise c.candidate_error
+        layout.ensure()
+        Path(L.loop_state_path(layout)).write_text("candidate checkpoint")
+        return dict(outcome=c.candidate, ran=True, iteration=1, stop_reason="continue")
+
+    def stock(*args, **kwargs):
+        c.calls.append(("stock", args[2], kwargs))
+        assert kwargs["stock_root"] == str(tmp_path / "external/ccbench")
+        if c.stock_error is not None:
+            raise c.stock_error
+        return dict(outcome=c.stock)
+
+    monkeypatch.setattr(patchharness, "checkout", checkout)
+    monkeypatch.setattr(L, "drive_iteration", drive)
+    monkeypatch.setattr(L, "_run_stock_control_resolved", stock)
+    c.argv = ["--run-iteration", "proposal", "--stock-control", "--isolate-worktree",
+              "--allow-coder-derived-build"]
+    return c
+
+
+@pytest.mark.parametrize("candidate,stock,expected", [
+    ("certified", "certified-stock", 0), ("rejected", "certified-stock", 0),
+    ("aborted", "certified-stock", 0), ("duplicate-skip", "certified-stock", 1),
+    ("duplicate-skip", "aborted", 1), ("certified", "skipped", 1),
+])
+def test_pair_cli_separates_context_checkout_and_session(pair_cli_case, capsys,
+                                                       candidate, stock, expected):
+    c = pair_cli_case
+    c.candidate, c.stock = candidate, stock
+    assert L.main(c.argv) == expected
+    first, second = c.calls
+    assert first[:2] == ("candidate", str(Path(c.layout.root).parent / "candidate"))
+    assert second[:2] == ("stock", str(Path(c.layout.root).parent / "stock"))
+    candidate_context = first[2]["build_context"]
+    stock_context = second[2]["build_context"]
+    assert candidate_context is not stock_context
+    assert candidate_context._authority_nonce is not None
+    assert stock_context._authority_nonce is None
+    assert candidate_context.policy == stock_context.policy
+    session = first[2]["authorization_session"]
+    assert session is not None and second[2]["authorization_session"] is session
+    from orchestrator.campaign import loop
+    assert session not in loop._AUTHORIZATION_SESSIONS
+    assert c.events == ["candidate-enter", "candidate-exit", "stock-enter", "stock-exit"]
+    output = capsys.readouterr().out
+    assert f"outcome={candidate}" in output and f"outcome={stock}" in output
+    assert f"p3 S4 pair: candidate_rc={int(candidate == 'duplicate-skip')} stock_rc={int(stock != 'certified-stock')}" in output
+
+
+@pytest.mark.parametrize("stock_fails", [False, True])
+def test_pair_cli_candidate_exception_still_attempts_stock(pair_cli_case, capsys, stock_fails):
+    c = pair_cli_case
+    c.candidate_error = RuntimeError("candidate sentinel")
+    if stock_fails:
+        c.stock_error = ValueError("stock sentinel")
+    with pytest.raises(RuntimeError, match="candidate sentinel") as exc:
+        L.main(c.argv)
+    assert exc.value is c.candidate_error
+    assert [call[0] for call in c.calls] == ["candidate", "stock"]
+    assert c.events[-2:] == ["stock-enter", "stock-exit"]
+    output = capsys.readouterr()
+    assert "candidate sentinel" in output.err
+    assert ("stock sentinel" in output.err) == stock_fails
+    assert "p3 S4 pair: candidate_rc=1" in output.out
+
+
+@pytest.mark.parametrize("candidate", ["certified", "duplicate-skip"])
+def test_pair_cli_stock_exception_preserves_candidate_status(pair_cli_case, candidate):
+    c = pair_cli_case
+    c.candidate = candidate
+    c.stock_error = ValueError("stock failed")
+    if candidate == "certified":
+        with pytest.raises(ValueError, match="stock failed"):
+            L.main(c.argv)
+    else:
+        assert L.main(c.argv) == 1
+
+
+def test_pair_cli_base_exception_does_not_attempt_stock(pair_cli_case):
+    c = pair_cli_case
+    c.candidate_error = KeyboardInterrupt()
+    with pytest.raises(KeyboardInterrupt):
+        L.main(c.argv)
+    assert [call[0] for call in c.calls] == ["candidate"]
+
+
+def test_pair_cli_policy_mismatch_precedes_checkout(pair_cli_case, monkeypatch):
+    real = L.build_run_context
+    candidate_created = False
+    def context(**kwargs):
+        nonlocal candidate_created
+        value = real(**kwargs)
+        if kwargs.get("coder_authority") is not None:
+            candidate_created = True
+        elif candidate_created:
+            return SimpleNamespace(policy=object())
+        return value
+    monkeypatch.setattr(L, "build_run_context", context)
+    with pytest.raises(L.BuildAdmissionError, match="policies must match"):
+        L.main(pair_cli_case.argv)
+    assert pair_cli_case.events == [] and pair_cli_case.calls == []
+
+
+def test_pair_session_forwarding_at_campaign_calls():
+    """Lock-free static pin for H/M18; runtime delegation is asserted below.
+
+    These two existing call sites must forward the optional session via their
+    campaign options. No synthetic lock or resumability bypass is used here.
+    """
+    for function in (L._run_one_iteration_resolved, L._run_stock_control_resolved):
+        tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Name) and node.func.id == "run_campaign"]
+        assert len(calls) == 1
+        assert any(keyword.arg is None and isinstance(keyword.value, ast.Name)
+                   and keyword.value.id == "campaign_options" for keyword in calls[0].keywords)
+        forwards = [node for node in ast.walk(tree) if isinstance(node, ast.If)
+                    and ast.unparse(node.test) == "authorization_session is not None"]
+        assert len(forwards) == 1
+        assert ast.unparse(forwards[0].body[0]) == (
+            "campaign_options['authorization_session'] = authorization_session")
+
+
+@pytest.fixture
+def pair_pegasus_case(tmp_path, monkeypatch, valid_reservation_environment):
+    """Commit-group fixture: real locks, admission, claim, reservation and WAL.
+
+    Compiler/OS observations alone are replaced. Live closure must equal HEAD;
+    this fixture deliberately cannot run against an uncommitted loader mutation.
+    """
+    import contextlib
+    from orchestrator.campaign import campaign_claim, layout as layout_module
+    from orchestrator.campaign import loop, patchharness, p2_2, pipeline, reservation
+    from orchestrator.campaign import env_attestation as ea
+    from orchestrator.tests import test_campaign as fixtures
+
+    base = tmp_path / "output"
+    claim_root = base / "env/pegasus/claims"
+    claim_root.mkdir(parents=True)
+    monkeypatch.setenv("IZANAGI_EXPLORATION_OUTPUT_ROOT", str(base))
+    monkeypatch.setattr(layout_module, "default_durable_root_policy",
+                        lambda: fixtures._single_process_test_policy(base))
+    for key, value in valid_reservation_environment.items():
+        monkeypatch.setenv(key, value)
+    # Change canonical detection inputs, including execution_guard's site view.
+    monkeypatch.setattr(site_policy, "socket", SimpleNamespace(gethostname=lambda: "bnode001"))
+    monkeypatch.setattr(site_policy, "_has_nqsv", lambda: True)
+    assert site_policy.current_site() == site_policy.PEGASUS_COMPUTE
+    contract = env_contract.lookup("pegasus")
+    assert contract.isolation_policy.single_process is True
+    verified = ea.load_verified_calibration(contract, loop._repo_root())
+    raw = ea.profile_to_dict(verified.attestation_profile)
+    del raw["effective_clock"]["tolerance_pct"]
+    observed = ea.normalize_observed_profile(raw)
+    attest = execution_guard.attest_and_build_receipt
+    monkeypatch.setattr(execution_guard, "attest_and_build_receipt",
+                        lambda contract, calibration: attest(
+                            contract, calibration, probe_fn=lambda: observed))
+    monkeypatch.setattr(L, "_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a: None)
+    monkeypatch.setattr(patchharness, "applied", lambda *_a: contextlib.nullcontext())
+    roots = [tmp_path / "candidate", tmp_path / "stock"]
+    for root in roots:
+        path = root / L.SOURCE_REL
+        path.parent.mkdir(parents=True)
+        path.write_text(_TEMPLATE, encoding="utf-8")
+        fixtures._install_complete_silo_proof_source(str(root))
+    proposal = tmp_path / "proposal.json"
+    proposal.write_text(json.dumps({
+        "planner": {"axis": L.MARKER_ID, "direction": "increase", "magnitude": "small"},
+        "coder": {"axis": L.MARKER_ID, "value": 20,
+                  "implementation": "double now_backoff = 20;"},
+    }))
+    c = SimpleNamespace(base=base, claims=[], claim_calls=0, checks=[], roots=roots, events=[],
+                        builds=[], benches=[], traces=[], snapshots=[], contexts=[],
+                        sessions=[], preflight_calls=0, fail_after_authorization=False)
+    c.argv = ["--run-iteration", str(proposal), "--stock-control", "--isolate-worktree",
+              "--allow-coder-derived-build"]
+    def campaign_spy(*args, **kwargs):
+        c.sessions.append(kwargs.get("authorization_session"))
+        return loop.run_campaign(*args, **kwargs)
+    monkeypatch.setattr(L, "run_campaign", campaign_spy)
+
+    acquire = campaign_claim.acquire_claim
+    def claim_spy(*args, **kwargs):
+        c.claim_calls += 1
+        claim = acquire(*args, **kwargs)
+        c.claims.append((claim, claim.path.read_bytes()))
+        return claim
+    monkeypatch.setattr(campaign_claim, "acquire_claim", claim_spy)
+    check = reservation.check_reservation
+    def reservation_spy(*args, **kwargs):
+        result = check(*args, **kwargs)
+        c.checks.append(result)
+        return result
+    monkeypatch.setattr(reservation, "check_reservation", reservation_spy)
+
+    def preflight(*_a, **_k):
+        c.preflight_calls += 1
+        if c.fail_after_authorization and c.preflight_calls == 1:
+            raise RuntimeError("candidate after authorization")
+        return None, False
+    monkeypatch.setattr(loop, "_perform_perf_preflight", preflight)
+
+    def evidence(genome, pin, *, ccbench_dir="", **_kwargs):
+        assert Path(ccbench_dir) in roots
+        token = source_digest.STOCK if Path(ccbench_dir) == roots[1] else "d" * 64
+        return fixtures._source_evidence(genome, pin, src_token=token,
+                                        source_root=ccbench_dir)
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", evidence)
+
+    def snapshot():
+        return {str(path): path.read_bytes() for path in base.rglob("loop_state.json")}
+
+    @contextlib.contextmanager
+    def checkout(pin, *, base_dir):
+        arm = len(c.events) // 2
+        assert arm in (0, 1) and len(c.events) == 2 * arm
+        assert pin == L.PIN and base_dir == str(tmp_path / "external/ccbench")
+        c.events.append((arm, "enter"))
+        if arm == 1:
+            c.snapshots.append(snapshot())
+        # A fresh benchmark script per arm keeps its round index local.
+        with fixtures._mock_pipeline(
+                trace_content=Path(_HERE, "fixtures/g1_serial/trace_0.log").read_text(),
+                ncommit=2) as calls, monkeypatch.context() as local:
+            local.setattr(pipeline.source_digest, "resolve_evidence", evidence)
+            build = pipeline.buildcache.build_v2
+            def build_with_grammar(genome, *, backoff_grammar_version, **kwargs):
+                assert backoff_grammar_version == BHG.BACKOFF_GRAMMAR_VERSION
+                context = kwargs["build_context"]
+                assert (context._authority_nonce is None) == (arm == 1)
+                assert kwargs["ccbench_dir"] == str(roots[arm])
+                local.setattr(fixtures, "_BUILD_CONTEXT", context)
+                c.contexts.append(context)
+                c.builds.append((arm, kwargs["trace"]))
+                return build(genome, **kwargs)
+            local.setattr(pipeline.buildcache, "build_v2", build_with_grammar)
+            measure = pipeline.measure_point
+            def bench(*args, **kwargs):
+                c.benches.append(arm)
+                return measure(*args, **kwargs)
+            local.setattr(pipeline, "measure_point", bench)
+            try:
+                yield str(roots[arm])
+            finally:
+                c.traces.extend([arm] * len(calls.trace))
+                c.events.append((arm, "exit"))
+        if arm == 1:
+            c.snapshots.append(snapshot())
+    monkeypatch.setattr(patchharness, "checkout", checkout)
+
+    def gate(root, genome, **kwargs):
+        if genome.flags["BACKOFF_FIXED"] == -1:
+            assert root == str(roots[1])
+            assert kwargs["stock_root"] == str(tmp_path / "external/ccbench")
+        else:
+            assert root == str(roots[0])
+        return None
+    monkeypatch.setattr(L, "_require_condition_gate", gate)
+    return c
+
+
+def _assert_pair_real_claim(case, expected_checks):
+    from orchestrator.campaign import campaign_claim
+    claim, before = case.claims[0]
+    assert case.claim_calls == len(case.claims) == 1
+    assert list((case.base / "env/pegasus/claims").glob("*.claim")) == [claim.path]
+    assert claim.path.read_bytes() == before
+    assert campaign_claim._read_existing_record(claim.path) == claim.record
+    assert claim.record.pid == os.getpid()
+    assert len(case.checks) == expected_checks
+    locks = list(case.base.rglob("campaign.lock"))
+    assert len(locks) == 1
+    layout = CampaignLayout(str(locks[0].parent))
+    assert claim.record.campaign_identity == Path(layout.root).name
+    lock = json.loads(wal.read_lock(layout))
+    assert claim.record.protocol_digest == hashlib.sha256(
+        lock["identity_preimage"].encode("utf-8")).hexdigest()
+    return layout
+
+
+def test_pair_main_pegasus_real_claim_and_wal(pair_pegasus_case, capsys):
+    c = pair_pegasus_case
+    assert L.main(c.argv) == 0
+    layout = _assert_pair_real_claim(c, 2)
+    candidate = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 20})
+    stock = Genome("silo", {**L._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    variants = [variant_id(candidate, "d" * 64), variant_id(stock)]
+    assert variants[0] != variants[1]
+    for variant in variants:
+        records = wal.records_by_stage(layout, variant)
+        assert {wal.STAGE_BUILD_START, wal.STAGE_BUILD_DONE, wal.STAGE_VERIFY_DONE,
+                wal.STAGE_BENCH_DONE, wal.STAGE_COMMIT} <= set(records)
+        assert wal.STAGE_ABORT not in records
+    assert wal.records_by_stage(layout, variants[1])[STAGE_BUILD_START]["src_token"] == source_digest.STOCK
+    assert c.builds == [(0, True), (0, False), (1, True), (1, False)]
+    assert c.benches == [0, 1] and c.traces == [0, 1]
+    assert c.events == [(0, "enter"), (0, "exit"), (1, "enter"), (1, "exit")]
+    assert c.contexts[0].policy == c.contexts[-1].policy
+    assert len(c.sessions) == 2 and c.sessions[0] is not None
+    assert c.sessions[0] is c.sessions[1]
+    assert c.snapshots[0] and c.snapshots[0] == c.snapshots[1]
+    # Whiteboard lives inside this checkpoint; compare its parsed value as well.
+    before, = c.snapshots[0].values()
+    after, = c.snapshots[1].values()
+    assert json.loads(before)["whiteboard"] == json.loads(after)["whiteboard"]
+    output = capsys.readouterr().out
+    assert "outcome=certified " in output and "outcome=certified-stock " in output
+    assert "p3 S4 pair: candidate_rc=0 stock_rc=0" in output
+
+
+def test_pair_main_quarantine_reject_stock_acquires_first_claim(pair_pegasus_case, monkeypatch, capsys):
+    c = pair_pegasus_case
+    quarantine = L.quarantine
+    def reject(root, implementation, **kwargs):
+        assert c.claims == []
+        # Real quarantine supplies the reject digest, before the measurement sink.
+        return quarantine(root, implementation + " extra();", **kwargs)
+    monkeypatch.setattr(L, "quarantine", reject)
+    assert L.main(c.argv) == 0
+    layout = _assert_pair_real_claim(c, 1)
+    assert c.benches == [1] and c.builds == [(1, True), (1, False)]
+    assert c.snapshots[0] == c.snapshots[1]
+    assert any(r.stage == STAGE_ABORT for r in wal.read_records(layout))
+    output = capsys.readouterr().out
+    assert "outcome=rejected" in output and "outcome=certified-stock" in output
+
+
+def test_pair_main_authorized_candidate_exception_stock_reuses_claim(pair_pegasus_case, capsys):
+    c = pair_pegasus_case
+    c.fail_after_authorization = True
+    with pytest.raises(RuntimeError, match="candidate after authorization"):
+        L.main(c.argv)
+    layout = _assert_pair_real_claim(c, 2)
+    assert c.benches == [1] and c.builds == [(1, True), (1, False)]
+    assert any(r.stage == L.STAGE_COMMIT for r in wal.read_records(layout))
+    output = capsys.readouterr()
+    assert "candidate after authorization" in output.err
+    assert "outcome=certified-stock" in output.out
+
 
 if __name__ == "__main__":
     import traceback

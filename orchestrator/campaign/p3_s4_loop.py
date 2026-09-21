@@ -2029,6 +2029,7 @@ def _run_stock_control_resolved(
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
         b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
+        authorization_session=None,
 ) -> Dict:
     """Evaluate the adaptive control without constructing or advancing LoopState.
 
@@ -2062,6 +2063,8 @@ def _run_stock_control_resolved(
             sub, genome, stock_root=stock_root, configure_args=configure_args,
         )
         campaign_options = {}
+        if authorization_session is not None:
+            campaign_options["authorization_session"] = authorization_session
         if resolved_site == site_policy.PEGASUS_COMPUTE:
             campaign_options["env_contract"] = contract
             if dependency_prefix:
@@ -2130,6 +2133,7 @@ def _run_one_iteration_resolved(
         build_context: Optional[BuildRunContext] = None,
         _b4_launch_context=None, *,
         b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
+        authorization_session=None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。
 
@@ -2255,6 +2259,8 @@ def _run_one_iteration_resolved(
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         campaign_options = {}
+        if authorization_session is not None:
+            campaign_options["authorization_session"] = authorization_session
         if resolved_site == site_policy.PEGASUS_COMPUTE:
             campaign_options["env_contract"] = contract
             if dependency_prefix:
@@ -2724,6 +2730,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     b4_proposal_receipt_sha256: str | None = None,
                     _b4_launch_context=None, *,
                     b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
+                    authorization_session=None,
                     agent_record: dict | None = None,
                     dependency_prefix: str = "",
                     fetchcontent_base_dir: str = "",
@@ -2858,6 +2865,8 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
         build_context=build_context,
         _b4_launch_context=(_b4_launch_context if b4_mode else None),
+        **({"authorization_session": authorization_session}
+           if authorization_session is not None else {}),
         **({"b5_sidecar_dir": b5_sidecar_dir, "b5_mode": b5_mode,
             "capability_resolver": capability_resolver}
            if b5_mode or b5_sidecar_dir is not None or capability_resolver is not None else {}),
@@ -3069,6 +3078,27 @@ def _ingest_agent_output(a):
     return 0
 
 
+def _run_stock_cli_step(cfg, perf, fixed_sub, cache_root, stock_context,
+                        b5_options, fetchcontent_options, resolved_site, contract,
+                        *, authorization_session=None):
+    from . import patchharness
+    layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    print(f"=== 段 4 stock control (stock_root={fixed_sub}, isolate_worktree=True) ===")
+    with patchharness.checkout(PIN, base_dir=fixed_sub) as sub:
+        out = _run_stock_control_resolved(
+            cfg, perf, sub, layout, contract, resolved_site,
+            stock_root=fixed_sub, cache_root=cache_root,
+            build_context=stock_context,
+            **({"authorization_session": authorization_session} if authorization_session is not None else {}),
+            **b5_options, **fetchcontent_options,
+        )
+    variant_text = f" variant={out['variant']}" if "variant" in out else ""
+    print(f"  outcome={out['outcome']}{variant_text} "
+          f"fitness_tps={out.get('fitness_tps')} verdict={out.get('verdict')}")
+    print(f"  campaign dir: {layout.root}")
+    return 0 if out["outcome"] == "certified-stock" else 1
+
+
 def main(
     argv: Optional[List[str]] = None,
     *,
@@ -3172,6 +3202,13 @@ def main(
             return 1
     if supplied & ingestion:
         ap.error("agent ingestion options require --record-agent-output")
+    pair_mode = bool(a.run_iteration and a.stock_control)
+    stock_only = bool(a.stock_control and not pair_mode)
+    if pair_mode:
+        for dest in ("value", "emit_planner_context", "no_build",
+                     "b4_reflux_ablation", "b5_slot", "machine_generated_proposal"):
+            if dest in supplied:
+                ap.error(f"pair mode cannot be combined with --{dest.replace('_', '-')}")
     if a.b5_slot is not None:
         if (not a.b5_slot.isascii() or any(c.isspace() for c in a.b5_slot)
                 or not a.b5_slot.startswith("b5-generator-contrast-v1|")):
@@ -3204,7 +3241,8 @@ def main(
             ("b4_reflux_ablation", "b4-reflux-ablation"),
             ("coder_build_authority", "allow-coder-derived-build"),
         ):
-            if dest in supplied:
+            if dest in supplied and (stock_only or dest not in {
+                    "run_iteration", "coder_role", "coder_build_authority"}):
                 ap.error(f"--stock-control cannot be combined with --{flag}")
         if not a.isolate_worktree:
             ap.error("--stock-control requires --isolate-worktree")
@@ -3301,7 +3339,7 @@ def main(
     knowledge_de_novo_claim = a.knowledge_de_novo_claim == "true"
     if (
         not a.emit_planner_context
-        and not a.stock_control
+        and not stock_only
         and not a.no_build
         and a.coder_build_authority is None
         and not a.machine_generated_proposal
@@ -3366,13 +3404,19 @@ def main(
             f"(sources_count={len(resolved_knowledge.manifest.sources)}) "
             "のため --coder-role coder-v4-autonomous-k2 が必要"
         )
-    if a.stock_control or a.machine_generated_proposal:
+    if stock_only or a.machine_generated_proposal:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     else:
         build_context = build_run_context(
             generator_id=GeneratorId.BACKOFF_SWEEP,
             coder_authority=None if a.no_build else a.coder_build_authority,
         )
+
+    stock_context = build_context
+    if pair_mode:
+        stock_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        if stock_context.policy != build_context.policy:
+            raise BuildAdmissionError("pair candidate and stock admission policies must match")
 
     b5_options = {}
     if a.b5_slot is not None:
@@ -3397,120 +3441,137 @@ def main(
         de_novo_claim=knowledge_de_novo_claim,
     )
 
-    # 段5 git worktree 隔離 (opt-in): 有効時は 1 回だけ使い捨て worktree を作り、build
-    # キャッシュだけ固定共有パス配下に据え置く (cache_key は内容キーなので worktree 間で
-    # 共有して問題ない)。無効時は contextlib.nullcontext で固定共有パスをそのまま使う
-    # (既存動作と完全互換、進行中 campaign の campaign-id/WAL に触れない)。
-    if a.isolate_worktree:
-        wt_cm = patchharness.checkout(PIN, base_dir=fixed_sub)
-        cache_root = os.path.join(fixed_sub, "build-variants")
-    else:
-        wt_cm = contextlib.nullcontext(fixed_sub)
-        cache_root = ""
+    cache_root = os.path.join(fixed_sub, "build-variants") if a.isolate_worktree else ""
 
-    if a.stock_control:
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-        print(f"=== 段 4 stock control (stock_root={fixed_sub}, isolate_worktree=True) ===")
-        with wt_cm as sub:
-            out = _run_stock_control_resolved(
-                cfg, perf, sub, layout, contract, resolved_site,
-                stock_root=fixed_sub, cache_root=cache_root,
-                build_context=build_context, **b5_options, **fetchcontent_options,
-            )
-        variant_text = f" variant={out['variant']}" if "variant" in out else ""
-        print(f"  outcome={out['outcome']}{variant_text} "
-              f"fitness_tps={out.get('fitness_tps')} verdict={out.get('verdict')}")
-        print(f"  campaign dir: {layout.root}")
-        return 0 if out["outcome"] == "certified-stock" else 1
-
-    # === 段 4b 駆動口: 実 proposal を受けて checkpoint 継続で 1 iteration ===
+    if stock_only:
+        return _run_stock_cli_step(
+            cfg, perf, fixed_sub, cache_root, stock_context,
+            b5_options, fetchcontent_options, resolved_site, contract)
     if a.run_iteration:
-        proposal_receipt_sha256 = None
-        if a.b4_reflux_ablation:
-            preflight_layout = exploration_campaign_layout(
-                str(ident.campaign_id(cfg))
-            )
-            preflight_state = load_loop_state(preflight_layout)
-            if preflight_state is None:
-                preflight_state = LoopState(start_wall=time.time())
-            preflight_authorization = require_b4_iteration_authorization(
-                cfg,
-                preflight_layout,
-                preflight_state,
-                do_build=not a.no_build,
-                terminal_receipt_path=a.b4_closed_critic_receipt,
-            )
-            assert preflight_authorization is not None
-            proposal_receipt_sha256 = (
-                preflight_authorization.terminal_receipt_sha256
-            )
-        agent_record = None
-        if a.agent_inputs is not None:
-            input_bytes = a.agent_inputs.read_bytes()
-            inputs = _agent_json(input_bytes)
-            if set(inputs) != {"planner", "coder"} or any(
-                    not isinstance(value, dict) for value in inputs.values()):
-                raise ValueError("--agent-inputs requires exact planner/coder input objects")
-            agent_record = {
-                "proposal_path": a.run_iteration,
-                "input_path": a.agent_inputs, "input_bytes": input_bytes,
-                "planner_input": inputs["planner"], "coder_input": inputs["coder"],
-            }
-            if a.agent_prompts is not None:
-                prompts = _agent_json(a.agent_prompts.read_bytes())
-                if set(prompts) != {"planner", "coder"} or any(
-                        not isinstance(value, str) for value in prompts.values()):
-                    raise ValueError("--agent-prompts requires exact planner/coder paths")
-                agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
-        try:
-            planner, coder, prior_rev = load_proposal_file(
-                a.run_iteration,
-                b4_reflux_ablation=a.b4_reflux_ablation,
-                b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
-                b4_prerun_publication=a.b4_prerun_publication,
-                b4_attempt_id=a.b4_attempt_id,
-                knowledge_input=(
-                    knowledge_input if a.coder_role is not None else None
-                ),
-                coder_role=a.coder_role,
-                **({"capture": agent_record} if agent_record is not None else {}),
-            )
-        except (ValueError, KeyError, TypeError) as exc:
-            if a.b5_slot is None:
-                raise
-            _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
-            return 3
-        print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
-              f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
-              f"isolate_worktree={a.isolate_worktree}) ===")
-        with wt_cm as sub:
-            out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
-                                  do_build=not a.no_build, cache_root=cache_root,
-                                  build_context=build_context,
-                                  b4_closed_critic_receipt=(
-                                      a.b4_closed_critic_receipt
-                                  ),
-                                  b4_proposal_receipt_sha256=(
-                                      proposal_receipt_sha256
-                                  ),
-                                  _b4_launch_context=_b4_launch_context,
-                                  _resolved_site=resolved_site,
-                                  _contract=contract,
-                                  **({"agent_record": agent_record} if agent_record is not None else {}),
-                                  **b5_options, **fetchcontent_options)
-        if a.b5_slot is not None and out["outcome"] == "rejected-preprocess":
-            return 3
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-        print(f"  ran={out['ran']} outcome={out['outcome']} "
-              f"variant={out.get('variant')} iteration={out['iteration']}")
-        print(f"  停止判定: {out['stop_reason']}")
-        print(f"  checkpoint: {loop_state_path(layout)}")
-        print(f"  digest: {os.path.join(layout.root, 's4_loop_digest.txt')}")
-        # 停止判定が機械的に返り、checkpoint が焼かれていれば駆動口として健全。
-        ok = (out["stop_reason"] in ("continue", "converged", "reverse-exhausted",
-                                     "budget-iterations", "budget-walltime")
-              and os.path.exists(loop_state_path(layout)))
-        return 0 if ok and out["outcome"] != "duplicate-skip" else 1
+        from . import loop
+        import traceback
+
+        candidate_error = stock_error = None
+        candidate_rc = stock_rc = 1
+        session_cm = loop.authorization_session() if pair_mode else contextlib.nullcontext()
+        with session_cm as session:
+            try:
+                proposal_receipt_sha256 = None
+                if a.b4_reflux_ablation:
+                    preflight_layout = exploration_campaign_layout(
+                        str(ident.campaign_id(cfg))
+                    )
+                    preflight_state = load_loop_state(preflight_layout)
+                    if preflight_state is None:
+                        preflight_state = LoopState(start_wall=time.time())
+                    preflight_authorization = require_b4_iteration_authorization(
+                        cfg,
+                        preflight_layout,
+                        preflight_state,
+                        do_build=not a.no_build,
+                        terminal_receipt_path=a.b4_closed_critic_receipt,
+                    )
+                    assert preflight_authorization is not None
+                    proposal_receipt_sha256 = (
+                        preflight_authorization.terminal_receipt_sha256
+                    )
+                agent_record = None
+                if a.agent_inputs is not None:
+                    input_bytes = a.agent_inputs.read_bytes()
+                    inputs = _agent_json(input_bytes)
+                    if set(inputs) != {"planner", "coder"} or any(
+                            not isinstance(value, dict) for value in inputs.values()):
+                        raise ValueError("--agent-inputs requires exact planner/coder input objects")
+                    agent_record = {
+                        "proposal_path": a.run_iteration,
+                        "input_path": a.agent_inputs, "input_bytes": input_bytes,
+                        "planner_input": inputs["planner"], "coder_input": inputs["coder"],
+                    }
+                    if a.agent_prompts is not None:
+                        prompts = _agent_json(a.agent_prompts.read_bytes())
+                        if set(prompts) != {"planner", "coder"} or any(
+                                not isinstance(value, str) for value in prompts.values()):
+                            raise ValueError("--agent-prompts requires exact planner/coder paths")
+                        agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
+                try:
+                    planner, coder, prior_rev = load_proposal_file(
+                        a.run_iteration,
+                        b4_reflux_ablation=a.b4_reflux_ablation,
+                        b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+                        b4_prerun_publication=a.b4_prerun_publication,
+                        b4_attempt_id=a.b4_attempt_id,
+                        knowledge_input=(
+                            knowledge_input if a.coder_role is not None else None
+                        ),
+                        coder_role=a.coder_role,
+                        **({"capture": agent_record} if agent_record is not None else {}),
+                    )
+                except (ValueError, KeyError, TypeError) as exc:
+                    if a.b5_slot is None:
+                        raise
+                    _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
+                    return 3
+                print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
+                      f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
+                      f"isolate_worktree={a.isolate_worktree}) ===")
+                wt_cm = (patchharness.checkout(PIN, base_dir=fixed_sub)
+                         if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
+                with wt_cm as sub:
+                    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+                                          do_build=not a.no_build, cache_root=cache_root,
+                                          build_context=build_context,
+                                          b4_closed_critic_receipt=(
+                                              a.b4_closed_critic_receipt
+                                          ),
+                                          b4_proposal_receipt_sha256=(
+                                              proposal_receipt_sha256
+                                          ),
+                                          _b4_launch_context=_b4_launch_context,
+                                          _resolved_site=resolved_site,
+                                          _contract=contract,
+                                          **({"agent_record": agent_record} if agent_record is not None else {}),
+                                          **({"authorization_session": session} if session is not None else {}),
+                                          **b5_options, **fetchcontent_options)
+                if a.b5_slot is not None and out["outcome"] == "rejected-preprocess":
+                    return 3
+                layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+                print(f"  ran={out['ran']} outcome={out['outcome']} "
+                      f"variant={out.get('variant')} iteration={out['iteration']}")
+                print(f"  停止判定: {out['stop_reason']}")
+                print(f"  checkpoint: {loop_state_path(layout)}")
+                print(f"  digest: {os.path.join(layout.root, 's4_loop_digest.txt')}")
+                # 停止判定が機械的に返り、checkpoint が焼かれていれば駆動口として健全。
+                ok = (out["stop_reason"] in ("continue", "converged", "reverse-exhausted",
+                                             "budget-iterations", "budget-walltime")
+                      and os.path.exists(loop_state_path(layout)))
+                candidate_rc = 0 if ok and out["outcome"] != "duplicate-skip" else 1
+            except Exception as exc:
+                if not pair_mode:
+                    raise
+                candidate_error = exc
+                traceback.print_exc()
+                print("  candidate outcome=exception")
+            if not pair_mode:
+                return candidate_rc
+            try:
+                stock_rc = _run_stock_cli_step(
+                    cfg, perf, fixed_sub, cache_root, stock_context,
+                    b5_options, fetchcontent_options, resolved_site, contract,
+                    authorization_session=session)
+            except Exception as exc:
+                stock_error = exc
+                traceback.print_exc()
+                print("  stock outcome=exception")
+        print(f"p3 S4 pair: candidate_rc={candidate_rc} stock_rc={stock_rc}")
+        if candidate_error is not None:
+            raise candidate_error.with_traceback(candidate_error.__traceback__)
+        if candidate_rc:
+            return candidate_rc
+        if stock_error is not None:
+            raise stock_error.with_traceback(stock_error.__traceback__)
+        return stock_rc
+    wt_cm = (patchharness.checkout(PIN, base_dir=fixed_sub)
+             if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
     state = LoopState(start_ts=time.monotonic())
     state.iteration = 1
 
