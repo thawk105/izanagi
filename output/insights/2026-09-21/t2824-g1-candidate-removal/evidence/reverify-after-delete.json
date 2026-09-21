@@ -1,0 +1,24 @@
+{
+ "root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2824-g1-candidate-removal",
+ "loader": {
+  "ok": true,
+  "elapsed_s": 11.73,
+  "generation_number": 1,
+  "sha256": "7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06",
+  "generation_commit": "32ba8cae45001697f050bee377413153e6d798a5",
+  "activation_head": "58ec3e928e35df04d360bdb1f16e53c7ab42fd8b"
+ },
+ "reverify_published_freeze": {
+  "ok": true,
+  "elapsed_s": 59.74,
+  "type": "ReverifiedFreeze",
+  "repr": "ReverifiedFreeze(ratified=RatifiedFreeze(document=mappingproxy({'binding_rule_note': 'nearest-read-ratio-v1 は設計書未規定の実装裁定。生成には人間確認 (--confirmed-by) が必須。', 'budget': mappingproxy({'oracle_shared': True, 'per_holdout_bench_s': mappingproxy({'rr20': 1200, 'rr80': 1200}), 'total_bench_s': 2400}), 'confirmed_at': '2026-07-16', 'confirmed_by': 'thawk105', 'derangement': mappingproxy({'rr20': 'rr80', 'rr80': 'rr20'}), 'design_source': mappingproxy({'path': 'docs/phase3-8b-descriptor-design.md', 'sha256': '34f6f0dc869a5e309b72007ed0e96397723a381ba244424fe2194c6bd9b9f9eb'}), 'env_tag': 'pegasus', 'floor"
+ },
+ "launch_validate": {
+  "ok": false,
+  "reason": "manifest-invalid",
+  "cause": "binary-admission",
+  "detail": "[manifest-invalid] binaries[rr20::backoff_fixed_best] admission receipt が不正: receipt admission policy が現行 policy と不一致",
+  "elapsed_s": 0.31
+ }
+}

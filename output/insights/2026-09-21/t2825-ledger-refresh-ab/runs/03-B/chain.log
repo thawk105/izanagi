@@ -1,0 +1,3 @@
+2026-09-21T10:59:26+0900 launch: cond=B slot=2 tip=26387b617cd75d1786cbf4b44958e6c516338b39 main=2de6da39f105ee7afc320eca35f86d2cd49d1a5b leaders=1 load1=16.85
+2026-09-21T11:25:10+0900 finished: child_rc=1 session_root=/work/1/SFC/tanab/.izanagi-acceptance-shards/cef90d58eec6f963bf392ca5f38a5eab dirty_after=0 tip_after=26387b617cd75d1786cbf4b44958e6c516338b39
+2026-09-21T11:25:10+0900 copy_ok=1

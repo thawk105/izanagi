@@ -149,15 +149,11 @@ case "${IZANAGI_S4_STOCK_CONTROL-0}" in
   1) stock_control=true ;;
   *) refuse "IZANAGI_S4_STOCK_CONTROL must be 0 or 1" ;;
 esac
-stock_identity_argv=()
-if [[ "$k2_requested" == true ]]; then
-  stock_identity_argv=(--knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST")
-  if [[ -v IZANAGI_S4_KNOWLEDGE_CLASSIFICATION ]]; then
-    stock_identity_argv+=(--knowledge-classification "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION")
-  fi
-  if [[ -v IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM ]]; then
-    stock_identity_argv+=(--knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM")
-  fi
+pair_argv=()
+if [[ "$stock_control" == true ]]; then
+  [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
+    || refuse "IZANAGI_S4_STOCK_CONTROL=1 requires IZANAGI_S4_PROPOSAL_PATH"
+  pair_argv=(--stock-control)
 fi
 
 if [[ ! -d "$IZANAGI_S4_REPO_ROOT" || -L "$IZANAGI_S4_REPO_ROOT" ]]; then
@@ -667,13 +663,12 @@ if [[ -n "$b5_mode" ]]; then
 fi
 
 candidate_rc=0
-stock_rc=0
 if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]; then
   "$PY" -B -m orchestrator.campaign.p3_s4_loop \
     --allow-coder-derived-build \
     --isolate-worktree \
     --fetchcontent-prebuild-receipt "$prebuild_receipt" \
-    "${k2_argv[@]}" \
+    "${k2_argv[@]}" "${pair_argv[@]}" \
     --run-iteration "$IZANAGI_S4_PROPOSAL_PATH" || candidate_rc=$?
 else
   "$PY" -B -m orchestrator.campaign.p3_s4_loop \
@@ -683,12 +678,4 @@ else
     --value "${IZANAGI_S4_FIXTURE_VALUE:-20}" || candidate_rc=$?
 fi
 
-if [[ "$stock_control" == false ]]; then
-  exit "$candidate_rc"
-fi
-"$PY" -B -m orchestrator.campaign.p3_s4_loop --isolate-worktree --fetchcontent-prebuild-receipt "$prebuild_receipt" "${stock_identity_argv[@]}" --stock-control || stock_rc=$?
-echo "p3 S4 pair: candidate_rc=$candidate_rc stock_rc=$stock_rc"
-if [[ $candidate_rc -ne 0 ]]; then
-  exit "$candidate_rc"
-fi
-exit "$stock_rc"
+exit "$candidate_rc"

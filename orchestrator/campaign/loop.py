@@ -16,7 +16,7 @@ import hashlib
 import json
 import os
 import secrets
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, List, Mapping, Optional, Sequence
@@ -84,6 +84,168 @@ class _AuthorizationResult:
     execution_receipt: Optional[dict]
     bound_cfg: CampaignConfig
     campaign_identity: str
+    acquired_claim: Optional[campaign_claim.AcquiredClaim] = None
+    reservation_binding: Optional[reservation.ReservationBinding] = None
+
+
+@dataclass(frozen=True)
+class _SessionBinding:
+    contract_sha256: str
+    campaign_identity: str
+    protocol_digest: str
+    declared_use_class: str
+    output_root: Path
+    receipt_json: str
+    acquired_claim: Optional[campaign_claim.AcquiredClaim]
+    reservation_binding: Optional[reservation.ReservationBinding]
+
+
+class _AuthorizationSession:
+    """Opaque handle; authority and immutable bindings live only in the issuer."""
+
+    __slots__ = ()
+
+    def close(self) -> None:
+        _AUTHORIZATION_SESSIONS.pop(self, None)
+
+    def __copy__(self):
+        raise TypeError("authorization session cannot be copied")
+
+    def __deepcopy__(self, memo):
+        raise TypeError("authorization session cannot be copied")
+
+    def __reduce_ex__(self, protocol):
+        raise TypeError("authorization session cannot be pickled")
+
+
+# Strong object keys prove issuance by identity and prevent id reuse while open.
+# Closing removes authority permanently; constructing the same type grants none.
+_AUTHORIZATION_SESSIONS: dict[
+    _AuthorizationSession, tuple[int, Optional[_SessionBinding]]
+] = {}
+
+
+@contextmanager
+def authorization_session():
+    """Own one process-local authorization lifetime, including exceptional exits."""
+    session = _AuthorizationSession()
+    _AUTHORIZATION_SESSIONS[session] = (os.getpid(), None)
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+def _authorize_with_session(
+        session: _AuthorizationSession, cfg: CampaignConfig,
+        authorization_contract: AuthorizedContract, *,
+        env_tag: str, clocks_per_us: int,
+        numactl: Optional[Sequence[str]],
+        env_contract: Optional[ExecutionEnvironmentContract],
+        declared_use_class: str,
+        output_root: str,
+        durable_root_policy,
+        pre_write_validator: Optional[Callable[[str], None]],
+) -> _AuthorizationResult:
+    if type(session) is not _AuthorizationSession:
+        raise execution_guard.ExecutionGuardError("authorization session is unissued or closed")
+    entry = _AUTHORIZATION_SESSIONS.get(session)
+    if entry is None:
+        raise execution_guard.ExecutionGuardError("authorization session is unissued or closed")
+    issued_pid, saved = entry
+    if issued_pid != os.getpid():
+        raise execution_guard.ExecutionGuardError("authorization session PID mismatch")
+    if saved is None:
+        base_root = Path(resolve_campaign_output_root(
+            declared_use_class, output_root,
+        )).resolve()
+        result = _authorize_measurement(
+            cfg, authorization_contract,
+            env_tag=env_tag, clocks_per_us=clocks_per_us, numactl=numactl,
+            env_contract=env_contract, declared_use_class=declared_use_class,
+            output_root=output_root, durable_root_policy=durable_root_policy,
+            pre_write_validator=pre_write_validator,
+        )
+        claim = result.acquired_claim
+        binding = _SessionBinding(
+            contract_sha256=result.authorized_contract.contract_sha256,
+            campaign_identity=result.campaign_identity,
+            protocol_digest=hashlib.sha256(
+                ident.canonical_preimage(result.bound_cfg).encode("utf-8")
+            ).hexdigest(),
+            declared_use_class=declared_use_class,
+            output_root=base_root,
+            receipt_json=json.dumps(result.execution_receipt, allow_nan=False),
+            acquired_claim=(None if claim is None else campaign_claim.AcquiredClaim(
+                path=claim.path.resolve(), record=claim.record,
+            )),
+            reservation_binding=result.reservation_binding,
+        )
+        # Bind at the sink, before perf preflight, layout, lock or evaluation.
+        if _AUTHORIZATION_SESSIONS.get(session) != (issued_pid, None):
+            raise execution_guard.ExecutionGuardError("authorization session closed during authorization")
+        _AUTHORIZATION_SESSIONS[session] = (issued_pid, binding)
+        return result
+
+    try:
+        base_root = Path(resolve_campaign_output_root(
+            declared_use_class, output_root,
+        )).resolve()
+        contract = execution_guard.require_certified_writer_authorization(
+            authorization_contract, env_tag=env_tag,
+            clocks_per_us=clocks_per_us, numactl=numactl,
+            env_contract=env_contract,
+        )
+        bound_cfg = ident.bind_environment_contract(cfg, contract)
+        identity = str(ident.campaign_id(bound_cfg))
+        validate_campaign_id(identity)
+        digest = hashlib.sha256(
+            ident.canonical_preimage(bound_cfg).encode("utf-8")
+        ).hexdigest()
+        if (contract.contract_sha256 != saved.contract_sha256
+                or identity != saved.campaign_identity
+                or digest != saved.protocol_digest
+                or declared_use_class != saved.declared_use_class
+                or base_root != saved.output_root):
+            raise execution_guard.ExecutionGuardError("authorization session binding mismatch")
+        if pre_write_validator is not None:
+            pre_write_validator(identity)
+        if reservation.is_reservation_required(contract.isolation_policy):
+            binding = reservation.read_binding(os.environ)
+            reservation.check_reservation(
+                binding, required_s=1, safety_margin_s=0, environ=os.environ,
+            )
+            if binding != saved.reservation_binding:
+                raise execution_guard.ExecutionGuardError("authorization session reservation mismatch")
+            claim_root = Path(env_scope_dir(contract.env_tag, base_root)) / "claims"
+            if claim_root.is_symlink() or not claim_root.is_dir():
+                raise execution_guard.ExecutionGuardError("authorization session claim root invalid")
+            write_capability_for_directory(claim_root, policy=durable_root_policy)
+            claim = saved.acquired_claim
+            if (claim is None
+                    or claim.path != campaign_claim._claim_path(claim_root, identity)
+                    or claim.record.proc_starttime != campaign_claim.read_proc_starttime()
+                    or campaign_claim._read_existing_record(claim.path) != claim.record):
+                raise execution_guard.ExecutionGuardError("authorization session claim mismatch")
+        receipt = json.loads(saved.receipt_json)
+        if contract.attestation_mode == "required":
+            verified = env_attestation.load_verified_calibration(contract, _repo_root())
+            if not execution_guard.receipt_matches_contract(
+                    receipt, env_tag=contract.env_tag,
+                    contract_sha256=contract.contract_sha256,
+                    attestation_mode=contract.attestation_mode,
+                    verified_calibration=verified):
+                raise execution_guard.ExecutionGuardError("authorization session receipt mismatch")
+        if _AUTHORIZATION_SESSIONS.get(session) != (issued_pid, saved):
+            raise execution_guard.ExecutionGuardError("authorization session closed during reuse")
+        return _AuthorizationResult(
+            contract, receipt, bound_cfg, identity,
+            saved.acquired_claim, saved.reservation_binding,
+        )
+    except (ValueError, TypeError, OSError) as exc:
+        raise execution_guard.ExecutionGuardError(
+            f"authorization session validation failed: {exc}"
+        ) from exc
 
 
 def _repo_root() -> Path:
@@ -172,8 +334,17 @@ def _authorize_measurement(
         output_root: str,
         durable_root_policy=None,
         pre_write_validator: Optional[Callable[[str], None]] = None,
+        authorization_session: Optional[_AuthorizationSession] = None,
 ) -> _AuthorizationResult:
     """明示 contract と required attestation を最初の書込みより前に検査する。"""
+    if authorization_session is not None:
+        return _authorize_with_session(
+            authorization_session, cfg, authorization_contract,
+            env_tag=env_tag, clocks_per_us=clocks_per_us, numactl=numactl,
+            env_contract=env_contract, declared_use_class=declared_use_class,
+            output_root=output_root, durable_root_policy=durable_root_policy,
+            pre_write_validator=pre_write_validator,
+        )
     contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
@@ -202,6 +373,8 @@ def _authorize_measurement(
     if pre_write_validator is not None:
         pre_write_validator(campaign_identity)
 
+    acquired_claim = None
+    binding = None
     if reservation.is_reservation_required(contract.isolation_policy):
         env = os.environ
         binding = reservation.read_binding(env)
@@ -233,13 +406,15 @@ def _authorize_measurement(
             proc_starttime=campaign_claim.read_proc_starttime(),
             created_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
         )
-        campaign_claim.acquire_claim(claim_root, record)
+        acquired_claim = campaign_claim.acquire_claim(claim_root, record)
 
     return _AuthorizationResult(
         authorized_contract=contract,
         execution_receipt=receipt,
         bound_cfg=bound_cfg,
         campaign_identity=campaign_identity,
+        acquired_claim=acquired_claim,
+        reservation_binding=binding,
     )
 
 
@@ -359,6 +534,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  ] = None,
                  expected_toolchain_manifest=None,
                  authorization_contract: AuthorizedContract,
+                 authorization_session: Optional[_AuthorizationSession] = None,
                  build_context: BuildRunContext,
                  capability_resolver: Optional[AdmissionCapabilityResolver] = None,
                  declared_use_class: str,
@@ -514,11 +690,16 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     # silently fall back to the inherited legacy-only pass.
     extra_correctness = _closed_verify_workloads(cfg, perf)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    session_kwargs = (
+        {} if authorization_session is None
+        else {"authorization_session": authorization_session}
+    )
     authorization = _authorize_measurement(
         cfg, authorization_contract, env_tag=env_tag, clocks_per_us=clocks_per_us,
         numactl=numactl, env_contract=env_contract,
         declared_use_class=declared_use_class, output_root=output_root,
         durable_root_policy=durable_root_policy,
+        **session_kwargs,
         pre_write_validator=(
             None
             if result_evidence_context is None

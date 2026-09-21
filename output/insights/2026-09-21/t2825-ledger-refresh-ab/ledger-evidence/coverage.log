@@ -1,0 +1,11 @@
+stdout:
+excluded_failure_or_error=0
+mode=refresh
+preserved_frozen=426
+replaced=26179
+added=0
+removed=0
+excluded_frozen_suite=629
+covered=26587 total=26808 ratio=0.992
+stderr:
+rc=0

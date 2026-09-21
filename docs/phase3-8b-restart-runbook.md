@@ -160,7 +160,7 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 |---|---|---|
 | P1 | `git ls-tree HEAD external/ccbench` | `160000 commit e9e477ca…` (2026-09-20 [T-2304] で D2150 項 1 の候補へ前進。値の正本は `orchestrator/campaign/s8b_approved.py` の `CCBENCH_FULL_SHA`。凍結済み floor protocol は自身の `ccbench_pin` (`511c9538…`、2026-08-12 [T-816] 手順 4 で前進した期の値) を保持し、その期の床値を歴史再開するなら旧 commit を明示 checkout する。`d706650c…` 期も同様) |
 | P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `5 passed, 0 failed` / rc=0 (2026-09-20 現物の直接 runner は 5 関数を列挙する。held marker が出る検査は bytes 全検証済みと読まない) |
-| P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = v1 path は既知 4 件 exact のまま、active 世代 path は `freeze-ratify:` が消え、全 gate が成立した場合だけ `allowed: true`)。拒否の内訳 (現在値) は本表に写さず、worklog 末尾と最新の一次資料 (2026-09-20 以後は `output/insights/2026-09-20/t2810-g1-launch-validation/README.md` §5) を正本とする。live (`launch_validate`、現行 policy に束縛) と historical (`reverify_published_freeze`、記録 contract で policy 照合なし) は別の判定で、historical の段階到達は live admission の代替ではない |
+| P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = v1 path は既知 4 件 exact のまま、active 世代 path は `freeze-ratify:` が消え、全 gate が成立した場合だけ `allowed: true`)。拒否の内訳 (現在値) は本表に写さず、worklog 末尾と最新の一次資料 (2026-09-21 以後は `output/insights/2026-09-21/t2824-g1-candidate-removal/README.md` §3。それ以前は `output/insights/2026-09-20/t2810-g1-launch-validation/README.md` §5) を正本とする。live (`launch_validate`、現行 policy に束縛) と historical (`reverify_published_freeze`、記録 contract で policy 照合なし) は別の判定で、historical の段階到達は live admission の代替ではない |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |
 
 P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先に切り分ける。
@@ -326,18 +326,18 @@ wrapper からは起動できない。
 - **候補の所在:** 保存 branch `freeze-g1-chain-t2724` (base = main、fix commit → 入力 commit →
   候補 commit)。2026-09-20 に chain (X1' / X2) と世代導入 G が main に載った (D2120 項 2 (a)(b)、D2166)。
   一次資料 `output/insights/2026-09-17/t2724-freeze-v2-g1-candidate/README.md`、裁定パッケージは同 `package.md`。
-- **chain 導入後の注意 (2026-09-20、D2120 項 2 (a)(b) の履行):** X1' / X2 / G を main に載せた木では、official 床値の起動証明 (clean scan) は run_dir 3 file + 候補の hit 4 / 4 で赤になる (設計どおり、走査除外は広げない) ので、後続の official 床値 wave は main からでなく別 branch から起動する。B-10 job script の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`) は同じ版で G を含む tree の値へ更新済みで、この版の job script は G を欠く tree・file の追加・bytes の変更を測定前の digest 検査で拒否する (旧 script と旧 tree を備えた旧 checkout の組は失効しない)。
+- **chain 導入後の注意 (2026-09-20、D2120 項 2 (a)(b) の履行。2026-09-21 [T-2824] の候補削除後に hit を更新):** X1' / X2 / G を main に載せた木では、official 床値の起動証明 (clean scan) は run_dir の hit 3 / 3 で赤になる (設計どおり、走査除外は広げない。候補文書を削除した後も赤は残る) ので、後続の official 床値 wave は main からでなく別 branch から起動する。B-10 job script の freeze-tree pin (`EXPECTED_FREEZE_TREES_SHA256`) は同じ版で G を含む tree の値へ更新済みで、この版の job script は G を欠く tree・file の追加・bytes の変更を測定前の digest 検査で拒否する (旧 script と旧 tree を備えた旧 checkout の組は失効しない)。
 - **発効 (2026-09-20):** 承認 A `a3bf67a8c` (approval sha256 `3787d97b…`) → active pointer X `70e87c9c9` (pointer sha256
   `577537e2…`) を AI (Codex author が record、親が commit) が作り、批准 loader は generation 1・sha `7e1114…` を返す。
   §2 P3 は v1 path で既知 4 拒否 (不変)、g1 path で `freeze-ratify:` が消え `allowed: false` のまま (拒否の内訳は worklog 末尾と一次資料)。
   発効 (批准 loader の成功) と launch admission の成功は別の状態で、後者は未達。A/X 直後に観測した launch validator と official 成果物の
   不整合 2 件 (journal allowlist に `reservation-preflight` と binding 2 key が無い、段階 6 lineage が result の導入集合 == {G} を要求するが実際は
   X1' 導入) は 2026-09-20 [T-2810] で修復した (受理集合の変化は `output/insights/2026-09-20/t2810-g1-launch-validation/README.md` §3)。
-  残る拒否は 2 種: (i) live 経路 (`launch_validate`) は段階 4 の現行 admission policy 照合 (ccbench pin 前進、D2184) で止まる — 移行は [T-2812] 系、
-  (ii) historical 経路 (`reverify_published_freeze`) は段階 4〜7 を通過して段階 8 の full scan で未発効候補
-  `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` の未申告 hit で止まる — 候補 file だけを削除する commit を [T-2810] の land 後に別 commit で
-  行うことが裁定済み (2026-09-21 第 27 回 /rulings、同 README §8、削除後に load / reverify を再実測)。
-- **残る手番:** (i) policy 移行 ([T-2812] 系)、(ii) 未発効候補文書の削除 commit (AI、裁定済み)、(c) 床の採否は D2120 項 2 (c) で裁定済み
+  残る拒否は (i) live 経路 (`launch_validate`) が段階 4 の現行 admission policy 照合 (ccbench pin 前進、D2184) で止まること — 移行は [T-2812] 系。
+  (ii) だった historical 経路 (`reverify_published_freeze`) の段階 8 での未申告 hit は、2026-09-21 [T-2824] が未発効候補文書
+  `output/s8b-freeze-candidates/holdout_freeze.v2.g1.json` を削除して解消した (D2194 項 5 の択 (a)、削除後の実測で historical reverify は成功。
+  historical の成功は live admission の代替ではない。実測と帰結は `output/insights/2026-09-21/t2824-g1-candidate-removal/README.md`)。
+- **残る手番:** (i) policy 移行 ([T-2812] 系)、(c) 床の採否は D2120 項 2 (c) で裁定済み
   (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
   [T-750] package の残余 (P-1 pinned literal の恒久形、P-3 批准 proof chain に budget authorization field
   が無い構造) は別管理のまま。

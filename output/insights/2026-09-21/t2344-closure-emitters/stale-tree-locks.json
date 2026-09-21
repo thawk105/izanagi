@@ -1,0 +1,22 @@
+{
+  "land_of_exact85_on_main": "2026-09-21 00:21:07 JST (285477c00)",
+  "recorded_63key_total_since_2155": 53,
+  "recorded_63key_after_exact85_landed": 25,
+  "recorded_63key_before": 28,
+  "after_mtime_range": [
+    "2026-09-21 00:34:48",
+    "2026-09-21 03:53:43"
+  ],
+  "record_commits": {
+    "11d46a74a72572ff723c8f196862fa52e76ca489": {
+      "count": 53,
+      "first": "2026-09-20 22:02:04",
+      "last": "2026-09-21 03:53:43"
+    }
+  },
+  "sample_after_paths": [
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-03876f43/campaign.lock",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-04c83810/campaign.lock",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-182f07a6/campaign.lock"
+  ]
+}

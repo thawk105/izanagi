@@ -1,0 +1,31 @@
+compute 焦点走 27 本 / login bounded local 2 本 (母数外)
+| wave | 本数 | wall 合計 s | pre | queue | RUN | collect | pytest 合計 s |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| t2243 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0 |
+| t2804 | 2 | 592 | 3 | 386 | 174 | 29 | 171.4 |
+| t2803 | 7 | 1355 | 11 | 899 | 355 | 90 | 347.7 |
+| t2344 | 4 | 1275 | 4 | 1097 | 121 | 53 | 115.0 |
+| abstract | 0 | 0 | 0 | 0 | 0 | 0 | 0.0 |
+| story21 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0 |
+| walldecomp | 2 | 1115 | 50 | 1015 | 25 | 25 | 23.4 |
+| t2814 | 2 | 577 | 3 | 391 | 157 | 26 | 153.3 |
+| t2810 | 3 | 1926 | 9 | 1299 | 581 | 37 | 576.2 |
+| t2817 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0 |
+| residue | 4 | 2999 | 5 | 2423 | 520 | 51 | 514.3 |
+| t2797 | 3 | 763 | 5 | 351 | 373 | 34 | 367.6 |
+| 合計 12 wave | 27 | 10602 | 90 | 7861 | 2306 | 345 | 2268.8 |
+
+pre_s: n=27 合計=90 平均=3.3 中央値=1.0 最小=1.0 最大=29.0
+queue_s: n=27 合計=7861 平均=291.1 中央値=23.0 最小=7.0 最大=1020.0
+run_s: n=27 合計=2306 平均=85.4 中央値=78.0 最小=10.0 最大=251.0
+collect_s: n=27 合計=345 平均=12.8 中央値=13.0 最小=10.0 最大=15.0
+wall_s: n=27 合計=10602 平均=392.7 中央値=237.0 最小=32.0 最大=1165.0
+pytest_s: n=27 合計=2269 平均=84.0 中央値=76.5 最小=8.3 最大=249.8
+queue ≥ 300 s: 12 本 / 27: t2804/focus-1.log 379, t2803/focus-1.log 689, t2344/focus-f2.log 413, t2344/focus-f3.log 669, walldecomp/focus-2.log 1007, t2814/focus-2.log 384, t2810/focus-held-1.log 715, t2810/focus-impl-1.log 577, residue/focus-f1.log 375, residue/focus-f2.log 1020, residue/focus-f4.log 1020, t2797/focus-1.log 337
+queue ≥ 300 s 帯: 平均=632.1 中央値=623.0 範囲=337〜1020
+queue < 30 s 帯: 14 本 平均=8.93 中央値=7.5; 30〜300 s: 1 本
+start/end 行でなく pid/done mtime を使った本数: 18
+RUN − pytest (job 内 overhead) 平均 = 1.4 s、中央値 = 1.2 s
+wall に占める queue の割合 = 74.1 %、RUN = 21.8 %、collect = 3.3 %、pre = 0.8 %
+1 wave あたり (12 wave): 2.25 本、wall 14.7 分。焦点走のある 8 wave: 3.38 本、wall 22.1 分
+赤の走 8 本: t2803/focus-3.log, t2803/focus-5.log, t2803/focus-7.log, t2344/focus-f1.log, t2814/focus-1.log, t2810/focus-impl-1.log, residue/focus-f1.log, residue/focus-f3.log

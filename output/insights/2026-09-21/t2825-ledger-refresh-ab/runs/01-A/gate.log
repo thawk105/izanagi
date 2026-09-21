@@ -1,0 +1,8 @@
+2026-09-21T09:53:03+0900 gate: load1=5.87 leaders=2 (max 1, l1 <= 60)
+2026-09-21T09:55:20+0900 gate: load1=5.99 leaders=2 (max 1, l1 <= 60)
+2026-09-21T09:57:27+0900 gate: load1=18.06 leaders=1 (max 1, l1 <= 60)
+2026-09-21T09:59:39+0900 gate: load1=28.63 leaders=2 (max 1, l1 <= 60)
+2026-09-21T10:01:23+0900 gate: load1=32.99 leaders=1 (max 1, l1 <= 60)
+2026-09-21T10:03:22+0900 gate: load1=18.58 leaders=1 (max 1, l1 <= 60)
+2026-09-21T10:03:58+0900 gate: load1=29.15 leaders=1 (max 1, l1 <= 60)
+2026-09-21T10:04:03+0900 gate: load1=27.21 leaders=1 (max 1, l1 <= 60)

@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""collect_latency.rows.json を集計する (読み取りのみ)。"""
+from __future__ import annotations
+
+import json
+import statistics as st
+from pathlib import Path
+
+HERE = Path(__file__).parent
+rows = json.load(open(HERE / "collect_latency.rows.json"))
+
+
+def f(x):
+    return None if x in (None, "None", "") else float(x)
+
+
+for r in rows:
+    for k in ("started", "ended", "result", "spool", "receipt", "done", "waiter"):
+        r[k] = f(r.get(k))
+
+
+def q(vals, name):
+    vals = [v for v in vals if v is not None]
+    if not vals:
+        print(f"{name}: n=0")
+        return
+    vals.sort()
+    n = len(vals)
+    p90 = vals[min(n - 1, int(round(0.9 * (n - 1))))]
+    print(f"{name}: n={n} min={vals[0]:.0f} median={st.median(vals):.0f} mean={st.mean(vals):.1f} p90={p90:.0f} max={vals[-1]:.0f}")
+
+
+def dd(a, b):
+    return None if a is None or b is None else b - a
+
+
+print("== 1) END → NQSV stderr spool 到着 (会計本文が login 側 file に現れる)")
+q([dd(r["ended"], r["spool"]) for r in rows], "  全 compute job")
+for kind in ("acceptance", "mutation"):
+    q([dd(r["ended"], r["spool"]) for r in rows if r["kind"] == kind], f"  {kind}")
+
+print("== 2) END → dispatcher receipt (dispatch_compute.py が回収を終える)")
+q([dd(r["ended"], r["receipt"]) for r in rows], "  全 compute job")
+for kind in ("focus", "log", "acceptance", "mutation"):
+    q([dd(r["ended"], r["receipt"]) for r in rows if r["kind"] == kind], f"  {kind}")
+print("== 2b) spool → receipt (dispatcher の poll 由来の残り)")
+q([dd(r["spool"], r["receipt"]) for r in rows], "  spool のある job")
+
+print("== 3) END → producer の .done (最後の compute job の END から、親の待ち手が見る file まで)")
+last = [r for r in rows if r["done"] is not None and r["ended"] is not None]
+# 受入は shard 3 本のうち最後に END した shard だけを採る
+by_prod: dict[tuple, dict] = {}
+for r in last:
+    key = (r["wave"], r["producer"])
+    if key not in by_prod or r["ended"] > by_prod[key]["ended"]:
+        by_prod[key] = r
+lastrows = list(by_prod.values())
+q([dd(r["ended"], r["done"]) for r in lastrows], "  全 producer")
+for kind in ("focus", "log", "acceptance", "mutation"):
+    q([dd(r["ended"], r["done"]) for r in lastrows if r["kind"] == kind], f"  {kind}")
+
+print("== 4) .done → 親の待ち手が戻る (dev_wave_wait.py producer の receipt / 自前 wrapper の done)")
+w = [r for r in lastrows if r["waiter"] is not None]
+q([dd(r["done"], r["waiter"]) for r in w], "  全 producer (直列 wait-all を含む)")
+q([dd(r["done"], r["waiter"]) for r in w if dd(r["done"], r["waiter"]) <= 40], "  直列 wait-all の artifact (>40 s) を除く")
+print("   40 s 超:", [(r["wave"].replace("dev-wave-", ""), r["producer"], round(dd(r["done"], r["waiter"]))) for r in w if dd(r["done"], r["waiter"]) > 40])
+
+print("== 5) END → 親の待ち手が戻る (合計)")
+q([dd(r["ended"], r["waiter"]) for r in w if dd(r["done"], r["waiter"]) <= 40], "  直列 artifact を除く")
+
+print("== 6) 内訳の代表値 (中央値): END→spool / spool→receipt / receipt→done / done→waiter")
+def med(vals):
+    vals = [v for v in vals if v is not None]
+    return st.median(vals) if vals else None
+print("  END→spool     :", med([dd(r["ended"], r["spool"]) for r in rows]))
+print("  spool→receipt :", med([dd(r["spool"], r["receipt"]) for r in rows]))
+for kind in ("focus", "acceptance", "mutation"):
+    print(f"  receipt→done ({kind}):", med([dd(r["receipt"], r["done"]) for r in lastrows if r["kind"] == kind]))
+print("  done→waiter   :", med([dd(r["done"], r["waiter"]) for r in w if dd(r["done"], r["waiter"]) <= 40]))
+
+print("== 7) 変異 attempt 間: receipt_i → 次 attempt の qsub (request.json mtime)")
+# 同 producer 内で END 順に並べ、次 attempt の request.json mtime を取る
+from collections import defaultdict
+groups = defaultdict(list)
+for r in rows:
+    if r["kind"] == "mutation" and r["ended"] is not None:
+        groups[(r["wave"], r["producer"])].append(r)
+gaps = []
+for key, rs in groups.items():
+    rs.sort(key=lambda r: r["ended"])
+    for a, b in zip(rs, rs[1:]):
+        if b.get("request") is not None and a["receipt"] is not None:
+            gaps.append(b["request"] - a["receipt"])
+q(gaps, "  receipt_i → qsub_{i+1}")
+
+print("== 8) wave 別: END → .done の中央値 / 最大 (producer 単位)")
+waves = sorted({r["wave"] for r in lastrows})
+for wv in waves:
+    vals = [dd(r["ended"], r["done"]) for r in lastrows if r["wave"] == wv]
+    vals = [v for v in vals if v is not None]
+    print(f"  {wv.replace('dev-wave-', ''):40s} n={len(vals)} median={st.median(vals):.0f} max={max(vals):.0f}")

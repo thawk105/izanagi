@@ -1,0 +1,30 @@
+#!/bin/bash
+# Parent only: one request. Wait for .done and receipt finalization before next.
+# Default provenance dispatch: output/pegasus-dispatch/<nonce>/receipt.json,
+# fallback receipt-fallback-<nonce>.json, setup receipt-setup-<nonce>.json.
+set -u
+if [ "$#" -ne 3 ] || [[ ! "$3" =~ ^[0-9]+$ ]]; then
+  echo 'usage: launch-force-dispatch.sh <wave-worktree> <out-dir> <n>' >&2
+  exit 2
+fi
+wave=$(cd -- "$1" && pwd -P) || exit 2
+mkdir -p -- "$2" || exit 2
+out=$(cd -- "$2" && pwd -P) || exit 2
+base="$out/force-dispatch-$3"
+cd -- "$wave" || exit 2
+echo $$ > "$base.pid"
+rm -f -- "$base.done" "$base.out" "$base.err" "$base.time" "$base.meta"
+metadata() {
+  echo "$1"
+  date --iso-8601=seconds
+  hostname
+  git rev-parse HEAD
+  printf 'dispatch_receipt_dir=%s/output/pegasus-dispatch\n' "$wave"
+  printf 'dispatch_receipt_schema=pegasus-dispatch-receipt/v2\n'
+}
+metadata before > "$base.meta"
+/usr/bin/time -v -o "$base.time" python3 tools/check_ai_provenance.py --force-dispatch > "$base.out" 2> "$base.err"
+rc=$?
+metadata after >> "$base.meta"
+echo "$rc" > "$base.done"
+exit "$rc"

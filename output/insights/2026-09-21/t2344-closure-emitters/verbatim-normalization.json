@@ -1,0 +1,90 @@
+{
+  "s2-plan.md": {
+    "lines": [
+      319,
+      320,
+      353,
+      354,
+      355
+    ],
+    "original_sha256": "6856b91fb43fe84d6d804057b28cba8503f32dc5ea5b1d2ad059148b2e862530",
+    "original_bytes": 28282,
+    "normalized_sha256": "1858486ed9720f550e574614cb9f73ead8d5b7bce5ab7440868b5d6dccdcb786",
+    "normalized_bytes": 28272,
+    "removed": [
+      "  ",
+      "  ",
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s3-lensA.md": {
+    "lines": [
+      183,
+      184,
+      185
+    ],
+    "original_sha256": "e035e052eef13209d39afd7230f9dee2f8310c013807cee7bf4e48bc6060e34f",
+    "original_bytes": 16634,
+    "normalized_sha256": "59f61c62a5a48e3b1a7692e9bd26ed50cf1124878b1c06fb1c90b1dbaeb520b6",
+    "normalized_bytes": 16628,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s3-lensB.md": {
+    "lines": [
+      148,
+      149,
+      150
+    ],
+    "original_sha256": "660679a9b10066ce76fee3934a23ebf73ecd328802c46fcaad247654afb53b3c",
+    "original_bytes": 13802,
+    "normalized_sha256": "9165f192eb593c915eb97b607ef0c96f4f6695a935b549be89308e03a6a5e2d2",
+    "normalized_bytes": 13796,
+    "removed": [
+      "  ",
+      "  ",
+      "  "
+    ]
+  },
+  "s5-author.md": {
+    "lines": [
+      69,
+      70
+    ],
+    "original_sha256": "c5030d968877a2455a581d185f610f46adcbac7aa864cac5a6233372d23970f2",
+    "original_bytes": 4331,
+    "normalized_sha256": "0d0302e095c6468f30faa87f034f31a92212548a33f16698bb86a7cd2b1366c4",
+    "normalized_bytes": 4327,
+    "removed": [
+      "  ",
+      "  "
+    ]
+  },
+  "README.md": {
+    "lines": [],
+    "note": "行末空白の除去と末尾空行の圧縮 (可視文字不変)",
+    "original_sha256": "205390c2e3497a869f28b6a337a61b4cf4d965e76df95d4fe5f0f4c26208acea",
+    "original_bytes": 23635,
+    "normalized_sha256": "2370b431706d32c63134826042cb18148796faf959d6352267f298a29f85eb42",
+    "normalized_bytes": 23634,
+    "removed": []
+  },
+  "pin_closure.log": {
+    "lines": [
+      57
+    ],
+    "note": "行末空白の除去と末尾空行の圧縮 (可視文字不変)",
+    "original_sha256": "41a4e98bd0ce2a3f08a9965b3e01979c198edfcb55c458d4138c8db86def0e94",
+    "original_bytes": 23518,
+    "normalized_sha256": "a6b967f4956dbdea5a2fe78abfb639e50e0d8ca126d30075638b00cb6db0df90",
+    "normalized_bytes": 23517,
+    "removed": [
+      "' '"
+    ]
+  }
+}
