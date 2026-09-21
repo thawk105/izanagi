@@ -1,0 +1,66 @@
+[
+ {
+  "shard": 0,
+  "name": "test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+  "time": "0.004",
+  "worker": "gw33",
+  "rank": "455",
+  "ledger_new": 0.004
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_active_v2_delegation_accepts_full_receipt",
+  "time": "189.183",
+  "worker": "gw33",
+  "rank": "456",
+  "ledger_new": 190.0
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+  "time": "191.961",
+  "worker": "gw40",
+  "rank": "461",
+  "ledger_new": 190.0
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+  "time": "191.540",
+  "worker": "gw47",
+  "rank": "460",
+  "ledger_new": 190.0
+ },
+ {
+  "shard": 0,
+  "name": "test_v1_gate_does_not_delegate_with_active_v2",
+  "time": "40.685",
+  "worker": "gw42",
+  "rank": "459",
+  "ledger_new": 41.0
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_failed_launch_preserves_receipt_refusal",
+  "time": "47.857",
+  "worker": "gw33",
+  "rank": "457",
+  "ledger_new": 48.0
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_delegated_campaign_start_rejects_late_hit_file",
+  "time": "44.292",
+  "worker": "gw47",
+  "rank": "463",
+  "ledger_new": 44.0
+ },
+ {
+  "shard": 0,
+  "name": "test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+  "time": "38.547",
+  "worker": "gw40",
+  "rank": "462",
+  "ledger_new": 39.0
+ }
+]

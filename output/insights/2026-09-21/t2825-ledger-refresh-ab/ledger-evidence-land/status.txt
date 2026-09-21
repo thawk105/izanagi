@@ -1,0 +1,10 @@
+?? t2825-author-l-fix1/check.log
+?? t2825-author-l-fix1/dropped-t2344.txt
+?? t2825-author-l-fix1/dropped.txt
+?? t2825-author-l-fix1/input-check.json
+?? t2825-author-l-fix1/main-ledger.json
+?? t2825-author-l-fix1/main-sha256.txt
+?? t2825-author-l-fix1/refresh.log
+?? t2825-author-l-fix1/status.txt
+?? t2825-author-l-fix1/verify.json
+?? t2825-author-l-fix1/verify.md
