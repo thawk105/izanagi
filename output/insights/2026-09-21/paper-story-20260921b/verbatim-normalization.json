@@ -1,0 +1,31 @@
+{
+  "schema": "verbatim-normalization/v1",
+  "reason": "git diff --check の行末空白 (Codex 出力の markdown 改行) を落とす可逆最小正規化。可視文字は不変。",
+  "restore": "各行の末尾へ元の空白を戻せば原文に一致する。原本は job dir の /home/SFC/tanab/.claude/jobs/0adb58a3/tmp/codex/ にあり、original_sha256 で照合できる。",
+  "files": [
+    {
+      "path": "output/insights/2026-09-21/paper-story-20260921b/verbatim/review-out.md",
+      "original_sha256": "ee7ddef3ffe02824875dbd1142db724123fbf656ec706f8a2e2fda5303116789",
+      "original_bytes": 13143,
+      "normalized_sha256": "2c2f950ca5bb56b37201bd71b0f9ef281710ff79dbdd316d024c4c6ebbc3d2a3",
+      "normalized_bytes": 13039,
+      "removed_trailing_whitespace_lines": 52
+    },
+    {
+      "path": "output/insights/2026-09-21/paper-story-20260921b/verbatim/focus-1-out.md",
+      "original_sha256": "3a5bab4a2f64f0aded1815bb38570f93068553ac5e999b5660a085b50ed9e5e8",
+      "original_bytes": 8068,
+      "normalized_sha256": "987ed1edf8493c7253dafe40a58f5c2cd11397092eae56ce5be28ce75a9bd70d",
+      "normalized_bytes": 8048,
+      "removed_trailing_whitespace_lines": 10
+    },
+    {
+      "path": "output/insights/2026-09-21/paper-story-20260921b/verbatim/focus-2-out.md",
+      "original_sha256": "3f052bcae839b1356adc83419645c3833ee372742b13a91256c7ac20dd395842",
+      "original_bytes": 4848,
+      "normalized_sha256": "8ba1290a17a6f65eee4466fe2beed54c5407e42b32e2ff7e4f7c32bd7207e109",
+      "normalized_bytes": 4836,
+      "removed_trailing_whitespace_lines": 6
+    }
+  ]
+}
