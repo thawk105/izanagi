@@ -7236,11 +7236,17 @@ def test_base_provenance_rejects_same_variant_use_distinct_attempts(base_provena
     assert entries["1"]["build_attempt_id"] != entries["2"]["build_attempt_id"]
 
 
-def _base_selected_commit(layout):
+def _base_selected_commit(layout, *, prior_failed_attempt=False):
     from orchestrator.campaign.model import STAGE_VERIFY_DONE
 
     _write_duplicate_lock(layout)
     variant = "carrier-selected"
+    if prior_failed_attempt:
+        other = L.secrets.token_hex(16)
+        wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+                {"build_attempt_id": other, "genome": _G.canonical(), "src_token": "fixture"})
+        wal.log(layout, variant, STAGE_ABORT, L.ENV_TAG,
+                {"build_attempt_id": other, "reason": "fixture-abort"})
     attempt = L.secrets.token_hex(16)
     wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
             {"build_attempt_id": attempt, "genome": _G.canonical(), "src_token": "fixture"})
@@ -7256,14 +7262,16 @@ def _base_selected_commit(layout):
 
 def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
     layout = CampaignLayout(str(tmp_path / "duplicate")).ensure()
-    variant = _base_selected_commit(layout)
-    selected_records = wal.read_records(layout)
-    # Latest start belongs to another attempt, after the selected commit.
-    other = L.secrets.token_hex(16)
-    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
-            {"build_attempt_id": other, "genome": _G.canonical(), "src_token": "fixture"})
-    wal.log(layout, variant, STAGE_ABORT, L.ENV_TAG,
-            {"build_attempt_id": other, "reason": "fixture-abort"})
+    variant = _base_selected_commit(layout, prior_failed_attempt=True)
+    records = wal.read_records(layout)
+    # The failed attempt precedes the selected certified attempt.
+    prior_records, selected_records = records[:2], records[2:]
+    assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert selected_records[-1].stage == L.STAGE_COMMIT
+    prior_attempt = prior_records[0].payload["build_attempt_id"]
+    selected_attempt = selected_records[-1].payload["build_attempt_id"]
+    assert prior_records[1].payload["build_attempt_id"] == prior_attempt
+    assert prior_attempt != selected_attempt
     before = Path(layout.wal_file).read_bytes()
     out = L._resolve_duplicate(layout, _site_test_proposals()[0],
                                L.LoopState(iteration=1), _dup_summary(variant))
@@ -7272,7 +7280,14 @@ def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):
     assert evidence == {"variant": variant,
         "build_attempt_id": selected_records[-1].payload["build_attempt_id"],
         "wal_refs": _base_refs(selected_records)}
-    assert evidence["build_attempt_id"] != wal.read_records(layout)[-2].payload["build_attempt_id"]
+    assert evidence["build_attempt_id"] != prior_attempt
+    L._append_provenance_entry(layout, 1, {
+        "iteration": 1, "outcome": out["outcome"],
+        "initial_proposal_sha256": None, **evidence})
+    entry = L._load_provenance(layout)["entries"]["1"]
+    assert entry == _base_entry(outcome="duplicate", variant=variant,
+        attempt=selected_attempt, refs=_base_refs(selected_records))
+    assert set(entry["wal_refs"]).isdisjoint(_base_refs(prior_records))
     assert Path(layout.wal_file).read_bytes() == before
 
 
