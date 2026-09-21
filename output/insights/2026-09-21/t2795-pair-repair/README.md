@@ -181,3 +181,11 @@ DW-M01 の単一理由性は、各変異が殺した node が事前登録した�
    `--deselect` は param に `/` を含む nodeid へ効かないので test 名で外す必要がある (本 wave で実測した 114 node + 1 node)。
 
 どちらも failures / decisions へは送らない (新しい失敗型ではなく、既存節への手順追記に当たるため)。予算を見直す独立 wave が立った時に再提示する。
+
+## 8. 受入全走 (`tools/dev_wave_wait.py acceptance --lease-optional`、門番付き)
+
+| attempt | tested main / tip | 結果 |
+|---|---|---|
+| final-1 | 投入前検査で停止 | `stage=preflight-clean rc=2` — 親が insight の追記を未 commit のまま置いていた (main 73 commit の post-claim merge は成功)。commit 後に再投入 |
+| final2-1 | `6496ab2dc` / `5496efe02` | rc=70、**赤 1** = `orchestrator/tests/test_codex_worker_launch.py::test_evidence_forced_stop_propagates_unknown_residual_to_sidecar` (`assert []`)。本 wave の変更 file と無関係の時間依存 test (evidence 猶予 0.3 s)、受入中の login load 20〜95。同 tip で同 file を単独再走 → **216 passed / 11.85 s**。負荷由来の flake と判定し再投入 (flaky hold 台帳への登録は本 wave の scope 外) |
+| final3-1 | `eaeaeb388` / `3f76af758` | **rc=0、26,964 passed / 69 skipped、赤 0**、受領証 `acceptance-receipt-green.json` (job root) |
