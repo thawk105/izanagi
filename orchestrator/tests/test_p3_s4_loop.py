@@ -7256,7 +7256,8 @@ def _base_selected_commit(layout, *, prior_failed_attempt=False):
                  "certified": True, "anomalies": 0, "workload": {"tag": tag}})
     commit_receipt_support.log_receipted_commit(
         layout, variant, L.ENV_TAG,
-        {"build_attempt_id": attempt, "fitness_tps": 1.0}, operation_identity=attempt)
+        {"build_attempt_id": attempt, "fitness_tps": 1.0}, operation_identity=attempt,
+        tags=("legacy", "s2"))
     return variant
 
 
