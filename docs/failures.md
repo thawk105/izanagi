@@ -19439,6 +19439,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   一括操作の各要素へ実行直前の再検査を義務づける形である。
 
 - **再発: 2026-09-21** — [T-2825] の A/B 測定走 03-B (固定 2 tree の直接投入、受入形) で `test_t810_coordinator.py` の prepare_group 系 3 node が `cannot read worktree registration: file is absent` (`.git/worktrees/diag-login-check-wall/gitdir`、別 session が走行中に撤去) で赤。本 wave の差分 (台帳 1 file) から到達しないこと (同 test file は台帳を参照しない) と単独再走 3 passed (request 14912.nqsv) で infra に分類し、事前登録どおり走だけを無効化して対を同順序で取り直した。測定系列の赤は親の本文分類が要るので、系列は 1 走分 (約 26 分) と分類の手間を失った。
+
+- **再発: 2026-09-21 ([T-2844] wave の受入 attempt 2)** — `test_t810_coordinator.py` の prepare_group 系 2 node (`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir` / `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (同時刻に別 wave が land 後の撤去を行っていた)。本 wave の worktree 登録 3 つは健在で、差分 (mocc driver の候補 mode・候補 test・patch・JSON・docs) から到達しない。同じ tip の単独再走 (15978.nqsv) は 2 passed。恒久対応は未実施のまま (受理集合を変えるため裁定を要する、既存記述どおり)。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -28174,6 +28176,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rev-parse から」)。今回は worktree add ではなく clone の `update-ref` の引数で同じ型が出た — 既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。
 
 - **再発: 2026-09-21** — [T-2797] の段 6 で fix 用 branch の base を、統合 commit の短縮 SHA から 40 桁を推測で補完して指定し、`fatal: reference is not a tree` で失敗した (branch は作られず実害なし)。`git rev-parse` の出力を写して再実行した。
+
+- **再発: 2026-09-21 (near miss、[T-2844] wave)** — 変異用の独立 clone を作る script に、候補 JSON の commit の 40 hex SHA を `git rev-parse` の出力から写さず、頭 9 桁 (`6fa89b563`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、clone の途中で止まったので実害は無い。`rev-parse` の値で作り直した。同日 2 度目の再発で、既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
@@ -28280,3 +28284,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: (1) 先頭行の完全一致に直した (fix commit `fc6c4f836`)。(2) memory `selfrun-green-pytest-red-exact-exception-text` — author / fix prompt に先頭行比較を指定し、
   親は段 6 のレビュー投入前に pytest の焦点走を回す。(3) 検出した経路は既存の `docs/dev-wave/operations.md` の `DW-O26` (焦点走の file 集合) と段 6 の consumer 回帰の順序であり、新しい検査は足していない。
 - 再発検知: 親の焦点走 (pytest) の赤。機械的な lint (`str(exc) ==` の禁止) は作っていない (依頼の scope 外、単発の型)。
+
+### F1040. submodule の hook commit を、段 4 裁定で決めた trailer と照合せずに `commit -F` し、message の作り直しで OID が変わった [手順漏れ]
+
+- 事象: 独立 2 例。(1) 2026-09-19 の witlight wave で、hook commit W の初版 `e0905b3d` は trailer 2 行 (author / manager) で、採否に寄与した Codex reviewer 行が無く、段 6 レビュー A の must-fix で message だけ amend した (`5b02546f`、tree 不変)。identity 検査 2 本と負例を新 OID で走らせ直した (`output/insights/2026-09-19/mocc-witlight-arm-run/README.md` §2)。
+  (2) 2026-09-21 の本 wave で、候補 commit C の初版 `1035f1e3` も reviewer 行を欠いた。段 4 裁定は trailer 3 行 (author / reviewer / manager) と決めていたが、親が裁定より前に書いた message の下書きを更新しないまま `commit -F` した。下流 (author B・D297・compute) が参照する前に親が気づき、同じ tree・親で message だけ直した `68106660` に置き換えた (`output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md` §2)。実害は OID の置換 1 回で、成果物・判定は変わらない。
+- 根本原因: submodule の hook commit は superproject の `check_ai_provenance.py --message-file` 検査の対象外 (submodule には provenance の導入履歴も checker も無い) で、trailer の欠落を機械では検出できない。親は commit script と message の下書きを段 4 裁定より前に用意し、裁定後に message を読み直さなかった。
+- 恒久対応: memory `hook-commit-trailer-from-ruling` (hook commit の `commit -F` 直前に、message の trailer を段 4 裁定の trailer 決定と行単位で照合する。OID は下流の固定期待値・bundle・fetch に焼かれるので、照合は D297 や compute の前に行う)。
+- 再発検知: submodule commit の message を `git show -s --format=%B <OID>` で出し、段 4 裁定の trailer 行と比べる。差があれば下流が参照する前に置き換える。
