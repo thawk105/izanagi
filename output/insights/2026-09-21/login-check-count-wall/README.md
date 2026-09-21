@@ -161,7 +161,10 @@ DW-S07 の「docs commit 後の再走」は check_docs ではなく repo scan in
 
 - 記録 commit 前: 三軸語走査 = defang 前 hit 5 件 (うち本 wave の `verbatim/probe-ledger.md` 1 件) → 可逆 defang 9 箇所 → 再走で hit 4 件 (main 既存のみ、rc=1 は既知の帰結)。codex 報告 1 file の行末空白を可逆正規化 (38 行、`verbatim/NORMALIZATION.md`)。`check_docs` 違反なし (正規化後に再走)。fold dry-run rc=0 (`status=planned`、新規 2 件に `[T-2831]` / `[T-2832]` を割り当てる計画)。message preflight rc=0。行末空白検査 rc=0。
 - 記録 commit `3c2004a3d` (docs-only)。**commit 後の全史監査 rc=0 = 12,262 件・新規違反なし、wall 14.23 秒** (user 3.22 / sys 5.47、RSS 144,208 kB、load 5.71 → 6.76)。**warm の実測が前提値 22 秒より速い例**である (§8 の換算は前提値のまま据え置き、実測は幅として記録する)。
-- 受入全走と land: **未実施** (この節の後に投入し、結果を追記する)。
+- 受入全走 (門番付き chain、`IZANAGI_ACCEPTANCE_SHARDS=3`): 投入 10:04:06 (門番は他 wave の受入 2 本で一度閉じた)、投入直前に local main `925af17f5` を取り込み (behind 30、merge `23427cf43`、message preflight rc=0) → **attempt 1 で child-green** (10:25:47、26,739 passed / 69 skipped、赤 0・flake 0、tested main `925af17f5` / tested tip `23427cf43`)。
+- land: 前進 merge `02d18fdeb` (local main `736b06e12` を固定 SHA で取り込み) → **`status=landed`** (10:29:59、window 201.6 秒、main `736b06e12` → `819e4cdb4` = fold commit)。fold で worklog entry 1788 が入り、新規 2 件は **[T-2836]** (契約文の読みの明文化 = ユーザー裁定待ち) と **[T-2837]** (記録前後の検査の束ね) に採番された。`fold_gate_uncovered_families=rotation` は既知の残余。lease は他 wave が保持しており、本走は疑似 holder で投入したため release は行っていない (DW-O27)。
+- `tools/collect_wave_usage.py` は Pegasus login node では設計どおり `status=blocked` を返す (artifact は job dir の `wave-usage.json`)。
+- **この節を追記した commit は、上の land の後に作った 2 巡目の受入と land で着地させている** (数値は 1 巡目のもの)。
 
 ## 12. 言わないこと (限界)
 
