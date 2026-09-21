@@ -1,0 +1,20 @@
+feat(mocc): add TRACE-only lock coverage and permutation checks
+
+Add RWLOCK/CLL entry, pre-write and pre-publish lock coverage checks (X)
+and write-set size / record-pointer multiset preservation checks (P),
+all inside the existing #if TRACE blocks of cc/mocc/transaction.cc.
+
+The P check uses std::unordered_multiset<const void*>, which is supplied
+by the include/trace.hh include in the same TRACE branch, so the include
+lines of this file stay identical to e9e477ca (no #include is added).
+Seven #line directives restore the base source's logical line numbers.
+Relative to e9e477ca this commit changes only cc/mocc/transaction.cc.
+
+This is an Izanagi trace-hook candidate (TRACE=1 observation only). It
+does not advance the superproject pin and does not add write-intent (I)
+coverage. Design record: izanagi
+output/insights/2026-09-21/mocc-xp-pin-candidate section 3 and D2207.
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager

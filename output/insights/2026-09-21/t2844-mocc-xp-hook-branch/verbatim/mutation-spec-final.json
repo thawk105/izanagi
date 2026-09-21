@@ -1,0 +1,258 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 9000,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "MP1-unordered-set",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-mocc-lock-coverage-pin-candidate.patch",
+     "old": "+  std::unordered_multiset<const void*> izanagi_pre_sort_rcdptrs;\n",
+     "new": "+  std::unordered_set<const void*> izanagi_pre_sort_rcdptrs;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_source_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MP2-line17-plus1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-mocc-lock-coverage-pin-candidate.patch",
+     "old": "+#line 17\n",
+     "new": "+#line 18\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_source_contract",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_trace0_logical_rows"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MP3-p-compare-false",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-mocc-lock-coverage-pin-candidate.patch",
+     "old": "+      if (izanagi_post_sort_rcdptrs != izanagi_pre_sort_rcdptrs) {\n",
+     "new": "+      if (false) {\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_source_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MP4-x-entry-false",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-mocc-lock-coverage-pin-candidate.patch",
+     "old": "+    if (!izanagi_cll_has_writer ||\n",
+     "new": "+    if (false &&\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_source_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD1-parent-contains",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "    if parent_line.split() != [oid, PIN]:\n",
+     "new": "    if PIN not in parent_line.split():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_identity_checks"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD2-diff-first-row",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "        + re.escape(SOURCE_REL), rows[0] if len(rows) == 1 else \"\",\n",
+     "new": "        + re.escape(SOURCE_REL), rows[0] if rows else \"\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_identity_checks"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD3-mode-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "        r\":100644 100644 ([0-9a-f]{40}) ([0-9a-f]{40}) M\\t\"\n",
+     "new": "        r\":100644 100[0-9]{3} ([0-9a-f]{40}) ([0-9a-f]{40}) M\\t\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_identity_checks"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD4-blob-binding-off",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "    if reconstructed_blob != candidate_blob:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_identity_checks",
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD5-legacy-instr-on-candidate",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "                if broken_patch is not None:\n",
+     "new": "                _apply_owned_patch(root, source, INSTRUMENTATION_PATCH)\n                if broken_patch is not None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD6-negative-patch-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "                if broken_patch is not None:\n                    touch_sets[broken_patch] = _apply_owned_patch(root, source, broken_patch)\n",
+     "new": "                if broken_patch is not None:\n                    touch_sets[broken_patch] = [SOURCE_REL]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD7-trace0-base-is-candidate",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "        for oid, build_dir in ((PIN, scratch / \"trace0-pin0\"),\n",
+     "new": "        for oid, build_dir in ((args.candidate_oid, scratch / \"trace0-pin0\"),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD8-verifier-root-elsewhere",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "                    condition_gates.append(gate)\n                for run_name, flags in workloads:\n                    runs[run_name] = _variant_run(binary, flags, source)\n",
+     "new": "                    condition_gates.append(gate)\n                for run_name, flags in workloads:\n                    runs[run_name] = _variant_run(binary, flags, base_repo)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MD9-legacy-path-guard-off",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s3_mocc_lock_coverage.py",
+     "old": "            raise RuntimeError(\"candidate output must not overwrite legacy JSON\")\n",
+     "new": "            pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_mode_source_routing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MJ1-json-ccbench-commit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "output/env/pegasus/calibration/s3_mocc_xp_pin_candidate.json",
+     "old": "  \"ccbench_commit\": \"68106660686232781bca3be792a750d3e19d7a8a\",\n",
+     "new": "  \"ccbench_commit\": \"78106660686232781bca3be792a750d3e19d7a8a\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MJ2-json-reconstructed-blob",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "output/env/pegasus/calibration/s3_mocc_xp_pin_candidate.json",
+     "old": "    \"reconstructed_blob\": \"e393efbfd5fad7bbe05117b43669ccc0f44abb6a\",\n",
+     "new": "    \"reconstructed_blob\": \"f393efbfd5fad7bbe05117b43669ccc0f44abb6a\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_xp_pin_candidate.py::test_candidate_json_is_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

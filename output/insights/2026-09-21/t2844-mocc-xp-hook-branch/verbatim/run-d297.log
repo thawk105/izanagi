@@ -1,0 +1,37 @@
+start 2026-09-21 21:17:11 JST
+C=68106660686232781bca3be792a750d3e19d7a8a BASE=e9e477ca1b55348ab4530de0b1cf663ce4555290
+checker sha256: 9cf5b84ce30d187ad78afa5fd8111472a790db8a6010a90b44fba091470d8f69
+outer HEAD: 6c0f6af813a6f5b3e0d308532936d841913ac456
+sub HEAD: e9e477ca1b55348ab4530de0b1cf663ce4555290
+== gcc11
+argv: python3 tools/check_trace0_preprocess_identity.py --repo /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2844-mocc-xp-hook-branch/external/ccbench --old e9e477ca1b55348ab4530de0b1cf663ce4555290 --new 68106660686232781bca3be792a750d3e19d7a8a --cxx /usr/bin/g++-11 --expect-paths cc/mocc/transaction.cc
+cxx resolved: /usr/bin/x86_64-linux-gnu-g++-11
+cxx version: g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+rc=0
+stdout bytes=31091 sha256=31393aca3d3e4cd4e564a5748f25a7cf49a2de206c1c05cde8f234923f85a264
+stderr bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+== gcc12
+argv: python3 tools/check_trace0_preprocess_identity.py --repo /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2844-mocc-xp-hook-branch/external/ccbench --old e9e477ca1b55348ab4530de0b1cf663ce4555290 --new 68106660686232781bca3be792a750d3e19d7a8a --cxx /usr/bin/g++-12 --expect-paths cc/mocc/transaction.cc
+cxx resolved: /usr/bin/x86_64-linux-gnu-g++-12
+cxx version: g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0
+rc=0
+stdout bytes=31091 sha256=d99c350388fc57cd5c8a7fe33ac947d29803e71c969d46843c123e4040909358
+stderr bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+== clang14
+argv: python3 tools/check_trace0_preprocess_identity.py --repo /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2844-mocc-xp-hook-branch/external/ccbench --old e9e477ca1b55348ab4530de0b1cf663ce4555290 --new 68106660686232781bca3be792a750d3e19d7a8a --cxx /usr/bin/clang++ --expect-paths cc/mocc/transaction.cc
+cxx resolved: /usr/lib/llvm-14/bin/clang
+cxx version: Ubuntu clang version 14.0.0-1ubuntu1.1
+rc=1
+stdout bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+stderr bytes=284 sha256=00bec1fe6d7eb3ffb8c958d11a0470dd5af54d2df77cf668f18eb30ebfe8acb3
+== negative control (BASE + patches/instr-mocc-lock-coverage.patch as-is)
+old patch sha256: e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48
+NEG=9b3f3013e0c2ce83a616458eb660d98f52cfb652 blob=1ec11e5c12aa7e673a794e744ee9ea0563d9ba66
+argv: python3 tools/check_trace0_preprocess_identity.py --repo /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/scratch-neg --old e9e477ca1b55348ab4530de0b1cf663ce4555290 --new 9b3f3013e0c2ce83a616458eb660d98f52cfb652 --cxx /usr/bin/g++-11 --expect-paths cc/mocc/transaction.cc
+rc=1
+stdout bytes=0
+stderr:
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: include 行文字列（順序込み）が不一致: cc/mocc/transaction.cc
+neg commit present in wave submodule store? (expect rc=128 = absent)
+cat-file rc=1
+end 2026-09-21 21:18:20 JST

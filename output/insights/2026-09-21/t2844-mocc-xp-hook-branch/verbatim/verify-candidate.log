@@ -1,0 +1,20 @@
+base sha256 79982b23dce106766dab9e8d8183154d9de4af94724d1a003a09a79e84155a21 blob 1f4e9453c39a42451e652b3a28d791b90844f184
+old patch sha256 e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48
+cand patch sha256 9b06feed940d4d45318bfc7d2147a19e291abf7363285c3825b34c00c8907e94
+git apply --check instr-mocc-lock-coverage.patch: rc=0
+git apply  instr-mocc-lock-coverage.patch: rc=0
+git apply --check instr-mocc-lock-coverage-pin-candidate.patch: rc=0
+git apply  instr-mocc-lock-coverage-pin-candidate.patch: rc=0
+candidate blob e393efbfd5fad7bbe05117b43669ccc0f44abb6a match target
+candidate sha256 712e31b5cbf2a3a63df442d50203c5c0787c98c83672d49a20210719bf32ebe4 match target
+removed '#include <set>' lines: 1
+expected (old + 3 edits) == candidate: True
+changed lines old -> candidate: 5
+   -#include <set>
+   -  std::multiset<const void*> izanagi_pre_sort_rcdptrs;
+   +  std::unordered_multiset<const void*> izanagi_pre_sort_rcdptrs;
+   -      std::multiset<const void*> izanagi_post_sort_rcdptrs;
+   +      std::unordered_multiset<const void*> izanagi_post_sort_rcdptrs;
+include rows equal to BASE: True 11
+#line rows: ['#line 17', '#line 990', '#line 991', '#line 1158', '#line 1169', '#line 1187', '#line 1195']
+unordered_multiset count: 2 std::multiset count: 0

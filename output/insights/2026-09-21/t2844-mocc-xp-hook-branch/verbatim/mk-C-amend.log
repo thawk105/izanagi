@@ -1,0 +1,47 @@
+start 2026-09-21 21:16:17 JST
+old C = 1035f1e394b71be2944db969f12dc74882c9d435 (evidence saved to /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/superseded-1035f1e3)
+old parents: 1035f1e394b71be2944db969f12dc74882c9d435 e9e477ca1b55348ab4530de0b1cf663ce4555290
+tree (kept): 6dc0883c5bcc854eb6425101508b81a36bd7bf45
+message: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/C-commit-message.txt sha256=c464797531296f04846c0838b995903a8a9330994d2c190eb3b16b8ee549dc5d
+C = 68106660686232781bca3be792a750d3e19d7a8a
+parents: 68106660686232781bca3be792a750d3e19d7a8a e9e477ca1b55348ab4530de0b1cf663ce4555290
+tree: 6dc0883c5bcc854eb6425101508b81a36bd7bf45
+blob C:cc/mocc/transaction.cc = e393efbfd5fad7bbe05117b43669ccc0f44abb6a
+diff-tree BASE..C (raw):
+:100644 100644 1f4e9453c39a42451e652b3a28d791b90844f184 e393efbfd5fad7bbe05117b43669ccc0f44abb6a M	cc/mocc/transaction.cc
+commit 68106660686232781bca3be792a750d3e19d7a8a
+Author: thawk105 <thawk105@gmail.com>
+Date:   Mon Sep 21 21:16:17 2026 +0900
+
+    feat(mocc): add TRACE-only lock coverage and permutation checks
+
+    Add RWLOCK/CLL entry, pre-write and pre-publish lock coverage checks (X)
+    and write-set size / record-pointer multiset preservation checks (P),
+    all inside the existing #if TRACE blocks of cc/mocc/transaction.cc.
+
+    The P check uses std::unordered_multiset<const void*>, which is supplied
+    by the include/trace.hh include in the same TRACE branch, so the include
+    lines of this file stay identical to e9e477ca (no #include is added).
+    Seven #line directives restore the base source's logical line numbers.
+    Relative to e9e477ca this commit changes only cc/mocc/transaction.cc.
+
+    This is an Izanagi trace-hook candidate (TRACE=1 observation only). It
+    does not advance the superproject pin and does not add write-intent (I)
+    coverage. Design record: izanagi
+    output/insights/2026-09-21/mocc-xp-pin-candidate section 3 and D2207.
+
+    AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+    AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+    AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager
+
+ cc/mocc/transaction.cc | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+sub HEAD: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain lines: 0
+branch ref: 68106660686232781bca3be792a750d3e19d7a8a
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/C.bundle is okay
+The bundle contains this ref:
+68106660686232781bca3be792a750d3e19d7a8a refs/heads/izanagi-mocc-xp-instrumentation
+The bundle records a complete history.
+bundle bytes: 3215547 sha256: 360805557b5e35abb34b746bcc7bbc7d8db9779e1f5c96244ec96ceff8315de5
+68106660686232781bca3be792a750d3e19d7a8a refs/heads/izanagi-mocc-xp-instrumentation
+end 2026-09-21 21:16:17 JST

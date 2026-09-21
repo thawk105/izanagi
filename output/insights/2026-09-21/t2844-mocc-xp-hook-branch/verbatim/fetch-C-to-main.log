@@ -1,0 +1,16 @@
+start 2026-09-21 21:48:25 JST
+C=68106660686232781bca3be792a750d3e19d7a8a bundle sha256=360805557b5e35abb34b746bcc7bbc7d8db9779e1f5c96244ec96ceff8315de5
+main sub git dir: /work/1/SFC/tanab/izanagi/.git/modules/external/ccbench
+main sub HEAD before: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+main outer gitlink: 160000 commit e9e477ca1b55348ab4530de0b1cf663ce4555290	external/ccbench
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/C.bundle is okay
+The bundle contains this ref:
+68106660686232781bca3be792a750d3e19d7a8a refs/heads/izanagi-mocc-xp-instrumentation
+The bundle records a complete history.
+From /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2844-mocc-xp-hook-branch/C.bundle
+ * [new branch]        izanagi-mocc-xp-instrumentation -> izanagi-mocc-xp-instrumentation
+after: refs/heads/izanagi-mocc-xp-instrumentation = 68106660686232781bca3be792a750d3e19d7a8a
+parents: 68106660686232781bca3be792a750d3e19d7a8a e9e477ca1b55348ab4530de0b1cf663ce4555290
+tree: 6dc0883c5bcc854eb6425101508b81a36bd7bf45 blob: e393efbfd5fad7bbe05117b43669ccc0f44abb6a
+main sub HEAD after: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+end 2026-09-21 21:48:29 JST
