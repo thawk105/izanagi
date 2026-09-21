@@ -25,6 +25,13 @@ title: [T-2830] B-5 本走前の実装 — B-5 mode の bench lock を driver �
 - **セッション異常:** 変異用の独立 clone に短縮 SHA から推測した完全 SHA を渡し `nonexistent object` で拒否された (rev-parse の値で作り直し、実害なし)。
 - **受入:** 段 6 の中間受入は child-green (26,964 passed / 69 skipped、赤 0、tested main `a8ae5f5d6` / tip `fa767882b`)。land 対象の最終受入は
   本記録を含む tip に対して投入する (land は tested tip の後に main の前進 merge しか置けない)。
+- **非帰属赤の判定 (DW-O18):** 段 7・8 の記録 commit 後の最終受入 1 走目 (tag final2、16:24〜16:50 JST、tested tip `3a3c2c54c` = post-claim merge、
+  session `91dffbeb…`) は shard-1 の `test_codex_worker_launch.py::test_t2620_orphan_mixed_is_rejected` 1 件が赤
+  (`residual_observation.final_unknown_source=proc_stat_read_error`、`process_group_residual=None`; 26,964 件中 1 件)。本文は harness の `/proc` 走査が
+  無関係 process の消滅と競走する既知の型で、entry 1777 が同日 02:59 に同じ test・同じ本文を非帰属と判定している (本件が同日 2 例目)。
+  中間受入 tip からの差分は docs と他 wave の insight だけで、本 wave の実装差分 (job body・launcher とその test) からも到達不能。
+  同一 tip で当該 node を単独再走 (dispatch 15384.nqsv) → 1 passed (5.45 秒) で非再現。負荷は 16:51 に load 3.47、受入待ち手 3 本・run_tests 8 本・codex 16 本。
+  lease を release して受入を再走する (本追記の commit を含む tip)。hold 登録簿には登録しない。
 - **工数:** Codex 子 7 本 (plan 1・consult 2・author 2・review 2、fix 0)、焦点走 2 本 (12 file 2,074 passed / 変更 test 単独 223 passed)、変異 final 1 本 (dispatch 11 run)。
 - B-5 本走は未認可のまま。本 wave は計算ノードへ実験 job を投入していない (焦点走・変異・受入のテスト job のみ)。
 
