@@ -1516,7 +1516,7 @@ _PROVENANCE_FIELDS = frozenset({
 })
 _PROVENANCE_OUTCOMES = frozenset({
     "certified", "aborted", "rejected", "dry-pass", "duplicate",
-    "duplicate-skip", "rejected-preprocess",
+    "duplicate-skip", "rejected-preprocess", "rejected-tier0",
 })
 
 
