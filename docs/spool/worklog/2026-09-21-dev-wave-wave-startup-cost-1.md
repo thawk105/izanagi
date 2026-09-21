@@ -15,6 +15,7 @@ title: wave 起動の固定費を実測した — 本体は superproject 31,699 
 - 裁定パッケージ (insight §7、実装せず): 次の局所候補は (a) git 既存機構 `checkout.workers` (並列 checkout) の local config 1 行、(b) sparse-checkout で `output/insights` を外す (設計変更)、(c) 木の本数を減らす運用。(a) は job dir の独立 clone で ABA 系列 1 回 (workers=1: 50.6 秒 / 8: 20.4 秒 / 1: 45.3 秒、混雑下) の予備診断だけがあり、採用効果にはしない。推奨は別 wave で n ≥ 3 の交互計測をしてから採否を判断する。
 - ユーザーの「受入 fresh 木の +60 秒」は、受入が git の木を作らない (静的確認) ため、T-2817 の受入 `pre` 61.9 秒と test 内部の base copy 64.2 秒の 2 候補が残り、同定は未了として残した。
 - 工数: codex 子 = consult 1 + review 1 + focus 1 の 3 本、親の probe 1 系列 (login、約 3.5 分)、焦点走 (login → 計算ノード dispatch) 1 回。wave の壁時計は起動 gate 07:40 JST (`startup-gate.log`) → 記録 commit まで。
-- 受入全走と land の結果は本 entry には書けない (fold 後に確定するため insight §9 に追記する)。
+- 受入 attempt 1 (16:49 JST 投入、tested main b9e6fe7d2 を post-claim merge) は rc 70 (子 rc 16、`dispatch-attestation-missing`)。赤は shard-2 の 2 件で、どちらも collection 段の `real_repo_receipt_memo._locked` の `TimeoutError: [Errno 110] memo publication timeout` による pytest INTERNALERROR (junit `pytest::internal`、test は 0 件走行)。兄弟 shard 0/1 (15383 / 15381.nqsv) は signal 15 で中断され orphan hold 3 file が残った。判定: 非帰属 (DW-O18 の差分到達不能) — 本 wave は docs のみで、赤は受入基盤の lock 取得競合であり、[T-2810] (entry 1776 の wave) が記録した型と同じ本文。処置: qdel せず 2 job の終端を待ち、hold 3 file を job dir へ退避・削除し、同一内容 (本項を足した tip) で門番 loop から 1 回再投入する。
+- 受入全走の最終結果と land の結果は本 entry には書けない (fold 後に確定するため insight §9 に追記する)。
 
 ## 次の一手差分
