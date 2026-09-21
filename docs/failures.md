@@ -5597,6 +5597,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異完了後に worktree へ移した。
 
 - **再発: 2026-09-18** — [T-2724] 整合 wave の親が、wave worktree から投入した焦点走 (`focus-nochain-6`、bounded local) の走行中に、同 worktree へ insight の verbatim file 5 本を書いた。bounded local が MemoryMax に達して計算ノードへ再 dispatch する前の tree 状態検査が「local 試行の前後で tree / submodule 状態が変化」で止まり rc=16、走が 1 本無効になった (実害 = 再走 1 本、約 8 分)。恒久対応は F106 のまま。本 wave の親は同日中に前回 (fix-1 の統合前) は守れていたが、fix-4 の統合後に「待ち時間に段 7 を進める」誘因で踏んだ。
+
+- **再発: 2026-09-21** — [T-2344] 発行器収載 wave。**変異 probe の走行中に、親が段 7 の insight 下書きを
+  worktree の `output/insights/` へ作って untracked file を増やした。** `tools/mutation_harness.py` は
+  runner 実行前の preflight で検出し `rc=2` で停止した (baseline PASSED と M0 SURVIVED までは取れていた)。
+  防壁が機能したので実害は probe 1 回の再投入だけである。2026-08-05 / 08-06 の再発と同型で、
+  **待ち時間に別の段を進める誘因は注意書きでは消えない**という既載の知見をさらに 1 例増やす。
+  今回新しい情報は、親が `DW-M05` の「final の待ちは job dir で確定済み本文と検査の準備に充てる」を
+  読んだうえで、**probe の待ちには同じ文が明示的に掛かっていないと読んだ**点である。
+  恒久対応は F106 のままとし、本 wave では `DW-M05` の同文を probe / final の両方に掛かる形へ 1 語で明確化した。
+  以後の下書きは job dir に置き、走行完了後に `install_docs.py` で repo へ配置した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
