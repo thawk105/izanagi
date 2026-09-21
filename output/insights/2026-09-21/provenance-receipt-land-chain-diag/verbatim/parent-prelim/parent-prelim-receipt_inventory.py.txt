@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""共有 store の受領証を read-only で目録化する (診断用、repo 外)。
+
+出力: JSON lines (partition, file, mtime, tip, bindings の各 digest / 値の要約)。
+判定・schema には触れない。
+"""
+import hashlib
+import json
+import os
+import sys
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+STORE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
+    "/work/1/SFC/tanab/izanagi/.git/provenance-audit-receipts")
+OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+JST = timezone(timedelta(hours=9))
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(
+        value, sort_keys=True, ensure_ascii=True, separators=(",", ":"),
+    ).encode("ascii")).hexdigest()
+
+
+rows = []
+for part in sorted(STORE.iterdir()):
+    if not part.is_dir():
+        continue
+    for f in part.iterdir():
+        if not f.is_file() or not f.name.endswith(".json"):
+            continue
+        st = f.lstat()
+        try:
+            r = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            rows.append({"partition": part.name, "file": f.name, "error": repr(e)})
+            continue
+        b = r.get("bindings", {})
+        env = b.get("environment", {})
+        rows.append({
+            "partition": part.name[:12],
+            "file": f.name[:12],
+            "mtime": datetime.fromtimestamp(st.st_mtime, JST).strftime("%m-%d %H:%M:%S"),
+            "mtime_ns": st.st_mtime_ns,
+            "tip": r.get("tip", "")[:12],
+            "rc": r.get("returncode"),
+            "schema": r.get("schema"),
+            "sel_count": (r.get("selection") or {}).get("count"),
+            "checker": env.get("checker", "")[:12],
+            "config_d": digest(env.get("config", ""))[:12],
+            "inherited": env.get("inherited"),
+            "policy": (b.get("policy") or "")[:12],
+            "scope_epoch": (b.get("scope_epoch") or "")[:12],
+            "impl_epoch": (b.get("implementation_epoch") or "")[:12],
+            "cab_hits_d": digest(b.get("cab_hits", []))[:12],
+            "cab_hits_n": len(b.get("cab_hits", [])),
+            "registry": (b.get("registry_manifest") or "")[:12],
+            "attributes": (b.get("attributes") or "")[:12],
+            "repository": b.get("repository"),
+            "object_format": b.get("object_format"),
+            "candidate_count": r.get("candidate_count"),
+            "n_corrected": len((r.get("records") or {}).get("corrected", [])),
+            "n_waived": len((r.get("records") or {}).get("waived", [])),
+            "n_known": len((r.get("records") or {}).get("known_violations", [])),
+        })
+
+rows.sort(key=lambda x: x.get("mtime_ns", 0))
+if OUT:
+    OUT.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n")
+print(f"receipts={len(rows)} partitions={len({r['partition'] for r in rows})}")
+from collections import Counter
+print("per partition (count, newest mtime):")
+byp = {}
+for r in rows:
+    byp.setdefault(r["partition"], []).append(r)
+for p, rs in sorted(byp.items(), key=lambda kv: max(x["mtime_ns"] for x in kv[1])):
+    rs.sort(key=lambda x: x["mtime_ns"])
+    print(f"  {p} n={len(rs):3d} first={rs[0]['mtime']} newest={rs[-1]['mtime']} "
+          f"checkers={sorted({x['checker'] for x in rs})} "
+          f"inherited={rs[-1]['inherited']}")
