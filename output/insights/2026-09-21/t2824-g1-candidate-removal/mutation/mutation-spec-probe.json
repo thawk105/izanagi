@@ -1,0 +1,36 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+     "old": "# historical reverify (reverify_published_freeze) は削除後の実測で成功した。\n",
+     "new": "# historical reverify (reverify_published_freeze) は削除後の実測で成功した。\n# T-2824 M0: equivalent mutation marker (comment only)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-held-truth-first-element-pre-deletion",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+     "old": "    \"holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 3 件: \"\n    \"['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json']; \"\n    \"rr20: holdout hit 3 件: \"\n    \"['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json']\",\n",
+     "new": "    \"holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 4 件: \"\n    \"['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', \"\n    \"'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 件: \"\n    \"['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', \"\n    \"'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', \"\n    \"'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']\",\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

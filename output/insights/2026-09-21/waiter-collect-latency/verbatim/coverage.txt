@@ -1,0 +1,32 @@
+wave | 焦点走/単発 (END あり / .done あり) | 受入 (session 残存 / child log) | 変異 producer (evidence あり / 台帳あり) | 変異 attempt (evidence / 台帳)
+    t2797-b5-contrast: mutation-final 台帳 attempt=32 evidence(END あり)=32
+    t2797-b5-contrast: mutation-final2 台帳 attempt=4 evidence(END あり)=4
+    t2797-b5-contrast: mutation-probe 台帳 attempt=31 evidence(END あり)=31
+t2797-b5-contrast                    | 3/3 | 3/3 | 3/3 | 67/67
+    branch-residue-cleanup: mutation-doc-final 台帳 attempt=5 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+    branch-residue-cleanup: mutation-doc-probe 台帳 attempt=5 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+    branch-residue-cleanup: mutation-final 台帳 attempt=13 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+    branch-residue-cleanup: mutation-probe 台帳 attempt=12 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+    branch-residue-cleanup: mutation-probe2 台帳 attempt=3 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+branch-residue-cleanup               | 4/4 | 1/1 | 0/5 | 0/38
+t2817-acceptance-bottleneck-3        | 2/2 | 4/4 | 0/0 | 0/0
+    t2810-g1-launch-validation: mutation-final 台帳 attempt=17 evidence(END あり)=17
+    t2810-g1-launch-validation: mutation-probe 台帳 attempt=17 evidence(END あり)=17
+t2810-g1-launch-validation           | 3/3 | 2/2 | 2/2 | 34/34
+    t2814-cleanup-command: mutation-final 台帳 attempt=7 evidence(END あり)=7
+    t2814-cleanup-command: mutation-probe 台帳 attempt=7 evidence(END あり)=7
+t2814-cleanup-command                | 2/2 | 1/1 | 2/2 | 14/14
+wall-decomp                          | 2/2 | 1/1 | 0/0 | 0/0
+paper-story-20260921                 | 0/0 | 1/1 | 0/0 | 0/0
+paper-abstract-conclusion-ja         | 0/0 | 1/1 | 0/0 | 0/0
+    t2344-closure-stage: mutation-final 台帳 attempt=14 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+    t2344-closure-stage: mutation-probe 台帳 attempt=14 evidence(END あり)=0 (evidence dir 無し: 撤去済み worktree 側)
+t2344-closure-stage                  | 4/4 | 2/2 | 0/2 | 0/28
+    t2803-provenance-receipt: mutation-final 台帳 attempt=7 evidence(END あり)=7
+    t2803-provenance-receipt: mutation-probe 台帳 attempt=7 evidence(END あり)=7
+t2803-provenance-receipt             | 7/7 | 2/2 | 2/2 | 14/14
+    t2804-provenance-timeout-contract: mutation-final 台帳 attempt=15 evidence(END あり)=15
+    t2804-provenance-timeout-contract: mutation-probe 台帳 attempt=15 evidence(END あり)=15
+t2804-provenance-timeout-contract    | 4/4 | 1/1 | 2/2 | 30/30
+t2807-b8-prerun                      | 6/6 | 1/1 | 0/0 | 0/0
+合計 | 焦点走/単発 37/37 | 受入 20/20 | 変異 producer 11/18 | 変異 attempt 159/225
