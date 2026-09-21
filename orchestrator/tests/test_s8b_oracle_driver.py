@@ -131,17 +131,19 @@ _NO_ACTIVE_REFUSAL = (
 # T-2304 / D2184 の ccbench pin 前進で policy epoch が db6bc9ea… へ移った後の
 # 実 repo live P3 真値。T-2304 統合時の追随を T-2810 で補完する。
 # journal / lineage 修復後も live は段階 4 の現行 policy 照合で拒否される。
-# historical reverify は段階 8 の未発効候補 hit まで到達する。
+# T-2824 (D2194 項 5) で未発効候補文書を削除した後の live P3 真値。
+# layer-2 hit は official run_dir の 3 file だけで、候補 path は含まない。
+# historical reverify (reverify_published_freeze) は削除後の実測で成功した。
+# この定数は live P3 の拒否集合を照合し、historical の成功は live admission の代替ではない。
 _ACTIVATED_G1_REFUSALS = frozenset({
-    "holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 4 件: "
+    "holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 3 件: "
     "['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', "
     "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', "
-    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', "
-    "'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 件: "
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json']; "
+    "rr20: holdout hit 3 件: "
     "['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', "
     "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', "
-    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', "
-    "'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']",
+    "'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json']",
     "v2-execution: launch-validate: [manifest-invalid] [manifest-invalid] "
     "binaries[rr20::backoff_fixed_best] admission receipt が不正: "
     "receipt admission policy が現行 policy と不一致",
