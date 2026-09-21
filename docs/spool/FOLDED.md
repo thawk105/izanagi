@@ -5151,3 +5151,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-20","base":"3dbe5a41e92a17fa2169338e0516ccdb7ab1d207","content_sha256":"e50bad4a2a5f76279c28704f87bba03fb2694c57c5b4f434fc3d7e349954f7c8","seq":1,"tested_tip":"cf1c90e1faf9009bec8d2f28d1973e3f3ddad547","wave":"dev-wave-t2797-b5-contrast","wave_ref":"refs/heads/worktree-dev-wave-t2797-b5-contrast"}
 
 - {"allocations":{"T:selfrun-harness-skip-contract":"[T-2831]"},"authored":"2026-09-21","base":"5efd69367b641b9bfbd6fb426478f66ae5762783","content_sha256":"9aa57175fab8f6c354d387038e7abe47dcee9e2b9cc87d9c65c7aa938b3b3e83","seq":1,"tested_tip":"98b81b5df7e795f40d4f9f3e4074f886e195f645","wave":"dev-wave-dwm08-selfrun-probe","wave_ref":"refs/heads/worktree-dev-wave-dwm08-selfrun-probe"}
+
+- {"allocations":{},"authored":"2026-09-21","base":"21641fee777d24642d54119b660a7b7880636e71","content_sha256":"603721c7f88dd85957f96015f65d0e3b698bd9c9515c2d0bd5ab35c1f5eacb90","seq":1,"tested_tip":"71e572b3cbb46ab6427512c3edafe91c2a746f37","wave":"waiter-collect-latency","wave_ref":"refs/heads/worktree-waiter-collect-latency"}
