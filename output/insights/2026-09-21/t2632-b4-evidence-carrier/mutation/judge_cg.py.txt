@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""[T-2632] commit 群 final の判定: 変異ごとの観測 node (run-commit-group.sh の .nodes) と spec の expected_nodes の完全一致だけを KILLED とする (DW-M08)。
+
+usage: judge_cg.py <spec-final.json> <final-dir> <out.json>
+"""
+import json
+import pathlib
+import sys
+
+
+def main(argv):
+    spec = json.loads(pathlib.Path(argv[1]).read_text(encoding="utf-8"))
+    d = pathlib.Path(argv[2])
+    rows = []
+    for m in spec["mutations"]:
+        path = d / f"{m['id']}.nodes"
+        observed = sorted(l for l in path.read_text(encoding="utf-8").splitlines() if l) if path.exists() else None
+        expected = sorted(m["expected_nodes"])
+        if observed is None:
+            status = "NOT-RUN"
+        elif expected and observed == expected:
+            status = "KILLED"
+        elif not expected and not observed:
+            status = "SURVIVED"
+        else:
+            status = "MISMATCH"
+        rows.append({"id": m["id"], "status": status, "expected": len(expected),
+                     "observed": None if observed is None else len(observed),
+                     "missing": [] if observed is None else sorted(set(expected) - set(observed)),
+                     "extra": [] if observed is None else sorted(set(observed) - set(expected))})
+    base = (d / "baseline.nodes")
+    out = {"baseline_failed": None if not base.exists() else len([l for l in base.read_text().splitlines() if l]),
+           "rows": rows}
+    pathlib.Path(argv[3]).write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(json.dumps({"baseline_failed": out["baseline_failed"],
+                      "status": {r["id"]: r["status"] for r in rows}}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main(sys.argv)

@@ -1,0 +1,8 @@
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-[]]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-\xff]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-{"schema_version":"p3-s4-loop-provenance/v1","axis":"silo-backoff-magnitude","entries":[]}]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[False-{]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-[]]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-\xff]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-{"schema_version":"p3-s4-loop-provenance/v1","axis":"silo-backoff-magnitude","entries":[]}]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_corrupt_report_stops[True-{]

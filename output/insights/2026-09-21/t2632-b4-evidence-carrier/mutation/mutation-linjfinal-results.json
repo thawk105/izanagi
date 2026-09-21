@@ -1,0 +1,651 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b865baa681e6f78a22ba728a15f7753/izdw-3b865baa68.o15751",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b865baa681e6f78a22ba728a15f7753/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................                                                         [100%]\n16 passed in 6.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "c02b503be74b234699dad43d8178c8f7ee14c2b072a481e824a1b5310d653cdc"
+    },
+    "artifact_error": null,
+    "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+    "duration_s": 27.029,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "541ae61a7ec5c4517cf4220f551689795cbe49d98601e822b835ac4fec4b0b19",
+    "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+    "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+    "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+    "status": "PASSED",
+    "test_output_sha256": "c02b503be74b234699dad43d8178c8f7ee14c2b072a481e824a1b5310d653cdc",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+  },
+  "date": "2026-09-21T13:04:10.007986+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a3739818a0424b9e0338fafdeb5810d8/izdw-a3739818a0.o15757",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a3739818a0424b9e0338fafdeb5810d8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F                                                         [100%]\n=================================== FAILURES ===================================\n____________ test_base_provenance_duplicate_reuses_selected_attempt ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n\n    def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n        layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n        variant = _base_selected_commit(layout, prior_failed_attempt=True)\n        records = wal.read_records(layout)\n        # The failed attempt precedes the selected certified attempt.\n        prior_records, selected_records = records[:2], records[2:]\n        assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n        assert selected_records[-1].stage == L.STAGE_COMMIT\n        prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n        selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n        assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n        assert prior_attempt != selected_attempt\n        before = Path(layout.wal_file).read_bytes()\n        out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n                                   L.LoopState(iteration=1), _dup_summary(variant))\n        assert out[\"outcome\"] == \"duplicate\"\n        evidence = L._wal_attempt_provenance(layout, out)\n>       assert evidence == {\"variant\": variant,\n            \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n            \"wal_refs\": _base_refs(selected_records)}\nE       AssertionError: assert {'variant': '...463cb22ae6a']} == {'variant': '...463cb22ae6a']}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'wal_refs': ['wal:2310cd10a41fc47118968e52269e5b88943e25e13a8b7e41363bb8f1deb11e4e', 'wal:b015503d37f1a68afb8e3ed6f46...2c7f8557459451d9e78825bf131c69a612d3dfe869f5', 'wal:14f851243e00fb46f35c79b7b668b5e15b788bc5b74c805d242cb463cb22ae6a']} != {'wal_refs': ['wal:9950ec7f327010dc7bd2450df5d481445f6a3cd7b52e97fc6630ea85a93debf7', 'wal:72526b93b2f356af7d407d3220d...2c7f8557459451d9e78825bf131c69a612d3dfe869f5', 'wal:14f851243e00fb46f35c79b7b668b5e15b788bc5b74c805d242cb463cb22ae6a']}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n----------------------------- Captured stdout call -----------------------------\n  重複提案 (既存 certified variant carrier-selected と同一 genome、新規評価はスキップ)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\n1 failed, 15 passed in 6.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2227 retained_bytes=2227 omitted_bytes=0 rendered_excerpt_bytes=2292 sha256=9ecbe8d4989889504a6f0a35600a919de1161694c0686b3b82d53b7326e38a48\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n> \n>     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n>         layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n>         variant = _base_selected_commit(layout, prior_failed_attempt=True)\n>         records = wal.read_records(layout)\n>         # The failed attempt precedes the selected certified attempt.\n>         prior_records, selected_records = records[:2], records[2:]\n>         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n>         assert selected_records[-1].stage == L.STAGE_COMMIT\n>         prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n>         selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n>         assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n>         assert prior_attempt != selected_attempt\n>         before = Path(layout.wal_file).read_bytes()\n>         out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n>                                    L.LoopState(iteration=1), _dup_summary(variant))\n>         assert out[\"outcome\"] == \"duplicate\"\n>         evidence = L._wal_attempt_provenance(layout, out)\n> >       assert evidence == {\"variant\": variant,\n>             \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n>             \"wal_refs\": _base_refs(selected_records)}\n> E       AssertionError: assert {'variant': '...463cb22ae6a']} == {'variant': '...463cb22ae6a']}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'wal_refs': ['wal:2310cd10a41fc47118968e52269e5b88943e25e13a8b7e41363bb8f1deb11e4e', 'wal:b015503d37f1a68afb8e3ed6f46...2c7f8557459451d9e78825bf131c69a612d3dfe869f5', 'wal:14f851243e00fb46f35c79b7b668b5e15b788bc5b74c805d242cb463cb22ae6a']} != {'wal_refs': ['wal:9950ec7f327010dc7bd2450df5d481445f6a3cd7b52e97fc6630ea85a93debf7', 'wal:72526b93b2f356af7d407d3220d...2c7f8557459451d9e78825bf131c69a612d3dfe869f5', 'wal:14f851243e00fb46f35c79b7b668b5e15b788bc5b74c805d242cb463cb22ae6a']}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2227 retained_bytes=2227 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3012 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d970d029eb097ecc80b6d601e326671c33d5293d356c1ea6acb8935568849c85"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 1101.975,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "hang_risk": false,
+      "id": "S3-refs-ignore-attempt-id",
+      "injection_diff_sha256": "9b76843d5311cacf6f11c14162b6358414ce18a1e7d795f737e13be30235452b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a7ee152a9d0d036c758d79de8988379247ed96cbd88cafcf52fa7917f3daf230",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    selected_records = [record for record in records\n                        if record.variant == variant]\n",
+          "old": "    selected_records = [record for record in records\n                        if record.variant == variant\n                        and record.payload.get(\"build_attempt_id\") == attempt]\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "d970d029eb097ecc80b6d601e326671c33d5293d356c1ea6acb8935568849c85",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3513c2d435dda8555e7b0e11597559eb/izdw-3513c2d435.o15826",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3513c2d435dda8555e7b0e11597559eb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F                                                         [100%]\n=================================== FAILURES ===================================\n____________ test_base_provenance_duplicate_reuses_selected_attempt ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n\n    def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n        layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n        variant = _base_selected_commit(layout, prior_failed_attempt=True)\n        records = wal.read_records(layout)\n        # The failed attempt precedes the selected certified attempt.\n        prior_records, selected_records = records[:2], records[2:]\n        assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n        assert selected_records[-1].stage == L.STAGE_COMMIT\n        prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n        selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n        assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n        assert prior_attempt != selected_attempt\n        before = Path(layout.wal_file).read_bytes()\n        out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n                                   L.LoopState(iteration=1), _dup_summary(variant))\n        assert out[\"outcome\"] == \"duplicate\"\n        evidence = L._wal_attempt_provenance(layout, out)\n>       assert evidence == {\"variant\": variant,\n            \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n            \"wal_refs\": _base_refs(selected_records)}\nE       AssertionError: assert {'variant': '...98ef1af0133']} == {'variant': '...167f7fb067d']}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'wal_refs': ['wal:fb20d6380406732ba5e2dd591289b7caa6995c50a4e0adb83998d44874a18f7e', 'wal:f2d8fe43305039aaf82c8c4d3bd0879d2c57fa4cd58b1c643286a98ef1af0133']} != {'wal_refs': ['wal:0e1cb1f30ada813b49245018bb3cee51bbc0a53e3afca6d36f9e0aba55cf216f', 'wal:6fb1e0be6e921e7a2bd9e0f3be6...6cb7e83180ab892908cb6392a982a9da893566798afb', 'wal:7d902c551fd915080b0c69acd5f87fc2424a53484902f4483bcba167f7fb067d']}\nE         {'build_attempt_id': 'da5a37120bbe9dffd9cd4b964d2376e0'} != {'build_attempt_id': '1cf83c2ebb1a2d5138768623d3b3127c'}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n----------------------------- Captured stdout call -----------------------------\n  重複提案 (既存 certified variant carrier-selected と同一 genome、新規評価はスキップ)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\n1 failed, 15 passed in 6.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2272 retained_bytes=2272 omitted_bytes=0 rendered_excerpt_bytes=2339 sha256=ede4001ec985f6d7900a538b7e65ff6c4bbcf10858753bfa89be61956f638988\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n> \n>     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n>         layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n>         variant = _base_selected_commit(layout, prior_failed_attempt=True)\n>         records = wal.read_records(layout)\n>         # The failed attempt precedes the selected certified attempt.\n>         prior_records, selected_records = records[:2], records[2:]\n>         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n>         assert selected_records[-1].stage == L.STAGE_COMMIT\n>         prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n>         selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n>         assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n>         assert prior_attempt != selected_attempt\n>         before = Path(layout.wal_file).read_bytes()\n>         out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n>                                    L.LoopState(iteration=1), _dup_summary(variant))\n>         assert out[\"outcome\"] == \"duplicate\"\n>         evidence = L._wal_attempt_provenance(layout, out)\n> >       assert evidence == {\"variant\": variant,\n>             \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n>             \"wal_refs\": _base_refs(selected_records)}\n> E       AssertionError: assert {'variant': '...98ef1af0133']} == {'variant': '...167f7fb067d']}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'wal_refs': ['wal:fb20d6380406732ba5e2dd591289b7caa6995c50a4e0adb83998d44874a18f7e', 'wal:f2d8fe43305039aaf82c8c4d3bd0879d2c57fa4cd58b1c643286a98ef1af0133']} != {'wal_refs': ['wal:0e1cb1f30ada813b49245018bb3cee51bbc0a53e3afca6d36f9e0aba55cf216f', 'wal:6fb1e0be6e921e7a2bd9e0f3be6...6cb7e83180ab892908cb6392a982a9da893566798afb', 'wal:7d902c551fd915080b0c69acd5f87fc2424a53484902f4483bcba167f7fb067d']}\n> E         {'build_attempt_id': 'da5a37120bbe9dffd9cd4b964d2376e0'} != {'build_attempt_id': '1cf83c2ebb1a2d5138768623d3b3127c'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2272 retained_bytes=2272 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3059 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "81d96a012b86a899522b3a572d52849fb3fadb65656a44c3be30baad9cadbfc2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 27.146,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "hang_risk": false,
+      "id": "S4-first-start-instead-of-commit",
+      "injection_diff_sha256": "5501da7fbc097181ab6c635b6008944042f70710020afd5456072ba2cfe6569d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8569e265c6f16db1f411a219496309b453e712368ddae777edb2494ae2f15713",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        attempt = next(r.payload.get(\"build_attempt_id\") for r in records if r.variant == variant and r.stage == STAGE_BUILD_START)\n",
+          "old": "        attempt = selected.get(STAGE_COMMIT, {}).get(\"build_attempt_id\")\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "81d96a012b86a899522b3a572d52849fb3fadb65656a44c3be30baad9cadbfc2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cbdd8c239c7ee7ef5a8f69278aff3a34/izdw-cbdd8c239c.o15827",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cbdd8c239c7ee7ef5a8f69278aff3a34/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............FF                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_base_provenance_keeps_all_attempt_records ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_base_provenance_keeps_all0')\n\n    def test_base_provenance_keeps_all_attempt_records(tmp_path):\n        from orchestrator.campaign.model import STAGE_VERIFY_DONE\n    \n        layout = CampaignLayout(str(tmp_path / \"all-records\")).ensure()\n        variant = _base_selected_commit(layout)\n        records = wal.read_records(layout)\n        assert [r.stage for r in records] == [STAGE_BUILD_START, STAGE_VERIFY_DONE,\n                                             STAGE_VERIFY_DONE, L.STAGE_COMMIT]\n        assert L.RECEIPT_PAYLOAD_KEY in records[-1].payload\n        out = {\"outcome\": \"certified\", \"variant\": variant,\n               \"records\": {L.STAGE_COMMIT: records[-1].payload}}\n>       assert L._wal_attempt_provenance(layout, out)[\"wal_refs\"] == _base_refs(records)\nE       AssertionError: assert ['wal:02c80ed...3e8e1ce8914d'] == ['wal:2cae2a6...04aadefe0d1e']\nE         \nE         At index 0 diff: 'wal:02c80ed2be93b40dfaa27e310874977331e5ff6e5d3d06528688b708ee1bb28b' != 'wal:2cae2a6d2196522fa29867604952940cc8c04556d92e8c52f9f1517c6012a795'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7306: AssertionError\n____________ test_base_provenance_duplicate_reuses_selected_attempt ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n\n    def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n        layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n        variant = _base_selected_commit(layout, prior_failed_attempt=True)\n        records = wal.read_records(layout)\n        # The failed attempt precedes the selected certified attempt.\n        prior_records, selected_records = records[:2], records[2:]\n        assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n        assert selected_records[-1].stage == L.STAGE_COMMIT\n        prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n        selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n        assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n        assert prior_attempt != selected_attempt\n        before = Path(layout.wal_file).read_bytes()\n        out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n                                   L.LoopState(iteration=1), _dup_summary(variant))\n        assert out[\"outcome\"] == \"duplicate\"\n        evidence = L._wal_attempt_provenance(layout, out)\n>       assert evidence == {\"variant\": variant,\n            \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n            \"wal_refs\": _base_refs(selected_records)}\nE       AssertionError: assert {'variant': '...f0e82d38acf']} == {'variant': '...44580e02861']}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'wal_refs': ['wal:2aff3cee133ca4f649b02b7e84e484d35fd9cb9048fff78a29a8a6d3800a4b10', 'wal:35282d7ba24e15fd50fc4260063...804af184402294a8f294949ff71d7bd322cac8b965ed', 'wal:14b94a663834b98e236ce3c27764034fc42db17077c56653bebb8f0e82d38acf']} != {'wal_refs': ['wal:7c6e6928275ceb4da1920f4def7bc064dc5bdef9e13689151e2dad6056f3fe60', 'wal:2a54c88498bc876f036509f76d1...5e992b1402cbf96582554746d1e3af13534bf0cc7ce4', 'wal:4bb919ba962957bf4bc55522a1110b6969c613da19f8e0e066b0544580e02861']}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n----------------------------- Captured stdout call -----------------------------\n  重複提案 (既存 certified variant carrier-selected と同一 genome、新規評価はスキップ)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\n2 failed, 14 passed in 6.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2227 retained_bytes=2227 omitted_bytes=0 rendered_excerpt_bytes=2292 sha256=f4828c18506d81db974d806a789955352bfae0035daef71d476bbbdc3b892ffa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n> \n>     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n>         layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n>         variant = _base_selected_commit(layout, prior_failed_attempt=True)\n>         records = wal.read_records(layout)\n>         # The failed attempt precedes the selected certified attempt.\n>         prior_records, selected_records = records[:2], records[2:]\n>         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n>         assert selected_records[-1].stage == L.STAGE_COMMIT\n>         prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n>         selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n>         assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n>         assert prior_attempt != selected_attempt\n>         before = Path(layout.wal_file).read_bytes()\n>         out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n>                                    L.LoopState(iteration=1), _dup_summary(variant))\n>         assert out[\"outcome\"] == \"duplicate\"\n>         evidence = L._wal_attempt_provenance(layout, out)\n> >       assert evidence == {\"variant\": variant,\n>             \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n>             \"wal_refs\": _base_refs(selected_records)}\n> E       AssertionError: assert {'variant': '...f0e82d38acf']} == {'variant': '...44580e02861']}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'wal_refs': ['wal:2aff3cee133ca4f649b02b7e84e484d35fd9cb9048fff78a29a8a6d3800a4b10', 'wal:35282d7ba24e15fd50fc4260063...804af184402294a8f294949ff71d7bd322cac8b965ed', 'wal:14b94a663834b98e236ce3c27764034fc42db17077c56653bebb8f0e82d38acf']} != {'wal_refs': ['wal:7c6e6928275ceb4da1920f4def7bc064dc5bdef9e13689151e2dad6056f3fe60', 'wal:2a54c88498bc876f036509f76d1...5e992b1402cbf96582554746d1e3af13534bf0cc7ce4', 'wal:4bb919ba962957bf4bc55522a1110b6969c613da19f8e0e066b0544580e02861']}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1253 retained_bytes=1253 omitted_bytes=0 rendered_excerpt_bytes=1298 sha256=15fb36efab7a4a2e5738fd7d5cae06115115f9c809318ef536837006c1d20402\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_base_provenance_keeps_all0')\n> \n>     def test_base_provenance_keeps_all_attempt_records(tmp_path):\n>         from orchestrator.campaign.model import STAGE_VERIFY_DONE\n>     \n>         layout = CampaignLayout(str(tmp_path / \"all-records\")).ensure()\n>         variant = _base_selected_commit(layout)\n>         records = wal.read_records(layout)\n>         assert [r.stage for r in records] == [STAGE_BUILD_START, STAGE_VERIFY_DONE,\n>                                              STAGE_VERIFY_DONE, L.STAGE_COMMIT]\n>         assert L.RECEIPT_PAYLOAD_KEY in records[-1].payload\n>         out = {\"outcome\": \"certified\", \"variant\": variant,\n>                \"records\": {L.STAGE_COMMIT: records[-1].payload}}\n> >       assert L._wal_attempt_provenance(layout, out)[\"wal_refs\"] == _base_refs(records)\n> E       AssertionError: assert ['wal:02c80ed...3e8e1ce8914d'] == ['wal:2cae2a6...04aadefe0d1e']\n> E         \n> E         At index 0 diff: 'wal:02c80ed2be93b40dfaa27e310874977331e5ff6e5d3d06528688b708ee1bb28b' != 'wal:2cae2a6d2196522fa29867604952940cc8c04556d92e8c52f9f1517c6012a795'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7306: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3480 retained_bytes=3480 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4735 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d8d1c1136ece31876b2a396de1a6ad34b92bb4cdb300affacde78ce8c14c58f6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 27.124,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "hang_risk": false,
+      "id": "S5-ref-hashes-payload-only",
+      "injection_diff_sha256": "f473599cf2024026e051b34fcd9aa8dbd7df2832cac9ebcabfa7e53762d86bc1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f8bcc39ee27dc21e2a9136c7c6edec0a9f03f13cb7d8888b8d1107331b071315",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        \"wal:\" + agent_outputs.canonical_sha256(record.payload)\n",
+          "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "d8d1c1136ece31876b2a396de1a6ad34b92bb4cdb300affacde78ce8c14c58f6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc2d129e26f2f39319701b9ab619a4c8/izdw-cc2d129e26.o15828",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cc2d129e26f2f39319701b9ab619a4c8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............FF                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_base_provenance_keeps_all_attempt_records ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_base_provenance_keeps_all0')\n\n    def test_base_provenance_keeps_all_attempt_records(tmp_path):\n        from orchestrator.campaign.model import STAGE_VERIFY_DONE\n    \n        layout = CampaignLayout(str(tmp_path / \"all-records\")).ensure()\n        variant = _base_selected_commit(layout)\n        records = wal.read_records(layout)\n        assert [r.stage for r in records] == [STAGE_BUILD_START, STAGE_VERIFY_DONE,\n                                             STAGE_VERIFY_DONE, L.STAGE_COMMIT]\n        assert L.RECEIPT_PAYLOAD_KEY in records[-1].payload\n        out = {\"outcome\": \"certified\", \"variant\": variant,\n               \"records\": {L.STAGE_COMMIT: records[-1].payload}}\n>       assert L._wal_attempt_provenance(layout, out)[\"wal_refs\"] == _base_refs(records)\nE       AssertionError: assert ['wal:05e0f8b...1ae0ff3b4d5c'] == ['wal:05e0f8b...1ae0ff3b4d5c']\nE         \nE         At index 1 diff: 'wal:06e3d4755469025e7bcaceeeca9ded3f501336e1d9d3c5333cae74e2675da37b' != 'wal:6e70f104efe5491569472ee5929fe605257d1565bca4f011547490f21676669f'\nE         Right contains one more item: 'wal:3995cbda4432272a21bf6302f33604f5c7ce7d85bb48f602d8421ae0ff3b4d5c'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7306: AssertionError\n____________ test_base_provenance_duplicate_reuses_selected_attempt ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n\n    def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n        layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n        variant = _base_selected_commit(layout, prior_failed_attempt=True)\n        records = wal.read_records(layout)\n        # The failed attempt precedes the selected certified attempt.\n        prior_records, selected_records = records[:2], records[2:]\n        assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n        assert selected_records[-1].stage == L.STAGE_COMMIT\n        prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n        selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n        assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n        assert prior_attempt != selected_attempt\n        before = Path(layout.wal_file).read_bytes()\n        out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n                                   L.LoopState(iteration=1), _dup_summary(variant))\n        assert out[\"outcome\"] == \"duplicate\"\n        evidence = L._wal_attempt_provenance(layout, out)\n>       assert evidence == {\"variant\": variant,\n            \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n            \"wal_refs\": _base_refs(selected_records)}\nE       AssertionError: assert {'variant': '...3b911c17116']} == {'variant': '...3b911c17116']}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'wal_refs': ['wal:85bb281c5b7f123e722643bc3967135c1a2b0d10e2688a62fe91a2892644e38a', 'wal:1fc9696bc94803c11d045d940312bde8ba8199c6776292554b48668528a579e0', 'wal:01526f45e5b1b931783223bf2eb4cfd096da93c59c66b3d7c295f3b911c17116']} != {'wal_refs': ['wal:85bb281c5b7f123e722643bc3967135c1a2b0d10e2688a62fe91a2892644e38a', 'wal:ba7872bbbc3ccd79c634ac3133e...5d940312bde8ba8199c6776292554b48668528a579e0', 'wal:01526f45e5b1b931783223bf2eb4cfd096da93c59c66b3d7c295f3b911c17116']}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n----------------------------- Captured stdout call -----------------------------\n  重複提案 (既存 certified variant carrier-selected と同一 genome、新規評価はスキップ)\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\n2 failed, 14 passed in 6.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2217 retained_bytes=2217 omitted_bytes=0 rendered_excerpt_bytes=2282 sha256=967fa0486a8b54dfcf8b8983ec7f5523c32d0e8e9ce43e8e4e7da8727e2807d2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_base_provenance_duplicate0')\n> \n>     def test_base_provenance_duplicate_reuses_selected_attempt(tmp_path):\n>         layout = CampaignLayout(str(tmp_path / \"duplicate\")).ensure()\n>         variant = _base_selected_commit(layout, prior_failed_attempt=True)\n>         records = wal.read_records(layout)\n>         # The failed attempt precedes the selected certified attempt.\n>         prior_records, selected_records = records[:2], records[2:]\n>         assert [r.stage for r in prior_records] == [STAGE_BUILD_START, STAGE_ABORT]\n>         assert selected_records[-1].stage == L.STAGE_COMMIT\n>         prior_attempt = prior_records[0].payload[\"build_attempt_id\"]\n>         selected_attempt = selected_records[-1].payload[\"build_attempt_id\"]\n>         assert prior_records[1].payload[\"build_attempt_id\"] == prior_attempt\n>         assert prior_attempt != selected_attempt\n>         before = Path(layout.wal_file).read_bytes()\n>         out = L._resolve_duplicate(layout, _site_test_proposals()[0],\n>                                    L.LoopState(iteration=1), _dup_summary(variant))\n>         assert out[\"outcome\"] == \"duplicate\"\n>         evidence = L._wal_attempt_provenance(layout, out)\n> >       assert evidence == {\"variant\": variant,\n>             \"build_attempt_id\": selected_records[-1].payload[\"build_attempt_id\"],\n>             \"wal_refs\": _base_refs(selected_records)}\n> E       AssertionError: assert {'variant': '...3b911c17116']} == {'variant': '...3b911c17116']}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'wal_refs': ['wal:85bb281c5b7f123e722643bc3967135c1a2b0d10e2688a62fe91a2892644e38a', 'wal:1fc9696bc94803c11d045d940312bde8ba8199c6776292554b48668528a579e0', 'wal:01526f45e5b1b931783223bf2eb4cfd096da93c59c66b3d7c295f3b911c17116']} != {'wal_refs': ['wal:85bb281c5b7f123e722643bc3967135c1a2b0d10e2688a62fe91a2892644e38a', 'wal:ba7872bbbc3ccd79c634ac3133e...5d940312bde8ba8199c6776292554b48668528a579e0', 'wal:01526f45e5b1b931783223bf2eb4cfd096da93c59c66b3d7c295f3b911c17116']}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7281: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1364 retained_bytes=1364 omitted_bytes=0 rendered_excerpt_bytes=1411 sha256=a38eb921a65151ebe0a84e1b79d8c1ae428f001d60ff058b59e67e4a509e04e6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_base_provenance_keeps_all0')\n> \n>     def test_base_provenance_keeps_all_attempt_records(tmp_path):\n>         from orchestrator.campaign.model import STAGE_VERIFY_DONE\n>     \n>         layout = CampaignLayout(str(tmp_path / \"all-records\")).ensure()\n>         variant = _base_selected_commit(layout)\n>         records = wal.read_records(layout)\n>         assert [r.stage for r in records] == [STAGE_BUILD_START, STAGE_VERIFY_DONE,\n>                                              STAGE_VERIFY_DONE, L.STAGE_COMMIT]\n>         assert L.RECEIPT_PAYLOAD_KEY in records[-1].payload\n>         out = {\"outcome\": \"certified\", \"variant\": variant,\n>                \"records\": {L.STAGE_COMMIT: records[-1].payload}}\n> >       assert L._wal_attempt_provenance(layout, out)[\"wal_refs\"] == _base_refs(records)\n> E       AssertionError: assert ['wal:05e0f8b...1ae0ff3b4d5c'] == ['wal:05e0f8b...1ae0ff3b4d5c']\n> E         \n> E         At index 1 diff: 'wal:06e3d4755469025e7bcaceeeca9ded3f501336e1d9d3c5333cae74e2675da37b' != 'wal:6e70f104efe5491569472ee5929fe605257d1565bca4f011547490f21676669f'\n> E         Right contains one more item: 'wal:3995cbda4432272a21bf6302f33604f5c7ce7d85bb48f602d8421ae0ff3b4d5c'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7306: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3581 retained_bytes=3581 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4838 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "84d3bf9d3416fd34948448fcc6fb0f56707143308d277d66ce6dbc2328766732"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 27.167,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+      ],
+      "hang_risk": false,
+      "id": "S6-refs-compressed-by-stage",
+      "injection_diff_sha256": "c94a56ccef0d053266f03f223bea10071cf221725f2ea25ab3b70222dc3d1cae",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c94fcbd729a135ffd5a9367918ec0a10bbd25cfc66b5fb72d1a8652711ee9d6b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        for record in {r.stage: r for r in selected_records}.values()\n    ])\n",
+          "old": "        for record in selected_records\n    ])\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "84d3bf9d3416fd34948448fcc6fb0f56707143308d277d66ce6dbc2328766732",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/69aa11cfbf3e25a0b69af089ebc56f60/izdw-69aa11cfbf.o15829",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/69aa11cfbf3e25a0b69af089ebc56f60/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............FFFF                                                         [100%]\n=================================== FAILURES ===================================\n_______ test_base_provenance_publish_failure_preserves_old_report[write] _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_base_provenance_publish_f0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1505e0e344f0>\nfailure = 'write'\n\n    @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n    def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n        layout = CampaignLayout(str(tmp_path / \"publish\"))\n        L._append_provenance_entry(layout, 1, _base_entry())\n        path = Path(L._provenance_path(layout))\n        before = path.read_bytes()\n        real_fdopen, real_fsync = os.fdopen, os.fsync\n        def fail_file_fsync(fd):\n            if stat.S_ISREG(os.fstat(fd).st_mode):\n                raise OSError(\"injected fsync failure\")\n            return real_fsync(fd)\n        class FailedWrite:\n            def __init__(self, fd, mode):\n                self.stream = real_fdopen(fd, mode)\n            def __enter__(self):\n                return self\n            def __exit__(self, *args):\n                self.stream.close()\n            def write(self, raw):\n                raise OSError(\"injected write failure\")\n        with monkeypatch.context() as patch:\n            if failure == \"write\":\n                patch.setattr(os, \"fdopen\", FailedWrite)\n            elif failure == \"fsync\":\n                patch.setattr(os, \"fsync\", fail_file_fsync)\n            else:\n                patch.setattr(os, failure, unittest.mock.Mock(\n                    side_effect=OSError(\"injected \" + failure + \" failure\")))\n            with pytest.raises(OSError, match=\"injected\"):\n                L._append_provenance_entry(layout, 2, _base_entry(2))\n        assert path.read_bytes() == before\n        assert list(path.parent.iterdir()) == [path]\n        L._append_provenance_entry(layout, 2, _base_entry(2))\n>       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\nE       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'1': {'build_attempt_id': None,\nE                'initial_proposal_sha256': None,\nE                'iteration': 1,\nE                'outcome': 'dry-pass',...\nE         \nE         ...Full output truncated (3 lines hidden), use '-vv' to show\n\norchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n_______ test_base_provenance_publish_failure_preserves_old_report[fsync] _______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_base_provenance_publish_f0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15356ac4a0b0>\nfailure = 'fsync'\n\n    @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n    def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n        layout = CampaignLayout(str(tmp_path / \"publish\"))\n        L._append_provenance_entry(layout, 1, _base_entry())\n        path = Path(L._provenance_path(layout))\n        before = path.read_bytes()\n        real_fdopen, real_fsync = os.fdopen, os.fsync\n        def fail_file_fsync(fd):\n            if stat.S_ISREG(os.fstat(fd).st_mode):\n                raise OSError(\"injected fsync failure\")\n            return real_fsync(fd)\n        class FailedWrite:\n            def __init__(self, fd, mode):\n                self.stream = real_fdopen(fd, mode)\n            def __enter__(self):\n                return self\n            def __exit__(self, *args):\n                self.stream.close()\n            def write(self, raw):\n                raise OSError(\"injected write failure\")\n        with monkeypatch.context() as patch:\n            if failure == \"write\":\n                patch.setattr(os, \"fdopen\", FailedWrite)\n            elif failure == \"fsync\":\n                patch.setattr(os, \"fsync\", fail_file_fsync)\n            else:\n                patch.setattr(os, failure, unittest.mock.Mock(\n                    side_effect=OSError(\"injected \" + failure + \" failure\")))\n            with pytest.raises(OSError, match=\"injected\"):\n                L._append_provenance_entry(layout, 2, _base_entry(2))\n        assert path.read_bytes() == before\n        assert list(path.parent.iterdir()) == [path]\n        L._append_provenance_entry(layout, 2, _base_entry(2))\n>       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\nE       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'1': {'build_attempt_id': None,\nE                'initial_proposal_sha256': None,\nE                'iteration': 1,\nE                'outcome': 'dry-pass',...\nE         \nE         ...Full output truncated (3 lines hidden), use '-vv' to show\n\norchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n______ test_base_provenance_publish_failure_preserves_old_report[replace] ______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_base_provenance_publish_f0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b24037d360>\nfailure = 'replace'\n\n    @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n    def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n        layout = CampaignLayout(str(tmp_path / \"publish\"))\n        L._append_provenance_entry(layout, 1, _base_entry())\n        path = Path(L._provenance_path(layout))\n        before = path.read_bytes()\n        real_fdopen, real_fsync = os.fdopen, os.fsync\n        def fail_file_fsync(fd):\n            if stat.S_ISREG(os.fstat(fd).st_mode):\n                raise OSError(\"injected fsync failure\")\n            return real_fsync(fd)\n        class FailedWrite:\n            def __init__(self, fd, mode):\n                self.stream = real_fdopen(fd, mode)\n            def __enter__(self):\n                return self\n            def __exit__(self, *args):\n                self.stream.close()\n            def write(self, raw):\n                raise OSError(\"injected write failure\")\n        with monkeypatch.context() as patch:\n            if failure == \"write\":\n                patch.setattr(os, \"fdopen\", FailedWrite)\n            elif failure == \"fsync\":\n                patch.setattr(os, \"fsync\", fail_file_fsync)\n            else:\n                patch.setattr(os, failure, unittest.mock.Mock(\n                    side_effect=OSError(\"injected \" + failure + \" failure\")))\n            with pytest.raises(OSError, match=\"injected\"):\n                L._append_provenance_entry(layout, 2, _base_entry(2))\n        assert path.read_bytes() == before\n        assert list(path.parent.iterdir()) == [path]\n        L._append_provenance_entry(layout, 2, _base_entry(2))\n>       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\nE       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'1': {'build_attempt_id': None,\nE                'initial_proposal_sha256': None,\nE                'iteration': 1,\nE                'outcome': 'dry-pass',...\nE         \nE         ...Full output truncated (3 lines hidden), use '-vv' to show\n\norchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n___________________ test_base_provenance_merge_is_idempotent ___________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_base_provenance_merge_is_0')\n\n    def test_base_provenance_merge_is_idempotent(tmp_path):\n        layout = CampaignLayout(str(tmp_path / \"merge\"))\n        first = _base_entry(outcome=\"certified\", variant=\"v\", attempt=\"a\")\n        second = _base_entry(2)\n        L._append_provenance_entry(layout, 1, first)\n        L._append_provenance_entry(layout, 2, second)\n        path = Path(L._provenance_path(layout))\n        before = path.read_bytes()\n        L._append_provenance_entry(layout, 1, first)\n>       assert path.read_bytes() == before\nE       assert b'{\"axis\":\"si...ovenance/v1\"}' == b'{\"axis\":\"si...ovenance/v1\"}'\nE         \nE         At index 45 diff: b'1' != b'2'\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop.py:7384: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent\n4 failed, 12 passed in 6.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2472 retained_bytes=2472 omitted_bytes=0 rendered_excerpt_bytes=2577 sha256=c0913bebbc69ced520056e28360565c5c5f394682231bbed7db2106e57a1f3f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_base_provenance_publish_f0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b24037d360>\n> failure = 'replace'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n>     def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n>         layout = CampaignLayout(str(tmp_path / \"publish\"))\n>         L._append_provenance_entry(layout, 1, _base_entry())\n>         path = Path(L._provenance_path(layout))\n>         before = path.read_bytes()\n>         real_fdopen, real_fsync = os.fdopen, os.fsync\n>         def fail_file_fsync(fd):\n>             if stat.S_ISREG(os.fstat(fd).st_mode):\n>                 raise OSError(\"injected fsync failure\")\n>             return real_fsync(fd)\n>         class FailedWrite:\n>             def __init__(self, fd, mode):\n>                 self.stream = real_fdopen(fd, mode)\n>             def __enter__(self):\n>                 return self\n>             def __exit__(self, *args):\n>                 self.stream.close()\n>             def write(self, raw):\n>                 raise OSError(\"injected write failure\")\n>         with monkeypatch.context() as patch:\n>             if failure == \"write\":\n>                 patch.setattr(os, \"fdopen\", FailedWrite)\n>             elif failure == \"fsync\":\n>                 patch.setattr(os, \"fsync\", fail_file_fsync)\n>             else:\n>                 patch.setattr(os, failure, unittest.mock.Mock(\n>                     side_effect=OSError(\"injected \" + failure + \" failure\")))\n>             with pytest.raises(OSError, match=\"injected\"):\n>                 L._append_provenance_entry(layout, 2, _base_entry(2))\n>         assert path.read_bytes() == before\n>         assert list(path.parent.iterdir()) == [path]\n>         L._append_provenance_entry(layout, 2, _base_entry(2))\n> >       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\n> E       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'1': {'build_attempt_id': None,\n> E                'initial_proposal_sha256': None,\n> E                'iteration': 1,\n> E                'outcome': 'dry-pass',...\n> E         \n> E         ...Full output truncated (3 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2470 retained_bytes=2470 omitted_bytes=0 rendered_excerpt_bytes=2575 sha256=b5319b87529970a281e2433a72f941edd3abca9174bbaf11589e26ce49d7144f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_base_provenance_publish_f0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15356ac4a0b0>\n> failure = 'fsync'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n>     def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n>         layout = CampaignLayout(str(tmp_path / \"publish\"))\n>         L._append_provenance_entry(layout, 1, _base_entry())\n>         path = Path(L._provenance_path(layout))\n>         before = path.read_bytes()\n>         real_fdopen, real_fsync = os.fdopen, os.fsync\n>         def fail_file_fsync(fd):\n>             if stat.S_ISREG(os.fstat(fd).st_mode):\n>                 raise OSError(\"injected fsync failure\")\n>             return real_fsync(fd)\n>         class FailedWrite:\n>             def __init__(self, fd, mode):\n>                 self.stream = real_fdopen(fd, mode)\n>             def __enter__(self):\n>                 return self\n>             def __exit__(self, *args):\n>                 self.stream.close()\n>             def write(self, raw):\n>                 raise OSError(\"injected write failure\")\n>         with monkeypatch.context() as patch:\n>             if failure == \"write\":\n>                 patch.setattr(os, \"fdopen\", FailedWrite)\n>             elif failure == \"fsync\":\n>                 patch.setattr(os, \"fsync\", fail_file_fsync)\n>             else:\n>                 patch.setattr(os, failure, unittest.mock.Mock(\n>                     side_effect=OSError(\"injected \" + failure + \" failure\")))\n>             with pytest.raises(OSError, match=\"injected\"):\n>                 L._append_provenance_entry(layout, 2, _base_entry(2))\n>         assert path.read_bytes() == before\n>         assert list(path.parent.iterdir()) == [path]\n>         L._append_provenance_entry(layout, 2, _base_entry(2))\n> >       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\n> E       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'1': {'build_attempt_id': None,\n> E                'initial_proposal_sha256': None,\n> E                'iteration': 1,\n> E                'outcome': 'dry-pass',...\n> E         \n> E         ...Full output truncated (3 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2470 retained_bytes=2470 omitted_bytes=0 rendered_excerpt_bytes=2575 sha256=d722aaddc530e8b8ad85c85340505a509fdeb89e09c59a64b051768c3f57716c\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_base_provenance_publish_f0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1505e0e344f0>\n> failure = 'write'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n>     def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n>         layout = CampaignLayout(str(tmp_path / \"publish\"))\n>         L._append_provenance_entry(layout, 1, _base_entry())\n>         path = Path(L._provenance_path(layout))\n>         before = path.read_bytes()\n>         real_fdopen, real_fsync = os.fdopen, os.fsync\n>         def fail_file_fsync(fd):\n>             if stat.S_ISREG(os.fstat(fd).st_mode):\n>                 raise OSError(\"injected fsync failure\")\n>             return real_fsync(fd)\n>         class FailedWrite:\n>             def __init__(self, fd, mode):\n>                 self.stream = real_fdopen(fd, mode)\n>             def __enter__(self):\n>                 return self\n>             def __exit__(self, *args):\n>                 self.stream.close()\n>             def write(self, raw):\n>                 raise OSError(\"injected write failure\")\n>         with monkeypatch.context() as patch:\n>             if failure == \"write\":\n>                 patch.setattr(os, \"fdopen\", FailedWrite)\n>             elif failure == \"fsync\":\n>                 patch.setattr(os, \"fsync\", fail_file_fsync)\n>             else:\n>                 patch.setattr(os, failure, unittest.mock.Mock(\n>                     side_effect=OSError(\"injected \" + failure + \" failure\")))\n>             with pytest.raises(OSError, match=\"injected\"):\n>                 L._append_provenance_entry(layout, 2, _base_entry(2))\n>         assert path.read_bytes() == before\n>         assert list(path.parent.iterdir()) == [path]\n>         L._append_provenance_entry(layout, 2, _base_entry(2))\n> >       assert L._load_provenance(layout)[\"entries\"] == {\"1\": _base_entry(), \"2\": _base_entry(2)}\n> E       AssertionError: assert {'2': {'build...y-pass', ...}} == {'1': {'itera...': None, ...}}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'1': {'build_attempt_id': None,\n> E                'initial_proposal_sha256': None,\n> E                'iteration': 1,\n> E                'outcome': 'dry-pass',...\n> E         \n> E         ...Full output truncated (3 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_p3_s4_loop.py:7464: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=879 retained_bytes=879 omitted_bytes=0 rendered_excerpt_bytes=920 sha256=3c246df393c71ff60a76825547f653ef613d61496ec266653d1ad49d332fad14\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_base_provenance_merge_is_0')\n> \n>     def test_base_provenance_merge_is_idempotent(tmp_path):\n>         layout = CampaignLayout(str(tmp_path / \"merge\"))\n>         first = _base_entry(outcome=\"certified\", variant=\"v\", attempt=\"a\")\n>         second = _base_entry(2)\n>         L._append_provenance_entry(layout, 1, first)\n>         L._append_provenance_entry(layout, 2, second)\n>         path = Path(L._provenance_path(layout))\n>         before = path.read_bytes()\n>         L._append_provenance_entry(layout, 1, first)\n> >       assert path.read_bytes() == before\n> E       assert b'{\"axis\":\"si...ovenance/v1\"}' == b'{\"axis\":\"si...ovenance/v1\"}'\n> E         \n> E         At index 45 diff: b'1' != b'2'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop.py:7384: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=8291 retained_bytes=8291 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10685 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2c77a55e36c704f488ffa3d6fbd7153a247e964185765b2c8c4e67f5be8b05fd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 32.209,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent"
+      ],
+      "hang_risk": false,
+      "id": "S7-merge-drops-other-iterations",
+      "injection_diff_sha256": "a141c5ef9c8d6f6c89a90bbb710e2604c85e2b805a72e195792a70c4ce6a83f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5712318ca9867ddd6ed0e9c3f565dbd7bae3a82095cac6a06cdbdcc2ed716504",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "    prov[\"entries\"] = {str(iteration): dict(entry)}\n",
+          "old": "    prov[\"entries\"][str(iteration)] = dict(entry)\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "2c77a55e36c704f488ffa3d6fbd7153a247e964185765b2c8c4e67f5be8b05fd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b206c0e27098294f7bba319d69052da4/izdw-b206c0e270.o15830",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b206c0e27098294f7bba319d69052da4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........FFFFFFF                                                         [100%]\n=================================== FAILURES ===================================\n________ test_base_provenance_invalid_entry_is_quarantined[iteration-0] ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_base_provenance_invalid_e0')\nfield = 'iteration', value = 0\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n_ test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA] _\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_base_provenance_invalid_e0')\nfield = 'initial_proposal_sha256'\nvalue = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n_________ test_base_provenance_invalid_entry_is_quarantined[variant-] __________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_base_provenance_invalid_e0')\nfield = 'variant', value = ''\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n____ test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1] _____\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_base_provenance_invalid_e0')\nfield = 'build_attempt_id', value = 1\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n______ test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5] ______\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_base_provenance_invalid_e0')\nfield = 'wal_refs', value = ['wal:bad']\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n______ test_base_provenance_invalid_entry_is_quarantined[outcome-unknown] ______\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_base_provenance_invalid_e0')\nfield = 'outcome', value = 'unknown'\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n______ test_base_provenance_invalid_entry_is_quarantined[iteration-True] _______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_base_provenance_invalid_e0')\nfield = 'iteration', value = True\n\n    @pytest.mark.parametrize(\"field,value\", [\n        (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n        (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n        (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n    ])\n    def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n        layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n        path = Path(L._provenance_path(layout))\n        path.parent.mkdir(parents=True)\n        prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n                \"entries\": {\"1\": {**_base_entry(), field: value}}}\n        raw = json.dumps(prov).encode()\n        path.write_bytes(raw)\n        for _ in range(2):\n>           with pytest.raises(RuntimeError, match=\"provenance\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_p3_s4_loop.py:7535: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]\n7 failed, 9 passed in 6.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\" nodeid_bytes=178 nodeid_omitted_bytes=0 source_bytes=1150 retained_bytes=1150 omitted_bytes=0 rendered_excerpt_bytes=1199 sha256=d73eeec38ce620055f5dfcb7e490419aae9b10c2ae95b6443899e4a954b3db67\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_base_provenance_invalid_e0')\n> field = 'initial_proposal_sha256'\n> value = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1081 retained_bytes=1081 omitted_bytes=0 rendered_excerpt_bytes=1128 sha256=d3548d730e9d733a0e2dffc3f8b95c364ac4ce48837b3367be8f8cda95258991\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_base_provenance_invalid_e0')\n> field = 'wal_refs', value = ['wal:bad']\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1126 sha256=52d7e7b4713c86fe07a1463f6da462bc3dec2aa6f6d9054f55c9cde0944db228\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_base_provenance_invalid_e0')\n> field = 'build_attempt_id', value = 1\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1078 retained_bytes=1078 omitted_bytes=0 rendered_excerpt_bytes=1125 sha256=3290bbcf9d5dbc643a7add9bdab73082afe668dfe954588d04871d3b4d84d519\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_base_provenance_invalid_e0')\n> field = 'outcome', value = 'unknown'\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=1073 retained_bytes=1073 omitted_bytes=0 rendered_excerpt_bytes=1120 sha256=55c27ea27879d3e5fe4ff30811e29f7eafdced9f5b30d930ed81d083756b974f\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_base_provenance_invalid_e0')\n> field = 'iteration', value = True\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1070 retained_bytes=1070 omitted_bytes=0 rendered_excerpt_bytes=1117 sha256=4de690943545aa370d3db5e7e5ef7b80e942c53000284a165d1443a45328d999\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_base_provenance_invalid_e0')\n> field = 'iteration', value = 0\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1069 retained_bytes=1069 omitted_bytes=0 rendered_excerpt_bytes=1116 sha256=5f9f25810ed0ad4b44004312460e34254433bff59c8a78eece80bb9c47a4f62f\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_base_provenance_invalid_e0')\n> field = 'variant', value = ''\n> \n>     @pytest.mark.parametrize(\"field,value\", [\n>         (\"iteration\", True), (\"iteration\", 0), (\"variant\", \"\"),\n>         (\"build_attempt_id\", 1), (\"initial_proposal_sha256\", \"A\" * 64),\n>         (\"wal_refs\", [\"wal:bad\"]), (\"outcome\", \"unknown\"),\n>     ])\n>     def test_base_provenance_invalid_entry_is_quarantined(tmp_path, field, value):\n>         layout = CampaignLayout(str(tmp_path / \"invalid-entry\"))\n>         path = Path(L._provenance_path(layout))\n>         path.parent.mkdir(parents=True)\n>         prov = {\"schema_version\": \"p3-s4-loop-provenance/v1\", \"axis\": L.MARKER_ID,\n>                 \"entries\": {\"1\": {**_base_entry(), field: value}}}\n>         raw = json.dumps(prov).encode()\n>         path.write_bytes(raw)\n>         for _ in range(2):\n> >           with pytest.raises(RuntimeError, match=\"provenance\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7535: Failed\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=7600 retained_bytes=7600 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11404 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f96b89d84c1ddfbb7f4ceb07b8a615607cca9464b95f7ab5f23b1b0cac707c35"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 27.017,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]"
+      ],
+      "hang_risk": false,
+      "id": "S8-corrupt-report-returns-empty",
+      "injection_diff_sha256": "9045bc4d4780926ce5137dca4ad75b825d82693838693bf6b54c3736c3773a88",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "123a6776fee03d85f60396f0546717e89ba29301d35865c48a8f5372b78cce76",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        return {}\n",
+          "old": "        raise RuntimeError(f\"base provenance corrupt; repair {quarantine}\") from exc\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "f96b89d84c1ddfbb7f4ceb07b8a615607cca9464b95f7ab5f23b1b0cac707c35",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/19644120459088cf9a86cda63f09f305/izdw-1964412045.o15831",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/19644120459088cf9a86cda63f09f305/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F                                                         [100%]\n=================================== FAILURES ===================================\n_______ test_base_provenance_publish_failure_preserves_old_report[fsync] _______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_base_provenance_publish_f0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14714f740e80>\nfailure = 'fsync'\n\n    @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n    def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n        layout = CampaignLayout(str(tmp_path / \"publish\"))\n        L._append_provenance_entry(layout, 1, _base_entry())\n        path = Path(L._provenance_path(layout))\n        before = path.read_bytes()\n        real_fdopen, real_fsync = os.fdopen, os.fsync\n        def fail_file_fsync(fd):\n            if stat.S_ISREG(os.fstat(fd).st_mode):\n                raise OSError(\"injected fsync failure\")\n            return real_fsync(fd)\n        class FailedWrite:\n            def __init__(self, fd, mode):\n                self.stream = real_fdopen(fd, mode)\n            def __enter__(self):\n                return self\n            def __exit__(self, *args):\n                self.stream.close()\n            def write(self, raw):\n                raise OSError(\"injected write failure\")\n        with monkeypatch.context() as patch:\n            if failure == \"write\":\n                patch.setattr(os, \"fdopen\", FailedWrite)\n            elif failure == \"fsync\":\n                patch.setattr(os, \"fsync\", fail_file_fsync)\n            else:\n                patch.setattr(os, failure, unittest.mock.Mock(\n                    side_effect=OSError(\"injected \" + failure + \" failure\")))\n>           with pytest.raises(OSError, match=\"injected\"):\nE           Failed: DID NOT RAISE OSError\n\norchestrator/tests/test_p3_s4_loop.py:7459: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]\n1 failed, 15 passed in 6.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1728 retained_bytes=1728 omitted_bytes=0 rendered_excerpt_bytes=1805 sha256=b22e5185ede1b29d2d547aa992395cd4f90081270614c6bd7fa583d500995409\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_base_provenance_publish_f0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14714f740e80>\n> failure = 'fsync'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"write\", \"fsync\", \"replace\"])\n>     def test_base_provenance_publish_failure_preserves_old_report(tmp_path, monkeypatch, failure):\n>         layout = CampaignLayout(str(tmp_path / \"publish\"))\n>         L._append_provenance_entry(layout, 1, _base_entry())\n>         path = Path(L._provenance_path(layout))\n>         before = path.read_bytes()\n>         real_fdopen, real_fsync = os.fdopen, os.fsync\n>         def fail_file_fsync(fd):\n>             if stat.S_ISREG(os.fstat(fd).st_mode):\n>                 raise OSError(\"injected fsync failure\")\n>             return real_fsync(fd)\n>         class FailedWrite:\n>             def __init__(self, fd, mode):\n>                 self.stream = real_fdopen(fd, mode)\n>             def __enter__(self):\n>                 return self\n>             def __exit__(self, *args):\n>                 self.stream.close()\n>             def write(self, raw):\n>                 raise OSError(\"injected write failure\")\n>         with monkeypatch.context() as patch:\n>             if failure == \"write\":\n>                 patch.setattr(os, \"fdopen\", FailedWrite)\n>             elif failure == \"fsync\":\n>                 patch.setattr(os, \"fsync\", fail_file_fsync)\n>             else:\n>                 patch.setattr(os, failure, unittest.mock.Mock(\n>                     side_effect=OSError(\"injected \" + failure + \" failure\")))\n> >           with pytest.raises(OSError, match=\"injected\"):\n> E           Failed: DID NOT RAISE OSError\n> \n> orchestrator/tests/test_p3_s4_loop.py:7459: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1728 retained_bytes=1728 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2536 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6a28afda8727c9f14a6946dcde97ef3193a228b9c58058160f6e33390491546a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 27.093,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]"
+      ],
+      "hang_risk": false,
+      "id": "S9-file-fsync-removed",
+      "injection_diff_sha256": "a75906c5e291f6d8a7181a5472c22b00d25fd5e94a14577a99c1d8048855253e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "71bbca6e1d0b06b4ec5167fe8fa4075b8e73a105ceabd813460e2e47e9abe8f9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "            stream.write(raw)\n            stream.flush()\n        os.replace(tmp, path)\n",
+          "old": "            stream.write(raw)\n            stream.flush()\n            os.fsync(stream.fileno())\n        os.replace(tmp, path)\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "KILLED",
+      "test_output_sha256": "6a28afda8727c9f14a6946dcde97ef3193a228b9c58058160f6e33390491546a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe88d4adb9ccc3f85954eeda3d3a4856/izdw-fe88d4adb9.o15832",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe88d4adb9ccc3f85954eeda3d3a4856/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................                                                         [100%]\n16 passed in 6.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "a4b29433d2a540a554766b8bab7e423531e97127c5cd250ab7844e161a1ceedb"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "7eccbc22dc8a3fb272e58383fd7c736230db199544c1f8618f8c3a49d6657146",
+      "duration_s": 26.999,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "E1-equivalent-canonical-bytes",
+      "injection_diff_sha256": "82c1388fb7bb1913def55926541ede9fbdd76e31b83458e461a3d0b42fc40c3b",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "429f44d869bfe9a1e476b1e6cfe9b0753450654357a032e78f636180e090cb12",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "new": "        \"wal:\" + hashlib.sha256(agent_outputs.canonical_bytes(vars(record))).hexdigest()\n",
+          "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+        }
+      ],
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "SURVIVED",
+      "test_output_sha256": "a4b29433d2a540a554766b8bab7e423531e97127c5cd250ab7844e161a1ceedb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8e5413b8ed0ffa61caa8de947f54605c/izdw-8e5413b8ed.o15748",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8e5413b8ed0ffa61caa8de947f54605c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_preserves_whiteboard_projection\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_missing_or_conflicting_start[0]\norchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_missing_or_conflicting_start[2]\n\n16/655 tests collected (639 deselected) in 1.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "4203b30f0aed3687bf510a6d912869f5a64b2db27eb1e105cac3be01d704423c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_preserves_whiteboard_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_missing_or_conflicting_start[0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_missing_or_conflicting_start[2]"
+      ],
+      "duration_s": 26.764,
+      "rc": 0,
+      "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+      "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+      "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+      "status": "PASSED",
+      "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "E1-equivalent-canonical-bytes": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "82c1388fb7bb1913def55926541ede9fbdd76e31b83458e461a3d0b42fc40c3b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        \"wal:\" + hashlib.sha256(agent_outputs.canonical_bytes(vars(record))).hexdigest()\n",
+            "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+          }
+        ]
+      },
+      "S3-refs-ignore-attempt-id": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9b76843d5311cacf6f11c14162b6358414ce18a1e7d795f737e13be30235452b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    selected_records = [record for record in records\n                        if record.variant == variant]\n",
+            "old": "    selected_records = [record for record in records\n                        if record.variant == variant\n                        and record.payload.get(\"build_attempt_id\") == attempt]\n"
+          }
+        ]
+      },
+      "S4-first-start-instead-of-commit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5501da7fbc097181ab6c635b6008944042f70710020afd5456072ba2cfe6569d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        attempt = next(r.payload.get(\"build_attempt_id\") for r in records if r.variant == variant and r.stage == STAGE_BUILD_START)\n",
+            "old": "        attempt = selected.get(STAGE_COMMIT, {}).get(\"build_attempt_id\")\n"
+          }
+        ]
+      },
+      "S5-ref-hashes-payload-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f473599cf2024026e051b34fcd9aa8dbd7df2832cac9ebcabfa7e53762d86bc1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        \"wal:\" + agent_outputs.canonical_sha256(record.payload)\n",
+            "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+          }
+        ]
+      },
+      "S6-refs-compressed-by-stage": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_duplicate_reuses_selected_attempt",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_keeps_all_attempt_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c94a56ccef0d053266f03f223bea10071cf221725f2ea25ab3b70222dc3d1cae",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        for record in {r.stage: r for r in selected_records}.values()\n    ])\n",
+            "old": "        for record in selected_records\n    ])\n"
+          }
+        ]
+      },
+      "S7-merge-drops-other-iterations": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_merge_is_idempotent",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[replace]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[write]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a141c5ef9c8d6f6c89a90bbb710e2604c85e2b805a72e195792a70c4ce6a83f2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "    prov[\"entries\"] = {str(iteration): dict(entry)}\n",
+            "old": "    prov[\"entries\"][str(iteration)] = dict(entry)\n"
+          }
+        ]
+      },
+      "S8-corrupt-report-returns-empty": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[build_attempt_id-1]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[initial_proposal_sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-0]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[iteration-True]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[outcome-unknown]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[variant-]",
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_invalid_entry_is_quarantined[wal_refs-value5]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9045bc4d4780926ce5137dca4ad75b825d82693838693bf6b54c3736c3773a88",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "        return {}\n",
+            "old": "        raise RuntimeError(f\"base provenance corrupt; repair {quarantine}\") from exc\n"
+          }
+        ]
+      },
+      "S9-file-fsync-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_publish_failure_preserves_old_report[fsync]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a75906c5e291f6d8a7181a5472c22b00d25fd5e94a14577a99c1d8048855253e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop.py",
+            "new": "            stream.write(raw)\n            stream.flush()\n        os.replace(tmp, path)\n",
+            "old": "            stream.write(raw)\n            stream.flush()\n            os.fsync(stream.fileno())\n        os.replace(tmp, path)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "541ae61a7ec5c4517cf4220f551689795cbe49d98601e822b835ac4fec4b0b19",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop.py",
+      "-k",
+      "merge_is_idempotent or publish_failure_preserves_old_report or keeps_all_attempt_records or duplicate_reuses_selected_attempt or invalid_entry_is_quarantined or rejects_missing_or_conflicting_start or preserves_whiteboard_projection",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 9000.0
+  },
+  "repo_head": "92f501c28b6bd5ff584a9648f3c0d0c7af5f6d51",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop.py",
+      "-k",
+      "merge_is_idempotent or publish_failure_preserves_old_report or keeps_all_attempt_records or duplicate_reuses_selected_attempt or invalid_entry_is_quarantined or rejects_missing_or_conflicting_start or preserves_whiteboard_projection",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "75ae01c0f2c8d001fc425e23afa033e844548106",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "4f18f1f608f404f75931e1ae1a604ee7fc022b21345f090efc2040700d289f87",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "8fcf2269f51cc93e588a1c5922f4bb04c626b5fcdc427b0a07110e7de4f203c7",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier/mutation-scratch-linjfinal/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "02650fd8a26d66e337ab39104c2edf1184c239f8ee0dbbb9dd11bd712cb40f7d",
+  "updated_at": "2026-09-21T13:27:04.275386+00:00"
+}

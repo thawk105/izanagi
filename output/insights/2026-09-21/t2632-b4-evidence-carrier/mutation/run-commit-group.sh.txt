@@ -1,0 +1,44 @@
+#!/bin/bash
+# [T-2632] 親専用: commit 群の変異 harness (段 6 裁定 §5 で登録)。先例 = T-2795 の commit 群 C。
+# 独立 clone で、固定 base commit の上に変異を 1 件ずつ commit として焼き、その commit で焦点 test を dispatch する。
+# contract loader closure は HEAD blob と live bytes の一致を要求するので、commit にすれば drift が出ない。
+# usage: run-commit-group.sh <tag> <spec.json> <base-commit> <selection -k expr> <test file> <mutation-id...>
+set -u
+TAG=${1:?tag}
+SPEC=${2:?spec}
+BASE=${3:?base commit}
+KEXPR=${4:?-k expr}
+TESTFILE=${5:?test file}
+shift 5
+J=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2632-b4-evidence-carrier
+SRC="$J/mutation-source-cg"
+OUT="$J/cgroup-$TAG"
+mkdir -p "$OUT"
+echo $$ > "$J/cgroup-$TAG.pid"
+cd "$SRC" || { echo 90 > "$J/cgroup-$TAG.done"; exit 90; }
+fail() { echo "ABORT: $*" >> "$OUT/harness.log"; git checkout -q --detach "$BASE"; echo "$2" > "$J/cgroup-$TAG.done"; exit "$2"; }
+git checkout -q --detach "$BASE" || fail "checkout base" 91
+test -z "$(git status --porcelain --untracked-files=no)" || fail "clone not clean at base" 92
+echo "spec_sha256=$(sha256sum "$SPEC" | cut -c1-64) base=$BASE kexpr=$KEXPR test=$TESTFILE" >> "$OUT/harness.log"
+export IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600
+export IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE=600
+for MID in baseline "$@"; do
+  git checkout -q --detach "$BASE" || fail "checkout base before $MID" 93
+  if [ "$MID" != baseline ]; then
+    python3 "$J/apply_mutant.py" "$SPEC" "$MID" "$SRC" >> "$OUT/harness.log" 2>&1 || fail "apply $MID" 94
+    CHANGED=$(git diff --name-only)
+    WANT=$(jq -r --arg m "$MID" '.mutations[] | select(.id == $m) | .replacements[].file' "$SPEC" | sort -u)
+    test "$CHANGED" = "$WANT" || fail "changed files mismatch for $MID: [$CHANGED] vs [$WANT]" 95
+    git -c user.name=t2632-mutation -c user.email=t2632-mutation@invalid commit -q -a -F "$J/mutant-commit.msg" || fail "commit $MID" 96
+  fi
+  HEAD_SHA=$(git rev-parse HEAD)
+  echo "run $MID head=$HEAD_SHA start=$(date '+%H:%M:%S')" >> "$OUT/harness.log"
+  python3 tools/run_tests.py --force-dispatch "$TESTFILE" -k "$KEXPR" -q -rf > "$OUT/$MID.log" 2>&1
+  RC=$?
+  grep -E '^\| (FAILED|ERROR) ' "$OUT/$MID.log" | sed -E 's/^\| (FAILED|ERROR) //; s/ - .*$//' | sort -u > "$OUT/$MID.nodes"
+  echo "done $MID rc=$RC failed=$(wc -l < "$OUT/$MID.nodes") end=$(date '+%H:%M:%S')" >> "$OUT/harness.log"
+  if [ "$MID" = baseline ] && [ "$RC" -ne 0 ]; then fail "baseline not green (rc=$RC)" 97; fi
+done
+git checkout -q --detach "$BASE"
+test -z "$(git status --porcelain --untracked-files=no)" || { echo "ABORT: clone not clean after run" >> "$OUT/harness.log"; echo 98 > "$J/cgroup-$TAG.done"; exit 98; }
+echo 0 > "$J/cgroup-$TAG.done"
