@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""[T-2830] 変異の期待 node を login self-run で観測する (DW-M08 / DW-O19)。
+
+wave worktree の統合 commit に対し、baseline → 各変異を 1 件ずつ注入 → 変更 test 2 file の自走 harness を実行 →
+FAILED / ERROR の nodeid を記録 → `git checkout --` で復元し、復元 bytes を HEAD blob と照合して porcelain 空を確認する。
+repo の外 (job dir) に置く使い捨て probe。結果は observed-nodes.json と observe-<id>.log。
+"""
+import hashlib
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+J = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2830-b5-node-local-lock")
+W = pathlib.Path("/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2830-b5-node-local-lock")
+TESTS = ["orchestrator/tests/test_p3_s4_loop_job_contract.py", "orchestrator/tests/test_b5_contrast_launch.py"]
+NODE_RE = re.compile(r"^(?:FAILED|ERROR) (\S+?::\S+?)(?: - .*)?$")
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")  # 1 回目 (14:25) は色付き出力で抽出 0 件 → F71 停止した
+
+
+def git(*args):
+    return subprocess.run(["git", *args], cwd=W, check=True, capture_output=True, text=True).stdout
+
+
+def porcelain():
+    return git("status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none")
+
+
+def head_blob_sha(path):
+    data = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=W, check=True, capture_output=True).stdout
+    return hashlib.sha256(data).hexdigest()
+
+
+def run_selfrun(tag):
+    env = dict(os.environ, PYTHONPATH=".", PYTHONDONTWRITEBYTECODE="1", PY_COLORS="0", NO_COLOR="1")
+    nodes, rcs = [], {}
+    with (J / f"observe-{tag}.log").open("w", encoding="utf-8") as log:
+        for test in TESTS:
+            proc = subprocess.run([sys.executable, "-B", test], cwd=W, env=env, capture_output=True, text=True)
+            rcs[test] = proc.returncode
+            log.write(f"=== {test} rc={proc.returncode}\n{proc.stdout}\n{proc.stderr}\n")
+            found = [m.group(1) for line in ANSI_RE.sub("", proc.stdout).splitlines()
+                     if (m := NODE_RE.match(line))]
+            if proc.returncode != 0 and not found:
+                raise SystemExit(f"{tag}: {test} rc={proc.returncode} but 0 failed nodes extracted (F71)")
+            nodes += found
+    return sorted(set(nodes)), rcs
+
+
+def main() -> int:
+    if porcelain():
+        raise SystemExit("worktree is not clean before observation")
+    spec = json.loads(subprocess.run([sys.executable, str(J / "make_mutation_spec.py"), "list"],
+                                     check=True, capture_output=True, text=True).stdout)
+    base_nodes, base_rcs = run_selfrun("baseline")
+    print("baseline", base_rcs, base_nodes, flush=True)
+    if base_nodes or any(base_rcs.values()):
+        raise SystemExit("baseline is not green")
+    only = set(sys.argv[1:])  # 指定時はその id だけ観測し、既存の observed-nodes.json へ追記する
+    observed = {}
+    if only and (J / "observed-nodes.json").exists():
+        observed = json.loads((J / "observed-nodes.json").read_text(encoding="utf-8"))
+    for mid, reps in spec:
+        if only and mid not in only:
+            continue
+        files = sorted({f for f, _, _ in reps})
+        for f, old, new in reps:  # cumulative, uniqueness asserted per replacement
+            path = W / f
+            text = path.read_text(encoding="utf-8")
+            if text.count(old) != 1:
+                raise SystemExit(f"{mid}: replacement target occurs {text.count(old)} times in {f}")
+            path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        changed = sorted(line.split()[-1] for line in porcelain().splitlines())
+        if changed != files:
+            raise SystemExit(f"{mid}: unexpected changed files {changed}")
+        try:
+            nodes, rcs = run_selfrun(mid)
+        finally:
+            git("checkout", "--", *files)
+            for f in files:
+                if hashlib.sha256((W / f).read_bytes()).hexdigest() != head_blob_sha(f):
+                    raise SystemExit(f"{mid}: restored bytes differ from HEAD for {f}")
+            if porcelain():
+                raise SystemExit(f"{mid}: worktree not clean after restore")
+        observed[mid] = nodes
+        print(mid, rcs, len(nodes), nodes, flush=True)
+    (J / "observed-nodes.json").write_text(json.dumps(observed, indent=1) + "\n", encoding="utf-8")
+    print("done", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
