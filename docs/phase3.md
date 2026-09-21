@@ -18,6 +18,14 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 本体論文の日本語方法節と実装対応メモを 2026-09-21 版として改稿した (2026-09-21 の執筆依頼、台帳 ID 未起票)。
+  `output/insights/2026-09-21/paper-methods-ja/{methods,implementation}.md` の方法節 §3 に B-8 の方法 (発効束・repo 外の runner v5・
+  校正段と本走段・3 値判定の規則、D2202 / entry 1791) を加え、判定集合を「本走 24 枠 (独立 8 反復 × 3 workload・extime 10 s) + 校正の
+  完走 6 枠」と書いた。K2 の同 job stock 対照口は D2187 (初投入の不成立) と D2205 (pair mode への修復、実機の再投入は未) に分けて
+  対照の成立を示唆せず、B-5 は D2200 項 1 の段階認可 (本走は未認可) として B-8 と分けた。それ以外の記述は前稿 (照合 `482f19b88`) を
+  継承し再照合していない。前稿本文は不変 (前稿 dir の README に前方 pointer を追記)。wave の記録は同 dir の `README.md`。
+  文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
+
 - [x] 本体論文の日本語草稿 3 組へ B-8 の 3 値判定 `pass` (entry 1791、D2202) を反映した新版を置いた (2026-09-21 の執筆依頼、台帳 ID 未起票)。
   結果・考察と要旨・結論は同日第 2 版 (`output/insights/2026-09-21/paper-results-ja-b/results-discussion.md`、
   `output/insights/2026-09-21/paper-abstract-conclusion-ja-b/{abstract,conclusion}.md`)、限界節は `output/insights/2026-09-21/paper-intro-ja/limitations.md`
