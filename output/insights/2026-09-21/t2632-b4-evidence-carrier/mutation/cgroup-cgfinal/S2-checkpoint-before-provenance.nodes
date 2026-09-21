@@ -1,0 +1,5 @@
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]
+orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint

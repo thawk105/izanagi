@@ -1,0 +1,22 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "E1-equivalent-canonical-bytes",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "new": "        \"wal:\" + hashlib.sha256(agent_outputs.canonical_bytes(vars(record))).hexdigest()\n",
+     "old": "        \"wal:\" + agent_outputs.canonical_sha256(vars(record))\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 9000
+}
