@@ -1,0 +1,27 @@
+{
+  "schema": "verbatim-normalization/v1",
+  "reason": "git diff --check の行末空白を落とし、末尾改行が無い file に 1 つ足す可逆最小正規化。可視文字は不変。",
+  "restore": "各行の末尾へ元の空白を戻し、足した末尾改行を除けば原文に一致する。原本は job dir にあり、original_sha256 で照合できる。",
+  "files": [
+    {
+      "path": "output/insights/2026-09-21/paper-story-20260921c/verbatim/s3-consult.md",
+      "source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/codex/s3-consult.md",
+      "original_sha256": "3b3e8fa1de3760200036bfe8b310c044f17029e0987a84cb710545794faf1fa4",
+      "original_bytes": 16890,
+      "normalized_sha256": "ff61c8314e70f77719dc7f14e280d70134bccbf928f1e0a7f509d1be6b628abc",
+      "normalized_bytes": 16855,
+      "removed_trailing_whitespace_lines": 18,
+      "added_final_newline": true
+    },
+    {
+      "path": "output/insights/2026-09-21/paper-story-20260921c/verbatim/s5-author.md",
+      "source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/author-2.md",
+      "original_sha256": "84ce55790444d761890a5385027ae98fdf0535bf0a9ecaff55d8c6b42b530148",
+      "original_bytes": 4953,
+      "normalized_sha256": "065b50f21daab162a505abed7b996aa47e5eb4cf9899ed5a00a6007d19086963",
+      "normalized_bytes": 4954,
+      "removed_trailing_whitespace_lines": 0,
+      "added_final_newline": true
+    }
+  ]
+}
