@@ -1,4 +1,4 @@
-"""Submit four bounded B-5 pilot jobs from a dedicated clean checkout.
+"""Submit four bounded B-5 pilot jobs, each from its own dedicated clean checkout.
 
 The 8h/3h walltimes are provisional pilot limits, not cohort authorization.
 Dry-run prints exact environment and argv; only --submit creates directories.
@@ -6,6 +6,7 @@ Dry-run prints exact environment and argv; only --submit creates directories.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 import json
 from pathlib import Path
@@ -214,25 +215,26 @@ def _qsub_argv(spec: PilotJob, env: dict[str, str]) -> list[str]:
             "-e", str(evidence / "job.stderr"), JOB_BODY]
 
 
-def launch(jobs: tuple[PilotJob, ...], tree: SubmitTree, *, submit: bool,
+def launch(jobs: tuple[PilotJob, ...], trees_by_arm: Mapping[str, SubmitTree], *, submit: bool,
            runner=None) -> int:
     """Validate the entire pilot before the first mkdir or scheduler call."""
     validate_pilot_cap(jobs)
     commands = []
     for job in jobs:
+        tree = trees_by_arm[job.arm]
         env = build_job_environment(job, tree)
-        commands.append((job, env, _qsub_argv(job, env)))
-    for job, env, argv in commands:
+        commands.append((job, tree, env, _qsub_argv(job, env)))
+    for job, tree, env, argv in commands:
         for path in (job.evidence_root, job.ledger_root):
             if path.exists() or path.is_symlink():
                 raise ValueError(f"pilot root is not fresh: {path}")
     if not submit:
-        for job, env, argv in commands:
+        for job, tree, env, argv in commands:
             print(json.dumps({"arm": job.arm, "environment": env, "argv": argv}, sort_keys=True))
         return 0
     if runner is None:
         runner = subprocess.run
-    for job, env, argv in commands:
+    for job, tree, env, argv in commands:
         # The attempt directory belongs to the job body; never put a log here.
         Path(env["IZANAGI_S4_EVIDENCE_ROOT"]).mkdir(mode=0o700, parents=True)
         result = runner(argv, cwd=tree.repo)
@@ -243,7 +245,8 @@ def launch(jobs: tuple[PilotJob, ...], tree: SubmitTree, *, submit: bool,
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo-root", type=Path, required=True)
+    for arm in PILOT_ARMS:
+        parser.add_argument(f"--repo-root-{arm}", type=Path, required=True)
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--thirdparty-source-root", type=Path, required=True)
     parser.add_argument("--ledger-root", type=Path, required=True)
@@ -257,12 +260,16 @@ def main(argv=None) -> int:
     action.add_argument("--submit", action="store_true")
     args = parser.parse_args(argv)
     try:
-        tree = replace(validate_submit_tree(args.repo_root, args.expected_head),
-                       thirdparty_source_root=args.thirdparty_source_root)
+        trees_by_arm = {
+            arm: replace(validate_submit_tree(
+                getattr(args, f"repo_root_{arm.replace('-', '_')}"), args.expected_head),
+                thirdparty_source_root=args.thirdparty_source_root)
+            for arm in PILOT_ARMS
+        }
         jobs = pilot_jobs(args.workload, args.ledger_root, args.evidence_root,
                           K2(args.knowledge_manifest, args.knowledge_classification,
                              args.knowledge_de_novo_claim))
-        return launch(jobs, tree, submit=args.submit)
+        return launch(jobs, trees_by_arm, submit=args.submit)
     except (ValueError, OSError, subprocess.CalledProcessError) as exc:
         print(f"b5_contrast_launch: {exc}", file=sys.stderr)
         return 2

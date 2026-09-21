@@ -430,10 +430,15 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   周辺処理 区間」であり純 verifier 秒ではない。試走の投入は login 側 launcher
   `tools/pegasus/b5_contrast_launch.py` (`local-ok`) が 4 job (random / sweep-matched / llm / block-stock、
   53 論理 session ≤ 60) を `qsub -v <IZANAGI_S4_* を明示列挙> -l elapstim_req=08:00:00 (block-stock は 03:00:00)
-  -o/-e <evidence>/job.std{out,err}` の argv list で組む。`--dry-run` は投入対象 checkout の Git 読取り検証
+  -o/-e <evidence>/job.std{out,err}` の argv list で組む。4 job は arm ごとの専用 checkout (同じ HEAD、別 path) から
+  投入し、`IZANAGI_S4_REPO_ROOT` と qsub の cwd はその job の checkout になる (CCBench と build cache が job ごとに
+  分かれる、D2199 / D2200 項 1)。`--dry-run` は 4 つの投入対象 checkout それぞれの Git 読取り検証
   (HEAD / tracked clean / CCBench HEAD == その checkout の `p3_s4_loop.PIN` 行) は行うが、qsub も mkdir もしない。
   `--submit` は attempt directory を `mkdir` してから qsub を呼ぶ (それ以外を置かない)。launcher は投入対象
-  checkout から起動する (別 commit の launcher で投入しない)。
+  checkout のいずれか (同じ commit) から起動する (別 commit の launcher で投入しない)。B-5 mode の job body は
+  driver 起動直前に `IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"` (job 固有の node-local scratch、B-10 / A-5 と同じ) を
+  設定する。この lock が排他するのは同じ job の中だけで、job 間の単独性は割当てに依り専有は保証されない
+  (`docs/pegasus-runbook.md` §1)。非 B-5 の 3 経路 (proposal 単独 / pair / fixture) は設定しない (既定の home 共有 lock)。
   walltime の 8h / 3h は試走の暫定管理値で、本走の上限は試走の実測 max から決める (事前登録 §11)
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や
@@ -472,11 +477,14 @@ mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
 qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_S4_KNOWLEDGE_MANIFEST="$KNOWLEDGE_MANIFEST",IZANAGI_S4_CODER_ROLE="$CODER_ROLE",IZANAGI_S4_KNOWLEDGE_CLASSIFICATION="$KNOWLEDGE_CLASSIFICATION",IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM="$KNOWLEDGE_DE_NOVO_CLAIM",IZANAGI_S4_STOCK_CONTROL="$STOCK_CONTROL" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
 ```
 
-B-5 試走の投入は上の fence を手で組まず launcher で行う (投入対象 checkout の準備 (1)〜(3) は同じ。`$REPO_ROOT` から起動する):
+B-5 試走の投入は上の fence を手で組まず launcher で行う (arm ごとの 4 checkout それぞれに準備 (1)〜(3) を行い、
+4 つとも同じ `EXPECTED_HEAD` にする。そのいずれか 1 つから起動する):
 
 ```text
-cd "$REPO_ROOT" && python3 -B tools/pegasus/b5_contrast_launch.py \
-  --repo-root "$REPO_ROOT" --expected-head "$EXPECTED_HEAD" \
+cd "$REPO_ROOT_RANDOM" && python3 -B tools/pegasus/b5_contrast_launch.py \
+  --repo-root-random "$REPO_ROOT_RANDOM" --repo-root-sweep-matched "$REPO_ROOT_SWEEP" \
+  --repo-root-llm "$REPO_ROOT_LLM" --repo-root-stock "$REPO_ROOT_STOCK" \
+  --expected-head "$EXPECTED_HEAD" \
   --thirdparty-source-root "$THIRDPARTY_SOURCE_ROOT" \
   --ledger-root /absolute/ledgers-outside-all-repositories \
   --evidence-root /absolute/evidence-outside-all-repositories \

@@ -1298,6 +1298,11 @@ def _run_actual_job_body_through_driver(
         "if '-m' in args:\n"
         "    with Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).open('a') as stream:\n"
         "        stream.write(json.dumps(args) + '\\n')\n"
+        "    with Path(os.environ['IZANAGI_TEST_DRIVER_ENV']).open('a') as stream:\n"
+        "        stream.write(json.dumps({\n"
+        "            'TMPDIR': os.environ.get('TMPDIR'),\n"
+        "            'IZANAGI_BENCH_LOCK': os.environ.get('IZANAGI_BENCH_LOCK'),\n"
+        "        }) + '\\n')\n"
         "    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\n"
         "    Path(root, 'driver-evidence.json').write_text(\n"
         "        json.dumps({'root': root, 'cwd': str(Path.cwd()),\n"
@@ -1375,11 +1380,13 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
         "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
         "IZANAGI_TEST_DRIVER_ARGV": str(driver_argv),
+        "IZANAGI_TEST_DRIVER_ENV": str(tmp_path / "driver-env.jsonl"),
         "IZANAGI_TEST_DRIVER_RCS": json.dumps(driver_rcs),
         "IZANAGI_TEST_GFLAGS_HEAD": gflags_head,
         "IZANAGI_TEST_GLOG_HEAD": glog_head,
         **k2_environment,
     })
+    environment.pop("IZANAGI_BENCH_LOCK", None)
     input_root = "./evidence" if relative_evidence else str(evidence_root)
     environment["IZANAGI_S4_EVIDENCE_ROOT"] = input_root
     expected_root = (tmp_path / input_root).resolve()
@@ -1400,6 +1407,13 @@ def _run_actual_job_body_through_driver(
         completed.returncode,
         json.loads((evidence_root / "compute-result.json").read_text()),
     )
+
+
+def _read_driver_environment(tmp_path: Path) -> list[dict[str, str | None]]:
+    return [
+        json.loads(line)
+        for line in (tmp_path / "driver-env.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
 
 
 @pytest.mark.parametrize("relative_evidence", [True, False], ids=["relative", "absolute"])
@@ -1909,6 +1923,7 @@ def test_default_job_invokes_driver_once(tmp_path, mode, stock):
                  ["--run-iteration", "/absolute/proposal.json"])
     assert history == [expected]
     assert rc == result["driver_rc"] == 0
+    assert [record["IZANAGI_BENCH_LOCK"] for record in _read_driver_environment(tmp_path)] == [None]
 
 
 @pytest.mark.parametrize("mode", ["proposal", "k2"])
@@ -1926,6 +1941,7 @@ def test_pair_job_invokes_one_driver_with_both_modes(tmp_path, mode):
                      "--knowledge-de-novo-claim", "false"]
     assert history == [expected + ["--stock-control", "--run-iteration", "/absolute/proposal.json"]]
     assert rc == result["driver_rc"] == 0
+    assert [record["IZANAGI_BENCH_LOCK"] for record in _read_driver_environment(tmp_path)] == [None]
 
 
 @pytest.mark.parametrize("mode", ["proposal", "k2"])
@@ -2009,6 +2025,14 @@ def _assert_b5_driver_history(history, tmp_path, arm):
                      "--knowledge-classification", "known_result_conditioned_derivative",
                      "--knowledge-de-novo-claim", "false"]
     assert history == [expected]
+
+    # Independent of observed values: harness scratch base and PBS_JOBID,
+    # with ':' replaced by '_' as specified by the job's path rule.
+    expected_tmpdir = tmp_path / "scratch-base" / "0:945411.nqsv".replace(":", "_")
+    assert _read_driver_environment(tmp_path) == [{
+        "TMPDIR": str(expected_tmpdir),
+        "IZANAGI_BENCH_LOCK": str(expected_tmpdir / "bench.lock"),
+    }]
 
 
 @pytest.mark.parametrize("arm", ["random", "sweep-matched", "llm", "stock"])
