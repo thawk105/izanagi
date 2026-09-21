@@ -1,0 +1,46 @@
+== 1) END → NQSV stderr spool 到着 (会計本文が login 側 file に現れる)
+  全 compute job: n=217 min=9 median=10 mean=10.0 p90=10 max=11
+  acceptance: n=58 min=10 median=10 mean=10.1 p90=10 max=11
+  mutation: n=159 min=9 median=10 mean=9.9 p90=10 max=11
+== 2) END → dispatcher receipt (dispatch_compute.py が回収を終える)
+  全 compute job: n=254 min=10 median=12 mean=12.3 p90=14 max=16
+  focus: n=27 min=10 median=13 mean=12.7 p90=14 max=15
+  log: n=10 min=11 median=12 mean=12.3 p90=13 max=14
+  acceptance: n=58 min=10 median=12 mean=12.6 p90=15 max=15
+  mutation: n=159 min=10 median=12 mean=12.1 p90=14 max=16
+== 2b) spool → receipt (dispatcher の poll 由来の残り)
+  spool のある job: n=217 min=0 median=2 mean=2.2 p90=4 max=5
+== 3) END → producer の .done (最後の compute job の END から、親の待ち手が見る file まで)
+  全 producer: n=68 min=10 median=14 mean=19.9 p90=37 max=56
+  focus: n=27 min=10 median=13 mean=12.8 p90=14 max=15
+  log: n=10 min=11 median=12 mean=12.4 p90=13 max=14
+  acceptance: n=20 min=19 median=22 mean=22.7 p90=25 max=39
+  mutation: n=11 min=29 median=39 mean=38.9 p90=49 max=56
+== 4) .done → 親の待ち手が戻る (dev_wave_wait.py producer の receipt / 自前 wrapper の done)
+  全 producer (直列 wait-all を含む): n=42 min=0 median=3 mean=20.5 p90=17 max=361
+  直列 wait-all の artifact (>40 s) を除く: n=39 min=0 median=3 mean=3.6 p90=5 max=18
+   40 s 超: [('t2807-b8-prerun', 'run/prerun-g_rt', 47), ('t2807-b8-prerun', 'run/prerun-v4-g_rt', 315), ('t2807-b8-prerun', 'run/prerun-v5-g_rt', 361)]
+== 5) END → 親の待ち手が戻る (合計)
+  直列 artifact を除く: n=39 min=13 median=17 mean=23.9 p90=37 max=74
+== 6) 内訳の代表値 (中央値): END→spool / spool→receipt / receipt→done / done→waiter
+  END→spool     : 10.0
+  spool→receipt : 2.0
+  receipt→done (focus): 0.0
+  receipt→done (acceptance): 9.0
+  receipt→done (mutation): 28.0
+  done→waiter   : 3.0
+== 7) 変異 attempt 間: receipt_i → 次 attempt の qsub (request.json mtime)
+  receipt_i → qsub_{i+1}: n=148 min=4 median=7 mean=8.6 p90=14 max=31
+== 8) wave 別: END → .done の中央値 / 最大 (producer 単位)
+  branch-residue-cleanup                   n=5 median=13 max=22
+  paper-abstract-conclusion-ja             n=1 median=25 max=25
+  paper-story-20260921                     n=1 median=20 max=20
+  t2344-closure-stage                      n=6 median=14 max=39
+  t2797-b5-contrast                        n=9 median=20 max=56
+  t2803-provenance-receipt                 n=11 median=13 max=49
+  t2804-provenance-timeout-contract        n=7 median=15 max=41
+  t2807-b8-prerun                          n=7 median=12 max=21
+  t2810-g1-launch-validation               n=7 median=20 max=37
+  t2814-cleanup-command                    n=5 median=22 max=33
+  t2817-acceptance-bottleneck-3            n=6 median=20 max=23
+  wall-decomp                              n=3 median=15 max=24

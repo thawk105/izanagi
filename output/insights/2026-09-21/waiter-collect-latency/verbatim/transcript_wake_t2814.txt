@@ -1,0 +1,10 @@
+t2814.js  notify=09-21 01:14:02  next_assistant=09-21 01:14:05  gap=3s  | '01:14:02 JST\n0\nworktree-commit: clean\nproducer: /proc/2961280/stat を読めないため pid-only へ縮退します\nwait rc=0\n6207 /work/1/SFC/tanab/dev-wave-jobs/de'
+t2814.js  notify=09-21 01:22:53  next_assistant=09-21 01:23:12  gap=18s  | '01:22:53 JST\n3155654\n\n3155657 python3 tools/mutation_worktree.py --source-repo /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2\n3157095 /bin/bash'
+t2814.js  notify=09-21 01:34:47  next_assistant=09-21 01:34:51  gap=4s  | '01:34:46 JST\ndone=1\nproducer: /proc/3155654/stat を読めないため pid-only へ縮退します\nwait rc=0\n1634300 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2814-cl'
+t2814.js  notify=09-21 01:37:15  next_assistant=09-21 01:37:19  gap=4s  | '01:37:15 JST\n0\nworktree-commit: clean\nproducer: /proc/3215731/stat を読めないため pid-only へ縮退します\nwait rc=0\nOK: Codex output passed (/work/1/SFC/ta'
+t2814.js  notify=09-21 01:42:52  next_assistant=09-21 01:42:55  gap=3s  | '01:42:52 JST\n1\nworktree-commit: clean\nerror: stage=producer-files rc=70\nwait rc=70\nNG: 対象を symlink 非追跡で開けない ([Errno 2] No such file or direc'
+t2814.js  notify=09-21 01:55:26  next_assistant=09-21 01:55:30  gap=4s  | "Exit code 2\n01:55:26 JST\n1\nerror: stage=producer-files rc=70\nwait rc=70\nNG: 対象を symlink 非追跡で開けない ([Errno 2] No such file or directory: '/wor"
+t2814.js  notify=09-21 02:08:01  next_assistant=09-21 02:08:06  gap=5s  | '02:08:01 JST\n0\nproducer: /proc/3519803/stat を読めないため pid-only へ縮退します\nwait rc=0\nOK: Codex output passed (/work/1/SFC/tanab/dev-wave-jobs/dev-w'
+t2814.js  notify=09-21 02:12:46  next_assistant=09-21 02:12:49  gap=3s  | '02:12:46 JST\n1\nproducer: /proc/3649960/stat を読めないため pid-only へ縮退します\nwait rc=0\n4:[Pegasus dispatch] request ID 14114.nqsv を受理しました\n10:[Pegasus'
+t2814.js  notify=09-21 03:15:18  next_assistant=09-21 03:15:26  gap=8s  | '03:15:18 JST\n0\nproducer: /proc/4008729/stat を読めないため pid-only へ縮退します\nwait rc=0\n--- gate log ---\n02:47:28 attempt=1 rc=70 "classification":"po'
+-- t2814.jsonl: 9 hits
