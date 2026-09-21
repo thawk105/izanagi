@@ -572,6 +572,27 @@ Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は
 
 ---
 
+## instr-mocc-lock-coverage-pin-candidate.patch — X/P hook の pin 候補再現資料 ([T-2844])
+
+preimage は `e9e477ca1b55348ab4530de0b1cf663ce4555290`。branch
+`izanagi-mocc-xp-instrumentation` の C = `68106660686232781bca3be792a750d3e19d7a8a`
+を可搬に再構成する資料であり、producer や C checkout に重ねる第二の正本ではない。
+変更対象は `cc/mocc/transaction.cc` だけ。旧計装の適用結果との差は `<set>` include 1 行の削除と
+`std::multiset<const void*>` から `std::unordered_multiset<const void*>` への宣言 2 箇所の置換だけである。
+`#line` 7 行は保持し、include 行列は BASE と同一 (`trace.hh` が `<unordered_set>` を供給する)。
+旧 patch・旧 JSON は BASE + 旧計装という命題の証拠として保持する。
+
+driver の `--candidate-oid` mode は候補 commit の単一親・raw diff・再構成 blob を build 前に照合し、
+C 上で旧行列と同じ 6 走 (stock / lockskip 各 single・high、perm-erase / early-unlock 各 single) を行う。
+実走で検査する命題は所定の X/P 発火と verdict、および旧 14 check の範囲である。
+P の動的負例は size 違反までで、同サイズ pointer 置換・多重度の保存は source 契約で固定する。
+公開 run の `other_integrity_clean` は観測値であり、新しい合否条件にはしない。
+候補の実走証拠は `s3_mocc_xp_pin_candidate.json` に別途保存し、旧実測を候補へ引き継がない。
+TRACE=0 の正本は D297、driver の nm / strings / 正規化逆アセンブル一致は補助である。
+`.text` bytes 一致、hot 経路の再立証、I 被覆は主張しない。候補 mode の build も NON_ADMISSIBLE の診断である。
+
+---
+
 ## broken-mocc-lockskip-validation.patch / broken-mocc-permutation-erase.patch / broken-mocc-early-unlock.patch — mocc 計装の positive control ([T-2294])
 
 **わざと壊した CC** 3 本。上の計装が恒真でなく歯を持つことを、実体を名指しして機械実証する。preimage は e9e477ca + `instr-mocc-lock-coverage.patch`。

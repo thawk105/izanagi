@@ -591,6 +591,158 @@ def compute_checks(
     return {key: bool(value) for key, value in checks.items()}
 
 
+CANDIDATE_PATCH = "patches/instr-mocc-lock-coverage-pin-candidate.patch"
+CANDIDATE_OUTPUT = "output/env/pegasus/calibration/s3_mocc_xp_pin_candidate.json"
+
+
+def _candidate_oid(value: str) -> str:
+    if re.fullmatch(r"[0-9a-f]{40}", value) is None:
+        raise argparse.ArgumentTypeError("candidate OID must be 40 lowercase hex digits")
+    return value
+
+
+def _candidate_identity(
+    oid: str, resolved: str, parent_line: str, raw_diff: str, tree: str,
+    reconstructed_blob: str,
+) -> dict[str, Any]:
+    """Validate captured Git output without running Git or touching files."""
+    _candidate_oid(oid)
+    if resolved.strip() != oid:
+        raise RuntimeError("candidate commit resolution differs")
+    if parent_line.split() != [oid, PIN]:
+        raise RuntimeError("candidate must have exactly the base parent")
+    rows = raw_diff.splitlines()
+    match = re.fullmatch(
+        r":100644 100644 ([0-9a-f]{40}) ([0-9a-f]{40}) M\t"
+        + re.escape(SOURCE_REL), rows[0] if len(rows) == 1 else "",
+    )
+    if match is None:
+        raise RuntimeError("candidate raw diff must modify only transaction.cc without mode change")
+    base_blob, candidate_blob = match.groups()
+    if reconstructed_blob != candidate_blob:
+        raise RuntimeError("candidate reconstructed blob differs")
+    if re.fullmatch(r"[0-9a-f]{40}", tree.strip()) is None:
+        raise RuntimeError("candidate tree is invalid")
+    return {
+        "oid": oid, "parents": [PIN], "tree": tree.strip(),
+        "raw_diff": rows, "base_blob": base_blob,
+        "candidate_blob": candidate_blob, "reconstructed_blob": reconstructed_blob,
+    }
+
+
+def _capture_candidate(root: Path, oid: str) -> tuple[dict[str, Any], list[str]]:
+    _candidate_oid(oid)
+    base_repo = root / "external" / "ccbench"
+
+    def git(*arguments: str) -> str:
+        return _run_checked(["git", "-C", os.fspath(base_repo), *arguments]).stdout
+
+    resolved = git("rev-parse", "--verify", f"{oid}^{{commit}}")
+    parents = git("rev-list", "--parents", "-n", "1", oid)
+    raw_diff = git("diff-tree", "-r", "--raw", "--no-renames", "--no-abbrev", PIN, oid)
+    tree = git("rev-parse", "--verify", f"{oid}^{{tree}}")
+    with checkout(PIN, base_dir=os.fspath(base_repo)) as source_value:
+        assert_pinned_clean(source_value, PIN)
+        source = Path(source_value)
+        touched = _apply_owned_patch(root, source, CANDIDATE_PATCH)
+        blob = _run_checked([
+            "git", "-C", source_value, "hash-object", "--no-filters", SOURCE_REL,
+        ]).stdout.strip()
+        record = _candidate_identity(oid, resolved, parents, raw_diff, tree, blob)
+        record["candidate_source_sha256"] = _sha256_file(source / SOURCE_REL)
+    record["patch"] = {"path": CANDIDATE_PATCH, "sha256": _sha256_file(root / CANDIDATE_PATCH)}
+    return record, touched
+
+
+def _candidate_main(root: Path, args: argparse.Namespace, site: str) -> int:
+    legacy_dir = root / "output/env/pegasus/calibration"
+    for name in ("s3_mocc_lock_coverage.json", "s3_mocc_mutation_proof.json",
+                 "s3_mocc_template_proof.json"):
+        old = legacy_dir / name
+        if args.out.resolve() == old.resolve() or (
+            args.out.exists() and old.exists() and args.out.samefile(old)
+        ):
+            raise RuntimeError("candidate output must not overwrite legacy JSON")
+    if not args.third_party_cache.is_absolute():
+        raise RuntimeError("--third-party-cache must be absolute")
+    candidate, touched = _capture_candidate(root, args.candidate_oid)
+    policy_path = args.policy.resolve(strict=True)
+    policy = _load_policy(policy_path)
+    toolchain = _resolve_toolchain(policy)
+    patch_relatives = (CANDIDATE_PATCH, LOCKSKIP_PATCH, PERMUTATION_PATCH, EARLY_UNLOCK_PATCH)
+    patch_records = {
+        name: {"path": relative, "sha256": _sha256_file(root / relative)}
+        for name, relative in zip(
+            ("instrumentation", "lockskip", "permutation_erase", "early_unlock"),
+            patch_relatives,
+        )
+    }
+    touch_sets = {CANDIDATE_PATCH: touched}
+    runs: dict[str, dict[str, Any]] = {}
+    condition_gates = []
+    base_repo = root / "external" / "ccbench"
+    with tempfile.TemporaryDirectory(prefix="izanagi_s3_mocc_candidate_") as temporary:
+        scratch = Path(temporary)
+        dependencies = _prepare_dependencies(root, policy, args.third_party_cache, scratch, toolchain)
+        for label, broken_patch, macro, workloads in (
+            ("stock", None, None, (("stock_single", SINGLE_FLAGS), ("stock_high", HIGH_FLAGS))),
+            ("lockskip", LOCKSKIP_PATCH, LOCKSKIP_DEFINE, (
+                ("lockskip_single", SINGLE_FLAGS), ("lockskip_high", HIGH_FLAGS))),
+            ("perm", PERMUTATION_PATCH, PERMUTATION_DEFINE, (("perm_erase_single", SINGLE_FLAGS),)),
+            ("early", EARLY_UNLOCK_PATCH, EARLY_UNLOCK_DEFINE, (("early_unlock_single", SINGLE_FLAGS),)),
+        ):
+            with checkout(args.candidate_oid, base_dir=os.fspath(base_repo)) as source_value:
+                source = Path(source_value)
+                assert_pinned_clean(source_value, args.candidate_oid)
+                if broken_patch is not None:
+                    touch_sets[broken_patch] = _apply_owned_patch(root, source, broken_patch)
+                binary, gate = _build_variant(
+                    source, scratch / f"{label}-trace1", trace=1,
+                    toolchain=toolchain, dependencies=dependencies, macro=macro,
+                )
+                if macro is not None:
+                    if gate is None:
+                        raise RuntimeError(f"condition gate missing for {macro}")
+                    condition_gates.append(gate)
+                for run_name, flags in workloads:
+                    runs[run_name] = _variant_run(binary, flags, source)
+        binaries = []
+        for oid, build_dir in ((PIN, scratch / "trace0-pin0"),
+                               (args.candidate_oid, scratch / "trace0-cand")):
+            with checkout(oid, base_dir=os.fspath(base_repo)) as source_value:
+                assert_pinned_clean(source_value, oid)
+                binary, _gate = _build_variant(
+                    Path(source_value), build_dir, trace=0,
+                    toolchain=toolchain, dependencies=dependencies,
+                )
+                binaries.append(binary)
+        trace0 = _trace0_record(*binaries)
+        checks = compute_checks(runs, trace0, touch_sets, patch_relatives, toolchain, policy)
+        result = {
+            "schema_version": "s3-mocc-xp-pin-candidate/v1",
+            "env_tag": ENV_TAG, "site": site, "ccbench_commit": args.candidate_oid,
+            "base_commit": PIN, "candidate": candidate,
+            "genome": STOCK_G.canonical(), "clocks_per_us": CLK,
+            "toolchain": toolchain,
+            "policy": {"path": os.fspath(args.policy), "sha256": _sha256_file(policy_path)},
+            "patches": patch_records,
+            "workloads": {"single": SINGLE_FLAGS, "high": HIGH_FLAGS},
+            "condition_gates": condition_gates,
+            "diagnostic_build_admission": non_admissible_materializer(
+                "orchestrator.campaign.s3_mocc_lock_coverage._build_variant"
+            ),
+            "trace0": trace0,
+            "runs": {name: {**_public_run_record(record),
+                            "other_integrity_clean": record["_other_integrity_clean"]}
+                     for name, record in runs.items()},
+            "checks": checks, "all_pass": all(checks.values()),
+        }
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"all_pass={result['all_pass']} -> {args.out}")
+    return 0 if result["all_pass"] else 1
+
+
 def _parser(root: Path) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--third-party-cache", type=Path, required=True)
@@ -603,6 +755,7 @@ def _parser(root: Path) -> argparse.ArgumentParser:
         default=root / "output" / "env" / "pegasus" / "calibration"
         / "s3_mocc_lock_coverage.json",
     )
+    parser.add_argument("--candidate-oid", type=_candidate_oid)
     return parser
 
 
@@ -614,6 +767,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     _assert_single_tenant()
     root = _repo_root()
     args = _parser(root).parse_args(argv)
+    if args.candidate_oid is not None:
+        parser = _parser(root)
+        parser.set_defaults(out=root / CANDIDATE_OUTPUT)
+        return _candidate_main(root, parser.parse_args(argv), site)
     if not args.third_party_cache.is_absolute():
         raise RuntimeError("--third-party-cache must be absolute")
     policy = _load_policy(args.policy.resolve(strict=True))
