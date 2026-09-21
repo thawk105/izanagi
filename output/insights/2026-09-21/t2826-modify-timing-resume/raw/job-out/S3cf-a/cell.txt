@@ -1,0 +1,15 @@
+cell=S3cf-a
+stage=S3cf
+half=a
+start_epoch=1789992044.168949573
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume
+argv=python3.10 -m pytest /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume/orchestrator/tests -n 48 --dist loadgroup --junitxml=/scr/tanab/t2826-4133803/out/S3cf-a/junit.xml -p tools.acceptance_shards -p no:cacheprovider -p t2826_probe_plugin
+tmpdir=/scr/tanab/t2826-4133803/out/S3cf-a/tmp
+workers=48
+others=0
+stale_pytest=0
+memo_files_begin
+memo_files_end
+end_epoch=1789992086.422490315
+wall=42.253540754
+rc=0

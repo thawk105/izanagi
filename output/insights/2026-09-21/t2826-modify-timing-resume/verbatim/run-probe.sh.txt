@@ -1,0 +1,19 @@
+#!/bin/bash
+# [T-2826 再開] 関数別計時の計算ノード job の投入 launcher (親の運転 script、repo 外)。
+# 計算ノード 1 job (generic) で wave 専用 dir に複製した probe を走らせる。cwd は dispatcher が投入元 worktree (wave 木) に固定する。
+D=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2826-resume
+W=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume
+echo $$ > "$D/run-probe.pid"
+export PYTHONDONTWRITEBYTECODE=1
+cd "$W" || { echo "rc=3" > "$D/run-probe.done"; exit 3; }
+date '+%Y-%m-%dT%H:%M:%S%z start' >> "$D/run-probe.times"
+git rev-parse HEAD > "$D/run-probe.tip.txt"
+git status --porcelain > "$D/run-probe.status-before.txt"
+python3 tools/pegasus/dispatch_compute.py --task generic \
+  --walltime 00:40:00 --queue-wait-timeout 5400 --overall-grace 5400 \
+  -- bash "$D/probe/t2826_modify_timing_probe.sh" > "$D/run-probe.log" 2>&1
+rc=$?
+date "+%Y-%m-%dT%H:%M:%S%z end rc=$rc" >> "$D/run-probe.times"
+git status --porcelain > "$D/run-probe.status-after.txt"
+echo "rc=$rc" > "$D/run-probe.done"
+exit "$rc"
