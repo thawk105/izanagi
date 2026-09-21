@@ -14,8 +14,8 @@
 
 ## 新規所見
 
-1. **must-fix — A-1 の旧状態が別欄に残る。**  
-   [新稿 C1(e)（162行）](/work/1/SFC/tanab/izanagi/.claude/worktrees/paper-story-2026-09-21b/docs/paper-story/claim-evidence/2026-09-21.md:162) は「attempt-0002 は gate で拒否され測定値が無い」と現在形で記す。さらに A-1（413行）の差分欄も「1 attempt の完走…までは進んだ」のまま。C21・C31・修正後のL34、D2194 項6、版 §8 A-1・§9と不一致。**新稿側が誤り。**  
+1. **must-fix — A-1 の旧状態が別欄に残る。**
+   [新稿 C1(e)（162行）](/work/1/SFC/tanab/izanagi/.claude/worktrees/paper-story-2026-09-21b/docs/paper-story/claim-evidence/2026-09-21.md:162) は「attempt-0002 は gate で拒否され測定値が無い」と現在形で記す。さらに A-1（413行）の差分欄も「1 attempt の完走…までは進んだ」のまま。C21・C31・修正後のL34、D2194 項6、版 §8 A-1・§9と不一致。**新稿側が誤り。**
    対案：C1(e)は「初回投入操作は2026-09-19に拒否されたが、2026-09-20に認可 record 経由で完走。非認証 lane・充足未判定は維持」、A-1差分欄は「非認証 lane の2 attempt が完走」へ。
 
 指定6語の再検索結果は次のとおり。件数は新稿内の出現数。
@@ -39,8 +39,8 @@
 
 ## 総括
 
-対象7件は **closed 5件、partial 2件、regressed 0件**。  
-B-7・B-8・fig8b・L34・条数の修正は成立している。  
-残件はg1・pin・A-1の別欄に残る旧現在形である。  
-指定範囲外のscope提案は行っていない。  
+対象7件は **closed 5件、partial 2件、regressed 0件**。
+B-7・B-8・fig8b・L34・条数の修正は成立している。
+残件はg1・pin・A-1の別欄に残る旧現在形である。
+指定範囲外のscope提案は行っていない。
 書き込み・commit・push・テスト・build・測定は行っていない。
