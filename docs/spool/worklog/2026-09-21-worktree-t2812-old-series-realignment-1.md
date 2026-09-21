@@ -18,6 +18,7 @@ title: [T-2812] 新 pin main から旧系列 4 本を再開・再投入するた
 - 段 2 plan (codex read-only) は親 brief を 7 点訂正し、段 3 の敵対相談 2 本 (正しさ境界 / 既裁定整合・費用) が real の must-fix を 6 件出した (段階 4 の範囲を広げすぎ、READONLY の射程、S' の失効保証の限界、B-4 を不要に裁定へ返している、S' の binary 配置経路の欠落、B-4 本走の別 wave 依存)。すべて採用して成果物に反映した。S' が別 pin・別 contract・失効 registry の artifact を通すという攻撃は refuted で、拒否根拠を insight に残した。
 - 独立 read-only レビュー 1 本 (docs-only で一次資料から事実を再抽出するため DW-C00 で必須) を insight 本文に対して回した。
 - **言わないこと:** launch は成功していない。S' は未実装で、適用後に段階 4 の残部や段階 5 以降で別の拒否が出ないことは観測していない。候補文書の削除・W-4 の spec 承認・held checks・W-5 の予算はいずれも別に残る。記録済みの判定・測定・凍結 bytes は 1 つも変えていない。
+- 段 8 の改善候補 1 件 (防護 path を引数に持つ program 実行も guard が拒否するので job dir の .sh へ包む。独立 2 例) は、対象節が 970 / 1000 bytes で余白が無く収容を見送り、insight §10 に記録した。
 - 工数: codex 子 6 本 (probe author 1・probe fix 1・plan 1・相談 2・独立レビュー 1)、親の login 実走 5 回 (既存 CLI 3 + probe 2)、計算ノード job 0。実装面の差分が 0 なので変異 matrix は免除 (DW-S04)、受入全走は実施。
 
 ## 次の一手差分

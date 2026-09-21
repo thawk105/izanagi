@@ -154,7 +154,12 @@ O と N は排他ではない (旧系列を O で閉じつつ、新 pin の新�
 - 段 3 相談 B (既裁定整合・費用): real 3 件 = B-4 f1 の継続を不要に裁定へ返している / S' の配置経路が未了 / B-4 本走の D2194 項 3 依存 → **全採用** (§5 の「裁定に返さない」、§4 の ③、§5 項の B-4 行)。S' が D2184 の却下 4 種と同じという批判は **refuted**、ただし `repo_stock_pin` 依存の切離しという効果では別裁定が要ると明記。
 - 独立 read-only レビュー (docs-only の必須 1 本、DW-C00): real 3 件 = S' 第 3 入口の権威・取得元が未確定 / N の official 再測定が D2120 項 2 (a) の停止条件を落としている / K2 の裁定区分が本文と決定 fragment で食い違う → **全採用** (§4 の ③ と N、§5 項 2)。相談 A の 3 限定が本文に反映済みであること、S' が却下 4 種に当たらないことはレビューでも **refuted** として確認された。逐語照合は 24 項すべて一致 (`verbatim/s6-review-A.md`)。
 
-## 10. 工数
+## 10. dev-wave 改善候補 (段 8、未実装)
+
+- **候補 1 (作法):** `DW-O03` は「防護 path を含む file を作る / 読む command」について書いているが、**防護 path を引数に持つ program の実行**も guard が拒否する。本 wave では親が `python3 -B <probe> --k2-pair-lock <campaign.lock>` を直に叩いて拒否され、job dir の `.sh` に包んで detach で呼ぶ形に直した (T-2797 でも同型の回避が記録されている = 独立 2 例)。**収容できなかった理由:** `DW-O03` は 970 / 1000 bytes で、この 1 文 (日本語 ≈ 110 bytes) を意味を保って入れる余白が無い。予算の変更は実装せず記録に留める (`docs/skill-self-improvement.md` の終端契約)。将来 `docs/dev-wave/**` の層予算を触る wave があれば、そこで収容を判断する。
+- 候補はこの 1 件で、段構成・実装子権限・正しさ防壁・裁定境界に触れるものは無い。
+
+## 11. 工数
 
 - codex 子 5 本: probe author 1 + probe fix 1 + plan 1 + 相談 2。
 - 親の login 実走: 既存 CLI 3 回 (B-4 validate-only / B-4 place / g1 gate-check) + probe 2 回。計算ノード job は 0 (read-only 実測のみ)。
