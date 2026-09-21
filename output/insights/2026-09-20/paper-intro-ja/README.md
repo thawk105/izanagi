@@ -1,6 +1,15 @@
-# 本体論文 (日本語) の序論・貢献・限界の新規起草 — wave の記録と、証拠ごとの現在地の別表
+# 本体論文 (日本語) の序論・貢献・限界の新規起草 — wave の記録と、証拠ごとの現在地の別表 — **限界節だけ 2026-09-21 版に supersede された**
 
 authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾と現行 phase doc)
+
+## 前方 pointer (2026-09-21 に追加)
+
+- **本 dir の `limitations.md` (2026-09-20 版、worklog entry 1757) は、2026-09-21 に `output/insights/2026-09-21/paper-intro-ja/limitations.md`
+  (2026-09-21 版) に置き換えられた (supersede)。** 本稿の bytes は変えない。新版は本稿の本文を継承し、B-8 の 3 値判定 `pass` (entry 1791、D2202。本稿 §2 が
+  「事前登録は作られたが未発効」と書く箇所は執筆時点では真) を §2 / §7 に足し、採用時点 `d99c556df` までに動いた状態語 (A-1 attempt-0002 の完走、
+  g1 の起動検査の拒否段階) と、本稿の執筆時点で既に偽だった §3 の「『非列挙』の定義の置き直しは未裁定」(D1441、2026-09-02 に裁定済み) を直した。
+  証拠ごとの現在地の別表 (本 README §5) の採用時点 `d99c556df` 版は新 dir の `README.md` §2 にある。
+- **`intro.md` と `contributions.md` は置き換えられていない** (本 dir の 2026-09-20 版が現行)。本 README の以下の節は 2026-09-20 版の wave の記録であり、変えていない。
 
 - 依頼: ユーザー (2026-09-20、dev-wave 引数、台帳 ID 未起票)。逐語は `verbatim/s1-brief.md` の冒頭。
 - wave: `dev-wave-paper-intro-ja` (branch `worktree-dev-wave-paper-intro-ja`)。着手時 local main `fec4a8187` から fresh worktree、
