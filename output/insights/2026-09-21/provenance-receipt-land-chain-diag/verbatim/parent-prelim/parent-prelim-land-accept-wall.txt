@@ -1,0 +1,35 @@
+since=2026-09-20 21:00:00 rows=34
+2026-09-20 21:05:25 accept-preclaim  dev-wave-cleanup-backup-loss-record      tip=? receipt=None Δ=Nones load1=15.78 behind=23
+2026-09-20 21:15:42 accept-preclaim  dev-wave-t2153-witness-requested-us      tip=227674a6ed43 receipt=None Δ=Nones load1=26.49 behind=53
+2026-09-20 21:15:50 accept-postmerge dev-wave-t2153-witness-requested-us      tip=227674a6ed43 receipt=None Δ=Nones load1=26.49
+2026-09-20 21:17:03 accept-preclaim  dev-wave-cleanup-backup-loss-record      tip=57d2a57fa896 receipt=None Δ=Nones load1=17.11 behind=24
+2026-09-20 21:17:10 accept-postmerge dev-wave-cleanup-backup-loss-record      tip=57d2a57fa896 receipt=None Δ=Nones load1=17.11
+2026-09-20 21:20:32 accept-preclaim  dev-wave-t2153-witness-requested-us      tip=25334c9b7bf5 receipt=5f183033771c Δ=690.0s load1=11.22 behind=1
+2026-09-20 21:20:37 accept-postmerge dev-wave-t2153-witness-requested-us      tip=25334c9b7bf5 receipt=5f183033771c Δ=685.0s load1=11.22
+2026-09-20 21:30:27 land             dev-wave-cleanup-backup-loss-record      tip=94b39e8eaa4f receipt=None Δ=Nones rc=10 status=stale-main land_total=550.0
+2026-09-20 21:40:17 land             dev-wave-cleanup-backup-loss-record      tip=26b7a35e46ce receipt=5f183033771c Δ=235.0s rc=0 status=landed land_total=556.0
+2026-09-20 22:04:33 accept-preclaim  dev-wave-k2-loop-originals-lost-downstre tip=0ee3e5075ea6 receipt=53e9a718e601 Δ=126.0s load1=7.49 behind=6
+2026-09-20 22:04:47 accept-postmerge dev-wave-k2-loop-originals-lost-downstre tip=0ee3e5075ea6 receipt=53e9a718e601 Δ=112.0s load1=7.49
+2026-09-20 22:32:31 accept-preclaim  dev-wave-t2807-b8-prerun                 tip=74163cf5952f receipt=53e9a718e601 Δ=26.0s load1=8.05 behind=0
+2026-09-20 22:33:41 land             dev-wave-k2-loop-originals-lost-downstre tip=bc66f8b4c6e1 receipt=5f183033771c Δ=373.0s rc=31 status=fold-gate-failed land_total=173.0
+2026-09-20 22:37:05 land             dev-wave-k2-loop-originals-lost-downstre tip=bc66f8b4c6e1 receipt=5f183033771c Δ=169.0s rc=0 status=landed land_total=352.0
+2026-09-20 23:16:31 accept-preclaim  dev-wave-t2803-provenance-receipt        tip=ddae70ed1296 receipt=cfdf571bda61 Δ=50.0s load1=4.48 behind=4
+2026-09-20 23:16:39 accept-postmerge dev-wave-t2803-provenance-receipt        tip=ddae70ed1296 receipt=cfdf571bda61 Δ=42.0s load1=4.48
+2026-09-20 23:34:29 accept-preclaim  dev-wave-t2803-provenance-receipt        tip=? receipt=None Δ=Nones load1=4.58 behind=6
+2026-09-20 23:35:37 accept-preclaim  dev-wave-t2344-closure-stage             tip=43c32588b3e6 receipt=2a6c7dae048c Δ=62.0s load1=3.92 behind=6
+2026-09-20 23:35:44 accept-postmerge dev-wave-t2344-closure-stage             tip=43c32588b3e6 receipt=2a6c7dae048c Δ=55.0s load1=3.92
+2026-09-20 23:45:07 accept-preclaim  dev-wave-t2803-provenance-receipt        tip=65966f4d8a92 receipt=c508d1de93e1 Δ=36.0s load1=3.53 behind=0
+2026-09-21 00:02:39 accept-preclaim  dev-wave-t2344-closure-stage             tip=bf30a3650e7e receipt=2a6c7dae048c Δ=19.0s load1=4.73 behind=0
+2026-09-21 00:15:49 land             dev-wave-t2344-closure-stage             tip=c383bac070f7 receipt=4608b761416c Δ=81.0s rc=0 status=landed land_total=335.0
+2026-09-21 01:07:14 accept-preclaim  rulings-all-20260921                     tip=3016f22eec17 receipt=c508d1de93e1 Δ=17.0s load1=4.18 behind=0
+2026-09-21 02:28:10 accept-preclaim  dev-wave-wall-decomp                     tip=8845b133be2d receipt=c508d1de93e1 Δ=21.0s load1=2.38 behind=10
+2026-09-21 02:28:14 accept-postmerge dev-wave-wall-decomp                     tip=8845b133be2d receipt=c508d1de93e1 Δ=17.0s load1=2.38
+2026-09-21 02:52:01 land             dev-wave-wall-decomp                     tip=4566c64b4354 receipt=4608b761416c Δ=51.0s rc=0 status=landed land_total=209.0
+2026-09-21 04:19:14 accept-preclaim  dev-wave-branch-residue-cleanup          tip=98e946f9d8cb receipt=c508d1de93e1 Δ=17.0s load1=2.99 behind=0
+2026-09-21 04:21:32 accept-preclaim  dev-wave-t2797-b5-contrast               tip=e4f4c900c2a5 receipt=c508d1de93e1 Δ=19.0s load1=2.93 behind=0
+2026-09-21 04:29:15 land             dev-wave-branch-residue-cleanup          tip=98e946f9d8cb receipt=4608b761416c Δ=27.0s rc=0 status=landed land_total=190.0
+2026-09-21 04:40:27 accept-preclaim  dev-wave-t2797-b5-contrast               tip=088bbdec71e4 receipt=c508d1de93e1 Δ=23.0s load1=2.39 behind=12
+2026-09-21 04:40:32 accept-postmerge dev-wave-t2797-b5-contrast               tip=088bbdec71e4 receipt=c508d1de93e1 Δ=18.0s load1=2.39
+2026-09-21 04:54:42 land             dev-wave-t2797-b5-contrast               tip=cf1c90e1faf9 receipt=c508d1de93e1 Δ=206.0s rc=23 status=rejected land_total=1.0
+2026-09-21 04:57:50 accept-preclaim  dev-wave-t2797-b5-contrast               tip=cf1c90e1faf9 receipt=c508d1de93e1 Δ=18.0s load1=1.44 behind=0
+2026-09-21 05:21:30 land             dev-wave-t2797-b5-contrast               tip=cf1c90e1faf9 receipt=4608b761416c Δ=40.0s rc=0 status=landed land_total=276.0

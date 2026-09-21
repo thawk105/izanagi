@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""Read-only post-hoc reuse possibility, NOT observed warm/cold execution.
+
+Approximation: publish order = strict mtime_ns order of surviving snapshots.
+Concurrent lookup/publish, prune, same-tip overwrite and past runtime errors
+cannot be reconstructed. mtime precedes os.replace visibility. Modes are not
+checked (P-1 contract). Current checker prefix semantics are replayed even for
+old checker receipts, not historical executable code.
+
+Selection/ancestry and bitset distance are the checker's exact implementation;
+no rev-list count approximation (tips before policy could make it unequal).
+Bitset ancestor membership is equivalent to merge-base --is-ancestor on this
+same authoritative closure. First successful prefix wins; failed prefixes are
+retained and lookup continues as _audit_history does. Raw correction after a
+successful prefix causes fallback, not a search for another candidate.
+"""
+import argparse
+import ast
+import base64
+from collections import Counter
+from datetime import datetime
+import hashlib
+import importlib.util
+import inspect
+import json
+import os
+from pathlib import Path
+import sys
+import textwrap
+
+sys.dont_write_bytecode = True
+
+
+# Lineage from the parent's measured git show <commit>:tools/check_ai_provenance.py
+# | sha256sum, and D2192 history-candidate enumeration (diff-merges=first-parent).
+# Only the new lineage has those D2192 candidates. Keys are SHA-256 prefixes.
+CHECKER_LINEAGES = {
+    '2b72e1d5': '新形',    # 00d781372 -> 2b72e1d543cd (D2192)
+    'e69764c1': '新形',    # 65966f4d8 -> e69764c1d885 (D2192 + T-2804)
+    '1acbb496': '中間形',  # 4c532aa0b -> 1acbb4961ca6 (T-2803; absent excluded)
+    '7c02fb2d': '旧形',    # f94b61fc8 -> 7c02fb2d5fec (D2045)
+    '5cb709cb': '旧形',    # Parent's first-round classification: before T-2803.
+    '89a60a88': '旧形',    # aa81e3c64 -> 89a60a884088 (old + T-2804 deadline)
+    '65476daf': '旧形',    # 62ed683ab -> 65476dafe9c0 (old + T-2804 deadline)
+}
+
+
+def ns(value):
+    d = datetime.fromisoformat(value)
+    if d.utcoffset() is None:
+        raise ValueError('timezone required')
+    return int(d.timestamp()) * 10**9 + d.microsecond * 1000
+
+
+def difference(a, b, prefix=''):
+    out = {}
+    for k in sorted(a.keys() | b.keys()):
+        label = prefix + k
+        if k not in a or k not in b:
+            out[label] = {'old': a.get(k), 'new': b.get(k), 'old_present': k in a, 'new_present': k in b}
+        elif a[k] != b[k]:
+            if isinstance(a[k], dict) and isinstance(b[k], dict):
+                out.update(difference(a[k], b[k], label + '.'))
+            else:
+                out[label] = {'old': a[k], 'new': b[k]}
+    return out
+
+
+def prefix_call(c, *args):
+    # Trace the real function's None return, never replace its validation logic.
+    source, first = inspect.getsourcelines(c._receipt_prefix)
+    tree = ast.parse(textwrap.dedent(''.join(source)))
+    labels = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.If):
+            for child in n.body:
+                if isinstance(child, ast.Return) and isinstance(child.value, ast.Constant) and child.value.value is None:
+                    labels[first + child.lineno - 1] = ast.unparse(n.test)
+    observed = {}
+    def trace(frame, event, arg):
+        if frame.f_code is c._receipt_prefix.__code__:
+            if event == 'return' and arg is None:
+                observed['condition'] = labels.get(frame.f_lineno, 'exception in _receipt_prefix')
+                observed['line'] = frame.f_lineno
+            if event == 'exception':
+                observed['exception'] = str(arg[1])
+            return trace
+        return None
+    old_trace = sys.gettrace()
+    sys.settrace(trace)
+    try:
+        value = c._receipt_prefix(*args)
+    finally:
+        sys.settrace(old_trace)
+    return value, observed
+
+
+def load_checker(repo):
+    os.chdir(repo)
+    path = repo / 'tools/check_ai_provenance.py'
+    # __file__ determines REPO during module execution, so import the requested
+    # repo's file, not an installed module or the probe's parent directory.
+    spec = importlib.util.spec_from_file_location('probe_provenance_checker', path)
+    c = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = c
+    spec.loader.exec_module(c)
+    if c.REPO != repo or c._KNOWN_VIOLATION_REPO_ROOT != repo:
+        raise RuntimeError('checker REPO does not equal --repo')
+    return c
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--ledger', type=Path, required=True)
+    p.add_argument('--repo', type=Path, required=True)
+    p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--since', default='2026-09-20T21:00:00+09:00')
+    p.add_argument('--landed-at', default='2026-09-21T00:12:00+09:00')
+    a = p.parse_args()
+    a.ledger, a.out, a.repo = a.ledger.resolve(), a.out.resolve(), a.repo.resolve()
+    rows = list(map(json.loads, a.ledger.read_text().splitlines()))
+    good = [r for r in rows if not r.get('error') and isinstance(r.get('bindings'), dict)
+            and isinstance(r.get('tip'), str)]
+    sizes = Counter(r['partition'] for r in rows)
+    c = load_checker(a.repo)
+    # Enforce the dispatched task's command allowlist, including imported code.
+    # Registry's ls-files/ls-tree are outside it: record unavailable, never
+    # silently weaken the real loader or execute an unapproved command.
+    allowed_git = {'rev-parse', 'merge-base', 'rev-list', 'cat-file', 'log', 'show', 'check-ignore', 'ls-files', 'ls-tree'}
+    def command_guard(event, args):
+        if event == 'subprocess.Popen':
+            argv = args[1]
+            if not isinstance(argv, (list, tuple)) or len(argv) < 2 or Path(argv[0]).name != 'git' or argv[1] not in allowed_git:
+                raise RuntimeError('task git allowlist excludes: ' + repr(argv[:2]))
+    sys.addaudithook(command_guard)
+    registry = manifest = None
+    registry_error = None
+    try:
+        # Keep all loader validation. No hand-built registry substitute.
+        registry = c._known_violation_registry()
+        entries = c._known_violation_head_entries(c._KNOWN_VIOLATION_REPO_ROOT,
+                                                 c._resolve_known_violation_head(c._KNOWN_VIOLATION_REPO_ROOT))
+        manifest = c._receipt_digest([[name, mode.decode('ascii'), oid.decode('ascii')]
+                                     for name, (mode, oid) in sorted(entries.items())])
+    except (OSError, RuntimeError, ValueError) as e:
+        registry_error = str(e)
+    results = []
+    for b in sorted(good, key=lambda r: (r['mtime_ns'], r['partition'], r['file'])):
+        if b['mtime_ns'] < min(ns(a.since), ns(a.landed_at)):
+            continue
+        r = {k: b[k] for k in ('partition', 'file', 'tip', 'mtime_ns', 'mtime_jst')}
+        env = b['bindings'].get('environment', {})
+        r.update(population='M' if b['mtime_ns'] >= ns(a.landed_at) else 'R',
+                 checker=env.get('checker', ''), candidates_n=0, best=None,
+                 bindings_match=False, bindings_diff={}, compound=False,
+                 replay='未判定: 候補なし', verdict='候補なし', cause='', candidate_checks=[])
+        try:
+            commits = c._commit_range(None, head=b['tip'])
+            ancestry = c._build_ancestry([b['tip']], authoritative=True, head=b['tip'])
+            selected_mask = 0
+            for oid in commits:
+                selected_mask |= 1 << ancestry.index[oid]
+            earlier = [x for x in good if x['mtime_ns'] < b['mtime_ns']
+                       and ancestry.is_descendant(x['tip'], b['tip'])]
+            def rank(x):
+                return ((selected_mask & ~ancestry.bits[ancestry.index[x['tip']]]).bit_count(), x['file'])
+            def ref(x):
+                return {'tip': x['tip'], 'mtime': x['mtime_jst'], 'partition': x['partition'],
+                        'file': x['file'], 'distance': rank(x)[0]}
+            candidates = sorted((x for x in earlier if x['partition'] == b['partition']), key=rank)
+            r['candidates_n'] = len(candidates)
+            if candidates:
+                r['best'] = ref(candidates[0])
+                r['bindings_diff'] = difference(candidates[0]['bindings'], b['bindings'])
+                matches = [x for x in candidates if x['bindings'] == b['bindings']]
+                r['bindings_match'] = bool(matches)
+                if matches:
+                    r['comparison'] = ref(matches[0])
+                    r['bindings_diff'] = {}
+                    if registry_error:
+                        r.update(replay='未判定: registry loader: ' + registry_error,
+                                 verdict='候補あり (未判定)', cause='registry loader')
+                    elif manifest != b['bindings'].get('registry_manifest'):
+                        r.update(replay='未判定 (registry 世代差)', verdict='候補あり (未判定)', cause='registry 世代差')
+                    else:
+                        for x in matches:
+                            raw = base64.b64decode(x['receipt_bytes_b64'], validate=True)
+                            if hashlib.sha256(raw).hexdigest() != x['sha256']:
+                                raise ValueError('ledger bytes/hash mismatch')
+                            value, observed = prefix_call(c, json.loads(raw), b['bindings'], commits, b['tip'], ancestry, registry)
+                            check = {'candidate': ref(x), **observed, 'prefix_success': value is not None}
+                            r['candidate_checks'].append(check)
+                            r['comparison'] = ref(x)
+                            if value is None:
+                                r.update(replay='fail: ' + observed['condition'],
+                                         verdict='候補あり (replay 失敗)', cause=observed['condition'])
+                                continue
+                            r['comparison'] = ref(x)
+                            messages = c._batch_commit_messages(value[1])
+                            if messages is None:
+                                r.update(replay='未判定: delta message 読取失敗', verdict='候補あり (未判定)', cause='delta message 読取失敗')
+                            elif any(c.RAW_AI_AGENT_CORRECTION.search(v.message) for v in messages.values()):
+                                r.update(replay='fail: raw-correction', verdict='候補あり (replay 失敗)', cause='raw-correction')
+                            else:
+                                r.update(replay='success', verdict='候補あり (replay 成功)', cause='')
+                            break
+                else:
+                    x = candidates[0]
+                    r['comparison'] = ref(x)
+                    keys = sorted({k.split('.')[0] for k in r['bindings_diff']})
+                    causes = []
+                    if 'attributes' in keys:
+                        sha = env.get('checker', '')
+                        lineage = CHECKER_LINEAGES.get(sha[:8], '系統不明')
+                        if lineage == '旧形':
+                            changed = c._git('log', '--format=%H%x09%ci', f"{x['tip']}..{b['tip']}", '--', '.gitattributes').splitlines()
+                            r['gitattributes_commits'] = changed
+                            causes.append('.gitattributes 変更' if changed else '参考区分: 旧形 attributes fingerprint の候補集合変化')
+                        elif lineage in ('新形', '中間形'):
+                            causes.append(f'attributes 差 ({lineage}、原因未特定)')
+                        else:
+                            causes.append('attributes 差 (系統不明)')
+                    others = [k for k in keys if k != 'attributes']
+                    if others:
+                        causes.append('attributes 以外の binding 失効: ' + ','.join(others))
+                    r.update(replay='未判定: bindings 不一致', verdict='候補あり (bindings 不一致)', cause=' + '.join(causes))
+            elif earlier:
+                # Other-partition comparison is descriptive, not causal proof.
+                # Nearest distance/file first, latest mtime then partition tie break.
+                x = min(earlier, key=lambda x: (*rank(x), -x['mtime_ns'], x['partition']))
+                r['comparison'] = ref(x)
+                r['bindings_diff'] = difference(x['bindings'], b['bindings'])
+                ea = x['bindings'].get('environment', {})
+                r['checker_change'] = [ea.get('checker', '')[:12], env.get('checker', '')[:12]]
+                r['inherited_diff'] = difference(ea.get('inherited', {}), env.get('inherited', {}))
+                ca, cb = set(ea.get('config', '').splitlines()), set(env.get('config', '').splitlines())
+                r['config_diff'] = {'old_only': sorted(ca-cb)[:8], 'new_only': sorted(cb-ca)[:8],
+                                    'old_only_count': len(ca-cb), 'new_only_count': len(cb-ca)}
+                r['cause'] = 'checker sha 変更' if ea.get('checker') != env.get('checker') else 'partition 跨ぎ'
+            else:
+                r['cause'] = '祖先受領証なし (初回)' + ('; prune の可能性' if sizes[b['partition']] == 64 else '')
+            r['compound'] = len(r['bindings_diff']) >= 2
+        except (OSError, RuntimeError, ValueError, KeyError, TypeError) as e:
+            r.update(replay='未判定: ' + str(e), verdict='未判定', cause='replay 入力/実行エラー')
+        results.append(r)
+    a.out.parent.mkdir(parents=True, exist_ok=True)
+    a.out.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in results))
+    print(f'REUSE SUMMARY rows={len(results)} excluded_ledger_errors={len(rows)-len(good)}')
+    print('再利用可能性の事後推定であり実績ではない。mtime順・残存集合・現行checker条件に限定。')
+    print('population\tverdict\tcause\tn')
+    for key, n in sorted(Counter((r['population'], r['verdict'], r['cause']) for r in results).items()):
+        print('\t'.join(key) + f'\t{n}')
+    print('PARTITION SUMMARY: population\tpartition\tverdict\tcause\tn')
+    for key, n in sorted(Counter((r['population'], r['partition'][:12], r['verdict'], r['cause']) for r in results).items()):
+        print('\t'.join(key) + f'\t{n}')
+    print('COLD/UNDETERMINED ROWS: mtime partition tip checker population verdict cause comparison diff_fields compound')
+    for r in results:
+        if r['replay'] == 'success':
+            continue
+        x = r.get('comparison', {})
+        print(f"{r['mtime_jst']} {r['partition'][:12]} {r['tip'][:12]} {r['checker'][:12]} {r['population']} "
+              f"{r['verdict']} | {r['cause']} | {x.get('partition', '')[:12]}/{x.get('tip', '')[:12]} "
+              f"| {','.join(r['bindings_diff']) or '-'} | compound={r['compound']}")
+
+
+if __name__ == '__main__':
+    main()
