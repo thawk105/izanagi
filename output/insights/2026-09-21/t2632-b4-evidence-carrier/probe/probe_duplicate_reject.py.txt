@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""[T-2632] 親の読み取り診断 probe (job dir 専用、repo に入れない)。
+
+test_base_provenance_duplicate_reuses_selected_attempt と同じ fixture を tmp に組み、_resolve_duplicate が
+certified 重複を aborted に落とす理由 (握りつぶされる ArtifactAdmissionError の本文と cause 連鎖) を表示する。
+usage: (worktree root で) PYTHONPATH=.:orchestrator/tests python3 <this file>
+"""
+import sys
+import tempfile
+import traceback
+
+from orchestrator.campaign import p3_s4_loop as L
+from orchestrator.campaign import wal
+from orchestrator.campaign.layout import CampaignLayout
+import test_p3_s4_loop as T
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix="t2632-probe-") as tmp:
+        layout = CampaignLayout(tmp + "/duplicate").ensure()
+        variant = T._base_selected_commit(layout, prior_failed_attempt=True)
+        records = wal.read_records(layout)
+        print("stages:", [(r.stage, r.payload.get("build_attempt_id", "")[:6]) for r in records])
+        try:
+            snap = L._duplicate_snapshot(layout, variant)
+        except Exception as exc:  # noqa: BLE001 - diagnostic probe
+            print("_duplicate_snapshot raised:")
+            traceback.print_exception(type(exc), exc, exc.__traceback__)
+            return 1
+        all_records, _by_stage, commit_record, lock_sha = snap
+        print("commit_record found:", commit_record is not None)
+        try:
+            L.require_persisted_certified_commit(
+                all_records, commit_record, campaign_lock_sha256=lock_sha)
+        except Exception as exc:  # noqa: BLE001 - diagnostic probe
+            print("require_persisted_certified_commit raised:")
+            traceback.print_exception(type(exc), exc, exc.__traceback__)
+            return 1
+        print("certified commit admitted")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

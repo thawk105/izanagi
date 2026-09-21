@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""[T-2632] 親の読み取り診断 probe (job dir 専用、repo に入れない)。
+
+test helper _base_selected_commit(prior_failed_attempt=True) の写しに tags=("legacy", "s2") を足した fixture で、
+_resolve_duplicate の certified 認定 (require_persisted_certified_commit) が通るか、_resolve_duplicate が duplicate を返すかを確かめる。
+usage: (worktree root で) PYTHONPATH=.:orchestrator/tests python3 <this file>
+"""
+import sys
+import tempfile
+import traceback
+
+from orchestrator.campaign import p3_s4_loop as L
+from orchestrator.campaign import wal
+from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.model import STAGE_ABORT, STAGE_BUILD_START, STAGE_VERIFY_DONE
+import commit_receipt_support
+import test_p3_s4_loop as T
+
+
+def _fixed_helper(layout):
+    T._write_duplicate_lock(layout)
+    variant = "carrier-selected"
+    other = L.secrets.token_hex(16)
+    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+            {"build_attempt_id": other, "genome": T._G.canonical(), "src_token": "fixture"})
+    wal.log(layout, variant, STAGE_ABORT, L.ENV_TAG,
+            {"build_attempt_id": other, "reason": "fixture-abort"})
+    attempt = L.secrets.token_hex(16)
+    wal.log(layout, variant, STAGE_BUILD_START, L.ENV_TAG,
+            {"build_attempt_id": attempt, "genome": T._G.canonical(), "src_token": "fixture"})
+    for tag in ("legacy", "s2"):
+        wal.log(layout, variant, STAGE_VERIFY_DONE, L.ENV_TAG,
+                {"build_attempt_id": attempt, "verdict": "serializable",
+                 "certified": True, "anomalies": 0, "workload": {"tag": tag}})
+    commit_receipt_support.log_receipted_commit(
+        layout, variant, L.ENV_TAG,
+        {"build_attempt_id": attempt, "fitness_tps": 1.0}, operation_identity=attempt,
+        tags=("legacy", "s2"))
+    return variant, attempt
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix="t2632-probe-") as tmp:
+        layout = CampaignLayout(tmp + "/duplicate").ensure()
+        variant, attempt = _fixed_helper(layout)
+        try:
+            all_records, _by_stage, commit_record, lock_sha = L._duplicate_snapshot(layout, variant)
+            L.require_persisted_certified_commit(all_records, commit_record, campaign_lock_sha256=lock_sha)
+        except Exception as exc:  # noqa: BLE001 - diagnostic probe
+            traceback.print_exception(type(exc), exc, exc.__traceback__)
+            return 1
+        print("certified commit admitted")
+        out = L._resolve_duplicate(layout, T._site_test_proposals()[0],
+                                   L.LoopState(iteration=1), T._dup_summary(variant))
+        print("outcome:", out["outcome"])
+        prov = L._wal_attempt_provenance(layout, out)
+        print("selected attempt matches commit:", prov["build_attempt_id"] == attempt,
+              "refs:", len(prov["wal_refs"]))
+        return 0 if out["outcome"] == "duplicate" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

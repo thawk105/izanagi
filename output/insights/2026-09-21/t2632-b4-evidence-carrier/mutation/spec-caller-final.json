@@ -1,0 +1,107 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_all_candidates_have_all_missing_fields",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_fail_row_is_not_a_candidate",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_minimal_rejected_row_is_a_candidate",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[trial]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "C1-raw-top-level-trial",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+     "new": "            trial = json.loads((root / \"campaign.lock\").read_text(encoding=\"utf-8\")).get(\"trial\")\n",
+     "old": "            trial = decoded.identity.get(\"trial\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[authority]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[non_certifying]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[noncanonical_inner]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[noncanonical_outer]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "C2-codec-bypassed",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+     "new": "            _raw = json.loads((root / \"campaign.lock\").read_text(encoding=\"utf-8\"))\n            decoded = type(\"D\", (), {\"identity\": json.loads(_raw[\"identity_preimage\"]) if \"identity_preimage\" in _raw else _raw})\n",
+     "old": "            decoded = campaign_lock.decode_campaign_lock_bytes(\n                (root / \"campaign.lock\").read_bytes()\n            )\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_missing_v1_trial_is_campaign_input_unreadable",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_v1_campaigns_remain_readable"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "C3-v1-over-rejected",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+     "new": "            if decoded.is_v1:\n                raise ValueError(\"v1 rejected\")\n            if not isinstance(checkpoint, dict):\n",
+     "old": "            if not isinstance(checkpoint, dict):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_missing_v1_trial_is_campaign_input_unreadable",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[authority]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[invalid_utf8]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[json]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[non_certifying]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[noncanonical_inner]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[noncanonical_outer]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[result_absent]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[row]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[trial]",
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_unreadable_campaign_never_calls_issuer[whiteboard]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "C4-codec-error-not-caught",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+     "new": "        except (OSError, UnicodeError, RecursionError) as exc:\n",
+     "old": "        except (OSError, UnicodeError, ValueError, RecursionError) as exc:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_prerun_caller.py::test_missing_v1_trial_is_campaign_input_unreadable"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "C5-trial-indexed",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+     "new": "            trial = decoded.identity[\"trial\"]\n",
+     "old": "            trial = decoded.identity.get(\"trial\")\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 9000
+}

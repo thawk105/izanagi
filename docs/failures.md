@@ -367,6 +367,8 @@
   型の状態語は D 台帳で検索」と同じ手順を参照語にも当てる)、前 wave の条件 (同一 SHA 等) を次の wave に継承させない。
 
 - **再発: 2026-09-21 (near miss、2 件)** — 受領証の再利用診断 wave の親が、(1) checker の版と実装形式 (旧形 / 中間形 / 新形) の対応表を**一次資料から機械で導出せず手で書いて** Codex author の prompt に埋め、probe がそれを忠実に実装した結果、T-2804 枝の 2 版 (`89a60a88…` / `65476daf…`) が新形に分類され、参考母集団 3 件の cause が誤った (親が後から checker の中身を実測して気づき、author 3 巡目で訂正。着地後の母集団の結論は不変)。(2) 同 wave の insight 初稿で「main の checker が変わった回数」を手元の commit 一覧から目で数えて 2 回と書いたが、reflog を読む probe で 3 回だった (T-2804 の land 2026-09-20 23:29:54 を見落とし。段 6 レビューが出所不足として指摘し、probe を 1 本足して訂正)。型はどちらも「一次資料から転写・導出せず手で書く」で 2026-09-20 の再発と同じ。恒久対応は変更なし — **prompt に載せる対応表・分類表は、子が一次資料から導出できる形で渡すか、親が導出した出力 file を射影する** (memory `ruling-literals-in-prompts-point-to-the-file` の族)。
+
+- **再発: 2026-09-21 (near miss、2 件)** — [T-2826] の前 wave (entry 1800) の親が、段 5 author の prompt に段 4 裁定 §4 の判定式を**手で要約して**書いた。(1) R8 の候補抽出で裁定の「session の作成時刻」を「dir の mtime を近似に使ってよい」に置き換え、(2) R6 (ii) の予測から「worker の待ちが伸びる」を落とした。再開 wave (`dev-wave-t2826-resume`) は起動引数どおりこの prompt を雛形にして wave 固有値だけを差し替えたため、集計器がその要約どおりに実装された。段 6 の read-only review が must-fix 2 件として捕捉した。親が作成時刻 (stat の birth time) で全 2,207 session を再照合して全セル候補 0、R6 は 3 条件で出し直して的中のままで、結論への実害は無い。転写元が裁定 file の逐語でなく親の要約である点で、2026-09-20 [T-2804] の再発 (裁定の literal を prompt へ手打ち) と同型。一次資料 `output/insights/2026-09-21/t2826-modify-timing-resume/README.md` §8、同 `verbatim/s6-review-out.md` 所見 1・2。恒久対応は変更なし — memory `ruling-literals-in-prompts-point-to-the-file` (判定式・定数・文面は裁定 file を正本と指し、逐語は file から機械的に切り出す) を、前 wave の prompt を雛形に流用する再開 wave にも当て、判定式の節は投入前に裁定 file の逐語と照合する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -4217,6 +4219,10 @@
   M7 / M8 は元々過剰決定として単一理由の証拠から外す登録だったので判定への影響は無い (一次資料 = `output/insights/2026-09-21/t2830-b5-node-local-lock/README.md` §6)。
   是正: self-run は `PY_COLORS=0` で走らせ、node は表示行の空白区切りでなく、自走出力に並ぶ `IZANAGI_FAILURE ... nodeid="..."` 行か
   dispatch 結果の `failed_nodes` から取る (memory `mutation-expected-nodes-via-login-selfrun` の regex 記述を訂正)。
+
+- **再発: 2026-09-21** — [T-2632] の commit 群の自作 harness が失敗 node を `IZANAGI_FAILURE ... nodeid="[^"]*"` で抜き、引用符を含む parametrize id
+  (`corrupt_report_stops[False-{"schema_version":...}]`) を途中で切った。final の前に `-rf` の要約行 (`| FAILED <nodeid>`) からの抽出へ切り替え、probe の観測も
+  同じ規則で抜き直したので、誤った判定は出ていない (near miss、`output/insights/2026-09-21/t2632-b4-evidence-carrier/README.md` §6)。
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -9001,6 +9007,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: land しないと判明した session は、段 9 の前に inbox に当該 wave の控えがあることを
   照合する。fragment の `更新` の存在は**この検査の代替にならない** (本件で実際に存在した)。
 
+
+- **再発: 2026-09-21 (第 30 回)** — 母集合の穴の別経路。dev-wave ではない背景 job (VLDB 差分分析、job dir `/work/1/SFC/tanab/dev-wave-jobs/vldb-gap-analysis-20260921/`、
+  handoff なし・session 名は途中で別題へ変わっていた) の README §7「ユーザーに決めてほしいこと」が [T-2812] を扱う裁定パッケージだったが、収集は dev-wave の
+  handoff・job dir・rulings-inbox しか見ず索引に「稼働 session の同主題パッケージあり」を書けなかった。ユーザーは 21:1x に同パッケージへ、21:3x に第 30 回へ
+  それぞれ「推奨通り」と答え、[T-2812] で食い違った。照会してきた先方 session の SendMessage で記録前に気づき、ユーザーの委任を受けて Codex 2 レンズで決着した
+  (D2211 項 1・2)。是正: 収集 §3 の「稼働 wave の裁定パッケージ」を「稼働 job の裁定パッケージ」へ広げた (本 wave の command 変更)。
 ### F237. 承認済み文書の「どこまで承認済みか」が同じ field の中で節の粒度に割れており、導出規則の凍結を serialization の凍結と読み違えた [誤前提] [ドリフト]
 
 - 事象: [T-139] land 2 session 4 の親が段 1 の実測として
@@ -24775,6 +24787,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   是正 (収集 §1 に「carry 鎖を archive まで解決した実体本文へ当てる」を明記) は、入口の byte 予算が
   満杯で同 file を [T-2440] が所有するため、そちらの範囲へ合流させる。
 - **supersede: 2026-09-18** — 再発 (第 15 回) の是正「収集 §1 に carry 鎖を archive まで解決した実体本文へ当てると明記」は [T-2440] で入口へ着地した (`.claude/commands/rulings.md` 収集 §1、予算 5,623 の中で 5,623 bytes、意味等価な縮約 3 か所で収容)。
+
+- **再発: 2026-09-21 (第 30 回)** — 語ではなく insight 側の書き方で落ちた。起草は窓内 insight の決定要求を「裁定パッケージ / ユーザー裁定 / 裁定へ返す / ユーザー手番 / 裁定待ち」で
+  数え、`output/insights/2026-09-21/paper-story-20260921c/README.md` §4 の「Codex で段 6 を取り直すかはユーザーの判断に委ねる」と、`paper-results-ja-b/README.md` §7 の
+  段 8 候補 (「段構成の変更なので実装せず候補として記録」= `docs/skill-self-improvement.md` の routing では裁定パッケージ行き) を 0 件と数えて索引から落とした。
+  別系統相談 B が 2 件とも拾い、索引 11・12 として裁定した (D2211)。入口の収集 §2 は「insights の裁定パッケージ節」だけを名指ししていた。
+  是正: 収集 §2 を「insights の裁定・判断要求節と段 8 候補」へ広げた (本 wave の command 変更、予算 5,623 の中で 5,622 bytes、意味等価な縮約 4 か所で相殺)。
 ### F889. 段 8 を land の後に回し、是正の着地に受入全走をもう 1 回使った [手順漏れ]
 
 - 事象: 本 wave は段 7 の記録 commit の後、段 8 を実行せずに段 9 の land を先に走らせた。
@@ -28222,3 +28240,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_dev_wave_cleanup.py` の正例 (非祖先・所有 path 一致・中間 commit を持つ子で bundle + `-D`) と負例
   (未統合 rc=20 で不変 / wave 本体 `-d` のみ / 共通 runner の `-D` 拒否 / bundle verify 失敗と削除失敗は partial)、`tools/check_docs.py` の
   command・skill・`DW-O28` の exact pin、本 wave 段 9 での自分の子木に対する実走。
+
+### F1037. contract loader closure の file への変異を、等価変異で実測した drift 集合の外だけで数えようとしたが、入口停止を外す変異はその外の test からも drift へ到達した [変異帰属] [誤前提]
+
+- 事象: [T-2632] は `orchestrator/campaign/p3_s4_loop.py` (contract loader closure の member) に変異を注入した。等価変異 E1 の注入で drift する 150 node を実測し、
+  drift 一覧と交わらない新設 test だけを選べば注入の KILL を帰属できると段 6 裁定 §5 に登録した。焦点再レビューが、S13 (評価前検証の削除) と S8 (破損で `{}` を返す) は
+  drive を通す破損 test の入口停止を外し、その先の `ident.ensure_campaign_identity` の live binding 照合 (drift) へ到達させると指摘した。
+  E1 ではこの test は入口で止まるので drift 一覧に入らない。注入の probe で S13・S8 は同 test 8 node で落ちたが、落ちた理由は変異の狙いと区別できなかった。
+- 根本原因: 等価変異の drift 集合は「等価変異の制御フローで到達する live binding 照合」しか数えない。変異が早期 return や停止を外すと、同じ test が
+  等価変異では通らない経路を進み、drift に届く。drift 集合は変異ごとに違いうる。
+- 恒久対応: 割り振りを直した (段 6 裁定 §5.1) — S13 は変異を独立 clone の commit に焼いて dispatch する commit 群へ移し (commit なら HEAD blob と live bytes が一致し drift が出ない)、
+  S8 は loader を直接呼ぶ test だけで検出させた。final は 21 件すべて期待どおり。memory `mutation-discipline` に「closure member への変異で停止・分岐を外すものは commit 群へ」を追記した。
+- 再発検知: closure member (`campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS`) を変異させる wave は、変異ごとに「等価変異では止まる経路を開くか」を見て、開くものは commit 群で走らせる。
+
+### F1038. 拒否理由を握りつぶして汎用の outcome を返す既存関数の赤を、assert の文面だけから推測して fix を 1 巡空費した [誤前提] [手順漏れ]
+
+- 事象: [T-2632] の焦点走 f2 で `test_base_provenance_duplicate_reuses_selected_attempt` が `assert 'aborted' == 'duplicate'` で落ちた。親は fixture の attempt の並び
+  (採用 commit の後の abort) が原因と推測して fix を投げ、f3 でも同じ赤が残った。`_resolve_duplicate` は certified 認定の `ArtifactAdmissionError` を捕えて
+  `aborted` にまとめるので、log には理由が出ない。親が読み取り probe で同じ fixture を組み直接呼ぶと、理由は `verify anomalies must be exact int zero`、
+  直すと次に `receipt evidence does not match WAL verifies` (受領証の `tags` が既定の 1 件) だった。修正案を probe で確かめてから fix させ、f5 で緑になった。
+- 根本原因: 拒否理由を握りつぶす関数の赤は、assert の値 (`aborted`) からは理由が一意に決まらない。親は理由を観測する前に原因を仮定した。
+- 恒久対応: memory `read-the-failure-before-retrying` に「汎用 outcome に畳む関数の赤は、fix を投げる前に同じ fixture で内側の関数を直接呼ぶ読み取り probe
+  (job dir、repo に入れない) で拒否理由を出し、修正案も probe で確かめる」を追記した。段 6 裁定 §4.1・§4.2 に誤診断と訂正を追記で残した。
+- 再発検知: fix を投げる前に、赤の理由が log の原文 (例外文) から直接読めるかを確かめる。読めなければ probe を先に書く。

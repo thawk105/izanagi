@@ -1,0 +1,69 @@
+{
+ "baseline_failed": 0,
+ "rows": [
+  {
+   "id": "S1-provenance-not-published",
+   "status": "KILLED",
+   "expected": 19,
+   "observed": 19,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S2-checkpoint-before-provenance",
+   "status": "KILLED",
+   "expected": 5,
+   "observed": 5,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S10-raw-bytes-hash",
+   "status": "KILLED",
+   "expected": 4,
+   "observed": 4,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S11-capture-only-with-agent-inputs",
+   "status": "KILLED",
+   "expected": 4,
+   "observed": 4,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S12-no-provenance-in-b5",
+   "status": "KILLED",
+   "expected": 2,
+   "observed": 2,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S13-no-pre-evaluation-check",
+   "status": "KILLED",
+   "expected": 8,
+   "observed": 8,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S14-critic-digest-reads-report",
+   "status": "KILLED",
+   "expected": 1,
+   "observed": 1,
+   "missing": [],
+   "extra": []
+  },
+  {
+   "id": "S15-noncanonical-hash-raises",
+   "status": "KILLED",
+   "expected": 1,
+   "observed": 1,
+   "missing": [],
+   "extra": []
+  }
+ ]
+}

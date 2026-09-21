@@ -33,6 +33,8 @@ Q1 の確定、D39)。骨格 (#if/#else/#endif + stock 枝 + マーカー) は t
 錨づけることで、骨格挿入自体は diff に出ず coder の hole 変更だけが検疫対象になる
 (HEAD=stock 基準だと骨格挿入が coder 変更に紛れる — 敵対検証 2026-07-07 の underspec 指摘)。
 
+base provenance の参照点定義は _wal_attempt_provenance の docstring を参照。
+
 fixture proposal で機械 E2E を回す実走口は main() (`--no-build` で build を省いた配線
 dry-run、既定は kickoff 規模で実 build/verify/bench)。実 LLM の planner/coder/critic は
 メインセッションが spawn し本モジュールの関数へ proposal を渡す。
@@ -1505,6 +1507,190 @@ def load_loop_state(layout: CampaignLayout) -> Optional[LoopState]:
         return state_from_dict(json.load(f))
 
 
+# Base-only evidence carrier; never an input to planner/coder/critic projection.
+PROVENANCE_BASENAME = "p3_s4_loop_provenance.json"
+_PROVENANCE_SCHEMA = "p3-s4-loop-provenance/v1"
+_PROVENANCE_FIELDS = frozenset({
+    "iteration", "variant", "build_attempt_id", "initial_proposal_sha256",
+    "wal_refs", "outcome",
+})
+_PROVENANCE_OUTCOMES = frozenset({
+    "certified", "aborted", "rejected", "dry-pass", "duplicate",
+    "duplicate-skip", "rejected-preprocess",
+})
+
+
+def _provenance_path(layout: CampaignLayout) -> str:
+    return os.path.join(layout.root, "reports", PROVENANCE_BASENAME)
+
+
+def _validate_provenance(prov: Dict) -> None:
+    if (type(prov) is not dict
+            or prov.get("schema_version") != _PROVENANCE_SCHEMA
+            or prov.get("axis") != MARKER_ID
+            or type(prov.get("entries")) is not dict):
+        raise ValueError("invalid base provenance header/entries")
+    for key, entry in prov["entries"].items():
+        if type(entry) is not dict or set(entry) != _PROVENANCE_FIELDS:
+            raise ValueError("invalid base provenance entry fields")
+        iteration = entry["iteration"]
+        if type(iteration) is not int or iteration < 1 or key != str(iteration):
+            raise ValueError("invalid base provenance iteration")
+        for name in ("variant", "build_attempt_id"):
+            value = entry[name]
+            if value is not None and (type(value) is not str or not value):
+                raise ValueError(f"invalid base provenance {name}")
+        digest = entry["initial_proposal_sha256"]
+        if digest is not None and (
+                type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None):
+            raise ValueError("invalid base provenance proposal hash")
+        refs = entry["wal_refs"]
+        if type(refs) is not list or any(
+                type(ref) is not str or re.fullmatch(r"wal:[0-9a-f]{64}", ref) is None
+                for ref in refs):
+            raise ValueError("invalid base provenance WAL refs")
+        if (type(entry["outcome"]) is not str
+                or entry["outcome"] not in _PROVENANCE_OUTCOMES):
+            raise ValueError("invalid base provenance outcome")
+    agent_outputs.canonical_bytes(prov)
+
+
+def _load_provenance(layout: CampaignLayout) -> Dict:
+    """Read without creating a report; quarantine corruption and stop.
+
+    退避済み .corrupt.* による停止は、原本が不在の場合だけ。
+    """
+    path = Path(_provenance_path(layout))
+    if not path.exists():
+        if any(path.parent.glob(path.name + ".corrupt.*")):
+            raise RuntimeError(f"base provenance requires repair: {path}.corrupt.*")
+        return {}
+    try:
+        prov = json.loads(path.read_text(encoding="utf-8"),
+                          object_pairs_hook=knowledge_manifest._reject_duplicate_keys)
+        _validate_provenance(prov)
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        # link is no-clobber, unlike replace; retain exact original bytes.
+        quarantine = path.with_name(f"{path.name}.corrupt.{int(time.time())}")
+        while True:
+            try:
+                os.link(path, quarantine)
+                break
+            except FileExistsError:
+                quarantine = path.with_name(
+                    f"{path.name}.corrupt.{int(time.time())}.{secrets.token_hex(8)}")
+        path.unlink()
+        raise RuntimeError(f"base provenance corrupt; repair {quarantine}") from exc
+    return prov
+
+
+def _write_provenance(layout: CampaignLayout, prov: Dict) -> None:
+    """Publish with exclusive tmp, file fsync, replace, then directory fsync."""
+    _validate_provenance(prov)
+    raw = agent_outputs.canonical_bytes(prov)
+    path = Path(_provenance_path(layout))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(16)}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            fd = -1
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        tmp.unlink(missing_ok=True)
+
+
+def _append_provenance_entry(layout: CampaignLayout, iteration: int, entry: Dict) -> None:
+    """Single-driver iteration-keyed overwrite merge, before checkpoint publication.
+
+    保証は provenance を公開できない iteration を checkpoint に確定しないことだけ。
+    公開後・checkpoint 前の中断では、非 B-4 certified は再実行で duplicate に
+    なり得る。検疫 reject は新 attempt を追加し entry を上書きするため、旧 attempt
+    は WAL にだけ残る。B-4 は WAL に履歴が残る bootstrap と continuation が
+    それぞれ履歴・receipt 検査により再実行を拒否し、公開済み entry が残る。
+    二 file の transaction や並行 merge
+    の排他は保証しない。
+    """
+    prov = _load_provenance(layout)
+    if not prov:
+        prov = {"schema_version": _PROVENANCE_SCHEMA, "axis": MARKER_ID, "entries": {}}
+    if type(iteration) is not int or iteration != entry.get("iteration"):
+        raise ValueError("provenance iteration differs from entry")
+    prov["entries"][str(iteration)] = dict(entry)
+    _write_provenance(layout, prov)
+
+
+def _wal_attempt_provenance(layout: CampaignLayout, out: Dict) -> Dict:
+    """Bind the selected attempt to whole WAL records, in their original order.
+
+    D2194 項 3: 参照点は同一 campaign の precursor iteration より前の最後の
+    whiteboard success に対応する certified attempt。本 report で iteration から
+    variant/build_attempt_id を引く。重複提案は既存評価を再利用するため、行順と
+    評価の系譜は同一ではない。reference_snapshot_hash は当該 attempt の WAL
+    commit record 全体、reference_receipt_hash は同 attempt の bench_done record
+    全体を agent_outputs.canonical_bytes (allow_nan=False) で canonical 化した
+    sha256 (接頭辞なし 64 hex)。wal_refs は同 digest に wal: を付ける。
+    snapshot throughput と bench receipt は同じ certified attempt の既存 WAL を使う。
+    祖先なし・同着・record 非一意・承認済み PerfConfig または env_tag の一致を
+    確認できない場合は不適格。別祖先や別基準へ切り替えず、実走前は
+    design_not_feasible、実走後は protocol violation とする。
+    PerfConfig の records/threads/workload の全 key/extime/reps が比較対象。
+    bench_done.payload.run_cmd は threads/records/extime と workload の
+    rratio/skew/rmw、record.env_tag は環境の証拠。reps と ycsb_max_ope は
+    run_cmd で確認できない不足であり len(tps) や default で補わない。
+    定義と carrier は新規 base campaign 起動前に発効し、遡及補完はしない。
+    """
+    variant = out.get("variant")
+    result = {"variant": variant, "build_attempt_id": None, "wal_refs": []}
+    outcome = out["outcome"]
+    if variant is None:
+        if outcome in {"certified", "duplicate", "rejected"}:
+            raise RuntimeError("base provenance missing selected variant/attempt")
+        return result
+    records = wal.read_records(layout)
+    selected = out.get("records", {})
+    if outcome in {"certified", "duplicate"}:
+        attempt = selected.get(STAGE_COMMIT, {}).get("build_attempt_id")
+    elif outcome == "aborted":
+        # An abort payload without an ID is not evidence for a different start.
+        payload = selected.get(STAGE_ABORT, selected.get(STAGE_BUILD_START, {}))
+        attempt = payload.get("build_attempt_id")
+    elif outcome == "rejected":
+        terminal = next((record for record in reversed(records)
+                         if record.variant == variant), None)
+        attempt = (terminal.payload.get("build_attempt_id")
+                   if terminal is not None and terminal.stage == STAGE_ABORT else None)
+    else:
+        return result
+    if type(attempt) is not str or not attempt:
+        if outcome in {"certified", "duplicate", "rejected"}:
+            raise RuntimeError("base provenance missing selected attempt")
+        return result
+    starts = [record for record in records
+              if record.variant == variant and record.stage == STAGE_BUILD_START
+              and record.payload.get("build_attempt_id") == attempt]
+    if len(starts) != 1:
+        raise RuntimeError("base provenance selected attempt start missing/conflicting")
+    selected_records = [record for record in records
+                        if record.variant == variant
+                        and record.payload.get("build_attempt_id") == attempt]
+    result.update(build_attempt_id=attempt, wal_refs=[
+        "wal:" + agent_outputs.canonical_sha256(vars(record))
+        for record in selected_records
+    ])
+    return result
+
+
 # ==== mutation-red 汎用ゲート (D38 残消化、design v1 §4(d)) ====================
 
 _WS_RE = re.compile(r"\s+")
@@ -2851,7 +3037,8 @@ def load_proposal_file(
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
     assert_no_ability_probe_material(d)
     if capture is not None:
-        capture.update(proposal_bytes=proposal_bytes, planner_output=d["planner"],
+        capture.update(proposal_bytes=proposal_bytes, proposal_document=d,
+                       planner_output=d["planner"],
                        coder_output=d["coder"])
     return planner, coder, prior
 
@@ -2868,6 +3055,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
                     authorization_session=None,
                     agent_record: dict | None = None,
+                    initial_proposal_sha256: str | None = None,
                     dependency_prefix: str = "",
                     fetchcontent_base_dir: str = "",
                     masstree_source_dir: Optional[object] = None,
@@ -2885,7 +3073,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
     **入口 check_stop** (逆方向枯渇/予算/収束を iteration 消費前に判定 = 無駄打ちしない。停止なら
     run_one_iteration を呼ばない = build/verify/bench に進めない) → iteration++ →
-    run_one_iteration → checkpoint 保存 → admitted outcome だけ digest 書き出し → 末尾
+    run_one_iteration → provenance 公開 → checkpoint 保存 → admitted outcome だけ digest 書き出し → 末尾
     check_stop (新 whiteboard を反映した収束判定) を返す。dry-pass は配線確認だけで WAL が
     無いため digest を作らない。checkpoint は各 iteration で atomic 更新する。
 
@@ -2916,6 +3104,11 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    _load_provenance(layout)
+    if initial_proposal_sha256 is not None and (
+            type(initial_proposal_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", initial_proposal_sha256) is None):
+        raise ValueError("initial_proposal_sha256 must be lowercase SHA-256 or None")
     b4_mode = b4_reflux_ablation_mode(cfg)
     if b4_mode:
         from .p3_b4_launcher import require_b4_production_context
@@ -3007,6 +3200,12 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
             "capability_resolver": capability_resolver}
            if b5_mode or b5_sidecar_dir is not None or capability_resolver is not None else {}),
     )
+    _append_provenance_entry(layout, state.iteration, {
+        "iteration": state.iteration,
+        "initial_proposal_sha256": initial_proposal_sha256,
+        "outcome": out["outcome"],
+        **_wal_attempt_provenance(layout, out),
+    })
     save_loop_state(layout, state)
 
     if b5_mode and out["outcome"] in {"duplicate-skip", "rejected-preprocess", "rejected-tier0"}:
@@ -3629,6 +3828,7 @@ def main(
                                 not isinstance(value, str) for value in prompts.values()):
                             raise ValueError("--agent-prompts requires exact planner/coder paths")
                         agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
+                proposal_capture = agent_record if agent_record is not None else {}
                 try:
                     planner, coder, prior_rev = load_proposal_file(
                         a.run_iteration,
@@ -3640,13 +3840,20 @@ def main(
                             knowledge_input if a.coder_role is not None else None
                         ),
                         coder_role=a.coder_role,
-                        **({"capture": agent_record} if agent_record is not None else {}),
+                        capture=proposal_capture,
                     )
                 except (ValueError, KeyError, TypeError) as exc:
                     if a.b5_slot is None:
                         raise
                     _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
                     return 3
+                try:
+                    initial_proposal_sha256 = canonical_b4_proposal_sha256(
+                        proposal_capture["proposal_document"]
+                    )
+                except B4ProtocolError:
+                    # canonical 化できない proposal は hash=null。
+                    initial_proposal_sha256 = None
                 print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
                       f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
                       f"isolate_worktree={a.isolate_worktree}) ===")
@@ -3662,6 +3869,7 @@ def main(
                                           b4_proposal_receipt_sha256=(
                                               proposal_receipt_sha256
                                           ),
+                                          initial_proposal_sha256=initial_proposal_sha256,
                                           _b4_launch_context=_b4_launch_context,
                                           _resolved_site=resolved_site,
                                           _contract=contract,
