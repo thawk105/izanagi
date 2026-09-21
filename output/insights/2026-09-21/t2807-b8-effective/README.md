@@ -53,9 +53,56 @@ commit witness であり、seed 値は記録しない (CCBench に seed の flag
   違うので、仕分け (2) が改まっても B-8 には数えない。
 - **発効は、校正・本走・判定が済んだことを意味しない。**
 
-## 3. 校正 (段 A)
+## 3. 校正 (段 A) — 2026-09-21 08:45〜09:11 JST、Pegasus gen_S 3 job
 
-(校正の投入後に追記する)
+投入形: 発効 commit の detached submit-tree (`submit-tree-c1/c2/c3`、HEAD = 発効 commit、clean、submodule = pin `e9e477ca`) から
+`dispatch_compute.py --task generic --walltime 03:30:00 --queue-wait-timeout 21600 --overall-grace 21600 -- python3.10 -B <runner v5> calibrate
+--workload <w> --repo-root <tree> --third-party-cache /work/1/SFC/tanab/izanagi-thirdparty-cache --scratch-root /scr --output-dir <J>/run/calib/<w>
+--ruling <tree>/docs/b8-…preregistration.md --bundle <tree>/output/insights/2026-09-21/t2807-b8-effective/verbatim/b8-effective-bundle.json`。
+`--extimes` は既定 (= {6, 10})。launcher は投入直前に runner v5 / 事前登録 / 発効束の sha256 を照合し、不一致なら投入しない
+(`run/calib-<w>.identity.txt`)。3 job は独立なので並行投入した (runbook §7.5)。
+
+| workload | gate | request | node | job 所要 (runner) | dispatch Elapse | F_s (setup / hydrate / build) |
+|---|---|---|---|---:|---:|---|
+| write-heavy | g_rt | 14640.nqsv | bnode019 | 553.1 s | 558 S | 30.6 |
+| balanced | g_rl | 14641.nqsv | bnode020 | 430.9 s | 436 S | 30.5 |
+| read-heavy | g_rl | 14642.nqsv | bnode023 | 920.7 s | 926 S | 42.1 (setup 3.2 / hydrate 22.8 / build 16.1) |
+
+**6 行すべてが bench 完走・trace 保全済み・verifier 完走・`serializable`・certified・`anomaly_count` = 0・identity 一致で、
+verifier wall は最大 491.4 s (適格の上限 1800 s の内側)。打ち切り 0 件、未完走 (indeterminate) 0 件、bench 失敗 0 件、規約不適合 0 件。**
+
+| workload | extime | commit witness (= C 行数え直し) | bench s | count s | preserve s | verifier wall s | verdict / certified / anomaly |
+|---|---:|---:|---:|---:|---:|---:|---|
+| write-heavy | 6 | 5,031,651 | 6.36 | 5.01 | 8.61 | 173.5 | serializable / true / 0 |
+| write-heavy | 10 | 8,386,125 | 10.38 | 8.38 | 12.91 | 296.7 | serializable / true / 0 |
+| balanced | 6 | 4,365,476 | 6.35 | 4.32 | 8.33 | 129.8 | serializable / true / 0 |
+| balanced | 10 | 7,291,602 | 10.35 | 7.18 | 12.30 | 221.0 | serializable / true / 0 |
+| read-heavy | 6 | 11,820,251 | 6.34 | 11.74 | 18.68 | 290.5 | serializable / true / 0 |
+| read-heavy | 10 | 19,605,018 | 10.34 | 19.39 | 29.24 | 491.4 | serializable / true / 0 |
+
+- 校正の完走 verdict は判定集合に入る (§6.1)。6 件とも certified なので「certified でない校正 verdict」の開示は 0 件。
+- D2160 の校正 (案 B、fixed-5 / fixed-10) では balanced 10 s が SIGKILL、write-heavy 10 s が hard timeout で未完走だったが、
+  **案 A の 3 workload は 10 s まで完走した** (対象も verifier の版も違うので比較はしない。事実として併記する、§8 の既知結果台帳)。
+
+### 3.1 規則が機械的に決めた extime と予算 (発効の後・本走の前に記録する値、§12)
+
+`summarize` (runner v5、`--accept-ruling-sha 6ccb18c7…` / `--accept-bundle-sha 059536a7…`) の出力
+(`run/summary-calib.json`):
+
+- 適格集合 = write-heavy {6, 10}、balanced {6, 10}、read-heavy {6, 10}。**共通部分 {6, 10}、その最大 = extime 10 s。**
+- B(10) = **9,289.3 s** (T_s 8,601.2 + A_s 435.6 + F_hat 42.09 × 6 = 252.5) ≤ 14,400 s → 段下げ無し (`stepdown_history` = 10 s「within budget」)。B(6) = 5,608.6 s (参考)。
+- **`stage_B_allowed` = true。** この時点の `decision` は `undetermined` (本走 24 枠が未実施なので当然。理由 = 「missing/out-of-range rep」「not all 24 slots satisfy pass conditions」)。
+- 本走の構成: extime 10 s、3 workload × job-index {1, 2} (rep 1–4 / 5–8) = 6 job、24 verify。
+- **本走 job の walltime = 03:30:00 (12,600 s)。** 根拠 (2 つとも満たす): (a) 校正実測の最大 job 所要 920.7 s から 4 反復へ換算した見込み
+  = read-heavy 42.1 + 4 × (10.34 + 19.39 + 29.24 + 491.43) ≈ 2,243 s の 5.6 倍。(b) 上限式 = setup+hydrate+build の事後検査 2,400 +
+  4 × (bench 120 + count 19.4 + preserve 29.2 + verifier hard 1,800) + 終了余裕 300 ≈ 10,574 s ≤ 12,600 s。
+  **この上限式は見積りであって強制される上限ではない** — 2,400 s は setup 完了後の事後検査で、count / preserve に個別 deadline は無い
+  (段 3 相談の指摘を採用)。
+- **保全先と空き容量 (本 wave の実測、2026-09-21 09:1x JST):** 保全先 = job dir `run/` (`/work` lustre)。校正の 10 s の保全は
+  write-heavy 510 MB / balanced 613 MB / read-heavy 1.8 GB = 2.85 GiB。本走 24 枠 (各 8 反復) への外挿 ≈ **22.8 GiB**。
+  `df` の空き = **81 TB** (使用 5%)。校正全体 (6 行) の実消費は 4.6 GB。
+- 費用の照合は dispatch の Elapse の和で行う (runner の `consumed_job_wall_s` は内部 monotonic の暫定値として別記する)。
+  校正の実消費 (別欄、§7) = 558 + 436 + 926 = **1,920 S**。
 
 ## 4. 本走 (段 B)
 
