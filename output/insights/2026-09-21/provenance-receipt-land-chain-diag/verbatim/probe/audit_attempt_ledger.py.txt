@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Read-only attempts and surviving receipt matches, never audit-only wall time.
+
+HH:MM:SS logs use file mtime's JST date; if a start time is later than file
+mtime, assign the preceding day. End uses start date, advancing a day only
+when its clock precedes start. Multi-day logs beyond this rule are ambiguous.
+Acceptance .started/.finished timestamps are authoritative, merged: is ignored.
+Postmerge rows are estimates only: other tips in the exact acceptance interval
+and a partition established by that attempt's preclaim match. Without such a
+match no partition is invented. Same-tip overwrites/prune cannot be recovered.
+"""
+import argparse
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+import re
+import statistics
+
+JST = timezone(timedelta(hours=9))
+KEYS = ('GIT_EDITOR', 'LANG', 'LC_ALL', 'GIT_CONFIG_GLOBAL')
+
+
+def dt(s):
+    s = re.sub(r'([+-]\d{2})(\d{2})$', r'\1:\2', s.strip())
+    value = datetime.fromisoformat(s)
+    if value.utcoffset() is None:
+        raise ValueError('timezone required: ' + s)
+    return value.astimezone(JST)
+
+
+def from_ns(ns):
+    sec, nano = divmod(ns, 10**9)
+    return datetime.fromtimestamp(sec, JST).replace(microsecond=nano // 1000)
+
+
+def to_ns(d):
+    return int(d.timestamp()) * 10**9 + d.microsecond * 1000
+
+
+def read(path):
+    try:
+        return path.read_text().strip()
+    except FileNotFoundError:
+        return None
+
+
+def clock_time(path, clock):
+    mtime = from_ns(path.stat().st_mtime_ns)
+    h, m, s = map(int, clock.split(':'))
+    value = mtime.replace(hour=h, minute=m, second=s, microsecond=0)
+    return value - timedelta(days=1) if value > mtime else value
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--jobs', type=Path, required=True)
+    p.add_argument('--ledger', type=Path, required=True)
+    p.add_argument('--since', default='2026-09-20T21:00:00+09:00')
+    p.add_argument('--landed-at', default='2026-09-21T00:12:00+09:00')
+    p.add_argument('--out', type=Path, required=True)
+    a = p.parse_args()
+    since, landed = dt(a.since), dt(a.landed_at)
+    receipts = [r for r in map(json.loads, a.ledger.read_text().splitlines()) if not r.get('error') and r.get('tip')]
+    bytip = defaultdict(list)
+    for r in receipts:
+        bytip[r['tip']].append(r)
+    rows = []
+
+    def emit(wave, stage, start, end, head, *, source, rc=None, status=None, load1=None, extra=None, forced=None):
+        if start < since:
+            return []
+        r = dict(wave=wave.name, stage=stage, source=source, start=start.isoformat(),
+                 end=end.isoformat() if end else None, duration_s=(end-start).total_seconds() if end else None,
+                 head=(head or '')[:12], head_full=head, rc=rc, status=status, load1=load1,
+                 receipt_partition=None, receipt_mtime=None, start_to_mtime_s=None,
+                 unmatched_reason=None, matches=[])
+        if extra:
+            r.update(extra)
+        candidates = bytip.get(head, [])
+        matches = [] if end is None or end < start else [x for x in candidates if to_ns(start)-2*10**9 <= x['mtime_ns'] <= to_ns(end)+2*10**9]
+        if forced is not None:
+            matches = forced
+        for x in sorted(matches, key=lambda r: (r['mtime_ns'], r['partition'])):
+            inherited = (x.get('bindings') or {}).get('environment', {}).get('inherited', {})
+            r['matches'].append({'partition': x['partition'], 'receipt_partition': x['partition'][:12],
+                                 'receipt_mtime': x['mtime_jst'], 'receipt_mtime_ns': x['mtime_ns'],
+                                 'inherited': {k: {'present': k in inherited, 'value': inherited.get(k)} for k in KEYS},
+                                 'start_to_mtime_s': (x['mtime_ns']-to_ns(start))/10**9})
+        if not matches:
+            if end is None or end < start:
+                reason = '終了点なし/開始終了逆転: 区間を確定できない'
+            elif not candidates:
+                reason = 'tip の受領証自体が無い' if head else 'HEAD 不明 (tip-before なし)'
+            else:
+                near = min(candidates, key=lambda x: min(abs(x['mtime_ns']-to_ns(start)), abs(x['mtime_ns']-to_ns(end))))
+                delta = (near['mtime_ns'] - (to_ns(start) if near['mtime_ns'] < to_ns(start) else to_ns(end))) / 10**9
+                r['nearest_receipt'] = {'partition': near['partition'], 'mtime': near['mtime_jst'], 'boundary_delta_s': delta}
+                reason = f"区間内に無い; nearest={near['mtime_jst']} boundary_delta_s={delta:.9f}"
+            r['unmatched_reason'] = reason
+        else:
+            # Arrays preserve every candidate; do not silently choose one partition.
+            for name in ('receipt_partition', 'receipt_mtime', 'start_to_mtime_s'):
+                r[name] = [m[name] for m in r['matches']]
+        rows.append(r)
+        return matches
+
+    def unsupported(wave, file, reason):
+        when = from_ns(file.stat().st_mtime_ns)
+        if when >= since:
+            rows.append(dict(wave=wave.name, stage='unsupported', source=file.name,
+                             start=None, end=None, file_mtime=when.isoformat(), duration_s=None,
+                             head=None, rc=None, status=None, load1=None, receipt_partition=None,
+                             receipt_mtime=None, start_to_mtime_s=None, matches=[], unmatched_reason=reason))
+
+    for wave in sorted(a.jobs.iterdir()):
+        if not wave.is_dir():
+            continue
+        for file in sorted(wave.glob('acceptance-*.started.txt')):
+            stem = file.name[:-len('.started.txt')]
+            try:
+                start = dt(read(file))
+                if start < since:
+                    continue
+                finished = read(wave / (stem + '.finished.txt'))
+                end = dt(finished) if finished else None
+                head = read(wave / (stem + '.tip-before.txt'))
+                tested = read(wave / (stem + '.tested-main.txt'))
+                load = rc = None
+                # acceptance-<tag>-<attempt> belongs to acceptance-<tag>.chain.log.
+                match = re.fullmatch(r'(acceptance-.+)-(\d+)', stem)
+                chain = wave / ((match.group(1) if match else stem) + '.chain.log')
+                attempt = match.group(2) if match else None
+                body = read(chain)
+                if body:
+                    last_gate = None
+                    for line in body.splitlines():
+                        g = re.match(r'(\d\d:\d\d:\d\d) gate: load=([\d.]+)/', line)
+                        if g:
+                            when = start.replace(hour=int(g[1][:2]), minute=int(g[1][3:5]), second=int(g[1][6:]), microsecond=0)
+                            if when > start:
+                                when -= timedelta(days=1)
+                            last_gate = (when, float(g[2]))
+                        am = re.match(r'(\d\d:\d\d:\d\d) attempt (\d+): (?:main|tip)=', line)
+                        if am and am[2] == attempt:
+                            load = last_gate[1] if last_gate else None
+                        rm = re.match(r'(\d\d:\d\d:\d\d) attempt (\d+): rc=(-?\d+)', line)
+                        if rm and rm[2] == attempt:
+                            rc = int(rm[3])
+                    if attempt is None:
+                        load = last_gate[1] if last_gate and last_gate[0] <= start else None
+                matched = emit(wave, 'accept-preclaim', start, end, head, source=file.name, rc=rc, load1=load,
+                               extra={'tested_main': tested, 'chain': chain.name if body else None})
+                partitions = {x['partition'] for x in matched}
+                if end and partitions:
+                    post = [x for x in receipts if x['partition'] in partitions and x['tip'] != head
+                            and to_ns(start) <= x['mtime_ns'] <= to_ns(end)]
+                    for tip in sorted({x['tip'] for x in post}):
+                        emit(wave, 'accept-postmerge (推定)', start, end, tip, source=file.name,
+                             rc=rc, load1=load, forced=[x for x in post if x['tip'] == tip],
+                             extra={'inference': 'same interval/partition, different tip; concurrent unrelated audit cannot be excluded'})
+            except (OSError, ValueError, TypeError) as e:
+                unsupported(wave, file, 'acceptance parse: ' + str(e))
+        for log in sorted(wave.glob('land-*.log')):
+            if re.search(r'\.(stderr|spawn[^.]*|wait[^.]*)\.log$', log.name, re.IGNORECASE):
+                continue
+            try:
+                lines = log.read_text(errors='replace').splitlines()
+                found = False
+                for i, line in enumerate(lines):
+                    m1 = re.match(r'(\d{4}-\d\d-\d\dT\S+) land: .*?\blanding=([0-9a-f]{40,64})(?:\s|$)', line)
+                    m2 = re.match(r'(\d\d:\d\d:\d\d) it=(\d+) land landing=([0-9a-f]{40,64})(?:\s|$)', line)
+                    if not m1 and not m2:
+                        continue
+                    found = True
+                    start = dt(m1[1]) if m1 else clock_time(log, m2[1])
+                    head = m1[2] if m1 else m2[3]
+                    end = rc = status = None
+                    for line2 in lines[i+1:]:
+                        if re.match(r'(?:\d{4}-\d\d-\d\dT\S+ land:|\d\d:\d\d:\d\d it=\d+ land landing=)', line2):
+                            break
+                        em = re.match(r'(\d{4}-\d\d-\d\dT\S+) land rc=(-?\d+)', line2) if m1 else re.match(rf'(\d\d:\d\d:\d\d) it={m2[2]} rc=(-?\d+) status=(\S+)', line2)
+                        if em:
+                            if m1:
+                                end = dt(em[1])
+                            else:
+                                h, minute, sec = map(int, em[1].split(':'))
+                                end = start.replace(hour=h, minute=minute, second=sec)
+                                if end < start:
+                                    end += timedelta(days=1)
+                                status = em[3]
+                            rc = int(em[2])
+                            break
+                    jf = log.with_suffix('.json') if m1 else wave / f'land-{m2[2]}.json'
+                    extra = {'attempt': m2[2] if m2 else log.stem, 'land_json': jf.name}
+                    content = read(jf)
+                    if content:
+                        try:
+                            obj = json.loads(content)
+                            extra.update({k: obj.get(k) for k in ('window_elapsed_s', 'main_before', 'main_after')})
+                            extra['json_status'] = obj.get('status')
+                            if status is None:
+                                status = obj.get('status')
+                            extra['json_attribution'] = 'same filename only; loop reruns may overwrite JSON'
+                        except (ValueError, AttributeError) as e:
+                            extra['json_error'] = str(e)
+                    emit(wave, 'land', start, end, head, source=log.name, rc=rc, status=status, extra=extra)
+                if not found:
+                    unsupported(wave, log, 'unsupported: no recognized land start')
+            except (OSError, ValueError, TypeError) as e:
+                unsupported(wave, log, 'land parse: ' + str(e))
+    rows.sort(key=lambda r: (r.get('start') or r.get('file_mtime', ''), r['wave'], r['stage'], r['source']))
+    a.out.parent.mkdir(parents=True, exist_ok=True)
+    a.out.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in rows))
+    print('ATTEMPT ROWS: log 点 → 受領証 mtime の間隔 (監査単独の wall ではない)')
+    print('wave | stage | start / end | duration_s | head | rc/status | load1 | partition:inherited-presence | receipt_mtime | start_to_mtime_s | unmatched_reason')
+    for r in rows:
+        matches = r['matches'] or [{}]
+        for m in matches:
+            inherited = m.get('inherited', {})
+            summary = ','.join(f'{k}={int(inherited[k]["present"])}' for k in KEYS if k in inherited)
+            print(f"{r['wave']} | {r['stage']} | {r.get('start')} / {r.get('end')} | {r['duration_s']} | {r['head']} | {r['rc']}/{r['status']} | {r['load1']} | "
+                  f"{m.get('receipt_partition')}:{summary} | {m.get('receipt_mtime')} | {m.get('start_to_mtime_s')} | {r['unmatched_reason']}"
+                  + (f" [{r['source']}]" if r['stage'] == 'unsupported' else ''))
+    print(f'ATTEMPT SUMMARY since={a.landed_at}; n=attempt rows; intervals=all candidate matches (ambiguity retained)')
+    print('stage\tn\tintervals_n\tmin_s\tmedian_s\tmax_s\tunmatched\tambiguous')
+    groups = defaultdict(list)
+    for r in rows:
+        when = r.get('start') or r.get('file_mtime')
+        if when and dt(when) >= landed:
+            groups[r['stage']].append(r)
+    for stage, rs in sorted(groups.items()):
+        values = [m['start_to_mtime_s'] for r in rs for m in r['matches']]
+        stats = (min(values), statistics.median(values), max(values)) if values else (None, None, None)
+        print('\t'.join(map(str, (stage, len(rs), len(values), *stats, sum(not r['matches'] for r in rs), sum(len(r['matches']) > 1 for r in rs)))))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,42 @@
+対象 producer n=34 (種別: focus=18, log=3, acceptance=9, mutation=4)
+wave | producer | 種別 | END→spool | spool→receipt | receipt→done | done→waiter | END→waiter 合計 | 周期由来上限 (spool→receipt + done→waiter) | 寄与率
+branch-residue-cleanup | acceptance-final-1 | acceptance | 10 | 4 | 8 | 2 | 24 | 6 | 25%
+paper-abstract-conclusion-ja | acceptance-final-1 | acceptance | 10 | 5 | 10 | 0 | 25 | 5 | 20%
+paper-story-20260921 | acceptance-final-1 | acceptance | 10 | 1 | 9 | 4 | 24 | 5 | 21%
+t2344-closure-stage | acceptance-final-1 | acceptance | 10 | 3 | 14 | 2 | 29 | 5 | 17%
+t2344-closure-stage | acceptance-final2-1 | acceptance | 10 | 5 | 24 | 1 | 40 | 6 | 15%
+t2803-provenance-receipt | acceptance-final-1 | acceptance | 10 | 3 | 11 | 2 | 26 | 5 | 19%
+t2803-provenance-receipt | acceptance-final3-1 | acceptance | 10 | 1 | 11 | 3 | 25 | 4 | 16%
+t2807-b8-prerun | acceptance-final-1 | acceptance | 10 | 1 | 10 | 3 | 24 | 4 | 17%
+t2814-cleanup-command | acceptance-final-2 | acceptance | 11 | 3 | 8 | 1 | 23 | 4 | 17%
+branch-residue-cleanup | focus-f1 | focus | - | (END→receipt 14, spool 欠測) | 0 | 0 | 14 | - | -
+branch-residue-cleanup | focus-f2 | focus | - | (END→receipt 12, spool 欠測) | 0 | 2 | 14 | - | -
+branch-residue-cleanup | focus-f3 | focus | - | (END→receipt 13, spool 欠測) | 0 | 4 | 17 | - | -
+branch-residue-cleanup | focus-f4 | focus | - | (END→receipt 12, spool 欠測) | 0 | 4 | 16 | - | -
+t2344-closure-stage | focus-f1 | focus | - | (END→receipt 14, spool 欠測) | 0 | 5 | 19 | - | -
+t2344-closure-stage | focus-f2 | focus | - | (END→receipt 12, spool 欠測) | 0 | 2 | 14 | - | -
+t2344-closure-stage | focus-f3 | focus | - | (END→receipt 13, spool 欠測) | 0 | 4 | 17 | - | -
+t2344-closure-stage | focus-f4 | focus | - | (END→receipt 14, spool 欠測) | 0 | 0 | 14 | - | -
+t2797-b5-contrast | focus/focus-1 | focus | - | (END→receipt 11, spool 欠測) | 0 | 3 | 14 | - | -
+t2803-provenance-receipt | focus-1 | focus | - | (END→receipt 14, spool 欠測) | 0 | 2 | 16 | - | -
+t2803-provenance-receipt | focus-2 | focus | - | (END→receipt 12, spool 欠測) | 0 | 4 | 16 | - | -
+t2803-provenance-receipt | focus-3 | focus | - | (END→receipt 13, spool 欠測) | 0 | 3 | 16 | - | -
+t2803-provenance-receipt | focus-5 | focus | - | (END→receipt 13, spool 欠測) | 0 | 1 | 14 | - | -
+t2803-provenance-receipt | focus-6 | focus | - | (END→receipt 12, spool 欠測) | 0 | 4 | 16 | - | -
+t2803-provenance-receipt | focus-7 | focus | - | (END→receipt 13, spool 欠測) | 0 | 2 | 15 | - | -
+t2803-provenance-receipt | focus-8 | focus | - | (END→receipt 13, spool 欠測) | 0 | 4 | 17 | - | -
+t2814-cleanup-command | focus/focus-1 | focus | - | (END→receipt 13, spool 欠測) | 0 | 2 | 15 | - | -
+t2814-cleanup-command | focus/focus-2 | focus | - | (END→receipt 13, spool 欠測) | 0 | 2 | 15 | - | -
+t2807-b8-prerun | run/prerun-g_rl | log | - | (END→receipt 12, spool 欠測) | 0 | 1 | 13 | - | -
+t2807-b8-prerun | run/prerun-v4-g_rl | log | - | (END→receipt 14, spool 欠測) | 0 | 2 | 16 | - | -
+t2807-b8-prerun | run/prerun-v5-g_rl | log | - | (END→receipt 12, spool 欠測) | 0 | 3 | 15 | - | -
+t2803-provenance-receipt | mutation-final | mutation | 10 | 3 | 19 | 4 | 36 | 7 | 19%
+t2803-provenance-receipt | mutation-probe | mutation | 10 | 1 | 38 | 3 | 52 | 4 | 8%
+t2814-cleanup-command | mutation-final | mutation | 9 | 5 | 19 | 4 | 37 | 9 | 24%
+t2814-cleanup-command | mutation-probe | mutation | 10 | 0 | 19 | 3 | 32 | 3 | 9%
+
+spool を観測できた producer (受入・変異) n=13: 寄与率 median=17% max=25% / END→waiter 合計 median=26 max=52 / 周期由来上限 median=5 max=9
+  acceptance: n=9 寄与率 median=17% max=25% 合計 median=25 周期上限 median=5
+  mutation: n=4 寄与率 median=14% max=24% 合計 median=36 周期上限 median=6
+焦点走/単発 (spool 欠測) n=21: END→waiter median=15 max=19 / END→receipt median=13 max=14 / done→waiter median=2 max=5
+  焦点走の END→receipt には NQSV spool 到着 (受入・変異では 9〜11 秒) と dispatcher の収集 poll が未分離で入る。
