@@ -1,0 +1,30 @@
+layer_bytes: {'L1': 10623, 'L1.5': 9689, 'L2': 16818}
+L1 max 10625 headroom 2
+L1.5 max 9696 headroom 7
+docs/dev-wave/mutation.md DW-M01 layer=L1 bytes=573
+docs/dev-wave/mutation.md DW-M02 layer=L1.5 bytes=294
+docs/dev-wave/mutation.md DW-M03 layer=L1.5 bytes=344
+docs/dev-wave/mutation.md DW-M04 layer=L1.5 bytes=405
+docs/dev-wave/mutation.md DW-M05 layer=L1.5 bytes=773
+docs/dev-wave/mutation.md DW-M06 layer=L1.5 bytes=261
+docs/dev-wave/mutation.md DW-M07 layer=L2 bytes=972
+docs/dev-wave/mutation.md DW-M08 layer=L1.5 bytes=1178
+findings: []
+--- L1.5 sections ---
+docs/dev-wave/mutation.md DW-M02 294
+docs/dev-wave/mutation.md DW-M03 344
+docs/dev-wave/mutation.md DW-M04 405
+docs/dev-wave/mutation.md DW-M05 773
+docs/dev-wave/mutation.md DW-M06 261
+docs/dev-wave/mutation.md DW-M08 1178
+docs/dev-wave/operations.md DW-O01 1147
+docs/dev-wave/operations.md DW-O02 726
+docs/dev-wave/operations.md DW-O05 280
+docs/dev-wave/workers.md DW-S02 181
+docs/dev-wave/workers.md DW-S03 723
+docs/dev-wave/workers.md DW-S05-A 811
+docs/dev-wave/workers.md DW-S05-B 261
+docs/dev-wave/workers.md DW-S05-C 1033
+docs/dev-wave/workers.md DW-S06-A 324
+docs/dev-wave/workers.md DW-S06-B 728
+docs/dev-wave/workers.md DW-S06-C 194
