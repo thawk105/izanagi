@@ -1,7 +1,24 @@
-# 行末空白の可逆正規化 (段 7、DW-S07)
+# 行末空白と末尾空行の可逆正規化 (段 7、DW-S07)
 
-次の写しは行末の空白 (space / tab) だけを削った。可視文字は不変。原文は job dir にあり、下の sha256 / bytes と行ごとの空白列で復元できる
-(各行の末尾へ記載の空白を戻すと原文 bytes に一致する)。
+measure/ の log 10 本と s3-consult.md は行末の空白 (space / tab) だけを、contract/ の 7 file は末尾の空行 1 行だけを削った。可視文字は不変。
+原文は job dir にあり、下の sha256 / bytes と、行ごとの空白列または末尾の `\n` 1 つで復元できる (戻すと原文 bytes に一致する)。
+
+## contract/ の 7 file (末尾空行の削除、段 6 レビュー 所見 9 で追記)
+
+原本は job dir の `verbatim/contract/` (親が現行 docs から次の見出しの直前までを切り出したため、末尾に空行 1 行 = `\n\n` が付いていた)。
+写しは末尾の空行 1 行 (1 byte の `\n`) だけを削った。末尾に `\n` を 1 つ足すと原本 bytes に一致する。
+
+| file | 原本 sha256 / bytes | 写し sha256 / bytes |
+|---|---|---|
+| D130-D131.md | 3bd1a7b9cebf6b76b13e9f26006fbfd69c7db8573858397f1831d69e2ae4e136 / 7661 | 08cbc47f86a7ca32a1fd7bf48deebd05ec72c75971c5b9902ad854f03e8edf03 / 7660 |
+| D2194-item8.md | e869ca76dbc06310a5c6cb0670646eaf18ca10e10cb9ff7ed0d67c689de97849 / 1463 | 0f5ef9d22f116fa6bb2ad3c8bf1762fbf0ea27a16737bd68fa66fec37a4da2ff / 1462 |
+| D289.md | c04c32f5552829d2b31bc08143bd1230280ac53e06a7df3ebaa81ec56148a208 / 6910 | 0856013b0cb78cdaa36964aad6f397f7b2b7b5a4ea6e5b5a4a56a340ca6ad5e4 / 6909 |
+| D325.md | 9d191c3a243d58fcf61de42c0db6e0baf6e009ea442525a7f7508eee365b03c9 / 2183 | 9b5edf467f41361a5b5d951c7a8ee2ba341972acc86096c9f2de53f5538d2a81 / 2182 |
+| DW-C00-C01-STOP.md | 37431f35600c778cabcf0612c22816304f49a236eb4ea8833e75d91088142f0e / 2605 | aadb6496bf8e5c914dc55e1add21efed57628e9db718d444fe7a946210771936 / 2604 |
+| DW-O18.md | 300bf337eaca2a7d9f6f18a8a4ee5c3e03a6a4548497c070b285071a3b0e7761 / 995 | 1050bdfd07406711df1bc33a63e6aa726b48031ae93f3cdde3eee6de7531a952 / 994 |
+| DW-O26-O27.md | 0cb5ccc37e387392b05d0ae2e9ef53312eb3120989db31ae1056528b49310cc7 / 1996 | a2e4e2eebe643bb264e526475e5fe37552f3bcb227bca3d72dd6f29c4ab25b8b / 1995 |
+
+## 行末空白を削った 11 file
 
 ## measure/S01-set21.log
 - 原文 sha256 646a8328ca3a1a9a8105c29c80596a2e87b9a0d0a33ee90a9b3f8d60fd2622da / 8657 bytes → 正規化後 sha256 a16a92d06dfda64e4dfaddc7d9312b2f54dd664b6fc66f3c5c77f26bffbbbc72 / 8655 bytes
