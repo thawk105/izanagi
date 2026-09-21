@@ -19407,6 +19407,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `tools/check_worktree_occupancy.py` で、消えた対象に `status=invalid-target` (rc=2) を返し、
   detach と削除の前で fail-closed した。裁定に要るのは snapshot 化ではなく、
   一括操作の各要素へ実行直前の再検査を義務づける形である。
+
+- **再発: 2026-09-21** — [T-2825] の A/B 測定走 03-B (固定 2 tree の直接投入、受入形) で `test_t810_coordinator.py` の prepare_group 系 3 node が `cannot read worktree registration: file is absent` (`.git/worktrees/diag-login-check-wall/gitdir`、別 session が走行中に撤去) で赤。本 wave の差分 (台帳 1 file) から到達しないこと (同 test file は台帳を参照しない) と単独再走 3 passed (request 14912.nqsv) で infra に分類し、事前登録どおり走だけを無効化して対を同順序で取り直した。測定系列の赤は親の本文分類が要るので、系列は 1 走分 (約 26 分) と分類の手間を失った。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -26296,6 +26298,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rc=2」と明記があり、親は wave 開始時にその節を読んでいたにもかかわらず適用を落とした。
   前 wave の script を写した F953 本体と違い、本件は**読了した制約の適用漏れ**である。
   再投入は `--job-id` と出力 path を変えて行った (既存 `.done` を消して再利用しない)。
+
+- **再発: 2026-09-21** — [T-2825] 段 6 の review launcher を段 3 consult launcher から写して `--reasoning medium` を残し、review 2 本とも `--reasoning は --stage review/focus/author/fix では指定できない` で rc=2 (子は 1 call も走らず)。author / consult の launcher には投入前に `--dry-run` を打っていたが、review の launcher では省いた。以後の fix / focus / 台帳 fix の launcher は全部 `--dry-run` rc=0 を確かめてから投入した。
 ### F954. 行番号を期待値に焼き込んだ台帳が pin 閉包から漏れ、受入全走で初めて赤になった [pin 閉包漏れ] [consumer 取り残し]
 
 - 事象: production から helper 14 行を除去し数行を足した (差し引き -8 行) 結果、
