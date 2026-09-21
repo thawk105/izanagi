@@ -140,3 +140,9 @@ read-only codex 1 本 (gpt-6-astra / medium) が所見 11 件 (高 5) を返し�
 - 一次資料: 本 README、`verbatim/` (依頼、brief、静的判定、対照走、live gate、consult、裁定、probe prompt と報告、author/fix argv 差分)。実行可能 script は insight に写していない (launcher は job dir、`.md` 逐語のみ)。
 - worklog: fragment 1 本 (`docs/spool/worklog/`)。decisions / failures の新設なし (裁定パッケージ)。F76 (子の新設 test の fixture 誤り) / F121 (pytest 拒否の綴り替え) は既存型の参照で、台帳編集はしない。
 - 受入全走と land は README commit 時点で未実施 (実施後に §8 として追記する)。逐語 2 file の行末空白・末尾改行の可逆最小正規化は `verbatim/NORMALIZATION.md` (原文 hash・byte 数・復元法)。
+
+## 8. 受入と main 取り込み
+
+- 記録 commit `6b1b8f51a` (本 README と worklog fragment)。全履歴 provenance 監査 rc=0 (12,262 件、新規違反なし)。
+- 受入全走 (門番付き、`dev_wave_wait.py acceptance` + `run_tests.py`、3 shard): 08:37 JST 投入 → 他 wave の受入 leader 2〜4 本で 24 分待ち → 09:01 に窓が開いて local main `21641fee7` を wave 木へ取り込み (post-claim merge、tip `8f6ecb264`) → 09:12 に **child-green** (26,739 passed / 69 skipped、赤 0・flake 0、attempt 1、受領証 `acceptance-receipt-final-1.json`、tested main `21641fee7` / tested tip `8f6ecb264`)。
+- 取り込んだ main 4 commit には別 wave (`dev-wave-dwm08-selfrun-probe`) の `DW-M08` 改訂が含まれる — **親**が変異の期待 node を login self-run で観測する手順の詰め書きで、適用外の列挙に `skip` が加わり、復元時に `--porcelain` 空の照合が明記された。本 README が引く「login 実行が許される file」の文言は残っており、本 wave の実測・案 A〜D の結論は変わらない (子への許可は依然として未裁定)。
