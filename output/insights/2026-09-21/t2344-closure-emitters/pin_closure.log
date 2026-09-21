@@ -1,0 +1,213 @@
+### path pin (変更候補 3 file)
+--- orchestrator/campaign/campaign_lock.py
+orchestrator/campaign/paper_story_a1_paired.py:181:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/acceptance_duration_ledger.json:384:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/campaign_lock.py]": 0.046,
+orchestrator/tests/acceptance_duration_ledger.json:12503:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[missing-orchestrator/campaign/campaign_lock
+orchestrator/tests/acceptance_duration_ledger.json:12512:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[oid-orchestrator/campaign/campaign_lock.py]
+orchestrator/tests/acceptance_duration_ledger.json:12521:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_non_certifying_source_closure_rejects_each_file_drift[working-sha-orchestrator/campaign/campaign_
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_load
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_lo
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_l
+orchestrator/tests/test_artifact_admission.py:275:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_artifact_admission.py:301:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_artifact_admission.py:561:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_artifact_admission.py:636:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_campaign_lock_codec.py:37:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_campaign_lock_codec.py:119:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_paper_story_a1_job_contract.py:55:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_paper_story_a1_job_contract.py:3271:            *expected[:4], "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_t671_source_binding.py:55:    "orchestrator/campaign/campaign_lock.py",
+orchestrator/tests/test_t671_source_binding.py:306:        "orchestrator/campaign/campaign_lock.py",
+tools/pegasus/paper_story_a1_paired.sh:63:  "orchestrator/campaign/campaign_lock.py"
+--- orchestrator/campaign/artifact_admission.py
+orchestrator/campaign/campaign_lock.py:57:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/campaign_lock.py:148:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/campaign_lock.py:176:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/campaign_lock.py:242:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/campaign/p3_b4_closed_critic.py:636:        ("orchestrator/campaign/artifact_admission.py", ARTIFACT_ADMISSION_FILE),
+orchestrator/campaign/p3_b4_raw_record_producer.py:992:        ("orchestrator/campaign/artifact_admission.py", closed_critic.ARTIFACT_ADMISSION_FILE),
+orchestrator/tests/acceptance_duration_ledger.json:378:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/artifact_admission.py]": 0.045
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_load
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_lo
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_l
+orchestrator/tests/test_artifact_admission.py:265:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:291:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:551:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:626:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_artifact_admission.py:2102:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:2123:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:2262:    live_path = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:3316:            live = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_artifact_admission.py:3482:            live = repo / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_campaign_lock_codec.py:27:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_campaign_lock_codec.py:109:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_campaign_lock_codec.py:449:        "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_p3_b4_closed_critic.py:620:        "orchestrator/campaign/artifact_admission.py": (
+orchestrator/tests/test_p3_b4_closed_critic.py:621:            repository_root / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_p3_b4_closed_critic.py:1999:        "orchestrator/campaign/artifact_admission.py": (
+orchestrator/tests/test_p3_b4_closed_critic.py:2000:            repository_root / "orchestrator/campaign/artifact_admission.py"
+orchestrator/tests/test_s1_9pair_figure_provenance.py:49:ADMISSION_VALIDATOR_REL = Path("orchestrator/campaign/artifact_admission.py")
+orchestrator/tests/test_t671_source_binding.py:31:    "orchestrator/campaign/artifact_admission.py",
+orchestrator/tests/test_t671_source_binding.py:45:    "orchestrator/campaign/artifact_admission.py",
+--- orchestrator/campaign/contract_loader_binding.py
+orchestrator/campaign/campaign_lock.py:68:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/campaign/campaign_lock.py:159:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/campaign/campaign_lock.py:187:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/campaign/campaign_lock.py:253:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/acceptance_duration_ledger.json:385:    "orchestrator/tests/test_artifact_admission.py::test_t733_exact62_rejects_each_recorded_commit_blob_mismatch[orchestrator/campaign/contract_loader_binding.py]":
+orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_load
+orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_lo
+orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1:{"authority":{"activation_serial":1,"activation_state_sha256":"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed","contract_l
+orchestrator/tests/test_artifact_admission.py:276:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_artifact_admission.py:302:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_artifact_admission.py:562:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_artifact_admission.py:637:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_campaign_lock_codec.py:38:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_campaign_lock_codec.py:120:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_t671_source_binding.py:56:    "orchestrator/campaign/contract_loader_binding.py",
+orchestrator/tests/test_t671_source_binding.py:307:        "orchestrator/campaign/contract_loader_binding.py",
+### sha256 pin (tracked, 変更前 hash)
+--- 737ddfc2790ccdf569025d7f70cb0424fb415532dec675abf131d3c94b4ececb
+--- 7ec05378a1d9e5d515fd965303c0f6f77ebee873d51acf103a5d333aa2e50d9d
+--- 4686a8ab1ab1a1bd1877df9a3acd31a4d2b33d8b9e90a628ce9887eb6a6a4dfb
+### sha256 pin (output/ untracked 含む)
+--- 737ddfc2790ccdf569025d7f70cb0424fb415532dec675abf131d3c94b4ececb
+--- 7ec05378a1d9e5d515fd965303c0f6f77ebee873d51acf103a5d333aa2e50d9d
+--- 4686a8ab1ab1a1bd1877df9a3acd31a4d2b33d8b9e90a628ce9887eb6a6a4dfb
+### key 側 pin (identifier 名)
+     43 orchestrator/campaign/artifact_admission.py
+      1 orchestrator/campaign/b10_backoff_shape_sweep.py
+     24 orchestrator/campaign/campaign_lock.py
+      6 orchestrator/campaign/contract_loader_binding.py
+      2 orchestrator/campaign/s8b_oracle_report.py
+      1 orchestrator/tests/campaign_lock_test_support.py
+     40 orchestrator/tests/test_artifact_admission.py
+      2 orchestrator/tests/test_b10_backoff_shape_sweep.py
+      2 orchestrator/tests/test_bench_first_real_wal.py
+     13 orchestrator/tests/test_campaign_lock_codec.py
+      1 orchestrator/tests/test_env_contract_activation.py
+      1 orchestrator/tests/test_layer3_report.py
+      1 orchestrator/tests/test_paper_story_a2_certification.py
+      2 orchestrator/tests/test_s6_sort_sweep.py
+      2 orchestrator/tests/test_s8a_trigger_sweep.py
+      2 orchestrator/tests/test_s8b_oracle_report.py
+      3 orchestrator/tests/test_t1998_stock_inline_pair.py
+     19 orchestrator/tests/test_t671_source_binding.py
+      1 orchestrator/tests/test_t762_ident_wrapper.py
+### 新規収載 11 本の path を参照する tracked file (import 以外の pin を探す)
+--- orchestrator/campaign/autonomous_trial_completeness.py
+docs/phase3-8c-preregistration.md:495:`orchestrator/campaign/autonomous_trial_completeness.py` は、8c supervisor の terminal report を
+docs/phase3-s8c-autonomous-trial-runbook.md:182:`orchestrator/campaign/autonomous_trial_completeness.py` の検査を通らなければ書かれない。
+orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json:398:          "path": "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_autonomous_trial_completeness.py:5774:            str(_ROOT / "orchestrator/campaign/autonomous_trial_completeness.py"),
+orchestrator/tests/test_official_perf_closure.py:49:    "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_invariant.py:95:        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "verify_s8c_cross_binding"),
+orchestrator/tests/test_s8c_preregistration_invariant.py:131:        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "assert_trial_registry_acceptance", "different-module-token"),
+orchestrator/tests/test_s8c_preregistration_invariant.py:132:        ("C10", "orchestrator/campaign/autonomous_trial_completeness.py", "authoritative bytes reread", "non-identifier-token"),
+orchestrator/tests/test_s8c_preregistration_predicates.py:262:        f"{evaluated_head}:orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:587:        "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:1309:            "orchestrator/campaign/autonomous_trial_completeness.py":
+orchestrator/tests/test_s8c_preregistration_predicates.py:1316:        verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
+orchestrator/tests/test_s8c_preregistration_predicates.py:2362:    layer3_path = "orchestrator/campaign/autonomous_trial_completeness.py"
+orchestrator/tests/test_s8c_preregistration_predicates.py:3033:    verifier_path = "orchestrator/campaign/autonomous_trial_completeness.py"
+orchestrator/tests/test_s8c_preregistration_predicates.py:3126:            "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:3223:    verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
+orchestrator/tests/test_s8c_preregistration_predicates.py:3332:            "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:3347:            "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:3363:            "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:3369:            "orchestrator/campaign/autonomous_trial_completeness.py",
+orchestrator/tests/test_s8c_preregistration_predicates.py:3432:    verifier = "orchestrator/campaign/autonomous_trial_completeness.py"
+orchestrator/tests/test_s8c_preregistration_predicates.py:3459:        "orchestrator/campaign/autonomous_trial_completeness.py",
+tools/known_violations/0c0f3e71b3208370be8d4e7e20a84a2152afe4b2--missing-codex-author--7d5fbc4d6298700d24bd9c4cc6e00a9eeec480e33fb3fe0ad0f4e273b00f8c77.json:6:  "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152af
+tools/known_violations/bf92f327cadfbe626e37cab73d55abe80d3994dd--missing-codex-author--d98a4a548f8bd7d9ab7a3326a56e94148a3ecdbfc96c35f4f16b0df2f52ae204.json:6:  "note": "受入投入前に local main 側36コミット（
+--- orchestrator/campaign/b10_backoff_shape_sweep.py
+docs/b10-multinode-formal-run-design.md:242:5. `orchestrator/campaign/b10_backoff_shape_sweep.py` の受領証検査
+docs/paper-story/results/2026-09-20-b10-waiting-grid-formal.md:635:`orchestrator/campaign/b10_backoff_shape_sweep.py` の blob 内容の SHA-256 と一致する (実測)。
+orchestrator/tests/test_b10_backoff_shape_sweep.py:721:            "show", "f" * 40 + ":orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_campaign.py:5410:        ("orchestrator/campaign/b10_backoff_shape_sweep.py", "campaign.loop.run_campaign"): 1,
+orchestrator/tests/test_ccbench_spawn_sites.py:949:        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_ccbench_spawn_sites.py:957:        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_ccbench_spawn_sites.py:2932:            "orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_ccbench_spawn_sites.py:2936:            "orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_ccbench_spawn_sites.py:3007:        "orchestrator/campaign/b10_backoff_shape_sweep.py",
+orchestrator/tests/test_official_perf_closure.py:50:    "orchestrator/campaign/b10_backoff_shape_sweep.py",
+patches/README.md:219:`orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` と実行時 preflight。
+src/coder-spec.md:40:逐語は `orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` が正本である。
+tools/pegasus/submit_b10_backoff_shape.sh:115:  orchestrator/campaign/b10_backoff_shape_sweep.py \
+--- orchestrator/campaign/backoff_extended_sweep.py
+docs/b5-generator-contrast-preregistration.md:217:格子は `orchestrator/campaign/backoff_extended_sweep.py` の `EXTENDED_SWEEP_US` と S の共通部分とする。
+docs/pegasus-runbook.md:1775:`orchestrator/campaign/backoff_extended_sweep.py` の第 3 の RUN_KIND `t2418-explore` で、成果物 3 か所
+orchestrator/campaign/backoff_extended_sweep_report.py:752:    build_command = "orchestrator/campaign/backoff_extended_sweep.py"
+orchestrator/tests/test_backoff_extended_sweep.py:1027:    assert supply.driver_id == "orchestrator/campaign/backoff_extended_sweep.py"
+orchestrator/tests/test_campaign.py:5411:        ("orchestrator/campaign/backoff_extended_sweep.py", "campaign.loop.run_campaign"): 1,
+orchestrator/tests/test_official_perf_closure.py:53:    "orchestrator/campaign/backoff_extended_sweep.py",
+orchestrator/tests/test_official_perf_closure.py:135:    _Predicate("R", "orchestrator/campaign/backoff_extended_sweep.py",
+patches/README.md:197:(`orchestrator/campaign/backoff_extended_sweep.py` の `encode_static_backoff_us` /
+tools/pegasus/b10_backoff_grid.sh:609:  "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
+--- orchestrator/campaign/backoff_extended_sweep_report.py
+orchestrator/tests/test_backoff_extended_sweep.py:1701:        '"$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py"', 1,
+orchestrator/tests/test_official_perf_closure.py:55:    "orchestrator/campaign/backoff_extended_sweep_report.py",
+tools/pegasus/b10_backoff_grid.sh:639:    "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
+--- orchestrator/campaign/backoff_overthrottle.py
+orchestrator/tests/test_backoff_overthrottle.py:67:    assert captured["driver_id"] == "orchestrator/campaign/backoff_overthrottle.py"
+tools/pegasus/b10_backoff_grid.sh:632:    "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
+--- orchestrator/campaign/s8b_abort_reason_contract.py
+--- orchestrator/campaign/s8b_oracle_report.py
+docs/freeze-permanent-design-s2.md:2529:W-d  orchestrator/campaign/s8b_oracle_report.py
+docs/freeze-permanent-design-s2.md:2615:orchestrator/campaign/s8b_oracle_report.py
+orchestrator/campaign/s8b_oracle_manifest.py:67:    "report": "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_official_perf_closure.py:78:    "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_official_perf_closure.py:172:    _Predicate("T967", "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_official_perf_closure.py:174:    _Predicate("T967", "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_official_perf_closure.py:440:        "T967", "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_driver.py:120:    "report": "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_manifest.py:43:    "report": "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_manifest.py:92:    b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
+orchestrator/tests/test_s8b_oracle_manifest_contract.py:21:        "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_manifest_contract.py:34:    "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_report.py:64:    "report": "orchestrator/campaign/s8b_oracle_report.py",
+orchestrator/tests/test_s8b_oracle_report.py:253:        "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
+tools/known_violations/bf92f327cadfbe626e37cab73d55abe80d3994dd--missing-codex-author--d98a4a548f8bd7d9ab7a3326a56e94148a3ecdbfc96c35f4f16b0df2f52ae204.json:6:  "note": "受入投入前に local main 側36コミット（
+--- orchestrator/campaign/s8b_outcome_stage_contract.py
+orchestrator/campaign/s8b_oracle_manifest.py:70:        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+orchestrator/tests/test_s8b_oracle_driver.py:123:        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+orchestrator/tests/test_s8b_oracle_manifest.py:46:        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+orchestrator/tests/test_s8b_oracle_manifest.py:90:    b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
+orchestrator/tests/test_s8b_oracle_report.py:67:        "orchestrator/campaign/s8b_outcome_stage_contract.py"
+orchestrator/tests/test_s8b_oracle_report.py:256:            "orchestrator/campaign/s8b_outcome_stage_contract.py"
+--- orchestrator/reports/__init__.py
+--- orchestrator/reports/calibration_report.py
+--- orchestrator/reports/plot.py
+### 数値 85 の派生 literal (test)
+orchestrator/tests/acceptance_duration_ledger.json:7942:    "orchestrator/tests/test_dev_waves_integration.py::test_fake_manifest_run_id_is_bound_to_path_namespace": 0.85,
+orchestrator/tests/acceptance_duration_ledger.json:11123:    "orchestrator/tests/test_p3_b4_analysis_path.py::test_caller_declared_hash_is_not_accepted": 0.85,
+orchestrator/tests/acceptance_duration_ledger.json:12327:    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_measurement_sink_admits_compute_with_pegasus_contract_and_identity": 0.85,
+orchestrator/tests/acceptance_duration_ledger.json:12609:    "orchestrator/tests/test_paper_story_a1_job_contract.py::test_v3_ccbench_tracked_clean_gate_is_real_and_reason_is_layer_specific_M10[driver-measurement]": 0.85
+orchestrator/tests/acceptance_duration_ledger.json:16072:    "orchestrator/tests/test_s8a_trigger_sweep.py::test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes": 0.85,
+orchestrator/tests/test_artifact_admission.py:854:    """現行 checkout の hash を使わない exact 85-path E1 fixture。"""
+orchestrator/tests/test_artifact_admission.py:1540:        "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
+orchestrator/tests/test_artifact_admission.py:1542:        "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
+orchestrator/tests/test_artifact_admission.py:1667:    assert len(decoded.authority.contract_loader_blob_sha256s) == 85
+orchestrator/tests/test_artifact_admission.py:1674:    assert len(_EXPECTED_E1_CLOSURE_PATHS) == 85
+orchestrator/tests/test_s1_9pair_figure_provenance.py:79:        "enforcement source closure (curated exact 85 path; source-import 推移閉包ではない; "
+orchestrator/tests/test_s1_9pair_figure_provenance.py:81:        "2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)"
+orchestrator/tests/test_t671_source_binding.py:295:    assert len(_EXPECTED_ENFORCEMENT_SOURCE_PATHS) == 85
+orchestrator/tests/test_t671_source_binding.py:1638:            {"timeout_seconds": 850},
+orchestrator/tests/test_t671_source_binding.py:1717:            {"timeout_seconds": 850},
+orchestrator/tests/test_t671_source_binding.py:1723:                "timeout_seconds": 850,
+orchestrator/tests/test_t671_source_binding.py:1801:            {"timeout_seconds": 850},
+orchestrator/tests/test_t671_source_binding.py:1807:                "timeout_seconds": 850,
+### FROZEN_MANIFEST / generator source hash pin
+orchestrator/campaign/paper_story_a1_headline.py
+orchestrator/campaign/s8b_oracle_manifest.py
+orchestrator/tests/s1_expected_goldens.py
+orchestrator/tests/test_check_docs.py
+orchestrator/tests/test_frozen_artifacts.py
+orchestrator/tests/test_paper_story_a1_headline.py
+orchestrator/tests/test_paper_story_a1_headline_sizing.py
+orchestrator/tests/test_s1_9pair_figure_provenance.py
+orchestrator/tests/test_s8b_oracle_driver.py
+orchestrator/tests/test_s8b_oracle_manifest.py
+orchestrator/tests/test_s8b_oracle_report.py
+tools/verify_paper_story_a1_balanced_sizing.py
+tools/verify_paper_story_a1_headline_sizing.py

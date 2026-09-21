@@ -1,0 +1,209 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m0-control-comment-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "# Frozen declaration order of the preceding exact-85 grammar.\n",
+          "new": "# Frozen declaration order of the preceding exact-85 grammar (control).\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-s8b-oracle-report-from-96",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    \"orchestrator/campaign/s8b_oracle_report.py\",\n    \"orchestrator/campaign/s8b_outcome_stage_contract.py\",\n",
+          "new": "    \"orchestrator/campaign/s8b_outcome_stage_contract.py\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-swap-last-two-of-96",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    \"orchestrator/reports/calibration_report.py\",\n    \"orchestrator/reports/plot.py\",\n)\n",
+          "new": "    \"orchestrator/reports/plot.py\",\n    \"orchestrator/reports/calibration_report.py\",\n)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-capture-skips-new-emitter-drift",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/contract_loader_binding.py",
+          "old": "        if disk != blob:\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n            )\n",
+          "new": "        if disk != blob and relative != \"orchestrator/campaign/s8b_oracle_report.py\":\n            raise ContractLoaderBindingError(\n                f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n            )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-exact85-branch-routes-to-pre-t733-validator",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "        authority = _validate_t2344_exact85_historical_authority(authority_value)\n",
+          "new": "        authority = _validate_pre_t733_historical_authority(authority_value)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-skip-committed-blob-verify-for-exact85",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "                    campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS)):\n            contract_loader_binding.verify_committed_contract_loader_blobs(\n",
+          "new": "                    campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS)):\n            if (authority.recorded_contract_loader_relative_paths\n                    is campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS):\n                return\n            contract_loader_binding.verify_committed_contract_loader_blobs(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-exact85-validator-compares-wire-as-set",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    expected_wire_order = tuple(sorted(T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS))\n    if (type(blob_sha256s) is not dict\n            or tuple(blob_sha256s) != expected_wire_order):\n",
+          "new": "    expected_wire_order = tuple(sorted(T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS))\n    if (type(blob_sha256s) is not dict\n            or not set(expected_wire_order) <= set(blob_sha256s)):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-authority-whitelist-accepts-superset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "        if type(grammar) is not tuple or grammar not in (\n",
+          "new": "        if type(grammar) is not tuple or not any(set(known) <= set(grammar) for known in (\n"
+        },
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "            T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n            raise TypeError(\"historical authority の記録 grammar が不正\")\n",
+          "new": "            T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS,\n        )):\n            raise TypeError(\"historical authority の記録 grammar が不正\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-normal-decoder-unions-exact85",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    if (type(blob_sha256s) is not dict\n            or tuple(sorted(blob_sha256s))\n            != tuple(sorted(CONTRACT_LOADER_RELATIVE_PATHS))):\n        raise CampaignLockCodecError(\n            \"authority.contract_loader_blob_sha256s の exact key 集合が不正\"\n        )\n    checked_blobs = {\n        path: _require_hex(\n            blob_sha256s[path], width=64,\n            label=f\"authority.contract_loader_blob_sha256s[{path!r}]\",\n        )\n        for path in CONTRACT_LOADER_RELATIVE_PATHS\n    }\n",
+          "new": "    if (type(blob_sha256s) is not dict\n            or tuple(sorted(blob_sha256s))\n            not in (tuple(sorted(CONTRACT_LOADER_RELATIVE_PATHS)),\n                    tuple(sorted(T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS)))):\n        raise CampaignLockCodecError(\n            \"authority.contract_loader_blob_sha256s の exact key 集合が不正\"\n        )\n    _accepted_paths = (\n        CONTRACT_LOADER_RELATIVE_PATHS\n        if len(blob_sha256s) == len(CONTRACT_LOADER_RELATIVE_PATHS)\n        else T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n    )\n    checked_blobs = {\n        path: _require_hex(\n            blob_sha256s[path], width=64,\n            label=f\"authority.contract_loader_blob_sha256s[{path!r}]\",\n        )\n        for path in _accepted_paths\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-exact85-scope-number-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    \"2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 163 module、うち収載 85)\"\n",
+          "new": "    \"2026-09-20 (f94b61fc8 の source 木、本版の 85 path を起点) の実測では 164 module、うち収載 85)\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-exact85-epoch-carries-current-scope",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "            identity_scope=T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n            excluded_scope=T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n",
+          "new": "            identity_scope=CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n            excluded_scope=CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-historical-epoch-uses-sorted-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    payload = _CAMPAIGN_VERIFIER_EPOCH_DOMAIN + b\"\".join(\n        relative.encode(\"utf-8\") + b\"\\0\" + bytes.fromhex(recorded_map[relative])\n        for relative in relative_paths\n    )\n",
+          "new": "    payload = _CAMPAIGN_VERIFIER_EPOCH_DOMAIN + b\"\".join(\n        relative.encode(\"utf-8\") + b\"\\0\" + bytes.fromhex(recorded_map[relative])\n        for relative in sorted(relative_paths)\n    )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-recorded-epoch-allows-current-scope-with-85-map",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "            elif scopes == (\n                T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n                T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n            ):\n                expected_paths = campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n",
+          "new": "            elif scopes == (\n                T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n                T2344_EXACT85_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n            ) or scopes == (\n                CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n                CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n            ):\n                expected_paths = campaign_lock.T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-exact85-validator-returns-wire-order-map",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "        for path in T2344_EXACT85_CONTRACT_LOADER_RELATIVE_PATHS\n    }\n    return HistoricalCampaignLockAuthority(\n",
+          "new": "        for path in expected_wire_order\n    }\n    return HistoricalCampaignLockAuthority(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
