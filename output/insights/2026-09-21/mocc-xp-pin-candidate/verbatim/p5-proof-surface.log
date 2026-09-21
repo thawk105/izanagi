@@ -1,0 +1,3 @@
+e9e477ca (wave submodule checkout) {'protocol': 'mocc', 'X': 'evidence-absent', 'P': 'evidence-absent', 'I': 'evidence-absent'} gate= False
+patch as-is (scratch-clone) {'protocol': 'mocc', 'X': 'evidence-present', 'P': 'evidence-present', 'I': 'evidence-absent'} gate= True
+minimal keep-line17 (scratch-clone-min2) {'protocol': 'mocc', 'X': 'evidence-present', 'P': 'evidence-present', 'I': 'evidence-absent'} gate= True

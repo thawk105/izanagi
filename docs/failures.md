@@ -2641,6 +2641,8 @@
   `check_codex_output.py` で、reference は編集しない。
 
 - **再発: 2026-09-18** — T-2686回収authorはCLI0でも必須総括見出しを落としてf43_fragment/launcher1になった。実装残差を保全し、DW-O01どおり独立review2本で実コードを監査した。未受理を成功報告へ書き換えず、後続promptでliteral見出しを明示した。
+
+- **再発: 2026-09-21 (near miss)** — /rulings 第 29 回の相談 3 本のうち索引漏れ担当 (B) だけが、2 attempt とも exit 0 のまま `f43_fragment` で不受理になった (rc=1、約 6 分)。原因は子ではなく**親の投げ文**で、推奨の当否を問う A / C の投げ文は出力形式の末尾に `## 総括` を要求していたが、索引漏れを問う B は独自の 3 節 (`## 復帰候補` / `## 外すべき項` / `## 起草の事実認定の誤り`) だけを指定し、`tools/check_codex_output.py` の既定必須見出し `^## 総括` (DW-O01 の「prompt に `## 総括` 必須」) を落としていた。出力本文 (3,175 bytes) は完成しており、親が読んで所見を git diff と原典で検算したうえで採用し、不受理の事実を索引冒頭に出した。恒久対応は変更なし — **出力形式を独自の節で指定する投げ文でも、最後に `## 総括` 節を必ず要求する** (既存の DW-O01 と同じ規則を、推奨の当否以外の相談にも当てる)。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -23345,6 +23347,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同じ prompt で 1 回目に成功した。F818 の恒久対応 (docs-only へ落として実装候補を裁定へ返す) を
   この型へ適用すると、30 秒で直る事象のために wave を 5 日止める。署名だけで分岐せず、
   `attempt-0001.events.jsonl` 末尾の `turn.failed` の**本文**を読んで枠切れと容量不足を区別する。
+
+- **再発: 2026-09-21** — docs-only の論文草稿 wave (branch `worktree-dev-wave-paper-b8-pass-ja`) の段 6 read-only レビュー 2 本が、各 14 model call・約 110 秒で
+  `You've hit your usage limit ... try again at Sep 26th` を受け、F818 と同じ署名 (出力 0 byte・`f45_missing_output`・`codex_exit_code=1`) で終了した。
+  events 末尾の `turn.failed` の本文で枠切れと確かめ、D582 に従い自動再試行せずユーザーへ報告した。wave は元から docs-only で凍結境界は効かないが、
+  `DW-C00` が一次資料を再抽出する docs-only wave に残せと言う**独立 read-only レビュー 1 本に、Codex 以外の経路が正本に無い**。今回は同じ prompt を
+  Claude の独立 context の子 (Edit / Write を持たない Plan 型、model = opus。無指定は guard_agent が拒否する) のレビュー 2 本と焦点再レビュー 1 本で代替し、
+  must-fix 1 件 (判定集合 30 枠を本走の条件へ丸ごと帰属させる要約) を含む real 所見 20 件 (採用 19) を得た。代替の独立性は Codex と同等と主張せず、
+  成果物 README (`output/insights/2026-09-21/paper-results-ja-b/README.md` §4) に明記した。代替経路の正本化は段構成の変更なので実装せず、同 README §7 に候補として記録した。
 ### F819. 段 5 実装子の投げ文が親の worktree を指し、子が 1 byte も書かずに「成功」で戻った [恒真ゲート] [手順漏れ]
 
 - 事象: [T-2200] の段 5 で、実装子の prompt に書いた repo root と必読 path が**親の wave worktree**

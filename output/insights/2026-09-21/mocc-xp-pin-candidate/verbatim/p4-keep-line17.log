@@ -1,0 +1,13 @@
+edit rc=0
+ cc/mocc/transaction.cc | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+probe new oid: eb8dc6fef9df3bb65f9fc71f88168e184424320a
+include lines equal to e9e477ca: 11 vs 11
+strict apply broken-mocc-lockskip-validation on minimal: rc=0
+strict apply broken-mocc-permutation-erase on minimal: rc=0
+strict apply broken-mocc-early-unlock on minimal: rc=0
+strict apply broken-mocc-hot-update-unlock on minimal: rc=0
+checker g++ rc=0
+ result pass files [('cc/mocc/transaction.cc', None)]
+checker g++-12 rc=0
+ result pass files [('cc/mocc/transaction.cc', None)]

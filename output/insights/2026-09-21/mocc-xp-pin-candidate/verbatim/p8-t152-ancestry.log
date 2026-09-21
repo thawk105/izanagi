@@ -1,0 +1,11 @@
+t152 ancestor of BASE rc=1 (0=yes,1=no)
+merge-base: d706650cdb31e442bef45b9b4216951d4fb40969
+2026-09-21 14:08:15.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/startup-gate.log
+2026-09-21 14:08:39.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p1-patch-merge.log
+2026-09-21 14:11:39.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p2-d297-asis.log
+2026-09-21 14:15:39.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p3-minimal-variant.log
+2026-09-21 14:16:24.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p4-keep-line17.log
+2026-09-21 14:18:44.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p5-proof-surface.log
+2026-09-21 14:56:01.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p6-d297-clang.log
+2026-09-21 14:34:55.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p7-candidate-ids.log
+2026-09-21 14:56:03.000000000 +0900 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/p8-t152-ancestry.log
