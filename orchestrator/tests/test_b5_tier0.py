@@ -171,7 +171,7 @@ double now_backoff = Backoff_.load(std::memory_order_acquire);
     proposal.write_text(json.dumps(B.machine_proposal_document(
         'random', 20, {'preimage': 'tier0-insertion-fixture'})))
     site = L.site_policy.OTHER if request.param == 'legacy' else L.site_policy.PEGASUS_COMPUTE
-    # Both branches need an active contract for the real identity checks.
+    # Both branches use an active contract for environment binding and smoke.
     # OTHER still selects legacy build: no env_contract enters campaign_options.
     contract = replace(L.env_contract.lookup(
         L._SITE_ENV_TAGS[L.site_policy.PEGASUS_COMPUTE]), numactl=())
@@ -185,6 +185,12 @@ double now_backoff = Backoff_.load(std::memory_order_acquire);
     monkeypatch.setattr(patchharness, 'checkout', lambda *_a, **_k: contextlib.nullcontext(str(sub)))
     monkeypatch.setattr(patchharness, 'applied', lambda *_a: contextlib.nullcontext())
     monkeypatch.setattr(L, '_require_condition_gate', lambda *_a, **_k: None)
+    # Identity recovery precedes Tier0 in both drive_iteration and
+    # _run_one_iteration_resolved. Keep its HEAD-blob check outside this seam
+    # so even a comment-only mutation of p3_s4_loop.py can reach the insertion.
+    # campaign_id/canonical_preimage and sidecar payloads remain real: they
+    # serialize cfg without capturing or verifying a contract-loader binding.
+    monkeypatch.setattr(L.ident, 'ensure_resumable_attempts', lambda *_a, **_k: None)
     case = SimpleNamespace(
         layout=layout, sidecar=sidecar, builds=[], events=[], gateway=[], outcomes=[],
         build_error=None, preparation_error=None, preparations=0,
