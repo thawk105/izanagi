@@ -21,7 +21,11 @@ title: mocc の X/P 計装を pin 候補へ載せる前段 — 計装 patch は�
 - **本 wave の記録は Codex の敵対検査を受けていない** (段 3・段 6 の Codex 子が走っていない)。代わりに独立 context の Claude (opus、読み取りのみ) で insight と fragment の事実照合を 1 本行い、must-fix 5・should 8・nit 11 を全件反映した (Codex レビューの代替とは扱わない)。
   段 2 plan は次 wave の段 2 成果物として流用し、段 3 を当ててから確定する。
 - plan の指摘で brief を 3 点訂正した: 「現行 pin の mocc 結果は常に indeterminate」は広すぎる (e9e477ca + T-2294 patch の診断実走は certified の正例を持つ、ただし NON_ADMISSIBLE の診断 build)。p4 の D297 pass は TRACE=0 前処理の証拠で TRACE=1 build の証拠ではない。p4 script の冒頭コメントは処理本文と食い違う。
-- 変異 matrix は免除 (実装面の差分ゼロ)。受入全走は本 wave の記録 commit を含む tip で land 前に 1 回投入する (結果は land の受領証)。記録前に local main `47368e7d5` を ff-only で取り込み (provenance 全史監査 rc=0、12,364 件、新規違反なし)、記録 commit の直前に `f646e7e85` へ再度 ff-only した。
+- 変異 matrix は免除 (実装面の差分ゼロ)。受入全走は land 対象 tip で投入する (結果は land の受領証)。
+- 受入の経過: attempt 1 (15:11) は子の実行前に postcheck で停止 (main の前進との競走、テストは未実行)。attempt 2 (tested main `5be086476`、tip `342c084d7`、15:14〜15:23) は
+  26,963 passed / 1 failed / 69 skipped。赤は `orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` 1 件 (bnode016、1 分 load 46.4、launcher が 10 秒の watchdog で
+  `TimeoutExpired`、receipt 未発行) で、F273 と同型。本 wave の差分 (insight・spool fragment) は launcher の経路に到達しない。同 tip の単独再走 (15318.nqsv、Elapse 13 秒) は 1 passed / 7.70 秒で
+  再現せず、非帰属と判定した (DW-O18)。期待値・timeout・hold は変えず、この追記を含む tip で受入を取り直す。記録前に local main `47368e7d5` を ff-only で取り込み (provenance 全史監査 rc=0、12,364 件、新規違反なし)、記録 commit の直前に `f646e7e85` へ再度 ff-only した。
 - 工数: Codex 子 3 本 (plan 1 = 受理、consult 2 = 起動直後に枠切れ)、Claude の照合子 1 本 (opus、79 tool 呼び出し、約 13 分)、login の probe 10 本 (うち D297 検査器の実走 7 回、p6 の再実行を含む)。
 
 ## 次の一手差分
