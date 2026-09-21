@@ -18,6 +18,23 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 本体論文の日本語方法節と実装対応メモを 2026-09-21 版として改稿した (2026-09-21 の執筆依頼、台帳 ID 未起票)。
+  `output/insights/2026-09-21/paper-methods-ja/{methods,implementation}.md` の方法節 §3 に B-8 の方法 (発効束・repo 外の runner v5・
+  校正段と本走段・3 値判定の規則、D2202 / entry 1791) を加え、判定集合を「本走 24 枠 (独立 8 反復 × 3 workload・extime 10 s) + 校正の
+  完走 6 枠」と書いた。K2 の同 job stock 対照口は D2187 (初投入の不成立) と D2205 (pair mode への修復、実機の再投入は未) に分けて
+  対照の成立を示唆せず、B-5 は D2200 項 1 の段階認可 (本走は未認可) として B-8 と分けた。それ以外の記述は前稿 (照合 `482f19b88`) を
+  継承し再照合していない。段 6 の独立レビュー 1 本と焦点再レビューは Codex の利用上限 (2026-09-26 まで) のため Claude の独立
+  context の子で代替した (同系統モデルで、Codex と同等の独立性は主張しない)。前稿本文は不変 (前稿 dir の README に前方 pointer を
+  追記)。wave の記録は同 dir の `README.md`。
+  文書成果の完了であり、未取得の測定や Phase 3 全体の完了を意味しない。
+
+- [x] 論文結果節の図素材 2 枚を作成した (2026-09-21 の作図依頼、台帳 ID 未起票)。fig14 = A-1 balanced5 sized attempt-0002 の単独記述図
+  (fig9 と同形の兄弟。`tools/plotting/plot_a1_sized_paired.py` を attempt ごとの exact pin 表で拡張し、attempt-0001 の出力と fig9 の bytes・着地閉包は不変。
+  `variance_plan_breach` を panel 題に描き、2 attempt のプール・差・比・再現判定を描かない)、fig15 = stock mocc 軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4、smoke は数えない) の
+  G2 signal 検出率・Clopper–Pearson 区間・曝露量 (新規生成器が repo 外 5 file を SHA-256 束縛し、稿 §2 の値を逐語で描く。非有意を同等性、TRACE=1 の commit 数を性能、
+  G2 signal を根因として描かない)。README 2 本に節。results 稿・版は不変。図素材の完了であり、論文本文への組み込み・A-1 の充足・mocc の認証を意味しない。
+  記録 = `output/insights/2026-09-21/paper-results-figures/README.md`。
+
 - [x] 本体論文の日本語草稿 3 組へ B-8 の 3 値判定 `pass` (entry 1791、D2202) を反映した新版を置いた (2026-09-21 の執筆依頼、台帳 ID 未起票)。
   結果・考察と要旨・結論は同日第 2 版 (`output/insights/2026-09-21/paper-results-ja-b/results-discussion.md`、
   `output/insights/2026-09-21/paper-abstract-conclusion-ja-b/{abstract,conclusion}.md`)、限界節は `output/insights/2026-09-21/paper-intro-ja/limitations.md`

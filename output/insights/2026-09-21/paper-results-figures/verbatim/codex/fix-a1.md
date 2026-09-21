@@ -1,0 +1,73 @@
+## 変更した物
+
+[test_plot_a1_sized_paired.py](/work/1/SFC/tanab/izanagi/.codex/worktrees/figs-unit-a1/orchestrator/tests/test_plot_a1_sized_paired.py:673) の2行だけ変更しました。
+
+`str(exc) == expected` を `str(exc).split("\n", 1)[0] == expected` に変更し、期待文言を先頭行で完全一致させています。
+
+## 実走した検査
+
+`python3 orchestrator/tests/test_plot_a1_sized_paired.py`：**44 passed / 0 failed / 0 skipped / 0 errors**。着地テストを含みます。
+
+実走nodeidは以下です。共通prefixは `orchestrator/tests/test_plot_a1_sized_paired.py::`。
+
+```text
+test_artist_series_equal_provenance_cells_and_leaf_statistics
+test_attempt1_default_and_explicit_data_are_identical
+test_attempt2_caption_avoids_forbidden_claims
+test_attempt2_caption_contains_fixed_literals_and_breach_values
+test_attempt2_cli_and_provenance_closure
+test_attempt2_fixture_has_production_shape
+test_attempt2_pinned_input_hashes_match_results_document
+test_attempt2_real_figure_passes_layout_check
+test_attempt2_real_leaf_loads_and_matches_results_document
+test_attempt2_rendered_breach_and_statistics_match_provenance
+test_attempt2_variance_plan_breach_true_is_accepted
+test_attempt2_variance_plan_predicate_mismatch_is_rejected
+test_attempt2_visible_text_forbidden_claims_and_negative_control
+test_attempt_hash_key_sets_are_exact
+test_bbox_overlap_is_a_failure
+test_caption_avoids_forbidden_claims
+test_caption_contains_fixed_literals_and_lane
+test_caption_figure_number_comes_from_prefix
+test_classification_mismatch_is_rejected
+test_cli_rejects_prefix_without_fig_number
+test_cli_rejects_unknown_attempt_and_hash_options
+test_cli_writes_three_outputs_and_provenance_closure
+test_fixture_has_production_shape_and_recomputes_statistics
+test_formal_true_is_rejected
+test_generator_comment_change_preserves_provenance_closure
+test_landed_fig14_rejects_missing_or_partial_bundle
+test_landed_fig14_repo_closure_and_caption_when_present
+test_landed_fig9_rejects_all_missing_outputs
+test_landed_fig9_rejects_partial_missing_outputs
+test_landed_fig9_repo_closure_and_caption_when_present
+test_landed_output_paths_reject_same_basename_in_other_directory
+test_layout_failure_publishes_nothing
+test_leaf_hash_drift_is_rejected
+test_pair_difference_mismatch_is_rejected
+test_pinned_hashes_are_used_when_no_override
+test_pinned_input_hashes_match_results_document
+test_policy_hash_mismatch_is_rejected
+test_promotion_prohibited_false_is_rejected
+test_provenance_binds_caption_source
+test_real_figure_passes_layout_check
+test_real_leaf_loads_and_matches_results_document
+test_statistics_mismatch_is_rejected
+test_uncertified_arm_is_rejected
+test_variance_plan_breach_true_is_rejected
+```
+
+修正対象の2関数を直接呼び、各5条件、**計10条件成功**：
+
+- pytest相当の説明付き例外文：受理。bundleは全欠落＋単独欠落3例を確認。
+- 別理由、期待文言が後続行、同一行に余分な文言、空文言：すべて拒否。
+
+確認コードはファイルに残していません。`git diff --check` も成功。pytest自体と `tools/run_tests.py` は未実行です。
+
+## 既存テストへの影響
+
+`git show 36fb14a3d:…` と現在のファイルをASTで関数ごとに切り出し、ソースのbytesを比較しました。既存28本すべて、本文・期待値が完全一致しました。
+
+## 総括
+
+対象2箇所を修正し、指定検査はすべて成功しました。変更は所有ファイルの2行のみ。生成器・docs・図・台帳は未変更、禁止されたGit操作も実行していません。
