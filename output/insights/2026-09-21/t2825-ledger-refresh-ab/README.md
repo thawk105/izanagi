@@ -211,4 +211,8 @@ spec は probe (sha `1015f7cf…`、本 dir に置かない。生成器で決定
 - attempt 1 (tip `a30e92141`、2026-09-21 13:58〜14:11 JST、session `519cfb05…`): 赤 1 件 `test_dev_wave_cleanup.py::test_remove_child_rejects_clean_filter[named-x]`。
   本文は `occupancy result is indeterminate or inconsistent; attempts=3 retry_count=2 ... {"error":"missing","source":"cwd","pid":"2521396"}` (rc=22、期待 20) で、
   占有検査が `/proc/<pid>/cwd` を読む間に別 process が消えた一過性の競合。同 test は台帳を参照せず本 wave の差分から到達しない。単独再走 (request 15060.nqsv) は
-  1 passed in 4.41 s。DW-O18 に従い非帰属として受入を 1 回だけ再投入した (結果は land 後に追記する)。
+  1 passed in 4.41 s。DW-O18 に従い非帰属として受入を 1 回だけ再投入した。
+- attempt 2 (tip `4c1228926`、待ち手の post-claim merge で local main `f646e7e85` を取り込み `639a1d956`、2026-09-21 14:44〜14:53 JST、session `c8899d10…`):
+  **child-green** (26,964 passed / 69 skipped、赤 0・flake 0)。取り込み後も台帳は測定 B と同じ bytes (`27fd84c2…`)。
+- 本節を足した commit 以後の受入は本 dir を含む tip に対して走るので、その結果は本 dir に書かない (受領証は job dir
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/acceptance-receipt-*-green.json`、land の結果は fold 後の worklog)。
