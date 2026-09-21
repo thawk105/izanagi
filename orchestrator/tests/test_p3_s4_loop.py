@@ -10803,8 +10803,11 @@ def pair_pegasus_case(tmp_path, monkeypatch, valid_reservation_environment):
     def preflight(*_a, **_k):
         c.preflight_calls += 1
         if c.fail_after_authorization and c.preflight_calls == 1:
+            assert c.events[-1] == (0, "enter") and c.claim_calls == 1
             raise RuntimeError("candidate after authorization")
-        return None, False
+        # Receipt-free evaluation uses the legacy use_perf=True path. Actual
+        # measurements are replaced below; stock must pass after candidate failure.
+        return None, True
     monkeypatch.setattr(loop, "_perform_perf_preflight", preflight)
 
     def evidence(genome, pin, *, ccbench_dir="", **_kwargs):

@@ -456,13 +456,10 @@ def _assert_static_job_contract(source: str) -> None:
         "driver": '"$PY" -B -m orchestrator.campaign.p3_s4_loop',
         "build-authority": "--allow-coder-derived-build",
         "isolation": "--isolate-worktree",
-        # The proposal branch owns its receipt; argv expansions have separate
-        # pins, and proposal-status-capture owns --run-iteration and its status.
+        # Each branch owns its receipt; argv expansions have separate pins,
+        # and the status-capture pins own --run-iteration / --value and status.
         "proposal": '--fetchcontent-prebuild-receipt "$prebuild_receipt"',
-        "fixture": (
-            '--fetchcontent-prebuild-receipt "$prebuild_receipt" \\\n'
-            '    --value "${IZANAGI_S4_FIXTURE_VALUE:-20}"'
-        ),
+        "fixture": '--fetchcontent-prebuild-receipt "$prebuild_receipt"',
     }
     required.update(STOCK_PINS)
     required.update(B5_PINS)
@@ -471,12 +468,14 @@ def _assert_static_job_contract(source: str) -> None:
         if re.match(r"^\s*#(?!PBS(?:\s|$))", line) is None
     )
     def pin_surface(label: str, text: str) -> str:
-        if label == "proposal":
-            # Scope this common option to proposal so the fixture's identical
-            # receipt option cannot hide its removal. Do not pin pair/K2 here.
-            return text.partition(
+        if label in ("proposal", "fixture"):
+            # The other branch's identical receipt must not hide its removal.
+            # Keep receipt pins independent of argv and status-capture pins.
+            branches = text.partition(
                 'if [[ -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]]; then\n'
-            )[2].partition("\nelse\n")[0]
+            )[2].partition("\nelse\n")
+            return (branches[0] if label == "proposal"
+                    else branches[2].partition("\nfi\n")[0])
         return text
 
     missing = [
