@@ -20365,6 +20365,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   返す。受入 2 も捨て、受入 3 を取り直す。
 
 - **再発: 2026-09-20 (6・7 例目、事後集計で判明)** — 22:36:34 JST の k2-loop-originals-lost-downstream (land it=1、path `<job dir>/dev-wave-t1505-a1-sized-submit/submit-tree`) と 22:39:11 JST の [T-2813] (land-2、path `<job dir>/dev-wave-t2792-a1-sized-attempt2/submit-tree`) が同型 (`registered worktree path cannot be resolved: [Errno 4] Interrupted system call`、`release_safe=true` / `retryable_same_request=false`、main 不変)。どちらも他 wave の登録 path で、同時刻に land が 3 本並んだ混雑窓。**source で確認した呼び出し位置:** `_registered_worktree_paths` は `_run_fold_gate` の `with _FoldGateOuterWatchdog(...)` の中 (`_execute_fold_gate` 先頭) で呼ばれ、watchdog は `setitimer(ITIMER_REAL, 0.1, 0.1)` で SIGALRM を 100 ms 周期に handler 付きで送る。`Path.resolve(strict=True)` → `posixpath._joinrealpath` は `os.lstat` / `os.readlink` を使い、CPython 3.10.12 の C 実装に EINTR の自動再試行 loop は無い (PEP 475 の対象外)。「その SIGALRM が Lustre の遅い metadata 呼び出しを中断して `InterruptedError` になった」は整合する未検証の仮説 (静穏時 probe 460 回 × 2 で 0 回、混雑時の再現は未実施)。EINTR 型は既存 5 件 + 本 2 件 = 7 件 (別型の ENOENT 1 件は含めない)。**復旧の是正:** 本項の「受入を取り直して新しい request を作るしかない」は現行 source と合わない — 非 retryable の拒否は順番票の entry を削除するが receipt は消費されず main も不変で、同じ tested tip / landing tip / receipt の再投入は `_register_land_turn` が新しい seq で新規登録して検査を再実行する (成功は保証しない)。k2-loop は拒否の 31 秒後に再投入して landed (受入不要、失うのは順番)。恒久対応の候補 (`InterruptedError` を armed 区間内で有界に再試行、期限監督は保つ) は `output/insights/2026-09-21/land-roundtrip-diagnosis/README.md` §5.1 の裁定パッケージ。
+- **supersede: 2026-09-21** — 恒久対応「未実施」は古い。[T-2833] (D2206 項 1) で `_registered_worktree_paths` の strict resolve を `InterruptedError` のときだけ 1 path あたり最大 5 回 (sleep なし、outer watchdog の armed 区間内) 呼び直す局所修正を入れた (commit `2a29a2381`、`output/insights/2026-09-21/t2833-land-eintr-retry/README.md`)。効果は未実測で、使い切れば同じ文言 `registered worktree path cannot be resolved: [Errno 4] Interrupted system call` の rc=31 が残る。その場合の再発検知は本エントリのまま、復旧は同じ tested tip / landing tip / receipt での再投入 (受入の取り直しは不要、`output/insights/2026-09-21/land-roundtrip-diagnosis/README.md` §3.2)。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
@@ -23364,6 +23365,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   Claude の独立 context の子 (Edit / Write を持たない Plan 型、model = opus。無指定は guard_agent が拒否する) のレビュー 2 本と焦点再レビュー 1 本で代替し、
   must-fix 1 件 (判定集合 30 枠を本走の条件へ丸ごと帰属させる要約) を含む real 所見 20 件 (採用 19) を得た。代替の独立性は Codex と同等と主張せず、
   成果物 README (`output/insights/2026-09-21/paper-results-ja-b/README.md` §4) に明記した。代替経路の正本化は段構成の変更なので実装せず、同 README §7 に候補として記録した。
+
+- **再発: 2026-09-21** — [T-2833] wave の段 6 で、Codex review 子 2 本が `You've hit your usage limit ... try again at Sep 26th, 2026 7:35 PM` (14:40:51 JST) で
+  rc=1・出力 0 になった。今回は段 5 の Codex author が完了し commit 済みだった点が 2026-09-02 と違う。D582 に従い自動再試行せずユーザーへ通知し、
+  敵対レビューは独立 context の Claude 子 2 本 (同じ prompt・同じ 2 レンズ、read-only) で代替した (DW-S06-A / DW-O01 の「codex」からの逸脱、
+  `output/insights/2026-09-21/t2833-land-eintr-retry/README.md` §3)。must-fix 0 で fix が要らなかったため実装差分は Codex author のまま land できた。
+  fix が要る所見が出ていれば、D95 により Claude は代行せず 9/26 まで停止するしかなかった。
 ### F819. 段 5 実装子の投げ文が親の worktree を指し、子が 1 byte も書かずに「成功」で戻った [恒真ゲート] [手順漏れ]
 
 - 事象: [T-2200] の段 5 で、実装子の prompt に書いた repo root と必読 path が**親の wave worktree**
