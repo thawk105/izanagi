@@ -1,0 +1,13 @@
+== 段 A (校正)
+   calib-write-heavy: request=14640.nqsv Elapse=558S host=None
+   calib-balanced: request=14641.nqsv Elapse=436S host=None
+   calib-read-heavy: request=14642.nqsv Elapse=926S host=None
+   -- Elapse 合計 = 1920 S
+== 段 B (本走)
+   verify-write-heavy-j1: request=14686.nqsv Elapse=1346S host=None
+   verify-balanced-j1: request=14687.nqsv Elapse=1035S host=None
+   verify-read-heavy-j1: request=14688.nqsv Elapse=2264S host=None
+   verify-write-heavy-j2: request=14689.nqsv Elapse=1344S host=None
+   verify-balanced-j2: request=14690.nqsv Elapse=1029S host=None
+   verify-read-heavy-j2: request=14691.nqsv Elapse=2262S host=None
+   -- Elapse 合計 = 9280 S
