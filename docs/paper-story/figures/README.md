@@ -2019,6 +2019,9 @@ provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を
 `outputs[].sha256` と `test_landed_fig15_repo_closure_and_caption_when_present` が守る。**検査は 2 層で、射程が違う。** `validate_repo_closure` は repo 外を読まず、稿の現 SHA-256・出力の SHA-256・
 provenance に記録した arm 統計から作り直した caption / artist との一致を見る (provenance の自己整合であって、外部原本との一致の証明ではない)。外部原本との一致は `validate_external_sources`
 (5 file の SHA-256 と、原本から再導出した統計・書式・条件が provenance と一致すること) が見て、`test_landed_fig15_external_closure_when_root_present` は root が無い環境でだけ skip する。
+同じく root が無い環境でだけ skip する `test_real_evidence_matches_results_document_when_root_present` は、稿 §2.2 / §2.3 / §2.6 の表セルとの逐語一致に加えて、
+図中の曝露比注記 2 行 (`BACK_OFF=0: on/off exposure ratio 0.8636` / `BACK_OFF=1: ... 0.8450`) が可視 text に描かれていることも検査する。外部 root が見えない環境ではこの 2 つも未検証になる
+(2026-09-21 の焦点走では計算ノードから root が見え、skip されずに走った)。
 repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/` の W1〜W4 `result.json` と `summary.json`) は原本と SHA-256 が一致するが、生成器はそれを入力にしない。
 生成器の `generator.sha256` は生成時点の記録であり、現行 source を縛る pin ではない (規律 7)。
 
@@ -2055,7 +2058,7 @@ repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verba
 - 限定と条件の言い方 → 稿 (provenance の `caption_source`、SHA-256 束縛)
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_mocc_witlight_four_arm.py` (`test_landed_fig15_repo_closure_and_caption_when_present`: 着地 bytes の SHA-256・caption の逐語収録・repo 側閉包、
   `test_landed_fig15_external_closure_when_root_present`: 外部原本からの再導出、`test_production_pins_match_results_document`: 5 pin と稿 §5.1、
-  `test_real_evidence_matches_results_document_when_root_present`: 稿 §2.2 / §2.3 / §2.6 の表セル)
+  `test_real_evidence_matches_results_document_when_root_present`: 稿 §2.2 / §2.3 / §2.6 の表セルと図中の曝露比注記 2 行、外部 root 不在時は skip)
 - 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md`、記録 insight `output/insights/2026-09-19/mocc-witlight-arm-run/README.md`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
 
