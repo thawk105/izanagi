@@ -5245,3 +5245,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-21","base":"755242b117c6921de3eb26e8f680d7d397cd6ad0","content_sha256":"9f3345c8282d8c6ed249e1420fa7e9daf084d0aa0dac1d1da766f00730292b2a","seq":1,"tested_tip":"23f21dd9d5e6550c12abeb4dbc763f895b48e742","wave":"dev-wave-paper-results-figures","wave_ref":"refs/heads/worktree-dev-wave-paper-results-figures"}
 - {"allocations":{"F:selfrun-green-pytest-red-exact-exception-text":"F1039"},"authored":"2026-09-21","base":"755242b117c6921de3eb26e8f680d7d397cd6ad0","content_sha256":"646b486fe02050d1f5012fb8928a2ab5446e3848ae75031d728d84184e207a33","seq":1,"tested_tip":"23f21dd9d5e6550c12abeb4dbc763f895b48e742","wave":"dev-wave-paper-results-figures","wave_ref":"refs/heads/worktree-dev-wave-paper-results-figures"}
+
+- {"allocations":{},"authored":"2026-09-21","base":"73b8780b7ccddd47fc5f46f93e2b47c01d79cb48","content_sha256":"b9dfe42dccc022b6c3011d42eb087fbc2d02d2bf3f1edb458bc57424d9cee949","seq":1,"tested_tip":"5814b769cd13d3b5901c3b162921cbf52175399d","wave":"dev-wave-tpcc-trace-design","wave_ref":"refs/heads/dev-wave-tpcc-trace-design"}
