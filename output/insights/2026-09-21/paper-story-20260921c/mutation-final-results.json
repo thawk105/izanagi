@@ -1,0 +1,720 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e995dee51212dbcd317da401592c4e92/izdw-e995dee512.o15273",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e995dee51212dbcd317da401592c4e92/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................                                    [100%]\n37 passed in 8.95s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d41870611f32dff78666fb39c94e799c500fd7e4e22482cdbd79ac20da326924"
+    },
+    "artifact_error": null,
+    "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+    "duration_s": 32.083,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "26f4ed3cf090a4a34a190670422b8edf9cac2224911dae607158b5c6092f5201",
+    "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+    "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+    "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+    "status": "PASSED",
+    "test_output_sha256": "d41870611f32dff78666fb39c94e799c500fd7e4e22482cdbd79ac20da326924",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+  },
+  "date": "2026-09-21T05:53:40.455972+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7ac38068f2118f42ed47134f3dd2e50b/izdw-7ac38068f2.o15276",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7ac38068f2118f42ed47134f3dd2e50b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................                                    [100%]\n37 passed in 9.08s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "0e36755b33e46fb35502658ad5f5fa3a606c79d97aa351ace051c2ac7147fef1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 37.292,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-control-comment",
+      "injection_diff_sha256": "48c8218cb2cb25548fc44c01e013c5e96b84134668792e257f62da3425575370",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "4f1d1d7ae4851a4e27bfbf068f1273a70b42b78d6811dee1d1185759ec3c90ee",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "def _caption(data, number):\n    # mutation control\n",
+          "old": "def _caption(data, number):\n"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "SURVIVED",
+      "test_output_sha256": "0e36755b33e46fb35502658ad5f5fa3a606c79d97aa351ace051c2ac7147fef1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b5fb93f4e2e96c360a34e4b7fc6f3fde/izdw-b5fb93f4e2.o15278",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b5fb93f4e2e96c360a34e4b7fc6f3fde/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................FFF........                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_t13_suffix_version_requires_matching_story_path _____________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_t13_suffix_version_requir0')\n\n    def test_t13_suffix_version_requires_matching_story_path(tmp_path):\n        path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n                                  story_path=\"docs/paper-story/2026-09-19.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=\"story_path mismatch\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'story_path mismatch'\nE         Actual message: 'ISO date required'\n\norchestrator/tests/test_plot_arc_status.py:348: AssertionError\n_____________ test_t11_invalid_story_version[invalid-calendar-day] _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_t11_invalid_story_version0')\nversion = '2026-02-30c', reason = 'day is out of range for month'\n\n    @pytest.mark.parametrize(\"version,reason\", [\n        (\"2026-02-30c\", \"day is out of range for month\"),\n        (\"2026-09-19C\", \"ISO date required\"),\n        (\"2026-09-19cc\", \"ISO date required\"),\n    ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n    def test_t11_invalid_story_version(tmp_path, version, reason):\n        path = _copy_story_states(tmp_path, story_version=version,\n                                  story_path=f\"docs/paper-story/{version}.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=reason):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'day is out of range for month'\nE         Actual message: 'ISO date required'\n\norchestrator/tests/test_plot_arc_status.py:335: AssertionError\n_________________ test_t10_suffix_version_and_generic_caption __________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n\n    def test_t10_suffix_version_and_generic_caption(tmp_path):\n        path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n                                  story_path=\"docs/paper-story/2026-09-19c.md\")\n>       data = PLOT.load_states(tmp_path, path)\n\norchestrator/tests/test_plot_arc_status.py:306: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_arc_status.py:113: in load_states\n    _require(re.fullmatch(pattern, value) is not None, \"ISO date required\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'ISO date required'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           arc_status_under_test.FigureDataError: ISO date required\n\ntools/plotting/plot_arc_status.py:49: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\n3 failed, 34 passed in 9.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1033 retained_bytes=1033 omitted_bytes=0 rendered_excerpt_bytes=1080 sha256=555de552b603d0f7cc1c0c38ef14cc6d16912bdaa2d28efe706cb2cf9148ad7f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n> \n>     def test_t10_suffix_version_and_generic_caption(tmp_path):\n>         path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n>                                   story_path=\"docs/paper-story/2026-09-19c.md\")\n> >       data = PLOT.load_states(tmp_path, path)\n> \n> orchestrator/tests/test_plot_arc_status.py:306: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_arc_status.py:113: in load_states\n>     _require(re.fullmatch(pattern, value) is not None, \"ISO date required\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'ISO date required'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           arc_status_under_test.FigureDataError: ISO date required\n> \n> tools/plotting/plot_arc_status.py:49: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=993 retained_bytes=993 omitted_bytes=0 rendered_excerpt_bytes=1032 sha256=fa885a0249cf818474cd35aa6df38b1a9fcf57d9145400bb58e24633e65e68f7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_t11_invalid_story_version0')\n> version = '2026-02-30c', reason = 'day is out of range for month'\n> \n>     @pytest.mark.parametrize(\"version,reason\", [\n>         (\"2026-02-30c\", \"day is out of range for month\"),\n>         (\"2026-09-19C\", \"ISO date required\"),\n>         (\"2026-09-19cc\", \"ISO date required\"),\n>     ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n>     def test_t11_invalid_story_version(tmp_path, version, reason):\n>         path = _copy_story_states(tmp_path, story_version=version,\n>                                   story_path=f\"docs/paper-story/{version}.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=reason):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'day is out of range for month'\n> E         Actual message: 'ISO date required'\n> \n> orchestrator/tests/test_plot_arc_status.py:335: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=659 retained_bytes=659 omitted_bytes=0 rendered_excerpt_bytes=686 sha256=38d326d19f2ce0629da749c9bf9dda2b1562c7d80f07f1efb38958c3625edf0c\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_t13_suffix_version_requir0')\n> \n>     def test_t13_suffix_version_requires_matching_story_path(tmp_path):\n>         path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n>                                   story_path=\"docs/paper-story/2026-09-19.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=\"story_path mismatch\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'story_path mismatch'\n> E         Actual message: 'ISO date required'\n> \n> orchestrator/tests/test_plot_arc_status.py:348: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2685 retained_bytes=2685 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4379 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b05a3feb6c3874ed6457dd4ba571a3bcb6a5437926c59630ec3925d482af8554"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.366,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption",
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path",
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption"
+      ],
+      "hang_risk": false,
+      "id": "M1-suffix-rejected",
+      "injection_diff_sha256": "7e3bfd1d119f27d36d95e8afeeeb70b01e7c2a7d8d3baa19208f714bbbc616d5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7e7ec38b1457ae3e9d26d099fd9072a3876739d5fa60416ddeb535c7b190f53a",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "r\"\\d{4}-\\d{2}-\\d{2}\" if key",
+          "old": "r\"\\d{4}-\\d{2}-\\d{2}[a-z]?\" if key"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "b05a3feb6c3874ed6457dd4ba571a3bcb6a5437926c59630ec3925d482af8554",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66d05fc2422598d1121b8c5d3a97a900/izdw-66d05fc242.o15280",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66d05fc2422598d1121b8c5d3a97a900/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................F.........                                    [100%]\n=================================== FAILURES ===================================\n___________ test_t11_invalid_story_version[multiple-suffix-letters] ____________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_t11_invalid_story_version0')\nversion = '2026-09-19cc', reason = 'ISO date required'\n\n    @pytest.mark.parametrize(\"version,reason\", [\n        (\"2026-02-30c\", \"day is out of range for month\"),\n        (\"2026-09-19C\", \"ISO date required\"),\n        (\"2026-09-19cc\", \"ISO date required\"),\n    ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n    def test_t11_invalid_story_version(tmp_path, version, reason):\n        path = _copy_story_states(tmp_path, story_version=version,\n                                  story_path=f\"docs/paper-story/{version}.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=reason):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_arc_status.py:335: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]\n1 failed, 36 passed in 9.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 rendered_excerpt_bytes=898 sha256=248ca8ba78f591518f691e671538def7cc168adc72f96ea9cb375728c23fb9aa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_t11_invalid_story_version0')\n> version = '2026-09-19cc', reason = 'ISO date required'\n> \n>     @pytest.mark.parametrize(\"version,reason\", [\n>         (\"2026-02-30c\", \"day is out of range for month\"),\n>         (\"2026-09-19C\", \"ISO date required\"),\n>         (\"2026-09-19cc\", \"ISO date required\"),\n>     ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n>     def test_t11_invalid_story_version(tmp_path, version, reason):\n>         path = _copy_story_states(tmp_path, story_version=version,\n>                                   story_path=f\"docs/paper-story/{version}.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=reason):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_arc_status.py:335: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1619 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "55636430379a4b2430296f41bd9ed774f1150eb8bb2704ac57dda1f96fbdd3e9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.156,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]"
+      ],
+      "hang_risk": false,
+      "id": "M2-suffix-multi-letter",
+      "injection_diff_sha256": "d9e0556258300c4c3530fb5cf12960bdad555ed0e98c556360a9cd0233cd91a2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "52705b1fd7b9083d0ebe5684d9921ba75944b7242310da503e259c1b818194a1",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "[a-z]*\" if key",
+          "old": "[a-z]?\" if key"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "55636430379a4b2430296f41bd9ed774f1150eb8bb2704ac57dda1f96fbdd3e9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/247c65d90daca1f843b372066b725945/izdw-247c65d90d.o15283",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/247c65d90daca1f843b372066b725945/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................F.........                                    [100%]\n=================================== FAILURES ===================================\n_______________ test_t11_invalid_story_version[uppercase-suffix] _______________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_t11_invalid_story_version0')\nversion = '2026-09-19C', reason = 'ISO date required'\n\n    @pytest.mark.parametrize(\"version,reason\", [\n        (\"2026-02-30c\", \"day is out of range for month\"),\n        (\"2026-09-19C\", \"ISO date required\"),\n        (\"2026-09-19cc\", \"ISO date required\"),\n    ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n    def test_t11_invalid_story_version(tmp_path, version, reason):\n        path = _copy_story_states(tmp_path, story_version=version,\n                                  story_path=f\"docs/paper-story/{version}.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=reason):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_arc_status.py:335: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]\n1 failed, 36 passed in 9.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=862 retained_bytes=862 omitted_bytes=0 rendered_excerpt_bytes=897 sha256=8f92708b1f48cb865e6146b025b3b5a1ea605d0872ace0932fc81333657a41e1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_t11_invalid_story_version0')\n> version = '2026-09-19C', reason = 'ISO date required'\n> \n>     @pytest.mark.parametrize(\"version,reason\", [\n>         (\"2026-02-30c\", \"day is out of range for month\"),\n>         (\"2026-09-19C\", \"ISO date required\"),\n>         (\"2026-09-19cc\", \"ISO date required\"),\n>     ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n>     def test_t11_invalid_story_version(tmp_path, version, reason):\n>         path = _copy_story_states(tmp_path, story_version=version,\n>                                   story_path=f\"docs/paper-story/{version}.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=reason):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_arc_status.py:335: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=862 retained_bytes=862 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1611 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18c002f39b5e012927443ed2469860641cd8984fd98b286c225a4d128eacc6c4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.201,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]"
+      ],
+      "hang_risk": false,
+      "id": "M3-suffix-uppercase",
+      "injection_diff_sha256": "41b225abed1f2c00549d40a81e4822b6ba7ab91cd186a76679d891c27a1a3c35",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fc8fe65e3a2dad7230f8122e686c590886e4e81f33432175ca0bad40666b0d80",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "[a-zA-Z]?\" if key",
+          "old": "[a-z]?\" if key"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "18c002f39b5e012927443ed2469860641cd8984fd98b286c225a4d128eacc6c4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/532dbb10073b326c25a02a277defd098/izdw-532dbb1007.o15287",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/532dbb10073b326c25a02a277defd098/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................F.........                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_t11_invalid_story_version[invalid-calendar-day] _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_t11_invalid_story_version0')\nversion = '2026-02-30c', reason = 'day is out of range for month'\n\n    @pytest.mark.parametrize(\"version,reason\", [\n        (\"2026-02-30c\", \"day is out of range for month\"),\n        (\"2026-09-19C\", \"ISO date required\"),\n        (\"2026-09-19cc\", \"ISO date required\"),\n    ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n    def test_t11_invalid_story_version(tmp_path, version, reason):\n        path = _copy_story_states(tmp_path, story_version=version,\n                                  story_path=f\"docs/paper-story/{version}.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=reason):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_arc_status.py:335: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]\n1 failed, 36 passed in 9.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=874 retained_bytes=874 omitted_bytes=0 rendered_excerpt_bytes=909 sha256=920dd4b9f268ba4863eaabe79ce80d17fa1db523ddfb95f13bda2c42425883b0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_t11_invalid_story_version0')\n> version = '2026-02-30c', reason = 'day is out of range for month'\n> \n>     @pytest.mark.parametrize(\"version,reason\", [\n>         (\"2026-02-30c\", \"day is out of range for month\"),\n>         (\"2026-09-19C\", \"ISO date required\"),\n>         (\"2026-09-19cc\", \"ISO date required\"),\n>     ], ids=[\"invalid-calendar-day\", \"uppercase-suffix\", \"multiple-suffix-letters\"])\n>     def test_t11_invalid_story_version(tmp_path, version, reason):\n>         path = _copy_story_states(tmp_path, story_version=version,\n>                                   story_path=f\"docs/paper-story/{version}.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=reason):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_arc_status.py:335: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=874 retained_bytes=874 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1627 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fe3fbdec0533f2bcfc3d833a0c8415230651d628e95aa3c437f96e8ed0ffe48b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 37.334,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]"
+      ],
+      "hang_risk": false,
+      "id": "M4-no-calendar-check",
+      "injection_diff_sha256": "4155c9f5055f9331e8bd40cb62cd03bb6a90392c17cfbc589ac5e457f678702e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0bc935d98bc8a5d7825f61d86e8d2d302ac2338e0d02c8b82c3a5f42bd98fb53",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "datetime.date.fromisoformat(\"2000-01-01\" if key == \"story_version\" else value)",
+          "old": "datetime.date.fromisoformat(value[:10] if key == \"story_version\" else value)"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "fe3fbdec0533f2bcfc3d833a0c8415230651d628e95aa3c437f96e8ed0ffe48b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f460484973cd08e9a1e10bbc4bf7aa75/izdw-f460484973.o15290",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f460484973cd08e9a1e10bbc4bf7aa75/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................F.........                                    [100%]\n=================================== FAILURES ===================================\n____________________ test_t12_figure_created_rejects_suffix ____________________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_t12_figure_created_reject0')\n\n    def test_t12_figure_created_rejects_suffix(tmp_path):\n        path = _copy_story_states(tmp_path, figure_created=\"2026-09-21c\")\n>       with pytest.raises(PLOT.FigureDataError, match=\"ISO date required\"):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_arc_status.py:341: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix\n1 failed, 36 passed in 9.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix\" nodeid_bytes=82 nodeid_omitted_bytes=0 source_bytes=456 retained_bytes=456 omitted_bytes=0 rendered_excerpt_bytes=477 sha256=81c07c211c71dde1a7887a6d7832dc090962be9507e0e7b89fab110855166f8c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_t12_figure_created_reject0')\n> \n>     def test_t12_figure_created_rejects_suffix(tmp_path):\n>         path = _copy_story_states(tmp_path, figure_created=\"2026-09-21c\")\n> >       with pytest.raises(PLOT.FigureDataError, match=\"ISO date required\"):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_arc_status.py:341: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=456 retained_bytes=456 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1181 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1fe45859675a6d7295a74867cdd4565f07283a8fa358da7d651a2f165ec04a94"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.57,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix"
+      ],
+      "hang_risk": false,
+      "id": "M5-figure-created-relaxed",
+      "injection_diff_sha256": "0e405a2a6f2e34f89bb52a3a93f850d3e3eab48339a16c3225303317b2642548",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "927c1fe946ece12b77335644e0defb03d5a46e87bde0e56bbe5b71c72e442383",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "[a-z]?\" if True else",
+          "old": "[a-z]?\" if key == \"story_version\" else"
+        },
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "value[:10] if True else value",
+          "old": "value[:10] if key == \"story_version\" else value"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "1fe45859675a6d7295a74867cdd4565f07283a8fa358da7d651a2f165ec04a94",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f9e1e6423814189ed40d39a3c636f8c/izdw-7f9e1e6423.o15291",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f9e1e6423814189ed40d39a3c636f8c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................FF........                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_t13_suffix_version_requires_matching_story_path _____________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_t13_suffix_version_requir0')\n\n    def test_t13_suffix_version_requires_matching_story_path(tmp_path):\n        path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n                                  story_path=\"docs/paper-story/2026-09-19.md\")\n>       with pytest.raises(PLOT.FigureDataError, match=\"story_path mismatch\"):\nE       Failed: DID NOT RAISE FigureDataError\n\norchestrator/tests/test_plot_arc_status.py:348: Failed\n_________________ test_t10_suffix_version_and_generic_caption __________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n\n    def test_t10_suffix_version_and_generic_caption(tmp_path):\n        path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n                                  story_path=\"docs/paper-story/2026-09-19c.md\")\n>       data = PLOT.load_states(tmp_path, path)\n\norchestrator/tests/test_plot_arc_status.py:306: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_arc_status.py:115: in load_states\n    _require(data[\"story_path\"] == f\"docs/paper-story/{data['story_version'][:10]}.md\", \"story_path mismatch\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'story_path mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           arc_status_under_test.FigureDataError: story_path mismatch\n\ntools/plotting/plot_arc_status.py:49: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\n2 failed, 35 passed in 9.08s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1072 retained_bytes=1072 omitted_bytes=0 rendered_excerpt_bytes=1119 sha256=572bb5fe242127f93342edfcf4ee6cd9b7139ec2aaf25b6dd922d39bf6686177\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n> \n>     def test_t10_suffix_version_and_generic_caption(tmp_path):\n>         path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n>                                   story_path=\"docs/paper-story/2026-09-19c.md\")\n> >       data = PLOT.load_states(tmp_path, path)\n> \n> orchestrator/tests/test_plot_arc_status.py:306: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_arc_status.py:115: in load_states\n>     _require(data[\"story_path\"] == f\"docs/paper-story/{data['story_version'][:10]}.md\", \"story_path mismatch\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'story_path mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           arc_status_under_test.FigureDataError: story_path mismatch\n> \n> tools/plotting/plot_arc_status.py:49: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=550 retained_bytes=550 omitted_bytes=0 rendered_excerpt_bytes=573 sha256=653df2415ae62d735dcf2507d7cbdc57366d80c2d124c7d5f9ea2b6b5803f974\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_t13_suffix_version_requir0')\n> \n>     def test_t13_suffix_version_requires_matching_story_path(tmp_path):\n>         path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n>                                   story_path=\"docs/paper-story/2026-09-19.md\")\n> >       with pytest.raises(PLOT.FigureDataError, match=\"story_path mismatch\"):\n> E       Failed: DID NOT RAISE FigureDataError\n> \n> orchestrator/tests/test_plot_arc_status.py:348: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1622 retained_bytes=1622 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2839 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4bbe39e633205d9a8c2ab973bb494d71535170dc62a9318b358a722906a220b7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.232,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption",
+        "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path",
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption"
+      ],
+      "hang_risk": false,
+      "id": "M6-path-date-part",
+      "injection_diff_sha256": "9d3d33547439fbe6a34393c50020832256b38b18f00263f7f34a8eb5fab2c917",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "169cac9f926dcc51db4c0f49e341f8108b89590becb5f02371df9ab725d88c36",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "f\"docs/paper-story/{data['story_version'][:10]}.md\"",
+          "old": "f\"docs/paper-story/{data['story_version']}.md\""
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "4bbe39e633205d9a8c2ab973bb494d71535170dc62a9318b358a722906a220b7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38060f6d3046bc7af2b5a48ca7e00014/izdw-38060f6d30.o15296",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38060f6d3046bc7af2b5a48ca7e00014/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F...                                    [100%]\n=================================== FAILURES ===================================\n_________________ test_t10_suffix_version_and_generic_caption __________________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n\n    def test_t10_suffix_version_and_generic_caption(tmp_path):\n        path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n                                  story_path=\"docs/paper-story/2026-09-19c.md\")\n        data = PLOT.load_states(tmp_path, path)\n        fig, layout = PLOT.make_figure(data)\n        try:\n            PLOT.check_figure_layout(fig, layout)\n            prov = PLOT.build_provenance(data, layout, [], [\"caption-probe\"], figure_number=\"3c\")\n            assert prov[\"story_version\"] == \"2026-09-19c\"\n>           assert prov[\"caption\"] == (\n                \"Figure 3c. Status of the paper-story arc read from the frozen 2026-09-19c story: \"\n                \"act summaries from section 0 and evidence-item states from section 8. \"\n                \"Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. \"\n                \"Obtained records that a judgment or completion exists, not that a claim is supported; \"\n                \"each item's sublabel carries the recorded judgment words and limitations. \"\n                \"This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. \"\n                \"Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. \"\n                \"No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\"\n            )\nE           AssertionError: assert 'Figure 3c. S...mains frozen.' == 'Figure 3c. S...mains frozen.'\nE             \nE             Skipping 335 identical leading characters in diff, use -v to show\nE             -  supported; each item's sublabel carries the recorded judgment words and limitations. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\nE             +  supported: B-1 remains not met and A-6 records reject. A-3 is ...\nE             \nE             ...Full output truncated (1 line hidden), use '-vv' to show\n\norchestrator/tests/test_plot_arc_status.py:312: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\n1 failed, 36 passed in 9.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=2550 retained_bytes=2550 omitted_bytes=0 rendered_excerpt_bytes=2615 sha256=fdd3c988970632eda8db8bf02c1aa8b44477c21e02449c7fe1a794c990feaab5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_t10_suffix_version_and_ge0')\n> \n>     def test_t10_suffix_version_and_generic_caption(tmp_path):\n>         path = _copy_story_states(tmp_path, story_version=\"2026-09-19c\",\n>                                   story_path=\"docs/paper-story/2026-09-19c.md\")\n>         data = PLOT.load_states(tmp_path, path)\n>         fig, layout = PLOT.make_figure(data)\n>         try:\n>             PLOT.check_figure_layout(fig, layout)\n>             prov = PLOT.build_provenance(data, layout, [], [\"caption-probe\"], figure_number=\"3c\")\n>             assert prov[\"story_version\"] == \"2026-09-19c\"\n> >           assert prov[\"caption\"] == (\n>                 \"Figure 3c. Status of the paper-story arc read from the frozen 2026-09-19c story: \"\n>                 \"act summaries from section 0 and evidence-item states from section 8. \"\n>                 \"Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. \"\n>                 \"Obtained records that a judgment or completion exists, not that a claim is supported; \"\n>                 \"each item's sublabel carries the recorded judgment words and limitations. \"\n>                 \"This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. \"\n>                 \"Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. \"\n>                 \"No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\"\n>             )\n> E           AssertionError: assert 'Figure 3c. S...mains frozen.' == 'Figure 3c. S...mains frozen.'\n> E             \n> E             Skipping 335 identical leading characters in diff, use -v to show\n> E             -  supported; each item's sublabel carries the recorded judgment words and limitations. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\n> E             +  supported: B-1 remains not met and A-6 records reject. A-3 is ...\n> E             \n> E             ...Full output truncated (1 line hidden), use '-vv' to show\n> \n> orchestrator/tests/test_plot_arc_status.py:312: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2550 retained_bytes=2550 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3329 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f76079f78a42806b98532563b385e5be95098dec11f33579ecc376b9aab7247a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 37.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption"
+      ],
+      "hang_risk": false,
+      "id": "M7-caption-always-legacy",
+      "injection_diff_sha256": "49f9a35ea5ea1b9431db72c8dc2bba670cf1fa4b308fbe3fb5fcf0cff7c2ac86",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "df303aa14a3362bb4ee5d8df3bab2c75cf4a1fd4619fe6ffe4bf7147f569e03c",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "template = CAPTION",
+          "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "f76079f78a42806b98532563b385e5be95098dec11f33579ecc376b9aab7247a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c5c4756620d276dacd0762db52f241f1/izdw-c5c4756620.o15299",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c5c4756620d276dacd0762db52f241f1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................F.......F                                    [100%]\n=================================== FAILURES ===================================\n_____________ test_t9_default_caption_matches_independent_literal ______________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nproduction = ({'states': {'schema': 'izanagi-arc-status/v1', 'story_version': '2026-09-19', 'story_path': 'docs/paper-story/2026-09...: Code-level synthesis'), Text(0.6769444444444445, 0.886183574879227, 'in progress')], 'patch': None, ...}, ...], ...})\n\n    def test_t9_default_caption_matches_independent_literal(production):\n        data, _, layout = production\n        prov = PLOT.build_provenance(data, layout, [], [\"caption-probe\"])\n>       assert prov[\"caption\"] == (\n            \"Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: \"\n            \"act summaries from section 0 and evidence-item states from section 8. \"\n            \"Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. \"\n            \"Obtained records that a judgment or completion exists, not that a claim is supported: \"\n            \"B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. \"\n            \"A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. \"\n            \"B-7, B-9, and B-10 are neither promoted nor closed by this figure. \"\n            \"This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. \"\n            \"A-2 and A-6 retain the judgments made under the identity layer used at the time; \"\n            \"later identity fixes do not strengthen them retrospectively. \"\n            \"No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\"\n        )\nE       AssertionError: assert 'Figure 3b. S...mains frozen.' == 'Figure 3b. S...mains frozen.'\nE         \nE         Skipping 334 identical leading characters in diff, use -v to show\nE         -  supported: B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. B-7, B-9, and B-10 are neither promoted nor closed by this figure. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. A-2 and A-6 retain the judgments made under the identity layer used at the time; later identity f...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_plot_arc_status.py:276: AssertionError\n__________________ test_t7_cli_outputs_and_independent_hashes __________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_t7_cli_outputs_and_indepe0')\n\n    def test_t7_cli_outputs_and_independent_hashes(tmp_path):\n        prefix = tmp_path / \"fig3b_test\"\n        result = _cli(prefix)\n        assert result.returncode == 0, result.stderr\n        paths = [Path(str(prefix)+suffix) for suffix in (\".png\", \".pdf\", \".provenance.json\")]\n        assert set(tmp_path.iterdir()) == set(paths)\n        assert all(stat.S_IMODE(path.stat().st_mode) == 0o644 for path in paths)\n        assert paths[0].read_bytes().startswith(b\"\\x89PNG\\r\\n\\x1a\\n\")\n        assert paths[1].read_bytes().startswith(b\"%PDF-\")\n        prov = json.loads(paths[2].read_bytes())\n        assert set(prov) == {\"schema\", \"generated_utc\", \"story_version\", \"story_path\", \"figure_created\",\n                             \"inputs\", \"generator\", \"outputs\", \"drawn_items\", \"state_definitions\", \"caption\", \"argv\", \"versions\"}\n        assert prov[\"schema\"] == \"izanagi-arc-status-figure-provenance/v1\"\n        assert prov[\"story_version\"] == \"2026-09-19\" and prov[\"figure_created\"] == \"2026-09-20\"\n        assert [row[\"kind\"] for row in prov[\"inputs\"]] == [\"states\", \"story\"]\n        for row in prov[\"inputs\"] + [prov[\"generator\"]] + prov[\"outputs\"]:\n            assert row[\"sha256\"] == hashlib.sha256((REPO / row[\"path\"]).read_bytes()).hexdigest()\n        assert prov[\"drawn_items\"] == _expected(_raw())\n        assert prov[\"state_definitions\"] == _raw()[\"state_definitions\"]\n        assert prov[\"caption\"].startswith(\"Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story:\")\n        for clause in (\"B-1 remains not met\", \"A-6 records reject\", \"A-3 is a settled reporting rule\",\n                       \"A-4 is adopted by ruling but inactive pending human action\",\n                       \"later identity fixes do not strengthen them retrospectively.\",\n                       \"No measurement values are drawn and no judgments are recomputed.\"):\n>           assert clause in prov[\"caption\"]\nE           AssertionError: assert 'B-1 remains not met' in 'Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: act summaries from section 0 and evid...vely. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.'\n\norchestrator/tests/test_plot_arc_status.py:257: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal\nFAILED orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes\n2 failed, 35 passed in 8.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=2551 retained_bytes=2551 omitted_bytes=0 rendered_excerpt_bytes=2608 sha256=e3b6dd74716d333983e692668d630bee1de0f846f5e768b77bc915d862f1b1f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> production = ({'states': {'schema': 'izanagi-arc-status/v1', 'story_version': '2026-09-19', 'story_path': 'docs/paper-story/2026-09...: Code-level synthesis'), Text(0.6769444444444445, 0.886183574879227, 'in progress')], 'patch': None, ...}, ...], ...})\n> \n>     def test_t9_default_caption_matches_independent_literal(production):\n>         data, _, layout = production\n>         prov = PLOT.build_provenance(data, layout, [], [\"caption-probe\"])\n> >       assert prov[\"caption\"] == (\n>             \"Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: \"\n>             \"act summaries from section 0 and evidence-item states from section 8. \"\n>             \"Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. \"\n>             \"Obtained records that a judgment or completion exists, not that a claim is supported: \"\n>             \"B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. \"\n>             \"A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. \"\n>             \"B-7, B-9, and B-10 are neither promoted nor closed by this figure. \"\n>             \"This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. \"\n>             \"A-2 and A-6 retain the judgments made under the identity layer used at the time; \"\n>             \"later identity fixes do not strengthen them retrospectively. \"\n>             \"No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.\"\n>         )\n> E       AssertionError: assert 'Figure 3b. S...mains frozen.' == 'Figure 3b. S...mains frozen.'\n> E         \n> E         Skipping 334 identical leading characters in diff, use -v to show\n> E         -  supported: B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. B-7, B-9, and B-10 are neither promoted nor closed by this figure. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. A-2 and A-6 retain the judgments made under the identity layer used at the time; later identity f...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_plot_arc_status.py:276: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=2423 retained_bytes=2423 omitted_bytes=0 rendered_excerpt_bytes=2503 sha256=338a1be988c32cb2a0e83bc0cca486515406a68151b8abefb6c55582480fc0d2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_t7_cli_outputs_and_indepe0')\n> \n>     def test_t7_cli_outputs_and_independent_hashes(tmp_path):\n>         prefix = tmp_path / \"fig3b_test\"\n>         result = _cli(prefix)\n>         assert result.returncode == 0, result.stderr\n>         paths = [Path(str(prefix)+suffix) for suffix in (\".png\", \".pdf\", \".provenance.json\")]\n>         assert set(tmp_path.iterdir()) == set(paths)\n>         assert all(stat.S_IMODE(path.stat().st_mode) == 0o644 for path in paths)\n>         assert paths[0].read_bytes().startswith(b\"\\x5cx89PNG\\x5cr\\x5cn\\x5cx1a\\x5cn\")\n>         assert paths[1].read_bytes().startswith(b\"%PDF-\")\n>         prov = json.loads(paths[2].read_bytes())\n>         assert set(prov) == {\"schema\", \"generated_utc\", \"story_version\", \"story_path\", \"figure_created\",\n>                              \"inputs\", \"generator\", \"outputs\", \"drawn_items\", \"state_definitions\", \"caption\", \"argv\", \"versions\"}\n>         assert prov[\"schema\"] == \"izanagi-arc-status-figure-provenance/v1\"\n>         assert prov[\"story_version\"] == \"2026-09-19\" and prov[\"figure_created\"] == \"2026-09-20\"\n>         assert [row[\"kind\"] for row in prov[\"inputs\"]] == [\"states\", \"story\"]\n>         for row in prov[\"inputs\"] + [prov[\"generator\"]] + prov[\"outputs\"]:\n>             assert row[\"sha256\"] == hashlib.sha256((REPO / row[\"path\"]).read_bytes()).hexdigest()\n>         assert prov[\"drawn_items\"] == _expected(_raw())\n>         assert prov[\"state_definitions\"] == _raw()[\"state_definitions\"]\n>         assert prov[\"caption\"].startswith(\"Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story:\")\n>         for clause in (\"B-1 remains not met\", \"A-6 records reject\", \"A-3 is a settled reporting rule\",\n>                        \"A-4 is adopted by ruling but inactive pending human action\",\n>                        \"later identity fixes do not strengthen them retrospectively.\",\n>                        \"No measurement values are drawn and no judgments are recomputed.\"):\n> >           assert clause in prov[\"caption\"]\n> E           AssertionError: assert 'B-1 remains not met' in 'Figure 3b. Status of the paper-story arc read from the frozen 2026-09-19 story: act summaries from section 0 and evid...vely. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.'\n> \n> orchestrator/tests/test_plot_arc_status.py:257: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4974 retained_bytes=4974 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6259 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7d17ceb59bfc303e01415e8b039fce35f4ecef707f4f8e5511709dee6500f741"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "db0931fc2fec6898cb7cd927ef6f1c7684eeb02b60cf83ce007f8361ec7622ed",
+      "duration_s": 32.194,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes",
+        "orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal",
+        "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes"
+      ],
+      "hang_risk": false,
+      "id": "M8-caption-always-generic",
+      "injection_diff_sha256": "ceb208bf388e8f1f08d93da515cc057a0b27f52183b7deba060c20fefac60dc4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2f0881257cce329593e455706ce0239b1e86d4a8353a2f7d8af109481289be1d",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_arc_status.py",
+          "new": "template = GENERIC_CAPTION",
+          "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION"
+        }
+      ],
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "KILLED",
+      "test_output_sha256": "7d17ceb59bfc303e01415e8b039fce35f4ecef707f4f8e5511709dee6500f741",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c6459cf9f9ce49aae36dab1656d1278a/izdw-c6459cf9f9.o15272",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c6459cf9f9ce49aae36dab1656d1278a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_plot_arc_status.py::test_t1_real_states_render_at_production_size\norchestrator/tests/test_plot_arc_status.py::test_t2_independent_styles_and_changed_state\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[bogus-state]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[null-evidence]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[duplicate-id]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-item-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[missing-item-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-top-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-act-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-group-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-definition-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[invalid-anchor]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[absent-anchor]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[nonunique-anchor]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[story-path]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[percent]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[group-percent]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[throughput]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[latency]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[assignment]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[duplicate-key]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[nan]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[infinity]\norchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[negative-infinity]\norchestrator/tests/test_plot_arc_status.py::test_t4_free_text_contract\norchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[overlap]\norchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[escape]\norchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files\norchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes\norchestrator/tests/test_plot_arc_status.py::test_t8_cli_rejects_invalid_prefix\norchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal\norchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption\norchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]\norchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]\norchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]\norchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix\norchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path\n\n37 tests collected in 0.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "fdfdec0b3134a82f04cb9e0f5ad9eb6a536a2754802b16e89e30f6c9ae94af0c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_arc_status.py::test_t1_real_states_render_at_production_size",
+        "orchestrator/tests/test_plot_arc_status.py::test_t2_independent_styles_and_changed_state",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[bogus-state]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[null-evidence]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[duplicate-id]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-item-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[missing-item-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-top-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-act-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-group-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[unknown-definition-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[invalid-anchor]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[absent-anchor]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[nonunique-anchor]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[story-path]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[percent]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[group-percent]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[throughput]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[latency]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[assignment]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[duplicate-key]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[nan]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[infinity]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t3_invalid_json_without_drawing[negative-infinity]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t4_free_text_contract",
+        "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[overlap]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t5_layout_rejects_overlap_and_escape[escape]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t6_publisher_rejects_collision_without_files",
+        "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes",
+        "orchestrator/tests/test_plot_arc_status.py::test_t8_cli_rejects_invalid_prefix",
+        "orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal",
+        "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption",
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]",
+        "orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix",
+        "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path"
+      ],
+      "duration_s": 21.862,
+      "rc": 0,
+      "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+      "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+      "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+      "status": "PASSED",
+      "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-control-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "48c8218cb2cb25548fc44c01e013c5e96b84134668792e257f62da3425575370",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "def _caption(data, number):\n    # mutation control\n",
+            "old": "def _caption(data, number):\n"
+          }
+        ]
+      },
+      "M1-suffix-rejected": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption",
+          "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]",
+          "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7e3bfd1d119f27d36d95e8afeeeb70b01e7c2a7d8d3baa19208f714bbbc616d5",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "r\"\\d{4}-\\d{2}-\\d{2}\" if key",
+            "old": "r\"\\d{4}-\\d{2}-\\d{2}[a-z]?\" if key"
+          }
+        ]
+      },
+      "M2-suffix-multi-letter": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[multiple-suffix-letters]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d9e0556258300c4c3530fb5cf12960bdad555ed0e98c556360a9cd0233cd91a2",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "[a-z]*\" if key",
+            "old": "[a-z]?\" if key"
+          }
+        ]
+      },
+      "M3-suffix-uppercase": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[uppercase-suffix]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "41b225abed1f2c00549d40a81e4822b6ba7ab91cd186a76679d891c27a1a3c35",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "[a-zA-Z]?\" if key",
+            "old": "[a-z]?\" if key"
+          }
+        ]
+      },
+      "M4-no-calendar-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t11_invalid_story_version[invalid-calendar-day]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4155c9f5055f9331e8bd40cb62cd03bb6a90392c17cfbc589ac5e457f678702e",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "datetime.date.fromisoformat(\"2000-01-01\" if key == \"story_version\" else value)",
+            "old": "datetime.date.fromisoformat(value[:10] if key == \"story_version\" else value)"
+          }
+        ]
+      },
+      "M5-figure-created-relaxed": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t12_figure_created_rejects_suffix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0e405a2a6f2e34f89bb52a3a93f850d3e3eab48339a16c3225303317b2642548",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "[a-z]?\" if True else",
+            "old": "[a-z]?\" if key == \"story_version\" else"
+          },
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "value[:10] if True else value",
+            "old": "value[:10] if key == \"story_version\" else value"
+          }
+        ]
+      },
+      "M6-path-date-part": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption",
+          "orchestrator/tests/test_plot_arc_status.py::test_t13_suffix_version_requires_matching_story_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9d3d33547439fbe6a34393c50020832256b38b18f00263f7f34a8eb5fab2c917",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "f\"docs/paper-story/{data['story_version'][:10]}.md\"",
+            "old": "f\"docs/paper-story/{data['story_version']}.md\""
+          }
+        ]
+      },
+      "M7-caption-always-legacy": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t10_suffix_version_and_generic_caption"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "49f9a35ea5ea1b9431db72c8dc2bba670cf1fa4b308fbe3fb5fcf0cff7c2ac86",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "template = CAPTION",
+            "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION"
+          }
+        ]
+      },
+      "M8-caption-always-generic": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_arc_status.py::test_t7_cli_outputs_and_independent_hashes",
+          "orchestrator/tests/test_plot_arc_status.py::test_t9_default_caption_matches_independent_literal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ceb208bf388e8f1f08d93da515cc057a0b27f52183b7deba060c20fefac60dc4",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_arc_status.py",
+            "new": "template = GENERIC_CAPTION",
+            "old": "template = CAPTION if story_version == \"2026-09-19\" else GENERIC_CAPTION"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "26f4ed3cf090a4a34a190670422b8edf9cac2224911dae607158b5c6092f5201",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_arc_status.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "76b60f6e1d70c54700bf413b1c828eb4f80b423d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_plot_arc_status.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "f6d254f8b596e492544b234ad694962e408eb805",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d590e5555684ceb36c4a58383f575d89262caf62fd5a6ab7104c933b102f209c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4b8cc7eade9ce0d96d53cc445984e5f5402146d362ec33045b3e1fe4867cc64a",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-2026-09-21c/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "e686a00cda06dc52cfe7ce81f5b81cf8ea950510365352f1ae8c25d7234c25d4",
+  "updated_at": "2026-09-21T06:00:09.574011+00:00"
+}
