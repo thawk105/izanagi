@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""session transcript (jsonl) から、背景待ち手の完了通知 → 次の assistant turn の時刻差を引く (読み取りのみ)。
+
+使い方: transcript_wake.py <project dir> <pattern>
+pattern を含む tool_result / 通知行の timestamp と、その直後の assistant 行の timestamp を並べる。
+"""
+import json
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def to_local(ts: str) -> str:
+    d = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone()
+    return d.strftime("%m-%d %H:%M:%S")
+
+
+def epoch(ts: str) -> float:
+    return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+
+
+proj = Path(sys.argv[1])
+pat = sys.argv[2]
+for jl in sorted(proj.glob("*.jsonl")):
+    lines = jl.read_text(errors="replace").splitlines()
+    recs = []
+    for ln in lines:
+        try:
+            o = json.loads(ln)
+        except Exception:  # noqa: BLE001
+            continue
+        if "timestamp" not in o:
+            continue
+        recs.append(o)
+    hits = 0
+    for i, o in enumerate(recs):
+        s = json.dumps(o, ensure_ascii=False)
+        if pat in s and o.get("type") == "user":
+            # 通知 (tool_result / task-notification) 行
+            nxt = None
+            for o2 in recs[i + 1:]:
+                if o2.get("type") == "assistant":
+                    nxt = o2
+                    break
+            snippet = s[:0]
+            content = o.get("message", {}).get("content")
+            txt = ""
+            if isinstance(content, list):
+                for c in content:
+                    if isinstance(c, dict):
+                        t = c.get("content") if isinstance(c.get("content"), str) else c.get("text", "")
+                        if isinstance(t, str):
+                            txt += t
+            elif isinstance(content, str):
+                txt = content
+            if pat not in txt:
+                continue
+            hits += 1
+            gap = epoch(nxt["timestamp"]) - epoch(o["timestamp"]) if nxt else None
+            print(f"{jl.name[:8]}  notify={to_local(o['timestamp'])}  next_assistant={to_local(nxt['timestamp']) if nxt else '-'}  gap={gap if gap is None else round(gap)}s  | {txt.strip()[:140]!r}")
+    if hits:
+        print(f"-- {jl.name}: {hits} hits")

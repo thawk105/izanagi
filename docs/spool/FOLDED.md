@@ -5151,3 +5151,12 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-20","base":"3dbe5a41e92a17fa2169338e0516ccdb7ab1d207","content_sha256":"e50bad4a2a5f76279c28704f87bba03fb2694c57c5b4f434fc3d7e349954f7c8","seq":1,"tested_tip":"cf1c90e1faf9009bec8d2f28d1973e3f3ddad547","wave":"dev-wave-t2797-b5-contrast","wave_ref":"refs/heads/worktree-dev-wave-t2797-b5-contrast"}
 
 - {"allocations":{"T:selfrun-harness-skip-contract":"[T-2831]"},"authored":"2026-09-21","base":"5efd69367b641b9bfbd6fb426478f66ae5762783","content_sha256":"9aa57175fab8f6c354d387038e7abe47dcee9e2b9cc87d9c65c7aa938b3b3e83","seq":1,"tested_tip":"98b81b5df7e795f40d4f9f3e4074f886e195f645","wave":"dev-wave-dwm08-selfrun-probe","wave_ref":"refs/heads/worktree-dev-wave-dwm08-selfrun-probe"}
+
+- {"allocations":{},"authored":"2026-09-21","base":"21641fee777d24642d54119b660a7b7880636e71","content_sha256":"603721c7f88dd85957f96015f65d0e3b698bd9c9515c2d0bd5ab35c1f5eacb90","seq":1,"tested_tip":"71e572b3cbb46ab6427512c3edafe91c2a746f37","wave":"waiter-collect-latency","wave_ref":"refs/heads/worktree-waiter-collect-latency"}
+
+- {"allocations":{},"authored":"2026-09-21","base":"9544bebff8e1a296a71bbcdd96f43c7898192f58","content_sha256":"cc2771695b4392474dc80ecd9e61b439ee18d12ebc6a0a40f5e5b1d61e40afbd","seq":1,"tested_tip":"b30b46190ad7916ddd813dcb5d5ea23712108304","wave":"rulings-all-20260921b","wave_ref":"refs/heads/worktree-rulings-all-20260921b"}
+- {"allocations":{"D:rulings-full28-verdicts":"D2200"},"authored":"2026-09-21","base":"9544bebff8e1a296a71bbcdd96f43c7898192f58","content_sha256":"a1ac4f86394a269c7230edd9d6303382ac8b1fb6ccfa049a625d554c03f61f30","seq":1,"tested_tip":"b30b46190ad7916ddd813dcb5d5ea23712108304","wave":"rulings-all-20260921b","wave_ref":"refs/heads/worktree-rulings-all-20260921b"}
+
+- {"allocations":{},"authored":"2026-09-21","base":"959c0f1cae6359a92e9d3300672524961f61666b","content_sha256":"dfe7a0f8ca09c42665c2f7b59e798eb6b0a715c402204deb7444adbed4c63440","seq":1,"tested_tip":"4705f4ed5292ac0721ca277a797f8248130c1cb7","wave":"dev-wave-acceptance-resubmit-causes","wave_ref":"refs/heads/worktree-dev-wave-acceptance-resubmit-causes"}
+
+- {"allocations":{"T:focus-solo-run-reading":"[T-2832]"},"authored":"2026-09-21","base":"13001b0130e9b9166269e0f2eec98ab6db354ab2","content_sha256":"3cdb6e36634818966c474bcb7fb0ecccb21bf73a064d3d49c42b612034885608","seq":1,"tested_tip":"cb59b16a832be9bdd31ffcfda3a863c8a817821b","wave":"focus-run-count-diagnosis","wave_ref":"refs/heads/worktree-focus-run-count-diagnosis"}
