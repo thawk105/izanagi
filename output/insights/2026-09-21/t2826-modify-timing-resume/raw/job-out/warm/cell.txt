@@ -1,0 +1,15 @@
+cell=warm
+stage=warm
+half=warm
+start_epoch=1789991755.520571415
+cwd=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume
+argv=python3.10 -m pytest /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2826-resume/orchestrator/tests --collect-only -q -p no:cacheprovider
+tmpdir=/scr/tanab/t2826-4133803/out/warm/tmp
+workers=48
+others=0
+stale_pytest=0
+memo_files_begin
+memo_files_end
+end_epoch=1789991766.765989206
+wall=11.245417833
+rc=0
