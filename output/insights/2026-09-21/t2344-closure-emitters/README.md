@@ -245,3 +245,35 @@ codex の出力 4 本 (`s2-plan.md` / `s3-lensA.md` / `s3-lensB.md` / `s5-author
 `git diff --check` に抵触する。可視文字を変えない範囲で行末空白だけを除去し、原文 sha256・byte 数・対象行番号・
 除去した文字列・正規化後 sha256 を `verbatim-normalization.json` に記録した。原文は job dir と codex receipt の
 `output_sha256` が持つ。
+### 受入 attempt 1 の赤 1 件と是正 (2026-09-21)
+
+受入全走 attempt 1 (門番 11:15 通過、11:47 投入、12:10 終了) は **1 件だけ赤**になった。
+
+- node: `orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection`
+- 主張: 所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) が `pytest --collect-only orchestrator/tests` の
+  node の **90% 以上**を覆うこと。観測は **89.783890%**。
+
+**帰属 (親の実測):** 台帳に未登録の実行 node は全体で約 2757 件あり (分母 ≈ 26,988)、そのうち**本 wave が触れた 4 test file に
+属するものが 433 件**である (`test_artifact_admission` 195 / `test_t671_source_binding` 132 / `test_layer3_report` 57 /
+`test_campaign_lock_codec` 49)。本 wave の新設 test (exact-85 の正例・負例 10 関数 = 111 node) と、同 file の既存
+parametrize の未登録分 (322 node、前段 wave の 22 本 drift parametrize を含む) がこれに当たる。
+残り約 2300 件は他 wave 由来で、別 wave が全面 refresh で扱うため本 wave は触らない。
+
+**是正 (Codex author、commit `b820bbaa7`):** 433 件を、本 wave の受入 JUnit を
+`tools/update_acceptance_duration_ledger.py --add-only` に通した canonical な実測値のまま追加した。
+既存 24,379 件の key と値は byte exact に保ち、`nodeid_count` を 24,812 へ追随させた。
+親の検算: key 集合 == 変更前 ∪ 433 / 既存値不変 / 追加値が入力と一致 / 余分な key なし。
+**閾値 (90%) は下げていない。** 追加後の被覆率は約 91.4% (分母 ≈ 26,988 の実測ベース見積り、実値は再走で確認)。
+
+台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) は path 上「実装面」なので、親は直接編集せず
+Codex `role=author` の fix 子が書いた (D95)。
+
+### 受入 final2 と land (2026-09-21)
+
+- 是正 commit `b820bbaa7` の後、焦点走 f2 (job `15021.nqsv`、被覆率 test・台帳 consumer・変更 test file・docs 検査 test の 10 file) が
+  **2461 passed / 4 skipped / 赤 0** (31.35 秒)。
+- 受入全走 final2 (門番 12:21 通過、12:23 投入、12:32 終了): **verdict = child-green、child_rc 0、赤 0・flake 0**
+  (tested main `6496ab2dc` / tested tip `6fa7a2b75`、受領証は job dir の `acceptance-receipt-final2-1.json`)。
+- land: tested tip を local main へ ff-only 取り込み、同じ lock 内で spool を fold。worklog entry **1794**、
+  decisions **D2203** (直前 grammar を corpus 未確認で同 commit 収載する政策判断) と **D2204** (発行器先行の次段)、
+  failures は F106 の再発追記。fold 後の main は `eaeaeb388`。
