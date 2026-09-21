@@ -109,8 +109,9 @@ def load_states(repo_root=REPO_ROOT, states=DEFAULT_STATES):
         _require(data["schema"] == "izanagi-arc-status/v1", "schema mismatch")
         for key in ("story_version", "figure_created"):
             value = _string(data[key])
-            _require(re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is not None, "ISO date required")
-            datetime.date.fromisoformat(value)
+            pattern = r"\d{4}-\d{2}-\d{2}[a-z]?" if key == "story_version" else r"\d{4}-\d{2}-\d{2}"
+            _require(re.fullmatch(pattern, value) is not None, "ISO date required")
+            datetime.date.fromisoformat(value[:10] if key == "story_version" else value)
         _require(data["story_path"] == f"docs/paper-story/{data['story_version']}.md", "story_path mismatch")
         story = (root / data["story_path"]).read_bytes()
         source = story.decode("utf-8")
@@ -356,7 +357,9 @@ def _drawn_items(data, layout):
 
 
 def _caption(data, number):
-    return CAPTION.format(number=number, story_version=data["states"]["story_version"])
+    story_version = data["states"]["story_version"]
+    template = CAPTION if story_version == "2026-09-19" else GENERIC_CAPTION
+    return template.format(number=number, story_version=story_version)
 
 
 def build_provenance(data, layout, outputs, argv, *, hash_paths=None, figure_number="3b"):
@@ -441,6 +444,9 @@ def main(argv=None):
 
 # Caption is a fixed structural template, outside the free-text quantity contract.
 CAPTION = 'Figure {number}. Status of the paper-story arc read from the frozen {story_version} story: act summaries from section 0 and evidence-item states from section 8. Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. Obtained records that a judgment or completion exists, not that a claim is supported: B-1 remains not met and A-6 records reject. A-3 is a settled reporting rule, not new empirical evidence. A-1 remains descriptive and non-certifying; A-4 is adopted by ruling but inactive pending human action. B-7, B-9, and B-10 are neither promoted nor closed by this figure. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. A-2 and A-6 retain the judgments made under the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen.'
+
+# Generic caption is a fixed structural template, independent of item states.
+GENERIC_CAPTION = "Figure {number}. Status of the paper-story arc read from the frozen {story_version} story: act summaries from section 0 and evidence-item states from section 8. Colors and marker shapes distinguish obtained, uncertified, awaiting ruling / human action, and not obtained. Obtained records that a judgment or completion exists, not that a claim is supported; each item's sublabel carries the recorded judgment words and limitations. This figure summarizes recorded statuses; it does not evaluate correctness, certify performance, or authorize further work. Recorded judgments keep the identity layer used at the time; later identity fixes do not strengthen them retrospectively. No measurement values are drawn and no judgments are recomputed. Successor to fig3; the original remains frozen."
 
 if __name__ == "__main__":
     raise SystemExit(main())
