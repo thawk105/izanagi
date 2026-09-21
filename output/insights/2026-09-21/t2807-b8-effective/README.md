@@ -13,7 +13,9 @@
 **事前登録 v1 (`docs/b8-final-candidate-longrun-verify-preregistration.md`、raw sha256
 `6ccb18c73b80ba42031f1373d48baa2e3fe441e0370a208836a6d75a9504f7c5`、51,974 bytes) は、本 README と
 `verbatim/b8-effective-bundle.json` を追加した commit (以下「発効 commit」) で発効した。** 発効 commit の hash は
-自己参照を避けて本 README 初版には書かず、後続の記録 commit で本節末尾に追記する (事前登録 §0)。
+自己参照を避けて本 README 初版には書かず、後続の記録 commit で書き入れた (事前登録 §0) —
+**発効 commit = `624c8498618e222a1aef7cb0152f403938adf54f` (2026-09-21 08:42:12 JST)。**
+校正・本走・再検証はすべてこの commit の固定 checkout (detached submit-tree 6 本) で走らせた。
 
 | 項目 | 値 |
 |---|---|
@@ -206,3 +208,18 @@ runner / 事前登録 / 発効束の sha256 を照合)。`verify --workload <w> 
 - **本走前の `df` の生出力を保存していない。** 記載の 81 TB / 使用 5% は親の login 実測で、本走後の再実測
   (`refs/df-after-main.txt`、10:25 JST) も同じ値だった。
 - **submit-tree 再利用の直前確認の逐語出力を保存していない** (§7.1 の M6)。receipt と現在の木の状態は残っている。
+
+## 8. 受入と着地 (fold 後に確定した事実)
+
+- **受入全走:** 1 回目で緑。`26,739 passed / 69 skipped`、赤 0・flake 0 (受領証 `acceptance-receipt-green.json`、
+  verdict `child-green`、tested main `819e4cdb4` / tested tip `3c217471f`、log sha256 `41b8a00b…`)。
+  門番 (他 session の受入 leader ≤ 1 かつ 1 分 load ≤ 60) は 10:33〜10:43 JST の間待ち、開いた時点で local main を
+  取り込んでから投入した。
+- **land:** 1 回目は `stale-main` (rc=10、走行中に main が `2de6da39f` へ進んだ。main は 1 bit も変えていない) で拒否され、
+  新しい main を固定 SHA で取り込んで再試行した 2 回目で `landed`。着地 tip `7bde4b60e`、fold commit = **`acd7cdb308d8b39a8cd7985273274d798b3678b8`**。
+- **採番:** 設計判断 = **D2202**、worklog = **entry 1791**、[T-2807] は `完了` (残件なし)。
+- **工数 artifact:** `collect_wave_usage.py` は login node では収集がブロックされるので (前 wave と同じ)、
+  その事実を `wave-usage.json` に `status=blocked` として残した。
+- **子・job の数:** Codex 子 2 本 (段 3 相談 / 段 6 レビュー、いずれも read-only `gpt-6-astra`)、
+  計算ノード job 9 本 (校正 3 + 本走 6) + 全史 provenance 監査 1 本、submit-tree 6 本、受入 1 回、land 2 回。
+  wave の壁時計は開始 gate 08:33 JST → fold commit 11:03 JST。
