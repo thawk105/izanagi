@@ -1425,7 +1425,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 - [T-237] role ごとの実所要時間の計測 — 理由: 目的である [T-236] の role_cap 裁定が設計凍結となったため、発火条件が成立しない。
 - [T-142] 旧 headline 候補の再起票 — 理由: (62) のユーザー再裁定で close 済み。formal selector と live campaign が揃った場合だけ新規に起票する。
-- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。
+- [T-156] selector-8b workload descriptor への set-size 条件反映 — 理由: (36) で条件成立まで保留と裁定済み。発火条件は「8b descriptor の拡張を設計するとき」または「TPC-C 級 workload corpus を採るとき」で、着手前に workload 別の set-size 分布を測る順序も決まっている。 2026-09-21 関連記録 (TPC-C の起票、未発火): D2212 項 2 で TPC-C を論文の必須経路に入れ [T-2854] / [T-2855] を起票した。発火条件「TPC-C 級 workload corpus を採るとき」は段 1 で corpus の実体が入るときに成立するとみなし、再評価はその wave で行う (本記録では再評価しない)。
 - [T-176] raw evidence bundle の保存形 (trace 圧縮) — 理由: (60) の裁定で driver 変更を伴うため次回 characterization に合流すると決まった。
 
 - [T-549] Pegasus 全 probe 共通の単独性 witness (process / cgroup / PSI) — 理由: 2026-08-09
