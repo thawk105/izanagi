@@ -18,6 +18,12 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2824] 凍結 v2 g1 の未発効候補文書 (`output/s8b-freeze-candidates/` 配下の `holdout_freeze.v2.g1.json`) を削除し (D2194 項 5 の択 (a)、候補 path の役割が
+  批准済み世代へ移って終了)、held 真値 `_ACTIVATED_G1_REFUSALS` を削除後の live P3 実測へ追随した (2026-09-21)。実 repo の historical reverify
+  (`reverify_published_freeze`) は成功、live は現行 policy 照合で拒否のまま ([T-2812] 系)。P3 の拒否内容の差は走査 hit から候補 path が消えたこと
+  (4→3 件) だけで、候補 bytes と来歴は世代文書 (同一 blob) と X2 の履歴で保持する。certified 選択・レポート値・台帳・live の受理条件・W-4 / W-5 は不変。
+  記録 = `output/insights/2026-09-21/t2824-g1-candidate-removal/README.md`。
+
 - [x] [T-2810] 凍結 v2 g1 の launch validator を official 成果物の現物形へ整合した (2026-09-20)。
   journal allowlist に `reservation-preflight` と binding 2 key を足し、段階 6 lineage を「一意・非 merge 導入 i について C ≤ i ≤ G」+
   「G 自身が追加した世代文書の導入 == {G}」へ改めた。実 repo の historical reverify は段階 8 (未発効候補の scan hit) まで到達、
