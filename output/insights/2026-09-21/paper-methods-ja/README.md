@@ -59,12 +59,41 @@ authority: none / default_effect: no-state-change (可変状態の正本は work
 |---|---|---|---|---|
 | methods §3 (新設の段落群) | B-8 の方法は無い (§6 で「未発効」とだけ書く) | 登録と対象・定義、発効と発効束、runner v5、校正段、本走段、3 値判定、2026-09-21 の実施、限定 | 事前登録 §0 / §3.2 / §4.1 / §4.2 / §5 / §6.1〜§6.4 / §7 / §12、D2175、D2186 項 1、D2190 項 1〜5、D2194 項 1、D2202 項 1〜4、結果稿 §1〜§4、発効記録 §1〜§6 | 後の着地 (発効 commit `624c84986` は 2026-09-21 08:42 JST) |
 | methods §2 (K2 対照口) | 「本稿の時点でこの口は実装済みであるが、1 job も投入していない」 | 修復前の 2 process 形の初投入 1 job と不成立 (D2187)、pair mode への修復 (D2205)、実機の再投入は未、同 job の stock 対照は未取得 | D2187、D2205、entry 1754 / 1795、両 insight §0 | 後の着地 (初投入は `482f19b88` より後の main `6a3e158` の submit-tree から。D2187 の main 着地は fold `7baf3f375`、2026-09-20 20:42 JST) |
-| methods §2 (pin 前進の段落の末尾) | 「新しい pin の main からそれらを再開・再投入するには…整合が要り、本稿の時点では行われていない」 | 「前稿の照合時点ではいずれも行われておらず、本稿はその後を再照合していない」+ K2 の pair が前進後の main で新しい campaign として投入された | t2795-k2-pair-attempt README (campaign `p3-s4-loop-s4-autonomous-b24749ae` = 新 ID・新 policy epoch) | 表記の限定 ((P3)。旧巡の campaign の再開ではないので、前稿の文が偽だったとは主張しない) |
+| methods §2 (pin 前進の段落の末尾) | 「新しい pin の main からそれらを再開・再投入するには…整合が要り、本稿の時点では行われていない」 | 「前稿の照合時点ではいずれも行われておらず、本稿はその後を再照合していない」+ K2 の pair は前進後の superproject から CCBench を driver の旧 PIN `511c9538` へ checkout して (D1777 の手順)、新しい campaign として投入された | t2795-k2-pair-attempt README §1 (submit-tree `6a3e15809`、campaign `p3-s4-loop-s4-autonomous-b24749ae` = 新 ID・新 policy epoch、候補の `ccbench_commit` = `511c9538`) | 表記の限定 ((P3)。旧巡の campaign の再開ではないので、前稿の文が偽だったとは主張しない) |
 | methods §6 (B-5 / B-8) | 「B-5 と B-8 は…事前登録 v1 が作られたが、いずれも未発効」 | B-8 は発効し 3 値判定まで済んだ (§3 を指す)。B-5 は未発効、試走は完走 (主標本外)、D2200 項 1 は段階認可で本走は未認可 | D2194 項 1、D2202、D2158、D2172 項 4、entry 1779、D2200 項 1、D2206 | 前稿の照合時点では真。B-8 の発効、B-5 の試走の完走 (entry 1779)、D2200 は後の着地 |
 | implementation 境界節 | 「B-5 と B-8 の事前登録 v1 は未発効で、対応する runner・生成器は実装されていない」 | B-8 は発効・判定済み (repo 外の runner v5)。B-5 は未発効、driver と部品は着地、試走は完走、本走は段階認可のみ | 同上、D2190 | 前稿の照合時点では真 (B-5 の driver の初出は `c41cfb09f` = 2026-09-20 20:34 JST、D2190 の main 着地は fold `7c0a1c63a` = 同 22:54 JST で、いずれも後) |
 | implementation 表 | K2 対照口の行は「0 件 (結線のみ)」 | K2 行を pair mode のアンカーと初投入の不成立・修復後の実機投入 0 件へ更新。B-8 行を追加 | 上と同じ | 後の着地 |
 | implementation 読み分け | — | B-8 の `pass`、K2 pair の初投入、pair mode の結合検査の緑の 3 行を追加 | 上と同じ | 追加 |
 | methods §1 / §5、implementation の A-1 行・境界節の兄弟 wave の文 | 「本稿の時点で…」 | 「前稿の照合時点 (`482f19b88`) で…」(中身は再照合していない) | (P1) | 表記のみ。新稿の採用時点を指すと読めて偽になりうる文を、継承の範囲へ戻した |
+| methods 冒頭、implementation の冒頭・正本の優先関係 (story の項の「本稿の基準」→「前稿の基準」と出所を制限する 1 文、B-8 / K2 / B-5 の出所 3 項)・2 表の見出し・境界節の「story 未反映の着地」の見出しと「揃えた着地」の段落・「飛躍しない」の拡張・確認点節 | 前稿の版・照合基準を書く | 新稿の版・採用時点・継承範囲・出所を書く | (P1)、依頼の出所規則 | 表記の修正と追加 (前稿の記述の真偽は変えない) |
+| implementation 確認点節の継承段落のリンク | `[README](README.md) §5` (前稿 dir では前稿 README の must-fix 表を指した) | `[前稿 README](../../2026-09-20/paper-methods-ja/README.md) §5` | 段 6 の should-fix 4 | 複製で指す先が変わった表記の修正 |
+
+## 4. 段 6 独立レビュー (read-only、1 本、2 レンズ) と親の裁定
+
+- **代替の明記:** 本来は Codex の read-only 子が担う。Codex は利用上限 (復帰 2026-09-26 19:35 と表示。同日の entry 1801 / 1802 と
+  [T-2833] の wave が実測) のため本 wave では起動せず、同じ prompt を Claude の独立 context の子 (Agent、subagent_type = Plan で
+  Edit / Write を持たない、model = opus) に渡した。**同系統モデルなので Codex と同等の独立性は主張しない。** 子の終了後の作業ツリーの
+  差分は、親の fix の編集と親が置いた verbatim 2 file だけだった (`git status` と `git diff` で確認)。
+- prompt は [`verbatim/s6-review-prompt.md`](verbatim/s6-review-prompt.md)、報告の逐語は [`verbatim/s6-review.md`](verbatim/s6-review.md)。
+  対象は commit `784db3f02`。所要 818 秒・道具 68 回 (完了通知の値)。
+- **結果: GO** (must-fix 0 / should-fix 4 / nit 9 / refuted 24)。判定集合 30 枠を本走の条件へ丸ごと帰属させる文は、3 file と phase3 の項の
+  全数走査で 0 件 (refuted)。
+
+| # | 所見 | 裁定 | 反映 |
+|---|---|---|---|
+| S1 | K2 pair の初投入を「pin 前進後の main から」と書くのは superproject についてだけ真で、CCBench は driver の PIN `511c9538` へ checkout して走った | real・採用 | methods §2 の 2 箇所と implementation の K2 行に「前進後の superproject から、CCBench を driver の PIN へ checkout (D1777)」を書いた |
+| S2 | bench 失敗の規則が本走段にしか無く、校正の bench 失敗でも pass と読める | real・採用 (規律 2 の向き) | 校正段に「校正・本走を問わず pass を妨げ、校正で出れば本走を投入しない (§5、D2190 項 3 (b))」、本走段と未確定の列挙に「校正・本走を問わない」 |
+| S3 | 実施結果 (`pass`) の出所に D2202 を挙げたが、D2202 は手順で判定値を含まない | real・採用 | 出所を「結果稿 §3、発効記録 §3〜§5、entry 1791。実施手順は D2202」へ (methods と implementation の 2 箇所) |
+| S4 | 継承段落の `[README](README.md) §5` が新 dir では新 README (§5 = 限界) を指す | real・採用 | 前稿 README へ張り替えた |
+| N1 | D2175 が固定したのは対象の 2 案と推奨 | real・採用 | 「対象の 2 案 (推奨は案 A)」 |
+| N2 | 校正 walltime と hard timeout は承認の記録でなく `effective` 節の値、D 番号を振った fold が抜け | real・採用 | `effective` 節の内訳として書き直した |
+| N3 | 「各 1 値」は D2190 項 2 でなく D2202 項 2。sha 不一致・判定集合外の混入が未確定の列挙に無い | real・採用 | 出所を分け、未確定の列挙に足した (D2190 項 3 (c)) |
+| N4 | 結合検査の緑が実 build・bench を含むと読める | real・採用 | methods と読み分け表に stub の範囲を添えた |
+| N5 | 事前登録 §13 の件数の併記 (未完走・規約不適合) が無い | real・採用 | 「校正の未完走・bench 失敗・規約不適合はいずれも 0 件」 |
+| N6 | §6.1 項 2 の「校正の未完走は pass を妨げないが件数と保全先を開示」が無い | real・採用 | pass の項に足した |
+| N7 | 実施事実の出所に実施記録を先に置く | real・採用 | methods の K2 に entry 1754 と pair-attempt insight §1、implementation の B-8 の出所を実施記録先頭へ |
+| N8 | README §3 の表に載っていない書換えがある | real・採用 | 表に 2 行を足した |
+| N9 | 発効束 JSON の作り方は方法節には細目で、1 文へ圧縮できる | 不採用 | 依頼が B-8 の方法の要素として「発効束」を名指ししている。N2 の訂正で正確さは保った |
 
 ## 5. 限界
 

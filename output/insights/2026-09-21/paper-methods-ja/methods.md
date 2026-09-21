@@ -73,13 +73,17 @@ planner・coder・検疫・白板に到達せず、stock の成功は certified 
 であることを要求する。同日、候補の driver の後に同じ job・同じ campaign で stock の driver をもう 1 回起動する
 形の pair を初めて 1 job 投入した。候補の評価は certified になったが、stock の driver は campaign の one-shot な
 測定 claim (同じ identity の claim を、所有者の生死に関わらず 2 回目には取得させない) を取れずに build の前で
-止まり、`src_token` が stock であることも確認されず、pair は成立しなかった (D2187)。この投入は CCBench pin の
-前進後の main から新しい campaign ID で行われ、前進前の巡の campaign を再開したものではない。
+止まり、`src_token` が stock であることも確認されず、pair は成立しなかった (worklog entry 1754、
+`output/insights/2026-09-20/t2795-k2-pair-attempt/README.md` §1、D2187)。この投入は、pin 前進後の superproject
+(submit-tree `6a3e15809`) から、CCBench を driver の PIN `511c9538` へ checkout する手順 (D1777。gitlink は `e9e477ca`
+のまま) で行った。campaign ID は admission policy の epoch の移動により新しくなり、前進前の巡の campaign を再開したもの
+ではない。
 
 2026-09-21 に、driver は pair mode (`--run-iteration` と `--stock-control` の併用) に修復された (D2205)。1 process の
 中で認可と claim を 1 度だけ取り、その所有期間の内側で候補 → stock の順に評価する。2 回目の評価は取得を省く代わりに、
 認可の条件と claim の記録を再計算して照合する。claim の排他規則 (one-shot 性) は変えていない。この修復の検査は
-結合検査までであり、実機 (Pegasus) での pair の再投入は本稿の採用時点で行われていない。したがって、同じ job 内の
+結合検査までであり (build・trace・bench・checkout・condition gate などは stub で、実 compiler で stock のソースが
+stock の `src_token` に解決することは未測定)、実機 (Pegasus) での pair の再投入は本稿の採用時点で行われていない。したがって、同じ job 内の
 stock 対照は本稿の時点でまだ得られていない。修復の緑を対照の成立と読まない。
 
 pin の前進は、ビルドの識別にも作用する。pin は build admission の policy の pre-image に入るため、pin が進むと
@@ -88,7 +92,8 @@ protocol・比較 policy・過去の golden は動かない ([T-2304]、規律 7
 凍結 v2 第 1 世代の launch、B-4 床値) は、前進前の superproject と対応する submodule の固定 checkout から
 走らせる。新しい pin の main からそれらを再開・再投入するには、系列ごとに登録・identity・ドライバの pin・
 後継 protocol・admission の整合が要る。前稿の照合時点 (`482f19b88`) ではいずれも行われておらず、本稿はその後の
-各系列の状態を再照合していない (K2 の同 job pair は、上のとおり前進後の main で新しい campaign として投入された)。
+各系列の状態を再照合していない (K2 の同 job pair は、上のとおり前進後の superproject から driver の旧 PIN を
+checkout して、新しい campaign として投入された)。
 
 ## 3. 正しさ検証と反例のフィードバック
 
@@ -124,8 +129,8 @@ attempt は 1 node で走り、2026-09-19 の同一候補 3 workload 同時期�
 
 **B-8 (最終候補の長時間・独立反復の trace 検証)** は、上の検証相とは別の登録で、別の対象を検査する。B-8 は
 S-1 の最終候補の正しさを「種を変えた」長時間実行で検証する要件であり、その事前登録 v1
-(`docs/b8-final-candidate-longrun-verify-preregistration.md`) は 2026-09-20 に、対象、「種を変えた」と「長時間」の
-操作的定義、校正・予算・判定の規則を結果を見る前に固定した (D2175)。対象は S-1 の最終候補である系側 gate 構成
+(`docs/b8-final-candidate-longrun-verify-preregistration.md`) は 2026-09-20 に、対象の 2 案 (推奨は案 A)、「種を変えた」と
+「長時間」の操作的定義、校正・予算・判定の規則を結果を見る前に固定した (D2175)。対象は S-1 の最終候補である系側 gate 構成
 (案 A。gate 述語は凍結した S-1 の記録の逐語で、balanced と read-heavy に `g_rl`、write-heavy に `g_rt`) で、
 D2186 項 1 がこの対象と二つの定義、および発効前の試走を認可した。試走は build とソース identity の導出だけを
 行い、その結果は判定集合に入れず既知結果として開示する (D2190 項 5)。「種を変えた N 反復」は、N 個の bench
@@ -139,9 +144,9 @@ process をそれぞれ新しい OS process として起動し、各 process の
 始めない (§0)。発効の前には **発効束** — 対象の択、ソース identity の期待値、CCBench pin・patch・configure の逐語、
 判定器 module の file 別 sha256、runner の bytes の sha256、実行環境、校正 job の walltime とその根拠など、
 事前登録 §12 が列挙する実値 — を固定する。発効束の JSON は、試走で揃えた draft の実験構成の値を変えず、状態の
-欄だけを発効へ置き換え、承認の記録 (決定、承認日、承認の対象、承認を記録した commit、draft の出所と sha256、
-校正 walltime、判定器の強制停止時間など) を足したものである。発効 commit 自身の hash は発効束に書かない
-(D2202 項 1)。B-8 は 2026-09-21 に D2194 項 1 の承認で発効した (発効 commit `624c84986`)。校正・本走・再検証は
+欄だけを発効へ置き換え、`effective` 節 (承認の記録 = 決定・承認日・承認の対象・承認を記録した commit・D 番号を
+振った fold、draft の出所と sha256、校正 walltime、判定器の強制停止時間) を足したものである。発効 commit 自身の hash は
+発効束に書かない (D2202 項 1)。B-8 は 2026-09-21 に D2194 項 1 の承認で発効した (発効 commit `624c84986`)。校正・本走・再検証は
 すべて発効 commit の固定 checkout (1 job に 1 本の detached な木) から走らせ、runner に渡す発効束はその木の
 追跡済み file に固定する。投入の直前に runner・事前登録・発効束の sha256 を照合し、一致しなければ投入しない
 (D2202 項 2)。
@@ -149,9 +154,9 @@ process をそれぞれ新しい OS process として起動し、各 process の
 規則の機械適用は、検証相の runner を改版した **runner v5** が担う (D2190 項 1)。runner v5 はリポジトリ外の
 job 領域に保全して sha256 (`4ff6652a…`) で同定し、リポジトリへは入れない (D95)。runner は校正・本走・再検証・
 集計と、試走 (build と identity の導出だけ) の各操作を持ち、ソース identity の期待値を自身の定数でなく発効束から
-読む。規則 file (事前登録本文) と発効束の両方の sha256 をすべての記録に束縛し、集計は受理する sha256 を各 1 値で
-明示して照合する。校正・本走・再検証は、build の前後で観測した identity が期待値と一致しなければ fail-closed で
-止まる (D2190 項 2)。判定器は別 process の `python3 -m orchestrator.verifier` で、緩和オプション (`--lenient`) は
+読む。規則 file (事前登録本文) と発効束の両方の sha256 をすべての記録に束縛し、集計は許可集合で照合する。校正・
+本走・再検証は、build の前後で観測した identity が期待値と一致しなければ fail-closed で止まる (D2190 項 2)。B-8 の
+集計では、受理する sha256 を各 1 値で明示して渡した (D2202 項 2)。判定器は別 process の `python3 -m orchestrator.verifier` で、緩和オプション (`--lenient`) は
 使わない。判定器の版は発効時点の版 (上の容量改修 D2181 を含む) に固定し、校正と本走で同じ版を使う
 (D2186 項 1 (7))。判定器の強制停止時間は校正 3600 s・本走 1800 s・再検証 3600 s である (D2190 項 4)。runner の
 発効束の検査は状態の欄を見ないので、未発効の draft で走らせないことは、追跡済み file への固定と投入直前の照合という
@@ -162,6 +167,7 @@ job 領域に保全して sha256 (`4ff6652a…`) で同定し、リポジトリ�
 判定器の実行時間 1800 s 以内のすべてを満たすことである。判定器が 1800 s を超えるか完走しない、または bench が
 失敗した時点で、その extime 以上を打ち切る。校正の未完走は verdict を持たない運用上の `indeterminate` として開示し、
 再検証しない。校正で完走した判定に anomaly が 1 件でもあれば、その対象は即失格とし本走を投入しない (規律 2)。
+bench の失敗は校正・本走を問わず pass を妨げ、校正で出れば本走を投入しない (§5、D2190 項 3 (b))。
 対象の extime は 3 workload の適格集合の共通部分の最大値で、共通部分が空なら「候補なし」として本走を投入しない
 (6 s へも 3 s へも丸めない) (§4.2)。本走の見込み所要 B(E) は校正の実測から求め、本走 24 verify の job 実消費
 (dispatch の Elapse の和) の上限 14,400 s を超えるなら共通部分の中で 1 段下げ、下げる先が無ければ本走を投入しない。
@@ -171,7 +177,7 @@ job 領域に保全して sha256 (`4ff6652a…`) で同定し、リポジトリ�
 **本走段 (段 B)** では、決まった extime で 3 workload × 独立 8 反復 = 24 verify を走らせる。1 つの verify は
 1 つの bench process (1 trace 集合) に対応し、1 node の上で build → bench → commit 行の数え直し → trace の保全
 (zstd) → 判定器の順に進め、bench と判定器の直前に単独性を検査する。bench が失敗した verify は判定集合に入れず、
-bench を再生成しない。bench の失敗が 1 件でもあれば pass にならない (§3.2、§5)。判定器が
+bench を再生成しない。bench の失敗が 1 件でもあれば、校正・本走を問わず pass にならない (§3.2、§5)。判定器が
 完走しなかった枠は 2 通りに分けて扱う — trace を保全済みで判定器が未開始の枠は、同じ job を再開して初回の判定器を
 走らせ、判定器が起動済みで完走しなかった枠だけ、同じ保全済み trace への再検証を 1 回許す。anomaly を出した枠は
 再検証しない (§6.4、D2202 項 3)。費用の判定は dispatch の Elapse の和で行い、runner 内部の計時は暫定値として
@@ -185,7 +191,9 @@ bench を再生成しない。bench の失敗が 1 件でもあれば pass に�
    再実行しない (規律 2)。
 2. **pass** — 失格でなく、本走 24 verify のすべてが bench 完走・trace 保全・判定器完走・`serializable`・certified・
    anomaly 0・identity 一致を満たす。校正の完走 verdict には certified を要求せず、certified でない件数と理由を開示する。
-3. **未確定** — 上の二つのどちらでもない (本走の未完走が再検証後も残る、bench 失敗、identity 不一致、規約不適合)。
+   校正の未完走 (運用上の `indeterminate`) は pass を妨げないが、件数と保全先を必ず開示する。
+3. **未確定** — 上の二つのどちらでもない (本走の未完走が再検証後も残る、bench 失敗 (校正・本走を問わない)、identity
+   不一致、規約不適合、規則 file・発効束の sha256 の不一致、判定集合外の記録の混入。後の二つは D2190 項 3 (c))。
    未確定は B-8 未取得のままであり、pass に丸めない。
 
 失格の場合は、どの trx 間のどの依存で循環ができたかを判定器の出力から逐語で残し (§6.2)、S-1 campaign の certified
@@ -195,10 +203,11 @@ pass は研究の成功宣告ではない (D12)。
 この手順で 2026-09-21 に、校正 3 job (request 14640〜14642.nqsv) と本走 6 job (同 14686〜14691.nqsv、各 job 4 反復)
 を Pegasus gen_S の計算ノードで走らせた。校正の 6 行はすべて適格で、規則が機械的に決めた extime は 10 s、B(10) は
 予算内で段下げは無かった。判定集合は本走 24 枠 (独立 8 反復 × 3 workload・extime 10 s) + 校正の完走 6 枠
-(3 workload × extime 6 s / 10 s、各 1 回) の 30 枠で、runner の 3 値判定は `pass` だった (D2202、worklog entry 1791)。
-再検証・再開・再投入は 0 回だった。これで B-8 の 3 要件 (対象 = S-1 の最終候補、種 = 独立 process の自己シード、
-長時間 = extime 10 s) が揃った検証が 1 回行われた。数表と限定の全文は結果稿
-(`docs/paper-story/results/2026-09-21-b8-final-candidate-longrun-verify.md`) に置き、本稿は転載しない。
+(3 workload × extime 6 s / 10 s、各 1 回) の 30 枠で、runner の 3 値判定は `pass` だった (結果稿
+`docs/paper-story/results/2026-09-21-b8-final-candidate-longrun-verify.md` §3、発効記録
+`output/insights/2026-09-21/t2807-b8-effective/README.md` §3〜§5、worklog entry 1791。実施手順は D2202)。校正の未完走・bench 失敗・規約不適合はいずれも 0 件で、再検証・再開・再投入は
+0 回だった。これで B-8 の 3 要件 (対象 = S-1 の最終候補、種 = 独立 process の自己シード、
+長時間 = extime 10 s) が揃った検証が 1 回行われた。数表と限定の全文は結果稿に置き、本稿は転載しない。
 
 B-8 の主張は、観測した trace の依存グラフについての certified の範囲を超えない (predicate・phantom・公平性・
 未観測の実行は対象外)。「種を変えた」は独立 process の自己シードという操作的定義で、乱数列の独立性は検証して
