@@ -190,6 +190,7 @@ spec は probe (sha `1015f7cf…`、本 dir に置かない。生成器で決定
 - `ledger-evidence/` — 段 5 の再生成の検算 (verify.md / json、refresh.log、coverage.log、determinism.log、removed.txt、status.txt)。
 - `ledger-evidence-land/` — land 前の main 現物からの再走と B 照合 (verify.md / json、refresh.log、dropped.txt、dropped-t2344.txt、check.log、main-sha256.txt)。
 - `mutation/` — final spec、期待 node、結果の射影、wrapper receipt。
+- `acceptance/` — 最終受入の赤の単独再走 log (§13)。
 - `measurement-tips.json` (A / B の tree と SHA)、`warm-A.json` / `warm-B.json`、`submissions.log` (投入台帳)、`t2817-334-split.json`。
 
 ## 12. 再現手順
@@ -204,3 +205,10 @@ spec は probe (sha `1015f7cf…`、本 dir に置かない。生成器で決定
 `verbatim/` の codex 子の出力 11 file、`analysis/analysis.md`、`runs/03-B/rerun-t810.log` の行末空白 (U+0020) だけを除いた (可視文字は不変)。
 原文の sha256・byte 数・除いた位置と文字列は `verbatim-normalization.json` にあり、そこから原文へ戻せる。三軸語の機械走査
 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は repo 全体の既存 file の hit で rc=1 だったが、本 dir の file は 0 件、placeholder (`{{`) も 0 件。
+
+## 13. 最終受入の記録
+
+- attempt 1 (tip `a30e92141`、2026-09-21 13:58〜14:11 JST、session `519cfb05…`): 赤 1 件 `test_dev_wave_cleanup.py::test_remove_child_rejects_clean_filter[named-x]`。
+  本文は `occupancy result is indeterminate or inconsistent; attempts=3 retry_count=2 ... {"error":"missing","source":"cwd","pid":"2521396"}` (rc=22、期待 20) で、
+  占有検査が `/proc/<pid>/cwd` を読む間に別 process が消えた一過性の競合。同 test は台帳を参照せず本 wave の差分から到達しない。単独再走 (request 15060.nqsv) は
+  1 passed in 4.41 s。DW-O18 に従い非帰属として受入を 1 回だけ再投入した (結果は land 後に追記する)。

@@ -23,6 +23,10 @@ title: [T-2825] 受入所要時間台帳を refresh mode で再生成し、固�
   merge 途中は rc=1 (merge を中止して検査を通し、子の後に merge し直した)。隔離 session の guard は python `-c` の書き込みを拒否することがあり、行末空白の正規化は grep / sed / Write に分けた。
 - 工数: codex 子 = consult 1 + author 3 (台帳 / probe / 変異 spec) + review 2 + fix 3 (probe 2 巡 + 台帳 1) + focus 2 の 11 本 (review 2 本は初回 rc=2 で再投入)。
   計算ノード = 変異 2 系列 (probe / final)、warm 2、測定 7、単独再走 1。壁時計は開始 gate 08:35 JST (`startup-gate.log`) → 記録 commit (本 entry 直後の commit 日時) まで。
+- 最終受入 attempt 1 (tip `a30e92141`、13:58〜14:11 JST) は赤 1 件: `test_dev_wave_cleanup.py::test_remove_child_rejects_clean_filter[named-x]` が
+  `occupancy result is indeterminate or inconsistent ... {"error":"missing","source":"cwd","pid":"2521396"}` (rc=22、期待 rc=20)。占有検査の `/proc/<pid>/cwd` 走査中に
+  別 process が消えた一過性の競合で、同 test は台帳を読まず本 wave の差分から到達しない。単独再走 (request 15060.nqsv) は 1 passed in 4.41 s = 非再現 → 非帰属として
+  DW-O18 どおり受入を 1 回だけ再投入した (hold 登録簿へは登録しない)。
 - 一次資料 `output/insights/2026-09-21/t2825-ledger-refresh-ab/README.md`。
 
 ## 次の一手差分
