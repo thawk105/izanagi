@@ -27,7 +27,16 @@ title: VLDB 投稿へ向けた研究方針をユーザーとの協議改訂と�
   active 項は他にもあるが、系列の再開そのものではなく周辺の道具・検査の項なので触れていない (暗黙 carry)。[T-2724] の entry 1742 時点の次手 (launch validation の
   不整合 2 件) は [T-2810] (D2196) で着地済みだったので、更新文に反映した。
 - 見送り台帳 [T-156] の発火条件「TPC-C 級 workload corpus を採るとき」に TPC-C の起票が関わるので、関連記録を 1 行追記した (起票時点では未発火、再評価は TPC-C 段 1 の wave)。
-- 受入全走は計算ノードを使う。1 走の上限見積りは 3 shard × 外側 25 分 ≈ 1.25 node 時間で、確認ライン (2 node 時間) 未満として投入した。
+- 段 6: 独立 read-only レビュー 1 本 (codex gpt-6-astra / medium、忠実性と過剰・削除の 2 レンズを 1 本で担う) は NO-GO で、must-fix 1
+  (P1 の計算確認が「(3) 以降」に限られ、実装に伴う開発検査を含む wave 合計が漏れる)・should 4 (旧系列 2 項の優先度引き下げが裁定そのものに読める /
+  「4〜6 週で組み替える」は分析の提案で裁定ではない / roadmap §9 の Phase 3 との対応が実装方式を固定している / 新規項の資料参照が裸の file 名)・
+  nit 1 ([T-156] への追記を「発火記録」と呼ぶと発火時点を誤認させる)、refuted 6 (裁定の写し・新規 9 項の数値・carry の内容・roadmap の規律・
+  insight の証跡・fragment 文法) を返した。親は 6 件すべてを real と裁定して直し、焦点再レビュー 1 本は対応表で全件 closed・退行なしの GO。
+  費用は codex 2 本 (review 1、focus 1)。
+- 記録前の検査: check_docs rc=0、spool_fold --dry-run rc=0、全史 provenance rc=0。三軸語の権威走査 (`s8b_holdout_freeze search`) は rc=1 だが、
+  hit は本 wave 以前 (commit `cc82edc8c`、2026-09-17) から main にある official 床値の run dir の 3 file だけで、本 wave の file は 0 件 (非帰属)。
+- 受入全走は計算ノードを使う。1 走の上限見積りは 3 shard × 外側 25 分 ≈ 1.25 node 時間で、確認ライン (2 node 時間) 未満として 1 回だけ投入する。
+  再投入が要るときは累計を見積もってから判断する。
 
 ## 次の一手差分
 
