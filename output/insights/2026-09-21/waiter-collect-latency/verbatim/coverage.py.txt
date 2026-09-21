@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""12 wave の job dir にある「計算ノード job を包む producer」を列挙し、END が観測できた本数と欠測を数える (読み取りのみ)。
+
+producer の種類:
+  focus/log  = 会計本文を中継する log を持つ単発 dispatch (焦点走・probe・prerun)。END は log 内。
+  acceptance = acceptance-child-*.log を持つ受入。END は shard session dir (repo 外、`.izanagi-acceptance-shards/`)。
+  mutation   = mutation-*-attempts.json / mutation-*-attempt-*.json を持つ変異走。END は *.dispatch-evidence の写し (job dir) か、撤去済み worktree 側。
+"""
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+ROOT = Path("/work/1/SFC/tanab/dev-wave-jobs")
+WAVES = [
+    "dev-wave-t2797-b5-contrast", "dev-wave-branch-residue-cleanup", "dev-wave-t2817-acceptance-bottleneck-3",
+    "dev-wave-t2810-g1-launch-validation", "dev-wave-t2814-cleanup-command", "dev-wave-wall-decomp",
+    "dev-wave-paper-story-20260921", "dev-wave-paper-abstract-conclusion-ja", "dev-wave-t2344-closure-stage",
+    "dev-wave-t2803-provenance-receipt", "dev-wave-t2804-provenance-timeout-contract", "dev-wave-t2807-b8-prerun",
+]
+SESSION_RE = re.compile(r'"session_root":\s*"([^"]+)"')
+print("wave | 焦点走/単発 (END あり / .done あり) | 受入 (session 残存 / child log) | 変異 producer (evidence あり / 台帳あり) | 変異 attempt (evidence / 台帳)")
+tot = dict(f_obs=0, f_all=0, a_obs=0, a_all=0, m_obs=0, m_all=0, ma_obs=0, ma_all=0)
+for wave in WAVES:
+    job = ROOT / wave
+    # focus/log
+    logs = sorted(job.glob("*.log"))
+    for sub in ("focus", "run", "live"):
+        if (job / sub).is_dir():
+            logs += sorted((job / sub).glob("*.log")) + sorted((job / sub).glob("*.stderr.txt"))
+    f_all = f_obs = 0
+    for lg in logs:
+        text = lg.read_text(errors="replace")
+        if "[Pegasus dispatch] job を" not in text and "Pegasus dispatch" not in text:
+            continue
+        if lg.name.startswith("acceptance") or lg.name.startswith("mutation") or "gate-loop" in lg.name or "land" in lg.name:
+            continue
+        f_all += 1
+        if "Ended Request Time:" in text:
+            f_obs += 1
+    # acceptance
+    a_all = a_obs = 0
+    for lg in sorted(job.glob("acceptance-child-*.log")):
+        a_all += 1
+        m = SESSION_RE.search(lg.read_text(errors="replace"))
+        if m and Path(m.group(1)).exists() and any((Path(m.group(1)) / f"shard-{i}" / "dispatcher.log").exists() for i in range(3)):
+            a_obs += 1
+    # mutation: 台帳 (attempts json) と evidence
+    m_all = m_obs = ma_all = ma_obs = 0
+    ledgers = sorted(job.glob("mutation-*attempts*.json")) + sorted(job.glob("mutation-*-attempt-*.json"))
+    seen = set()
+    for lj in ledgers:
+        stem = re.sub(r"-attempts?(-\d+)?\.json$", "", lj.name)
+        if stem in seen:
+            continue
+        seen.add(stem)
+        try:
+            d = json.loads(lj.read_text())
+        except Exception:  # noqa: BLE001
+            continue
+        atts = d.get("attempts") if isinstance(d, dict) else None
+        if not isinstance(atts, list):
+            continue
+        m_all += 1
+        n_att = len(atts)
+        ma_all += n_att
+        ev = None
+        for cand in (job / f"{stem}-results.json.dispatch-evidence", job / f"{stem}.json.dispatch-evidence", job / f"{stem}-out.json.dispatch-evidence"):
+            if cand.is_dir():
+                ev = cand
+        if ev is None:
+            # 名前規則が違う場合: mtime が近い evidence dir を探す
+            for cand in job.glob("*.dispatch-evidence"):
+                if stem.split("-")[1] in cand.name:
+                    ev = cand
+        n_ev = 0
+        if ev is not None:
+            n_ev = sum(1 for d2 in ev.iterdir() if d2.is_dir() and list(d2.glob("*.e*")))
+            m_obs += 1
+        ma_obs += n_ev
+        print(f"    {wave.replace('dev-wave-', '')}: {stem} 台帳 attempt={n_att} evidence(END あり)={n_ev} {'' if ev else '(evidence dir 無し: 撤去済み worktree 側)'}")
+    print(f"{wave.replace('dev-wave-', ''):36s} | {f_obs}/{f_all} | {a_obs}/{a_all} | {m_obs}/{m_all} | {ma_obs}/{ma_all}")
+    for k, v in (("f_obs", f_obs), ("f_all", f_all), ("a_obs", a_obs), ("a_all", a_all), ("m_obs", m_obs), ("m_all", m_all), ("ma_obs", ma_obs), ("ma_all", ma_all)):
+        tot[k] += v
+print(f"合計 | 焦点走/単発 {tot['f_obs']}/{tot['f_all']} | 受入 {tot['a_obs']}/{tot['a_all']} | 変異 producer {tot['m_obs']}/{tot['m_all']} | 変異 attempt {tot['ma_obs']}/{tot['ma_all']}")
