@@ -210,3 +210,11 @@ D2172 項 3 (i) で認可された同 job pair (候補 10 + stock 対照、1 job
 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/scratch-campaign/knowledge_manifest_receipt.json` に残る。
 本文に記した各原本の sha256 と派生物 (`materials/`、`layer3_report.json`、`evidence/`) は不変で、本文の値・結論は変えない。
 事故の記録と損失表は `output/insights/2026-09-20/cleanup-backup-loss-record/README.md`。
+
+## 追記 — 同 job pair の再投入と 4 巡目 (T-2795、2026-09-22): 両 job とも候補と stock が certified、同 job stock 対照が初めて成立
+
+修復済み pair driver (D2205) で同 job pair を再投入し (D2211 項 1、job `16269.nqsv`)、本巡の `materials/proposal-4.json` (候補 10) と stock がともに
+serializable / certified / anomaly 0、stock の BUILD_START `src_token` は `stock` だった (候補 825,490 tps、stock 348,883 tps)。続けて、本巡の repo 内派生物
+(`materials/run-summary.json`・`verbatim/critic-3.md`・`materials/knowledge-input.json`) から入力を組んで 4 巡目の生成 1 回 (候補 5) と同 job stock を 1 job で評価し
+(job `16312.nqsv`)、こちらも両方 certified (候補 884,922.5 tps、stock 354,948 tps)。一次資料は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md`。
+上の本文 (3 巡目、縮小走行) と 2026-09-20 の pair 初投入の追記は変更しない。本巡の値 (815,983 tps) と再投入の値を並べて改善・退行と読まない (非同時刻・別 tree・別 epoch)。

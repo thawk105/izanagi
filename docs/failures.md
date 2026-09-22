@@ -15538,6 +15538,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   段 3 の敵対レビューが指摘し、親が再計算して訂正した。結論は変わらない
   (当該軸は計算ノードの実測で棄却済み)。複数 column を持つ probe 出力では、
   比・差・throughput を同じ column から採り、どの column かを明記する。
+
+- **再発: 2026-09-22** — [T-2847] の設計 insight で、親が「どの test も被覆していない」案を、`_tmp_trace(...)` の直接の文字列引数だけを拾う自作走査と、読み取り子の「G0 / G1c の巡回は fixture に無い」という報告から書いた。走査は helper で組み立てる trace 文字列を構造的に拾わず、`test_verifier.py` の `_ordinal_witness_trace()` が既に wr だけの巡回を trace 入力で使っていた (呼び出し数も関数定義を含めて 1 件多く数えていた)。段 6 の焦点再レビュー 1 巡目が既存 test を示して訂正し、親は走査を verifier を使う test file 13 本の全文字列リテラルへ広げて再集計した (未被覆 3 → 2)。記録前に閉じ、成果物への波及はない。不在を書く前に、走査が拾わない形 (helper・実行時生成) を 1 行で言う。F473 の恒久対応 (memory `tool-filtered-view-is-not-the-total`) は変更しない。
+
+- **再発: 2026-09-22** — [T-2853] 再現パッケージ初段の段 4 で、段 3 相談 B の「D2160 保全系列の verifier.json が 0 B の走は 4 件」を、親が自前で打った awk の件数 3 で「誤り」と裁定した。awk は見出し 1 行の集計 log に `NR>2` を掛けており、先頭のデータ行 (`calib/fixed-10-balanced/extime-10`) を構造的に必ず落とす道具だった (本文の型 2「抽出器が端の要素を構造的に落とした」と同じ)。段 6 の read-only レビューが log の走別行を数え直して must-fix で逆転させ、insight `output/insights/2026-09-22/t2853-repro-package-estimate/README.md` §12 に erratum を書いた (段 4 裁定の逐語は保存)。子の数値指摘を覆す裁定の根拠にした自前の数を、母集合 (どの行から数えたか) を確かめずに使った点が本型の再発で、再発検知 (敵対レビューが親の数値を再現コマンドで確かめる) がそのまま働いた。
 ### F474. registry の期待表を literal 複製する consumer が識別子 grep から漏れた [手順漏れ] [テスト代表性]
 
 - 事象: 親は保留 registry を編集する前に pin 閉包を監査し、`key_sha256` /
@@ -28292,3 +28296,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: submodule の hook commit は superproject の `check_ai_provenance.py --message-file` 検査の対象外 (submodule には provenance の導入履歴も checker も無い) で、trailer の欠落を機械では検出できない。親は commit script と message の下書きを段 4 裁定より前に用意し、裁定後に message を読み直さなかった。
 - 恒久対応: memory `hook-commit-trailer-from-ruling` (hook commit の `commit -F` 直前に、message の trailer を段 4 裁定の trailer 決定と行単位で照合する。OID は下流の固定期待値・bundle・fetch に焼かれるので、照合は D297 や compute の前に行う)。
 - 再発検知: submodule commit の message を `git show -s --format=%B <OID>` で出し、段 4 裁定の trailer 行と比べる。差があれば下流が参照する前に置き換える。
+
+### F1041. 計算確認ラインの見積りに、裁定が名指しで禁じた外挿を「仮定」と断って使い、確認を省いて投入した [権限逸脱] [手順漏れ]
+
+- 事象: [T-2795] (2026-09-22) で、D2211 項 1 が「過去の K2 1 job の Elapse 69〜432 秒は候補走の値で、pair の完走時間へ外挿しない」と明示していたのに、親は pair job を
+  「3〜15 分 (外挿を含む仮定、実測扱いしない)」と置いて合計 ≈ 0.35〜1.25 node 時間とし、D2212 項 4 の確認ライン (2 node 時間) 未満として確認なしで 1 本目 (`16269.nqsv`) を投入した。
+  外挿を使わない上限は walltime 3 時間 × 2 job = 6 node 時間で線を越える。段 6 の read-only レビューが must-fix として指摘した。実使用は 2 job で 207 秒、測定値・判定への影響はない。
+- 根本原因: 禁止された根拠を、断り書き (「仮定」「実測扱いしない」) を添えれば使ってよいと親が読み替えた。第 31 回 項 1 の「見積りは job Elapse の実測で出す」を、別の job 種の実測にも当てはめた。
+  その job 種 (pair) の実測単価が無いときの見積り方を決めていなかった。
+- 恒久対応: memory `experiment-compute-needs-user-confirmation` の節「裁定が禁じた外挿を『仮定』と断って使わない」— 実測単価の無い新種 job は walltime (または明示した上限) × job 数で見積もり、
+  2 node 時間以上なら確認を取る。2 本目以降は 1 本目の実測 Elapse で取り直してよい。記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md` §6。
+- 再発検知: 段 6 の read-only レビューの照合項目 (依頼・裁定の但し書きと見積りの根拠の対応)。機械検査はない。
