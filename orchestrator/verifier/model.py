@@ -338,6 +338,33 @@ class Txn:
         return [w.key for w in self.writes]
 
 
+@dataclass(kw_only=True)
+class ReadV3(Read):
+    table: int
+
+
+@dataclass(kw_only=True)
+class WriteV3(Write):
+    table: int
+
+
+@dataclass(kw_only=True)
+class TxnV3(Txn):
+    tx_type: int
+    schema: int = field(default=3, init=False)
+
+
+ObjectIdentity = str | tuple[int, str]
+
+
+def object_identity(access: Read | Write) -> ObjectIdentity:
+    return (access.table, access.key) if isinstance(access, (ReadV3, WriteV3)) else access.key
+
+
+def object_label(key: ObjectIdentity) -> str:
+    return f"table={key[0]} key={key[1]}" if isinstance(key, tuple) else f"key={key}"
+
+
 # ---- 依存グラフ (Direct Serialization Graph; Adya) ----
 
 # 辺の種類。すべて「a が直列順序で b より前」を意味する向き (a -> b)。
@@ -387,6 +414,16 @@ class CycleEdge:
                 seen.add(r.etype)
                 out.append(r.etype)
         return out
+
+
+@dataclass(frozen=True, kw_only=True)
+class EdgeReasonV3(EdgeReason):
+    table: int
+
+
+@dataclass(kw_only=True)
+class AnomalyV3(Anomaly):
+    cycle_tx_types: tuple[int, ...]
 
 
 @dataclass
@@ -447,6 +484,8 @@ class Integrity:
         default_factory=ProofSurfaceAssessment,
     )
 
+    v3_existence_unverified: bool = False
+
     def clean(self) -> bool:
         commit_witness_clean = (
             (self.expected_commits is None and self.observed_commits is None)
@@ -464,6 +503,7 @@ class Integrity:
                 and self.write_intent_violations == 0
                 and self.permutation_violations == 0
                 and self.proof_surfaces.certification_gate_satisfied()
+                and not self.v3_existence_unverified
                 and commit_witness_clean)
 
 

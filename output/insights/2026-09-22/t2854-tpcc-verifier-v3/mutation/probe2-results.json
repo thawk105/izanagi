@@ -1,0 +1,497 @@
+{
+ "__baseline__": {
+  "rc": 0,
+  "seconds": 5.3,
+  "failed_nodes": []
+ },
+ "M0-equivalent-int-base": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 4.9,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [],
+  "rc_nonzero": []
+ },
+ "M1-object-identity-drops-table": {
+  "touched": [
+   "orchestrator/verifier/model.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.5,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M2-compact-intern-drops-table": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.3,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M3-packed-readonly-resolution-wrong-table": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M4a-tuple-builder-drops-table": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M4b-tuple-worker-read-drops-table": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.5,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M5-cross-file-schema-check-disabled": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.2,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M6-in-file-schema-check-disabled": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.1,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M7-tx-type-range-widened": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M8-table-range-widened": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M9-scan-counts-accepted": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M10-canonical-decimal-check-disabled": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type",
+     "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type",
+   "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M11-reasons-match-raw-key": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.4,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M12-compact-tx-type-fixed": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M13-v3-output-omits-table": {
+  "touched": [
+   "orchestrator/verifier/core.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.3,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M14-v3-existence-mark-not-set": {
+  "touched": [
+   "orchestrator/verifier/core.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M15a-v3-lock-coverage-not-collected": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.2,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M15b-v3-write-intent-not-collected": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 4.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M16-diag-v3-always-legacy": {
+  "touched": [
+   "orchestrator/verifier/parse.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 3.9,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+     "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+   "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ }
+}

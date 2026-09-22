@@ -3373,6 +3373,496 @@ def test_capacity_partial_outcomes_are_released_before_full_fallback():
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ---- TPC-C v3: synthetic wire fixtures, no pytest-only dependencies ----
+
+def _v3_frame(txid, reads=(), writes=(), *, commit=None, tx_type=1, tail=""):
+    epoch, tid = commit or (2, txid + 1)
+    return (
+        f"C {txid} 0 {epoch} {tid} {len(reads)} {len(writes)} 0 0 {tx_type}\n"
+        + "".join(f"R {txid} {table} {key} {ve} {vt}\n"
+                  for table, key, ve, vt in reads)
+        + "".join(f"W {txid} {table} {key} {op} {epoch} {tid}\n"
+                  for table, key, op in writes)
+        + tail + f"E {txid}\n"
+    )
+
+
+def _v3_cycle_files(epoch=2):
+    return (
+        _v3_frame(0, [(0, "aa", 1, 0)], [(9, "aa", "U")],
+                  commit=(epoch, 1), tx_type=1),
+        _v3_frame(1, [(9, "aa", 1, 0)], [(0, "aa", "U")],
+                  commit=(epoch, 2), tx_type=2),
+    )
+
+
+def _v3_paths(d, *, expect_compact=True, expect_packed=True, **kwargs):
+    """Compare actual parsers/builders through existing outer seams, restoring all."""
+    def edges(graph):
+        return {(u, v) for u, destinations in graph.adj.items() for v in destinations}
+
+    import orchestrator.verifier.core as core
+    import orchestrator.verifier.parse as parser
+    from orchestrator.verifier.dsg import _PackedVersions
+    original_parse = core._parse_trace_dir_compact
+    original_build = DSG._build_compact
+    tuple_graphs = []
+
+    def tuple_build(graph):
+        tuple_graphs.append(graph)
+        DSG._build_compact_tuple(graph)
+
+    results = []
+    try:
+        for mode in ("legacy", "packed", "tuple"):
+            for workers in ((1,) if mode == "legacy" else (1, 2)):
+                core._parse_trace_dir_compact = (
+                    (lambda path, **kw: parser._finish_legacy_parse(parser._trace_paths(path)))
+                    if mode == "legacy" else original_parse)
+                DSG._build_compact = tuple_build if mode == "tuple" else original_build
+                parsed = core._parse_trace_dir_compact(d, workers=workers)
+                if mode != "legacy" and expect_compact:
+                    assert isinstance(parsed, parser._CompactTrace), (
+                        f"{mode} workers={workers}: expected compact parser result")
+                graph = (DSG(parsed.txns) if isinstance(parsed, parser._LegacyTrace)
+                         else DSG.from_compact(parsed))
+                if not isinstance(parsed, parser._LegacyTrace):
+                    if mode == "packed" and expect_packed:
+                        assert isinstance(graph.versions, _PackedVersions)
+                    if mode == "tuple":
+                        assert any(built is graph for built in tuple_graphs)
+                        assert isinstance(graph.versions, dict)
+                result = verify_trace_dir(d, workers=workers, **kwargs)
+                results.append((graph, result))
+        reference_graph, reference_result = results[0]
+        for graph, result in results[1:]:
+            assert edges(graph) == edges(reference_graph)
+            assert list(graph.versions.items()) == list(reference_graph.versions.items())
+            assert dict(graph.producer) == dict(reference_graph.producer)
+            assert [graph._txn_for_id(txid) for txid in graph.adj] == [
+                reference_graph._txn_for_id(txid) for txid in graph.adj]
+            assert result == reference_result
+            assert core.result_to_dict_v3(result) == core.result_to_dict_v3(reference_result)
+        txns, _ = parse_trace_dir(d, workers=1)
+        assert edges(DSG(txns)) == edges(reference_graph)
+        return results
+    finally:
+        core._parse_trace_dir_compact = original_parse
+        DSG._build_compact = original_build
+
+
+def _v3_rejected(*files, contains="", legacy=False, workers=1):
+    import shutil
+    import orchestrator.verifier.parse as parser
+    d = _tmp_trace(*files)
+    try:
+        try:
+            if legacy:
+                parser._finish_legacy_parse(parser._trace_paths(d))
+            else:
+                parse_trace_dir(d, workers=workers)
+        except ParseError as error:
+            assert contains in str(error), str(error)
+            return str(error).replace(d, "TRACE")
+        raise AssertionError("malformed v3 trace was accepted")
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_table_identity_separates_edges():
+    import shutil
+    from orchestrator.verifier.parse import _parse_trace_dir_compact, _object_at
+    for left, right in ((0, 9), (5, 6)):
+        d = _tmp_trace(
+            _v3_frame(0, [(left, "aa", 1, 0)], [(right, "aa", "I")], commit=(2, 2)),
+            _v3_frame(1, writes=[(left, "aa", "D")], commit=(2, 1), tx_type=2))
+        try:
+            columns = _parse_trace_dir_compact(d, workers=1).files[0]
+            assert columns.read_key_id[0] != columns.write_key_id[0]
+            assert _object_at(columns, columns.read_key_id[0]) == (left, "aa")
+            assert _object_at(columns, columns.write_key_id[0]) == (right, "aa")
+            for graph, result in _v3_paths(d):
+                assert {(u, v) for u, vs in graph.adj.items() for v in vs} == {(0, 1)}
+                assert result.n_keys == 2
+                assert result.integrity.version_dups == 0
+                assert graph._txn_for_id(0).writes[0].op == "I"
+                assert graph._txn_for_id(1).writes[0].op == "D"
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_serial_tables_types_and_ops():
+    import shutil
+    files = []
+    for table in range(11):
+        files.append(_v3_frame(table, writes=[(table, "aa", ("U", "I", "D")[table % 3])],
+                               tx_type=table % 5 + 1))
+    files.append(_v3_frame(11, [(table, "aa", 2, table + 1) for table in range(11)]))
+    d = _tmp_trace(*files)
+    try:
+        for graph, result in _v3_paths(d):
+            assert result.serializable and result.n_keys == 11 and result.n_edges == 11
+            for table in range(11):
+                txn = graph._txn_for_id(table)
+                assert txn.tx_type == table % 5 + 1 and txn.schema == 3
+                assert txn.writes[0].table == table
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_cycle_reports_tables_and_tx_types():
+    import shutil
+    from orchestrator.verifier.core import result_to_dict_v3
+    from orchestrator.verifier.model import AnomalyV3, EdgeReasonV3
+    d = _tmp_trace(*_v3_cycle_files())
+    try:
+        for graph, result in _v3_paths(d):
+            assert result.verdict == "non-serializable" and not result.certified
+            anomaly = result.anomalies[0]
+            assert isinstance(anomaly, AnomalyV3)
+            assert dict(zip(anomaly.cycle, anomaly.cycle_tx_types)) == {0: 1, 1: 2}
+            assert {(e.src, e.dst, r.etype, r.table, r.key)
+                    for e in anomaly.edges for r in e.reasons} == {
+                        (0, 1, "rw", 0, "aa"), (1, 0, "rw", 9, "aa")}
+            assert all(isinstance(r, EdgeReasonV3) for e in anomaly.edges for r in e.reasons)
+            old = json.dumps(result_to_dict(result), sort_keys=True)
+            projected = result_to_dict_v3(result)["anomalies"][0]
+            assert projected["cycle_nodes"] == [
+                {"txid": txid, "tx_type": {0: 1, 1: 2}[txid]} for txid in anomaly.cycle]
+            assert {(e["from"], r["table"], r["key"]) for e in projected["edges"]
+                    for r in e["reasons"]} == {(0, 0, "aa"), (1, 9, "aa")}
+            assert json.dumps(result_to_dict(result), sort_keys=True) == old
+        limited = verify_trace_dir(d, max_report=0)
+        assert limited.total_cycles == 1 and limited.verdict == "non-serializable"
+        assert result_to_dict_v3(limited)["anomalies"] == []
+        assert len(verify_trace_dir(d, max_report=1).anomalies) == 1
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_reasons_preserve_ww_wr_rw_identity():
+    import shutil
+    from orchestrator.verifier.model import EdgeReasonV3
+    d = _tmp_trace(
+        _v3_frame(0, [(9, "aa", 1, 0)], [(0, "aa", "U"), (9, "aa", "U")]),
+        _v3_frame(1, [(0, "aa", 2, 1), (9, "aa", 1, 0)],
+                  [(0, "aa", "U"), (9, "aa", "U")]))
+    try:
+        for graph, _ in _v3_paths(d):
+            assert graph._reasons(0, 1) == [
+                EdgeReasonV3(WW, "aa", (2, 1), (2, 2), table=0),
+                EdgeReasonV3(WW, "aa", (2, 1), (2, 2), table=9),
+                EdgeReasonV3(WR, "aa", (2, 1), None, table=0)]
+            assert graph._reasons(1, 0) == [
+                EdgeReasonV3(RW, "aa", (1, 0), (2, 1), table=9)]
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_packed_mapping_and_read_bounds():
+    import shutil
+    d = _tmp_trace(
+        _v3_frame(0, writes=[(9, "aa", "U")]),
+        _v3_frame(1, writes=[(0, "aa", "U")]),
+        _v3_frame(2, [(0, "aa", 2, 2), (9, "aa", 2, 1), (0, "aa", 2, 1),
+                      (0, "aa", 2, -1), (0, "aa", 2, 2**32)]))
+    try:
+        for graph, result in _v3_paths(d):
+            assert list(graph.versions) == [(9, "aa"), (0, "aa")]
+            assert graph.versions[(0, "aa")] == [(2, 2)]
+            assert graph.producer[((9, "aa"), (2, 1))] == 0
+            assert graph.producer.get(((0, "aa"), (2, 1))) is None
+            assert result.integrity.orphan_reads == 3
+            assert {(u, v) for u, vs in graph.adj.items() for v in vs} == {(0, 2), (1, 2), (2, 1)}
+            for mapping, key in ((graph.versions, (5, "aa")),
+                                 (graph.producer, ((5, "aa"), (2, 1)))):
+                assert mapping.get(key) is None
+                try:
+                    mapping[key]
+                except KeyError:
+                    pass
+                else:
+                    raise AssertionError("missing object must raise KeyError")
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_same_version_table_duplicates_and_notes():
+    import shutil
+    for table in (0, 9):
+        d = _tmp_trace(_v3_frame(0, writes=[(0, "aa", "U")]),
+                       _v3_frame(1, writes=[(table, "aa", "U")], commit=(2, 1)))
+        try:
+            for graph, result in _v3_paths(d):
+                assert result.integrity.version_dups == (1 if table == 0 else 0)
+                assert graph.producer[((0, "aa"), (2, 1))] == 0
+                if table == 0:
+                    assert "version dup: table=0 key=aa ver=(2, 1) by txid 0 and 1" in result.integrity.notes
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_tuple_and_legacy_fallback_preserve_metadata():
+    import shutil
+    import orchestrator.verifier.parse as parser
+    from orchestrator.verifier.dsg import _PackedVersions
+    for epoch in (2**32, 2**63):
+        d = _tmp_trace(*_v3_cycle_files(epoch))
+        try:
+            parsed = parser._parse_trace_dir_compact(d, workers=2)
+            assert isinstance(parsed, parser._LegacyTrace) == (epoch == 2**63)
+            for graph, result in _v3_paths(
+                    d, expect_compact=(epoch != 2**63), expect_packed=False):
+                assert not isinstance(graph.versions, _PackedVersions)
+                assert result.verdict == "non-serializable"
+                assert set(result.anomalies[0].cycle_tx_types) == {1, 2}
+                assert set(graph.versions) == {(0, "aa"), (9, "aa")}
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_last_winner_tx_type_in_cycle():
+    import shutil
+    first, second = _v3_cycle_files()
+    d = _tmp_trace(_v3_frame(0, tx_type=5), second, first)
+    try:
+        for _, result in _v3_paths(d):
+            assert result.integrity.dup_txids == 1
+            a = result.anomalies[0]
+            assert dict(zip(a.cycle, a.cycle_tx_types)) == {0: 1, 1: 2}
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_rejects_mixed_schema_in_one_file():
+    v2, v3 = "C 0 0 2 1 0 0\nE 0\n", _v3_frame(1)
+    for a, b in ((v2, v3), (v3, v2)):
+        for legacy in (True, False):
+            assert "TRACE/trace_0.log:3: mixed trace schemas" == _v3_rejected(a + b, legacy=legacy)
+
+
+def test_v3_rejects_mixed_schema_across_files():
+    v2 = "C 0 0 2 1 0 0\nE 0\n"
+    for v3 in (_v3_frame(0), _v3_frame(0, commit=(2**63, 1))):
+        for a, b in ((v2, v3), (v3, v2)):
+            for legacy in (False, True):
+                for workers in ((1,) if legacy else (1, 2)):
+                    message = _v3_rejected(a, "P unknown\nA abort\n", "", b,
+                                           legacy=legacy, workers=workers, contains="mixed trace schemas")
+                    assert "trace_0.log" in message and "trace_3.log" in message
+
+
+def test_v3_schema_failure_precedes_cross_file_mixture():
+    for legacy in (False, True):
+        for workers in ((1,) if legacy else (1, 2)):
+            message = _v3_rejected("C 0 0 2 1 0 0\nE 0\n", _v3_frame(1), "Z bad\n",
+                                   legacy=legacy, workers=workers, contains="trace_2.log:1:")
+            assert "unknown record tag" in message
+            _v3_rejected(_v3_frame(0), "C 1 0 2 2 0 0\nE 1\nZ bad\n",
+                         legacy=legacy, workers=workers, contains="trace_1.log:3:")
+
+
+def test_v3_rejects_invalid_table_and_tx_type():
+    for table in ("11", "-1", "01", "+1", "-0", "x", "1.0", "0x1", "1_0", "1 0"):
+        for tag, suffix in (("R", "aa 1 0"), ("W", "aa U 2 1"),
+                            ("X", "aa unknown"), ("I", "aa unknown")):
+            frame = (_v3_frame(0, reads=[(table, "aa", 1, 0)]) if tag == "R" else
+                     _v3_frame(0, writes=[(table, "aa", "U")]) if tag == "W" else
+                     _v3_frame(0, tail=f"{tag} 0 {table} {suffix}\n"))
+            _v3_rejected(frame,
+                         contains="expected exactly" if table == "1 0" else "table")
+    for tx_type in ("0", "6", "01", "+1", "-0", "x", "1.0", "1_0"):
+        _v3_rejected(_v3_frame(0, tx_type=tx_type), contains="tx_type")
+
+
+def test_v3_rejects_scan_counts_tags_ops_and_record_shapes():
+    for offset in (7, 8):
+        for value in ("1", "01", "+0", "-0", "x", "1_0"):
+            fields = _v3_frame(0).splitlines()[0].split()
+            fields[offset] = value
+            _v3_rejected(" ".join(fields) + "\nE 0\n",
+                         contains="段 2 未対応" if value == "1" else "canonical")
+    for op in ("Z", "u", "INSERT", "DELETE", "UPDATE"):
+        _v3_rejected(_v3_frame(0, writes=[(0, "aa", op)]), contains="invalid v3 W op")
+    for tag in ("S", "Q"):
+        _v3_rejected(_v3_frame(0, tail=f"{tag} 0 0 aa\n"), contains="unknown record tag")
+    for line in ("R 0 aa 1 0", "W 0 aa U 2 1", "X 0 aa reason", "I 0 aa reason"):
+        _v3_rejected(_v3_frame(0, tail=line + "\n"), contains="expected exactly")
+        parts = line.split()
+        parts.insert(2, "0")
+        _v3_rejected("C 0 0 2 1 0 0\n" + " ".join(parts) + "\nE 0\n", contains="malformed line")
+    for fields in ("C 0 0 2 1 0", "C 0 0 2 1 0 0 0 0", "C 0 0 2 1 0 0 0 0 1 0"):
+        _v3_rejected(fields + "\n", contains="expected exactly 7 fields")
+
+
+def test_v3_x_i_keep_table_and_make_indeterminate():
+    import shutil
+    for tag, attribute in (("X", "lock_coverage_violations"), ("I", "write_intent_violations")):
+        d = _tmp_trace(_v3_frame(0, tail=f"{tag} 0 5 aa unknown-reason\n"))
+        try:
+            _, issues = parse_trace_dir(d, workers=1)
+            assert getattr(issues, attribute) == [(0, (5, "aa"), "unknown-reason")]
+            for _, result in _v3_paths(d, expected_commits=1):
+                assert getattr(result.integrity, attribute) == 1
+                assert result.verdict == "indeterminate" and result.serializable
+                assert result.integrity.framing_violations == 0
+                assert any("txn0 table=5 key=aa (unknown-reason)" in n for n in result.integrity.notes)
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_existence_unverified_and_v2_control():
+    import shutil
+    from orchestrator.verifier.core import verify_trace_dir_with_capability
+    import commit_receipt_support as receipt_support
+    for op, read_version in (("U", (2, 1)), ("I", (1, 0)), ("D", (2, 1))):
+        frames = (_v3_frame(0, writes=[(5, "aa", op)]),
+                  _v3_frame(1, [(5, "aa", *read_version)], tx_type=2))
+        d = _tmp_trace(*frames)
+        try:
+            for _, result in _v3_paths(d, expected_commits=2):
+                ig = result.integrity
+                assert result.verdict == "indeterminate" and not result.certified
+                assert ig.v3_existence_unverified and ig.proof_surfaces.certification_gate_satisfied()
+                assert ig.expected_commits == ig.observed_commits == 2
+                assert ig.orphan_reads == 0
+                assert len(ig.notes) == 1 and "v3 existence history unverified" in ig.notes[0]
+                assert replace(ig, v3_existence_unverified=False).clean()
+            genome, evidence, admission = receipt_support._proof_build_binding("baseline")
+            result, capability = verify_trace_dir_with_capability(
+                d, expected_commits=2, workers=1, genome=genome, source_evidence=evidence,
+                build_admission=admission, receipt_sink_kind="test",
+                receipt_lock_identity_sha256="0" * 64, receipt_variant="baseline",
+                receipt_operation_identity="v3-existence", receipt_workload_tag="unit")
+            assert not result.certified and not capability._certified
+            assert capability._verdict == "indeterminate"
+        finally:
+            shutil.rmtree(d)
+        v2 = []
+        for frame in frames:
+            lines = []
+            for line in frame.splitlines():
+                f = line.split()
+                if f[0] == "C":
+                    f = f[:7]
+                elif f[0] in ("R", "W"):
+                    f = f[:2] + f[3:]
+                lines.append(" ".join(f))
+            v2.append("\n".join(lines) + "\n")
+        d = _tmp_trace(*v2)
+        try:
+            result = verify_trace_dir(d, expected_commits=2)
+            assert result.certified and not result.integrity.v3_existence_unverified
+            assert result.integrity.notes == []
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_framing_and_neutral_files():
+    import shutil
+    frame = _v3_frame(0)
+    cases = ((frame.replace(" 0 0 0 0 1", " 1 0 0 0 1"), ["count-mismatch"]),
+             (frame.replace("E 0\n", ""), ["missing-end"]),
+             (frame + "E 0\n", ["duplicate-end"]),
+             (frame.replace("E 0\n", "") + _v3_frame(1), ["missing-end"]))
+    for text, kinds in cases:
+        d = _tmp_trace(text, "", "A abort\n")
+        try:
+            for _, result in _v3_paths(d):
+                assert [v.kind for v in result.integrity.framing_violation_details] == kinds
+                assert result.verdict == "indeterminate"
+        finally:
+            shutil.rmtree(d)
+    d = _tmp_trace("", "P unknown\nA abort\n")
+    try:
+        assert verify_trace_dir(d).verdict == "indeterminate"
+        assert not verify_trace_dir(d).integrity.v3_existence_unverified
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_parallel_processes_and_pool_failure_fallback():
+    import shutil
+    import orchestrator.verifier.parse as parser
+    import orchestrator.verifier.dsg as dsg_module
+    from orchestrator.verifier.core import result_to_dict_v3
+    d = _tmp_trace(*_v3_cycle_files())
+    parent_pid = os.getpid()
+    original_build = DSG._build_compact
+    try:
+        expected = verify_trace_dir(d, workers=1)
+        assert verify_trace_dir(d, workers=2) == expected
+        assert parser._LAST_PARSE_WORKER_PIDS and parent_pid not in parser._LAST_PARSE_WORKER_PIDS
+        assert dsg_module._LAST_DSG_WORKER_PIDS and parent_pid not in dsg_module._LAST_DSG_WORKER_PIDS
+        for kind in ("parse", "edge"):
+            module = parser if kind == "parse" else dsg_module
+            name = "_parse_file_worker" if kind == "parse" else "_edge_candidates_for_task"
+            original = getattr(module, name)
+            marker = os.path.join(d, "exited-worker")
+
+            def fail_worker(task, *args):
+                index = task[0] if kind == "parse" else task.task_index
+                if os.getpid() != parent_pid and index == 0:
+                    with open(marker, "w") as fh:
+                        fh.write(str(os.getpid()))
+                    os._exit(71)
+                return original(task, *args)
+
+            # The submitted parse worker must be resolvable by module/name.
+            fail_worker.__module__ = module.__name__
+            fail_worker.__name__ = fail_worker.__qualname__ = name
+            setattr(module, name, fail_worker)
+            try:
+                for mode in ("packed", "tuple"):
+                    DSG._build_compact = (original_build if mode == "packed"
+                                          else DSG._build_compact_tuple)
+                    if os.path.exists(marker):
+                        os.unlink(marker)
+                    recovered = verify_trace_dir(d, workers=2)
+                    # Observe this call before any helper can overwrite the PID sets.
+                    pids = (parser._LAST_PARSE_WORKER_PIDS if kind == "parse"
+                            else dsg_module._LAST_DSG_WORKER_PIDS)
+                    assert pids == frozenset({parent_pid}), pids
+                    with open(marker) as fh:
+                        assert int(fh.read()) != parent_pid, "worker exit was not exercised"
+                    os.unlink(marker)
+                    assert recovered == expected
+                    assert result_to_dict_v3(recovered) == result_to_dict_v3(expected)
+                DSG._build_compact = original_build
+                for _, result in _v3_paths(d):
+                    assert result == expected
+            finally:
+                setattr(module, name, original)
+                DSG._build_compact = original_build
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_output_validation_and_v2_projection():
+    import shutil
+    from orchestrator.verifier.core import result_to_dict_v3
+    for name in ("g1_serial", "r2_lost_update"):
+        # v2 JSON/repr and full fixture hashes are additionally frozen above.
+        d = os.path.join(FIX, name)
+        result = verify_trace_dir(d)
+        assert json.dumps(result_to_dict_v3(result)) == json.dumps(result_to_dict(result))
+    d = _tmp_trace(*_v3_cycle_files())
+    try:
+        result = verify_trace_dir(d)
+        anomaly = result.anomalies[0]
+        invalid = [replace(anomaly, cycle_tx_types=()),
+                   replace(anomaly, edges=[CycleEdge(0, 1, [EdgeReason(RW, "aa")])])]
+        for a in invalid:
+            try:
+                result_to_dict_v3(replace(result, anomalies=[a]))
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("malformed v3 witness projected silently")
+    finally:
+        shutil.rmtree(d)
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():
