@@ -14,12 +14,13 @@ title: [T-2795] K2 の同 job pair を再投入して初めて成立させ (候�
 - **pair 再投入 (`16269.nqsv`、bnode001、Elapse 100 秒):** 候補 10 は serializable / certified / anomaly 0 で 825,490 tps、stock (`602b4ce9c788` = stock genome の `variant_id`) は BUILD_START `src_token` = `stock`、certified で 348,883 tps。判定は WAL outcome で行い 4 条件とも成立した。
 - **4 巡目 (`16312.nqsv`、bnode052、Elapse 107 秒):** round 3 の `run-summary.json`・`critic-3.md`・`knowledge-input.json`・`coder-input-4.json` (leakproof_context) から production 関数で入力を組み (pair 再投入の結果は渡していない)、planner-v4 は decrease / large、coder-v4-autonomous-k2 は value 5 を返した。login の production 検査 3 本を通して評価し、候補 5 は certified で 884,922.5 tps、同 job の stock は certified・source STOCK で 354,948 tps。同 job の比は 2.366 (pair) と 2.493 (4 巡目)。候補 5 と候補 10 は別 job なので比べない。
 - epoch 差: campaign ID は初投入と同じ `b24749ae` (preimage 一致)、受領証 `c42dc712…` は全巡で同一、lock の closure 束縛は 63 → 96 path (初投入比 37 path 差)。初投入の lock は現行の厳密 decoder では読めない。round 3 の loop_state と AO は派生物から記録 sha どおりに再構成できた (harness へは渡していない)。
-- 計算投入の確認 (D2212 項 4 / 第 31 回 項 1): 投入前の見積り ≈ 0.35〜1.25 node 時間、pair 走の実測 100 秒で 4 巡目前に取り直して ≈ 0.8 node 時間。いずれも 2 node 時間未満のため確認なしで投入した。2 job の実使用は計 207 秒。
+- **計算投入の確認を省いた (D2212 項 4 / D2211 項 1):** 投入前の見積り ≈ 0.35〜1.25 node 時間は、pair job の所要を候補のみ job の実測 69〜432 秒から外挿した値だった。D2211 項 1 はこの外挿を名指しで禁じており、外挿なしの上限 (walltime 3 時間 × 2 job = 6 node 時間) は確認ラインを越える。本来は 1 本目の前にユーザーの確認を取るべきだったが、取らずに投入した (段 6 レビューの must-fix、{{F:compute-estimate-forbidden-extrapolation}})。4 巡目の前の取り直し (≈ 0.8 node 時間) は pair 走の実測 Elapse 100 秒に基づく。2 job の実使用は計 207 秒 (≈ 0.06 node 時間)。
 - **待ち手の誤用:** pair job の終端待ちに `tools/dev_wave_wait.py compute` を accounting file も done file も書かれない形で張り、job の終了 (09:26) から 11:07 まで約 1 時間 40 分戻らなかった。この待ち手は qstat を見ない。4 巡目は `--done-file <attempt dir>/compute-result.json` で正しく待てた。使い方は記憶に既にあり、引かなかったことが原因。測定・判定には影響なし。
 - pair 用 submit-tree で `tools/dev_wave_submodule_init.py` が 2 回とも `runtime-io-failure` を返し、入れ子の googletest が記録と違う commit のまま残った (Lustre の EINTR 警告多数)。job の検査は満たし、build は `--isolate-worktree` の別 checkout で入れ子を使わないので続行した。4 巡目用 tree は成功。
 - 並走中の掃除 session に備えて submit-tree 2 本を `git worktree lock` し、両 campaign の原本 14 file を job root の `originals-copy-20260922/` へ byte 複製した (MANIFEST に sha256)。
 - coder-5 の応答は JSON の前に 118 字の要約を付けていた (契約は JSON だけ)。JSON は機械的に取り出した。
-- 工数: Claude の登録 role 子 2 本 (planner-v4、coder-v4-autonomous-k2、各約 37 秒)。段 6 の read-only レビュー 1 本。計算ノード: pair 1 job、4 巡目 1 job、受入。
+- 段 6 の read-only レビュー 1 本 (codex): NO-GO、must-fix 1 (上の見積りの外挿) と should 1 (候補間差の不確かさを「stock の揺れと同じ桁」と言い過ぎた) を real と裁定し、insight §3 / §6 と本段落を直した。数値・sha・判定・入力の由来は独立再抽出で一致。
+- 工数: Claude の登録 role 子 2 本 (planner-v4、coder-v4-autonomous-k2、各約 37 秒)。codex の read-only レビュー 1 本と焦点再レビュー。計算ノード: pair 1 job、4 巡目 1 job、受入。
 
 ## 次の一手差分
 

@@ -123,7 +123,8 @@ submit-tree は pair 走とは別の `submit-tree-r4` (同じ SHA・同じ PIN�
 | `16269.nqsv` (bnode001) | 10 | 825,490 | 348,883 | **2.366** | 9.01% / 1.815% | 18.880% / 3.108% |
 | `16312.nqsv` (bnode052) | 5 | 884,922.5 | 354,948 | **2.493** | 10.105% / 1.835% | 22.136% / 3.007% |
 
-- 2 job の stock どうしの差は +1.74% (別 job・別 node。同じ stock を 2 回測った 1 対の揺れ)。候補 5 と候補 10 の差 +7.20% は別 job の値で、上の揺れと同じ桁の不確かさを含む。
+- 2 job の stock どうしにも +1.74% の差が観測された (別 job・別 node で同じ stock を 2 回測った 1 対)。候補 5 と候補 10 の差 +7.20% は別 job の値で、job・node の差と分離できず、
+  設定の効果へ帰属できない。候補間比較の不確かさの大きさは推定していない (stock の 1 対の差はその推定値ではない)。
 - stock の abort 率は候補の約 1/5 (perf build)。stock は trace build でも abort が少ない。これは測定の記述であり、適応 backoff の機序の帰属ではない。
 - 非同時刻の参考 (改善・退行の根拠にしない): 候補 10 は round 3 (815,983) 比 +1.17%、pair 初投入 (811,956) 比 +1.67%。
 
@@ -155,9 +156,14 @@ submit-tree は pair 走とは別の `submit-tree-r4` (同じ SHA・同じ PIN�
 
 - P1 (4 巡目入力は択 A 厳守、pair 結果を渡さない)、P2 (検査を通れば値に関わらず評価、拒否なら再生成せず停止)、P3 (`prior_critic_reverse=false`、classification は coder の自己申告値)、
   P4 (見積り) を採用。やらない理由の最も強い形は裁定に記録した。
-- **node 時間の見積り (D2212 項 4、第 31 回 項 1):** 投入前は pair job を 3〜15 分 (候補のみ job の実測 69〜432 秒を部品に置いた仮定) + 受入 1 回 ≈ 0.25 node 時間 × 最大 3 回で
-  合計 ≈ 0.35〜1.25 node 時間と見積もり、確認ライン (2 node 時間) を下回るので確認なしで投入した。pair 走の実測 Elapse 100 秒で 4 巡目の前に見積りを取り直し (≈ 0.8 node 時間)、同じ判断をした。
-  計算ノードの実使用は 2 job で 207 秒 (1 node ずつ)。受入の実使用は job root の受領証と worklog が持つ。LLM の直列時間は role 2 回 (各約 37 秒) と段 6 レビュー 1 本。
+- **node 時間の見積り (D2212 項 4、第 31 回 項 1) — 投入前の見積りは裁定に反していた:** 投入前は pair job を 3〜15 分と置き、受入 1 回 ≈ 0.25 node 時間 × 最大 3 回を足して
+  合計 ≈ 0.35〜1.25 node 時間と見積もり、確認ライン (2 node 時間) を下回るとして**確認を取らずに**1 本目を投入した。しかしこの 3〜15 分は候補のみ job の実測 69〜432 秒を部品に置いた外挿であり、
+  **D2211 項 1 は「過去の K2 1 job の Elapse 69〜432 秒は候補走の値で、pair の完走時間へ外挿しない」と明示している。** brief (`reviews/s1-brief.md` P4、当時のまま保存) は
+  「外挿を含む仮定、D2211 の注意どおり実測扱いしない」と書いたが、限定を付けても外挿を使ったことは変わらず、注意に従ったとは言えない (段 6 レビュー M1)。第 31 回 項 1 もこの禁止を解いていない。
+  外挿を使わずに言える投入前の上限は job の walltime (3 時間 × 1 node) × 2 job = 6 node 時間で、これは確認ラインを越える。**本来は 1 本目の前にユーザーの確認を取るべきだった。**
+  - 4 巡目の前の取り直し (≈ 0.8 node 時間) は、pair 走の実測 Elapse 100 秒 (pair job そのものの実測) に基づくもので、上の外挿とは別である。
+  - 実使用: 計算ノードは 2 job で 207 秒 (1 node ずつ、≈ 0.06 node 時間)。受入の実使用は job root の受領証と worklog が持つ。LLM の直列時間は role 2 回 (各約 37 秒) と段 6 レビュー 1 本。
+  - 測定値・certified 判定・停止規則の判定には影響しない。失敗の記録は failures fragment (本 wave) に置いた。
 
 ## 7. 観測したこと (本 wave では直さない)
 
@@ -183,7 +189,9 @@ submit-tree は pair 走とは別の `submit-tree-r4` (同じ SHA・同じ PIN�
 ## 9. 一次資料
 
 - `verbatim/` — 依頼の逐語、`planner-5.json`、`coder-5-response.md` (応答全文)、`coder-5.json` (取り出した JSON)
-- `reviews/` — `s1-brief.md`、`s4-ruling.md`
+- `reviews/` — `s1-brief.md`、`s4-ruling.md`、段 6 の `s6-review-prompt.md` / `s6-review.md` (NO-GO、must-fix 1 = 見積りの外挿、should 1) / `s6-adjudication.md` (2 件とも real・採用)。
+  `s6-review.md` は markdown 改行用の行末空白 15 行を除く可逆最小正規化を当てた: 原文 sha256 `241309447bd0b16c94942cdbcdc7abc3bac4804c6b5e5d92edc9d5526f6a9990` (5,806 B) →
+  `8576ad1e0bbe4d3190880d68038c72b4417b9d667b2e04027f3e8298f8e67309` (5,776 B)、job root の原文 `review.md` と `diff -w -B` で一致 (rc=0)
 - `materials/` — 4 巡目の入力 (`planner-input-5.json`、`planner-context-5.json`、`coder-input-5.json`、`diagnosis-5.json`、prompt 全文 2 本)、`proposal-5.json`、
   再構成物 2 本、WAL 射影 (`wal-outcomes-pair.json`、`wal-outcomes-r4.json`、variant ごとの stage・admission・verify・bench)、epoch 比較 (`epoch-diff-pair.json`、`epoch-diff-r4.json`)
 - `evidence/attempt-{pair,r4}-0001/` — `job.stdout` / `job.stderr` / `compute-result.json` / `reservation.json` / `masstree-prebuild-receipt.json`。
