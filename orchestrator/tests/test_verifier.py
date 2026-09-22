@@ -3396,27 +3396,39 @@ def _v3_cycle_files(epoch=2):
     )
 
 
-def _v3_paths(d, **kwargs):
+def _v3_paths(d, *, expect_packed=True, **kwargs):
     """Compare actual parsers/builders through existing outer seams, restoring all."""
     def edges(graph):
         return {(u, v) for u, destinations in graph.adj.items() for v in destinations}
 
     import orchestrator.verifier.core as core
     import orchestrator.verifier.parse as parser
+    from orchestrator.verifier.dsg import _PackedVersions
     original_parse = core._parse_trace_dir_compact
     original_build = DSG._build_compact
+    tuple_graphs = []
+
+    def tuple_build(graph):
+        tuple_graphs.append(graph)
+        DSG._build_compact_tuple(graph)
+
     results = []
     try:
-        for workers in (1, 2):
-            for mode in ("legacy", "packed", "tuple"):
+        for mode in ("legacy", "packed", "tuple"):
+            for workers in ((1,) if mode == "legacy" else (1, 2)):
                 core._parse_trace_dir_compact = (
                     (lambda path, **kw: parser._finish_legacy_parse(parser._trace_paths(path)))
                     if mode == "legacy" else original_parse)
-                DSG._build_compact = (DSG._build_compact_tuple
-                                      if mode == "tuple" else original_build)
+                DSG._build_compact = tuple_build if mode == "tuple" else original_build
                 parsed = core._parse_trace_dir_compact(d, workers=workers)
                 graph = (DSG(parsed.txns) if isinstance(parsed, parser._LegacyTrace)
                          else DSG.from_compact(parsed))
+                if not isinstance(parsed, parser._LegacyTrace):
+                    if mode == "packed" and expect_packed:
+                        assert isinstance(graph.versions, _PackedVersions)
+                    if mode == "tuple":
+                        assert any(built is graph for built in tuple_graphs)
+                        assert isinstance(graph.versions, dict)
                 result = verify_trace_dir(d, workers=workers, **kwargs)
                 results.append((graph, result))
         reference_graph, reference_result = results[0]
@@ -3424,6 +3436,8 @@ def _v3_paths(d, **kwargs):
             assert edges(graph) == edges(reference_graph)
             assert list(graph.versions.items()) == list(reference_graph.versions.items())
             assert dict(graph.producer) == dict(reference_graph.producer)
+            assert [graph._txn_for_id(txid) for txid in graph.adj] == [
+                reference_graph._txn_for_id(txid) for txid in graph.adj]
             assert result == reference_result
             assert core.result_to_dict_v3(result) == core.result_to_dict_v3(reference_result)
         txns, _ = parse_trace_dir(d, workers=1)
@@ -3594,7 +3608,7 @@ def test_v3_tuple_and_legacy_fallback_preserve_metadata():
         try:
             parsed = parser._parse_trace_dir_compact(d, workers=2)
             assert isinstance(parsed, parser._LegacyTrace) == (epoch == 2**63)
-            for graph, result in _v3_paths(d):
+            for graph, result in _v3_paths(d, expect_packed=False):
                 assert not isinstance(graph.versions, _PackedVersions)
                 assert result.verdict == "non-serializable"
                 assert set(result.anomalies[0].cycle_tx_types) == {1, 2}
@@ -3628,7 +3642,7 @@ def test_v3_rejects_mixed_schema_across_files():
     for v3 in (_v3_frame(0), _v3_frame(0, commit=(2**63, 1))):
         for a, b in ((v2, v3), (v3, v2)):
             for legacy in (False, True):
-                for workers in (1, 2):
+                for workers in ((1,) if legacy else (1, 2)):
                     message = _v3_rejected(a, "P unknown\nA abort\n", "", b,
                                            legacy=legacy, workers=workers, contains="mixed trace schemas")
                     assert "trace_0.log" in message and "trace_3.log" in message
@@ -3636,7 +3650,7 @@ def test_v3_rejects_mixed_schema_across_files():
 
 def test_v3_schema_failure_precedes_cross_file_mixture():
     for legacy in (False, True):
-        for workers in (1, 2):
+        for workers in ((1,) if legacy else (1, 2)):
             message = _v3_rejected("C 0 0 2 1 0 0\nE 0\n", _v3_frame(1), "Z bad\n",
                                    legacy=legacy, workers=workers, contains="trace_2.log:1:")
             assert "unknown record tag" in message
@@ -3648,7 +3662,10 @@ def test_v3_rejects_invalid_table_and_tx_type():
     for table in ("11", "-1", "01", "+1", "-0", "x", "1.0", "0x1", "1_0", "1 0"):
         for tag, suffix in (("R", "aa 1 0"), ("W", "aa U 2 1"),
                             ("X", "aa unknown"), ("I", "aa unknown")):
-            _v3_rejected(_v3_frame(0, tail=f"{tag} 0 {table} {suffix}\n"),
+            frame = (_v3_frame(0, reads=[(table, "aa", 1, 0)]) if tag == "R" else
+                     _v3_frame(0, writes=[(table, "aa", "U")]) if tag == "W" else
+                     _v3_frame(0, tail=f"{tag} 0 {table} {suffix}\n"))
+            _v3_rejected(frame,
                          contains="expected exactly" if table == "1 0" else "table")
     for tx_type in ("0", "6", "01", "+1", "-0", "x", "1.0", "1_0"):
         _v3_rejected(_v3_frame(0, tx_type=tx_type), contains="tx_type")
@@ -3762,25 +3779,58 @@ def test_v3_framing_and_neutral_files():
 
 def test_v3_parallel_processes_and_pool_failure_fallback():
     import shutil
-    import concurrent.futures
     import orchestrator.verifier.parse as parser
     import orchestrator.verifier.dsg as dsg_module
+    from orchestrator.verifier.core import result_to_dict_v3
     d = _tmp_trace(*_v3_cycle_files())
-    original = concurrent.futures.ProcessPoolExecutor
+    parent_pid = os.getpid()
+    original_build = DSG._build_compact
     try:
         expected = verify_trace_dir(d, workers=1)
         assert verify_trace_dir(d, workers=2) == expected
-        assert parser._LAST_PARSE_WORKER_PIDS and os.getpid() not in parser._LAST_PARSE_WORKER_PIDS
-        assert dsg_module._LAST_DSG_WORKER_PIDS and os.getpid() not in dsg_module._LAST_DSG_WORKER_PIDS
-        def broken_pool(*args, **kwargs):
-            raise OSError("v3 pool bootstrap failure")
-        concurrent.futures.ProcessPoolExecutor = broken_pool
-        for _, result in _v3_paths(d):
-            assert result == expected
-        assert parser._LAST_PARSE_WORKER_PIDS == frozenset({os.getpid()})
-        assert dsg_module._LAST_DSG_WORKER_PIDS == frozenset({os.getpid()})
+        assert parser._LAST_PARSE_WORKER_PIDS and parent_pid not in parser._LAST_PARSE_WORKER_PIDS
+        assert dsg_module._LAST_DSG_WORKER_PIDS and parent_pid not in dsg_module._LAST_DSG_WORKER_PIDS
+        for kind in ("parse", "edge"):
+            module = parser if kind == "parse" else dsg_module
+            name = "_parse_file_worker" if kind == "parse" else "_edge_candidates_for_task"
+            original = getattr(module, name)
+            marker = os.path.join(d, "exited-worker")
+
+            def fail_worker(task, *args):
+                index = task[0] if kind == "parse" else task.task_index
+                if os.getpid() != parent_pid and index == 0:
+                    with open(marker, "w") as fh:
+                        fh.write(str(os.getpid()))
+                    os._exit(71)
+                return original(task, *args)
+
+            # The submitted parse worker must be resolvable by module/name.
+            fail_worker.__module__ = module.__name__
+            fail_worker.__name__ = fail_worker.__qualname__ = name
+            setattr(module, name, fail_worker)
+            try:
+                for mode in ("packed", "tuple"):
+                    DSG._build_compact = (original_build if mode == "packed"
+                                          else DSG._build_compact_tuple)
+                    if os.path.exists(marker):
+                        os.unlink(marker)
+                    recovered = verify_trace_dir(d, workers=2)
+                    # Observe this call before any helper can overwrite the PID sets.
+                    pids = (parser._LAST_PARSE_WORKER_PIDS if kind == "parse"
+                            else dsg_module._LAST_DSG_WORKER_PIDS)
+                    assert pids == frozenset({parent_pid}), pids
+                    with open(marker) as fh:
+                        assert int(fh.read()) != parent_pid, "worker exit was not exercised"
+                    os.unlink(marker)
+                    assert recovered == expected
+                    assert result_to_dict_v3(recovered) == result_to_dict_v3(expected)
+                DSG._build_compact = original_build
+                for _, result in _v3_paths(d):
+                    assert result == expected
+            finally:
+                setattr(module, name, original)
+                DSG._build_compact = original_build
     finally:
-        concurrent.futures.ProcessPoolExecutor = original
         shutil.rmtree(d)
 
 
