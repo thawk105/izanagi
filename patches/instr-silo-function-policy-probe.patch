@@ -1,0 +1,301 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index bc730f28c..a4b6240d1 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -8,6 +8,112 @@
+ #include "include/scan_callback.hh"
+ #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
+ 
++#if IZANAGI_SILO_POLICY_PROBE
++#include <atomic>
++#include <cstdio>
++#include <mutex>
++#endif
++#if IZANAGI_SILO_POLICY_PROBE
++namespace izanagi_silo_probe {
++std::mutex output_mutex;
++std::atomic<uint64_t> next_worker{0};
++struct Counters {
++  uint64_t worker = next_worker.fetch_add(1);
++  uint32_t site = 0;
++  bool limit = false;
++  uint64_t aborts = 0;
++  uint64_t locks = 0;
++  uint64_t commits = 0;
++  uint64_t retry_success = 0;
++  uint64_t limit_aborts = 0;
++  uint64_t limit_reason_mismatch = 0;
++  uint64_t clamps = 0;
++  uint64_t abort_match = 0;
++  uint64_t abort_mismatch = 0;
++  uint64_t lock_match = 0;
++  uint64_t lock_mismatch = 0;
++  uint64_t commit_match = 0;
++  uint64_t commit_mismatch = 0;
++  uint64_t reason_match = 0;
++  uint64_t reason_mismatch = 0;
++  uint64_t site_lock_conflict = 0;
++  uint64_t site_update_absent = 0;
++  uint64_t site_read_tid = 0;
++  uint64_t site_read_locked = 0;
++  uint64_t site_node_validation = 0;
++  uint64_t site_insert_node = 0;
++  uint64_t site_scan_node = 0;
++  uint64_t reason_unset = 0;
++  uint64_t reason_lock_conflict = 0;
++  uint64_t reason_update_absent = 0;
++  uint64_t reason_read_tid = 0;
++  uint64_t reason_read_locked = 0;
++  uint64_t reason_node_validation = 0;
++  uint64_t reason_insert_node = 0;
++  uint64_t reason_scan_node = 0;
++  ~Counters() {
++    std::lock_guard<std::mutex> lock(output_mutex);
++    std::fprintf(stdout, "IZANAGI_SILO_POLICY_PROBE worker=%lu aborts=%lu locks=%lu commits=%lu retry_success=%lu limit_aborts=%lu limit_reason_mismatch=%lu clamps=%lu abort_match=%lu abort_mismatch=%lu lock_match=%lu lock_mismatch=%lu commit_match=%lu commit_mismatch=%lu reason_match=%lu reason_mismatch=%lu site_lock_conflict=%lu site_update_absent=%lu site_read_tid=%lu site_read_locked=%lu site_node_validation=%lu site_insert_node=%lu site_scan_node=%lu reason_unset=%lu reason_lock_conflict=%lu reason_update_absent=%lu reason_read_tid=%lu reason_read_locked=%lu reason_node_validation=%lu reason_insert_node=%lu reason_scan_node=%lu\n",
++                 static_cast<unsigned long>(worker),
++                 static_cast<unsigned long>(aborts),
++                 static_cast<unsigned long>(locks),
++                 static_cast<unsigned long>(commits),
++                 static_cast<unsigned long>(retry_success),
++                 static_cast<unsigned long>(limit_aborts),
++                 static_cast<unsigned long>(limit_reason_mismatch),
++                 static_cast<unsigned long>(clamps),
++                 static_cast<unsigned long>(abort_match),
++                 static_cast<unsigned long>(abort_mismatch),
++                 static_cast<unsigned long>(lock_match),
++                 static_cast<unsigned long>(lock_mismatch),
++                 static_cast<unsigned long>(commit_match),
++                 static_cast<unsigned long>(commit_mismatch),
++                 static_cast<unsigned long>(reason_match),
++                 static_cast<unsigned long>(reason_mismatch),
++                 static_cast<unsigned long>(site_lock_conflict),
++                 static_cast<unsigned long>(site_update_absent),
++                 static_cast<unsigned long>(site_read_tid),
++                 static_cast<unsigned long>(site_read_locked),
++                 static_cast<unsigned long>(site_node_validation),
++                 static_cast<unsigned long>(site_insert_node),
++                 static_cast<unsigned long>(site_scan_node),
++                 static_cast<unsigned long>(reason_unset),
++                 static_cast<unsigned long>(reason_lock_conflict),
++                 static_cast<unsigned long>(reason_update_absent),
++                 static_cast<unsigned long>(reason_read_tid),
++                 static_cast<unsigned long>(reason_read_locked),
++                 static_cast<unsigned long>(reason_node_validation),
++                 static_cast<unsigned long>(reason_insert_node),
++                 static_cast<unsigned long>(reason_scan_node));
++  }
++};
++thread_local Counters counts;
++void record_site(uint32_t site) {
++  counts.site = site;
++  switch (site) {
++    case 1: ++counts.site_lock_conflict; break;
++    case 2: ++counts.site_update_absent; break;
++    case 3: ++counts.site_read_tid; break;
++    case 4: ++counts.site_read_locked; break;
++    case 5: ++counts.site_node_validation; break;
++    case 6: ++counts.site_insert_node; break;
++    case 7: ++counts.site_scan_node; break;
++  }
++}
++void record_reason(uint32_t reason) {
++  switch (reason) {
++    case 0: ++counts.reason_unset; break;
++    case 1: ++counts.reason_lock_conflict; break;
++    case 2: ++counts.reason_update_absent; break;
++    case 3: ++counts.reason_read_tid; break;
++    case 4: ++counts.reason_read_locked; break;
++    case 5: ++counts.reason_node_validation; break;
++    case 6: ++counts.reason_insert_node; break;
++    case 7: ++counts.reason_scan_node; break;
++  }
++}
++}  // namespace izanagi_silo_probe
++#endif
+ #ifndef SILO_POLICY_VARIANT
+ #error "SILO_POLICY_VARIANT must be supplied"
+ #endif
+@@ -75,12 +181,27 @@ void wait_us(uint32_t delay) noexcept {
+ 
+ __attribute__((noipa)) uint32_t after_abort() noexcept {
+   const ::izanagi_silo_api::AbortContext context{reason, next_random()};
+-  return ::izanagi_silo_policy::policy_after_abort(state, context);
++  const uint32_t ret = ::izanagi_silo_policy::policy_after_abort(state, context);
++#if IZANAGI_SILO_POLICY_PROBE
++  auto& c = ::izanagi_silo_probe::counts;
++  ((ret & 7u) == (c.commits & 7u) ? c.commit_match : c.commit_mismatch)++;
++  (((ret >> 3u) & 7u) == (c.locks & 7u) ? c.lock_match : c.lock_mismatch)++;
++  const auto observed = static_cast<uint32_t>(context.reason);
++  (c.site != 0u && c.site == observed ? c.reason_match : c.reason_mismatch)++;
++  ::izanagi_silo_probe::record_reason(observed);
++  if (c.limit && observed != 1u) ++c.limit_reason_mismatch;
++#endif
++  return ret;
+ }
+ 
+ __attribute__((noipa)) ::izanagi_silo_api::LockResponse on_lock_conflict(uint32_t attempt) noexcept {
+   const ::izanagi_silo_api::LockContext context{attempt, next_random()};
+-  return ::izanagi_silo_policy::policy_on_lock_conflict(state, context);
++  const auto ret = ::izanagi_silo_policy::policy_on_lock_conflict(state, context);
++#if IZANAGI_SILO_POLICY_PROBE
++  auto& c = ::izanagi_silo_probe::counts;
++  ((ret.wait_us & 7u) == (c.aborts & 7u) ? c.abort_match : c.abort_mismatch)++;
++#endif
++  return ret;
+ }
+ 
+ __attribute__((noipa)) void on_commit() noexcept {
+@@ -127,7 +248,13 @@ void TxExecutor::abort() {
+ #endif
+ 
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++  ++::izanagi_silo_probe::counts.aborts;
++#endif
+   const uint32_t ret = ::izanagi_silo_skel::after_abort();
++#if IZANAGI_SILO_POLICY_PROBE
++  if (ret > 1000u) ++::izanagi_silo_probe::counts.clamps;
++#endif
+   ::izanagi_silo_skel::wait_us(std::min(ret, 1000u));
+ #else
+   Backoff::backoff(FLAGS_clocks_per_us);
+@@ -143,6 +270,10 @@ void TxExecutor::begin() {
+   status_ = TransactionStatus::inflight;
+ #if SILO_POLICY_VARIANT
+   ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;
++#if IZANAGI_SILO_POLICY_PROBE
++  ::izanagi_silo_probe::counts.site = 0;
++  ::izanagi_silo_probe::counts.limit = false;
++#endif
+ #endif
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -187,6 +318,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+         if (unlikely(it->second != insert_info.old_version)) {
+           status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++          ::izanagi_silo_probe::record_site(6u);
++#endif
+           ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::insert_node;
+ #endif
+           return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
+@@ -248,6 +382,9 @@ void TxExecutor::lockWriteSet() {
+   [[maybe_unused]] retry
+       : for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if (itr->op_ == OpType::INSERT) continue;
++#if IZANAGI_SILO_POLICY_PROBE
++    bool retried = false;
++#endif
+ #if SILO_POLICY_VARIANT
+     uint32_t attempt = 0;
+ #endif
+@@ -255,7 +392,14 @@ void TxExecutor::lockWriteSet() {
+     for (;;) {
+ #if SILO_POLICY_VARIANT
+       if (attempt >= 32u) {
++#if IZANAGI_SILO_POLICY_PROBE
++        ++::izanagi_silo_probe::counts.limit_aborts;
++        ::izanagi_silo_probe::counts.limit = true;
++#endif
+         this->status_ = TransactionStatus::aborted;
++#if IZANAGI_SILO_POLICY_PROBE
++        ::izanagi_silo_probe::record_site(1u);
++#endif
+         ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+@@ -264,13 +408,23 @@ void TxExecutor::lockWriteSet() {
+ #endif
+       if (expected.lock) {
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++        ++::izanagi_silo_probe::counts.locks;
++#endif
+         const auto r = ::izanagi_silo_skel::on_lock_conflict(current_attempt);
+         if (static_cast<uint32_t>(r.action) == 0u) {
++#if IZANAGI_SILO_POLICY_PROBE
++          retried = true;
++          if (r.wait_us > 50u) ++::izanagi_silo_probe::counts.clamps;
++#endif
+           ::izanagi_silo_skel::wait_us(std::min(r.wait_us, 50u));
+           expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
+           continue;
+         }
+         this->status_ = TransactionStatus::aborted;
++#if IZANAGI_SILO_POLICY_PROBE
++        ::izanagi_silo_probe::record_site(1u);
++#endif
+         ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+@@ -289,6 +443,9 @@ void TxExecutor::lockWriteSet() {
+         desired.lock = 1;
+         if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
+                             desired.obj_)) {
++#if IZANAGI_SILO_POLICY_PROBE
++          if (retried) ++::izanagi_silo_probe::counts.retry_success;
++#endif
+ #if TRACE
+           // This worker now holds the lock on this tuple (D38). On the skeleton
+           // CAS-success path (not the coder edit surface = the conflict response
+@@ -304,6 +461,9 @@ void TxExecutor::lockWriteSet() {
+       unlockWriteSet(itr);
+       this->status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++      ::izanagi_silo_probe::record_site(2u);
++#endif
+       ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::update_absent;
+ #endif
+       return;
+@@ -578,6 +738,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+ #endif
+       this->status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++      ::izanagi_silo_probe::record_site(3u);
++#endif
+       ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_tid;
+ #endif
+       unlockWriteSet();
+@@ -593,6 +756,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+ #endif
+       this->status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++      ::izanagi_silo_probe::record_site(4u);
++#endif
+       ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_locked;
+ #endif
+       unlockWriteSet();
+@@ -607,6 +773,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+     if (node->full_version_value() != it.second) {
+       this->status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++      ::izanagi_silo_probe::record_site(5u);
++#endif
+       ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::node_validation;
+ #endif
+       unlockWriteSet();
+@@ -837,6 +1006,9 @@ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++    ++::izanagi_silo_probe::counts.commits;
++#endif
+     ::izanagi_silo_skel::on_commit();
+ #endif
+     return true;
+@@ -871,6 +1043,9 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+   } else if ((*it).second != version) {
+     tx_->status_ = TransactionStatus::aborted;
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++    ::izanagi_silo_probe::record_site(7u);
++#endif
+     ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::scan_node;
+ #endif
+   }

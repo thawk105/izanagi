@@ -1,0 +1,15 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index bc730f28c..c800c9541 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -252,6 +252,10 @@ void TxExecutor::lockWriteSet() {
+     uint32_t attempt = 0;
+ #endif
+     expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
++#if IZANAGI_BREAK_LOCK_COVERAGE
++    max_wset_ = std::max(max_wset_, expected);
++    continue;
++#endif
+     for (;;) {
+ #if SILO_POLICY_VARIANT
+       if (attempt >= 32u) {

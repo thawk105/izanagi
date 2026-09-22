@@ -1,0 +1,15 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..a0eafae05 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -418,7 +418,10 @@ void TxExecutor::lockWriteSet() {
+           if (r.wait_us > 50u) ++::izanagi_silo_probe::counts.clamps;
+ #endif
+           ::izanagi_silo_skel::wait_us(std::min(r.wait_us, 50u));
++#if IZANAGI_BREAK_SILO_POLICY
++#else
+           expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
++#endif
+           continue;
+         }
+         this->status_ = TransactionStatus::aborted;

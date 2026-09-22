@@ -1,0 +1,16 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..d8437ecba 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -206,7 +206,11 @@ __attribute__((noipa)) ::izanagi_silo_api::LockResponse on_lock_conflict(uint32_
+ 
+ __attribute__((noipa)) void on_commit() noexcept {
+   const ::izanagi_silo_api::CommitContext context{};
++#if IZANAGI_BREAK_SILO_POLICY
++  (void)context;
++#else
+   ::izanagi_silo_policy::policy_on_commit(state, context);
++#endif
+ }
+ }  // namespace izanagi_silo_skel
+ #endif

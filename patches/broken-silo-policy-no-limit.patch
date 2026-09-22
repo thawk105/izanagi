@@ -1,0 +1,21 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..fe233217d 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -391,6 +391,8 @@ void TxExecutor::lockWriteSet() {
+     expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
+     for (;;) {
+ #if SILO_POLICY_VARIANT
++#if IZANAGI_BREAK_SILO_POLICY
++#else
+       if (attempt >= 32u) {
+ #if IZANAGI_SILO_POLICY_PROBE
+         ++::izanagi_silo_probe::counts.limit_aborts;
+@@ -404,6 +406,7 @@ void TxExecutor::lockWriteSet() {
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+       }
++#endif
+       const uint32_t current_attempt = attempt++;
+ #endif
+       if (expected.lock) {

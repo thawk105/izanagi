@@ -1,0 +1,16 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..fe9a40b37 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -255,7 +255,11 @@ void TxExecutor::abort() {
+ #if IZANAGI_SILO_POLICY_PROBE
+   if (ret > 1000u) ++::izanagi_silo_probe::counts.clamps;
+ #endif
++#if IZANAGI_BREAK_SILO_POLICY
++  ::izanagi_silo_skel::wait_us(ret);
++#else
+   ::izanagi_silo_skel::wait_us(std::min(ret, 1000u));
++#endif
+ #else
+   Backoff::backoff(FLAGS_clocks_per_us);
+ #endif

@@ -1,0 +1,89 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..06f777cf7 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -389,6 +389,76 @@ void TxExecutor::lockWriteSet() {
+     uint32_t attempt = 0;
+ #endif
+     expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
++#if IZANAGI_BREAK_SILO_POLICY
++    for (;;) {
++#if SILO_POLICY_VARIANT
++      if (attempt >= 32u) {
++#if IZANAGI_SILO_POLICY_PROBE
++        ++::izanagi_silo_probe::counts.limit_aborts;
++        ::izanagi_silo_probe::counts.limit = true;
++#endif
++        this->status_ = TransactionStatus::aborted;
++#if IZANAGI_SILO_POLICY_PROBE
++        ::izanagi_silo_probe::record_site(1u);
++#endif
++        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::node_validation;
++        if (itr != write_set_.begin()) unlockWriteSet(itr);
++        return;
++      }
++      const uint32_t current_attempt = attempt++;
++#endif
++      if (expected.lock) {
++#if SILO_POLICY_VARIANT
++#if IZANAGI_SILO_POLICY_PROBE
++        ++::izanagi_silo_probe::counts.locks;
++#endif
++        const auto r = ::izanagi_silo_skel::on_lock_conflict(current_attempt);
++        if (static_cast<uint32_t>(r.action) == 0u) {
++#if IZANAGI_SILO_POLICY_PROBE
++          retried = true;
++          if (r.wait_us > 50u) ++::izanagi_silo_probe::counts.clamps;
++#endif
++          ::izanagi_silo_skel::wait_us(std::min(r.wait_us, 50u));
++          expected.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
++          continue;
++        }
++        this->status_ = TransactionStatus::aborted;
++#if IZANAGI_SILO_POLICY_PROBE
++        ::izanagi_silo_probe::record_site(1u);
++#endif
++        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::node_validation;
++        if (itr != write_set_.begin()) unlockWriteSet(itr);
++        return;
++#else
++#if NO_WAIT_LOCKING_IN_VALIDATION
++        this->status_ = TransactionStatus::aborted;
++        if (itr != write_set_.begin()) unlockWriteSet(itr);
++        return;
++#elif NO_WAIT_OF_TICTOC
++        if (itr != write_set_.begin()) unlockWriteSet(itr);
++        goto retry;
++#endif
++#endif
++      } else {
++        desired = expected;
++        desired.lock = 1;
++        if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
++                            desired.obj_)) {
++#if IZANAGI_SILO_POLICY_PROBE
++          if (retried) ++::izanagi_silo_probe::counts.retry_success;
++#endif
++#if TRACE
++          // This worker now holds the lock on this tuple (D38). On the skeleton
++          // CAS-success path (not the coder edit surface = the conflict response
++          // above), so a variant cannot suppress the record without also failing
++          // the acquisition it is meant to prove.
++          izanagi_trace::record_lock((*itr).rcdptr_);
++#endif
++          break;
++        }
++      }
++    }
++#else
+     for (;;) {
+ #if SILO_POLICY_VARIANT
+       if (attempt >= 32u) {
+@@ -457,6 +527,7 @@ void TxExecutor::lockWriteSet() {
+         }
+       }
+     }
++#endif
+     if (itr->op_ == OpType::UPDATE && itr->rcdptr_->tidword_.absent) {
+       unlockWriteSet(itr);
+       this->status_ = TransactionStatus::aborted;

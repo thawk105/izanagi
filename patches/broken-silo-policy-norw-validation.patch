@@ -1,0 +1,21 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index bc730f28c..ec33eb79b 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -573,6 +573,8 @@ bool TxExecutor::validationPhase() { // Validation Phase
+     check.obj_ = loadAcquire((*itr).rcdptr_->tidword_.obj_);
+     if ((*itr).get_tidword().epoch != check.epoch ||
+         (*itr).get_tidword().tid != check.tid) {
++#if IZANAGI_BREAK_NOREAD_VALIDATION
++#else
+ #if ADD_ANALYSIS
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+@@ -582,6 +584,7 @@ bool TxExecutor::validationPhase() { // Validation Phase
+ #endif
+       unlockWriteSet();
+       return false;
++#endif
+     }
+     // 2
+     // if (!check.latest) return false;

@@ -1,0 +1,17 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..19881e8a2 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -196,7 +196,12 @@ __attribute__((noipa)) uint32_t after_abort() noexcept {
+ 
+ __attribute__((noipa)) ::izanagi_silo_api::LockResponse on_lock_conflict(uint32_t attempt) noexcept {
+   const ::izanagi_silo_api::LockContext context{attempt, next_random()};
++#if IZANAGI_BREAK_SILO_POLICY
++  const auto ret = ::izanagi_silo_api::LockResponse{::izanagi_silo_api::PolicyAction::abort, 0u};
++  (void)context;
++#else
+   const auto ret = ::izanagi_silo_policy::policy_on_lock_conflict(state, context);
++#endif
+ #if IZANAGI_SILO_POLICY_PROBE
+   auto& c = ::izanagi_silo_probe::counts;
+   ((ret.wait_us & 7u) == (c.aborts & 7u) ? c.abort_match : c.abort_mismatch)++;

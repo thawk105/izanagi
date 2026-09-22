@@ -1,0 +1,17 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index a4b6240d1..e59bd7f23 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -181,7 +181,12 @@ void wait_us(uint32_t delay) noexcept {
+ 
+ __attribute__((noipa)) uint32_t after_abort() noexcept {
+   const ::izanagi_silo_api::AbortContext context{reason, next_random()};
++#if IZANAGI_BREAK_SILO_POLICY
++  const uint32_t ret = 0u;
++  (void)context;
++#else
+   const uint32_t ret = ::izanagi_silo_policy::policy_after_abort(state, context);
++#endif
+ #if IZANAGI_SILO_POLICY_PROBE
+   auto& c = ::izanagi_silo_probe::counts;
+   ((ret & 7u) == (c.commits & 7u) ? c.commit_match : c.commit_mismatch)++;
