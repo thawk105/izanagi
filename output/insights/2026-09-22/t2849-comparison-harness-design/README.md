@@ -4,7 +4,7 @@
 - 作成: 2026-09-22、dev-wave `worktree-dev-wave-t2849-comparison-harness-design` (基準 local main `8fd2a2f5c`、開始 gate rc 0 は 08:54 JST)。実装・build・計算投入はしていない。実装は後続 wave で Codex author が行う。
 - 根拠のユーザー裁定: D2212 (VLDB 方針。項 4 = 1 タスクの job 合計が 2 node 時間以上なら投入前に確認)、/rulings 第 31 回 (2026-09-22) 項 1 (開発の検査も同じ線で数える)・項 6 (H100 の open-weight LLM は今は採らない)・項 8 ([T-2858] の ccbench branch の push は人間手番)。第 31 回の控えは repo 外の `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-09-22-rulings-full31-verdicts.md` (親が原本を読んだ)。
 - 一次資料: `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §4 P2。依頼の逐語は `verbatim/request.md`。
-- 段の記録: 段 1 brief・骨子・事実表 (`verbatim/s1-*.md`)、段 3 の Codex 相談 2 本 (`verbatim/s3-consult-A.md` / `s3-consult-B.md`)、段 4 裁定 (`verbatim/s4-ruling.md`)、段 6 のレビューと裁定 (`verbatim/s6-review.md` / `s6-ruling.md`)。本文は段 4・段 6 で訂正した後の設計で、骨子・事実表と食い違う箇所は本文が正しい。
+- 段の記録: 段 1 brief・骨子・事実表 (`verbatim/s1-*.md`)、段 3 の Codex 相談 2 本 (`verbatim/s3-consult-A.md` / `s3-consult-B.md`)、段 4 裁定 (`verbatim/s4-ruling.md`)、段 6 のレビューと裁定 (`verbatim/s6-review.md` / `s6-ruling.md`)、焦点再レビューと裁定 (`verbatim/s6-focus-*.md`)。本文は段 4・段 6 で訂正した後の設計で、骨子・事実表と食い違う箇所は本文が正しい。
 - **性質の断り:** すべて静的調査 (ソースと文書を読む・grep・login での import 確認) による設計である。「案」と書いた値は凍結前の提案で、較正済み・実装済み・実証済みを意味しない。file:line は基準 commit の worktree で確かめた。
 
 ## 0. 要約
@@ -150,13 +150,13 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 |---|---|---|
 | BO / 進化の (v, fitness) | 台帳の `evaluation-result` event の `fitness_tps`・`outcome`・`quality` (`b5_generator_contrast.py:69-73`) | 初期点の event を同じ形で足す |
 | BO の失敗 v の集合 | `evaluation-result` (build 失敗・anomaly) と `proposal-rejected` (Tier0 不通過など、:806-807) | 両 event から候補起因の失敗だけを集める |
-| LLM の whiteboard 5 field | `expected_inputs` (:451-477) と `proposal-rejected` | 5 field と値域 (`p3_s4_loop.py:1418-1424`) は変えない。iteration を提出機会 a の順にし、certified・品質正常 → success、投入後の失敗 (build 失敗・anomaly・品質欠測・機械欠測、B を消費) → fail、投入前の拒否 (schema・文法・検疫・Tier0、A だけ) → rejected と写す。継承照合は「iteration == b の連続」から「a の連続」へ変わる |
-| LLM への初期点 | (無い) | whiteboard に入れず (planner の方向を持たないため)、planner / coder の入力に閉じた兄弟 key を 1 つ足し、初期点ごとの v・結果分類・fitness (certified・品質正常のときだけ) の 3 つを渡す |
+| LLM の whiteboard 5 field | `expected_inputs` (:451-477) | B-5 のまま変えない: pipeline へ投入した評価だけを、iteration = b の連続で、certified なら success・それ以外は fail と写す (:796-800)。5 field と値域 (`p3_s4_loop.py:1418-1424`) も継承照合も変えない |
+| LLM への初期点と投入前の拒否 | 初期点は (無い)、拒否は `proposal-rejected` event (:750-752・:782-785・:806-807) | whiteboard には入れない (初期点は planner の方向を持たず、投入前の拒否には空出力・不正出力のように有効な planner 出力が無いものがあり、5 field の行を作ると方向・大きさを架空に補うことになるため)。planner / coder の入力に閉じた兄弟 key を 1 つ足し、2 つの列を渡す: 初期点ごとの (v・結果分類・fitness は certified・品質正常のときだけ) と、自系列の投入前の拒否ごとの (提出機会の番号 a・拒否の分類 = schema / 文法 / 検疫 / Tier0)。拒否の列に候補の値や自由文は入れない |
 | LLM の current_perf | `expected_inputs` の「最新の certified・品質正常」 (stock-start を含む) | 初期点も候補に入る。規則 (最新であって最良でない) は B-5 と同じ |
 | LLM の critic 診断 | D2155 の射影 | K0 へ適用範囲を広げる。診断の材料は自系列の記録だけ |
 | (どの手法にも渡さない) | Tier0 のスモークの数値 (D2215)、block stock、endpoint 再計測、参照点の測定値 (R0) | — |
 
-拒否されたときの tell: 投入前の拒否 (Tier0 不通過など)・build 失敗・anomaly・品質欠測・機械故障の上限超えは、fitness なしの結果として自系列の履歴へ入る。BO は §3.2、進化は §3.3 の規則で扱い、LLM は上の whiteboard の写し方で result に載る。最後の正常値を補って代入しない。
+拒否されたときの tell: 投入前の拒否 (Tier0 不通過など)・build 失敗・anomaly・品質欠測・機械故障の上限超えは、fitness なしの結果として自系列の履歴へ入る。BO は §3.2、進化は §3.3 の規則で扱う。LLM には、投入後の失敗が whiteboard の fail として、投入前の拒否が兄弟 key の拒否の列として届く。機械故障の上限超えは系列をその場で終えるので (§4.6)、次の提案へは届かない。最後の正常値を補って代入しない。
 
 ### 4.2 読取範囲と例外入力
 
@@ -192,12 +192,13 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 - 生成器への tell は自系列だけである。
 - endpoint の資格は集約側で決める。値 v について workload w で anomaly が 1 件でも観測されたら (探索・初期点・再計測のどこでも、どの系列・arm でも)、v は w の全系列で endpoint の資格を失う (B-5 §6)。この判定は生成器へ還流しない。
 - endpoint は、自系列の初期点と探索点のうち資格のある certified・品質正常の点で session median が最大のもの (同値は v の昇順、次に slot の昇順)。N_eval 個の fresh session で再計測し、その median を score にする。次点へ選び直さない (B-5 §6)。
-- 資格のある点が無い場合と再計測の結果は、B-5 の実装 (`b5_generator_contrast.py:815-836`) と同じ優先で分ける。
+- 欠測・fallback・判定不能は、B-5 の実装 (`b5_generator_contrast.py:806-836`) と同じ優先で分ける。
   1. stock (系列開始 stock または block stock) の正しさか測定が成立しない → 当該比較は判定不能。
-  2. endpoint が無く、自系列の初期点・探索に品質欠測か機械欠測が 1 件でもある → score 欠測 (fallback で埋めない)。
-  3. endpoint が無く、失敗がすべて候補起因 (anomaly・Tier0 不通過・build 失敗) → block stock の median を score にする (fallback、候補の不採用)。
-  4. endpoint の再計測で anomaly → 採用せず fallback。
-  5. endpoint の再計測で品質欠測・機械欠測 → score 欠測。
+  2. 初期点・探索のどれかの slot で機械故障が retry 上限を超えた (または結果が未解決のまま) → **endpoint の有無を問わず**その時点で系列を終え、score 欠測 (B-5 §3.3「機械故障が上限を超えた系列は欠測」、実装は :810-816 で endpoint 選択の前に終了する)。
+  3. endpoint が無く、自系列の初期点・探索に品質欠測が 1 件でもある → score 欠測 (fallback で埋めない)。
+  4. endpoint が無く、失敗がすべて候補起因 (anomaly・Tier0 不通過・build 失敗) → block stock の median を score にする (fallback、候補の不採用)。
+  5. endpoint の再計測で anomaly → 採用せず fallback。
+  6. endpoint の再計測で品質欠測・機械欠測 → score 欠測。
 - 既に score が確定した系列に後から波及した場合は、B-5 §6 と同じく日付付きの「結果の訂正」として扱う。系列単位のコード (`run_series` の自系列内の失格集合、`b5_generator_contrast.py:815-816`) だけでは全系列への波及を実装していないので、集約は本基盤の側で持つ (§11)。
 
 ## 5. 費用の計上単位
@@ -231,7 +232,7 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 
 - anomaly: B を消費。即 reject し、性能値を取らない。
 - 品質欠測 (3 round で静定しない): B も A も返さず、fitness なしの結果として残す。fallback で埋めない (B-5 §5.3)。
-- 機械故障: 同じ候補・同じ入力・同じ論理 slot で追加 2 回まで retry (B-5 §3.3)。論理の A / B は増やさず、物理の試行と費用は全件記録する。上限を超えたら欠測。
+- 機械故障: 同じ候補・同じ入力・同じ論理 slot で追加 2 回まで retry (B-5 §3.3)。論理の A / B は増やさず、物理の試行と費用は全件記録する。上限を超えたら、endpoint の有無を問わずその時点で系列を終え score 欠測とする (§4.6 の 2)。
 
 ### 5.5 物理費用
 
@@ -314,7 +315,7 @@ B-5 の事前登録と実装 (`b5_generator_contrast.py`、基準 commit の版)
 2. D1603 の材料 3 点 (候補 commit・D297・波及表、`output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md`) を添えて、D2114 項 3 の見送り台帳の経路で pin の再承認を提示し、ユーザーが承認する。
 3. 別 wave が gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` を更新する。
 
-それまで S2 は無効で、比較に入れない。今の pin は gitlink (`git submodule status`)・`pin.CURRENT_PIN` (`orchestrator/campaign/pin.py:31`)・`s8b_approved.CCBENCH_FULL_SHA` (:67) とも e9e477ca である。`orchestrator/` と `tools/` の `.py` で C の短縮 SHA `68106660` を含むのは test 1 本 (`orchestrator/tests/test_mocc_xp_pin_candidate.py`) だけで、driver の定数には無い (親が実測)。
+それまで S2 は無効で、比較に入れない。今の pin は e9e477ca で、gitlink (`git submodule status`) と `s8b_approved.CCBENCH_FULL_SHA` (:67) は完全 SHA `e9e477ca1b55348ab4530de0b1cf663ce4555290`、`pin.CURRENT_PIN` (`orchestrator/campaign/pin.py:31`) はその 7 桁 prefix `e9e477c` である。`orchestrator/` と `tools/` の `.py` で C の短縮 SHA `68106660` を含むのは test 1 本 (`orchestrator/tests/test_mocc_xp_pin_candidate.py`) だけで、driver の定数には無い (親が実測)。
 
 ### 9.2 S2 の定義 (差し込み候補)
 
@@ -331,7 +332,7 @@ B-5 の事前登録と実装 (`b5_generator_contrast.py`、基準 commit の版)
 - loop の genome の protocol 化 (silo 固定の 4 箇所、§2.7)。hole の marker 名 `silo-backoff-magnitude` は共有 header の中にあるが名前が silo 固有なので、S2 の記録で取り違えないよう区別する。
 - MOCC の動作点の較正 (calibrator)。参照した記録 (`patches/README.md` の T-2294 の記載と `output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md`) では、MOCC の certified は T-2294 (tuple 200・extime 1 秒・thread 1 / 4、rratio 0・rmw) と、候補 C 上の正例・負例の 6 走の行列 (正例の stock 2 走が certified) で、性能規模 (1M records・48 threads) の記録は見当たらない。網羅的な不在の確認はしていない。
 - 性能 workload と同じ構成での correctness (新しい pin の X/P の証拠つき) と、MOCC の binary に対する Tier0 のスモーク。
-- 既知最良: `p2_2_flag_opt` に当たる MOCC の実測は、調査子が decisions・worklog・`orchestrator/` を関連語で検索した範囲では見つからなかった。MOCC_SPACE (BACK_OFF・TEMPERATURE_RESET_OPT・KEY_SORT の 2^3 = 8 点、`orchestrator/campaign/genome.py`) の語を含む `orchestrator/` の `.py` は定義元の `genome.py` だけで、消費する driver は無い (親が実測)。MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する。8 点を列挙するなら、それは「指定の YCSB・PIN・条件の下での flag 参照最良」で、差し込みの必須前提ではない別の研究として計算確認を取る。
+- 既知最良: `p2_2_flag_opt` に当たる MOCC の実測は、調査子が decisions・worklog・`orchestrator/` を関連語で検索した範囲では見つからなかった。MOCC_SPACE (BACK_OFF・TEMPERATURE_RESET_OPT・KEY_SORT の 2^3 = 8 点) の識別子を直接含む `orchestrator/` の `.py` は定義元の `genome.py` だけ (定義と `SPACES` への登録、:124・:211) だった (親が実測)。`space_for("mocc")` (:217-220) を通す間接利用と、MOCC の 8 点を探索・評価する driver の有無は確かめていない。MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する。8 点を列挙するなら、それは「指定の YCSB・PIN・条件の下での flag 参照最良」で、差し込みの必須前提ではない別の研究として計算確認を取る。
 - 疎通 ([T-2849] の起票文: 20〜40 候補 × 3 workload、検証だけで約 8〜16 node 時間、準備・build・性能測定は別) は本書では再見積りしない。投入前にユーザー確認が要る (D2212 項 4)。
 
 ## 10. S3 (policy IR) を足すときの条件
@@ -352,7 +353,7 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 1. 機械生成の proposal の slot を B-5 の接頭辞から外す (本基盤の名前空間の slot key を受ける。`p3_s4_loop.py:3550`・`:3557-3559`)。
 2. S1 の 5 手法の系列制御: B-5 の `run_series` と同じ手順に、初期点の slot、5 arm、全 arm の A 上限を足した薄い制御。汎用 runner にしない。B-5 の module は並走の [T-2797] が発効束を扱っているので、同じ file を編集せず兄弟 module に置くのを推奨する。台帳は `SeriesLedger` を schema 名だけ変えて使う。
 3. 生成器: BO (§3.2)・進化 (§3.3) を標準ライブラリで。random / sweep は B-5 の関数を名前空間を変えて呼ぶ。固定入力での値の照合試験を持つ。
-4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、§4.1 の whiteboard の写し方 (iteration を提出機会の順、投入前の拒否を rejected) と継承照合の変更、初期点を渡す閉じた兄弟 key。
+4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、初期点と投入前の拒否を渡す閉じた兄弟 key (§4.1。whiteboard と継承照合は B-5 のまま)。
 5. 参照点と endpoint の集約: 明示した参照 genome (`p2_2_flag_opt` の exact flags、BACK_OFF=0) を stock と同じ共通の検証・計測へ渡す入口と block ごとの測定、全系列への anomaly の波及、初期点を含む資格、§4.6 の欠測と fallback の優先。
 6. 費用の field: job ごとの Elapse、生成器の計算時間、LLM の役割呼び出しの回数と wall、人間の介入の記録。
 7. (並列に流すときだけ) node-local の bench lock を B-5 mode の外でも使えるようにする (D2209 は B-5 mode 限定。無いと共有 lock で直列化する、D2214 の insight §6)。
@@ -368,6 +369,7 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 - 段 4 (親): 21 件をすべて real と判定し採用した。主な訂正は、(1) S3 の具体設計と汎用 runner・汎用台帳を削り S1 の具体化に絞った (B1)、(2) 共通入力と消費 field を分けた (A2・B4)、(3) 初期点を系列ごとに fresh に測り endpoint 候補に含めた (A3・B8)、(4) A を候補提出機会とし無料の内部計算を狭めた (A4・B7)、(5) 小予算で退化しない逐次 GP-EI と (1+1) にした (B5)、(6) MOCC で macro 値だけを流用すると意味が変わることを patch の式で確かめ、literal の材料化を条件にした (B9)。裁定の全文は `verbatim/s4-ruling.md`。
 - 段 5 (親): 本書と fragment 2 本を起草し、草稿として commit した (`4950bde6d`)。
 - 段 6 (Codex read-only review 1 本、事実の再抽出と設計択一の 2 レンズ、09:38〜09:43:14): NO-GO、must-fix 4 / should 3、段 3 の 21 件は closed 11 / partial 10 / not-closed 0。親は 7 件すべてを real と判定し (refuted 0)、次を直した。(R1) LLM の whiteboard の写し方 (iteration を提出機会の順、投入前の拒否を rejected) と初期点を渡す兄弟 key を定めた。(R2) endpoint が無いときの fallback と品質欠測・機械欠測の優先を B-5 の実装どおりに分けた。(R3) 進化の支持集合を「親の近傍、全域到達を保証しない」に直し、失敗点を使わないと定めた。(R4) `p2_2_flag_opt` を測る参照 genome の入口を実装単位に足し、read-heavy の flags を列挙した。(R5) K0 と K2 の差は coder の契約も含むと直した。(R6) 不在の断定を検索範囲つきに直し、pin と MOCC_SPACE は親が実測した。(R7) D2214 の項番号と insight の節番号を分け、「非 LLM の 3 手法」を 4 手法に直した。裁定の全文は `verbatim/s6-ruling.md`。
+- 段 6 焦点再レビュー 1 巡目 (Codex read-only、09:49〜09:52:18): NO-GO、must-fix 2 / should 1 / nit 1、R1〜R7 は closed 4 / partial 3 / regressed 0。親は 4 件とも real と判定し、次を直した。(F1) 空出力・不正出力の拒否には有効な planner 出力が無く whiteboard の 5 field を作れないので、R1 で入れた「iteration を提出機会の順にする」案を撤回し、whiteboard と継承照合は B-5 のままにして、初期点と投入前の拒否を 1 つの閉じた兄弟 key で渡すことにした。(F2) 機械故障の retry 上限超えは endpoint の有無を問わず系列を終えて score 欠測にする (B-5 §3.3 と実装 :810-816)。(F3) MOCC_SPACE は直接参照だけを数え、間接利用と driver の有無は未確認と書いた。(F4) `CURRENT_PIN` は 7 桁 prefix と書いた。逐語は `verbatim/s6-focus-1.md`、裁定は `verbatim/s6-focus-1-ruling.md`。
 
 ## 13. 検査の記録
 
