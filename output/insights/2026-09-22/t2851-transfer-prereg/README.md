@@ -15,13 +15,14 @@
 | 3 | read-only codex 相談 2 本 (A = 統計設計と推論、B = 留保の漏洩・HARKing・凍結契約・実行可能性と過剰) | `verbatim/s3-consult-A.md`、`verbatim/s3-consult-B.md` |
 | 4 | 全 22 所見を real・採用、plan v2 | `verbatim/s4-ruling.md` |
 | 5 | 親が本文を書いた (実装面なし) | 本文 |
-| 6 | read-only codex review 1 本 | §4 |
+| 6 | read-only codex review 1 本 (NO-GO)、親の裁定と修正、焦点再レビュー | `verbatim/s6-review.md`、`verbatim/s6-ruling.md`、§4・§6 |
 
 相談 2 本の出力は行末空白を可逆に除去して写した (`verbatim/NORMALIZATION.json` に原文の sha256・byte 数・除去した行と文字列)。
 
 ## 2. 相談で変わったこと (brief → 本文)
 
-- **n = 8 → 32。** n = 8 では同等をほぼ宣言できない (相談 A3 の算術)。δ = ln(1.03) は据え置いた。
+- **n = 8 → 32。** n = 8 では、各腕の CV 2.28%・腕間相関 0・無補正の 95% 区間・標本 SD 固定の正規近似という
+  仮定の下で、真値 0 のとき同等と判定できる確率が約 18% に留まる (相談 A3 の算術)。δ = ln(1.03) は据え置いた。
 - **多重性:** brief は「cell 単位は無補正、全 cell の追試を防壁にする」だった。相談 A4 が、追試一致は補正の代わりにならない
   (比較数百で偶然一致の上界が 0.39) と示したので、cohort ごとの Bonferroni 同時区間 + 両 cohort 一致に変えた。
   本文 §6.3 の誤り率は、θ が割当てに条件付きで cohort 間で違いうることを親が自己点検で足し、「θ₁ または θ₂ について
@@ -40,7 +41,20 @@
 
 ## 4. 段 6 review
 
-(段 6 の review 後に追記する。)
+- read-only codex review 1 本 (HEAD 3aa5ba43f、`verbatim/s6-review.md`): NO-GO、must-fix 2・should 5・nit 2。
+  数値の算術 (δ、t 分位点の表、費用、A-2 / A-6 の百分率、3.42 s) と段 4 の 22 所見の反映は照合が取れた。
+- must-fix: R1 = 欠測した block を落として推定すると遅い走を落とした候補が優越側へ偏る (下位 25% の欠測で平均が約 0.42σ 上がる反例)。
+  R2 = 再投入でも単独性違反が残った job を主要解析へ戻せる。
+- 親がレビュー走行中に見つけた誤り (P-a): 本文 §4 は「R0 = 上流既定」「rh の R2 (無 backoff) = R0 と同じ build」と書いていたが、
+  上流既定は BACK_OFF=1 (CCBench の `cmake/Options.cmake`) で、A-2・A-6 が「stock」と呼ぶ arm (BACK_OFF=0・他は既定) とは別 build だった。
+  その arm の flag の組は bal・wh の `p2_2_flag_opt` (B0-L-W0) と同じである。レビューの R5 はこの誤記を前提にしていた。
+- 裁定と修正の対応は `verbatim/s6-ruling.md`。主要族の資格を「その job で k と r の 32 block 全走が使えること」に限り、
+  単独性違反の job は block 数によらず主要解析に使わないことにした。MOCC は発効時に 3 択 (参照を固定 / 記述専用 / 含めない) を書く。
+- 焦点再レビューは修正後の HEAD に対して行う (結果は §6)。
+
+## 6. 焦点再レビュー
+
+(焦点再レビューの後に追記する。)
 
 ## 5. 本 wave がしなかったこと
 
