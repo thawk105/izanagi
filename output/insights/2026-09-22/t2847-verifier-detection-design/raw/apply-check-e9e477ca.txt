@@ -1,0 +1,16 @@
+broken-mocc-early-unlock.patch	rc=1	error: while searching for: | error: patch failed: cc/mocc/transaction.cc:13 | error: cc/mocc/transaction.cc: patch does not apply
+broken-mocc-hot-update-unlock.patch	rc=1	error: while searching for: | error: patch failed: cc/mocc/transaction.cc:16 | error: cc/mocc/transaction.cc: patch does not apply
+broken-mocc-lockskip-validation.patch	rc=1	error: while searching for: | error: patch failed: cc/mocc/transaction.cc:1017 | error: cc/mocc/transaction.cc: patch does not apply
+broken-mocc-permutation-erase.patch	rc=1	error: while searching for: | error: patch failed: cc/mocc/transaction.cc:997 | error: cc/mocc/transaction.cc: patch does not apply
+broken-silo-early-unlock-validation.patch	rc=0	Hunk #1 succeeded at 639 (offset 56 lines).
+broken-silo-highkey-validation.patch	rc=0	Hunk #1 succeeded at 452 (offset 67 lines).
+broken-silo-lockskip-validation.patch	rc=0
+broken-silo-norw-validation.patch	rc=0	Hunk #1 succeeded at 452 (offset 67 lines).
+broken-silo-permutation-erase.patch	rc=0	Hunk #1 succeeded at 407 (offset 1 line).
+broken-silo-permutation-swap.patch	rc=0	Hunk #1 succeeded at 407 (offset 1 line).
+broken-silo-sort-nonswo.patch	rc=0
+broken-silo-trigger-misattr.patch	rc=1	error: while searching for: | error: patch failed: cc/silo/transaction.cc:237 | error: cc/silo/transaction.cc: patch does not apply
+broken-silo-write-intent-erase.patch	rc=0	Hunk #1 succeeded at 434 (offset -51 lines).
+broken-silo-write-intent-forge.patch	rc=0	Hunk #1 succeeded at 434 (offset -51 lines).
+broken-silo-write-intent-opswap.patch	rc=0	Hunk #1 succeeded at 434 (offset -51 lines).
+broken-silo-write-intent-ptrswap.patch	rc=0	Hunk #1 succeeded at 434 (offset -51 lines).
