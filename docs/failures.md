@@ -20984,6 +20984,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入投入前に確かめる。既存 insight には `.py` を含むものがあるが、
   それらは Codex が書いた harness であり本件とは出所が違う。
 
+
+- **再発: 2026-09-22** — [T-2797] 発効束 wave で、試走と本走の知識射影の `diff` の出力を insight の `bundle/` に拡張子 `.diff` で置いたところ、commit 前の
+  `tools/check_ai_provenance.py --message-file` が実装面 (patch / diff) と判定した。拡張子を `.diff.txt` に変えて解消した (commit 前に検出、実害なし)。
+  再発検知の `git ls-files <insight dir>` の grep は `\.py$` だけでなく `\.(patch|diff)$` も対象にする。
 ### F699. 昇格禁止 marker と use class が 1 つも発火しておらず、恒真な保証だった [恒真ゲート] [誤前提]
 
 - 事象: A-1 の campaign config は `promotion_prohibited=True` を持ち、`declared_use_class` も
@@ -28319,3 +28323,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: LaTeX は `%` から行末までを捨てる。段落の途中に改行してコメントを足すと、後続の本文が同じ物理行に残ってコメントに飲まれる。差し替え後に段落単位で PDF を目視しなかった。
 - 恒久対応: memory `latex-comment-insertion-swallows-body` — 出所コメントは段落末の次行にだけ足し、組版前に `grep -n "^%.*．" <tex>` が 0 件であることを確かめる。原稿 README §5 に同じ検査を書いた。
 - 再発検知: Codex の焦点再レビューが 1 か所目を検出、親の機械走査が 2 か所目を検出した。
+
+### F1043. 実装子への禁止の字面が、呼ぶよう指示した既存関数の内部挙動まで射程に入り、子が正しく停止して fix が 1 巡増えた [手順漏れ]
+
+- 事象: [T-2797] 発効束 wave の段 5 で、LLM 巡 tool の実装子へ「tool は subprocess を起動しない」と「知識解決は既存関数を使う」を同じ prompt で指示した。既存の
+  `orchestrator/campaign/knowledge_manifest.py` の `load_and_resolve_manifest` は内部で読み取り専用の git を起動するので、子は両立できないと判断して知識解決を
+  `NotImplementedError` で止め、確認を求めて報告した。親が「tool 自身のコードが直接起動しない」の意味と裁定し、fix を 1 巡足した (約 3 分、codex 1 本)。
+  前段の同タスク Tier0 wave でも、fix 子への「差し替えてよいのは 2 つだけ」という広すぎる禁止で子が正しく停止し、1 巡を空費している (独立 2 例目)。
+- 根本原因: 禁止を「何を起動・編集してはいけないか」の字面だけで書き、呼ぶよう指示した既存関数の内部挙動 (process 起動・既存 fixture の差し替え) が禁止の射程に入るかを決めていなかった。
+  子は禁止を広く読んで止まるのが正しい振る舞いなので、曖昧さの費用は毎回 1 巡になる。
+- 恒久対応: 実装子・fix 子への禁止は「子が書くコード自身が直接行うこと」に限定し、呼ぶよう指示した既存関数の内部挙動は禁止の外であると prompt に明記する。
+  memory `codex-child-discipline` の「実装子への禁止は直接行うことに限る」節。
+- 再発検知: 子の報告に「指示間の衝突」「確認への回答がない」が出たらこの型である。prompt を書く時点で、禁止語 (起動しない・差し替えない・触らない) と
+  「既存関数を使う」が同じ prompt にあれば、その既存関数の内部を grep して衝突の有無を確かめる。
