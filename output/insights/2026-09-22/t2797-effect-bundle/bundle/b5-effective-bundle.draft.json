@@ -15,7 +15,7 @@
   "prereg_version_tag": "b5-generator-contrast-v1",
   "implementation": {
     "wave_integration_commit": "d327dd30c4e93799b9024a3b332f00487015ca2a",
-    "target_commit_rule": "The land commit of this wave on local main (named in the re-presentation). File identity is bound by content sha256 below; a later main is acceptable only while every listed file keeps the same sha256.",
+    "target_commit_rule": "The approved object is the land commit of this wave on local main (named in the re-presentation) and, after approval, the effect commit that changes only this bundle's status and effective section. Calibration and main runs use detached fixed checkouts of the effect commit. Any other commit is outside the approval even if the listed sha256 values match.",
     "section10_parts": {
       "llm_entry_and_k2_manifest": "p3_s4_loop proposal path, --coder-role coder-v4-autonomous-k2, --knowledge-manifest (existing)",
       "series_state_inheritance_and_start_stock_order": "b5_generator_contrast.expected_inputs / assert_inherited_inputs / run_series stock-start (D2198)",
@@ -55,6 +55,13 @@
       "cmake": "/usr/bin/cmake = cmake version 3.22.1",
       "python": "/usr/bin/python3.10 sha256 d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
       "registered_runs": "Each job records its own toolchain_manifest in the prebuild receipt; there is no automatic comparison gate."
+    },
+    "toolchain_required_for_registered_runs": {
+      "cc_version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "cxx_version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "cmake_version_first_line": "cmake version 3.22.1",
+      "python_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+      "nonconforming_job": "A job whose prebuild receipt differs from these values does not conform to this bundle; its series (or block-stock) is treated as missing at aggregation time and is not rescued. This is a documented aggregation procedure, not a machine gate."
     },
     "claude_code_client_observed": "2.1.278 (login node, 2026-09-22); recorded per round by record-models, not pinned"
   },
@@ -131,7 +138,9 @@
       },
       "generation_parameters": "temperature, top_p, max tokens and similar sampling parameters have no specification interface in the client and are not observable; they are recorded as client defaults, not as fixed values",
       "model_recording": "tools/b5_llm_round.py record-models per role call: all assistant message.model values, client versions, agentType, toolUseId, raw sha256 of transcript and meta; matches_expected is recorded, not enforced by the tool",
-      "mismatch_rule": "If any role record in a round has matches_expected false, the parent does not publish that proposal and closes the session; the series ends by proposal-wait-timeout (unclassified missing), no rescue or re-draw",
+      "mismatch_rule": "If any role record has matches_expected false, the parent publishes neither the proposal nor a rejection for the current opportunity and closes the session; the series ends by proposal-wait-timeout (unclassified missing), no rescue or re-draw. Critics run only before the next opportunity (for the evaluation whose diagnosis feeds it), never after the final evaluation, so every critic mismatch also ends the series this way",
+      "critic_timing": "When request-<a> has next_evaluation k >= 2 and critic-<k-1> does not exist yet, run the critic for evaluation k-1 before inputs --a <a>; A-only rejections (no new evaluation) run no critic; no critic after the final evaluation",
+      "a_only_rejections": "Empty or invalid planner/coder output and failed proposal checks are rejected with reject --a <a> (A consumed) without editing or re-asking; child-side preprocess or Tier0 rejection publishes no slot and the next request keeps the same k",
       "knowledge": {
         "manifest": {"path": "bundle/knowledge-manifest-wal-only.json", "raw_sha256": "68eb3d5f4bcdab1e91a379868d188493bda548c5f26d6c3965a00dc5c9a70977", "digest": "396cd5594c3f22fb0d52476aa3eec51e62f26c5d3e81b1e25a5935697b73588e", "source": "commit 2fa13a262a53b7f4e610a40a7a7af7f86fc9d621 output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl sha256 2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"},
         "planner_projection_reference": {"path": "output/insights/2026-09-18/t2746-k2-loop-round2/materials/knowledge-input.json", "sha256": "05f2b2673f6769767dab788b187a5a951ff79ab9df1d4795a529b12037fd5808"},
@@ -148,7 +157,15 @@
       "initial_input": "k = 1: current_perf and baseline = series-start stock of the same job; empty whiteboard; no diagnosis key",
       "missing_values": "null and the text 'null (欠測)'; never 0",
       "parent_template": {"path": "bundle/b5-llm-parent-template.md"},
-      "retained_pilot_constraint": "coder is asked for an integer literal (narrower than the accepted grammar); kept as a pilot configuration fact"
+      "retained_pilot_constraint": "coder is asked for an integer literal (narrower than the accepted grammar); kept as a pilot configuration fact",
+      "prompt_changes_from_pilot": [
+        "labels: pilot (T-2797, write-heavy series 1) -> registered cohort, workload and series from the ledger header",
+        "operating point text from calibrated_perf(workload)",
+        "series-start stock described as measured sequentially at the start of the same job, not a contemporaneous control",
+        "coder: 'B-5 pilot' operating point and verification wording -> 'B-5 main run'",
+        "critic: every missing metric (fitness, anomalies, median, rep count, rep list, CV, rounds, settled, abort rate, LLC miss rate, IPC) is printed as 'null (欠測)' instead of 0 or None",
+        "absolute paths replaced by arguments; knowledge projection reference moved to the repository copy of the T-2746 knowledge-input.json"
+      ]
     }
   },
   "schedule": {
@@ -173,7 +190,7 @@
     "estimate_file": {"path": "bundle/cost-model.txt", "sha256": "cffbf5e091ee7359c257e897c8e548f1fe82c149bb5d21e7d35656d497a59a8d"}
   },
   "rep1_warmup_check": "No session-definition change: max |median(2..5)/median(1..5)-1| = 0.6960% over 53 pilot sessions, 0 at or above 1%, 0 CV-gate changes (insight rep 1 section)",
-  "n1_duplicate_skip": "No code change; reachable only by re-running a slot in the same submit-tree or importing a campaign; if reached, B is under-recorded by 1, the report does not flag it and the series becomes score-missing (insight N1 section)",
+  "n1_duplicate_skip": "No code change; reachable only by re-running a slot in the same submit-tree or importing a campaign; if the first attempt of a slot is skipped after submission, B is under-recorded by 1, the report does not flag it and the series becomes score-missing; a skip on a retry attempt keeps B through submitted_once (insight N1 section)",
   "files_sha256": {
     "orchestrator/campaign/b5_generator_contrast.py": "55da1f0fb58fe1ffcd5d39b5ae446c5950f23b00220c08932f8900c02521625b",
     "orchestrator/campaign/b5_generator_contrast_report.py": "6ce783ab17986f47c417d0c0fce94a98e19e31a4ba3cbcabcda427e5f85d9d68",
@@ -200,12 +217,27 @@
     "orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd",
     "tools/pegasus/b5_contrast_launch.py": "093904ee4841d9499ff8b4d9e71433d92ab0de7c13c6724353823c5dda8485c9",
     "tools/pegasus/p3_s4_loop_pegasus.sh": "ee6a00bf8299b65188dbcac6443f15766a84936dea4f0297263945b04c74f706",
-    "tools/b5_llm_round.py": "03506f4767f59f72c325fb2278ff77c57a86213db3f7144a42d49c55cb253f68",
+    "tools/b5_llm_round.py": "cc86667fa38e65d0abc9caa3c37d98367dcd19ffabfc8ff1ed09882a0c691731",
     ".claude/agents/planner-v4.md": "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027",
     ".claude/agents/coder-v4-autonomous-k2.md": "5d730eeaf09b639ef146157e6a7fe4786e79ace60af3de5c15bb23a16bf9e427",
     ".claude/agents/critic.md": "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b",
     "docs/b5-generator-contrast-preregistration.md": "66cc3911e0e4026de7ff6d33d419c362d40130944ec1f30be1ec2f2ac9afd669",
     "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+  },
+  "bundle_files_sha256": {
+    "note": "Every data file of this bundle directory except this JSON itself (no self-hash)",
+    "bundle/b5-llm-parent-template.md": "57541de0b68a1f82c30a40e869cc78e9f7878e56ad78905c50f58c95046deebf",
+    "bundle/b5-parent-settings.json": "2776a2823e527b7078277678437a997fe560ce82192882dc798016b7fec708b7",
+    "bundle/cost-model.txt": "cffbf5e091ee7359c257e897c8e548f1fe82c149bb5d21e7d35656d497a59a8d",
+    "bundle/knowledge-manifest-wal-only.json": "68eb3d5f4bcdab1e91a379868d188493bda548c5f26d6c3965a00dc5c9a70977",
+    "bundle/leakproof-context-balanced.md": "5e33b7c3a95379a501961b1b7f1d2b02bf879413cd1408515368bf3b88dbff86",
+    "bundle/leakproof-context-pilot-vs-write-heavy.diff.txt": "bc1f6dfae96fb84f7498d0f92b8a127b67de4aac33ca754b7f921d5fe14d02bb",
+    "bundle/leakproof-context-read-heavy.md": "9dca7fda71a625c395627511093e6b2d694ca4484640a46b8fb22bea58b4d073",
+    "bundle/leakproof-context-write-heavy.md": "ed5217cc2afac3d3421921e22fe516b354d66fdaede08a1d2de7bba10daf8957",
+    "bundle/random-values.json": "cdae6be89a7747eb3cace63b37b0326dae76e1bc4c0616ce7b1b4a746766ba40",
+    "bundle/registered-schedule.json": "01df7ed05813d05e0cd3ba51a8377887197353372ee681bd0c53977a01e23207",
+    "bundle/sweep-orders.json": "6300ba1163adfc737699f8bc1f064b7dd7c92ec057a13091fbcc8b406cf49afd",
+    "bundle/weights-material.json": "af36f720aa12a09000ee8cbd7810c6ea353e73a8344afc2826f620e9c17c67a3"
   },
   "not_closed_by_this_bundle": [
     "Live Tier0 check (test_b5_tier0.py::test_live_*) runs in the calibration job after approval",
