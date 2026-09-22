@@ -1,0 +1,20 @@
+feat(silo/trace): emit trace v3 frames under the TPC-C context
+
+In Silo's writePhase, read the TPC-C transaction-type context once per
+committed transaction. When it is set (tpcc.hh sets it after begin),
+emit the C/R/W lines and the three lock-coverage X lines in the v3 form
+(table id from get_storage(), nS = nQ = 0 for TPC-C stage 1, the
+transaction type on C). When it is not set (YCSB and the other
+workloads), the existing v2 expressions and the existing
+izanagi_trace::emit_lock_violation calls are used unchanged, so v2
+output is byte-for-byte the same. Each committed transaction emits
+exactly one C line. The context is cleared right after the E line.
+
+All changes are inside the existing #if TRACE blocks; #line directives
+restore the base source's logical line numbers for TRACE=0. The
+validation-phase P line, begin/abort and the INSERT exclusion of the
+entry X check are unchanged.
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager

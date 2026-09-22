@@ -1,0 +1,49 @@
+start 2026-09-22 21:19:48 JST C1=56b5cb709628c9cac98e4e18ff676defc77a9117 C2=a6f2c7410d58ad140a62b11cc1beab29bfcd191b outer HEAD=eef04f5a7fae95153e6253d362ce872555e65d4e porcelain=0
+probe sha256:
+c6edffe7596a16f02b95a8709e0ea2514b301d5bd134ec4a2c764417196a56f3  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/probe/run_probe.py
+d055d6aecdcaf0b43af725e6aa18260b30ab13f9e4fee129d8948c7d53004f3a  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/probe/selftest.py
+3c787a6487ecd68c782aa6ba830314c783b13af3acb26fefaf2a54c541c5749f  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/probe/v3check.py
+c7a8756cdf47a997fe6112e78a66110d71b2e8f30b8dd2df08eb963a5445c231  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/spec/mutation-spec.json
+307ac02df46b0f7667cd546cbc97ad84a3a8e636041b5514e4edbe7e331d92a5  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/C.bundle
+[Pegasus dispatch] job を gen_S へ投入します (izdw-aa3e0016d3)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-tpcc-ccbench-v3/output/pegasus-dispatch/orphan-holds/unknown-2944227b383163d56e34bf34.json
+[Pegasus dispatch] request ID 18131.nqsv を受理しました
+[Pegasus dispatch] request 18131.nqsv の状態: QUE
+[Pegasus dispatch] request 18131.nqsv の状態: RUN
+[Pegasus dispatch] request 18131.nqsv の状態: END
+[Pegasus dispatch] request 18131.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-tpcc-ccbench-v3/output/pegasus-dispatch/orphan-holds/unknown-2944227b383163d56e34bf34.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-tpcc-ccbench-v3/output/pegasus-dispatch/aa3e0016d34ced38fd179f33bfa3b5b1/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 18131.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1064476, "time_ns": 1790079778794993773}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1064497, "event": "direct-child-wait-start", "pid": 1064483, "time_ns": 1790079778824249493}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1064497, "event": "direct-child-wait-complete", "pid": 1064483, "time_ns": 1790079964721944791}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1064483, "rc": 0, "time_ns": 1790079964722050822}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1064476, "rc": 0, "time_ns": 1790079964726539815}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1064476}, {"comm": "bash", "pid": 1064457}, {"comm": "nqs_shpd", "pid": 1064456}, {"comm": "nqs_shpd", "pid": 1064261}, {"comm": "nqs_shpd", "pid": 2242}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1064476, "sid": 1064456, "time_ns": 1790079964726940560}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 30.371239059604704, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1064476, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790079964757349622, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1064476, "time_ns": 1790079964759728793}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1064476, "time_ns": 1790079964763445655}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1064476, "time_ns": 1790079964764060130}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1064476, "time_ns": 1790079964764070827}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1064476, "time_ns": 1790079964764899988}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1064476, "time_ns": 1790079964764907580}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1064476, "rc": 0, "time_ns": 1790079964764916989}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1064476, "rc": 0, "time_ns": 1790079964764930211}
+|
+| ============================================================
+| Request ID:             18131.nqsv
+| Request Name:           izdw-aa3e0016d3
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Tue Sep 22 21:19:54 2026
+| Started Request Time:   Tue Sep 22 21:22:58 2026
+| Ended Request Time:     Tue Sep 22 21:26:04 2026
+| Resources Information:
+|   Elapse:               191S
+|   Remaining Elapse:     3409S
+| ============================================================
+[Pegasus dispatch] request 18131.nqsv child stderr end
+end 2026-09-22 21:26:18 JST rc=0

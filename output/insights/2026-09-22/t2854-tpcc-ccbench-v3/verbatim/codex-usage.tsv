@@ -1,0 +1,13 @@
+t2854-s2-plan-1	plan	gpt-6-astra	medium	accepted	21	589
+t2854-s3-consult-A-1	consult	gpt-6-astra	medium	accepted	24	312
+t2854-s3-consult-B-1	consult	gpt-6-astra	medium	accepted	13	286
+t2854-s5-author-A-1	author	gpt-6-astra	medium	accepted	12	359
+t2854-s5-author-B-1	author	gpt-6-astra	medium	accepted	13	700
+t2854-s5-author-B2-1	author	gpt-6-astra	medium	accepted	17	440
+t2854-s6-fix-1	fix	gpt-6-astra	medium	accepted	17	459
+t2854-s6-fix-2	fix	gpt-6-astra	medium	accepted	5	66
+t2854-s6-fix-3	fix	gpt-6-astra	medium	accepted	8	144
+t2854-s6-focus-1	focus	gpt-6-astra	medium	accepted	9	202
+t2854-s6-focus-2	focus	gpt-6-astra	medium	accepted	6	158
+t2854-s6-review-A-1	review	gpt-6-astra	medium	accepted	26	373
+t2854-s6-review-B-1	review	gpt-6-astra	medium	accepted	17	246

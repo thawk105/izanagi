@@ -1,0 +1,40 @@
+start 2026-09-22 20:55:51 JST
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/review/unit1.patch sha256=cc6da4a96ed64dc2db73de35bab7036e09ec275e378e5b0c70855e79571867c4
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/msg-C1.txt sha256=7f8dc1a78be06591d7eae931be23b73263da224df14c623f23405d9122ecb52d
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/review/unit2.patch sha256=47691075e2f1de4292fa49e991ecb84a71442ede5a59e8b0676bd5575559d193
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/msg-C2.txt sha256=a41e456a6cda58c03cca3c58aacd4fe45b4d4e0a3034ea7d66810e4af221698e
+sub HEAD before: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+Preparing worktree (detached HEAD e9e477ca)
+HEAD is now at e9e477ca fix(mocc): preserve TRACE=0 include identity
+tmp HEAD: e9e477ca1b55348ab4530de0b1cf663ce4555290
+Switched to a new branch 'izanagi-tpcc-v3-trace'
+C1 include/trace.hh applied=1ff95bcec49e49d02669321b09414ab114c20df2 expected=1ff95bcec49e49d02669321b09414ab114c20df2
+C1 include/tpcc.hh applied=24e7d13288cf7df1e86a87aac0bd44ab9112eb9c expected=24e7d13288cf7df1e86a87aac0bd44ab9112eb9c
+C1 staged:
+M	include/tpcc.hh
+M	include/trace.hh
+[izanagi-tpcc-v3-trace 56b5cb70] feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+ 2 files changed, 61 insertions(+)
+C2 cc/silo/transaction.cc applied=4434447d2fa3fe31c21f014f30d2c4695e0b3422 expected=4434447d2fa3fe31c21f014f30d2c4695e0b3422
+C2 staged:
+M	cc/silo/transaction.cc
+[izanagi-tpcc-v3-trace a6f2c741] feat(silo/trace): emit trace v3 frames under the TPC-C context
+ 1 file changed, 65 insertions(+), 19 deletions(-)
+C1 = 56b5cb709628c9cac98e4e18ff676defc77a9117 parents: 56b5cb709628c9cac98e4e18ff676defc77a9117 e9e477ca1b55348ab4530de0b1cf663ce4555290 tree: 0e98cdedb3cd72af7ba5ca177845861ff7a27311
+C2 = a6f2c7410d58ad140a62b11cc1beab29bfcd191b parents: a6f2c7410d58ad140a62b11cc1beab29bfcd191b 56b5cb709628c9cac98e4e18ff676defc77a9117 tree: 30ab7f53774decad96d9ff96c98e38c194a71358
+diff-tree PIN..C2 (raw):
+:100644 100644 054a7e5f16bc63937334b42706161bf30175dbb3 4434447d2fa3fe31c21f014f30d2c4695e0b3422 M	cc/silo/transaction.cc
+:100644 100644 5cd9c7f729d3dafdd59e87a87b70e2c72b5dd6a1 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c M	include/tpcc.hh
+:100644 100644 570e35e308e1104d53d43ea5556f54b3fb86922a 1ff95bcec49e49d02669321b09414ab114c20df2 M	include/trace.hh
+a6f2c7410d58ad140a62b11cc1beab29bfcd191b 56b5cb709628c9cac98e4e18ff676defc77a9117 feat(silo/trace): emit trace v3 frames under the TPC-C context
+56b5cb709628c9cac98e4e18ff676defc77a9117 e9e477ca1b55348ab4530de0b1cf663ce4555290 feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+e9e477ca1b55348ab4530de0b1cf663ce4555290 ae6880f747834805ebea1ed4f0e1b15f3e960b23 fix(mocc): preserve TRACE=0 include identity
+sub HEAD after: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+branch ref: a6f2c7410d58ad140a62b11cc1beab29bfcd191b
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/C.bundle is okay
+The bundle contains this ref:
+a6f2c7410d58ad140a62b11cc1beab29bfcd191b refs/heads/izanagi-tpcc-v3-trace
+The bundle records a complete history.
+bundle bytes: 3219103 sha256: 307ac02df46b0f7667cd546cbc97ad84a3a8e636041b5514e4edbe7e331d92a5
+a6f2c7410d58ad140a62b11cc1beab29bfcd191b refs/heads/izanagi-tpcc-v3-trace
+end 2026-09-22 20:55:53 JST

@@ -1,0 +1,291 @@
+{
+  "schema_version": "t2854-ccbench-v3-probe/v1",
+  "node": "bnode146",
+  "all_pass": true,
+  "seconds": 185.68818209297024,
+  "toolchain": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11"
+  },
+  "policy_sha256": "66ea7135c6d84cfd09013f33da23d8ca8015dcb547e34db7c802644f4986acd6",
+  "mutation_spec_sha256": "c7a8756cdf47a997fe6112e78a66110d71b2e8f30b8dd2df08eb963a5445c231",
+  "include_activity_policy": "Compare ordered file enter/leave markers (flags 1/2), with only source/build roots replaced. Ignore marker line numbers; -E -P -dD separately checks expanded bytes, including __LINE__. Ordinary #line markers are excluded.",
+  "capacity": [
+    {
+      "label": "start",
+      "total": 5908152188928,
+      "free": 5866923720704,
+      "used": 41228468224,
+      "required_free": 8589934592,
+      "tree_allocated_bytes": {}
+    },
+    {
+      "label": "after-builds",
+      "total": 5908152188928,
+      "free": 5866792427520,
+      "used": 41359761408,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368
+      }
+    },
+    {
+      "label": "before-trace-B0-tpcc",
+      "total": 5908152188928,
+      "free": 5866798645248,
+      "used": 41353543680,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048
+      }
+    },
+    {
+      "label": "before-trace-B0-ycsb",
+      "total": 5908152188928,
+      "free": 5866798645248,
+      "used": 41353543680,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048
+      }
+    },
+    {
+      "label": "before-trace-D1",
+      "total": 5908152188928,
+      "free": 5866772275200,
+      "used": 41379913728,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048,
+        "src-mut": 3330048,
+        "b1-mut": 4743168
+      }
+    },
+    {
+      "label": "before-trace-M1",
+      "total": 5908152188928,
+      "free": 5866771787776,
+      "used": 41380401152,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048,
+        "src-mut": 3330048,
+        "b1-mut": 5189632
+      }
+    },
+    {
+      "label": "before-trace-M2",
+      "total": 5908152188928,
+      "free": 5866789584896,
+      "used": 41362604032,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048,
+        "src-mut": 3330048,
+        "b1-mut": 5189632
+      }
+    },
+    {
+      "label": "before-trace-M3",
+      "total": 5908152188928,
+      "free": 5866789564416,
+      "used": 41362624512,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048,
+        "src-mut": 3330048,
+        "b1-mut": 5189632
+      }
+    },
+    {
+      "label": "before-trace-M4",
+      "total": 5908152188928,
+      "free": 5866789584896,
+      "used": 41362604032,
+      "required_free": 2147483648,
+      "tree_allocated_bytes": {
+        "objects.git": 3616768,
+        "src-pin": 3325952,
+        "src-cnd": 3330048,
+        "thirdparty-src": 87220224,
+        "gflags-build": 1708032,
+        "gflags-install": 651264,
+        "glog-build": 1265664,
+        "glog-install": 438272,
+        "b0-pin": 6025216,
+        "b0-cnd": 6025216,
+        "b1-cnd": 6074368,
+        "src-inc": 3330048,
+        "src-mut": 3330048,
+        "b1-mut": 5189632
+      }
+    }
+  ],
+  "source_evidence": {
+    "archive_attributes": {
+      "path": "/scr/t2854-6azmkp1m/objects.git/info/attributes",
+      "contents": "* -export-ignore\n* -export-subst\n"
+    },
+    "tree_checks": {
+      "src-pin": {
+        "oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "expected_regular_files": 404,
+        "excluded_gitlinks": [
+          "third_party/shirakami"
+        ],
+        "symlinks": [],
+        "checked_blobs": 404,
+        "passed": true,
+        "extracted_regular_files": 404,
+        "missing": [],
+        "extra": [],
+        "blob_mismatches": []
+      },
+      "src-cnd": {
+        "oid": "a6f2c7410d58ad140a62b11cc1beab29bfcd191b",
+        "expected_regular_files": 404,
+        "excluded_gitlinks": [
+          "third_party/shirakami"
+        ],
+        "symlinks": [],
+        "checked_blobs": 404,
+        "passed": true,
+        "extracted_regular_files": 404,
+        "missing": [],
+        "extra": [],
+        "blob_mismatches": []
+      }
+    },
+    "raw_diff": ":100644 100644 054a7e5f16bc63937334b42706161bf30175dbb3 4434447d2fa3fe31c21f014f30d2c4695e0b3422 M\tcc/silo/transaction.cc\n:100644 100644 5cd9c7f729d3dafdd59e87a87b70e2c72b5dd6a1 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c M\tinclude/tpcc.hh\n:100644 100644 570e35e308e1104d53d43ea5556f54b3fb86922a 1ff95bcec49e49d02669321b09414ab114c20df2 M\tinclude/trace.hh\n",
+    "raw_diffs": {
+      "pin->C1": ":100644 100644 5cd9c7f729d3dafdd59e87a87b70e2c72b5dd6a1 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c M\tinclude/tpcc.hh\n:100644 100644 570e35e308e1104d53d43ea5556f54b3fb86922a 1ff95bcec49e49d02669321b09414ab114c20df2 M\tinclude/trace.hh\n",
+      "C1->C2": ":100644 100644 054a7e5f16bc63937334b42706161bf30175dbb3 4434447d2fa3fe31c21f014f30d2c4695e0b3422 M\tcc/silo/transaction.cc\n",
+      "pin->C2": ":100644 100644 054a7e5f16bc63937334b42706161bf30175dbb3 4434447d2fa3fe31c21f014f30d2c4695e0b3422 M\tcc/silo/transaction.cc\n:100644 100644 5cd9c7f729d3dafdd59e87a87b70e2c72b5dd6a1 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c M\tinclude/tpcc.hh\n:100644 100644 570e35e308e1104d53d43ea5556f54b3fb86922a 1ff95bcec49e49d02669321b09414ab114c20df2 M\tinclude/trace.hh\n"
+    },
+    "bundle_sha256": "307ac02df46b0f7667cd546cbc97ad84a3a8e636041b5514e4edbe7e331d92a5",
+    "blobs": {
+      "cc/silo/transaction.cc": {
+        "pin": "17554ea72d98076a3ae326de16ac37fb6e18b815153b47ae8d8d2770d3584f71",
+        "C2": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce"
+      },
+      "include/tpcc.hh": {
+        "pin": "4d4ea640c927113dfb01ad0142b77fec0e7ca42525919274bcb63d93d07cffe7",
+        "C2": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854"
+      },
+      "include/trace.hh": {
+        "pin": "7e4c62f9f1b0db2d9bd817a042004bd8385e614a70d0d9c9404b6e911871f729",
+        "C2": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+      }
+    }
+  },
+  "checks": {
+    "C0": {
+      "passed": true,
+      "elapsed_s": 46.49710077699274
+    },
+    "C1": {
+      "passed": true,
+      "elapsed_s": 79.15514292591251
+    },
+    "C2": {
+      "passed": true,
+      "elapsed_s": 107.12385346798692
+    },
+    "C3": {
+      "passed": true,
+      "elapsed_s": 107.86702661099844
+    },
+    "C4": {
+      "passed": true,
+      "elapsed_s": 117.84433319594245
+    },
+    "C5": {
+      "passed": true,
+      "elapsed_s": 129.74087590991985
+    },
+    "C6": {
+      "passed": true,
+      "elapsed_s": 185.66656144999433
+    }
+  }
+}

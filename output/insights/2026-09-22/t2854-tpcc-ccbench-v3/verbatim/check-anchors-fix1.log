@@ -1,0 +1,7 @@
+D1: base=C2 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=pass
+M1: base=C2 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=schema
+M2: base=D1 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=witness
+M3: base=C2 file=cc/silo/transaction.cc occurrences=1 changes_bytes=True expected=content-table
+M4: base=C2 file=cc/silo/transaction.cc occurrences=1 changes_bytes=True expected=content-txtype
+M5: base=C2 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=trace0-preprocess
+RESULT: OK

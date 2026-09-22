@@ -1,0 +1,30 @@
+feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+
+Add the TRACE-only building blocks of the Izanagi TPC-C trace v3 frame:
+- include/trace.hh: a per-thread TPC-C transaction-type context
+  (set / read / clear through an external-linkage inline accessor so that
+  the workload TU and the protocol TU share one thread_local) and v3
+  emitters whose R/W/X lines carry the table id (Storage) and whose C line
+  carries nR nW nS nQ and the transaction type:
+    C <txid> <thid> <epoch> <tid> <nR> <nW> <nS> <nQ> <tx_type>
+    R <txid> <table> <key_hex> <ver_epoch> <ver_tid>
+    W <txid> <table> <key_hex> <U|I|D> <epoch> <tid>
+    X <txid> <table> <key_hex> <reason>
+  The existing v1/v2 helpers and their output bytes are unchanged.
+- include/tpcc.hh: include trace.hh and set the context right after
+  tx.begin(), both under #if TRACE, and make the post-commit quit check
+  #if !TRACE so that a TRACE build counts every successful commit (the
+  commit counter then equals the number of committed C lines). The
+  TRACE=0 behaviour and counting order are unchanged, and #line
+  directives keep the TRACE=0 logical line numbers (ERR's __LINE__)
+  identical to the base.
+
+Everything added is compiled out when TRACE=0 (Izanagi discipline 1,
+D14). This commit alone does not change what any protocol emits; the
+Silo v3 emitter is the next commit. Design record: izanagi
+output/insights/2026-09-21/tpcc-trace-certification-design sections 3.1
+and 3.5 (units 1 and 2 of section 7.1).
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager

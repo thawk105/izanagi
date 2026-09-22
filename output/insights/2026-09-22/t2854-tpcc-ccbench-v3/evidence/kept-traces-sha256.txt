@@ -1,0 +1,8 @@
+01d1bedc417d0fd9e3044b7c3d00fe41ee1369d69e67b8d7d9928ee36a29b227  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-tpcc/trace_0.log.zst
+4e7dd6ee80a31fbd8b50140ba9a25ed2eb242f6adf353a952f9d25fe4fe8dd43  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-tpcc/trace_1.log.zst
+cab39cf82685fe1ff3f32793d283e890143f8f4ce54f6b792a64ad3381083f37  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-ycsb/trace_0.log.zst
+bacaaa81cb0149d644f19d41e55bd79b519b14a6c57daea618b67726d48e6613  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-ycsb/trace_1.log.zst
+3028777 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-tpcc/trace_0.log.zst
+2964134 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-tpcc/trace_1.log.zst
+6482431 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-ycsb/trace_0.log.zst
+7397516 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/B0-ycsb/trace_1.log.zst
