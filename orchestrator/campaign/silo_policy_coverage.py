@@ -65,7 +65,7 @@ MUTATIONS = {
     "no-reload": ("retry", True, "retry_success"),
     "no-limit": ("retry", False, "NON_DETECTION_CONTROL"),
     "no-prefix-unlock-conflict": ("abort0", False, "trace-timeout"),
-    "no-prefix-unlock-limit": ("maxwait", False, "trace-timeout"),
+    "no-prefix-unlock-limit": ("retry", False, "trace-timeout"),
     "no-abort-hook": ("focus", True, "abort"),
     "no-lock-hook": ("focus", True, "lock"),
     "no-commit-hook": ("focus", True, "commit"),
@@ -264,7 +264,7 @@ def judge(runs: dict, checks: dict, *, mode: str = "coverage") -> dict:
     derived = {}
     if complete:
         try:
-            derived = ({c + ":" + k: v for c, r in runs.items() for k, v in check_case(c, r).items()}
+            derived = (coverage_checks(runs)
                        if mode == "coverage" else smoke_checks(runs))
         except (KeyError, TypeError, ValueError):
             complete = False
@@ -628,8 +628,27 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
             failed = _preprocess(command, {macro: value})
             runs["flag/" + name] = {"returncode": failed.returncode, "stderr": failed.stderr,
                                     "owner_command": command, "overrides": {macro: value}}
-    checks = {c + ":" + k: v for c, r in runs.items() for k, v in check_case(c, r).items()}
+    checks = coverage_checks(runs)
     return {"runs": runs, **judge(runs, checks)}
+
+
+def coverage_checks(runs: dict) -> dict[str, bool]:
+    checks = {c + ":" + k: v for c, r in runs.items() for k, v in check_case(c, r).items()}
+    case = "mutation/no-prefix-unlock-limit"
+    if case in runs:
+        mutation = runs[case].get("case_definition", {})
+        focus = runs.get("focus/retry", {})
+        observation = focus.get("case_definition", {})
+        # target_exit remains attempt-limit in the result JSON. retry always
+        # returns retry: lock contention ends only in CAS success or the limit,
+        # never action-abort. Require observed reach under the same workload.
+        reached = (mutation.get("policy") == observation.get("policy") == "retry"
+                   and isinstance(mutation.get("workload"), dict)
+                   and bool(mutation["workload"])
+                   and mutation["workload"] == observation.get("workload")
+                   and _positive(focus.get("probe", {}).get("totals", {}).get("limit_aborts")))
+        checks[case + ":expected"] = checks[case + ":expected"] and reached
+    return checks
 
 
 def run_smoke(scratch: Path, toolchain: dict, dependencies: dict, *, runs: dict | None = None) -> dict:

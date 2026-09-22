@@ -69,13 +69,14 @@ def _complete_runs():
             r = {"returncode": 1, "stderr": "Silo function policy requires BACK_OFF=1 and no-wait flags 1/0"}
         elif case == "trace0":
             r = {"clean": True}
+        if case in ("focus/retry", "mutation/no-prefix-unlock-limit"):
+            r["case_definition"] = {"policy": "retry", "workload": dict(coverage.LEGACY)}
         runs[case] = r
     return runs
 
 
 def _checks(runs):
-    return {case + ":" + key: value for case, r in runs.items()
-            for key, value in coverage.check_case(case, r).items()}
+    return coverage.coverage_checks(runs)
 
 
 def test_judge_rejects_missing_or_empty_checks():
@@ -211,13 +212,48 @@ def test_coverage_reuses_controls_and_separates_prefix_exits():
         assert coverage.check_case(control, result["runs"][focus]) == {"expected": True}
     for name, policy, exit_name in (
             ("no-prefix-unlock-conflict", "abort0", "action-abort"),
-            ("no-prefix-unlock-limit", "maxwait", "attempt-limit")):
+            ("no-prefix-unlock-limit", "retry", "attempt-limit")):
         for kind in ("control", "mutation"):
             case = kind + "/" + name
             assert observed[case] == (policy, True, "broken-silo-policy-no-prefix-unlock.patch"
                                       if kind == "mutation" else None)
             assert result["runs"][case]["case_definition"]["target_exit"] == exit_name
             assert result["checks"][case + ":expected"] is True
+
+
+def test_prefix_limit_requires_matching_retry_probe_reach():
+    case = "mutation/no-prefix-unlock-limit"
+    key = case + ":expected"
+    runs = _complete_runs()
+    assert runs[case]["reason"] == "trace-timeout"
+    checks = _checks(runs)
+    assert checks[key] is True
+    assert coverage.judge(runs, checks)["all_pass"] is True
+    for count in (0, -1, None, True):
+        missing = deepcopy(runs)
+        missing["focus/retry"]["probe"]["totals"]["limit_aborts"] = count
+        assert _checks(missing)[key] is False
+        assert coverage.judge(missing, _checks(missing))["all_pass"] is False
+        assert coverage.judge(missing, checks)["all_pass"] is False
+    for target in (case, "focus/retry"):
+        for field, value in (("policy", "maxwait"), ("workload", {}),
+                             ("workload", {**coverage.LEGACY, "thread_num": "99"})):
+            mismatch = deepcopy(runs)
+            mismatch[target]["case_definition"][field] = value
+            assert _checks(mismatch)[key] is False
+            assert coverage.judge(mismatch, checks)["all_pass"] is False
+        missing = deepcopy(runs)
+        del missing[target]["case_definition"]
+        assert _checks(missing)[key] is False
+    missing = deepcopy(runs)
+    del missing["focus/retry"]
+    assert _checks(missing)[key] is False
+    missing = deepcopy(runs)
+    del missing["focus/retry"]["probe"]
+    assert _checks(missing)[key] is False
+    no_timeout = deepcopy(runs)
+    no_timeout[case]["reason"] = "verifier-timeout"
+    assert _checks(no_timeout)[key] is False
 
 
 def test_focus_requires_post_commit_state_observation():
