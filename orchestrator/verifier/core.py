@@ -15,6 +15,7 @@ from typing import Dict, Optional
 
 from .dsg import DSG
 from .model import (
+    AnomalyV3, EdgeReasonV3, TxnV3, object_label,
     CompiledProtocolSourceSnapshot,
     VerifyResult,
     assess_compiled_protocol_source_snapshot,
@@ -38,6 +39,7 @@ def verify_trace_dir(
     if isinstance(parsed, _CompactTrace):
         issues = parsed.issues
         dsg = DSG.from_compact(parsed)
+        is_v3 = any(c.schema == 3 for c in parsed.files)
         n_txns = len(parsed.winner_txid)
         n_reads = parsed.n_reads
         n_writes = parsed.n_writes
@@ -45,6 +47,7 @@ def verify_trace_dir(
         txns = parsed.txns
         issues = parsed.issues
         dsg = DSG(txns)
+        is_v3 = bool(txns) and isinstance(txns[0], TxnV3)
         n_txns = len(txns)
         n_reads = sum(len(txn.reads) for txn in txns)
         n_writes = sum(len(txn.writes) for txn in txns)
@@ -57,6 +60,11 @@ def verify_trace_dir(
             _proof_source_snapshot,
         )
     dsg.integrity.proof_surfaces = assessment
+    if is_v3 and n_txns > 0:
+        dsg.integrity.v3_existence_unverified = True
+        dsg.integrity.notes.append(
+            "v3 existence history unverified: insert/delete existence history "
+            "(design §3.3) is not checked; certification withheld until unit 5 or later")
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。
@@ -122,7 +130,7 @@ def verify_trace_dir(
     if issues.lock_coverage_violations:
         # (txid, key, reason) の見本。reason 別の件数も出して機構の破れ方を示す。
         sample = "; ".join(
-            f"txn{t} key={k} ({r})"
+            f"txn{t} {object_label(k)} ({r})"
             for t, k, r in issues.lock_coverage_violations[:5])
         reasons: Dict[str, int] = {}
         for _t, _k, r in issues.lock_coverage_violations:
@@ -140,7 +148,7 @@ def verify_trace_dir(
     dsg.integrity.write_intent_violations = len(issues.write_intent_violations)
     if issues.write_intent_violations:
         sample_i = "; ".join(
-            f"txn{t} key={k} ({r})"
+            f"txn{t} {object_label(k)} ({r})"
             for t, k, r in issues.write_intent_violations[:5])
         reasons_i: Dict[str, int] = {}
         for _t, _k, r in issues.write_intent_violations:
@@ -188,6 +196,26 @@ def verify_trace_dir(
         total_cycles=total,
         abort_reasons=dict(issues.abort_reasons),
     )
+
+
+def result_to_dict_v3(res: VerifyResult) -> dict:
+    """Extend only v3 anomaly witnesses; the legacy wire projection stays frozen."""
+    result = result_to_dict(res)
+    for anomaly, projected in zip(res.anomalies, result["anomalies"]):
+        if not isinstance(anomaly, AnomalyV3):
+            continue
+        if len(anomaly.cycle) != len(anomaly.cycle_tx_types):
+            raise ValueError("v3 cycle node/type count mismatch")
+        projected["cycle_nodes"] = [
+            {"txid": txid, "tx_type": tx_type}
+            for txid, tx_type in zip(anomaly.cycle, anomaly.cycle_tx_types)
+        ]
+        for edge, edge_dict in zip(anomaly.edges, projected["edges"]):
+            for reason, reason_dict in zip(edge.reasons, edge_dict["reasons"]):
+                if not isinstance(reason, EdgeReasonV3):
+                    raise ValueError("v3 anomaly contains a reason without table")
+                reason_dict["table"] = reason.table
+    return result
 
 
 def _bind_verifier_capability_entrypoint():

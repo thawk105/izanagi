@@ -39,7 +39,7 @@ from array import array
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Sequence, Union
 
-from .model import Read, Txn, Write
+from .model import ObjectIdentity, Read, Txn, Write, ReadV3, TxnV3, WriteV3
 
 _KEY_RE = re.compile(r"^(?:[0-9a-f]{2})+$")   # 小文字 hex・偶数長 (trace.hh key_to_hex)
 
@@ -157,12 +157,12 @@ class ParseIssues:
     # reason ∈ {not-locked-at-entry (獲得欠落), lock-lost-before-write (保持破れ)}。
     # これは trace-hook の問題でなく variant の CC 正しさ違反 (torn read 窓) で、
     # integrity.lock_coverage_violations に配線され verdict を indeterminate に倒す。
-    lock_coverage_violations: List[tuple] = field(default_factory=list)
+    lock_coverage_violations: List[tuple[int, ObjectIdentity, str]] = field(default_factory=list)
     # I 行 = writePhase の write_set_ と API write intent の相互被覆 assert が emit
     # した違反。(txid, key, reason)。X と同じ txid 相関型で、key 形式も検査する。
     # cycle ではなく write 完全性を認証不能にするため
     # integrity.write_intent_violations に配線され verdict を indeterminate に倒す。
-    write_intent_violations: List[tuple] = field(default_factory=list)
+    write_intent_violations: List[tuple[int, ObjectIdentity, str]] = field(default_factory=list)
     # P 行 = validationPhase の permutation 保存 assert が emit した違反 (D41)。reason
     # のみ (txid 無し、上記 schema コメント参照)。非 strict-weak-order comparator の
     # UB で write_set_ の要素が失われた/複製された可能性を示す。
@@ -199,6 +199,9 @@ class _ParsedFileColumns:
     write_key_id: array
     write_op_id: array
     issues: ParseIssues
+    schema: Optional[int]
+    token_table: array
+    txn_tx_type: array
 
 
 @dataclass(frozen=True)
@@ -219,6 +222,7 @@ class _ParsedFileNeedsLegacy:
     path_index: int
     path: str
     worker_pid: int
+    schema: Optional[int]
 
 
 _ParsedFileOutcome = Union[
@@ -253,6 +257,26 @@ _TraceData = Union[_CompactTrace, _LegacyTrace]
 # Diagnostic-only observation for the behavioral worker test.  It is not part
 # of verification input, output, or any acceptance decision.
 _LAST_PARSE_WORKER_PIDS: frozenset[int] = frozenset()
+
+
+def _v3_integer(token: str, name: str, low: int = 0, high: Optional[int] = None) -> int:
+    if re.fullmatch(r"0|[1-9][0-9]*", token) is None:
+        raise ValueError(f"{name} must be canonical ASCII decimal: {token!r}")
+    value = int(token, 10)
+    if value < low or (high is not None and value > high):
+        raise ValueError(f"{name} outside {low}..{high}: {value}")
+    return value
+
+
+def _check_file_schemas(files: Sequence[tuple[str, Optional[int]]]) -> None:
+    first_path = schema = None
+    for path, current in sorted(files):
+        if current is None:
+            continue
+        if schema is None:
+            first_path, schema = path, current
+        elif current != schema:
+            raise ParseError(f"mixed trace schemas: {first_path} (v{schema}) and {path} (v{current})")
 
 
 def _check_key(key: str, issues: ParseIssues) -> None:
@@ -296,9 +320,10 @@ def _record_missing_end(
 def _parse_file(
         path: str, txns: Dict[int, Txn], issues: ParseIssues,
         occurrences: Optional[List[Txn]] = None,
-) -> None:
+) -> Optional[int]:
     """1 ファイルをパースして txns に追記する。C/E で frame を管理する。"""
     current: Txn | None = None
+    schema = None
     expected_reads = expected_writes = 0
     last_closed_txid: int | None = None
     with open(path, "r", encoding="ascii") as fh:
@@ -318,17 +343,37 @@ def _parse_file(
                     raise ParseError(
                         f"{path}:{lineno}: unknown record tag {line[0]!r}: {line!r}")
                 try:
+                    access_extra = {}
+                    if isinstance(current, TxnV3) and tag in ("R", "W", "X", "I"):
+                        expected = {"R": 6, "W": 7, "X": 5, "I": 5}[tag]
+                        if len(f) != expected:
+                            raise ValueError(f"v3 {tag} expected exactly {expected} fields")
+                        access_extra["table"] = _v3_integer(f[2], "table", 0, 10)
+                        f = f[:2] + f[3:]
+                        if tag == "W" and f[3] not in ("U", "I", "D"):
+                            raise ValueError(f"invalid v3 W op: {f[3]!r}")
                     if tag == "C":
                         # C <txid> <thid> <epoch> <tid> <read_count> <write_count>
                         if len(f) == 5:
                             raise ParseError(
                                 f"{path}:{lineno}: trace v1 C record is not supported; "
                                 "expected 7 fields including read/write counts")
-                        if len(f) != 7:
+                        if len(f) not in (7, 10):
                             raise ParseError(
                                 f"{path}:{lineno}: malformed C record: expected exactly "
                                 f"7 fields, got {len(f)}: {line!r}")
-                        _, txid, thid, epoch, tid, read_count, write_count = f
+                        current_schema = 3 if len(f) == 10 else 2
+                        if schema is not None and schema != current_schema:
+                            raise ParseError(f"{path}:{lineno}: mixed trace schemas")
+                        schema = current_schema
+                        extra = {}
+                        if schema == 3:
+                            ns = _v3_integer(f[7], "nS")
+                            nq = _v3_integer(f[8], "nQ")
+                            if ns != 0 or nq != 0:
+                                raise ValueError("段 2 未対応: nS/nQ must be zero")
+                            extra["tx_type"] = _v3_integer(f[9], "tx_type", 1, 5)
+                        _, txid, thid, epoch, tid, read_count, write_count = f[:7]
                         txid_i = int(txid)
                         read_count_i = int(read_count)
                         write_count_i = int(write_count)
@@ -351,7 +396,8 @@ def _parse_file(
                             # 記録し integrity を unclean にする → verdict は indeterminate になり、
                             # 落ちた辺が cycle を隠して false-green になる事故を防ぐ (絶対規律2)。
                             issues.dup_txids.append(txid_i)
-                        current = Txn(
+                        current = (TxnV3 if schema == 3 else Txn)(
+                            **extra,
                             txid=txid_i,
                             thid=int(thid),
                             commit=(int(epoch), int(tid)),
@@ -367,7 +413,8 @@ def _parse_file(
                         _, txid, key, ve, vt = f
                         _expect(current, txid, path, lineno)
                         _check_key(key, issues)
-                        current.reads.append(Read(key=key, ver=(int(ve), int(vt))))
+                        current.reads.append((ReadV3 if access_extra else Read)(
+                            key=key, ver=(int(ve), int(vt)), **access_extra))
                     elif tag == "W":
                         # W <txid> <key_hex> <op> <epoch> <tid>
                         # trace-hook は W の版 ≡ C の commit を保証する。不一致は「実際に
@@ -378,7 +425,8 @@ def _parse_file(
                         _check_key(key, issues)
                         if (int(epoch), int(tid)) != current.commit:
                             issues.write_version_mismatches.append(current.txid)
-                        current.writes.append(Write(key=key, op=op))
+                        current.writes.append((WriteV3 if access_extra else Write)(
+                            key=key, op=op, **access_extra))
                     elif tag == "X":
                         # X <txid> <key_hex> <reason>  lock 被覆違反 (writePhase の
                         # #if TRACE assert が emit)。同一 txn の C/R/W と連続で出る
@@ -389,7 +437,7 @@ def _parse_file(
                         _expect(current, txid, path, lineno)
                         _check_key(key, issues)
                         issues.lock_coverage_violations.append(
-                            (current.txid, key, reason))
+                            (current.txid, (access_extra["table"], key) if access_extra else key, reason))
                     elif tag == "I":
                         # I <txid> <key_hex> <reason>  write intent 被覆違反。
                         # writePhase の同一 txn に帰属するため X と同じく _expect を
@@ -398,7 +446,7 @@ def _parse_file(
                         _expect(current, txid, path, lineno)
                         _check_key(key, issues)
                         issues.write_intent_violations.append(
-                            (current.txid, key, reason))
+                            (current.txid, (access_extra["table"], key) if access_extra else key, reason))
                     elif tag == "E":
                         # E <txid>。直前の正常 close と同じ txid の E だけは
                         # structured duplicate-end として収集し、それ以外は拒否する。
@@ -469,6 +517,8 @@ def _parse_file(
             # (pipeline の variant 単位 abort) を突き抜けるためここでラップする。
             raise ParseError(f"{path}: non-ASCII bytes in trace: {e}") from e
 
+    return schema
+
 
 def _expect(current: Txn | None, txid: str, path: str, lineno: int) -> None:
     if current is None:
@@ -517,25 +567,34 @@ def _token_at(columns: _ParsedFileColumns, token_id: int) -> str:
     return columns.token_blob[start:end].decode("ascii")
 
 
+def _object_at(columns: _ParsedFileColumns, token_id: int) -> ObjectIdentity:
+    key = _token_at(columns, token_id)
+    return (columns.token_table[token_id], key) if columns.schema == 3 else key
+
+
 def _txn_from_columns(columns: _ParsedFileColumns, row: int) -> Txn:
     read_start = columns.txn_read_offsets[row]
     read_end = columns.txn_read_offsets[row + 1]
     write_start = columns.txn_write_offsets[row]
     write_end = columns.txn_write_offsets[row + 1]
-    txn = Txn(
+    v3 = columns.schema == 3
+    txn = (TxnV3 if v3 else Txn)(
+        **({"tx_type": columns.txn_tx_type[row]} if v3 else {}),
         txid=columns.txn_txid[row],
         thid=columns.txn_thid[row],
         commit=(columns.txn_commit_epoch[row], columns.txn_commit_tid[row]),
     )
     txn.reads.extend(
-        Read(
+        (ReadV3 if v3 else Read)(
+            **({"table": columns.token_table[columns.read_key_id[index]]} if v3 else {}),
             key=_token_at(columns, columns.read_key_id[index]),
             ver=(columns.read_ver_epoch[index], columns.read_ver_tid[index]),
         )
         for index in range(read_start, read_end)
     )
     txn.writes.extend(
-        Write(
+        (WriteV3 if v3 else Write)(
+            **({"table": columns.token_table[columns.write_key_id[index]]} if v3 else {}),
             key=_token_at(columns, columns.write_key_id[index]),
             op=_token_at(columns, columns.write_op_id[index]),
         )
@@ -550,7 +609,7 @@ def _parse_file_to_columns(task: tuple[int, str]) -> _ParsedFileOutcome:
     occurrences: List[Txn] = []
     issues = ParseIssues()
     try:
-        _parse_file(path, local_txns, issues, occurrences)
+        schema = _parse_file(path, local_txns, issues, occurrences)
     except (ParseError, OSError) as error:
         return _ParsedFileFailure(
             path_index, path, os.getpid(), error, error.__cause__,
@@ -558,14 +617,19 @@ def _parse_file_to_columns(task: tuple[int, str]) -> _ParsedFileOutcome:
 
     token_blob = bytearray()
     token_offsets = array("Q", [0])
-    token_ids: Dict[str, int] = {}
+    token_ids = {}
+    token_table = array("b")
+    txn_tx_type = array("b")
 
-    def intern(token: str) -> int:
-        token_id = token_ids.get(token)
+    def intern(token: str, table: int = -1) -> int:
+        identity = (table, token) if schema == 3 and table >= 0 else token
+        token_id = token_ids.get(identity)
         if token_id is not None:
             return token_id
         token_id = len(token_ids)
-        token_ids[token] = token_id
+        token_ids[identity] = token_id
+        if schema == 3:
+            token_table.append(table)
         token_blob.extend(token.encode("ascii"))
         token_offsets.append(len(token_blob))
         return token_id
@@ -583,26 +647,29 @@ def _parse_file_to_columns(task: tuple[int, str]) -> _ParsedFileOutcome:
     write_op_id = array("I")
     try:
         for txn in occurrences:
+            if schema == 3:
+                txn_tx_type.append(txn.tx_type)
             txn_txid.append(txn.txid)
             txn_thid.append(txn.thid)
             txn_commit_epoch.append(txn.commit[0])
             txn_commit_tid.append(txn.commit[1])
             for read in txn.reads:
-                read_key_id.append(intern(read.key))
+                read_key_id.append(intern(read.key, read.table if schema == 3 else -1))
                 read_ver_epoch.append(read.ver[0])
                 read_ver_tid.append(read.ver[1])
             txn_read_offsets.append(len(read_key_id))
             for write in txn.writes:
-                write_key_id.append(intern(write.key))
+                write_key_id.append(intern(write.key, write.table if schema == 3 else -1))
                 write_op_id.append(intern(write.op))
             txn_write_offsets.append(len(write_key_id))
     except OverflowError:
-        return _ParsedFileNeedsLegacy(path_index, path, os.getpid())
+        return _ParsedFileNeedsLegacy(path_index, path, os.getpid(), schema)
 
     return _ParsedFileColumns(
         path_index=path_index,
         path=path,
         worker_pid=os.getpid(),
+        schema=schema, token_table=token_table, txn_tx_type=txn_tx_type,
         token_blob=bytes(token_blob),
         token_offsets=token_offsets,
         txn_txid=txn_txid,
@@ -788,8 +855,8 @@ def _merge_issues_and_winners(
 def _finish_legacy_parse(paths: Sequence[str]) -> _LegacyTrace:
     txns: Dict[int, Txn] = {}
     issues = ParseIssues()
-    for path in paths:
-        _parse_file(path, txns, issues)
+    schemas = [(path, _parse_file(path, txns, issues)) for path in paths]
+    _check_file_schemas(schemas)
     ordered_txids = sorted(txns)
     if ordered_txids:
         expected = ordered_txids[-1] + 1
@@ -827,6 +894,7 @@ def _parse_trace_dir_compact(
     for outcome in outcomes:
         if isinstance(outcome, _ParsedFileFailure):
             _raise_parent_file_error(outcome)
+    _check_file_schemas([(outcome.path, outcome.schema) for outcome in outcomes])
     if any(isinstance(outcome, _ParsedFileNeedsLegacy) for outcome in outcomes):
         return _finish_legacy_parse(paths)
     columns = [
