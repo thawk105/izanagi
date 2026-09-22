@@ -5774,6 +5774,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F112 (未 land テストの範囲が曖昧) と同型で、**scope 記述の曖昧さが fix 1 巡を空振りさせる**
   独立 2 例目。`DW-S06-B` へ「scope 除外は file でなく禁じる挙動で書く」を入れたいが
   予算に空きがなく、[T-661] と同じ裁定へ束ねる。
+
+- **再発: 2026-09-22** — 段 6 fix 6 巡目の fix 子が、同じ wave の fix 1 巡目で新設した test の期待 2 点 (build 数・両出口で同じ patch) を「既存テストの期待値」と読んで追随せずに残し、追随だけの fix 1 巡 (6b) を足した。prompt は「本 wave 以前からある entry・期待値を変えない」と書いていたが、同じ prompt の太字の「既存テストの期待値を変更しない」が優先された。
 ### F113. 変異事前登録に「赤くはなるが受理集合は変わらない」偽 kill を登録しかけた [恒真ゲート]
 
 - 事象: 段 4 で登録した共有層変異 (M5) の期待 node が
@@ -6540,6 +6542,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同じ commit に置く (本 wave では `test_scheduler_evidence_accepts_nqsv_accounting_format` と
   拒否 8 種)。逐語 pin の無い外部書式述語をレビューの must-fix 対象にする。
 
+
+- **再発: 2026-09-22** — silo-function-policy 軸の診断 driver (`orchestrator/campaign/silo_policy_coverage.py`) を計算ノードで走らせると、実走のたびに実機の前提の欠陥が 1 件ずつ出た。(1) 依存物を一度も build しないまま condition gate を掛け、masstree の `config.h` (build 時生成) が無く owner TU の前処理が失敗、(2) silo の `transaction.cc` が WORKLOADS 4 実行体へ compile されて `compile_commands.json` の行が 4 本あり、owner 行の 1 本前提で停止。いずれも既存 driver (`s3_lock_coverage.py`・`s3_mocc_lock_coverage.py`) は踏まない形で、机上レビュー 2 本も見落とした。4 巡目の fix で「全 case の外部との交点を既存 driver と CCBench に照合した表」を実装子に作らせてから、残る実行時の欠陥が出なくなった。記録 = `output/insights/2026-09-22/t2857-silo-policy-stage-c/README.md` §4。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -9309,6 +9313,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異が SURVIVED になったとき、まず「変異位置に到達したか」を疑う。
   到達していなければ等価変異ではなく登録の誤りである。
 
+
+- **再発: 2026-09-22** — silo-function-policy 軸の上限出口の prefix unlock 変異を、事前登録どおり `maxwait` (lock 競合で 50 µs 待って retry) で走らせたところ、legacy workload では上限出口にほぼ届かず、変異ありでも certified になった (55 check 中この 1 件だけ偽)。同じ workload で `retry` (待機 0) の probe 走は上限 abort 125,445 回に到達していた。方策を `retry` に替え、同構成の probe 走で prefix を保持したままの上限到達 > 0 を判定に要求して閉じた (D2226 項 4)。
 ### F248. 生きた台帳の件数を literal 固定した検査が、承認済みの追加で受入を止めた [恒真ゲート] [誤前提]
 
 - 事象: ユーザー裁定で `KNOWN_PROVENANCE_VIOLATIONS` へ entry を 1 件足したところ、
