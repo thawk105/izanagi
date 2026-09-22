@@ -1,0 +1,1022 @@
+[
+  {
+    "file": "empty_state.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "u32_max.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "u64_from_u.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "u64_max.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "hex.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "binary.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "octal.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "division_widens.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "shift31.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "shift63.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "narrow.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "bool_cast.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state16.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state17.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.state"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.state"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state_missing.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.state"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.state"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state_duplicate.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.state"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.state"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "state_uninitialized.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.state"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.state"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state_wrong_literal.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.state"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.state"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "constants.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "constant_call.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.constant"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.constant"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "constant_enum.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.constant"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.constant"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "initialized_update.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "self_init.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "init.self"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "init.self"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "self_nested.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "init.self"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "init.self"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "self_helper.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "init.self"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "init.self"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "alternative_bitand.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.alternative-token"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.alternative-token"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "alternative_and.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.alternative-token"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.alternative-token"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "bool_arithmetic.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.numeric"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.numeric"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "bool_complement.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.numeric"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.numeric"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "bool_return.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.conversion"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.conversion"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "final_if.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "return.final"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "return.final"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "final_block.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "return.final"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "return.final"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "subexpression_assignment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.statement"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.statement"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "variable_divisor.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "variable_modulo.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "division_zero.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "shift32.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "shift64.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "shift_variable.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "rhs.literal"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "rhs.literal"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "branch_mismatch.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.branch"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.branch"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "min_template.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.minmax"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.minmax"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "min_mixed.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "type.minmax"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "type.minmax"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "minmax.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "fallthrough.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "switch.closed"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "switch.closed"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "switch_closed.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "case_declaration.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "switch.closed"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "switch.closed"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "ull.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.literal-suffix"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.literal-suffix"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "unsuffixed.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.literal-suffix"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.literal-suffix"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "suffix_l.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.literal-suffix"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.literal-suffix"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "overflow_literal.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.integer-range"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.integer-range"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "global_qualifier.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.global-qualifier"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.global-qualifier"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "functional_cast.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "time_macro.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.reserved-identifier"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.reserved-identifier"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "counter_macro.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.reserved-identifier"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.reserved-identifier"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "static_local.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.storage"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.storage"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "thread_local.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.storage"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.storage"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "template.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.function"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.function"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "operator.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.name"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.name"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "array.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.forbidden"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.forbidden"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "digraph_open.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.digraph"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.digraph"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "digraph_close.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.digraph"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "lex.digraph"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "digraph_directive.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "lex.digraph"
+    },
+    "first_rejection": {
+      "stage": "diff-quarantine",
+      "rule_id": "content-directive"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "finite_loop.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "stmt.forbidden"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "stmt.forbidden"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "finite_for.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "stmt.forbidden"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "stmt.forbidden"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "recursion.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "call.dag"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "call.dag"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "increment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "stmt.forbidden"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "stmt.forbidden"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "comma.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.statement"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.statement"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "comma_plain.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "stmt.forbidden"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "stmt.forbidden"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "const_assignment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.target"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.target"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "parameter_assignment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.target"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.target"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "state_assignment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.target"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.target"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "context_assignment.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "assignment.target"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "assignment.target"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_masstrees.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_flags.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_macro.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_trace.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_rdtscp.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "external_global.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "name.resolve"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "name.resolve"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "missing_noexcept.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.function"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.function"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "signature_return.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.function"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.function"
+    },
+    "compile_accepted": false
+  },
+  {
+    "file": "missing_hook.cpp",
+    "grammar": {
+      "accepted": false,
+      "rule_id": "decl.function"
+    },
+    "first_rejection": {
+      "stage": "grammar",
+      "rule_id": "decl.function"
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "response_state.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "all_operators.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "enum_switch.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  },
+  {
+    "file": "void_helper.cpp",
+    "grammar": {
+      "accepted": true,
+      "rule_id": null
+    },
+    "first_rejection": {
+      "stage": null,
+      "rule_id": null
+    },
+    "compile_accepted": true
+  }
+]
