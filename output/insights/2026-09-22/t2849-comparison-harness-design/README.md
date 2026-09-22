@@ -2,9 +2,9 @@
 
 - 位置づけ: 設計文書。採用判断の正本は同じ wave の decisions fragment。可変状態の正本 (worklog 末尾・`docs/phase3.md`) にはしない。
 - 作成: 2026-09-22、dev-wave `worktree-dev-wave-t2849-comparison-harness-design` (基準 local main `8fd2a2f5c`、開始 gate rc 0 は 08:54 JST)。実装・build・計算投入はしていない。実装は後続 wave で Codex author が行う。
-- 根拠のユーザー裁定: D2212 (VLDB 方針。項 4 = 1 タスクの job 合計が 2 node 時間以上なら投入前に確認)、/rulings 第 31 回 (2026-09-22) 項 1 (開発の検査も同じ線で数える)・項 6 (H100 の open-weight LLM は今は採らない)・項 8 ([T-2858] の ccbench branch の push は人間手番)。
+- 根拠のユーザー裁定: D2212 (VLDB 方針。項 4 = 1 タスクの job 合計が 2 node 時間以上なら投入前に確認)、/rulings 第 31 回 (2026-09-22) 項 1 (開発の検査も同じ線で数える)・項 6 (H100 の open-weight LLM は今は採らない)・項 8 ([T-2858] の ccbench branch の push は人間手番)。第 31 回の控えは repo 外の `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-09-22-rulings-full31-verdicts.md` (親が原本を読んだ)。
 - 一次資料: `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §4 P2。依頼の逐語は `verbatim/request.md`。
-- 段の記録: 段 1 brief・骨子・事実表 (`verbatim/s1-*.md`)、段 3 の Codex 相談 2 本 (`verbatim/s3-consult-A.md` / `s3-consult-B.md`)、段 4 裁定 (`verbatim/s4-ruling.md`)。本文は段 4 で訂正した後の設計で、骨子と食い違う箇所は本文が正しい。
+- 段の記録: 段 1 brief・骨子・事実表 (`verbatim/s1-*.md`)、段 3 の Codex 相談 2 本 (`verbatim/s3-consult-A.md` / `s3-consult-B.md`)、段 4 裁定 (`verbatim/s4-ruling.md`)、段 6 のレビューと裁定 (`verbatim/s6-review.md` / `s6-ruling.md`)。本文は段 4・段 6 で訂正した後の設計で、骨子・事実表と食い違う箇所は本文が正しい。
 - **性質の断り:** すべて静的調査 (ソースと文書を読む・grep・login での import 確認) による設計である。「案」と書いた値は凍結前の提案で、較正済み・実装済み・実証済みを意味しない。file:line は基準 commit の worktree で確かめた。
 
 ## 0. 要約
@@ -12,8 +12,8 @@
 1. **共通化するのは 4 つの契約だけ。** 候補の identity、評価の要求 (経路)、結果の分類、費用の計上。候補を運ぶ入口 (proposal 文書・IR JSON) は空間ごとに別で、「全候補が文字通り同じ役割経路を通る」とは書かない (§2)。
 2. **具体化するのは S1 (silo の backoff 値 1..1000 µs) だけ。** 現に口が実在するのは S1 だけである。S2 (MOCC の backoff 値) は [T-2858] の pin 前進後に差し込む口、S3 (D2214 の policy IR) は差し込むときの条件だけを書く (§9・§10)。汎用 runner・汎用台帳・S3 の表現設計は作らない。
 3. **S1 の 5 手法。** random = B-5 の log-uniform、sweep = B-5 の 28 点格子 (hash 順、非適応。1 次元では座標探索が格子の走査順に退化する)、BO = 逐次 GP-EI、進化 = (1+1) 変異、LLM = K0 (外部の実験知識の射影なし) の planner・coder・critic 親運用 (§3)。
-4. **BO と進化は「再実装」と名乗る。** repo に実装は無く (検索範囲は §6.1)、login の python3 で使える外部 package は numpy だけ。S1 は小さいので標準ライブラリで足りる。EGO (Jones ら 1998) と、Polyjuice (OSDI 2021) の整数変異規則を下敷きにし、変えた点を書く (§6)。
-5. **揃え方。** 全 arm が読める共通入力と、各手法が実際に消費する field を分ける。主構成 R0 では、生成器へ渡すのは系列開始 stock と空間内の初期点の観測だけ。`p2_2_flag_opt` (BACK_OFF=0、空間の外) は同じ block・同じ条件で測る報告用の対照で、値を生成器へ渡さない。渡す構成は R1「既知結果を条件とする探索」として別に名乗る (§4)。
+4. **BO と進化は「再実装」と名乗る。** 指定した語と範囲の検索では repo に実装が見つからず (§6.1)、login の python3 で import を確かめた package のうち使えたのは numpy だけだった。S1 は小さいので標準ライブラリで足りる。EGO (Jones ら 1998) と、Polyjuice (OSDI 2021) の整数変異規則を下敷きにし、変えた点を書く (§6)。
+5. **揃え方。** 全 arm が読める共通入力と、各手法が実際に消費する field を分ける。主構成 R0 では、自系列の探索履歴に加えて生成器へ渡す初期情報は、系列開始 stock と空間内の初期点の観測だけ。`p2_2_flag_opt` (BACK_OFF=0、空間の外) は同じ block・同じ条件で測る報告用の対照で、値を生成器へ渡さない。渡す構成は R1「既知結果を条件とする探索」として別に名乗る (§4)。
 6. **初期点。** S1 は静的 5 µs・10 µs の 2 点 (案)。系列ごとに fresh に測り、最初の提案の前に全 arm へ渡す。総評価数は k + B で、初期点の費用も時間軸に入れる。初期点は endpoint の候補に含め、探索で初期点を超えたかを別に報告する (§4.5)。
 7. **費用。** A = 候補提出機会 (空出力・不正出力を含む)、B = pipeline 投入。重複 (複製候補) は A・B を消費して fresh に測る。Tier0 の compile / smoke 不通過は A だけを消費し、pipeline 内の build 失敗と anomaly は B を消費する。物理費用は job ごとの Elapse を 1 回、slot の wall を内訳にし、LLM の役割呼び出し・親の待ち・人間の介入を別欄にする。時間原点・打切り・統計単位の意味は本書で固定し、値は [T-2850] の事前登録へ残す (§5)。
 8. **B-5 の再利用。** 規則 (A/B・retry・品質欠測・endpoint・fallback・Tier0・walltime) は継承し、S1 で呼べる関数は呼び、B-5 固有の結合 (arm 3 固定・slot 接頭辞・K2 必須・系列番号 1..12) は変える。B-5 の cohort・判定規則・標本は使わず混ぜない (§7)。
@@ -41,7 +41,7 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 主張しないこと:
 
 - LLM の必要性 (「LLM でなければ到達できない」)。非 LLM 生成器一般に対する優越 (D1067)。
-- 有限空間 (S1・S2) の結果を、コード合成一般へ広げること (差分分析 §4 P2 の注意)。S3 の比較 B (LLM×C++ による空間拡張、D2214 §5) と、同じ空間内の探索法比較 (比較 A) を混ぜること。
+- 有限空間 (S1・S2) の結果を、コード合成一般へ広げること (差分分析 §4 P2 の注意)。S3 の比較 B (LLM×C++ による空間拡張、D2214 の insight §5) と、同じ空間内の探索法比較 (比較 A) を混ぜること。
 - LLM 単体・critic・知識・情報の使い方それぞれの因果効果。各手法は「どの観測を使うか」まで含めて定義した構成であり、差をその 1 要素へ帰属しない。
 - K0 を「事前学習知識なし」と読むこと。K0 は外部の実験知識の射影を入れないという意味である。
 - 評価数を揃えた優越を、時間・費用を揃えた優越と読むこと (逆も同じ)。
@@ -57,7 +57,7 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 
 ### 2.2 候補の identity
 
-候補は protocol・genome flags・CCBench の PIN・材料化した全 source の内容で決まる (D2214 §5 と同じ定義、`orchestrator/campaign/source_digest.py`)。S1 では genome と PIN を固定するので、実質は hole literal の整数 v で決まる。同じ本文でも flags や PIN が違えば別候補である。
+候補は protocol・genome flags・CCBench の PIN・材料化した全 source の内容で決まる (D2214 項 7、その設計 insight `output/insights/2026-09-21/silo-function-synthesis-space/README.md` §5 と同じ定義、`orchestrator/campaign/source_digest.py`。以下「D2214 の insight §x」はこの insight の節番号で、D2214 の項番号とは別)。S1 では genome と PIN を固定するので、実質は hole literal の整数 v で決まる。同じ本文でも flags や PIN が違えば別候補である。
 
 ### 2.3 評価の要求
 
@@ -79,7 +79,7 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 
 - S1: 既存の閉じた proposal 文書 (`planner` / `coder` / `prior_critic_reverse`、`p3_s4_loop.py` の `load_proposal_file` と `projection_guard.assert_closed_proposal_schema`)。機械生成の 4 手法は B-5 の `machine_proposal_document` (`b5_generator_contrast.py:139-153`) と同形の文書を作り、`--machine-generated-proposal` を付ける。由来は proposal に入れず、台帳の arm と build admission の分類 (`build_admission.py:92-104` の `MACHINE_GENERATED` / `CODER_AUTHORED`) で残る。
 - K0 の LLM は機械生成の印を付けず、knowledge manifest なしで `--allow-coder-derived-build` の既存経路を使う (`p3_s4_loop.py:3675-3682`。知識 source が非空のときだけ K2 の coder role を要求する :3731-3741)。
-- S3: planner を外し、IR JSON (LLM×IR と非 LLM) と C++ 本文 (LLM×C++) を兄弟 driver で受ける (D2214 §4)。S1 の proposal 文書へ統一しない。
+- S3: planner を外し、IR JSON (LLM×IR と非 LLM) と C++ 本文 (LLM×C++) を兄弟 driver で受ける (D2214 項 8、D2214 の insight §4)。S1 の proposal 文書へ統一しない。
 
 ### 2.7 今のコードで外す必要のある結合 (実装単位は §11)
 
@@ -88,7 +88,8 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 - `slot_key` は ARMS・予算定数・PREREG_VERSION に、random / sweep の生成は系列 1..12・A ≤ 30 に拘束される (:105-168)。
 - loop の genome は silo 固定である (`p3_s4_loop.py:2314`・`:2465`・`:3160`、`b5_generator_contrast.py:588`)。S2 で効く。
 - D2155 の critic 診断の射影は K2・非 B-4・還流ありに限る。K0 の LLM に同じ還流を渡すには適用範囲を広げる必要がある (射影の中身と 6 field は変えない)。
-- B-5 の whiteboard は探索評価の event だけから作られ (`expected_inputs`、:451-477)、初期点を運ぶ場所が無い。
+- B-5 の whiteboard は pipeline へ投入した評価の event (`evaluation-result`) だけから作られ、iteration が B の番号と連続することを継承照合が要求する (`expected_inputs`、:451-477)。result は certified なら success、それ以外は fail で (:796-800)、投入前の拒否 (Tier0 など) は `proposal-rejected` event に残るだけで whiteboard に入らない (:806-807)。whiteboard の値域は result ∈ {success, fail, rejected} など閉じている (`p3_s4_loop.py:1418-1424`)。初期点を運ぶ場所は無い。
+- 今の stock 経路と候補経路は BACK_OFF=1 に固定され (`p3_s4_loop.py:2314`・`:2465-2466`)、任意の参照 genome (BACK_OFF=0 の `p2_2_flag_opt`) を共通の検証・計測へ渡す入口が無い。
 
 ## 3. S1 での 5 手法の操作的定義
 
@@ -98,8 +99,8 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 |---|---|---|---|
 | random | S1 全体 (全点に正の確率) | なし (open loop) | B-5 §4.2 の離散 log-uniform (整数重み `floor(2^128 × ln((v+1)/v))`) を、名前空間だけ変えて使う |
 | sweep | B-5 の 28 点格子から初期点の値を除いた 26 点 | なし (open loop) | 格子を preimage の SHA-256 昇順に並べ、先頭から B 点を評価する。候補起因の不通過なら次点、格子が尽きたら枯渇として記録 (B-5 §4.3)。初期点の除外は実行前に決まる構成規則 |
-| BO | S1 全体 | 自系列の certified・品質正常の (v, fitness) と、候補起因で失敗した v の集合 | 逐次 GP-EI (§3.2) |
-| 進化 | S1 全体 | BO と同じ | (1+1) 変異 (§3.3) |
+| BO | S1 全体 (獲得関数が全 1000 点を採点する) | 自系列の certified・品質正常の (v, fitness) と、候補起因で失敗した v の集合 (投入前の Tier0 不通過を含む) | 逐次 GP-EI (§3.2) |
+| 進化 | 許容領域は S1 全体。各提案は親の近傍 (ln v_親 ± λ) に限られ、全域への到達は保証しない (親が一度も改善しなければ、親 10 µs・λ = ln 4 で丸め前 2.5〜40 µs に留まる) | 自系列の certified・品質正常の (v, fitness) だけ (失敗点は使わない) | (1+1) 変異 (§3.3) |
 | LLM (K0) | 保証しない (S1 の全点へ到達しうるとは証明しない) | whiteboard の 5 field、current_perf、critic 診断、初期点の射影 (§4.1) | B-5 §4.1 の運用契約から knowledge manifest を除いた構成 (§3.4) |
 
 ### 3.1 sweep の名前について
@@ -120,12 +121,13 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 - 親 = 自系列の certified・品質正常の点 (初期点を含む) のうち fitness 最大の点 (同点は v の小さい方、次に slot の早い方)。
 - 子: ln v' = ln v_親 + δ、δ は [−λ, λ] の一様乱数 (preimage から決定的に引く)。v' を整数へ丸めて 1..1000 に切り詰め、v' が親と同じなら δ の符号の向きへ ±1 動かす (境界では内側へ)。λ は案として ln 4。
 - 子が certified・品質正常で、fitness が親より真に大きければ親を置き換える。同値・失敗なら親を保つ。親の fitness は 1 session の値で、測り直さない (雑音に弱いことは定義の一部として開示する)。
+- 失敗点の除外集合は持たない。既に失敗した v を子として再び引いても引き直さず、そのまま提出して共通の規則 (§5) で A / B を消費する。局所探索なので、結果は「親の近傍を動く探索」として報告し、全域探索とは呼ばない。
 - 親が無いときは BO と同じ fallback。
 
 ### 3.4 LLM (K0) — 主比較の構成
 
 - B-5 §4.1 の運用契約 (系列ごとに fresh context、評価ごとに `p3_s4_loop` の単回評価を fresh layout で呼ぶ、親は機械的な射影だけを行い性能を見た助言・候補の修正・再抽選をしない、各役割の実入力と出力を全件保存) を継承する。
-- K2 構成との差を knowledge manifest の有無 1 点にするため、役割構成 (planner-v4・coder-v4-autonomous・critic、還流あり) は同じにする。critic 診断の射影 (D2155) を K0 に広げる実装が要る (§2.7)。
+- 役割の並びと還流 (planner-v4・coder・critic、還流あり) は B-5 の K2 構成と揃える。ただし coder の role と proposal の契約は K2 版 (`coder-v4-autonomous-k2`、K2 専用の閉じた schema) と通常版 (`coder-v4-autonomous`、通常の schema、`p3_s4_loop.py:2976-2995`) で違うので、K0 と K2 の差は知識射影だけではない。知識だけの差を主張するなら、役割の入出力の差を別に固定する必要がある (本書はしない)。critic 診断の射影 (D2155) を K0 に広げる実装が要る (§2.7)。
 - B-5 の LLM arm (K2 知識つき) は B-5 cohort の構成のまま残す。本基盤で K2 を走らせるなら「K2 構成」と呼び分け、5 手法の主比較には入れない。
 - 1 系列に親 session 1 本、同時に走る LLM 系列は親の本数以下、1 機会の待ち上限 2,700 秒 (D2216 の運用を継承)。
 
@@ -140,19 +142,21 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 - anomaly のときの verifier の構造化 digest (どの取引間のどの依存か、規律 3)。
 - slot の開始・終了・結果が使えるようになった時刻。
 
-各手法が消費する field は §3 の表のとおりで、手法の定義の一部である。非 LLM の 3 手法が leading indicators や anomaly の digest を使わないのは定義上の選択で、結果はその定義を含む構成の比較として読む (§1.3)。
+各手法が消費する field は §3 の表のとおりで、手法の定義の一部である。非 LLM の 4 手法 (random・sweep・BO・進化) が leading indicators や anomaly の digest を使わないのは定義上の選択で、結果はその定義を含む構成の比較として読む (§1.3)。
 
 既存の記録から入力への対応 (新しい producer は作らない):
 
 | 入力 | 既存の出所 | 変える点 |
 |---|---|---|
 | BO / 進化の (v, fitness) | 台帳の `evaluation-result` event の `fitness_tps`・`outcome`・`quality` (`b5_generator_contrast.py:69-73`) | 初期点の event を同じ形で足す |
-| LLM の whiteboard 5 field | `expected_inputs` (:451-477) | 初期点を、手法の出力でないと区別できる閉じた値で前置きする |
+| BO の失敗 v の集合 | `evaluation-result` (build 失敗・anomaly) と `proposal-rejected` (Tier0 不通過など、:806-807) | 両 event から候補起因の失敗だけを集める |
+| LLM の whiteboard 5 field | `expected_inputs` (:451-477) と `proposal-rejected` | 5 field と値域 (`p3_s4_loop.py:1418-1424`) は変えない。iteration を提出機会 a の順にし、certified・品質正常 → success、投入後の失敗 (build 失敗・anomaly・品質欠測・機械欠測、B を消費) → fail、投入前の拒否 (schema・文法・検疫・Tier0、A だけ) → rejected と写す。継承照合は「iteration == b の連続」から「a の連続」へ変わる |
+| LLM への初期点 | (無い) | whiteboard に入れず (planner の方向を持たないため)、planner / coder の入力に閉じた兄弟 key を 1 つ足し、初期点ごとの v・結果分類・fitness (certified・品質正常のときだけ) の 3 つを渡す |
 | LLM の current_perf | `expected_inputs` の「最新の certified・品質正常」 (stock-start を含む) | 初期点も候補に入る。規則 (最新であって最良でない) は B-5 と同じ |
 | LLM の critic 診断 | D2155 の射影 | K0 へ適用範囲を広げる。診断の材料は自系列の記録だけ |
 | (どの手法にも渡さない) | Tier0 のスモークの数値 (D2215)、block stock、endpoint 再計測、参照点の測定値 (R0) | — |
 
-拒否されたときの tell: Tier0 不通過・build 失敗・anomaly・品質欠測・機械故障の上限超えは、fitness なしの結果として自系列の履歴へ入る。BO / 進化は §3.2 の規則で扱い、LLM は whiteboard の result に分類が載る。最後の正常値を補って代入しない。
+拒否されたときの tell: 投入前の拒否 (Tier0 不通過など)・build 失敗・anomaly・品質欠測・機械故障の上限超えは、fitness なしの結果として自系列の履歴へ入る。BO は §3.2、進化は §3.3 の規則で扱い、LLM は上の whiteboard の写し方で result に載る。最後の正常値を補って代入しない。
 
 ### 4.2 読取範囲と例外入力
 
@@ -162,32 +166,38 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 
 ### 4.3 stock
 
-- 系列開始 stock: 各系列の最初に、同じ機体・同じ job で stock (同じ flags で BACKOFF_FIXED = −1、適応 backoff) を 1 session 測る (B-5 §5.4)。LLM の current_perf の初期値に使う。全 arm に同じ値が届くが、非 LLM の 3 手法は消費しない。探索予算 B に入れない。
+- 系列開始 stock: 各系列の最初に、同じ機体・同じ job で stock (同じ flags で BACKOFF_FIXED = −1、適応 backoff) を 1 session 測る (B-5 §5.4)。LLM の current_perf の初期値に使う。全 arm に同じ値が届くが、非 LLM の 4 手法は消費しない。探索予算 B に入れない。
 - block stock: workload × block ごとに 5 session 測り、endpoint の fallback と floor に使う (B-5 §5.4・§6・§7.2)。生成器へは渡さない。
 - stock は無 backoff (BACK_OFF=0) ではない。
 
 ### 4.4 既知最良 `p2_2_flag_opt` と情報構成
 
-- `p2_2_flag_opt` は flags = BACK_OFF=0 / NO_WAIT_LOCKING_IN_VALIDATION=1 / NO_WAIT_OF_TICTOC=0 / WAL=0 (balanced・write-heavy、label B0-L-W0)、read-heavy は B0-T-W0 (`output/s1-freeze/known_axes_freeze.json:90-99`・`:544`)。S1 の外にある。
-- 測り方: exact flags のまま、block ごとに比較と同じ動作点・同じ session 契約・同じ correctness の条件で fresh に測る。旧い性能値 (S-1a の記録など) を新しい条件の性能値として代入しない。
+- `p2_2_flag_opt` は、balanced・write-heavy が BACK_OFF=0 / NO_WAIT_LOCKING_IN_VALIDATION=1 / NO_WAIT_OF_TICTOC=0 / WAL=0 (label B0-L-W0、`output/s1-freeze/known_axes_freeze.json:90-99`)、read-heavy が BACK_OFF=0 / NO_WAIT_LOCKING_IN_VALIDATION=0 / NO_WAIT_OF_TICTOC=1 / WAL=0 (label B0-T-W0、:542-549)。S1 の外にある。
+- 測り方: exact flags のまま、block ごとに比較と同じ動作点・同じ session 契約・同じ correctness の条件で fresh に測る。旧い性能値 (S-1a の記録など) を新しい条件の性能値として代入しない。今の stock / 候補の経路は BACK_OFF=1 固定なので (§2.7)、参照 genome を同じ検証・計測へ渡す入口を実装する (§11 の単位 5)。適応 backoff の stock を既知最良の代わりにしない。
 - **主構成 R0:** その値を生成器へ渡さない。endpoint の報告 (stock 比と `p2_2_flag_opt` 比の両方) にだけ使う。空間外の参照値を使えるのは LLM だけなので、渡すと LLM だけに情報が増え、差が情報の差か探索の差か分からなくなるためである。
 - **別構成 R1:** 参照値を全 arm の共通入力に入れる。「既知結果を条件とする探索」と名乗り、R0 と同じ族で比べない。
 - 目標水準に達したら止める運用は、R0 / R1 のどちらでも採らない (性能を理由とする早期停止をしない、B-5 §3)。
 
 ### 4.5 初期点
 
-- S1 の初期点は静的 5 µs と 10 µs の 2 点 (案、k = 2)。D2214 §5 の新骨格内 seed の静的 5 / 10 µs と同じ値で、既知の結果を見て選んだ (§8)。
+- S1 の初期点は静的 5 µs と 10 µs の 2 点 (案、k = 2)。D2214 の insight §5 の新骨格内 seed の静的 5 / 10 µs と同じ値で、既知の結果を見て選んだ (§8)。
 - 各系列で fresh に測る (系列間で測定値を共有しない。共有すると系列が独立でなくなる)。順序は固定 (5 → 10)。最初の ask の前に、全 arm に同じ観測として渡す。
 - 費用: 初期点は探索予算 B の外に置き、総評価数は k + B と書く。初期点の費用は時間・費用の軸から除かない。
 - endpoint の資格: 初期点も endpoint の候補に含める (含めないと、初期点より劣る探索点が endpoint になりうる)。報告では、endpoint が初期点か探索点か、探索点の最良が初期点の最良を超えたかを系列ごとに別に数える。
 - 初期点が不成立 (anomaly・失敗・品質欠測) でも差し替えない。その系列の履歴にそのまま残る。
-- S1 では静的 5 / 10 µs を「元の適用方法」(BACKOFF_FIXED の macro 経路) で別に測る必要はない。macro 経路の同じ値は意味が同じでも source が違うので別 identity になり、S1 の比較には要らない (D2214 §5 の exact reference は S3 の新骨格で意味を持つ)。
+- S1 では静的 5 / 10 µs を「元の適用方法」(BACKOFF_FIXED の macro 経路) で別に測る必要はない。macro 経路の同じ値は意味が同じでも source が違うので別 identity になり、S1 の比較には要らない (D2214 の insight §5 の exact reference は S3 の新骨格で意味を持つ)。
 
 ### 4.6 anomaly の波及と endpoint
 
 - 生成器への tell は自系列だけである。
 - endpoint の資格は集約側で決める。値 v について workload w で anomaly が 1 件でも観測されたら (探索・初期点・再計測のどこでも、どの系列・arm でも)、v は w の全系列で endpoint の資格を失う (B-5 §6)。この判定は生成器へ還流しない。
-- endpoint は、自系列の初期点と探索点のうち資格のある certified・品質正常の点で session median が最大のもの (同値は v の昇順、次に slot の昇順)。N_eval 個の fresh session で再計測し、その median を score にする。資格のある点が無ければ block stock の median を score にする (fallback)。再計測で anomaly が出れば採用せず、次点へ選び直さない (B-5 §6)。
+- endpoint は、自系列の初期点と探索点のうち資格のある certified・品質正常の点で session median が最大のもの (同値は v の昇順、次に slot の昇順)。N_eval 個の fresh session で再計測し、その median を score にする。次点へ選び直さない (B-5 §6)。
+- 資格のある点が無い場合と再計測の結果は、B-5 の実装 (`b5_generator_contrast.py:815-836`) と同じ優先で分ける。
+  1. stock (系列開始 stock または block stock) の正しさか測定が成立しない → 当該比較は判定不能。
+  2. endpoint が無く、自系列の初期点・探索に品質欠測か機械欠測が 1 件でもある → score 欠測 (fallback で埋めない)。
+  3. endpoint が無く、失敗がすべて候補起因 (anomaly・Tier0 不通過・build 失敗) → block stock の median を score にする (fallback、候補の不採用)。
+  4. endpoint の再計測で anomaly → 採用せず fallback。
+  5. endpoint の再計測で品質欠測・機械欠測 → score 欠測。
 - 既に score が確定した系列に後から波及した場合は、B-5 §6 と同じく日付付きの「結果の訂正」として扱う。系列単位のコード (`run_series` の自系列内の失格集合、`b5_generator_contrast.py:815-816`) だけでは全系列への波及を実装していないので、集約は本基盤の側で持つ (§11)。
 
 ## 5. 費用の計上単位
@@ -228,7 +238,7 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 - **job Elapse は job ごとに 1 回**数える (scheduler の記録)。同じ job の Elapse を slot ごとに載せない。queue 待ちは別欄。
 - slot の subprocess wall (今の B-5 の記録、`b5_generator_contrast.py:618-645`) は job Elapse の内訳として、Tier0・build・verify・bench・retry に分けて残す。
 - 生成器の計算時間 (BO の獲得、進化・random・sweep の ask) も wall で残す。
-- LLM: 提出機会ごとの役割呼び出しの回数と wall、親の待ち (handshake)。LLM を待つ間も node を確保しているので、その時間は job Elapse に入る (D2214 §6)。
+- LLM: 提出機会ごとの役割呼び出しの回数と wall、親の待ち (handshake)。LLM を待つ間も node を確保しているので、その時間は job Elapse に入る (D2214 の insight §6)。
 - 人間の介入: 定めた運用の外の手作業 (再起動・再投入・手での修復) の回数と内容。
 - token 数は報告された値を残すが、金額に換算しない。サブスクリプションで動いている限り、CLI が示す費用の値は請求額ではない。
 
@@ -289,7 +299,7 @@ B-5 の事前登録と実装 (`b5_generator_contrast.py`、基準 commit の版)
 |---|---|
 | random = log-uniform、sweep = 28 点格子 | B-5 §8 と同じ (B-10 拡張格子の地形、sweet-spot が 0〜10 µs) |
 | BO の x = ln v、進化の log 尺度、λ = ln 4 (案) | 同上 (性能が値の桁で変わること) |
-| 初期点 = 静的 5 / 10 µs | Pegasus の固定 backoff の結果 (無 backoff 比で fixed 10 µs が write-heavy +63.5 %、fixed 5 µs が balanced +14.4 %、n = 5、差分分析 §1)、D2214 §5 の seed |
+| 初期点 = 静的 5 / 10 µs | Pegasus の固定 backoff の結果 (無 backoff 比で fixed 10 µs が write-heavy +63.5 %、fixed 5 µs が balanced +14.4 %、n = 5、差分分析 §1)、D2214 の insight §5 の seed |
 | GP の雑音定数 3 % (案) | 旧環境の between-run floor 3.0 %、B-5 §7.2 の保守下限 |
 | 主構成 R0 (参照値を渡さない) | S-1a で合成した trigger-gating 構成が `p2_2_flag_opt` 比 −9.3 %〜−55.1 % だったこと (差分分析 §1) |
 | S1 = 1..1000 | B-5 §2 の受理集合 |
@@ -304,7 +314,7 @@ B-5 の事前登録と実装 (`b5_generator_contrast.py`、基準 commit の版)
 2. D1603 の材料 3 点 (候補 commit・D297・波及表、`output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md`) を添えて、D2114 項 3 の見送り台帳の経路で pin の再承認を提示し、ユーザーが承認する。
 3. 別 wave が gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` を更新する。
 
-それまで S2 は無効で、比較に入れない。今の pin は gitlink・`pin.CURRENT_PIN`・`s8b_approved.CCBENCH_FULL_SHA` とも e9e477ca で、C はどの driver 定数にも現れない (調査子の報告)。
+それまで S2 は無効で、比較に入れない。今の pin は gitlink (`git submodule status`)・`pin.CURRENT_PIN` (`orchestrator/campaign/pin.py:31`)・`s8b_approved.CCBENCH_FULL_SHA` (:67) とも e9e477ca である。`orchestrator/` と `tools/` の `.py` で C の短縮 SHA `68106660` を含むのは test 1 本 (`orchestrator/tests/test_mocc_xp_pin_candidate.py`) だけで、driver の定数には無い (親が実測)。
 
 ### 9.2 S2 の定義 (差し込み候補)
 
@@ -319,16 +329,16 @@ B-5 の事前登録と実装 (`b5_generator_contrast.py`、基準 commit の版)
 ### 9.3 差し込むときに要るもの
 
 - loop の genome の protocol 化 (silo 固定の 4 箇所、§2.7)。hole の marker 名 `silo-backoff-magnitude` は共有 header の中にあるが名前が silo 固有なので、S2 の記録で取り違えないよう区別する。
-- MOCC の動作点の較正 (calibrator)。MOCC の certified の実績は T-2294 (tuple 200・extime 1 秒・thread 1 / 4、rratio 0・rmw) と、候補 C 上の正例・負例の 6 走の行列 (正例の stock 2 走が certified) だけで、性能規模の実績は無い。
+- MOCC の動作点の較正 (calibrator)。参照した記録 (`patches/README.md` の T-2294 の記載と `output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md`) では、MOCC の certified は T-2294 (tuple 200・extime 1 秒・thread 1 / 4、rratio 0・rmw) と、候補 C 上の正例・負例の 6 走の行列 (正例の stock 2 走が certified) で、性能規模 (1M records・48 threads) の記録は見当たらない。網羅的な不在の確認はしていない。
 - 性能 workload と同じ構成での correctness (新しい pin の X/P の証拠つき) と、MOCC の binary に対する Tier0 のスモーク。
-- 既知最良: MOCC には `p2_2_flag_opt` に当たる実測が無い (MOCC_SPACE = BACK_OFF・TEMPERATURE_RESET_OPT・KEY_SORT の 2^3 = 8 点を消費する driver も無い、調査子の報告)。MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する。8 点を列挙するなら、それは「指定の YCSB・PIN・条件の下での flag 参照最良」で、差し込みの必須前提ではない別の研究として計算確認を取る。
+- 既知最良: `p2_2_flag_opt` に当たる MOCC の実測は、調査子が decisions・worklog・`orchestrator/` を関連語で検索した範囲では見つからなかった。MOCC_SPACE (BACK_OFF・TEMPERATURE_RESET_OPT・KEY_SORT の 2^3 = 8 点、`orchestrator/campaign/genome.py`) の語を含む `orchestrator/` の `.py` は定義元の `genome.py` だけで、消費する driver は無い (親が実測)。MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する。8 点を列挙するなら、それは「指定の YCSB・PIN・条件の下での flag 参照最良」で、差し込みの必須前提ではない別の研究として計算確認を取る。
 - 疎通 ([T-2849] の起票文: 20〜40 候補 × 3 workload、検証だけで約 8〜16 node 時間、準備・build・性能測定は別) は本書では再見積りしない。投入前にユーザー確認が要る (D2212 項 4)。
 
 ## 10. S3 (policy IR) を足すときの条件
 
-S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-space/README.md` が正本で、本基盤へは未接続である (実装コードは識別子の検索で 0 件、調査子の報告)。足すときに満たす条件だけを書く。
+S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-space/README.md` が正本で、本基盤へは未接続である (調査子が 4 つの識別子で `.py`・`.cc`・`.h`・`.patch` を検索した範囲では実装コード 0 件、D2214 自身も「実装・計算投入はしていない」と書く)。足すときに満たす条件だけを書く。
 
-- identity は D2214 §5 (genome flags + 骨格 / PIN + source_digest)。入口は IR JSON と C++ 本文で、S1 の proposal 文書に統一しない (§2.6)。
+- identity は D2214 の insight §5 (genome flags + 骨格 / PIN + source_digest)。入口は IR JSON と C++ 本文で、S1 の proposal 文書に統一しない (§2.6)。
 - **支持集合:** 5 手法の主比較 (比較 A) では、全 arm が同じ支持集合を探索するか、支持集合の制限を含む構成比較と明記するかのどちらかを、結果を見る前に選ぶ。sweep / BO だけが template の部分集合を動く構成を、純粋な探索法の比較とは呼ばない。
 - 座標探索の座標、BO の方式、進化の変異・交叉は S3 の表現が固まった後に決める (§6.4)。
 - LLM×C++ は比較 B で、5 手法の族に入れない。
@@ -342,10 +352,10 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 1. 機械生成の proposal の slot を B-5 の接頭辞から外す (本基盤の名前空間の slot key を受ける。`p3_s4_loop.py:3550`・`:3557-3559`)。
 2. S1 の 5 手法の系列制御: B-5 の `run_series` と同じ手順に、初期点の slot、5 arm、全 arm の A 上限を足した薄い制御。汎用 runner にしない。B-5 の module は並走の [T-2797] が発効束を扱っているので、同じ file を編集せず兄弟 module に置くのを推奨する。台帳は `SeriesLedger` を schema 名だけ変えて使う。
 3. 生成器: BO (§3.2)・進化 (§3.3) を標準ライブラリで。random / sweep は B-5 の関数を名前空間を変えて呼ぶ。固定入力での値の照合試験を持つ。
-4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、初期点の whiteboard 前置き。
-5. endpoint の集約: 全系列への anomaly の波及、初期点を含む資格、`p2_2_flag_opt` の block ごとの測定。
+4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、§4.1 の whiteboard の写し方 (iteration を提出機会の順、投入前の拒否を rejected) と継承照合の変更、初期点を渡す閉じた兄弟 key。
+5. 参照点と endpoint の集約: 明示した参照 genome (`p2_2_flag_opt` の exact flags、BACK_OFF=0) を stock と同じ共通の検証・計測へ渡す入口と block ごとの測定、全系列への anomaly の波及、初期点を含む資格、§4.6 の欠測と fallback の優先。
 6. 費用の field: job ごとの Elapse、生成器の計算時間、LLM の役割呼び出しの回数と wall、人間の介入の記録。
-7. (並列に流すときだけ) node-local の bench lock を B-5 mode の外でも使えるようにする (D2209 は B-5 mode 限定。無いと共有 lock で直列化する、D2214 §6)。
+7. (並列に流すときだけ) node-local の bench lock を B-5 mode の外でも使えるようにする (D2209 は B-5 mode 限定。無いと共有 lock で直列化する、D2214 の insight §6)。
 8. ([T-2858] の pin 前進の後) genome の protocol 化と MOCC の動作点の較正 (§9.3)。
 
 計算: 上の実装に伴う開発の検査 (受入・焦点走・変異) も含め、1 タスクの job 合計が 2 node 時間以上になるなら、見積りを示してユーザー確認後に投入する (D2212 項 4、第 31 回項 1)。見積りは job Elapse の実測単価で出す。
@@ -356,7 +366,8 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 - 段 2: 省略 (docs のみ。親の骨子 `verbatim/s1-skeleton.md` を plan とした)。
 - 段 3 (Codex read-only、reasoning medium): 相談 A (比較の公平性・情報の漏れ・正しさ境界・統計単位、09:20:49〜09:24:07) は must-fix 8 / should 3、相談 B (実効性と過剰・削除・再利用の実在、09:20:54〜09:25:05) は must-fix 7 / should 3。
 - 段 4 (親): 21 件をすべて real と判定し採用した。主な訂正は、(1) S3 の具体設計と汎用 runner・汎用台帳を削り S1 の具体化に絞った (B1)、(2) 共通入力と消費 field を分けた (A2・B4)、(3) 初期点を系列ごとに fresh に測り endpoint 候補に含めた (A3・B8)、(4) A を候補提出機会とし無料の内部計算を狭めた (A4・B7)、(5) 小予算で退化しない逐次 GP-EI と (1+1) にした (B5)、(6) MOCC で macro 値だけを流用すると意味が変わることを patch の式で確かめ、literal の材料化を条件にした (B9)。裁定の全文は `verbatim/s4-ruling.md`。
-- 段 5 (親): 本書を起草。
+- 段 5 (親): 本書と fragment 2 本を起草し、草稿として commit した (`4950bde6d`)。
+- 段 6 (Codex read-only review 1 本、事実の再抽出と設計択一の 2 レンズ、09:38〜09:43:14): NO-GO、must-fix 4 / should 3、段 3 の 21 件は closed 11 / partial 10 / not-closed 0。親は 7 件すべてを real と判定し (refuted 0)、次を直した。(R1) LLM の whiteboard の写し方 (iteration を提出機会の順、投入前の拒否を rejected) と初期点を渡す兄弟 key を定めた。(R2) endpoint が無いときの fallback と品質欠測・機械欠測の優先を B-5 の実装どおりに分けた。(R3) 進化の支持集合を「親の近傍、全域到達を保証しない」に直し、失敗点を使わないと定めた。(R4) `p2_2_flag_opt` を測る参照 genome の入口を実装単位に足し、read-heavy の flags を列挙した。(R5) K0 と K2 の差は coder の契約も含むと直した。(R6) 不在の断定を検索範囲つきに直し、pin と MOCC_SPACE は親が実測した。(R7) D2214 の項番号と insight の節番号を分け、「非 LLM の 3 手法」を 4 手法に直した。裁定の全文は `verbatim/s6-ruling.md`。
 
 ## 13. 検査の記録
 
