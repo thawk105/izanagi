@@ -606,6 +606,150 @@ def test_main_prepares_dependencies_once_before_gates_in_either_case_order():
             assert events.count("gate") == sum(case != "stock" for case in cases)
 
 
+def test_owner_command_selects_ycsb_from_four_targets_and_rejects_ambiguity():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for form in ("output", "command", "arguments", "joined-output"):
+            rows = []
+            for workload in ("tpcc", "ycsb", "bomb", "sbomb"):
+                output = f"cc/silo/CMakeFiles/{workload}_silo.exe.dir/transaction.cc.o"
+                argv = ["c++", "-c", str(root / coverage.axis.SOURCE_REL), "-o", output]
+                row = {"directory": tmp, "file": coverage.axis.SOURCE_REL}
+                if form == "output":
+                    row.update(output=output, arguments=argv)
+                elif form == "command":
+                    row["command"] = coverage.shlex.join(argv)
+                else:
+                    row["arguments"] = argv if form == "arguments" else argv[:-2] + ["-o" + output]
+                rows.append(row)
+            database = root / "compile_commands.json"
+            database.write_text(json.dumps(rows))
+            assert coverage._owner_command(root, root) == rows[1]
+            for invalid in (rows[:1] + rows[2:], rows + [rows[1]]):
+                database.write_text(json.dumps(invalid))
+                try:
+                    coverage._owner_command(root, root)
+                except RuntimeError as exc:
+                    assert "not unique" in str(exc)
+                else:
+                    raise AssertionError("missing or ambiguous YCSB owner accepted")
+
+
+def test_preprocess_strips_output_and_dependency_forms_and_replaces_defines():
+    for attached in (False, True):
+        outputs = (["-oowner.o", "-MFowner.d", "-MTowner", "-MQowner"] if attached else
+                   ["-o", "owner.o", "-MF", "owner.d", "-MT", "owner", "-MQ", "owner"])
+        row = {"directory": "/tmp", "arguments": ["c++", "-DBACK_OFF=1", "-D", "TRACE=0",
+               "-DKEEP=1", "-c", "-MD", "-MMD", "-MP", *outputs, "owner.cc"]}
+        with patch.object(coverage.compute, "_run_checked") as run:
+            coverage._preprocess(row, {"BACK_OFF": "2", "TRACE": "1"})
+        assert run.call_args.args[0] == ["c++", "-DKEEP=1", "owner.cc", "-E", "-P",
+                                          "-DBACK_OFF=2", "-DTRACE=1"]
+        assert run.call_args.kwargs == {"cwd": Path("/tmp"), "allowed_returncodes": frozenset({0, 1})}
+
+
+def test_lockskip_evidence_ignores_preprocessor_indentation_but_requires_target():
+    off = "void TxExecutor::lockWriteSet() { max_wset_ = std::max(max_wset_, expected); for (;;) {} }"
+    on = "void TxExecutor::lockWriteSet() { max_wset_ = std::max(max_wset_, expected);\n continue; for (;;) {} }"
+    for enabled, expected in ((on, True), (off, False), (on.replace("continue;", "break;"), False)):
+        with patch.object(coverage, "_preprocess", side_effect=[
+                SimpleNamespace(returncode=0, stdout=off), SimpleNamespace(returncode=0, stdout=enabled)]), \
+             patch.object(coverage.compute, "_sha256_file", return_value="digest"):
+            result = coverage._break_evidence("lockskip/abort0", {}, Path("source"), Path("patch"), "BREAK")
+        assert result["target_difference"] is expected
+
+
+def test_trace_timeout_preserves_partial_output_and_exact_reason():
+    for payload in (b"partial probe\n", "partial probe\n"):
+        failure = coverage.subprocess.TimeoutExpired("binary", 120, output=payload, stderr=b"diagnostic")
+        with patch.object(coverage, "_assert_single_tenant"), \
+             patch.object(coverage.subprocess, "run", side_effect=failure), \
+             patch.object(coverage, "_verify") as verify:
+            result = coverage._run(Path("/binary"), coverage.LEGACY, source=Path("source"), trace=True)
+        assert result["reason"] == "trace-timeout"
+        assert result["timeout_s"] == 120
+        assert result["stdout"] == "partial probe\n" and result["stderr"] == "diagnostic"
+        assert "probe" not in result and "certified" not in result
+        verify.assert_not_called()
+        for case in ("mutation/no-clamp", "mutation/no-prefix-unlock-conflict", "mutation/no-prefix-unlock-limit"):
+            assert coverage.check_case(case, result) == {"expected": True}
+
+
+def test_verifier_timeout_keeps_run_witnesses_without_becoming_trace_timeout():
+    totals = _probe_totals()
+    stdout = "commit_counts_: 7\nbatch_commit_counts_: 0\nabort_counts_: 3\n"
+    stdout += "IZANAGI_SILO_POLICY_PROBE worker=0 " + " ".join(f"{k}={v}" for k, v in totals.items()) + "\n"
+    failure = RuntimeError("command could not be executed")
+    failure.__cause__ = coverage.subprocess.TimeoutExpired("verifier", 600)
+    with patch.object(coverage, "_assert_single_tenant"), \
+         patch.object(coverage.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=stdout, stderr="")), \
+         patch.object(coverage, "_verify", side_effect=failure), \
+         patch.object(coverage.locks, "_count_x_reasons", return_value={}):
+        result = coverage._run(Path("/binary"), coverage.locks.SINGLE_FLAGS,
+                               source=Path("source"), trace=True, probe=True)
+    assert result["reason"] == "verifier-timeout" and result["timeout_s"] == 600
+    assert result["commits"] == 7 and result["aborts"] == 3
+    assert result["probe"]["totals"] == totals
+    assert coverage.check_case("mutation/no-clamp", result) == {"expected": False}
+    assert coverage._certified(result) is False
+
+
+def test_verify_cli_and_projection_match_verifier_result():
+    record = {"verdict": "non-serializable", "certified": False, "total_cycles": 2,
+              "stats": {"txns": 7}, "integrity": {"lock_coverage_violations": 3}}
+    completed = SimpleNamespace(returncode=1, stdout=json.dumps({"results": [record]}))
+    with patch.object(coverage.compute, "_run_checked", return_value=completed) as run:
+        result = coverage._verify("trace-dir", Path("/isolated/source"), 7)
+    assert run.call_args.args[0] == [sys.executable, "-m", "verifier", "trace-dir", "--json", "--quiet",
+                                    "--protocol", "silo", "--ccbench-root", "/isolated/source",
+                                    "--expected-commits", "7"]
+    assert run.call_args.kwargs == {"cwd": ROOT / "orchestrator", "timeout": 600.0,
+                                    "allowed_returncodes": frozenset({0, 1, 2, 3})}
+    assert result == {"exit_code": 1, "verdict": "non-serializable", "certified": False,
+                      "total_cycles": 2, "txns": 7, "lock_coverage_violations": 3}
+
+
+def test_run_cli_trace_location_counters_probe_and_bench_projection():
+    performance = coverage.performance_correctness_workload(coverage.PERF).flags
+    assert performance == {**coverage.calibration.S2_FLAGS, "extime": "3"}
+    stdout = "commit_counts_:\t7\nbatch_commit_counts_:\t0\nabort_counts_:\t3\nthroughput[tps]:\t7\n"
+    stdout += "\n".join(_line(i) for i in range(4)) + "\n"
+    for flags, trace, probe, numa in (
+            (coverage.LEGACY, True, True, False),
+            (coverage.locks.SINGLE_FLAGS, True, False, False),
+            (performance, True, False, True), (performance, False, False, True)):
+        def execute(argv, **kwargs):
+            expected = (coverage.calibration.NUMA if numa else []) + ["/binary"]
+            expected += [f"-{k}={v}" for k, v in flags.items()] + ["-clocks_per_us=2100"]
+            assert argv == expected
+            assert Path(kwargs["cwd"], "log").is_dir()
+            assert kwargs["env"].get("IZANAGI_TRACE_DIR") == (kwargs["cwd"] if trace else None)
+            assert kwargs["timeout"] == 120 and kwargs["capture_output"] and kwargs["text"]
+            return SimpleNamespace(returncode=0, stdout=stdout, stderr="glog diagnostics")
+
+        def verify(directory, source, commits):
+            assert Path(directory, "log").is_dir() and source == Path("/source") and commits == 7
+            return {"exit_code": 0, "certified": True, "verdict": "serializable", "total_cycles": 0,
+                    "lock_coverage_violations": 0}
+
+        with patch.object(coverage, "_assert_single_tenant"), \
+             patch.dict(coverage.os.environ, {"IZANAGI_TRACE_DIR": "/stale"}), \
+             patch.object(coverage.subprocess, "run", side_effect=execute), \
+             patch.object(coverage, "_verify", side_effect=verify) as verifier, \
+             patch.object(coverage.locks, "_count_x_reasons", return_value={"lock-lost-before-write": 2}):
+            result = coverage._run(Path("/binary"), flags, source=Path("/source"),
+                                   trace=trace, probe=probe, numa=numa)
+        assert result["commits"] == 7 and result["aborts"] == 3
+        assert verifier.call_count == int(trace)
+        if trace:
+            assert result["x_reasons"] == {"lock-lost-before-write": 2}
+            assert result["exit_code"] == 0 and result["total_cycles"] == 0
+        else:
+            assert result["throughput"] == 7
+        if probe:
+            assert set(result["probe"]["workers"]) == {0, 1, 2, 3}
+
+
 def _run():
     passed = failed = skipped = 0
     for name, fn in sorted(globals().items()):

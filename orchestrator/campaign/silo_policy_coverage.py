@@ -387,7 +387,17 @@ def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
 def _owner_command(build: Path, source: Path) -> dict:
     rows = json.loads((build / "compile_commands.json").read_text())
     owner = (source / axis.SOURCE_REL).resolve()
-    rows = [r for r in rows if (Path(r["directory"]) / r["file"]).resolve() == owner]
+    def target_output(row):
+        if "output" in row:
+            return row["output"]
+        args = _command_arguments(row)
+        outputs = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "-o"]
+        outputs += [arg[2:] for arg in args if arg.startswith("-o") and arg != "-o"]
+        return outputs[0] if len(outputs) == 1 else ""
+
+    rows = [r for r in rows if (Path(r["directory"]) / r["file"]).resolve() == owner
+            and isinstance(target_output(r), str)
+            and "CMakeFiles/ycsb_silo.exe.dir/" in target_output(r)]
     if len(rows) != 1:
         raise RuntimeError("owner TU compile command is not unique")
     return rows[0]
@@ -402,6 +412,9 @@ def _preprocess(command: dict, overrides: dict[str, str] | None = None):
         arg = args[i]
         if arg in ("-o", "-MF", "-MT", "-MQ"):
             i += 2
+            continue
+        if any(arg.startswith(prefix) and arg != prefix for prefix in ("-o", "-MF", "-MT", "-MQ")):
+            i += 1
             continue
         if arg in ("-c", "-MD", "-MMD", "-MP"):
             i += 1
@@ -447,8 +460,10 @@ def _break_evidence(case: str, command: dict, source: Path, patch: Path, macro: 
     if kind == "norw":
         target = "AbortReason::read_tid" in a and "AbortReason::read_tid" not in b
     elif kind == "lockskip":
-        target = "max_wset_ = std::max(max_wset_, expected);\n    continue;" in b
-        target = target and "max_wset_ = std::max(max_wset_, expected);\n    continue;" not in a
+        # Preprocessors may normalize indentation; retain the exact token
+        # sequence and adjacency, not the source file's whitespace spelling.
+        needle = r"max_wset_\s*=\s*std::max\(max_wset_,\s*expected\);\s*continue;"
+        target = re.search(needle, b) is not None and re.search(needle, a) is None
     else:
         needle = "storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_);"
         target = b.count(needle) == a.count(needle) + 1
@@ -492,8 +507,14 @@ def _run(binary: Path, flags: dict, *, source: Path, trace: bool, probe: bool = 
         try:
             completed = subprocess.run(command, cwd=tmp, env=env, capture_output=True,
                                        text=True, timeout=locks.RUN_TIMEOUT_S, check=False)
-        except subprocess.TimeoutExpired:
-            return {"reason": "trace-timeout" if trace else "bench-no-throughput", "command": command}
+        except subprocess.TimeoutExpired as exc:
+            # TimeoutExpired can carry bytes even with text=True. Preserve
+            # emitted diagnostics; killed workers cannot emit TLS destructors.
+            def output_text(value):
+                return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
+            return {"reason": "trace-timeout" if trace else "bench-no-throughput", "command": command,
+                    "timeout_s": locks.RUN_TIMEOUT_S,
+                    "stdout": output_text(exc.stdout), "stderr": output_text(exc.stderr)}
         if completed.returncode != 0:
             return {"reason": "trace-run-nonzero-exit", "returncode": completed.returncode,
                     "stderr": completed.stderr[-2000:], "command": command}
@@ -502,14 +523,19 @@ def _run(binary: Path, flags: dict, *, source: Path, trace: bool, probe: bool = 
             raise RuntimeError("missing or unattributable commit witness")
         r = {"commits": commits, "aborts": calibration._parse_abort_counts(completed.stdout),
              "command": command, "stdout_sha256": sha(completed.stdout)}
+        if probe:
+            r["probe"] = parse_probe(completed.stdout, workers=int(flags["thread_num"]))
         if trace:
-            r.update(_verify(tmp, source, commits))
             r["x_reasons"] = locks._count_x_reasons(tmp)
+            try:
+                r.update(_verify(tmp, source, commits))
+            except RuntimeError as exc:
+                if not isinstance(exc.__cause__, subprocess.TimeoutExpired):
+                    raise
+                r.update(reason="verifier-timeout", timeout_s=calibration.GATE2_VERIFIER_WALL_S)
         else:
             r["throughput"] = throughput_tps(parse_bench_stdout(completed.stdout))
             r["preliminary_same_job_stock_control"] = True
-        if probe:
-            r["probe"] = parse_probe(completed.stdout, workers=int(flags["thread_num"]))
         return r
 
 
