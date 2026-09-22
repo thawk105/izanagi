@@ -2194,6 +2194,40 @@ def test_b5_ledger_inside_repository_refused_before_trap(tmp_path, location):
     assert not (evidence / "compute-result.json").exists()
 
 
+@pytest.mark.parametrize("purpose", ["", "unknown", "Registered"])
+def test_b5_purpose_invalid_before_prebuild(tmp_path, purpose):
+    env = _b5_environment(tmp_path)
+    env["IZANAGI_S4_B5_PURPOSE"] = purpose
+    _assert_b5_preflight_refusal(tmp_path, env,
+                               "IZANAGI_S4_B5_PURPOSE must be pilot or registered")
+
+
+@pytest.mark.parametrize("purpose", ["", "pilot", "registered"])
+def test_b5_purpose_alone_requires_mode(tmp_path, purpose):
+    _assert_b5_preflight_refusal(tmp_path, {"IZANAGI_S4_B5_PURPOSE": purpose},
+                               "B-5 environment requires IZANAGI_S4_B5_MODE")
+
+
+@pytest.mark.parametrize("arm", ["random", "sweep-matched", "llm", "stock"])
+@pytest.mark.parametrize("driver_rc", [0, 7])
+def test_b5_registered_purpose_reaches_driver(tmp_path, arm, driver_rc):
+    env = {**_b5_environment(tmp_path, arm), "IZANAGI_S4_B5_PURPOSE": "registered"}
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env, driver_rcs=(driver_rc, 99))
+    assert len(history) == 1
+    assert history[0][-2:] == ["--purpose", "registered"]
+    # Exact old argv and lock contract, followed only by the registered suffix.
+    _assert_b5_driver_history([history[0][:-2]], tmp_path, arm)
+    assert rc == result["driver_rc"] == driver_rc
+
+
+@pytest.mark.parametrize("arm", ["random", "sweep-matched", "llm", "stock"])
+def test_b5_explicit_pilot_preserves_driver_argv(tmp_path, arm):
+    env = {**_b5_environment(tmp_path, arm), "IZANAGI_S4_B5_PURPOSE": "pilot"}
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    _assert_b5_driver_history(history, tmp_path, arm)
+    assert rc == result["driver_rc"] == 0
+
+
 def _run() -> int:
     """Keep this test file covered by the repository plain-runner contract."""
     return pytest.main([__file__, "-q"])

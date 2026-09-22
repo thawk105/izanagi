@@ -1,0 +1,16 @@
+# cost model (試算): C = 60 + 5*(3.4 + v) s/session; v = verifier s/trace; setup 600 s/job; H = 7800 s (試走 10 巡の親待ち実測 7360 s を丸め上げ); Hmax = 30*780 s
+# write-heavy C = 510 (試走の非競合 7 session 実測 499-510 s)。balanced v = 1.58M..4.18M commit * 25..31 us (換算)。read-heavy v = 5.91M..5.99M commit (B-8 10 s trace の時間比例) * 25..31 us (換算)。stress = read-heavy 5.95M * 80 us (旧較正単価)
+k 2 W 42518 11:48:38 Wst 10894 03:01:34
+k 3 W 63777 17:42:57 Wst 16341 04:32:21
+k 4.06 W 86312 23:58:32 Wst 22115 06:08:35
+workload [series lo,hi] [LLM lo,hi] [LLM A=30 lo,hi] [block-stock lo,hi]
+write-heavy [8760, 8760] [16560, 16560] [32160, 32160] [3150, 3150]
+balanced [5032, 12232] [12832, 20032] [28432, 35632] [1985, 4235]
+read-heavy [13672, 16712] [21472, 24512] [37072, 40112] [4685, 5635]
+stress read C 2457 series 39912 LLM 47712 LLM-A30 63312 stock 12885
+low total s 1298964 h 360.8 ratio to pilot raw 61261 s 21.20
+high total s 1677204 h 465.9 ratio to pilot raw 61261 s 27.38
+high+A30 parent waits total s 2238804 h 621.9 ratio 36.55
+cap m 36 s 2205396 h 612.6
+cap m 40 s 2450440 h 680.7
+cap m 42 s 2572962 h 714.7

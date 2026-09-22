@@ -1,0 +1,16 @@
+4c4
+< B-5 試走 (T-2797、較正済み動作点 write-heavy) 向けに動作点と検証手順の 2 節だけを書き換えた **K2-compatible な射影**である。K0/K1 向けの「外部知識を参照するな」という禁止条項 (「output/docs/insights の
+---
+> B-5 本走 (b5-registered-v1、較正済み動作点 write-heavy) 向けに動作点と検証手順の 2 節だけを書き換えた **K2-compatible な射影**である。K0/K1 向けの「外部知識を参照するな」という禁止条項 (「output/docs/insights の
+7c7
+< 動作点と検証手順は B-5 試走の実物 (較正済み動作点、legacy + 動作点 trace 5 回の verify、5 rep bench) に合わせて書き換えてある。
+---
+> 動作点と検証手順は B-5 本走の実物 (較正済み動作点、legacy + 動作点 trace 5 回の verify、5 rep bench) に合わせて書き換えてある。
+42c42
+< ## 動作点 (B-5 試走: 現物 `orchestrator/campaign/p3_s4_loop.py` の `calibrated_perf("write-heavy")` と一致)
+---
+> ## 動作点 (B-5 本走: 現物 `orchestrator/campaign/p3_s4_loop.py` の `calibrated_perf("write-heavy")` と一致)
+62c62
+< 2. **Verify:** verifier が trace 版の correctness trace を読み、serializability を検査する。B-5 試走では
+---
+> 2. **Verify:** verifier が trace 版の correctness trace を読み、serializability を検査する。B-5 本走では

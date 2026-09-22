@@ -1,0 +1,79 @@
+# ROOT=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-verify-phase-adopted-backoff/run
+# per-run rows (rel, phase, candidate, workload, extime, complete, nfiles, raw_bytes, lines, stored_bytes, ratio, bytes_per_line, verdict, result.json bytes, verifier.json bytes)
+calib/fixed-10-balanced/extime-10	calibrate	fixed-10	balanced	10	True	48	5683876931	169784262	1258072601	4.52	33.5	unreadable:JSONDecodeError	45688	0
+calib/fixed-10-balanced/extime-3	calibrate	fixed-10	balanced	3	True	48	1653190685	51144503	373917144	4.42	32.3		46158	1265
+calib/fixed-10-balanced/extime-6	calibrate	fixed-10	balanced	6	True	48	3371977455	102654903	756422053	4.46	32.8		46264	1266
+calib/fixed-10-read-heavy/extime-3	calibrate	fixed-10	read-heavy	3	True	48	5857055160	183904864	1438540488	4.07	31.8		46430	1267
+calib/fixed-10-read-heavy/extime-6	calibrate	fixed-10	read-heavy	6	True	48	11931282750	365196356	2928848654	4.07	32.7		46443	1268
+calib/fixed-10-write-heavy/extime-10	calibrate	fixed-10	write-heavy	10	True	48	3375669612	99452579	532413802	6.34	33.9	unreadable:JSONDecodeError	45794	0
+calib/fixed-10-write-heavy/extime-3	calibrate	fixed-10	write-heavy	3	True	48	995753196	30169626	160814118	6.19	33.0		46281	1264
+calib/fixed-10-write-heavy/extime-6	calibrate	fixed-10	write-heavy	6	True	48	2008157142	59786073	319576040	6.28	33.6		46327	1264
+calib/fixed-5-balanced/extime-10	calibrate	fixed-5	balanced	10	True	48	5896236914	175955257	1303991535	4.52	33.5	unreadable:JSONDecodeError	45636	0
+calib/fixed-5-balanced/extime-3	calibrate	fixed-5	balanced	3	True	48	1717040866	53092794	388280074	4.42	32.3		46104	1265
+calib/fixed-5-balanced/extime-6	calibrate	fixed-5	balanced	6	True	48	3471252290	105651751	778622805	4.46	32.9		46213	1266
+calib/fixed-5-read-heavy/extime-3	calibrate	fixed-5	read-heavy	3	True	48	6398811750	200363613	1570588284	4.07	31.9		46365	1267
+calib/fixed-5-read-heavy/extime-6	calibrate	fixed-5	read-heavy	6	True	48	12762677610	390198787	3131133796	4.08	32.7		46381	1268
+calib/fixed-5-write-heavy/extime-10	calibrate	fixed-5	write-heavy	10	True	48	3365553336	99158497	530905341	6.34	33.9	unreadable:JSONDecodeError	45720	0
+calib/fixed-5-write-heavy/extime-3	calibrate	fixed-5	write-heavy	3	True	48	994980612	30146570	160732539	6.19	33.0		46234	1264
+calib/fixed-5-write-heavy/extime-6	calibrate	fixed-5	write-heavy	6	True	48	2007544288	59770921	319527637	6.28	33.6		46266	1264
+verify/fixed-10-balanced-1/rep-1/attempt-1	verify	fixed-10	balanced	3	True	48	1671277009	51693533	377970224	4.42	32.3		46690	1265
+verify/fixed-10-balanced-1/rep-2/attempt-1	verify	fixed-10	balanced	3	True	48	1658752709	51312078	375127071	4.42	32.3		46698	1265
+verify/fixed-10-balanced-1/rep-3/attempt-1	verify	fixed-10	balanced	3	True	48	1669599120	51643012	377624420	4.42	32.3		46698	1265
+verify/fixed-10-balanced-1/rep-4/attempt-1	verify	fixed-10	balanced	3	True	48	1667679202	51584059	377176132	4.42	32.3		46689	1265
+verify/fixed-10-balanced-2/rep-5/attempt-1	verify	fixed-10	balanced	3	True	48	1676283024	51847466	379113120	4.42	32.3		46689	1265
+verify/fixed-10-balanced-2/rep-6/attempt-1	verify	fixed-10	balanced	3	True	48	1667580101	51581658	377145136	4.42	32.3		46688	1265
+verify/fixed-10-balanced-2/rep-7/attempt-1	verify	fixed-10	balanced	3	True	48	1661943179	51410122	375841544	4.42	32.3		46692	1265
+verify/fixed-10-balanced-2/rep-8/attempt-1	verify	fixed-10	balanced	3	True	48	1665151746	51509088	376612288	4.42	32.3		46691	1265
+verify/fixed-10-read-heavy-1/rep-1/attempt-1	verify	fixed-10	read-heavy	3	True	48	6108895055	191534326	1500280070	4.07	31.9		46958	1267
+verify/fixed-10-read-heavy-1/rep-2/attempt-1	verify	fixed-10	read-heavy	3	True	48	6075463080	190515746	1492122769	4.07	31.9		46958	1267
+verify/fixed-10-read-heavy-1/rep-3/attempt-1	verify	fixed-10	read-heavy	3	True	48	6090345371	190967850	1495734746	4.07	31.9		46955	1267
+verify/fixed-10-read-heavy-1/rep-4/attempt-1	verify	fixed-10	read-heavy	3	True	48	6074632746	190497993	1491962611	4.07	31.9		46952	1267
+verify/fixed-10-read-heavy-2/rep-5/attempt-1	verify	fixed-10	read-heavy	3	True	48	6014287243	188664670	1477070419	4.07	31.9		46954	1267
+verify/fixed-10-read-heavy-2/rep-6/attempt-1	verify	fixed-10	read-heavy	3	True	48	5991684070	187977612	1471480055	4.07	31.9		46955	1267
+verify/fixed-10-read-heavy-2/rep-7/attempt-1	verify	fixed-10	read-heavy	3	True	48	5955911567	186895770	1462703192	4.07	31.9		46956	1267
+verify/fixed-10-read-heavy-2/rep-8/attempt-1	verify	fixed-10	read-heavy	3	True	48	5989070003	187898567	1470928779	4.07	31.9		46953	1267
+verify/fixed-10-write-heavy-1/rep-1/attempt-1	verify	fixed-10	write-heavy	3	True	48	996069494	30177747	160856861	6.19	33.0		46822	1264
+verify/fixed-10-write-heavy-1/rep-2/attempt-1	verify	fixed-10	write-heavy	3	True	48	991010907	30027493	160068727	6.19	33.0		46814	1264
+verify/fixed-10-write-heavy-1/rep-3/attempt-1	verify	fixed-10	write-heavy	3	True	48	992960371	30085765	160376374	6.19	33.0		46811	1264
+verify/fixed-10-write-heavy-1/rep-4/attempt-1	verify	fixed-10	write-heavy	3	True	48	994139192	30120460	160554301	6.19	33.0		46814	1264
+verify/fixed-10-write-heavy-2/rep-5/attempt-1	verify	fixed-10	write-heavy	3	True	48	995716319	30167859	160826456	6.19	33.0		46813	1264
+verify/fixed-10-write-heavy-2/rep-6/attempt-1	verify	fixed-10	write-heavy	3	True	48	989493655	29982518	159813098	6.19	33.0		46811	1264
+verify/fixed-10-write-heavy-2/rep-7/attempt-1	verify	fixed-10	write-heavy	3	True	48	991567419	30044582	160149150	6.19	33.0		46813	1264
+verify/fixed-10-write-heavy-2/rep-8/attempt-1	verify	fixed-10	write-heavy	3	True	48	991014273	30027895	160074042	6.19	33.0		46810	1264
+verify/fixed-5-balanced-1/rep-1/attempt-1	verify	fixed-5	balanced	3	True	48	1698869171	52536595	384195802	4.42	32.3		46632	1265
+verify/fixed-5-balanced-1/rep-2/attempt-1	verify	fixed-5	balanced	3	True	48	1695009262	52421326	383341765	4.42	32.3		46631	1265
+verify/fixed-5-balanced-1/rep-3/attempt-1	verify	fixed-5	balanced	3	True	48	1689913955	52264807	382184123	4.42	32.3		46624	1265
+verify/fixed-5-balanced-1/rep-4/attempt-1	verify	fixed-5	balanced	3	True	48	1683965961	52083349	380861300	4.42	32.3		46629	1265
+verify/fixed-5-balanced-2/rep-5/attempt-1	verify	fixed-5	balanced	3	True	48	1717765141	53112133	388442737	4.42	32.3		46632	1265
+verify/fixed-5-balanced-2/rep-6/attempt-1	verify	fixed-5	balanced	3	True	48	1717533636	53105832	388401638	4.42	32.3		46628	1265
+verify/fixed-5-balanced-2/rep-7/attempt-1	verify	fixed-5	balanced	3	True	48	1718076639	53123132	388550837	4.42	32.3		46638	1265
+verify/fixed-5-balanced-2/rep-8/attempt-1	verify	fixed-5	balanced	3	True	48	1722725148	53265233	389581247	4.42	32.3		46632	1265
+verify/fixed-5-read-heavy-1/rep-1/attempt-1	verify	fixed-5	read-heavy	3	True	48	6330190055	198286104	1553717429	4.07	31.9		46901	1267
+verify/fixed-5-read-heavy-1/rep-2/attempt-1	verify	fixed-5	read-heavy	3	True	48	6298107375	197310030	1545927046	4.07	31.9		46895	1267
+verify/fixed-5-read-heavy-1/rep-3/attempt-1	verify	fixed-5	read-heavy	3	True	48	6268162590	196408858	1538542984	4.07	31.9		46909	1267
+verify/fixed-5-read-heavy-1/rep-4/attempt-1	verify	fixed-5	read-heavy	3	True	48	6256185113	196040669	1535684744	4.07	31.9		46897	1267
+verify/fixed-5-read-heavy-2/rep-5/attempt-1	verify	fixed-5	read-heavy	3	True	48	6415060871	200855227	1574551910	4.07	31.9		46897	1267
+verify/fixed-5-read-heavy-2/rep-6/attempt-1	verify	fixed-5	read-heavy	3	True	48	6392106069	200165304	1568911150	4.07	31.9		46901	1267
+verify/fixed-5-read-heavy-2/rep-7/attempt-1	verify	fixed-5	read-heavy	3	True	48	6392386822	200164469	1568988762	4.07	31.9		46904	1267
+verify/fixed-5-read-heavy-2/rep-8/attempt-1	verify	fixed-5	read-heavy	3	True	48	6399308617	200381530	1570713407	4.07	31.9		46901	1267
+verify/fixed-5-write-heavy-1/rep-1/attempt-1	verify	fixed-5	write-heavy	3	True	48	982621975	29777820	158758319	6.19	33.0		46753	1264
+verify/fixed-5-write-heavy-1/rep-2/attempt-1	verify	fixed-5	write-heavy	3	True	48	985719818	29871208	159267967	6.19	33.0		46752	1264
+verify/fixed-5-write-heavy-1/rep-3/attempt-1	verify	fixed-5	write-heavy	3	True	48	988093653	29940613	159640291	6.19	33.0		46754	1264
+verify/fixed-5-write-heavy-1/rep-4/attempt-1	verify	fixed-5	write-heavy	3	True	48	988484894	29954142	159738459	6.19	33.0		46751	1264
+verify/fixed-5-write-heavy-2/rep-5/attempt-1	verify	fixed-5	write-heavy	3	True	48	985628081	29869154	159267374	6.19	33.0		46754	1264
+verify/fixed-5-write-heavy-2/rep-6/attempt-1	verify	fixed-5	write-heavy	3	True	48	971287699	29442399	156987530	6.19	33.0		46744	1264
+verify/fixed-5-write-heavy-2/rep-7/attempt-1	verify	fixed-5	write-heavy	3	True	48	980169376	29705421	158397479	6.19	33.0		46751	1264
+verify/fixed-5-write-heavy-2/rep-8/attempt-1	verify	fixed-5	write-heavy	3	True	48	989713072	29988707	159925481	6.19	33.0		46762	1264
+
+# summary by (workload, extime): n, raw GiB min/median/max, stored GiB min/median/max, ratio median
+balanced	10s	n=2	raw=5.294/5.392/5.491	stored=1.172/1.193/1.214	ratio_med=4.52
+balanced	3s	n=18	raw=1.540/1.565/1.604	stored=0.348/0.354/0.363	ratio_med=4.42
+balanced	6s	n=2	raw=3.140/3.187/3.233	stored=0.704/0.715/0.725	ratio_med=4.46
+read-heavy	3s	n=18	raw=5.455/5.758/5.974	stored=1.340/1.414/1.466	ratio_med=4.07
+read-heavy	6s	n=2	raw=11.112/11.499/11.886	stored=2.728/2.822/2.916	ratio_med=4.07
+write-heavy	10s	n=2	raw=3.134/3.139/3.144	stored=0.494/0.495/0.496	ratio_med=6.34
+write-heavy	3s	n=18	raw=0.905/0.922/0.928	stored=0.146/0.149/0.150	ratio_med=6.19
+write-heavy	6s	n=2	raw=1.870/1.870/1.870	stored=0.298/0.298/0.298	ratio_med=6.28
+
+# total runs=64 files=3072 raw_bytes=213338672445 stored_bytes=48928578277 ratio=4.360 lines=6594673287 bytes_per_line=32.35
+# result.json bytes: min=45636 max=46958; verifier.json bytes: min=0 max=1268

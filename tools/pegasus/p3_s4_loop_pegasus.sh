@@ -64,6 +64,10 @@ if [[ -v IZANAGI_S4_B5_MODE ]]; then
   for name in "${b5_env_names[@]}"; do
     [[ -n "${!name:-}" ]] || refuse "missing B-5 environment: $name"
   done
+  case "${IZANAGI_S4_B5_PURPOSE-pilot}" in
+    pilot|registered) ;;
+    *) refuse "IZANAGI_S4_B5_PURPOSE must be pilot or registered" ;;
+  esac
   case "$b5_mode:$IZANAGI_S4_B5_ARM" in
     series:llm|series:random|series:sweep-matched|block-stock:stock) ;;
     *) refuse "invalid B-5 arm for mode" ;;
@@ -81,7 +85,7 @@ if [[ -v IZANAGI_S4_B5_MODE ]]; then
     refuse "B-5 mode excludes proposal, fixture, and stock-control"
   fi
 else
-  for name in "${b5_env_names[@]}"; do
+  for name in "${b5_env_names[@]}" IZANAGI_S4_B5_PURPOSE; do
     [[ ! -v $name ]] || refuse "B-5 environment requires IZANAGI_S4_B5_MODE"
   done
 fi
@@ -656,6 +660,9 @@ if [[ -n "$b5_mode" ]]; then
     b5_argv+=(--knowledge-manifest "$IZANAGI_S4_KNOWLEDGE_MANIFEST"
       --knowledge-classification "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM")
+  fi
+  if [[ "${IZANAGI_S4_B5_PURPOSE-pilot}" == registered ]]; then
+    b5_argv+=(--purpose registered)
   fi
   b5_rc=0
   export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
