@@ -240,6 +240,15 @@ k = 4.06 (gen_S 上限): W 86,312 s、W_stock 22,115 s。**推奨 k = 3。** 換
 - **焦点再レビュー (Codex 1 本、12:45〜12:49 JST):** 11 所見のうち closed 8、partial 3 (model 不一致時の終了理由を期限切れだけと断定、python の hash の照合元、倍率表示 36.6 → 36.5)、regressed 0。
   hash 31 / 31・束内 12 / 12・費用の各値を再計算で一致と確認。partial 3 件は親が文書で閉じた (終了理由は「通常は期限切れ、walltime が先に不足すれば allocation-exhausted、どちらでも score 欠測」、
   python は同じ job の `compute-result.json` から照合、倍率は 36.5)。`verbatim/s6-focus.md`。
+- **変異 matrix (`mutation/`、DW-M01〜M08):** 対象 = wave 木 `719a7b554` を main に固定した独立 clone、runner = 計算ノードへ dispatch する
+  `run_tests.py --force-dispatch` で `test_b5_contrast_launch.py`・`test_b5_generator_contrast.py`・`test_p3_s4_loop_job_contract.py`・`test_b5_llm_round.py` の 4 file。
+  段 4 の事前登録 MA1〜MA16・MB1〜MB8 に段 6 で MB9 を足し、M0 (comment 1 行の等価変異) を含む 26 変異。probe 走 (全件 SURVIVED 期待、12:57〜13:18 JST) で観測 node を集め、
+  final 走 (観測 node を KILLED 期待に固定、13:22〜13:43 JST) で **KILLED 25・SURVIVED 1 (M0)・期待との一致 26 / 26・baseline PASSED**。
+  事前登録した kill 先はすべて観測 node に含まれた。ただし **MA9 (job id から系列番号を落とす) の erratum:** 登録先 `test_registered_job_specific_submit_trees` ではなく
+  `test_registered_stage_job_counts` (stage ごとの job id の一意性) で落ちた (final 走の前に kill 先を実測に合わせた。検出されたことは変わらない)。
+  MA6 は段 6 の再照準どおり `test_registered_schedule_six_orders_twice` だけで落ちた (回転を外しても各 stage の LLM は 4 本のままであることの実測)。
+- **計算ノードの消費 (job 単位の実測、第 31 回裁定の線 2 node 時間の内側):** 焦点走 110 s + 92 s、変異 probe 28 run の attempt 合計 1,122 s 以下、final 28 run 1,115 s 以下
+  (queue 待ちと dispatch 往復を含む上限値)。計 2,439 s ≈ 0.68 node 時間。受入全走はこの記録 commit の後、同じ tip で land 直前に 1 回行う (本 README の時点では未実施)。
 - **親の検算:** schedule の性質 (§6)、workload 別 context の差分 (§5)、random 値・sweep 順・重み material の試走凍結値との一致、知識 manifest の写しの digest、環境契約の解決結果
   (`env_contract.lookup('pegasus')` は contract `e576e9cd…`・較正 record `753f535a…`。後の世代 `94a4b79f…` は lookup の返り値ではない)。
 
