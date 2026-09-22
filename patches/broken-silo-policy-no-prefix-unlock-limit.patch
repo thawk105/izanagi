@@ -1,0 +1,22 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -409,11 +409,18 @@
+         ::izanagi_silo_probe::counts.limit = true;
+ #endif
+         this->status_ = TransactionStatus::aborted;
++#if IZANAGI_BREAK_SILO_POLICY
++#if IZANAGI_SILO_POLICY_PROBE
++        ::izanagi_silo_probe::record_site(1u);
++#endif
++        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
++#else
+ #if IZANAGI_SILO_POLICY_PROBE
+         ::izanagi_silo_probe::record_site(1u);
+ #endif
+         ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
++#endif
+         return;
+       }
+       const uint32_t current_attempt = attempt++;

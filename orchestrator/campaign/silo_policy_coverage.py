@@ -72,7 +72,7 @@ MUTATIONS = {
     "wrong-reason": ("focus", True, "reason"),
 }
 MUTATION_PATCHES = {
-    name: "broken-silo-policy-" + ("no-prefix-unlock" if name.startswith("no-prefix-unlock-") else name) + ".patch"
+    name: "broken-silo-policy-" + ("no-prefix-unlock" if name == "no-prefix-unlock-conflict" else name) + ".patch"
     for name in MUTATIONS
 }
 PREFIX_EXITS = {"no-prefix-unlock-conflict": "action-abort",
@@ -89,13 +89,14 @@ FLAG_BOUNDARIES = {
 REASONS = axis.REASON_NAMES
 PROBE_KEYS = frozenset((
     "aborts", "locks", "commits", "retry_success", "limit_aborts",
+    "prefix_held_limit_aborts", "prefix_held_action_aborts",
     "limit_reason_mismatch", "clamps", "post_commit_match", "post_commit_mismatch",
     *(h + "_" + outcome for h in ("abort", "lock", "commit", "reason")
       for outcome in ("match", "mismatch")),
     *("site_" + r for r in REASONS[1:]), *("reason_" + r for r in REASONS),
 ))
 NEGATIVE_CASES = tuple(f"{n}/{p}" for n in NEGATIVES for p in ("abort0", "maxwait"))
-FOCUS_CASES = ("focus/focus", "focus/retry", "focus/huge")
+FOCUS_CASES = ("focus/focus", "focus/retry", "focus/huge", "focus/abort0")
 CONTROL_CASES = tuple("control/" + m for m in MUTATIONS)
 MUTATION_CASES = tuple("mutation/" + m for m in MUTATIONS)
 COVERAGE_CASES = frozenset((*NEGATIVE_CASES, *FOCUS_CASES, *CONTROL_CASES,
@@ -107,6 +108,7 @@ FOCUS_CHECKS = ("certified", "commits", "aborts", "locks", "conservation",
 CASE_CHECKS = {
     **{n: ("detected", "preprocess") for n in NEGATIVE_CASES},
     "focus/focus": FOCUS_CHECKS,
+    "focus/abort0": ("certified", "commits", "aborts", "locks", "conservation", "prefix_action"),
     "focus/retry": ("certified", "commits", "retry_success", "limit", "reason", "conservation"),
     "focus/huge": ("certified", "commits", "clamp", "reason", "conservation"),
     **{n: ("expected",) for n in (*CONTROL_CASES, *MUTATION_CASES)},
@@ -189,6 +191,7 @@ def _focus_checks(r: dict) -> dict[str, bool]:
         "limit": (_positive(p.get("limit_aborts")) and p.get("limit_reason_mismatch") == 0
                   and _positive(p.get("reason_lock_conflict"))),
         "clamp": _positive(p.get("clamps")),
+        "prefix_action": _positive(p.get("prefix_held_action_aborts")),
     }
 
 
@@ -629,24 +632,37 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
             runs["flag/" + name] = {"returncode": failed.returncode, "stderr": failed.stderr,
                                     "owner_command": command, "overrides": {macro: value}}
     checks = coverage_checks(runs)
-    return {"runs": runs, **judge(runs, checks)}
+    return {"runs": runs,
+            "prefix_reach_evidence": {
+                "scope": "Separate probe run with the same policy and workload; "
+                         "not reach observed in the mutation run itself.",
+                "mutation/no-prefix-unlock-limit": {
+                    "observation_case": "focus/retry", "counter": "prefix_held_limit_aborts"},
+                "mutation/no-prefix-unlock-conflict": {
+                    "observation_case": "focus/abort0", "counter": "prefix_held_action_aborts"},
+            }, **judge(runs, checks)}
 
 
 def coverage_checks(runs: dict) -> dict[str, bool]:
     checks = {c + ":" + k: v for c, r in runs.items() for k, v in check_case(c, r).items()}
-    case = "mutation/no-prefix-unlock-limit"
-    if case in runs:
+    for name, policy, counter in (
+            ("no-prefix-unlock-limit", "retry", "prefix_held_limit_aborts"),
+            ("no-prefix-unlock-conflict", "abort0", "prefix_held_action_aborts")):
+        case = "mutation/" + name
+        if case not in runs:
+            continue
         mutation = runs[case].get("case_definition", {})
-        focus = runs.get("focus/retry", {})
+        focus = runs.get("focus/" + policy, {})
         observation = focus.get("case_definition", {})
-        # target_exit remains attempt-limit in the result JSON. retry always
-        # returns retry: lock contention ends only in CAS success or the limit,
-        # never action-abort. Require observed reach under the same workload.
-        reached = (mutation.get("policy") == observation.get("policy") == "retry"
+        # Separate probe run: evidence of reach under the same configuration,
+        # not evidence that the mutation run itself reached the target exit.
+        reached = (mutation.get("policy") == observation.get("policy") == policy
                    and isinstance(mutation.get("workload"), dict)
                    and bool(mutation["workload"])
                    and mutation["workload"] == observation.get("workload")
-                   and _positive(focus.get("probe", {}).get("totals", {}).get("limit_aborts")))
+                   and _positive(focus.get("probe", {}).get("totals", {}).get(counter)))
+        if policy == "retry":
+            reached = reached and _positive(focus.get("probe", {}).get("totals", {}).get("limit_aborts"))
         checks[case + ":expected"] = checks[case + ":expected"] and reached
     return checks
 

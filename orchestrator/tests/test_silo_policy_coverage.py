@@ -24,6 +24,7 @@ def _probe_totals():
     # Small synthetic observations for pure predicates, not captured payloads.
     p = dict.fromkeys(coverage.PROBE_KEYS, 0)
     p.update(aborts=3, locks=5, commits=7, retry_success=2, limit_aborts=1,
+             prefix_held_limit_aborts=1, prefix_held_action_aborts=2,
              clamps=1, reason_lock_conflict=3, site_lock_conflict=3,
              abort_match=5, lock_match=3, commit_match=3, reason_match=3, post_commit_match=2)
     return p
@@ -71,6 +72,8 @@ def _complete_runs():
             r = {"clean": True}
         if case in ("focus/retry", "mutation/no-prefix-unlock-limit"):
             r["case_definition"] = {"policy": "retry", "workload": dict(coverage.LEGACY)}
+        if case in ("focus/abort0", "mutation/no-prefix-unlock-conflict"):
+            r["case_definition"] = {"policy": "abort0", "workload": dict(coverage.LEGACY)}
         runs[case] = r
     return runs
 
@@ -200,7 +203,10 @@ def test_coverage_reuses_controls_and_separates_prefix_exits():
          patch.object(coverage.compute, "_sha256_file", return_value="digest"):
         result = coverage.run_coverage(Path(tmp), {"cxx_path": "unused"}, {})
     assert result["all_pass"] is True
-    assert len(builds) == 23
+    # Build negative, focus, unshared control, and mutation cases, plus one shared TRACE=0 build.
+    assert len(builds) == (len(coverage.NEGATIVE_CASES) + len(coverage.FOCUS_CASES)
+                           + len(set(coverage.CONTROL_CASES) - set(coverage.CONTROL_OBSERVATIONS))
+                           + len(coverage.MUTATION_CASES) + 1)
     assert set(coverage.CONTROL_OBSERVATIONS) == {
         "control/no-reload", "control/no-abort-hook", "control/no-lock-hook",
         "control/no-commit-hook", "control/wrong-reason",
@@ -210,15 +216,19 @@ def test_coverage_reuses_controls_and_separates_prefix_exits():
         assert result["runs"][control]["observation_case"] == focus
         assert result["runs"][control]["case_sha256"] == result["runs"][focus]["case_sha256"]
         assert coverage.check_case(control, result["runs"][focus]) == {"expected": True}
-    for name, policy, exit_name in (
-            ("no-prefix-unlock-conflict", "abort0", "action-abort"),
-            ("no-prefix-unlock-limit", "retry", "attempt-limit")):
+    for name, policy, exit_name, mutation_patch in (
+            ("no-prefix-unlock-conflict", "abort0", "action-abort",
+             "broken-silo-policy-no-prefix-unlock.patch"),
+            ("no-prefix-unlock-limit", "retry", "attempt-limit",
+             "broken-silo-policy-no-prefix-unlock-limit.patch")):
         for kind in ("control", "mutation"):
             case = kind + "/" + name
-            assert observed[case] == (policy, True, "broken-silo-policy-no-prefix-unlock.patch"
+            assert observed[case] == (policy, True, mutation_patch
                                       if kind == "mutation" else None)
             assert result["runs"][case]["case_definition"]["target_exit"] == exit_name
             assert result["checks"][case + ":expected"] is True
+    assert (observed["mutation/no-prefix-unlock-conflict"][2]
+            != observed["mutation/no-prefix-unlock-limit"][2])
 
 
 def test_prefix_limit_requires_matching_retry_probe_reach():
@@ -254,6 +264,102 @@ def test_prefix_limit_requires_matching_retry_probe_reach():
     no_timeout = deepcopy(runs)
     no_timeout[case]["reason"] = "verifier-timeout"
     assert _checks(no_timeout)[key] is False
+
+
+def test_prefix_exit_case_configuration():
+    assert coverage.MUTATION_PATCHES["no-prefix-unlock-conflict"] == "broken-silo-policy-no-prefix-unlock.patch"
+    assert coverage.MUTATION_PATCHES["no-prefix-unlock-limit"] == "broken-silo-policy-no-prefix-unlock-limit.patch"
+    assert len(set(coverage.MUTATION_PATCHES.values())) == 9
+    assert "focus/abort0" in coverage.FOCUS_CASES
+    assert coverage.MUTATIONS["no-prefix-unlock-conflict"] == ("abort0", False, "trace-timeout")
+    assert coverage.MUTATIONS["no-prefix-unlock-limit"] == ("retry", False, "trace-timeout")
+    runs = _complete_runs()
+    assert set(runs) == coverage.COVERAGE_CASES
+    assert set(_checks(runs)) == coverage.COVERAGE_CHECKS
+    assert coverage.judge(runs, _checks(runs))["all_pass"] is True
+
+
+def _assert_prefix_held_reach_required(case, observation, counter, policy):
+    runs = _complete_runs()
+    checks = _checks(runs)
+    key = case + ":expected"
+    assert runs[case]["reason"] == "trace-timeout"
+    assert checks[key] is True
+    assert coverage.judge(runs, checks)["all_pass"] is True
+    for count in (0, -1, None, True):
+        missing = deepcopy(runs)
+        missing[observation]["probe"]["totals"][counter] = count
+        assert _checks(missing)[key] is False
+        assert coverage.judge(missing, _checks(missing))["all_pass"] is False
+        assert coverage.judge(missing, checks)["all_pass"] is False
+    for target in (case, observation):
+        for field, value in (("policy", "maxwait"), ("workload", {}),
+                             ("workload", {**coverage.LEGACY, "thread_num": "99"})):
+            mismatch = deepcopy(runs)
+            mismatch[target]["case_definition"][field] = value
+            assert _checks(mismatch)[key] is False
+        assert runs[target]["case_definition"]["policy"] == policy
+    for field in ("probe", "case_definition"):
+        missing = deepcopy(runs)
+        del missing[observation][field]
+        assert _checks(missing)[key] is False
+    missing = deepcopy(runs)
+    del missing[observation]
+    assert _checks(missing)[key] is False
+    missing = deepcopy(runs)
+    del missing[observation]["probe"]["totals"][counter]
+    assert _checks(missing)[key] is False
+    wrong_timeout = deepcopy(runs)
+    wrong_timeout[case]["reason"] = "verifier-timeout"
+    assert _checks(wrong_timeout)[key] is False
+
+
+def test_prefix_limit_requires_prefix_held_limit_reach():
+    """M-PREFIX-REACH: total limit reach cannot replace prefix-held reach."""
+    _assert_prefix_held_reach_required(
+        "mutation/no-prefix-unlock-limit", "focus/retry", "prefix_held_limit_aborts", "retry")
+
+
+def test_prefix_conflict_requires_prefix_held_action_reach():
+    _assert_prefix_held_reach_required(
+        "mutation/no-prefix-unlock-conflict", "focus/abort0", "prefix_held_action_aborts", "abort0")
+
+
+def test_probe_parser_requires_prefix_held_exit_keys():
+    report = coverage.parse_probe(_line(0) + "\n" + _line(1), workers=2)
+    for counter, value in (("prefix_held_limit_aborts", 1), ("prefix_held_action_aborts", 2)):
+        assert report["totals"][counter] == 2 * value
+        for worker in (0, 1):
+            assert report["workers"][worker][counter] == value
+        for line in (_line().replace(f" {counter}={value}", ""),
+                     _line() + f" {counter}={value}"):
+            try:
+                coverage.parse_probe(line, workers=1)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("missing or duplicated prefix reach accepted")
+
+
+def test_prefix_unlock_patches_remove_only_the_target_exit():
+    with _applied_template() as (checkout, _):
+        path = checkout / coverage.axis.SOURCE_REL
+        _git(checkout, "apply", "--check", str(ROOT / "patches" / coverage.PROBE_PATCH))
+        _git(checkout, "apply", str(ROOT / "patches" / coverage.PROBE_PATCH))
+        probe = path.read_text()
+        unlock = "        if (itr != write_set_.begin()) unlockWriteSet(itr);\n"
+        for name, target_index in (("no-prefix-unlock-limit", 0), ("no-prefix-unlock-conflict", 1)):
+            path.write_text(probe)
+            patch_path = ROOT / "patches" / coverage.MUTATION_PATCHES[name]
+            _git(checkout, "apply", "--check", str(patch_path))
+            _git(checkout, "apply", str(patch_path))
+            mutated = path.read_text()
+            assert _select_mutation(mutated, False) == probe
+            loop_start = probe.index("      if (attempt >= 32u)")
+            sites = [m.start() for m in re.finditer(re.escape(unlock), probe) if m.start() > loop_start]
+            target = sites[target_index]
+            # Exact source equality proves the other exit (and every other byte) survives.
+            assert _select_mutation(mutated, True) == probe[:target] + probe[target + len(unlock):]
 
 
 def test_focus_requires_post_commit_state_observation():

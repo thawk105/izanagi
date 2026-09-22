@@ -8391,6 +8391,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-silo-policy-no-prefix-unlock.patch": frozenset({
             "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
         }),
+        "patches/broken-silo-policy-no-prefix-unlock-limit.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
         "patches/broken-silo-policy-wrong-reason.patch": frozenset({
             "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
         }),
