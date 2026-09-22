@@ -371,6 +371,8 @@
 - **再発: 2026-09-21 (near miss、2 件)** — [T-2826] の前 wave (entry 1800) の親が、段 5 author の prompt に段 4 裁定 §4 の判定式を**手で要約して**書いた。(1) R8 の候補抽出で裁定の「session の作成時刻」を「dir の mtime を近似に使ってよい」に置き換え、(2) R6 (ii) の予測から「worker の待ちが伸びる」を落とした。再開 wave (`dev-wave-t2826-resume`) は起動引数どおりこの prompt を雛形にして wave 固有値だけを差し替えたため、集計器がその要約どおりに実装された。段 6 の read-only review が must-fix 2 件として捕捉した。親が作成時刻 (stat の birth time) で全 2,207 session を再照合して全セル候補 0、R6 は 3 条件で出し直して的中のままで、結論への実害は無い。転写元が裁定 file の逐語でなく親の要約である点で、2026-09-20 [T-2804] の再発 (裁定の literal を prompt へ手打ち) と同型。一次資料 `output/insights/2026-09-21/t2826-modify-timing-resume/README.md` §8、同 `verbatim/s6-review-out.md` 所見 1・2。恒久対応は変更なし — memory `ruling-literals-in-prompts-point-to-the-file` (判定式・定数・文面は裁定 file を正本と指し、逐語は file から機械的に切り出す) を、前 wave の prompt を雛形に流用する再開 wave にも当て、判定式の節は投入前に裁定 file の逐語と照合する。
 
 - **再発: 2026-09-22 (near-miss)** — T-2849 の設計 wave で、親が段 4 裁定の見出し時刻を「10:0x JST」、handoff の段 3 相談の投入時刻を「09:3x JST」と推定で書いた。実際は `date` の 09:29 と、pid file の mtime 09:20:49 / 09:20:54 だった。repo へ入る前 (job dir の段階) に `date` と mtime で直し、insight と worklog fragment には実測の時刻だけを書いた。恒久対応は `DW-S01` の「日時・hash・件数は commit / 成果物 field から取る」と memory `timestamps-from-date-or-mtime-not-estimation` から変更なし (時刻を書く直前に `date` か mtime を取る)。
+
+- **再発: 2026-09-22 (near-miss、論文ストーリー 2026-09-22 版の wave)** — 版の置換案を書いた下書き役 (Claude の子) が、起点より前に着地した出来事を「2026-09-22 版で (Tier0 を) 実装」「2026-09-21 版で (D297 が) 拒否」のように版の出来事として書いた (11 か所)。版名 (文書の版) と出来事の日付が同じ日付文字列を持つので取り違えが起きる。親が置換案の new を版名の正規表現で走査して見つけ、「この版の起点までに」「前版の起点の後」へ直した (job dir `story/fix_r4_versionwords.py`)。同じ wave で親自身も brief の見出しに推定の時刻を書き、file の mtime で直した。恒久対応は既存のとおり (時点語の機械置換を先に当てる手順と、`grep -n "前版\|この版"` の全走)。今回は加えて、置換案の new に出る「<日付> 版で」を機械で洗った。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -28309,3 +28311,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: memory `experiment-compute-needs-user-confirmation` の節「裁定が禁じた外挿を『仮定』と断って使わない」— 実測単価の無い新種 job は walltime (または明示した上限) × job 数で見積もり、
   2 node 時間以上なら確認を取る。2 本目以降は 1 本目の実測 Elapse で取り直してよい。記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md` §6。
 - 再発検知: 段 6 の read-only レビューの照合項目 (依頼・裁定の但し書きと見積りの根拠の対応)。機械検査はない。
+
+### F1042. LaTeX 原稿の文の途中に差し込んだ出所コメント行が、同じ物理行の後続の本文を PDF から消した [手順漏れ]
+
+- 事象: ComSys 2026 投稿原稿 (1 段落 = 1 物理行) の段 6 の修正で、親が文を差し替える置換に「文．\n% 出所: …」を入れた。置換した文の後ろに続いていた同じ行の本文が新しいコメント行の末尾に付き、
+  長時間検証の段落の後続 3 文と第 1 節の貢献 (2) の 1 文が PDF から消えた。組版はエラー・警告を出さず、数値照合 (数値 token の出現) でも捕まらなかった。
+- 根本原因: LaTeX は `%` から行末までを捨てる。段落の途中に改行してコメントを足すと、後続の本文が同じ物理行に残ってコメントに飲まれる。差し替え後に段落単位で PDF を目視しなかった。
+- 恒久対応: memory `latex-comment-insertion-swallows-body` — 出所コメントは段落末の次行にだけ足し、組版前に `grep -n "^%.*．" <tex>` が 0 件であることを確かめる。原稿 README §5 に同じ検査を書いた。
+- 再発検知: Codex の焦点再レビューが 1 か所目を検出、親の機械走査が 2 か所目を検出した。
