@@ -18,6 +18,14 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] 論文ストーリー 2026-09-22 版と ComSys 2026 投稿原稿 (日本語・情報処理学会 研究報告の書式) を作成した (2026-09-22 の執筆依頼、台帳 ID 未起票、根拠 D2212 項 9)。
+  版 `docs/paper-story/2026-09-22.md` は起点 local main `8fd2a2f5c` (entry 1818) までの正典 (entry 1796〜1818、D2206〜D2218、前版 README の stale 注記 3 件) を
+  全面再導出の作法で反映し、静的 backoff の一事例を機構の新しさとして書かない限定 (D2212 の理由欄、Polyjuice OSDI'21 §4.5) と、差分分析が挙げた ADRS と位置づけの 1 文の関係が
+  正典で未判定であることを置いた。原稿 `output/insights/2026-09-22/comsys2026-manuscript/manuscript.tex` と PDF (14 頁 = 本文 13 + 参考文献 1) は日本語草稿 6 組をこの版に
+  整合させて 1 本へ圧縮し、IPSJ のスタイル (ipsj_v4-1、techrep) で組版した。本文に内部 ID を出さず出所は LaTeX コメントに置き、fig9 / fig14 (A-1 の 2 attempt を別図で比較しない) と
+  fig15 (MOCC の非 certifying 観測) を位置づけた。著者・所属は差し込み欄 (ユーザー手番)。段 6 は D2211 項 11 どおり Codex の read-only レビュー 2 本 (版・原稿とも NO-GO → 全 must-fix を修正) と焦点再レビュー 1 巡 (GO)。
+  草稿・前版・図は不変。文書成果の完了であり、原稿の投稿・未取得の測定・Phase 3 全体の完了を意味しない。記録 = 同 dir の `README.md`。
+
 - [x] T-1851 の取り残し worktree `dev-wave-t1851-c3c-official-floor` の tracked 外 file 3,485 件を [T-1851] / [T-2698] の正典と照合し、
   正典に bytes が無い研究記録 216 件 (claims 3・submissions の小 file 57・`.gitignore` 無視対象の job-staging 156) を repo 外の
   `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1851-leftover-audit/preserved/` へ sha256 付きで保全した (2026-09-22 のユーザー依頼、台帳 ID 未起票)。
