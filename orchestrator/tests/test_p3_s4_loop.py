@@ -8361,6 +8361,39 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
     ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
     registered = {entry["path"] for entry in ledger["entries"]}
     allowed_non_variant_tokens = {
+        "patches/instr-silo-function-policy-probe.patch": frozenset({
+            "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-norw-validation.patch": frozenset({
+            "IZANAGI_BREAK_NOREAD_VALIDATION",
+        }),
+        "patches/broken-silo-policy-lockskip-validation.patch": frozenset({
+            "IZANAGI_BREAK_LOCK_COVERAGE",
+        }),
+        "patches/broken-silo-policy-no-abort-hook.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-no-lock-hook.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-no-commit-hook.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY",
+        }),
+        "patches/broken-silo-policy-no-clamp.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-no-reload.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY",
+        }),
+        "patches/broken-silo-policy-no-limit.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-no-prefix-unlock.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
+        "patches/broken-silo-policy-wrong-reason.patch": frozenset({
+            "IZANAGI_BREAK_SILO_POLICY", "IZANAGI_SILO_POLICY_PROBE",
+        }),
         # These are diagnostic stdout marker string literals inside
         # #if BACKOFF_TRACE, not naked macros. Patch macros are registered in
         # condition_meaning_gate.DefineSpec; ledger.json stays unregistered for

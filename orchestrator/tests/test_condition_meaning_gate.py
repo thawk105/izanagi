@@ -34,6 +34,9 @@ _F707 = _FIXTURES / "f707-missing-supply"
 _IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
 _COMPILE_TIME_BRANCH_MACROS = (
+    "SILO_POLICY_VARIANT",
+    "IZANAGI_SILO_POLICY_PROBE",
+    "IZANAGI_BREAK_SILO_POLICY",
     "BACKOFF_NOINLINE",
     "IZANAGI_BREAK_PERMUTATION",
     "IZANAGI_BREAK_PERMUTATION_SWAP",
@@ -68,6 +71,15 @@ _REQUESTED_US_CONTRAST = 0
 
 # Independent patch expectations: source, exact directive, site count, contrast.
 _NEW_BRANCH_EXPECTATIONS = {
+    "SILO_POLICY_VARIANT": (
+        "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT", 15, 0,
+    ),
+    "IZANAGI_SILO_POLICY_PROBE": (
+        "cc/silo/transaction.cc", "#if IZANAGI_SILO_POLICY_PROBE", 21, 0,
+    ),
+    "IZANAGI_BREAK_SILO_POLICY": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_SILO_POLICY", 1, 0,
+    ),
     "IZANAGI_BREAK_TRIGGER_MISATTR": (
         "cc/silo/transaction.cc", "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR", 1, None,
     ),
@@ -3379,6 +3391,7 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
+        "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
         "MOCC_TEMP_PREDICATE",
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
         "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
@@ -3400,11 +3413,23 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
     assert G.SUPPLY_DOMAIN_MACROS == supply_domain
+    assert G.DEFINE_SPECS["SILO_POLICY_VARIANT"] == G.DefineSpec(
+        G.ROUTE_CMAKE_CACHE, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
+        "patches/silo-function-policy-variant.patch", inert_values=("0",),
+    )
+    for macro, patch in (
+        ("IZANAGI_SILO_POLICY_PROBE", "instr-silo-function-policy-probe.patch"),
+        ("IZANAGI_BREAK_SILO_POLICY", "broken-silo-policy-no-commit-hook.patch"),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
+            "patches/" + patch, (("SILO_POLICY_VARIANT", "1"),),
+        )
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 22
-    assert len(G.MEANING_SUPPORTED_MACROS) == 23
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 25
+    assert len(G.MEANING_SUPPORTED_MACROS) == 26
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3492,10 +3517,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 23
+    ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 17
+    ) == 19
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3615,9 +3640,9 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
-    assert "supply domain contains the 40 patch-derived defines" in G.__doc__
+    assert "supply domain contains the 43 patch-derived defines" in G.__doc__
     assert (
-        "Twenty-two\nregistered macros additionally have a bounded compile-time witness"
+        "Twenty-five\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

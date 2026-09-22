@@ -71,6 +71,8 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    # Coverage/smoke YCSB runs with a mandatory timeout and diagnostic admission.
+    ("campaign/silo_policy_coverage.py", "<module>._run"): 1,
     # Fixed balanced argv under the compute-site bench lock, shell disabled,
     # and a mandatory timeout; stdout is diagnostic-only requested-us data.
     ("campaign/backoff_requested_us.py", "<module>._run_rep"): 1,
@@ -88,6 +90,8 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # Standalone policy TU compiler and UBSan harness; no CCBench binary.
+    ("campaign/silo_policy_compile.py", "<module>._run"): 1,
     # CMake installs gflags/glog only; the helper verifies/hydrates sources.
     # Neither site launches a CCBench measurement binary.
     ("campaign/b4_binary_record.py", "<module>._install_dependency"): 1,
@@ -626,6 +630,16 @@ _CMAKE_INTERNAL_DEFINE_RE = re.compile(
 )
 
 
+# Overlay patches quote this new interface in context. That does not make it
+# an upstream CCBench define. Still require its actual added conditional in the
+# introducing patch; no registry key is used to discover the interface.
+_OVERLAY_BASE_DEFINE_INTERFACES = {
+    "patches/instr-silo-function-policy-probe.patch": frozenset({
+        "IZANAGI_SILO_POLICY_PROBE",
+    }),
+}
+
+
 def _patch_added_define_interfaces(
     patch_dir: Path = _PATCH_DIR,
 ) -> tuple[dict[str, frozenset[str]], frozenset[str]]:
@@ -701,7 +715,8 @@ def _patch_added_define_interfaces(
                 continue
             for macro in _DEFINE_TOKEN_RE.findall(match.group(1)):
                 if (
-                    macro not in global_prior_tokens
+                    (macro not in global_prior_tokens
+                     or macro in _OVERLAY_BASE_DEFINE_INTERFACES.get(patch_rel, ()))
                     and macro not in internal_defines
                     and macro not in cmake_marker_values
                     and macro != include_guards.get(i)
@@ -2915,6 +2930,27 @@ def test_production_build_sinks_include_certify_calibration_script():
     assert "tools/pegasus/certify_calibration.sh" in {
         sink.relative_path for sink in sinks
     }
+    assert _BuildSink(
+        "orchestrator/campaign/silo_policy_coverage.py",
+        "<module>._build_variant", 348, "direct-cmake-target",
+    ) in sinks
+
+
+def test_silo_policy_diagnostic_helper_sites_are_exact():
+    source = (_ROOT / "orchestrator/campaign/silo_policy_coverage.py").read_text()
+    tree = ast.parse(source)
+    sites = Counter(
+        (fn.name, _call_name(call.func))
+        for fn in tree.body if isinstance(fn, ast.FunctionDef)
+        for call in ast.walk(fn) if isinstance(call, ast.Call)
+        and _call_name(call.func) in {"compute._run_checked", "locks._run_cmake_build"}
+    )
+    assert sites == Counter({
+        ("_build_variant", "compute._run_checked"): 1,
+        ("_build_variant", "locks._run_cmake_build"): 1,
+        ("_preprocess", "compute._run_checked"): 1,
+        ("_verify", "compute._run_checked"): 1,
+    })
 
 
 def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
@@ -3525,10 +3561,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 36,
+        "proven-unreachable": 39,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 40})
+    assert classifications[s8b_sink] == Counter({"covered": 43})
     assert failures == []
 
 
@@ -3552,7 +3588,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 26})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 29})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3561,7 +3597,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 26,
+        "failure-reachable": 14, "proven-unreachable": 29,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

@@ -55,6 +55,12 @@ def _complete_runs():
                 p = r["probe"]["totals"]
                 p[layer + "_mismatch"] = p[layer + "_match"]
                 p[layer + "_match"] = 0
+                # The focus encoding carries counters across hook returns.
+                additional = {"mutation/no-abort-hook": ("lock", "commit"),
+                              "mutation/no-lock-hook": ("abort",)}.get(case, ())
+                for hook in additional:
+                    p[hook + "_mismatch"] = p[hook + "_match"]
+                    p[hook + "_match"] = 0
         elif case.startswith("flag/"):
             r = {"returncode": 1, "stderr": "Silo function policy requires BACK_OFF=1 and no-wait flags 1/0"}
         elif case == "trace0":
@@ -154,6 +160,20 @@ def test_characterization_and_mechanism_predicates():
         r = _certified()
         r["probe"]["totals"][key] = 0
         assert not all(coverage.check_case(case, r).values())
+
+
+def test_no_lock_hook_rejects_extra_commit_mismatch():
+    r = _complete_runs()["mutation/no-lock-hook"]
+    assert coverage.check_case("mutation/no-lock-hook", r)["expected"] is True
+    r["probe"]["totals"]["commit_mismatch"] = 1
+    assert coverage.check_case("mutation/no-lock-hook", r)["expected"] is False
+
+
+def test_no_lock_hook_rejects_missing_abort_mismatch():
+    r = _complete_runs()["mutation/no-lock-hook"]
+    assert coverage.check_case("mutation/no-lock-hook", r)["expected"] is True
+    r["probe"]["totals"].update(abort_mismatch=0, abort_match=5)
+    assert coverage.check_case("mutation/no-lock-hook", r)["expected"] is False
 
 
 def _line(worker=0):

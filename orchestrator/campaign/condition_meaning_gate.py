@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 40 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-two
+Claim boundary: the supply domain contains the 43 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-five
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -77,6 +77,21 @@ _SILO_OWNER = ("cc/silo/transaction.cc",)
 _SS2PL_OWNER = ("cc/ss2pl/transaction.cc",)
 _MOCC_OWNER = ("cc/mocc/transaction.cc",)
 _DEFINE_SPECS = {
+    "SILO_POLICY_VARIANT": DefineSpec(
+        ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/silo-function-policy-variant.patch",
+        inert_values=("0",),
+    ),
+    "IZANAGI_SILO_POLICY_PROBE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/instr-silo-function-policy-probe.patch",
+        (("SILO_POLICY_VARIANT", "1"),),
+    ),
+    "IZANAGI_BREAK_SILO_POLICY": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-policy-no-commit-hook.patch",
+        (("SILO_POLICY_VARIANT", "1"),),
+    ),
     "BACKOFF_FIXED": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-backoff-fixed.patch",
@@ -258,6 +273,15 @@ _DEFINE_SPECS = {
 DEFINE_SPECS: Mapping[str, DefineSpec] = MappingProxyType(_DEFINE_SPECS)
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "SILO_POLICY_VARIANT": (
+        "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT",
+    ),
+    "IZANAGI_SILO_POLICY_PROBE": (
+        "cc/silo/transaction.cc", "#if IZANAGI_SILO_POLICY_PROBE",
+    ),
+    "IZANAGI_BREAK_SILO_POLICY": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_SILO_POLICY",
+    ),
     "BACKOFF_NOINLINE": (
         "include/backoff.hh", "#if BACKOFF_NOINLINE",
     ),
@@ -327,6 +351,8 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
 }
 _CONDITIONAL_BRANCH_SITE_COUNTS = {
+    "SILO_POLICY_VARIANT": 15,
+    "IZANAGI_SILO_POLICY_PROBE": 21,
     "IZANAGI_SILO_LADDER_RUNG1": 2,
     "BACKOFF_TRIGGER_GATING": 12,
     "BACKOFF_REQUESTED_US": 2,

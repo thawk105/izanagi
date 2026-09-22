@@ -100,6 +100,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "trace-only permutation mutation used to prove the verifier has teeth",
         ),
+    "orchestrator.campaign.silo_policy_coverage._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "Silo function-policy coverage and smoke builds are diagnostic only",
+        ),
     "orchestrator.campaign.s8a_trigger_coverage._build":
         MaterializerRegistration(
             ADMITTED_GATEWAY,

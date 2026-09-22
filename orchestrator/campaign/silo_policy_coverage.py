@@ -216,7 +216,13 @@ def check_case(case: str, r: dict) -> dict[str, bool]:
             expected = (_certified(r) and _positive(p.get("locks"))
                         and p.get("retry_success") == 0)
         else:
-            expected = (_certified(r) and _positive(p.get(layer + "_mismatch"))
+            red = {"no-abort-hook": {"abort", "lock", "commit"},
+                   "no-lock-hook": {"abort", "lock"},
+                   "no-commit-hook": {"commit"}, "wrong-reason": {"reason"}}[name]
+            expected = (_certified(r)
+                        and all(_positive(p.get(hook + "_mismatch")) if hook in red
+                                else _encoding(p, hook)
+                                for hook in ("abort", "lock", "commit", "reason"))
                         and _focus_checks(r)["conservation"])
         return {"expected": expected}
     if case.startswith("flag/"):
