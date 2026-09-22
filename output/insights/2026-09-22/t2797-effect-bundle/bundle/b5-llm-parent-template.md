@@ -35,7 +35,8 @@
    (台帳 `series.json` の最後の event が `series-end`)。そのとき session を閉じる。**最後の評価の後に critic は走らせない** (次の生成入力へ還流しないため)。
 
 **model の不一致:** 4〜5 または §4 の記録で `matches_expected` が false なら、その原提案では proposal も reject も公開せず、理由を `<materials root>/round-<a>/model-mismatch.md`
-(critic のときは `critic-<k>/model-mismatch.md`) に書いて session を閉じる。系列は handshake の期限切れ (`proposal-wait-timeout`) で分類不能欠測になる。救済・再抽選しない。
+(critic のときは `critic-<k>/model-mismatch.md`) に書いて session を閉じる。系列は通常 handshake の期限切れ (`proposal-wait-timeout`) で、job の残り walltime が先に不足すれば
+`allocation-exhausted` で終わり、どちらでも score は欠測 (分類不能欠測) になる。救済・再抽選しない。
 critic は §3 の 2 のとおり次の原提案の前にだけ走らせるので、critic の不一致もこの経路で系列の欠測になる。
 
 ## 4. 評価 k の critic

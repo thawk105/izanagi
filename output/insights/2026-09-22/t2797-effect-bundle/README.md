@@ -47,7 +47,7 @@ D2200 項 1 の段階認可のうち、残っていた AI 手番「発効束の�
 |---|---|---|
 | 本走認可の日付・D 番号・承認対象の commit | 承認後の発効 commit で `effective` 節に書く。承認対象 = 本 wave の land commit と本束 | 承認待ち |
 | 事前登録 raw bytes の SHA-256 と保存先 | `66cc3911e0e4026de7ff6d33d419c362d40130944ec1f30be1ec2f2ac9afd669` (51,385 B、Git blob `58c4eacb…`、最終変更 commit `c6e45385…`)。保存先は repository 履歴の同 path | 固定 |
-| repository・CCBench・文法・環境・toolchain の版 | 子が使う CCBench pin `511c9538…` (gitlink `e9e477ca…` とは別)、文法 module sha256 `d013131d…`、環境契約 `env_contract.lookup('pegasus')` = contract `e576e9cd…`・較正 record `calibration-753f535a…`・clocks 2100・numactl なし。toolchain は試走の計算ノードで観測した gcc / g++ 11.4.0 (Ubuntu 11.4.0-1ubuntu1~22.04.3)、cmake 3.22.1、python 3.10 (sha256 `d6bca2b8…`) を本走の要求値とする | 固定。本走 job ごとの toolchain は prebuild receipt に記録され、要求値と異なる job は発効束への不適合としてその系列 (または block-stock) を集計時に欠測扱いにし救済しない (手順であって機械 gate ではない) |
+| repository・CCBench・文法・環境・toolchain の版 | 子が使う CCBench pin `511c9538…` (gitlink `e9e477ca…` とは別)、文法 module sha256 `d013131d…`、環境契約 `env_contract.lookup('pegasus')` = contract `e576e9cd…`・較正 record `calibration-753f535a…`・clocks 2100・numactl なし。toolchain は試走の計算ノードで観測した gcc / g++ 11.4.0 (Ubuntu 11.4.0-1ubuntu1~22.04.3)、cmake 3.22.1、python 3.10 (sha256 `d6bca2b8…`) を本走の要求値とする | 固定。本走 job ごとの compiler・cmake は prebuild receipt の `toolchain_manifest`、python の sha256 は同じ job の `compute-result.json` に記録され、要求値と異なる job は発効束への不適合としてその系列 (または block-stock) を集計時に欠測扱いにし救済しない (手順であって機械 gate ではない) |
 | 実行 script・生成器・解析規則の bytes と hash | draft JSON の `files_sha256` (31 file: driver・report・子・pipeline・loop・文法・格子・動作点・環境契約・射影・知識 manifest 解決・bench の CV 判定・verifier 9 file・launcher・job body・LLM 巡 tool・role 定義 3 file・事前登録・較正 record) | 固定 (内容 hash で束縛) |
 | LLM の exact ID と推論・生成設定 | 予定 exact ID `claude-opus-5`。親は `claude --model claude-opus-5 --settings bundle/b5-parent-settings.json` (alias `opus` → `claude-opus-5` の対応変数と親 effort xhigh)、role は定義どおり effort high。生成 parameter は §5 | 固定 (観測 ID は実走時に巡ごとに記録) |
 | 全役割の prompt | template は `tools/b5_llm_round.py` 内 (sha256 は `files_sha256`)。親への指示は `bundle/b5-llm-parent-template.md`。生成済み prompt は各系列の開始 stock 値を含むので実走前には存在しない (tool が巡ごとに sha256 を出力・保存) | template 固定 / 生成物は実走後 |
@@ -78,8 +78,8 @@ D2200 項 1 の段階認可のうち、残っていた AI 手番「発効束の�
 - **観測 ID の記録:** `record-models` は巡ごとに role の会話記録 (`~/.claude/projects/<proj>/<session>/subagents/agent-<id>.jsonl` と `.meta.json`) から、assistant 発話の `message.model` の全件・
   client の版・`agentType`・`toolUseId`・両 file の raw sha256 を記録する。試走 session (`f54395e2…`) の planner-v4 も事後にこの形で `claude-opus-5` と読めた。記録は client の内部形式で、
   安定 API・暗号学的な証明・実入力の送達証明ではない。
-- **不一致時の処置 (事前に登録):** role の記録のどれかで `matches_expected` が false なら、親はその原提案の proposal も reject も公開せず session を閉じ、系列は handshake の期限切れ
-  (`proposal-wait-timeout`、分類不能欠測) で終わる。救済・再抽選しない。critic は「次の原提案の request が出て、その評価番号が増えたときに、還流する直前の評価の分だけ」走らせ、
+- **不一致時の処置 (事前に登録):** role の記録のどれかで `matches_expected` が false なら、親はその原提案の proposal も reject も公開せず session を閉じ、系列は通常 handshake の期限切れ
+  (`proposal-wait-timeout`) で、job の残り walltime が先に不足すれば `allocation-exhausted` で終わる。どちらでも score は欠測 (焦点再レビューの partial を受けた限定)。救済・再抽選しない。critic は「次の原提案の request が出て、その評価番号が増えたときに、還流する直前の評価の分だけ」走らせ、
   最後の評価の後は走らせない (driver は最後の評価の後に handshake を待たず score へ進むため。段 6 裁定 R2、試走も 10 評価に対し critic は 9 本)。したがって走らせた critic の不一致もこの経路で欠測になる。
   `matches_expected` の判定に client の版の形式は入れない (版は記録だけ、段 6 裁定 R1)。
 - **A だけを消費する拒否 (段 6 裁定 R3):** planner / coder の出力が空・不正・検査落ちなら、親は候補を直さず呼び直さず `reject` (A 消費)。子側の前処理拒否・Tier0 不通過では評価が出ず、
@@ -182,7 +182,7 @@ k = 4.06 (gen_S 上限): W 86,312 s、W_stock 22,115 s。**推奨 k = 3。** 換
 (小さい k で打ち切られていた job は、大きい k では長く走るぶん実 Elapse が増える)。walltime の不足は n や正しさ条件を下げる理由にしない (§11)。
 
 **総 wall 倍率 (§11「試走の実測所要への倍率」、計上対象 = job Elapse の総和、親の待ちを含む)。** 分母は試走の raw job Elapse 総和 61,261 s とする (session 比例の外挿値 569 h とは混ぜない)。
-本走 1,773 論理 session の見積り: 換算の低い側 360.8 h (21.2 倍)、高い側 465.9 h (27.4 倍)、高い側に A = 30 使い切りの親待ち (各機会 780 s の仮定) を重ねると 621.9 h (36.6 倍)。
+本走 1,773 論理 session の見積り: 換算の低い側 360.8 h (21.2 倍)、高い側 465.9 h (27.4 倍)、高い側に A = 30 使い切りの親待ち (各機会 780 s の仮定) を重ねると 621.9 h (36.5 倍、2,238,804 s / 61,261 s = 36.545)。
 **推奨倍率 40 倍 = 2,450,440 s (680.7 h)。** 高い側 + A = 30 使い切りの親待ち試算に約 1 割の余裕 (retry・品質再測定・失敗の追加費用) を見た値で、旧単価ストレス例を全 workload に当てた場合や、
 各機会が 780 s を超えて 2,700 s の上限近くまで待つ場合は覆わない。
 上限に達したら事前登録どおり n や正しさ条件を下げず、未完走の比較を対称に判定不能として終える。
@@ -236,6 +236,10 @@ k = 4.06 (gen_S 上限): W 86,312 s、W_stock 22,115 s。**推奨 k = 3。** 換
   裁定は `verbatim/s6-adjudication.md` (R1〜R11 をすべて採用)。実装の fix は Codex 2 本 (A1: 起動目録 test を base へ戻し schedule 検査を整理、B2: 版の異常を別欄へ、12:37〜12:39 JST)、
   fix commit `d307eb541`。文書の fix (親指示 template の critic の実行条件と A だけを消費する分岐、承認対象の限定、束の data file の hash 列挙、toolchain の要求値、費用の文言と丸め) は親。
   fix 後も知識射影 3 file と schedule の出力は同じ bytes。
+- **焦点走 f2 (計算ノード、12:44〜12:46 JST、job Elapse 92 s、HEAD `562b1c1e0`):** fix で触れた test と consumer・docs 検査の 7 file で **1,072 passed / 5 skipped / 0 failed**。
+- **焦点再レビュー (Codex 1 本、12:45〜12:49 JST):** 11 所見のうち closed 8、partial 3 (model 不一致時の終了理由を期限切れだけと断定、python の hash の照合元、倍率表示 36.6 → 36.5)、regressed 0。
+  hash 31 / 31・束内 12 / 12・費用の各値を再計算で一致と確認。partial 3 件は親が文書で閉じた (終了理由は「通常は期限切れ、walltime が先に不足すれば allocation-exhausted、どちらでも score 欠測」、
+  python は同じ job の `compute-result.json` から照合、倍率は 36.5)。`verbatim/s6-focus.md`。
 - **親の検算:** schedule の性質 (§6)、workload 別 context の差分 (§5)、random 値・sweep 順・重み material の試走凍結値との一致、知識 manifest の写しの digest、環境契約の解決結果
   (`env_contract.lookup('pegasus')` は contract `e576e9cd…`・較正 record `753f535a…`。後の世代 `94a4b79f…` は lookup の返り値ではない)。
 

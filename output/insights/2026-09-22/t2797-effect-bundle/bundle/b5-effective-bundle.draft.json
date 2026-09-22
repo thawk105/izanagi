@@ -61,7 +61,8 @@
       "cxx_version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
       "cmake_version_first_line": "cmake version 3.22.1",
       "python_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
-      "nonconforming_job": "A job whose prebuild receipt differs from these values does not conform to this bundle; its series (or block-stock) is treated as missing at aggregation time and is not rescued. This is a documented aggregation procedure, not a machine gate."
+      "sources": "cc / cxx / cmake from the job's prebuild receipt toolchain_manifest; python_sha256 from the same job's compute-result.json",
+      "nonconforming_job": "A job whose recorded values (sources above) differ from these values does not conform to this bundle; its series (or block-stock) is treated as missing at aggregation time and is not rescued. This is a documented aggregation procedure, not a machine gate."
     },
     "claude_code_client_observed": "2.1.278 (login node, 2026-09-22); recorded per round by record-models, not pinned"
   },
@@ -138,7 +139,7 @@
       },
       "generation_parameters": "temperature, top_p, max tokens and similar sampling parameters have no specification interface in the client and are not observable; they are recorded as client defaults, not as fixed values",
       "model_recording": "tools/b5_llm_round.py record-models per role call: all assistant message.model values, client versions, agentType, toolUseId, raw sha256 of transcript and meta; matches_expected is recorded, not enforced by the tool",
-      "mismatch_rule": "If any role record has matches_expected false, the parent publishes neither the proposal nor a rejection for the current opportunity and closes the session; the series ends by proposal-wait-timeout (unclassified missing), no rescue or re-draw. Critics run only before the next opportunity (for the evaluation whose diagnosis feeds it), never after the final evaluation, so every critic mismatch also ends the series this way",
+      "mismatch_rule": "If any role record has matches_expected false, the parent publishes neither the proposal nor a rejection for the current opportunity and closes the session; the series normally ends by proposal-wait-timeout, or by allocation-exhausted if the job's remaining walltime runs short first; either way the score is missing (unclassified missing), no rescue or re-draw. Critics run only before the next opportunity (for the evaluation whose diagnosis feeds it), never after the final evaluation, so a critic mismatch also ends the series in one of these two ways",
       "critic_timing": "When request-<a> has next_evaluation k >= 2 and critic-<k-1> does not exist yet, run the critic for evaluation k-1 before inputs --a <a>; A-only rejections (no new evaluation) run no critic; no critic after the final evaluation",
       "a_only_rejections": "Empty or invalid planner/coder output and failed proposal checks are rejected with reject --a <a> (A consumed) without editing or re-asking; child-side preprocess or Tier0 rejection publishes no slot and the next request keeps the same k",
       "knowledge": {
@@ -226,7 +227,7 @@
   },
   "bundle_files_sha256": {
     "note": "Every data file of this bundle directory except this JSON itself (no self-hash)",
-    "bundle/b5-llm-parent-template.md": "57541de0b68a1f82c30a40e869cc78e9f7878e56ad78905c50f58c95046deebf",
+    "bundle/b5-llm-parent-template.md": "a69ca1ec3be12991f0afbca04fcfe7927fe31d5d446706dd7df16fac94b49d7a",
     "bundle/b5-parent-settings.json": "2776a2823e527b7078277678437a997fe560ce82192882dc798016b7fec708b7",
     "bundle/cost-model.txt": "cffbf5e091ee7359c257e897c8e548f1fe82c149bb5d21e7d35656d497a59a8d",
     "bundle/knowledge-manifest-wal-only.json": "68eb3d5f4bcdab1e91a379868d188493bda548c5f26d6c3965a00dc5c9a70977",
