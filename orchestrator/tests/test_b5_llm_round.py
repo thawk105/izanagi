@@ -220,6 +220,23 @@ def test_model_record_metadata_and_raw_hashes(tmp_path):
     assert record["matches_expected"] is True and record["reasons"] == []
 
 
+def test_model_record_version_is_recorded_only(tmp_path):
+    rows = [
+        {"type": "user", "version": None},
+        {"type": "assistant", "version": None, "message": {"model": "claude-opus-5"}},
+        {"type": "assistant", "version": "2.1.278", "message": {"model": "claude-opus-5"}},
+        {"type": "assistant", "version": "", "message": {"model": "claude-opus-5"}},
+        {"type": "assistant", "version": 278, "message": {"model": "claude-opus-5"}},
+    ]
+    record = _record(*_model_files(tmp_path, rows=rows))
+    assert record["matches_expected"] is True
+    assert record["reasons"] == []
+    assert record["client_versions"] == ["2.1.278"]
+    assert record["version_notes"] == [
+        f"transcript line {number}: invalid version" for number in (1, 2, 4, 5)
+    ]
+
+
 def test_model_record_flags_mismatch(tmp_path):
     transcript, meta = _model_files(tmp_path)
     assert _record(transcript, meta)["matches_expected"] is True

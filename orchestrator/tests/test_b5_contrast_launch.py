@@ -326,7 +326,14 @@ def test_registered_schedule_coordinates():
         assert "".join(letters[j["arm"]] for j in jobs) == row["order"]
 
 
-def _assert_registered_order_balance(schedule):
+def test_registered_schedule_llm_four_per_stage():
+    schedule = launch.registered_schedule()
+    assert Counter((j["block"], j["stage"]) for j in schedule["jobs"] if j["arm"] == "llm") == {
+        (b, s): 4 for b in (1, 2, 3) for s in (1, 2, 3)}
+
+
+def test_registered_schedule_six_orders_twice():
+    schedule = launch.registered_schedule()
     expected = Counter({order: 2 for order in ("LRS", "SRL", "LSR", "RSL", "RLS", "SLR")})
     for workload in ("write-heavy", "balanced", "read-heavy"):
         rows = [r for r in schedule["orders"] if r["workload"] == workload]
@@ -336,19 +343,6 @@ def _assert_registered_order_balance(schedule):
             assert len(orders) == 4
             for baseline in "RS":
                 assert Counter(o.index("L") < o.index(baseline) for o in orders) == {True: 2, False: 2}
-
-
-def test_registered_schedule_llm_four_per_stage():
-    schedule = launch.registered_schedule()
-    assert Counter((j["block"], j["stage"]) for j in schedule["jobs"] if j["arm"] == "llm") == {
-        (b, s): 4 for b in (1, 2, 3) for s in (1, 2, 3)}
-    # Removing the block rotation preserves four LLMs per stage, but loses
-    # six-orders-twice. Both independently counted properties belong here (MA6).
-    _assert_registered_order_balance(schedule)
-
-
-def test_registered_schedule_six_orders_twice():
-    _assert_registered_order_balance(launch.registered_schedule())
 
 
 def test_registered_stage_job_counts():

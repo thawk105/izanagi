@@ -420,6 +420,7 @@ def record_models(transcript, meta, *, role, expected_model, round_number=None,
                   critic_number=None):
     """Record all observations, including malformed/missing evidence; never gate."""
     reasons = []
+    version_notes = []
     models, versions = set(), set()
     assistant_messages = 0
 
@@ -445,7 +446,7 @@ def record_models(transcript, meta, *, role, expected_model, round_number=None,
                 if isinstance(row["version"], str) and row["version"]:
                     versions.add(row["version"])
                 else:
-                    reasons.append(f"transcript line {number}: invalid version")
+                    version_notes.append(f"transcript line {number}: invalid version")
             if row.get("type") != "assistant":
                 continue
             assistant_messages += 1
@@ -476,6 +477,7 @@ def record_models(transcript, meta, *, role, expected_model, round_number=None,
         "a": round_number, "evaluation": critic_number,
         "expected_model": expected_model, "models": sorted(models),
         "client_versions": sorted(versions), "assistant_messages": assistant_messages,
+        "version_notes": version_notes,
         "agentType": metadata.get("agentType"), "toolUseId": metadata.get("toolUseId"),
         "transcript": transcript_record, "metadata": metadata_record,
         "matches_expected": not reasons, "reasons": reasons,
