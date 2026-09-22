@@ -118,6 +118,30 @@ $ cat output/env/pegasus/silo_ladder_rung1/job-staging/0_873920.nqsv/raw-bundle-
 
 (この block だけは全文でなく、親が必要な field を抜き出した要約である。原本は上の path にある。)
 
+## [T-2849] の比較基盤の設計書の検索 (段 6 焦点再レビュー F1 への対応、2026-09-22 20:3x JST)
+
+local main `eef04f5a7fae95153e6253d362ce872555e65d4e` を wave 木へ取り込んだ後 (merge `33a13d503`) に、同書 (最終版 commit
+`449045e764cd2fc150077b945fbd0d0b9cfdbd26`、`git merge-base --is-ancestor` で取り込んだ main の祖先であることを確認) を検索した。
+
+```
+$ grep -n -E "0\.7|0\.99|rr25|rr75|読み比率 ?(25|75)|thread ?(12|24)|(12|24) ?thread|max_ope|操作数|rmw|read-modify-write|skew" output/insights/2026-09-22/t2849-comparison-harness-design/README.md | cut -c1-160
+333:- MOCC の動作点の較正 (calibrator)。参照した記録 (`patches/README.md` の T-2294 の記載と `output/insights/2026-09-21/t2844-mocc-xp-hook-b
+```
+
+(hit の 333 行は MOCC の既存の certified 記録 (T-2294: tuple 200・extime 1 秒・thread 1 / 4・読み比率 0・rmw) を述べる行で、
+留保条件を学習・選択に使う記述ではない。)
+
+```
+$ grep -n "1M records・48 threads・3 秒\|転移 (\[T-2851\]\|stock 比で報告" output/insights/2026-09-22/t2849-comparison-harness-design/README.md | cut -c1-200
+48:- 未知条件への転移 ([T-2851] が別に扱う)。他 protocol・他環境での成立。
+64:手法によって評価経路を変えない。S1 の経路は B-5 と同じで、`p3_s4_loop --run-iteration <proposal>` → 文法・帰属整合 (value == literal)・diff 検疫 → Tier0 (perf
+335:- 既知最良: `p2_2_flag_opt` に当たる MOCC の実測は、調査子が decisions・worklog・`orchestrator/` を関連語で検索した範囲では見つからなかった。MOCC_SPACE (BA
+```
+
+(48 行は同書 §1.3、64 行は §2.3 (同じ行の後半に「動作点は較正済みの 1M records・48 threads・3 秒・5 rep、workload は write-heavy /
+balanced / read-heavy」)、335 行は §9.3 (同じ行の後半に「MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する」)。
+後半は `cut -c1-200` で切れているので、親が同書の該当行を別に読んで確かめた。)
+
 ## 調査子 (sonnet、read-only) の検索
 
 既知結果の棚卸しは調査子にも依頼した。子の報告の要点は `facts.md` の 9 に写した。子が使った検索式は子の報告に

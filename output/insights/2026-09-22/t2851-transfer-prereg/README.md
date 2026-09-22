@@ -54,7 +54,19 @@
 
 ## 6. 焦点再レビュー
 
-(焦点再レビューの後に追記する。)
+- 1 巡目 (read-only codex、HEAD 7d9c95fa3、`verbatim/s6-focus-1.md`): **GO、must-fix 0**。R1〜R9 と親の発見 P-a は closed、
+  P-b は partial (レビュー時点の wave 木に [T-2849] の設計書が無く照合できなかった)。新しい所見は F1 (should、§10 の追記の証拠の追跡性) と
+  F2 (nit、使えた block が 0 個・1 個のときの記述区間)。
+- 対応: local main `eef04f5a7` を取り込んだ (merge `33a13d503`、競合なし、全史の provenance 監査 rc=0・新規違反なし) 後、
+  §10 に同書の最終版 commit と節 (§1.3・§2.3・§9.3) を書き、検索の command と出力を `verbatim/known-scan.md` に足した (F1)。
+  §6.1 に 0 個・1 個のときの書き方を足した (F2)。どちらも焦点再レビューの判定を変える種類の修正ではないので、2 巡目は起動していない。
+
+## 7. 本 wave の自分起因の誤り
+
+- 段 6 の修正 commit `beaf8de2f` に、親が別の command へ誤って混ぜた正規化 script の再実行による `verbatim/NORMALIZATION.json` の
+  上書き (既に正規化済みの file を原本とみなし、除去 0 件と記録) が入った。commit の差分統計で気づき、`7d9c95fa3` で 3aa5ba43f の
+  内容へ戻した (差分 0 を確認)。相談 2 本の本文 file は変わっていない。
+- 本文 §4 の「rh の R2 = R0 と同じ build」は誤記だった (§4 の P-a)。段 6 レビューの走行中に親が現物で見つけて直した。
 
 ## 5. 本 wave がしなかったこと
 
