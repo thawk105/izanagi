@@ -2850,6 +2850,30 @@ def test_reviewed_process_launch_inventory_is_recursive_and_exact():
     assert _process_launch_sites() == expected
 
 
+def test_b5_submitter_process_launch_inventory_is_exact():
+    # This login-side tool is outside _PRODUCTION_DIRS. Its three seams are
+    # read-only Git admission, pilot qsub, and registered stage qsub; none
+    # executes a CCBench measurement locally. Keep late-bound runners visible.
+    path = "tools/pegasus/b5_contrast_launch.py"
+    tree = ast.parse((_ROOT / path).read_text())
+    visitor = _ProcessLaunchVisitor(path)
+    visitor.visit(tree)
+    assert visitor.sites == Counter({(path, "<module>._git"): 1})
+    runners = Counter()
+    for function in tree.body:
+        if not isinstance(function, ast.FunctionDef):
+            continue
+        calls = [n for n in ast.walk(function) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Name) and n.func.id == "runner"]
+        if calls:
+            runners[function.name] = len(calls)
+            bindings = [n for n in ast.walk(function) if isinstance(n, ast.Assign)
+                        and any(isinstance(t, ast.Name) and t.id == "runner" for t in n.targets)]
+            assert len(bindings) == 1
+            assert ast.unparse(bindings[0].value) == "subprocess.run"
+    assert runners == Counter({"launch": 1, "launch_registered": 1})
+
+
 def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):
     patch = tmp_path / "interfaces.patch"
     patch.write_text(

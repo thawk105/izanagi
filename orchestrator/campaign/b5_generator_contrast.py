@@ -1,7 +1,7 @@
-"""B-5 pilot generator contrast: immutable opportunities and fresh CLI sessions.
+"""B-5 pilot and registered contrast: immutable opportunities and fresh sessions.
 
-This is a pilot producer, not authorization for the registered cohort. Candidate
-search and score slots share the child's compile and fixed-smoke Tier0 contract.
+Producing registered ledgers does not authorize cohort activation or submission.
+Search and score slots share the child's compile and fixed-smoke Tier0 contract.
 Saved inputs do not prove delivery or absence of parent advice.
 """
 from __future__ import annotations
@@ -42,6 +42,7 @@ from .projection_guard import (CODER_CONTRACT_K2, CODER_CONTRACT_IMPLEMENTATION,
 
 PREREG_VERSION = "b5-generator-contrast-v1"
 COHORT_PILOT = "t2797-beta-v1"
+COHORT_REGISTERED = "b5-registered-v1"
 B_EVALUATIONS = 10
 A_PROPOSALS = 30
 N_EVAL = 5
@@ -552,7 +553,7 @@ def _allocation_available():
     return deadline is None or deadline - time.time() >= SESSION_BUDGET_S
 
 
-def _header(arm, workload, series, block, repo_root):
+def _header(arm, workload, series, block, repo_root, *, purpose="pilot"):
     # Read git metadata without adding another subprocess execution seam.
     git = Path(repo_root) / ".git"
     if git.is_file():
@@ -570,7 +571,8 @@ def _header(arm, workload, series, block, repo_root):
                          if line.endswith(" " + ref)), None)
     deadline = _deadline()
     return {
-        "cohort": COHORT_PILOT, "purpose": "pilot", "arm": arm, "workload": workload,
+        "cohort": COHORT_REGISTERED if purpose == "registered" else COHORT_PILOT,
+        "purpose": purpose, "arm": arm, "workload": workload,
         "series": series, "block": block, "repo_head": head, "pin": loop_driver.PIN,
         "mode": "block-stock" if arm == "stock" else "series",
         "perf_config": asdict(loop_driver.calibrated_perf(workload)),
@@ -581,7 +583,9 @@ def _header(arm, workload, series, block, repo_root):
         "allocation_deadline_epoch": deadline,
         "allocation_deadline_status": "unknown" if deadline is None else "known",
         "limits": ["Parent intervention and actual input delivery are not mechanically guaranteed.",
-                   "Pilot only; does not establish preregistration section 10 completeness."],
+                   ("Registered producer; cohort activation and actual execution order require external approval and evidence."
+                    if purpose == "registered" else
+                    "Pilot only; does not establish preregistration section 10 completeness.")],
     }
 
 
@@ -716,11 +720,11 @@ def _validate_run(arm, workload, series, block, k2):
 
 
 def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
-               repo_root, k2=None, runner=default_runner):
+               repo_root, k2=None, runner=default_runner, purpose="pilot"):
     _validate_run(arm, workload, series, block, k2)
     if arm == "stock":
         raise ValueError("use run-block-stock")
-    ledger = SeriesLedger.create(ledger_root, _header(arm, workload, series, block, repo_root))
+    ledger = SeriesLedger.create(ledger_root, _header(arm, workload, series, block, repo_root, purpose=purpose))
     ledger.append("series-start", a=0, b=0)
     common = dict(prebuild_receipt=prebuild_receipt, repo_root=repo_root, k2=k2, runner=runner)
     stock, _ = _execute_slot(ledger, kind="stock-start", n=1, a=0, b=0, value=-1,
@@ -838,9 +842,9 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
 
 
 def run_block_stock(workload, block, *, ledger_root, prebuild_receipt, repo_root,
-                    runner=default_runner):
+                    runner=default_runner, purpose="pilot"):
     _validate_run("stock", workload, block, block, None)
-    ledger = SeriesLedger.create(ledger_root, _header("stock", workload, block, block, repo_root))
+    ledger = SeriesLedger.create(ledger_root, _header("stock", workload, block, block, repo_root, purpose=purpose))
     ledger.append("series-start", a=0, b=0)
     for n in range(1, BLOCK_STOCK_SESSIONS + 1):
         observed, _ = _execute_slot(ledger, kind="block-stock", n=n, a=0, b=0, value=-1,
@@ -859,6 +863,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("run-series", "run-block-stock"):
         p = sub.add_parser(name)
+        p.add_argument("--purpose", choices=("pilot", "registered"), default="pilot")
         p.add_argument("--workload", choices=WORKLOADS, required=True)
         p.add_argument("--block", type=int, required=True)
         p.add_argument("--ledger-root", type=Path, required=True)
@@ -882,7 +887,7 @@ def main(argv=None):
     if args.command == "expected-inputs":
         _publish(args.out, expected_inputs(args.ledger_root, args.next_evaluation))
         return 0
-    options = dict(ledger_root=args.ledger_root.resolve(),
+    options = dict(purpose=args.purpose, ledger_root=args.ledger_root.resolve(),
                    prebuild_receipt=args.fetchcontent_prebuild_receipt.resolve(),
                    repo_root=Path(__file__).resolve().parents[2])
     if args.command == "run-series":

@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 import subprocess
@@ -301,6 +302,220 @@ def test_target_pin_mutant_m28(submit_tree, monkeypatch):
     monkeypatch.setitem(globals(), "launch", mutant)
     with pytest.raises(pytest.fail.Exception):
         test_validate_submit_tree_rejects_ccbench_pin(submit_tree, monkeypatch)
+
+
+def test_registered_schedule_coordinates():
+    schedule = launch.registered_schedule()
+    assert schedule == launch.registered_schedule()
+    assert schedule["cohort"] == "b5-registered-v1"
+    assert len(schedule["orders"]) == 36
+    expected_blocks = {1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2,
+                       7: 2, 8: 2, 9: 3, 10: 3, 11: 3, 12: 3}
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        rows = [r for r in schedule["orders"] if r["workload"] == workload]
+        assert {r["series"]: r["block"] for r in rows} == expected_blocks
+    # A literal anchor distinguishes D-2's ascending X/Y placement.
+    assert [r["order"] for r in schedule["orders"][:4]] == ["LSR", "RLS", "RSL", "SLR"]
+    letters = {"llm": "L", "random": "R", "sweep-matched": "S"}
+    for row in schedule["orders"]:
+        jobs = sorted((j for j in schedule["jobs"] if j["mode"] == "series"
+                       and (j["workload"], j["series"]) == (row["workload"], row["series"])),
+                      key=lambda j: j["stage"])
+        assert [j["stage"] for j in jobs] == [1, 2, 3]
+        assert [j["block"] for j in jobs] == [row["block"]] * 3
+        assert "".join(letters[j["arm"]] for j in jobs) == row["order"]
+
+
+def _assert_registered_order_balance(schedule):
+    expected = Counter({order: 2 for order in ("LRS", "SRL", "LSR", "RSL", "RLS", "SLR")})
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        rows = [r for r in schedule["orders"] if r["workload"] == workload]
+        assert Counter(r["order"] for r in rows) == expected
+        for block in (1, 2, 3):
+            orders = [r["order"] for r in rows if r["block"] == block]
+            assert len(orders) == 4
+            for baseline in "RS":
+                assert Counter(o.index("L") < o.index(baseline) for o in orders) == {True: 2, False: 2}
+
+
+def test_registered_schedule_llm_four_per_stage():
+    schedule = launch.registered_schedule()
+    assert Counter((j["block"], j["stage"]) for j in schedule["jobs"] if j["arm"] == "llm") == {
+        (b, s): 4 for b in (1, 2, 3) for s in (1, 2, 3)}
+    # Removing the block rotation preserves four LLMs per stage, but loses
+    # six-orders-twice. Both independently counted properties belong here (MA6).
+    _assert_registered_order_balance(schedule)
+
+
+def test_registered_schedule_six_orders_twice():
+    _assert_registered_order_balance(launch.registered_schedule())
+
+
+def test_registered_stage_job_counts():
+    jobs = launch.registered_schedule()["jobs"]
+    assert len(jobs) == len({j["job_id"] for j in jobs}) == 117
+    assert Counter(j["mode"] for j in jobs) == {"series": 108, "block-stock": 9}
+    assert Counter((j["block"], j["stage"]) for j in jobs) == {
+        (b, s): count for b in (1, 2, 3) for s, count in ((1, 12), (2, 15), (3, 12))}
+    stocks = [j for j in jobs if j["arm"] == "stock"]
+    assert Counter((j["workload"], j["block"]) for j in stocks) == {
+        (w, b): 1 for w in ("write-heavy", "balanced", "read-heavy") for b in (1, 2, 3)}
+    assert all(j["series"] == j["block"] and j["stage"] == 2 for j in stocks)
+
+
+def test_registered_walltime_decimal_boundaries():
+    for factor, series, stock in (
+        ("2.5", (53148, "14:45:48"), (13618, "03:46:58")),
+        ("3", (63777, "17:42:57"), (16341, "04:32:21")),
+        ("4.06", (86312, "23:58:32"), (22115, "06:08:35")),
+        ("0.000001", (1, "00:00:01"), (1, "00:00:01")),
+        ("1.0000000000000000000000000000001", (21260, "05:54:20"), (5448, "01:30:48")),
+    ):
+        assert launch.registered_walltimes(factor) == {
+            "series": dict(zip(("seconds", "walltime"), series)),
+            "block-stock": dict(zip(("seconds", "walltime"), stock))}
+    for invalid in ("0", "-1", "4.06000000000000000001", "NaN", "sNaN", "Infinity", "-Infinity", "bad"):
+        with pytest.raises(ValueError, match="walltime factor"):
+            launch.registered_walltimes(invalid)
+
+
+@pytest.fixture
+def registered_stage(tmp_path, submit_tree):
+    # Real independent Git checkouts, including CCBench and target PIN. No
+    # validate_submit_tree stub: both positive and negative admissions run it.
+    import shutil
+    repo, head, _ = submit_tree
+    k2 = launch.K2(tmp_path / "knowledge.json", "known_result_conditioned_derivative", "false")
+    jobs = launch.registered_jobs(2, 2, tmp_path / "ledgers", tmp_path / "evidence", k2)
+    mapping = {}
+    for job in jobs:
+        target = tmp_path / job.job_id
+        shutil.copytree(repo, target)
+        mapping[job.job_id] = str(target)
+    thirdparty = tmp_path / "thirdparty"
+    thirdparty.mkdir()
+    options = dict(expected_head=head, thirdparty_source_root=thirdparty, walltime_factor="2.5")
+    return jobs, mapping, options
+
+
+def test_registered_job_specific_submit_trees(registered_stage, capsys):
+    jobs, mapping, options = registered_stage
+    assert launch.launch_registered(jobs, mapping, submit=False, **options) == 0
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert len(records) == 15
+    assert {r["job_id"]: r["cwd"] for r in records} == mapping
+    assert len({r["environment"]["IZANAGI_S4_REPO_ROOT"] for r in records}) == 15
+    for row, job in zip(records, jobs):
+        expected_id = (f"b2-{job.workload}-stock" if job.arm == "stock" else
+                       f"b2-{job.workload}-r{job.series:02d}-{job.arm}")
+        assert row["job_id"] == expected_id
+        assert row["cwd"] == mapping[expected_id]
+    duplicate = {**mapping, jobs[-1].job_id: mapping[jobs[0].job_id]}
+    with pytest.raises(ValueError, match="distinct"):
+        launch.launch_registered(jobs, duplicate, submit=False, **options)
+
+
+def test_registered_environment_exact(registered_stage, tmp_path, capsys):
+    jobs, mapping, options = registered_stage
+    assert launch.launch_registered(jobs, mapping, submit=False, **options) == 0
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    for row, job in zip(rows, jobs):
+        suffix = Path("b5-registered-v1/block-2") / job.workload
+        suffix /= "block-stock" if job.arm == "stock" else f"r{job.series:02d}/{job.arm}"
+        evidence = tmp_path / "evidence" / suffix
+        env = {
+            "IZANAGI_S4_REPO_ROOT": mapping[job.job_id],
+            "IZANAGI_S4_EXPECTED_HEAD": options["expected_head"],
+            "IZANAGI_S4_EVIDENCE_ROOT": str(evidence),
+            "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(tmp_path / "thirdparty"),
+            "IZANAGI_S4_B5_MODE": "block-stock" if job.arm == "stock" else "series",
+            "IZANAGI_S4_B5_ARM": job.arm,
+            "IZANAGI_S4_B5_WORKLOAD": job.workload,
+            "IZANAGI_S4_B5_SERIES": str(job.series),
+            "IZANAGI_S4_B5_BLOCK": "2",
+            "IZANAGI_S4_B5_LEDGER_ROOT": str(tmp_path / "ledgers" / suffix),
+            "IZANAGI_S4_B5_PURPOSE": "registered",
+        }
+        if job.arm == "llm":
+            env.update({"IZANAGI_S4_KNOWLEDGE_MANIFEST": str(tmp_path / "knowledge.json"),
+                        "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+                        "IZANAGI_S4_KNOWLEDGE_CLASSIFICATION": "known_result_conditioned_derivative",
+                        "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM": "false"})
+        assert row["environment"] == env
+        assert row["argv"] == ["qsub", "-v", ",".join(f"{k}={v}" for k, v in env.items()),
+                               "-l", "elapstim_req=" + ("03:46:58" if job.arm == "stock" else "14:45:48"),
+                               "-o", str(evidence / "job.stdout"), "-e", str(evidence / "job.stderr"),
+                               "tools/pegasus/p3_s4_loop_pegasus.sh"]
+
+
+def test_registered_dry_run_has_no_side_effects(registered_stage, tmp_path, monkeypatch, capsys):
+    jobs, mapping, options = registered_stage
+    before = sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
+    def forbidden(*args, **kwargs):
+        pytest.fail("registered dry-run attempted mkdir or qsub")
+    monkeypatch.setattr(Path, "mkdir", forbidden)
+    assert launch.launch_registered(jobs, mapping, submit=False, runner=forbidden, **options) == 0
+    assert len(capsys.readouterr().out.splitlines()) == 15
+    assert sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*")) == before
+
+
+@pytest.mark.parametrize("failure", ["head", "dirty", "pin", "fresh", "overlap", "other-tree", "missing-map"])
+def test_registered_checks_all_jobs_before_submission(registered_stage, failure):
+    jobs, mapping, options = registered_stage
+    last_repo = Path(mapping[jobs[-1].job_id])
+    if failure == "head":
+        options["expected_head"] = "e" * 40
+    elif failure == "dirty":
+        (last_repo / "tracked.txt").write_text("dirty")
+    elif failure == "pin":
+        (last_repo / "orchestrator/campaign/p3_s4_loop.py").write_text('PIN = "' + 'e' * 40 + '"\n')
+    elif failure == "fresh":
+        jobs[-1].ledger_root.mkdir(parents=True)
+    elif failure == "overlap":
+        jobs = jobs[:-1] + (replace(jobs[-1], ledger_root=jobs[0].evidence_root / "child"),)
+    elif failure == "other-tree":
+        jobs = (replace(jobs[0], ledger_root=last_repo / "output"),) + jobs[1:]
+    else:
+        del mapping[jobs[-1].job_id]
+    def forbidden(*args, **kwargs):
+        pytest.fail("qsub before all admissions")
+    with pytest.raises(ValueError):
+        launch.launch_registered(jobs, mapping, submit=True, runner=forbidden, **options)
+    assert not jobs[0].evidence_root.exists()
+
+
+@pytest.mark.parametrize("fail_at", [None, 2])
+def test_registered_submit_stops_at_first_failure(registered_stage, fail_at):
+    jobs, mapping, options = registered_stage
+    calls = []
+    def runner(argv, *, cwd):
+        evidence = Path(argv[argv.index("-o") + 1]).parent
+        assert evidence.is_dir() and list(evidence.iterdir()) == []
+        assert evidence.stat().st_mode & 0o777 == 0o700
+        calls.append(str(cwd))
+        return SimpleNamespace(returncode=9 if len(calls) == fail_at else 0)
+    assert launch.launch_registered(jobs, mapping, submit=True, runner=runner, **options) == (9 if fail_at else 0)
+    assert calls == [mapping[j.job_id] for j in (jobs[:fail_at] if fail_at else jobs)]
+    assert all(not j.ledger_root.exists() for j in jobs)
+    if fail_at:
+        assert all(not j.evidence_root.exists() for j in jobs[fail_at:])
+
+
+def test_registered_cli_schedule_and_dry_run(registered_stage, tmp_path, capsys):
+    jobs, mapping, options = registered_stage
+    assert launch.main(["registered-schedule"]) == 0
+    assert json.loads(capsys.readouterr().out) == launch.registered_schedule()
+    path = tmp_path / "trees.json"
+    path.write_text(json.dumps(mapping))
+    assert launch.main(["registered", "--block", "2", "--stage", "2", "--walltime-factor", "2.5",
+                        "--submit-trees", str(path), "--expected-head", options["expected_head"],
+                        "--ledger-root", str(tmp_path / "ledgers"), "--evidence-root", str(tmp_path / "evidence"),
+                        "--thirdparty-source-root", str(options["thirdparty_source_root"]),
+                        "--knowledge-manifest", str(tmp_path / "knowledge.json"),
+                        "--knowledge-classification", "known_result_conditioned_derivative",
+                        "--knowledge-de-novo-claim", "false", "--dry-run"]) == 0
+    assert {r["job_id"] for r in map(json.loads, capsys.readouterr().out.splitlines())} == set(mapping)
+    assert all(not j.evidence_root.exists() for j in jobs)
 
 
 def _run() -> int:
