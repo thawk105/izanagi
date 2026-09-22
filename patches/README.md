@@ -691,6 +691,47 @@ wave 2 の実証認可のみ)。preimage は submodule `e9e477ca` (template)、`
   `FLAGS_clocks_per_us` 依存に、B' = hole を `!(temp < threshold)`) を fresh な read-only auditor に独立監査させた素材と実応答は
   `output/insights/2026-09-19/t2773-mocc-template-wave2/auditor-n1.md`。
 
+## silo-function-policy — 関数群・複数 hook・状態の軸の骨格 + probe + positive control (Phase 3 段階 C、D2214、[T-2857])
+
+LLM が Silo の待機と lock 競合応答を関数単位で書く軸 (手順書 `docs/axis-onboarding.md` §4 第 3 列)。設計の正本 =
+`output/insights/2026-09-21/silo-function-synthesis-space/README.md` + D2214、段階 C の記録 =
+`output/insights/2026-09-22/t2857-silo-policy-stage-c/README.md`。軸定数は `orchestrator/campaign/axis_silo_function_policy.py`、
+api header の単一正本は `orchestrator/campaign/silo_function_policy_api.hh`、手書き方策は `orchestrator/campaign/silo_function_policy_hand/`。
+
+- **silo-function-policy-variant.patch** — 骨格 (template patch)。`cmake/Options.cmake` の universal 相乗り
+  (`CCBENCH_SILO_POLICY_VARIANT`、既定 0) と `cc/silo/transaction.cc`。**既定 0 で inert** (領域・骨格・呼出し点・要因記録が
+  すべて `#if SILO_POLICY_VARIANT` の内側で、preprocess 後に原文一致 → src_token="stock")。0 / 1 以外の値と、軸 ON で
+  `BACK_OFF != 1`・no-wait flag が 1 / 0 でない・前提 macro の未定義は `#error`。軸 ON では api block の埋込み、単一 marker
+  (id=`silo-function-policy`) の hole (`izanagi_silo_policy` の本体、既定本文 = `abort0`)、骨格所有の thread_local 状態・要因・
+  PRNG・上限つき待機器・noipa wrapper、abort 後 1000 µs / lock 50 µs / tuple ごと 32 周の上限、待機後の再読込、上限・abort・
+  未知 action での prefix unlock 出口、要因記録 7 点、成功 commit 後の成功通知。要因記録は待機を決める CC 本来の状態で、
+  `#if TRACE` に入れない (規律 1)。PIN 前進はしない。
+- **instr-silo-function-policy-probe.patch** — 検証専用計装 (焦点試験と機構変異の走だけ骨格の上に重ねる)。macro
+  `IZANAGI_SILO_POLICY_PROBE` (`CCBENCH_` 外、`-D` だけで供給)。worker 別の独立計数、焦点方策 `focus` の戻り値の符号化
+  (3 hook の実呼出し回数を他 hook の戻り値の下位 bit に載せる) との照合、7 記録点の site id と要因の照合、成功 commit 後の比較、
+  prefix を保持したままの上限出口・action-abort 出口の到達を数え、thread 終了時に 1 行出す。template patch に入れない
+  (入れると diff-of-diffs が崩れる)。既知の限界: `broken-silo-policy-wrong-reason.patch` の走では、変異の複製ループが
+  prefix 保持下の到達計数に追随しておらずこの 2 計数が 0 のまま出る (この変異の判定は同計数を使わない)。
+- **broken-silo-policy-norw-validation.patch / broken-silo-policy-lockskip-validation.patch** — 既存の norw / lockskip 負例の
+  軸 ON 版 (骨格の上に当てる、既存 macro `IZANAGI_BREAK_NOREAD_VALIDATION` / `IZANAGI_BREAK_LOCK_COVERAGE` を再利用)。
+  既存 patch は骨格が文脈を変えるので当たらない。early-unlock は既存 `broken-silo-early-unlock-validation.patch` を骨格の上に
+  厳密適用して使う。
+- **broken-silo-policy-{no-clamp,no-reload,no-limit,no-prefix-unlock,no-prefix-unlock-limit,no-abort-hook,no-lock-hook,no-commit-hook,wrong-reason}.patch**
+  — 骨格の仕組みを 1 つずつ壊す機構変異 (骨格 → probe の上に 1 枚だけ当てる、相互排他)。共通の裸 macro
+  `IZANAGI_BREAK_SILO_POLICY` を各 1 site の `#if` で使う。prefix unlock は出口ごとに 1 枚 (`no-prefix-unlock` =
+  action-abort 出口、`no-prefix-unlock-limit` = 上限出口) で、各 patch はもう一方の出口の unlock を残す。no-limit は
+  非検出対照 (検出力の主張に使わない)。**既定 OFF inert・裸 macro は CCBENCH_ 外 = pipeline から定義不能**
+  (broken-silo と同じ隔離規約、規律 2)。
+
+**駆動の正本 = `orchestrator/campaign/silo_policy_coverage.py`** (sub-command `coverage` = 負例・焦点試験・機構変異・flag 境界・
+TRACE=0 の不混入、`smoke` = stock と手書き方策 4 本の生死確認)。gate を掛けない依存物準備の build を最初に 1 回行い、
+condition gate は 1 回に macro 1 個。診断 build は NON_ADMISSIBLE で、certified 候補とは称さない。
+実証 (2026-09-22、Pegasus 計算ノード、`output/env/pegasus/calibration/silo_function_policy_coverage.json` /
+`silo_function_policy_smoke.json`): coverage は 33 case・61 check すべて真 (norw non-serializable・exit 1、lockskip X 2 種、
+early-unlock 保持欠落のみ、hook 解除 3 件と要因誤記録は宣言した赤集合と完全一致、再読込削除で retry 後の取得成功 0、
+clamp 削除と prefix unlock 2 出口は trace-timeout、上限削除は certified、flag 境界 4 種は `#error`、TRACE=0 は不混入)。
+smoke は 5 case・30 check すべて真 (stock と 4 方策が legacy / 性能構成 verify とも serializable、honest identity)。
+
 ---
 
 ## トレース形式 (verifier = タスク2 の入力契約)

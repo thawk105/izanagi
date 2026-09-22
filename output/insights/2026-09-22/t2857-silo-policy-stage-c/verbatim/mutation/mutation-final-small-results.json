@@ -1,0 +1,1030 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cb38313136d08f9a3843b09017bd113c/izdw-cb38313136.o18366",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cb38313136d08f9a3843b09017bd113c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................................        [100%]\n65 passed in 25.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "988dfbaf3b7eaab70f1599113f3fc389721505e0b629e7a8f4dc094c3f31dc7a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+    "duration_s": 47.83,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "dbe7a95c2c73c87ca3261f01c63cf796ff363ea756fb75b0d706f70bc9e63133",
+    "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+    "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+    "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+    "status": "PASSED",
+    "test_output_sha256": "988dfbaf3b7eaab70f1599113f3fc389721505e0b629e7a8f4dc094c3f31dc7a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+  },
+  "date": "2026-09-22T14:30:05.409851+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d6c21224b87a9822f64fd23576e4f993/izdw-d6c21224b8.o18367",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d6c21224b87a9822f64fd23576e4f993/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.F.....F.......................        [100%]\n=================================== FAILURES ===================================\n________________ test_grammar_rejects_alternative_binary_tokens ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_rejects_alternative_binary_tokens():\n        for name in ('alternative_bitand', 'alternative_and'):\n>           _reject(name, 'lex.alternative-token')\n\norchestrator/tests/test_silo_policy_grammar.py:90: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'alternative_bitand', rule = 'lex.alternative-token'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('alternative_bitand', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('alternative_bitand.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'lex....native-token')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('alternative_bitand.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...native-token'}\nE                 \nE                 Differing items:\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 {'rule_id': None} != {'rule_id': 'lex.alternative-token'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2122 retained_bytes=2122 omitted_bytes=0 rendered_excerpt_bytes=2210 sha256=3d86b4643ebfd29fc53bbbb2efa4c1ab51d275f77ba778dee2d6d5427600bd82\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('alternative_bitand.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...native-token'}\n> E                 \n> E                 Differing items:\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 {'rule_id': None} != {'rule_id': 'lex.alternative-token'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=995 retained_bytes=995 omitted_bytes=0 rendered_excerpt_bytes=1036 sha256=a433baaab1523c648daacf7c5fc4000da9ced6ec3273251a3e506de9322c3ab0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_rejects_alternative_binary_tokens():\n>         for name in ('alternative_bitand', 'alternative_and'):\n> >           _reject(name, 'lex.alternative-token')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:90: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'alternative_bitand', rule = 'lex.alternative-token'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('alternative_bitand', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=709 retained_bytes=709 omitted_bytes=0 rendered_excerpt_bytes=736 sha256=b6e2be1a417a761b959f13f64c973b0bc43224a26d1506f1724835db94920b6d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('alternative_bitand.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'lex....native-token')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3826 retained_bytes=3826 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5540 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a3398c7edddca8774d52dba1f5e31584fe9d9fb58135d9fc86dc53803108b59e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.497,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-lex",
+      "injection_diff_sha256": "68c9777cf358b516e66b5e1869f706ccd077218f8a1a5c3b3710eaa8a764a50f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bf66cb5dc6ebceb0e45dd24c7a09f8d8cd146204a03031ca350198f4d06fe778",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "            pass  # mutation M-LEX: alternative-token rule removed\n",
+          "old": "            raise _Reject('lex.alternative-token', t, 'alternative operator spelling')\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "a3398c7edddca8774d52dba1f5e31584fe9d9fb58135d9fc86dc53803108b59e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ac5eb5bb1e07840a3777c3adc38d7a83/izdw-ac5eb5bb1e.o18368",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ac5eb5bb1e07840a3777c3adc38d7a83/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................FF......F.......................        [100%]\n=================================== FAILURES ===================================\n_____________________ test_grammar_rejects_bool_arithmetic _____________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_rejects_bool_arithmetic():\n>       _reject('bool_arithmetic', 'type.numeric')\n\norchestrator/tests/test_silo_policy_grammar.py:94: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'bool_arithmetic', rule = 'type.numeric'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('bool_arithmetic', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('bool_arithmetic.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'type.numeric')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('bool_arithmetic.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...type.numeric'}\nE                 \nE                 Differing items:\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 {'rule_id': None} != {'rule_id': 'type.numeric'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2110 retained_bytes=2110 omitted_bytes=0 rendered_excerpt_bytes=2198 sha256=6f3e4ea58bb53f0c9b05707b485eecb0331c181318b782d2341a91a829fb6878\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('bool_arithmetic.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...type.numeric'}\n> E                 \n> E                 Differing items:\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 {'rule_id': None} != {'rule_id': 'type.numeric'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=907 retained_bytes=907 omitted_bytes=0 rendered_excerpt_bytes=946 sha256=cebd8b2c0f6646becac16acd9e60d015b609856f54fc4641383289e6dd7bc933\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_rejects_bool_arithmetic():\n> >       _reject('bool_arithmetic', 'type.numeric')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:94: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'bool_arithmetic', rule = 'type.numeric'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('bool_arithmetic', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=699 retained_bytes=699 omitted_bytes=0 rendered_excerpt_bytes=726 sha256=3e77f44c8048427fe19c9d02daaa8c924e83353ed3d2ac2ea7d017301d5ceb41\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('bool_arithmetic.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'type.numeric')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3716 retained_bytes=3716 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5417 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4f1f335194c8f77af50ff8dc4e75cf7a471e809f604e9a6003ce8b52a4fbc399"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 52.547,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-type",
+      "injection_diff_sha256": "062850c9d265a369c6daa62f6c18fa8af4615c8d480466f26d68344be2e4772f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c1de72997105d194b76ad01dfec65dc7d3455ce6f6b9569bad2a6fd191efbf87",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "    def numeric(self, e):\n        if e.type == 'bool':\n            return 'U32'  # mutation M-TYPE\n        if e.type not in _NUMERIC:\n",
+          "old": "    def numeric(self, e):\n        if e.type not in _NUMERIC:\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "4f1f335194c8f77af50ff8dc4e75cf7a471e809f604e9a6003ce8b52a4fbc399",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dcc6e72a71854dd04f839ffdfe1e4328/izdw-dcc6e72a71.o18369",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dcc6e72a71854dd04f839ffdfe1e4328/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.F.....F.......................        [100%]\n=================================== FAILURES ===================================\n___________________ test_grammar_rejects_self_initialization ___________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_rejects_self_initialization():\n        for name in ('self_init', 'self_nested', 'self_helper'):\n>           _reject(name, 'init.self')\n\norchestrator/tests/test_silo_policy_grammar.py:99: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'self_init', rule = 'init.self'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('self_init', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('self_init.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'init.self')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('self_init.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...: 'init.self'}\nE                 \nE                 Differing items:\nE                 {'rule_id': None} != {'rule_id': 'init.self'}\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2101 retained_bytes=2101 omitted_bytes=0 rendered_excerpt_bytes=2189 sha256=17f1603056de81ecacecc5c22f52c4d3bf98945b4ee412ecba2866f12c079ecd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('self_init.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...: 'init.self'}\n> E                 \n> E                 Differing items:\n> E                 {'rule_id': None} != {'rule_id': 'init.self'}\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=949 retained_bytes=949 omitted_bytes=0 rendered_excerpt_bytes=990 sha256=23188178d8cec7b77c878141088a14f2d087ab09e05b2594e4b62490fe9b1388\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_rejects_self_initialization():\n>         for name in ('self_init', 'self_nested', 'self_helper'):\n> >           _reject(name, 'init.self')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:99: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'self_init', rule = 'init.self'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('self_init', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=690 retained_bytes=690 omitted_bytes=0 rendered_excerpt_bytes=717 sha256=1ff91d10cb0b7e80b2428cadafa88f87f734d99fd92a8c3f34d2dc493a65f9f8\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('self_init.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'init.self')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3740 retained_bytes=3740 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5447 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f83af27fbe881b0304e94af1d320981f0991d36133c1084fb151b00cdffbaa04"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 52.577,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-selfinit",
+      "injection_diff_sha256": "038a239d7f69e57479622ec119739a935db20c4939ba767302686e860a1d5e8c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "90b35cf5981f1660713aa6e1b2c094f6b7e79389125da1d6e0a98fdbf1dae0d4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "        if False:  # mutation M-SELFINIT\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n",
+          "old": "        if name == self.initializing:\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "f83af27fbe881b0304e94af1d320981f0991d36133c1084fb151b00cdffbaa04",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/72f03c19b99db1a3c491490ef0708bc9/izdw-72f03c19b9.o18370",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/72f03c19b99db1a3c491490ef0708bc9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.F.....F.......................        [100%]\n=================================== FAILURES ===================================\n______________________ test_grammar_requires_final_return ______________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_requires_final_return():\n        for name in ('final_if', 'final_block'):\n>           _reject(name, 'return.final')\n\norchestrator/tests/test_silo_policy_grammar.py:105: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'final_if', rule = 'return.final'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('final_if', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('final_if.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'return.final')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('final_if.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...return.final'}\nE                 \nE                 Differing items:\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 {'rule_id': None} != {'rule_id': 'return.final'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2103 retained_bytes=2103 omitted_bytes=0 rendered_excerpt_bytes=2191 sha256=af271c840a90616792f46c4d907a3d88e82e8c576f9f837c03e0fc571bd6f15e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('final_if.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...return.final'}\n> E                 \n> E                 Differing items:\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 {'rule_id': None} != {'rule_id': 'return.final'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return\" nodeid_bytes=82 nodeid_omitted_bytes=0 source_bytes=932 retained_bytes=932 omitted_bytes=0 rendered_excerpt_bytes=973 sha256=e80b2a764ec4659fd6c005c96e6a75ca5de50832841bb653f04aa1558045c281\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_requires_final_return():\n>         for name in ('final_if', 'final_block'):\n> >           _reject(name, 'return.final')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:105: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'final_if', rule = 'return.final'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('final_if', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=692 retained_bytes=692 omitted_bytes=0 rendered_excerpt_bytes=719 sha256=1dfa0edc3b5f97831a75f8a6cab502b11bb3fa7a9e068dc8876331ec20c0dcd6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('final_if.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'return.final')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3727 retained_bytes=3727 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5428 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ae2dc319d47b42ac1eb23d0115c3bd2fe454b181514d6b7b2e7d0480b743eb01"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.451,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-return",
+      "injection_diff_sha256": "4e7b9779f5d070bd58a2d73934c3b07e02aff59994d4673869ad982e9cae9e0d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7ae065fbb77cad128499f1cbabd637c18d3ab117c8d78e1438ec39d189e9dbf0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "        if False:  # mutation M-RETURN\n            self.fail('return.final', 'nonvoid body must end with return')\n",
+          "old": "        if ret != 'void' and last != 'return':\n            self.fail('return.final', 'nonvoid body must end with return')\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "ae2dc319d47b42ac1eb23d0115c3bd2fe454b181514d6b7b2e7d0480b743eb01",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/202df49cbd55f5c39151a6d11cdf79f8/izdw-202df49cbd.o18371",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/202df49cbd55f5c39151a6d11cdf79f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.F.....F.......................        [100%]\n=================================== FAILURES ===================================\n________________ test_grammar_rejects_subexpression_assignment _________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_rejects_subexpression_assignment():\n>       _reject('subexpression_assignment', 'assignment.statement')\n\norchestrator/tests/test_silo_policy_grammar.py:109: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'subexpression_assignment', rule = 'assignment.statement'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('subexpression_assignment', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('subexpression_assignment.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'assi...nt.statement')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('subexpression_assignment.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...nt.statement'}\nE                 \nE                 Differing items:\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 {'rule_id': None} != {'rule_id': 'assignment.statement'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2127 retained_bytes=2127 omitted_bytes=0 rendered_excerpt_bytes=2215 sha256=eb1d7095583804c8c651c673b394563e7c9285ec2b470ce930568b24079dd30e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('subexpression_assignment.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...nt.statement'}\n> E                 \n> E                 Differing items:\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 {'rule_id': None} != {'rule_id': 'assignment.statement'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=960 retained_bytes=960 omitted_bytes=0 rendered_excerpt_bytes=999 sha256=ffe680e12dd4c011b16975b492d79bf410f35189e9c70afc5dd5e4f456c59a10\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_rejects_subexpression_assignment():\n> >       _reject('subexpression_assignment', 'assignment.statement')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:109: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'subexpression_assignment', rule = 'assignment.statement'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('subexpression_assignment', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=715 retained_bytes=715 omitted_bytes=0 rendered_excerpt_bytes=742 sha256=e9248dc0c8997832f57805eaaff98aa25620bc78226da8e6d5478fc3a823d9f7\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('subexpression_assignment.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'assi...nt.statement')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3802 retained_bytes=3802 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5512 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "71c9576502a27abf0ac3bb6dae4ad77b27ac019b47ba034530ea940913a35a87"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.477,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-assign",
+      "injection_diff_sha256": "903a5d03859b36a58ed47175a53c2cc8833521db26997e4f73eae5038eeeb07a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1b394244ed6a956426c8051341a1a0c7b06cd3101dc32aed1fdf556cdb3e9f71",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "            if False:  # mutation M-ASSIGN\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n",
+          "old": "            if not allow_assignment:\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "71c9576502a27abf0ac3bb6dae4ad77b27ac019b47ba034530ea940913a35a87",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3402af56753de717313a5005697d6d64/izdw-3402af5675.o18372",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3402af56753de717313a5005697d6d64/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.F.....F.......................        [100%]\n=================================== FAILURES ===================================\n____________________ test_grammar_requires_literal_divisor _____________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_grammar_requires_literal_divisor():\n        for name in ('variable_divisor', 'variable_modulo'):\n>           _reject(name, 'rhs.literal')\n\norchestrator/tests/test_silo_policy_grammar.py:114: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'variable_divisor', rule = 'rhs.literal'\n\n    def _reject(name, rule):\n        source = _source(name)\n        d = validate_policy(source)\n>       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\nE       AssertionError: ('variable_divisor', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE       assert (not True)\nE        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n\norchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n_______________________ test_manifest_grammar_contracts ________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_grammar_contracts():\n        for row in _manifest():\n            d = validate_policy((FIXTURES / row['file']).read_text())\n>           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\nE           AssertionError: ('variable_divisor.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\nE           assert (True, None) == (False, 'rhs.literal')\nE             \nE             At index 0 diff: True != False\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n_____________________ test_manifest_first_rejection_stage ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_first_rejection_stage():\n        before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\n#if SILO_POLICY_VARIANT\\n' +\n                  _default_body() + '#else\\n#endif\\n// EVOLVE-BLOCK-END silo-function-policy\\n')\n        with tempfile.TemporaryDirectory() as tmp:\n            template = Path(tmp) / 'transaction.cc'\n            template.write_text(before)\n            marker = parse_template_file(str(template), 'silo-function-policy')\n            assert marker is not None\n            for row in _manifest():\n                source = (FIXTURES / row['file']).read_text()\n                after = before.replace(_default_body(), source)\n                diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n                quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n                if not quarantine.passed:\n                    stage = 'diff-quarantine'\n                    assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n                    rule = 'content-directive'\n                else:\n                    effects = scan_host_effects(source)\n                    if effects:\n                        stage, rule = 'effect', effects[0].rule_id\n                    else:\n                        grammar = validate_policy(source)\n                        stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n>               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\nE               AssertionError: ('variable_divisor.cpp', None, None)\nE               assert {'stage': Non...ule_id': None} == {'stage': 'gr...'rhs.literal'}\nE                 \nE                 Differing items:\nE                 {'rule_id': None} != {'rule_id': 'rhs.literal'}\nE                 {'stage': None} != {'stage': 'grammar'}\nE                 Use -v to get more diff\n\norchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\nFAILED orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\n3 failed, 62 passed in 25.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2110 retained_bytes=2110 omitted_bytes=0 rendered_excerpt_bytes=2198 sha256=b33fbc3e5a6a9c9d60f4e44bc211fb300e6e87a1b452d245e1bd904bc0667676\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_first_rejection_stage():\n>         before = ('// EVOLVE-BLOCK-BEGIN silo-function-policy\\x5cn#if SILO_POLICY_VARIANT\\x5cn' +\n>                   _default_body() + '#else\\x5cn#endif\\x5cn// EVOLVE-BLOCK-END silo-function-policy\\x5cn')\n>         with tempfile.TemporaryDirectory() as tmp:\n>             template = Path(tmp) / 'transaction.cc'\n>             template.write_text(before)\n>             marker = parse_template_file(str(template), 'silo-function-policy')\n>             assert marker is not None\n>             for row in _manifest():\n>                 source = (FIXTURES / row['file']).read_text()\n>                 after = before.replace(_default_body(), source)\n>                 diff = ''.join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile='a/transaction.cc', tofile='b/transaction.cc'))\n>                 quarantine = DiffQuarantine(marker, diff, head_text=before).validate()\n>                 if not quarantine.passed:\n>                     stage = 'diff-quarantine'\n>                     assert 'branch=content-directive' in quarantine.digest['evidence'], quarantine.digest\n>                     rule = 'content-directive'\n>                 else:\n>                     effects = scan_host_effects(source)\n>                     if effects:\n>                         stage, rule = 'effect', effects[0].rule_id\n>                     else:\n>                         grammar = validate_policy(source)\n>                         stage, rule = (None, None) if grammar.accepted else ('grammar', grammar.rule_id)\n> >               assert dict(stage=stage, rule_id=rule) == row['first_rejection'], (row['file'], stage, rule)\n> E               AssertionError: ('variable_divisor.cpp', None, None)\n> E               assert {'stage': Non...ule_id': None} == {'stage': 'gr...'rhs.literal'}\n> E                 \n> E                 Differing items:\n> E                 {'rule_id': None} != {'rule_id': 'rhs.literal'}\n> E                 {'stage': None} != {'stage': 'grammar'}\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:78: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=961 retained_bytes=961 omitted_bytes=0 rendered_excerpt_bytes=1002 sha256=47e832faa3d41acca08c05585e1875e11e1dae76edcae713982d130900c9cfe6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_grammar_requires_literal_divisor():\n>         for name in ('variable_divisor', 'variable_modulo'):\n> >           _reject(name, 'rhs.literal')\n> \n> orchestrator/tests/test_silo_policy_grammar.py:114: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'variable_divisor', rule = 'rhs.literal'\n> \n>     def _reject(name, rule):\n>         source = _source(name)\n>         d = validate_policy(source)\n> >       assert not d.accepted and d.stage == 'grammar' and d.rule_id == rule, (name, d)\n> E       AssertionError: ('variable_divisor', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E       assert (not True)\n> E        +  where True = PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None).accepted\n> \n> orchestrator/tests/test_silo_policy_grammar.py:35: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=699 retained_bytes=699 omitted_bytes=0 rendered_excerpt_bytes=726 sha256=92d34516b7a4588bf0b080352f4d38b37bfd06c2ea0f1cd690d46c5101361e88\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_grammar_contracts():\n>         for row in _manifest():\n>             d = validate_policy((FIXTURES / row['file']).read_text())\n> >           assert (d.accepted, d.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id']), (row['file'], d)\n> E           AssertionError: ('variable_divisor.cpp', PolicyDecision(accepted=True, stage='grammar', rule_id=None, offset=None, line=None, column=None, reason=None))\n> E           assert (True, None) == (False, 'rhs.literal')\n> E             \n> E             At index 0 diff: True != False\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3770 retained_bytes=3770 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5475 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9450c4dbe58ecc220a11a3f2d819a8d485dd6e15938923867db26e4235d02c68"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.415,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage"
+      ],
+      "hang_risk": false,
+      "id": "m-rhslit",
+      "injection_diff_sha256": "5e1f03c13e97d4ad6ac19145797798b102ba3a640087e46edd048404e1bd5bdd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4db58f5e4439348cb6274c6571978eeacfe89e40e5b8fcf5bdf6eeda5eb26102",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "                pass  # mutation M-RHSLIT\n",
+          "old": "                self.fail('rhs.literal', 'nonzero divisor or in-range literal shift required')\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "9450c4dbe58ecc220a11a3f2d819a8d485dd6e15938923867db26e4235d02c68",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/daf0c6e08df6e5b6d312075820a92e29/izdw-daf0c6e08d.o18373",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/daf0c6e08df6e5b6d312075820a92e29/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F...................F....        [100%]\n=================================== FAILURES ===================================\n_____________________ test_compile_rejects_external_global _____________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compile_rejects_external_global():\n>       _compile_reject('external_global')\n\norchestrator/tests/test_silo_policy_compile.py:68: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'external_global'\n\n    def _compile_reject(name):\n        with tempfile.TemporaryDirectory() as tmp:\n            d = compile_policy(_source(name), compiler=_compiler(), scratch_dir=tmp)\n>       assert not d.accepted and not d.unavailable and not d.timed_out and d.returncode != 0, d\nE       AssertionError: CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmplot0dxj2/policy-mqmzys__/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0')\nE       assert (not True)\nE        +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmplot0dxj2/policy-mqmzys__/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n\norchestrator/tests/test_silo_policy_compile.py:64: AssertionError\n_______________________ test_manifest_compile_contracts ________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_compile_contracts():\n        rows = json.loads((FIXTURES / 'manifest.json').read_text())\n        files = [r['file'] for r in rows]\n        assert len(files) == len(set(files))\n        assert {p.name for p in FIXTURES.iterdir()} == set(files) | {'manifest.json'}\n        compiler = _compiler()\n        with tempfile.TemporaryDirectory() as tmp:\n            for row in rows:\n                d = compile_policy((FIXTURES / row['file']).read_text(), compiler=compiler, scratch_dir=tmp)\n                assert not d.unavailable and not d.timed_out, (row['file'], d)\n>               assert d.accepted == row['compile_accepted'], (row['file'], d)\nE               AssertionError: ('external_global.cpp', CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic=''...y', '/tmp/tmp3cp0am8m/policy-djgti3y8/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0'))\nE               assert True == False\nE                +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmp3cp0am8m/policy-djgti3y8/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n\norchestrator/tests/test_silo_policy_compile.py:41: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global\nFAILED orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts\n2 failed, 63 passed in 25.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1369 retained_bytes=1369 omitted_bytes=0 rendered_excerpt_bytes=1406 sha256=89460c28bd5d99d47338ef5ca73622bca314c41b805d3581288a533f7cbd1dba\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_compile_contracts():\n>         rows = json.loads((FIXTURES / 'manifest.json').read_text())\n>         files = [r['file'] for r in rows]\n>         assert len(files) == len(set(files))\n>         assert {p.name for p in FIXTURES.iterdir()} == set(files) | {'manifest.json'}\n>         compiler = _compiler()\n>         with tempfile.TemporaryDirectory() as tmp:\n>             for row in rows:\n>                 d = compile_policy((FIXTURES / row['file']).read_text(), compiler=compiler, scratch_dir=tmp)\n>                 assert not d.unavailable and not d.timed_out, (row['file'], d)\n> >               assert d.accepted == row['compile_accepted'], (row['file'], d)\n> E               AssertionError: ('external_global.cpp', CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic=''...y', '/tmp/tmp3cp0am8m/policy-djgti3y8/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0'))\n> E               assert True == False\n> E                +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmp3cp0am8m/policy-djgti3y8/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n> \n> orchestrator/tests/test_silo_policy_compile.py:41: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1196 retained_bytes=1196 omitted_bytes=0 rendered_excerpt_bytes=1235 sha256=4e0ee9f5813793986ef78d89943637225629075234b858c80e374e52a45ac1f2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compile_rejects_external_global():\n> >       _compile_reject('external_global')\n> \n> orchestrator/tests/test_silo_policy_compile.py:68: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'external_global'\n> \n>     def _compile_reject(name):\n>         with tempfile.TemporaryDirectory() as tmp:\n>             d = compile_policy(_source(name), compiler=_compiler(), scratch_dir=tmp)\n> >       assert not d.accepted and not d.unavailable and not d.timed_out and d.returncode != 0, d\n> E       AssertionError: CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmplot0dxj2/policy-mqmzys__/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0')\n> E       assert (not True)\n> E        +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...ly', '/tmp/tmplot0dxj2/policy-mqmzys__/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n> \n> orchestrator/tests/test_silo_policy_compile.py:64: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2565 retained_bytes=2565 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3771 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9edd4650a4564ae3e8b47ccaac9e466252865eb8dffc2f991b83cfdeb461deea"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.495,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global",
+        "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global",
+        "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+      ],
+      "hang_risk": false,
+      "id": "m-tu-global",
+      "injection_diff_sha256": "50c997383e7c0d3c00cd3ddf261eace992d3daf943a8209f239a8a9389a8b7e4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e38479a09e41c1178394c44c64b34a25ec87fc5e222a045d3889de31b44ec45",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_compile.py",
+          "new": "            'uint64_t GlobalEpoch;\\n'  # mutation M-TU-GLOBAL\n            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')",
+          "old": "            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "9edd4650a4564ae3e8b47ccaac9e466252865eb8dffc2f991b83cfdeb461deea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e91addd64b657d2813c49416795cde8/izdw-3e91addd64.o18375",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e91addd64b657d2813c49416795cde8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................FF.......................        [100%]\n=================================== FAILURES ===================================\n____________________ test_compile_rejects_unsupplied_macro _____________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compile_rejects_unsupplied_macro():\n>       _compile_reject('external_macro')\n\norchestrator/tests/test_silo_policy_compile.py:72: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'external_macro'\n\n    def _compile_reject(name):\n        with tempfile.TemporaryDirectory() as tmp:\n            d = compile_policy(_source(name), compiler=_compiler(), scratch_dir=tmp)\n>       assert not d.accepted and not d.unavailable and not d.timed_out and d.returncode != 0, d\nE       AssertionError: CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...=1', '/tmp/tmpg2a9uyrb/policy-1pgqe391/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0')\nE       assert (not True)\nE        +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...=1', '/tmp/tmpg2a9uyrb/policy-1pgqe391/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n\norchestrator/tests/test_silo_policy_compile.py:64: AssertionError\n_______________________ test_manifest_compile_contracts ________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_manifest_compile_contracts():\n        rows = json.loads((FIXTURES / 'manifest.json').read_text())\n        files = [r['file'] for r in rows]\n        assert len(files) == len(set(files))\n        assert {p.name for p in FIXTURES.iterdir()} == set(files) | {'manifest.json'}\n        compiler = _compiler()\n        with tempfile.TemporaryDirectory() as tmp:\n            for row in rows:\n                d = compile_policy((FIXTURES / row['file']).read_text(), compiler=compiler, scratch_dir=tmp)\n                assert not d.unavailable and not d.timed_out, (row['file'], d)\n                assert d.accepted == row['compile_accepted'], (row['file'], d)\n                assert d.accepted == (d.returncode == 0)\n                assert len(d.diagnostic.encode('utf-8')) <= 16384\n>               assert not any(a.startswith(('-D', '-I')) for a in d.command[1:])\nE               assert not True\nE                +  where True = any(<generator object test_manifest_compile_contracts.<locals>.<genexpr> at 0x14e74fd9a880>)\n\norchestrator/tests/test_silo_policy_compile.py:44: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro\nFAILED orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts\n2 failed, 63 passed in 25.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1195 retained_bytes=1195 omitted_bytes=0 rendered_excerpt_bytes=1234 sha256=96b9da0248606dacfea0dc08d27a66e3bc59a9dd9494ee3d17e5f03f6528be18\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compile_rejects_unsupplied_macro():\n> >       _compile_reject('external_macro')\n> \n> orchestrator/tests/test_silo_policy_compile.py:72: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> name = 'external_macro'\n> \n>     def _compile_reject(name):\n>         with tempfile.TemporaryDirectory() as tmp:\n>             d = compile_policy(_source(name), compiler=_compiler(), scratch_dir=tmp)\n> >       assert not d.accepted and not d.unavailable and not d.timed_out and d.returncode != 0, d\n> E       AssertionError: CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...=1', '/tmp/tmpg2a9uyrb/policy-1pgqe391/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0')\n> E       assert (not True)\n> E        +  where True = CompileDecision(accepted=True, returncode=0, timed_out=False, unavailable=False, diagnostic='', diagnostic_truncated=F...=1', '/tmp/tmpg2a9uyrb/policy-1pgqe391/policy.cpp'), compiler_version='g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0').accepted\n> \n> orchestrator/tests/test_silo_policy_compile.py:64: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1139 retained_bytes=1139 omitted_bytes=0 rendered_excerpt_bytes=1180 sha256=9b0879a0aacacd2c10b7b48dbb78d63930c3d42baa04a30786e2cdb54cd1a6e2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_manifest_compile_contracts():\n>         rows = json.loads((FIXTURES / 'manifest.json').read_text())\n>         files = [r['file'] for r in rows]\n>         assert len(files) == len(set(files))\n>         assert {p.name for p in FIXTURES.iterdir()} == set(files) | {'manifest.json'}\n>         compiler = _compiler()\n>         with tempfile.TemporaryDirectory() as tmp:\n>             for row in rows:\n>                 d = compile_policy((FIXTURES / row['file']).read_text(), compiler=compiler, scratch_dir=tmp)\n>                 assert not d.unavailable and not d.timed_out, (row['file'], d)\n>                 assert d.accepted == row['compile_accepted'], (row['file'], d)\n>                 assert d.accepted == (d.returncode == 0)\n>                 assert len(d.diagnostic.encode('utf-8')) <= 16384\n> >               assert not any(a.startswith(('-D', '-I')) for a in d.command[1:])\n> E               assert not True\n> E                +  where True = any(<generator object test_manifest_compile_contracts.<locals>.<genexpr> at 0x14e74fd9a880>)\n> \n> orchestrator/tests/test_silo_policy_compile.py:44: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2334 retained_bytes=2334 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3545 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cb1bc7c3a5cc4ba7eb022396d2e95c0b037cb46aed2dad7ea5299578463cecd9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.481,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro",
+        "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro",
+        "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+      ],
+      "hang_risk": false,
+      "id": "m-tu-macro",
+      "injection_diff_sha256": "c56df31acfa049de077a4055f5bdd97b7b95831e7049f5ea4d1a145f43c32949",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "780432e351638cece76ad9f6775387cf0231b3c3629e37073f3a86ce3bad58d9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_compile.py",
+          "new": "'-Werror', '-fsyntax-only', '-DTRACE=1', str(tu))",
+          "old": "'-Werror', '-fsyntax-only', str(tu))"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "cb1bc7c3a5cc4ba7eb022396d2e95c0b037cb46aed2dad7ea5299578463cecd9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4197a42add4799e52ce28c14c8ce81a9/izdw-4197a42add.o18376",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4197a42add4799e52ce28c14c8ce81a9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................F................        [100%]\n=================================== FAILURES ===================================\n_________________ test_api_bytes_and_one_byte_negative_control _________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_api_bytes_and_one_byte_negative_control():\n        with _applied_template() as (checkout, _):\n            source = (checkout / axis.SOURCE_REL).read_bytes()\n            header = ROOT / axis.API_HEADER\n            _assert_api_matches(source, header)\n            original = header.read_bytes()\n            changed = original.replace(b\"retry = 0\", b\"retry = 2\", 1)\n            assert sum(a != b for a, b in zip(original, changed)) == 1\n            assert len(original) == len(changed)\n            with tempfile.TemporaryDirectory() as tmp:\n                negative = Path(tmp) / \"api.hh\"\n                negative.write_bytes(changed)\n                try:\n                    _assert_api_matches(source, negative)\n                except AssertionError:\n                    pass\n                else:\n>                   raise AssertionError(\"one-byte API mutation was accepted\")\nE                   AssertionError: one-byte API mutation was accepted\n\norchestrator/tests/test_silo_function_policy_template.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control\n1 failed, 64 passed in 25.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1084 retained_bytes=1084 omitted_bytes=0 rendered_excerpt_bytes=1131 sha256=4ff546c359f0489c0bba6fa9fa072b3a1ce811c2589a501223b08dd7719138c4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_api_bytes_and_one_byte_negative_control():\n>         with _applied_template() as (checkout, _):\n>             source = (checkout / axis.SOURCE_REL).read_bytes()\n>             header = ROOT / axis.API_HEADER\n>             _assert_api_matches(source, header)\n>             original = header.read_bytes()\n>             changed = original.replace(b\"retry = 0\", b\"retry = 2\", 1)\n>             assert sum(a != b for a, b in zip(original, changed)) == 1\n>             assert len(original) == len(changed)\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 negative = Path(tmp) / \"api.hh\"\n>                 negative.write_bytes(changed)\n>                 try:\n>                     _assert_api_matches(source, negative)\n>                 except AssertionError:\n>                     pass\n>                 else:\n> >                   raise AssertionError(\"one-byte API mutation was accepted\")\n> E                   AssertionError: one-byte API mutation was accepted\n> \n> orchestrator/tests/test_silo_function_policy_template.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1084 retained_bytes=1084 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1861 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e93501ab20fab63fa5dc8d61d099ab51f1c04ea1a8863df365f80ff1244a4cf6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.537,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control"
+      ],
+      "hang_risk": false,
+      "id": "m-api-sync",
+      "injection_diff_sha256": "b78668ad3253d74d5097f780b75b4f249dbdcc6d96df51535741ea89d673c9f9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a5dc7f5c71f6372c5a10005cce27a55927da23886e7f4d59d98bc8cfb0d76944",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_silo_function_policy_template.py",
+          "new": "    assert True  # mutation M-API-SYNC\n",
+          "old": "    assert _api_bytes(source) == header.read_bytes(), \"embedded API differs from header\"\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "e93501ab20fab63fa5dc8d61d099ab51f1c04ea1a8863df365f80ff1244a4cf6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/89ac881a688d9016a47b8dc805d0f118/izdw-89ac881a68.o18377",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/89ac881a688d9016a47b8dc805d0f118/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F..............................        [100%]\n=================================== FAILURES ===================================\n__________________ test_norw_judgement_requires_exit_code_one __________________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_norw_judgement_requires_exit_code_one():\n        \"\"\"M-CHK-NORW: an abnormal verifier exit is not a detected anomaly.\"\"\"\n        r = {\"verdict\": \"non-serializable\", \"total_cycles\": 1, \"exit_code\": 2}\n>       assert coverage.judge_norw(r) is False\nE       AssertionError: assert True is False\nE        +  where True = <function judge_norw at 0x14af5c93c5e0>({'verdict': 'non-serializable', 'total_cycles': 1, 'exit_code': 2})\nE        +    where <function judge_norw at 0x14af5c93c5e0> = coverage.judge_norw\n\norchestrator/tests/test_silo_policy_coverage.py:142: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one\n1 failed, 64 passed in 25.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=635 retained_bytes=635 omitted_bytes=0 rendered_excerpt_bytes=658 sha256=d122f052c84918b5b34285caf616dde341347f8c36c588114da6865a22e377bd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_norw_judgement_requires_exit_code_one():\n>         \"\"\"M-CHK-NORW: an abnormal verifier exit is not a detected anomaly.\"\"\"\n>         r = {\"verdict\": \"non-serializable\", \"total_cycles\": 1, \"exit_code\": 2}\n> >       assert coverage.judge_norw(r) is False\n> E       AssertionError: assert True is False\n> E        +  where True = <function judge_norw at 0x14af5c93c5e0>({'verdict': 'non-serializable', 'total_cycles': 1, 'exit_code': 2})\n> E        +    where <function judge_norw at 0x14af5c93c5e0> = coverage.judge_norw\n> \n> orchestrator/tests/test_silo_policy_coverage.py:142: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=635 retained_bytes=635 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1371 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b96f29858f5b5c80211cad86edbed8983cdcd5f8243e2a0b46affe378582bebf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.563,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one"
+      ],
+      "hang_risk": false,
+      "id": "m-chk-norw",
+      "injection_diff_sha256": "1a4c23681190f614834ffc53f364a398a6aeae3602c390b7dc526c12bf3903cf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f9ca56c6b7c44c2cc52de929b2e8086d291b5332dcf45abdbd561b6cd5970427",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "new": "            and _positive(r.get(\"total_cycles\")))  # mutation M-CHK-NORW\n",
+          "old": "            and _positive(r.get(\"total_cycles\"))\n            and type(r.get(\"exit_code\")) is int and r[\"exit_code\"] == 1)\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "b96f29858f5b5c80211cad86edbed8983cdcd5f8243e2a0b46affe378582bebf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c5e6c466b35fa28b338b989cb7aa6753/izdw-c5e6c466b3.o18378",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c5e6c466b35fa28b338b989cb7aa6753/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F..............................        [100%]\n=================================== FAILURES ===================================\n______________ test_focus_requires_post_commit_state_observation _______________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_focus_requires_post_commit_state_observation():\n        runs = _complete_runs()\n        assert coverage.judge(runs, _checks(runs))[\"all_pass\"] is True\n        p = runs[\"focus/focus\"][\"probe\"][\"totals\"]\n        p[\"post_commit_match\"] = 0\n>       assert coverage.check_case(\"focus/focus\", runs[\"focus/focus\"])[\"commit\"] is False\nE       assert True is False\n\norchestrator/tests/test_silo_policy_coverage.py:370: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation\n1 failed, 64 passed in 25.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=485 retained_bytes=485 omitted_bytes=0 rendered_excerpt_bytes=508 sha256=b76ee90c349551d196de9d497ee72fde326624f878d2eea1b4886656ff112598\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_focus_requires_post_commit_state_observation():\n>         runs = _complete_runs()\n>         assert coverage.judge(runs, _checks(runs))[\"all_pass\"] is True\n>         p = runs[\"focus/focus\"][\"probe\"][\"totals\"]\n>         p[\"post_commit_match\"] = 0\n> >       assert coverage.check_case(\"focus/focus\", runs[\"focus/focus\"])[\"commit\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_silo_policy_coverage.py:370: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=485 retained_bytes=485 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1228 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "60b6a986e2dda6122b95e571e36a69603e66698c3bdb8e32d29bbb9297f74059"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.537,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation"
+      ],
+      "hang_risk": false,
+      "id": "m-postcommit",
+      "injection_diff_sha256": "a0ac75a59996bbb0a13adb1db1bdfe2a3481e089a91d3a23e902e6942e2146c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f4eda28b60411bb3ea90f42ba234aadc91043ba5ffdb3a3f7035a01fb28c616b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "new": "            checks[\"commit\"] = checks[\"commit\"]  # mutation M-POSTCOMMIT\n",
+          "old": "            checks[\"commit\"] = (checks[\"commit\"] and _positive(p.get(\"post_commit_match\"))\n                                and p.get(\"post_commit_mismatch\") == 0)\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "60b6a986e2dda6122b95e571e36a69603e66698c3bdb8e32d29bbb9297f74059",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f3e616c590b4b31003e37b4308df7d94/izdw-f3e616c590.o18379",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f3e616c590b4b31003e37b4308df7d94/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................F....F......        [100%]\n=================================== FAILURES ===================================\n____________ test_prepare_policy_real_four_stages_and_body_binding _____________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_prepare_policy_real_four_stages_and_body_binding():\n        with _applied_template() as (checkout, _), tempfile.TemporaryDirectory() as tmp:\n            path = checkout / coverage.axis.SOURCE_REL\n            before = path.read_bytes()\n            body = (ROOT / coverage.axis.HAND_POLICY_DIR / \"focus.cpp\").read_text()\n            rendered, record = coverage.prepare_policy(path, body, compiler=_cxx(), scratch_dir=tmp)\n            assert record[\"stages\"] == (\"quarantine\", \"effects\", \"grammar\", \"compile\")\n            assert record[\"checked_sha256\"] == record[\"materialized_sha256\"] == coverage.sha(body)\n            assert body in rendered\n            assert path.read_bytes() == before  # caller has not materialized yet\n            invalid = (ROOT / coverage.axis.HAND_POLICY_DIR / \"abort0.cpp\").read_text().replace(\n                \"return 0u;\", \"return true;\", 1)\n            try:\n                coverage.prepare_policy(path, invalid, compiler=_cxx(), scratch_dir=tmp)\n            except ValueError as exc:\n                assert \"grammar/compile rejected\" in str(exc)\n            else:\n>               raise AssertionError(\"U32 bool return passed smoke preparation\")\nE               AssertionError: U32 bool return passed smoke preparation\n\norchestrator/tests/test_silo_policy_coverage.py:515: AssertionError\n___________ test_smoke_entry_rejects_grammar_violation_before_build ____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_smoke_entry_rejects_grammar_violation_before_build():\n        \"\"\"M-SMOKE-SKIP: C++ accepts this body; policy-C++ rejects its conversion.\"\"\"\n        body = _body().replace(\"return 5u;\", \"return true;\", 1)\n        grammar = validate_policy(body)\n        assert grammar.accepted is False and grammar.rule_id == \"type.conversion\"\n        compiler = _cxx()\n        with tempfile.TemporaryDirectory() as tmp:\n            assert compile_policy(body, compiler=compiler, scratch_dir=tmp).accepted is True\n        with _entry(body, compiler) as (run, seen, stock):\n            try:\n>               run()\n\norchestrator/tests/test_silo_policy_smoke_entry.py:92: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_silo_policy_smoke_entry.py:75: in <lambda>\n    yield (lambda: coverage.run_smoke(scratch, {\"cxx_path\": compiler}, {})), seen, stock_builds\norchestrator/campaign/silo_policy_coverage.py:682: in run_smoke\n    trace, trace_build = _build_variant(source, work / \"trace\", trace=1, toolchain=toolchain,\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = PosixPath('/tmp/policy-smoke-source-t_7gq940/ccbench')\nbuild_dir = PosixPath('/tmp/policy-smoke-entry-x3eilem2/scratch/abort0/trace')\nkwargs = {'trace': 1, 'toolchain': {'cxx_path': 'g++-12'}, 'dependencies': {}, 'stock': False}\n\n    def build(source, build_dir, **kwargs):\n        if kwargs[\"stock\"]:\n            stock_builds.append(kwargs[\"trace\"])\n            return build_dir / \"unused\", {}\n        materialized = (source / coverage.axis.SOURCE_REL).read_bytes()\n        policy = materialized.split(HOLE_BEGIN, 1)[1].split(HOLE_END, 1)[0]\n        assert policy.endswith(b\"\\n\")\n        seen.append(hashlib.sha256(policy[:-1]).hexdigest())\n>       raise _BuildReached\nE       test_silo_policy_smoke_entry._BuildReached\n\norchestrator/tests/test_silo_policy_smoke_entry.py:64: _BuildReached\n----------------------------- Captured stdout call -----------------------------\nsmoke=stock\nsmoke=abort0\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding\nFAILED orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build\n2 failed, 63 passed in 25.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1995 retained_bytes=1995 omitted_bytes=0 rendered_excerpt_bytes=2075 sha256=02240664e3199585a87a163d810e57326be8e3d141a8656874d7bb238134d1ce\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_smoke_entry_rejects_grammar_violation_before_build():\n>         \"\"\"M-SMOKE-SKIP: C++ accepts this body; policy-C++ rejects its conversion.\"\"\"\n>         body = _body().replace(\"return 5u;\", \"return true;\", 1)\n>         grammar = validate_policy(body)\n>         assert grammar.accepted is False and grammar.rule_id == \"type.conversion\"\n>         compiler = _cxx()\n>         with tempfile.TemporaryDirectory() as tmp:\n>             assert compile_policy(body, compiler=compiler, scratch_dir=tmp).accepted is True\n>         with _entry(body, compiler) as (run, seen, stock):\n>             try:\n> >               run()\n> \n> orchestrator/tests/test_silo_policy_smoke_entry.py:92: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_silo_policy_smoke_entry.py:75: in <lambda>\n>     yield (lambda: coverage.run_smoke(scratch, {\"cxx_path\": compiler}, {})), seen, stock_builds\n> orchestrator/campaign/silo_policy_coverage.py:682: in run_smoke\n>     trace, trace_build = _build_variant(source, work / \"trace\", trace=1, toolchain=toolchain,\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source = PosixPath('/tmp/policy-smoke-source-t_7gq940/ccbench')\n> build_dir = PosixPath('/tmp/policy-smoke-entry-x3eilem2/scratch/abort0/trace')\n> kwargs = {'trace': 1, 'toolchain': {'cxx_path': 'g++-12'}, 'dependencies': {}, 'stock': False}\n> \n>     def build(source, build_dir, **kwargs):\n>         if kwargs[\"stock\"]:\n>             stock_builds.append(kwargs[\"trace\"])\n>             return build_dir / \"unused\", {}\n>         materialized = (source / coverage.axis.SOURCE_REL).read_bytes()\n>         policy = materialized.split(HOLE_BEGIN, 1)[1].split(HOLE_END, 1)[0]\n>         assert policy.endswith(b\"\\x5cn\")\n>         seen.append(hashlib.sha256(policy[:-1]).hexdigest())\n> >       raise _BuildReached\n> E       test_silo_policy_smoke_entry._BuildReached\n> \n> orchestrator/tests/test_silo_policy_smoke_entry.py:64: _BuildReached\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1377 retained_bytes=1377 omitted_bytes=0 rendered_excerpt_bytes=1424 sha256=0e2c377128fe839169a60b47e0a3f36a399153517faf903d0281facdc060f76c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_prepare_policy_real_four_stages_and_body_binding():\n>         with _applied_template() as (checkout, _), tempfile.TemporaryDirectory() as tmp:\n>             path = checkout / coverage.axis.SOURCE_REL\n>             before = path.read_bytes()\n>             body = (ROOT / coverage.axis.HAND_POLICY_DIR / \"focus.cpp\").read_text()\n>             rendered, record = coverage.prepare_policy(path, body, compiler=_cxx(), scratch_dir=tmp)\n>             assert record[\"stages\"] == (\"quarantine\", \"effects\", \"grammar\", \"compile\")\n>             assert record[\"checked_sha256\"] == record[\"materialized_sha256\"] == coverage.sha(body)\n>             assert body in rendered\n>             assert path.read_bytes() == before  # caller has not materialized yet\n>             invalid = (ROOT / coverage.axis.HAND_POLICY_DIR / \"abort0.cpp\").read_text().replace(\n>                 \"return 0u;\", \"return true;\", 1)\n>             try:\n>                 coverage.prepare_policy(path, invalid, compiler=_cxx(), scratch_dir=tmp)\n>             except ValueError as exc:\n>                 assert \"grammar/compile rejected\" in str(exc)\n>             else:\n> >               raise AssertionError(\"U32 bool return passed smoke preparation\")\n> E               AssertionError: U32 bool return passed smoke preparation\n> \n> orchestrator/tests/test_silo_policy_coverage.py:515: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3372 retained_bytes=3372 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4677 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fc6b442a674d79abbc71d94a25fd1765d3d0d17870897359daca248e3a3e4129"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.453,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build"
+      ],
+      "hang_risk": false,
+      "id": "m-smoke-skip",
+      "injection_diff_sha256": "26ebe3ab179d5a097fbd9486799e6bfea6e0e5b96b4853919b41bf369bfcb8c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "68815eb48aadb3eddae23110112766949bbb3dc96c9e494ec95e7a4ea61cfc17",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "new": "    from .silo_policy_compile import compile_policy as _cp  # mutation M-SMOKE-SKIP\n    from .silo_policy_grammar import PolicyDecision as _pd\n    grammar, compiled = (_pd(True, 'grammar', None, None, None, None, None),\n                         _cp(body, compiler=compiler, scratch_dir=scratch_dir))\n",
+          "old": "    grammar, compiled = check_policy_body(body, compiler=compiler, scratch_dir=scratch_dir)\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "fc6b442a674d79abbc71d94a25fd1765d3d0d17870897359daca248e3a3e4129",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/94e56d7d86f35ebbc63c6cb75c619e36/izdw-94e56d7d86.o18380",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/94e56d7d86f35ebbc63c6cb75c619e36/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................FF..............................        [100%]\n=================================== FAILURES ===================================\n______________ test_prefix_limit_requires_prefix_held_limit_reach ______________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_prefix_limit_requires_prefix_held_limit_reach():\n        \"\"\"M-PREFIX-REACH: total limit reach cannot replace prefix-held reach.\"\"\"\n>       _assert_prefix_held_reach_required(\n            \"mutation/no-prefix-unlock-limit\", \"focus/retry\", \"prefix_held_limit_aborts\", \"retry\")\n\norchestrator/tests/test_silo_policy_coverage.py:319: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = 'mutation/no-prefix-unlock-limit', observation = 'focus/retry'\ncounter = 'prefix_held_limit_aborts', policy = 'retry'\n\n    def _assert_prefix_held_reach_required(case, observation, counter, policy):\n        runs = _complete_runs()\n        checks = _checks(runs)\n        key = case + \":expected\"\n        assert runs[case][\"reason\"] == \"trace-timeout\"\n        assert checks[key] is True\n        assert coverage.judge(runs, checks)[\"all_pass\"] is True\n        for count in (0, -1, None, True):\n            missing = deepcopy(runs)\n            missing[observation][\"probe\"][\"totals\"][counter] = count\n>           assert _checks(missing)[key] is False\nE           assert True is False\n\norchestrator/tests/test_silo_policy_coverage.py:292: AssertionError\n____________ test_prefix_conflict_requires_prefix_held_action_reach ____________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_prefix_conflict_requires_prefix_held_action_reach():\n>       _assert_prefix_held_reach_required(\n            \"mutation/no-prefix-unlock-conflict\", \"focus/abort0\", \"prefix_held_action_aborts\", \"abort0\")\n\norchestrator/tests/test_silo_policy_coverage.py:324: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = 'mutation/no-prefix-unlock-conflict', observation = 'focus/abort0'\ncounter = 'prefix_held_action_aborts', policy = 'abort0'\n\n    def _assert_prefix_held_reach_required(case, observation, counter, policy):\n        runs = _complete_runs()\n        checks = _checks(runs)\n        key = case + \":expected\"\n        assert runs[case][\"reason\"] == \"trace-timeout\"\n        assert checks[key] is True\n        assert coverage.judge(runs, checks)[\"all_pass\"] is True\n        for count in (0, -1, None, True):\n            missing = deepcopy(runs)\n            missing[observation][\"probe\"][\"totals\"][counter] = count\n>           assert _checks(missing)[key] is False\nE           assert True is False\n\norchestrator/tests/test_silo_policy_coverage.py:292: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach\n2 failed, 63 passed in 25.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1227 retained_bytes=1227 omitted_bytes=0 rendered_excerpt_bytes=1282 sha256=8b2cd90f8d261a8bf867a2a32e1cea4b39fd4fe29e04af3f771cc64d794759b9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_prefix_limit_requires_prefix_held_limit_reach():\n>         \"\"\"M-PREFIX-REACH: total limit reach cannot replace prefix-held reach.\"\"\"\n> >       _assert_prefix_held_reach_required(\n>             \"mutation/no-prefix-unlock-limit\", \"focus/retry\", \"prefix_held_limit_aborts\", \"retry\")\n> \n> orchestrator/tests/test_silo_policy_coverage.py:319: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = 'mutation/no-prefix-unlock-limit', observation = 'focus/retry'\n> counter = 'prefix_held_limit_aborts', policy = 'retry'\n> \n>     def _assert_prefix_held_reach_required(case, observation, counter, policy):\n>         runs = _complete_runs()\n>         checks = _checks(runs)\n>         key = case + \":expected\"\n>         assert runs[case][\"reason\"] == \"trace-timeout\"\n>         assert checks[key] is True\n>         assert coverage.judge(runs, checks)[\"all_pass\"] is True\n>         for count in (0, -1, None, True):\n>             missing = deepcopy(runs)\n>             missing[observation][\"probe\"][\"totals\"][counter] = count\n> >           assert _checks(missing)[key] is False\n> E           assert True is False\n> \n> orchestrator/tests/test_silo_policy_coverage.py:292: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1161 retained_bytes=1161 omitted_bytes=0 rendered_excerpt_bytes=1214 sha256=276c0c971a16035f13e4c1ecb0cba0eda58dd3c79404e4a4f7d4e907ed9ca9ed\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_prefix_conflict_requires_prefix_held_action_reach():\n> >       _assert_prefix_held_reach_required(\n>             \"mutation/no-prefix-unlock-conflict\", \"focus/abort0\", \"prefix_held_action_aborts\", \"abort0\")\n> \n> orchestrator/tests/test_silo_policy_coverage.py:324: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = 'mutation/no-prefix-unlock-conflict', observation = 'focus/abort0'\n> counter = 'prefix_held_action_aborts', policy = 'abort0'\n> \n>     def _assert_prefix_held_reach_required(case, observation, counter, policy):\n>         runs = _complete_runs()\n>         checks = _checks(runs)\n>         key = case + \":expected\"\n>         assert runs[case][\"reason\"] == \"trace-timeout\"\n>         assert checks[key] is True\n>         assert coverage.judge(runs, checks)[\"all_pass\"] is True\n>         for count in (0, -1, None, True):\n>             missing = deepcopy(runs)\n>             missing[observation][\"probe\"][\"totals\"][counter] = count\n> >           assert _checks(missing)[key] is False\n> E           assert True is False\n> \n> orchestrator/tests/test_silo_policy_coverage.py:292: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2388 retained_bytes=2388 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3666 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8f82c9d6ef6bc5eb5500ef99a335a54b6eccdab3f50326d7efc0c7ee8f092055"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "440f8c50b4d4db30f4d9a2b0a6c81820541ac2b4a63f2984f4c25f0302cb1e81",
+      "duration_s": 47.491,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach"
+      ],
+      "hang_risk": false,
+      "id": "m-prefix-reach",
+      "injection_diff_sha256": "69c8ffa1b6852e6a804e0860678b45ff217216e3c9cfa9e63797b760964e1b8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "87d81da9eeee7c99a6cbd6253f067a0474ec870495e88f79976aee582822ab18",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "new": "                   and True)  # mutation M-PREFIX-REACH\n",
+          "old": "                   and _positive(focus.get(\"probe\", {}).get(\"totals\", {}).get(counter)))\n"
+        }
+      ],
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "KILLED",
+      "test_output_sha256": "8f82c9d6ef6bc5eb5500ef99a335a54b6eccdab3f50326d7efc0c7ee8f092055",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/08bcf27b01fcdcd81eadea5c6bc7465f/izdw-08bcf27b01.o18365",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/08bcf27b01fcdcd81eadea5c6bc7465f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts\norchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage\norchestrator/tests/test_silo_policy_grammar.py::test_hand_policies_and_default_grammar\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_limits_are_candidate_rejections\norchestrator/tests/test_silo_policy_grammar.py::test_grammar_internal_errors_propagate\norchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts\norchestrator/tests/test_silo_policy_compile.py::test_hand_policies_and_default_compile\norchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global\norchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro\norchestrator/tests/test_silo_policy_compile.py::test_compile_unavailable_and_grammar_short_circuit\norchestrator/tests/test_silo_policy_compile.py::test_compile_timeout_kills_process_group\norchestrator/tests/test_silo_policy_compile.py::test_compile_diagnostic_bound\norchestrator/tests/test_silo_policy_compile.py::test_compile_environment_isolation\norchestrator/tests/test_silo_policy_compile.py::test_ubsan_harness_real_execution\norchestrator/tests/test_silo_function_policy_template.py::test_patch_touch_set_marker_and_empty_stock\norchestrator/tests/test_silo_function_policy_template.py::test_flag_errors_require_closed_values_and_explicit_prerequisites\norchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control\norchestrator/tests/test_silo_function_policy_template.py::test_default_body_and_quarantine_parser\norchestrator/tests/test_silo_function_policy_template.py::test_axis_reason_enum_order_and_hand_policy_contracts\norchestrator/tests/test_silo_function_policy_template.py::test_reason_sites_are_bound_to_transaction_operations\norchestrator/tests/test_silo_function_policy_template.py::test_lock_bounds_reload_prefix_unlock_and_hook_lifetime\norchestrator/tests/test_silo_function_policy_template.py::test_source_identity_off_inert_on_honest_includes_and_trace_diff\norchestrator/tests/test_silo_policy_coverage.py::test_judge_rejects_missing_or_empty_checks\norchestrator/tests/test_silo_policy_coverage.py::test_smoke_judge_requires_every_policy_and_real_success\norchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one\norchestrator/tests/test_silo_policy_coverage.py::test_characterization_and_mechanism_predicates\norchestrator/tests/test_silo_policy_coverage.py::test_coverage_reuses_controls_and_separates_prefix_exits\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_matching_retry_probe_reach\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_exit_case_configuration\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach\norchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_requires_prefix_held_exit_keys\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_unlock_patches_remove_only_the_target_exit\norchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation\norchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_extra_commit_mismatch\norchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_missing_abort_mismatch\norchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_rejects_incomplete_duplicate_unknown_negative_records\norchestrator/tests/test_silo_policy_coverage.py::test_strict_patch_stacks_and_one_site_mutations\norchestrator/tests/test_silo_policy_coverage.py::test_probe_sites_independently_stamp_all_seven_reasons\norchestrator/tests/test_silo_policy_coverage.py::test_focus_accepted_by_real_unit_b_interface\norchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gates_isolate_each_macro_and_keep_axis_cache\norchestrator/tests/test_silo_policy_coverage.py::test_build_requires_gate_before_configure_and_keeps_build_macros\norchestrator/tests/test_silo_policy_coverage.py::test_command_arguments_accepts_both_compile_command_forms\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_rejection_preserves_arm_reasons_in_result_json\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_failure_keeps_complete_receipts_and_stops_build\norchestrator/tests/test_silo_policy_coverage.py::test_main_prepares_dependencies_once_before_gates_in_either_case_order\norchestrator/tests/test_silo_policy_coverage.py::test_owner_command_selects_ycsb_from_four_targets_and_rejects_ambiguity\norchestrator/tests/test_silo_policy_coverage.py::test_preprocess_strips_output_and_dependency_forms_and_replaces_defines\norchestrator/tests/test_silo_policy_coverage.py::test_lockskip_evidence_ignores_preprocessor_indentation_but_requires_target\norchestrator/tests/test_silo_policy_coverage.py::test_trace_timeout_preserves_partial_output_and_exact_reason\norchestrator/tests/test_silo_policy_coverage.py::test_verifier_timeout_keeps_run_witnesses_without_becoming_trace_timeout\norchestrator/tests/test_silo_policy_coverage.py::test_verify_cli_and_projection_match_verifier_result\norchestrator/tests/test_silo_policy_coverage.py::test_run_cli_trace_location_counters_probe_and_bench_projection\norchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build\norchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_builds_checked_body_once_with_matching_sha256\norchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_unavailable_compiler_before_build\norchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_compile_exception_stops_before_build\norchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_compile_timeout_stops_before_build\n\n65 tests collected in 1.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "5bea2098982f5bdd0e7661c6509f3061de227c26c10f21fc7e4828bbe6be5ca4"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_hand_policies_and_default_grammar",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_limits_are_candidate_rejections",
+        "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_internal_errors_propagate",
+        "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts",
+        "orchestrator/tests/test_silo_policy_compile.py::test_hand_policies_and_default_compile",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_unavailable_and_grammar_short_circuit",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_timeout_kills_process_group",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_diagnostic_bound",
+        "orchestrator/tests/test_silo_policy_compile.py::test_compile_environment_isolation",
+        "orchestrator/tests/test_silo_policy_compile.py::test_ubsan_harness_real_execution",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_patch_touch_set_marker_and_empty_stock",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_flag_errors_require_closed_values_and_explicit_prerequisites",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_default_body_and_quarantine_parser",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_axis_reason_enum_order_and_hand_policy_contracts",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_reason_sites_are_bound_to_transaction_operations",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_lock_bounds_reload_prefix_unlock_and_hook_lifetime",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_source_identity_off_inert_on_honest_includes_and_trace_diff",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_judge_rejects_missing_or_empty_checks",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_smoke_judge_requires_every_policy_and_real_success",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_characterization_and_mechanism_predicates",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_coverage_reuses_controls_and_separates_prefix_exits",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_matching_retry_probe_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_exit_case_configuration",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_requires_prefix_held_exit_keys",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_unlock_patches_remove_only_the_target_exit",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_extra_commit_mismatch",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_missing_abort_mismatch",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_rejects_incomplete_duplicate_unknown_negative_records",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_strict_patch_stacks_and_one_site_mutations",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_sites_independently_stamp_all_seven_reasons",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_accepted_by_real_unit_b_interface",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gates_isolate_each_macro_and_keep_axis_cache",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_build_requires_gate_before_configure_and_keeps_build_macros",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_command_arguments_accepts_both_compile_command_forms",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_rejection_preserves_arm_reasons_in_result_json",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_failure_keeps_complete_receipts_and_stops_build",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_main_prepares_dependencies_once_before_gates_in_either_case_order",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_owner_command_selects_ycsb_from_four_targets_and_rejects_ambiguity",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_preprocess_strips_output_and_dependency_forms_and_replaces_defines",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_lockskip_evidence_ignores_preprocessor_indentation_but_requires_target",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_trace_timeout_preserves_partial_output_and_exact_reason",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_verifier_timeout_keeps_run_witnesses_without_becoming_trace_timeout",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_verify_cli_and_projection_match_verifier_result",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_run_cli_trace_location_counters_probe_and_bench_projection",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_builds_checked_body_once_with_matching_sha256",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_unavailable_compiler_before_build",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_compile_exception_stops_before_build",
+        "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_compile_timeout_stops_before_build"
+      ],
+      "duration_s": 26.946,
+      "rc": 0,
+      "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+      "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+      "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+      "status": "PASSED",
+      "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m-api-sync": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b78668ad3253d74d5097f780b75b4f249dbdcc6d96df51535741ea89d673c9f9",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_silo_function_policy_template.py",
+            "new": "    assert True  # mutation M-API-SYNC\n",
+            "old": "    assert _api_bytes(source) == header.read_bytes(), \"embedded API differs from header\"\n"
+          }
+        ]
+      },
+      "m-assign": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_subexpression_assignment",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "903a5d03859b36a58ed47175a53c2cc8833521db26997e4f73eae5038eeeb07a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "            if False:  # mutation M-ASSIGN\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n",
+            "old": "            if not allow_assignment:\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n"
+          }
+        ]
+      },
+      "m-chk-norw": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1a4c23681190f614834ffc53f364a398a6aeae3602c390b7dc526c12bf3903cf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_coverage.py",
+            "new": "            and _positive(r.get(\"total_cycles\")))  # mutation M-CHK-NORW\n",
+            "old": "            and _positive(r.get(\"total_cycles\"))\n            and type(r.get(\"exit_code\")) is int and r[\"exit_code\"] == 1)\n"
+          }
+        ]
+      },
+      "m-lex": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_alternative_binary_tokens",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68c9777cf358b516e66b5e1869f706ccd077218f8a1a5c3b3710eaa8a764a50f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "            pass  # mutation M-LEX: alternative-token rule removed\n",
+            "old": "            raise _Reject('lex.alternative-token', t, 'alternative operator spelling')\n"
+          }
+        ]
+      },
+      "m-postcommit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a0ac75a59996bbb0a13adb1db1bdfe2a3481e089a91d3a23e902e6942e2146c2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_coverage.py",
+            "new": "            checks[\"commit\"] = checks[\"commit\"]  # mutation M-POSTCOMMIT\n",
+            "old": "            checks[\"commit\"] = (checks[\"commit\"] and _positive(p.get(\"post_commit_match\"))\n                                and p.get(\"post_commit_mismatch\") == 0)\n"
+          }
+        ]
+      },
+      "m-prefix-reach": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach",
+          "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "69c8ffa1b6852e6a804e0860678b45ff217216e3c9cfa9e63797b760964e1b8f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_coverage.py",
+            "new": "                   and True)  # mutation M-PREFIX-REACH\n",
+            "old": "                   and _positive(focus.get(\"probe\", {}).get(\"totals\", {}).get(counter)))\n"
+          }
+        ]
+      },
+      "m-return": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_final_return",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e7b9779f5d070bd58a2d73934c3b07e02aff59994d4673869ad982e9cae9e0d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "        if False:  # mutation M-RETURN\n            self.fail('return.final', 'nonvoid body must end with return')\n",
+            "old": "        if ret != 'void' and last != 'return':\n            self.fail('return.final', 'nonvoid body must end with return')\n"
+          }
+        ]
+      },
+      "m-rhslit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_requires_literal_divisor",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5e1f03c13e97d4ad6ac19145797798b102ba3a640087e46edd048404e1bd5bdd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "                pass  # mutation M-RHSLIT\n",
+            "old": "                self.fail('rhs.literal', 'nonzero divisor or in-range literal shift required')\n"
+          }
+        ]
+      },
+      "m-selfinit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_self_initialization",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "038a239d7f69e57479622ec119739a935db20c4939ba767302686e860a1d5e8c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "        if False:  # mutation M-SELFINIT\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n",
+            "old": "        if name == self.initializing:\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n"
+          }
+        ]
+      },
+      "m-smoke-skip": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding",
+          "orchestrator/tests/test_silo_policy_smoke_entry.py::test_smoke_entry_rejects_grammar_violation_before_build"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26ebe3ab179d5a097fbd9486799e6bfea6e0e5b96b4853919b41bf369bfcb8c2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_coverage.py",
+            "new": "    from .silo_policy_compile import compile_policy as _cp  # mutation M-SMOKE-SKIP\n    from .silo_policy_grammar import PolicyDecision as _pd\n    grammar, compiled = (_pd(True, 'grammar', None, None, None, None, None),\n                         _cp(body, compiler=compiler, scratch_dir=scratch_dir))\n",
+            "old": "    grammar, compiled = check_policy_body(body, compiler=compiler, scratch_dir=scratch_dir)\n"
+          }
+        ]
+      },
+      "m-tu-global": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_external_global",
+          "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "50c997383e7c0d3c00cd3ddf261eace992d3daf943a8209f239a8a9389a8b7e4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_compile.py",
+            "new": "            'uint64_t GlobalEpoch;\\n'  # mutation M-TU-GLOBAL\n            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')",
+            "old": "            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')"
+          }
+        ]
+      },
+      "m-tu-macro": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_compile.py::test_compile_rejects_unsupplied_macro",
+          "orchestrator/tests/test_silo_policy_compile.py::test_manifest_compile_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c56df31acfa049de077a4055f5bdd97b7b95831e7049f5ea4d1a145f43c32949",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_compile.py",
+            "new": "'-Werror', '-fsyntax-only', '-DTRACE=1', str(tu))",
+            "old": "'-Werror', '-fsyntax-only', str(tu))"
+          }
+        ]
+      },
+      "m-type": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_grammar.py::test_grammar_rejects_bool_arithmetic",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_first_rejection_stage",
+          "orchestrator/tests/test_silo_policy_grammar.py::test_manifest_grammar_contracts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "062850c9d265a369c6daa62f6c18fa8af4615c8d480466f26d68344be2e4772f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "    def numeric(self, e):\n        if e.type == 'bool':\n            return 'U32'  # mutation M-TYPE\n        if e.type not in _NUMERIC:\n",
+            "old": "    def numeric(self, e):\n        if e.type not in _NUMERIC:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "dbe7a95c2c73c87ca3261f01c63cf796ff363ea756fb75b0d706f70bc9e63133",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_grammar.py",
+      "orchestrator/tests/test_silo_policy_compile.py",
+      "orchestrator/tests/test_silo_function_policy_template.py",
+      "orchestrator/tests/test_silo_policy_coverage.py",
+      "orchestrator/tests/test_silo_policy_smoke_entry.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "0a4b38abe0a1d95be0683fad5158d76d78c3b92a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_grammar.py",
+      "orchestrator/tests/test_silo_policy_compile.py",
+      "orchestrator/tests/test_silo_function_policy_template.py",
+      "orchestrator/tests/test_silo_policy_coverage.py",
+      "orchestrator/tests/test_silo_policy_smoke_entry.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ef442e36d25a6a4d3bd011903b55e8acf7806264",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "58f0bd7f783f6bdc6ff6a1b956eefd96216fa79e0f5c5a500bcec69fd0e7e23c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0e5f5292c0265ff9895ee5926139e7da61025dca05bf08f5fea1695801020d43",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 13,
+    "matching": 13,
+    "recorded": 13,
+    "registered": 13
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2857-silo-policy-stage-c/mutation-scratch-final-small/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "bbdca2351060e742669cf0e9d61c9614a4feba742a4aa62d291e62b8d8b34d37",
+  "updated_at": "2026-09-22T14:42:29.771509+00:00"
+}

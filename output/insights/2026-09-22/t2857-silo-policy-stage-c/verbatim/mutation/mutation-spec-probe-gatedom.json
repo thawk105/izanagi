@@ -1,0 +1,22 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-gate-dom",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock)\n",
+     "new": "    gates = []\n    if macros:  # mutation M-GATE-DOM (re-targeted: statement-level branch)\n        gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

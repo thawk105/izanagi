@@ -1,0 +1,44 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-gate-dom",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock)\n",
+     "new": "    gates = []\n    if macros:  # mutation M-GATE-DOM (re-targeted: statement-level branch)\n        gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-ingress",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    from .silo_policy_compile import check_policy_body\n",
+     "new": "    from .silo_policy_compile import check_policy_body\n    if False:  # mutation M-INGRESS\n        from .p3_s4_loop import render_hole\n        render_hole('', None, body)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+    "orchestrator/tests/test_p3_s4_loop.py::test_backoff_coder_text_materialization_ingress_is_closed_and_nonempty"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

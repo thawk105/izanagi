@@ -1,0 +1,36 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-gate-dom",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock)\n",
+     "new": "    gates = _condition_gates(source, macros, args, toolchain[\"cxx_path\"], stock=stock) if macros else []  # mutation M-GATE-DOM\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-ingress",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    from .silo_policy_compile import check_policy_body\n",
+     "new": "    from .silo_policy_compile import check_policy_body\n    if False:  # mutation M-INGRESS\n        from .p3_s4_loop import render_hole\n        render_hole('', None, body)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

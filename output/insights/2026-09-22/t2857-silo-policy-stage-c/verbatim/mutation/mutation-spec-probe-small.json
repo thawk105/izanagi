@@ -1,0 +1,190 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-lex",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "            raise _Reject('lex.alternative-token', t, 'alternative operator spelling')\n",
+     "new": "            pass  # mutation M-LEX: alternative-token rule removed\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-type",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "    def numeric(self, e):\n        if e.type not in _NUMERIC:\n",
+     "new": "    def numeric(self, e):\n        if e.type == 'bool':\n            return 'U32'  # mutation M-TYPE\n        if e.type not in _NUMERIC:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-selfinit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "        if name == self.initializing:\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n",
+     "new": "        if False:  # mutation M-SELFINIT\n            self.fail('init.self', 'initializer refers to its own declaration', token)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-return",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "        if ret != 'void' and last != 'return':\n            self.fail('return.final', 'nonvoid body must end with return')\n",
+     "new": "        if False:  # mutation M-RETURN\n            self.fail('return.final', 'nonvoid body must end with return')\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-assign",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "            if not allow_assignment:\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n",
+     "new": "            if False:  # mutation M-ASSIGN\n                self.fail('assignment.statement', 'assignment must be a standalone statement')\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-rhslit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_grammar.py",
+     "old": "                self.fail('rhs.literal', 'nonzero divisor or in-range literal shift required')\n",
+     "new": "                pass  # mutation M-RHSLIT\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-tu-global",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_compile.py",
+     "old": "            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')",
+     "new": "            'uint64_t GlobalEpoch;\\n'  # mutation M-TU-GLOBAL\n            'namespace izanagi_silo_policy {\\n' + source + '\\n}\\n')"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-tu-macro",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_compile.py",
+     "old": "'-Werror', '-fsyntax-only', str(tu))",
+     "new": "'-Werror', '-fsyntax-only', '-DTRACE=1', str(tu))"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-api-sync",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_silo_function_policy_template.py",
+     "old": "    assert _api_bytes(source) == header.read_bytes(), \"embedded API differs from header\"\n",
+     "new": "    assert True  # mutation M-API-SYNC\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-chk-norw",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "            and _positive(r.get(\"total_cycles\"))\n            and type(r.get(\"exit_code\")) is int and r[\"exit_code\"] == 1)\n",
+     "new": "            and _positive(r.get(\"total_cycles\")))  # mutation M-CHK-NORW\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-postcommit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "            checks[\"commit\"] = (checks[\"commit\"] and _positive(p.get(\"post_commit_match\"))\n                                and p.get(\"post_commit_mismatch\") == 0)\n",
+     "new": "            checks[\"commit\"] = checks[\"commit\"]  # mutation M-POSTCOMMIT\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-smoke-skip",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "    grammar, compiled = check_policy_body(body, compiler=compiler, scratch_dir=scratch_dir)\n",
+     "new": "    from .silo_policy_compile import compile_policy as _cp  # mutation M-SMOKE-SKIP\n    from .silo_policy_grammar import PolicyDecision as _pd\n    grammar, compiled = (_pd(True, 'grammar', None, None, None, None, None),\n                         _cp(body, compiler=compiler, scratch_dir=scratch_dir))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-prefix-reach",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_coverage.py",
+     "old": "                   and _positive(focus.get(\"probe\", {}).get(\"totals\", {}).get(counter)))\n",
+     "new": "                   and True)  # mutation M-PREFIX-REACH\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
