@@ -15,7 +15,7 @@ title: [T-2860] K2 4 巡目の還流を閉じた — critic-4 を 1 回、planne
 - 手渡しの本文は tool 引数 (`SubagentHandback.message`) にあり、最終 text は呼出し元向け要約だった。本文を transcript から取り出し末尾 LF を補って逐語にした (最初は最終 text を取り、見出し 0 で誤りに気づいた)。
 - **親の構成ミス:** 最初の写しに契約 pin の置き場 `calibration/registered/` を入れず、1 回目の層 3 は pin を `pin-file-missing` と記録した。`registered/` を byte 複製して作り直し、round 3 と同じ `validated` になった (2 回の差は `noise_floor` の key だけ)。
 - 記録前の検査: `check_docs` 違反なし、`git diff --check` 指摘なし、三軸語の走査器の hit は main に既存の 3 file だけ (本 wave の追加 0)。受入全走は記録 commit の後に行う。
-- 工数: Claude の登録 role 子 1 本 (critic、約 206 秒、子の token 58,748)。codex の read-only レビュー 1 本。計算ノードは使っていない (受入を除く)。
+- 工数: Claude の登録 role 子 1 本 (critic、約 206 秒、子の token 58,748)。codex の read-only レビュー 1 本 (NO-GO、must-fix 1 = critic の WAL 読取範囲を「全 10 行」と過大に記録、should 1 = critic の時刻、nit 1 = 逐語の末尾 LF、3 件とも real・採用) と焦点再レビュー 1 巡 (GO)。計算ノードは使っていない (受入を除く)。
 
 ## 次の一手差分
 
