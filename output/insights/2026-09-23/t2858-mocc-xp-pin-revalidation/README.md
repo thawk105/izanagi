@@ -19,7 +19,7 @@ default_effect: no-state-change
 | (b) C を承認し、pin 前進は TPC-C の候補と合わせて 1 回にする | C の内容を承認する。gitlink 等の更新は、TPC-C の commit を C の上へ積んだ候補が承認されるまで待つ | pin 前進の手続きが 1 回で済む (TPC-C 設計どおり) | S2 と mocc の認定の前提が、TPC-C 候補の完成と承認まで止まる。その候補は D297 検査器が header 差分で落ちる問題を抱え、受理方法が決まっていない (§4) |
 | (c) 見送る | 承認しない。[T-167] は見送り台帳に残る | — | S2 は無効のまま。第 2 プロトコルの疎通 ([T-2849] の完了条件) が開かない |
 
-**推奨 (a) の理由:** S2 と mocc の認定が要るのは C の X/P 計装だけで、TPC-C の commit は要らない。C と TPC-C の commit は変更する file が重ならない (§4) ので、載せ替えは機械的で、あとの 2 回目の承認は TPC-C の差分だけを見ればよい。「1 回」は TPC-C 設計の親決定であってユーザー裁定ではなく (D2219 項 2 が採ったのは設計 §8 の 4 = 段 1 → 段 2 の分割)、同設計自身が「急ぐ必要が出た場合だけ 2 回に分ける (+1 wave)」と書いている。第 2 プロトコルの疎通が C 待ちで止まっていることは、同設計の時点では勘定に入っていなかった。
+**推奨 (a) の理由:** S2 と mocc の認定が要るのは C の X/P 計装だけで、TPC-C の commit は要らない。現在の C1 / C2 は C と変更する file が重ならない (§4) ので、C の上へ載せ替えても path 上の衝突は無い。ただし内容の結合確認と、TPC-C の mocc 側 (単位 3 の v3 emitter、未実装) の証拠は後続候補の仕事で、2 回目の承認は C からの差分に加えて結合後の証拠をそろえて別途求める。「1 回」は TPC-C 設計の親決定であってユーザー裁定ではない (D2219 項 2 が採ったのは設計 §8 の 4 = 段 1 → 段 2 の分割)。同設計が 2 回に分ける例外として書いたのは「段 1 を急いで使う必要が出た場合」であり、今回の理由 (第 2 プロトコルの疎通 [T-2849] が C 待ちで止まっていること) はその例外に当たるものではなく、同設計の時点で勘定に入っていなかった新しい理由として 1 回の方針を変えることを求めるものである。
 
 **(a) でも (b) でも、承認の対象は C の OID ただ 1 つである。** C の上に積む TPC-C の commit (C1 `56b5cb70` / C2 `a6f2c741` を載せ替えた版) は含まない。TPC-C の候補は、完成した時点で別途、材料をそろえて承認を求める。
 
@@ -64,25 +64,27 @@ default_effect: no-state-change
 
 1. ① gitlink・`CCBENCH_FULL_SHA` (`orchestrator/campaign/s8b_approved.py`)・`CURRENT_PIN` (`orchestrator/campaign/pin.py`) を同一 commit で C へ。
 2. ④ `buildcache.py` が要求する生成物 (CMakeCache / DependInfo) の形の再実測。C は CMake に触れないので同形の見込みだが、T-2304 と同じく計算ノードで 1 回測る (T-2304 は 26 秒)。
-3. ⑦ 現行 pin を期待する test の追随 = 材料 §5 の追随 15 件。**policy epoch の移動** (build admission の policy preimage が `repo_stock_pin = CURRENT_PIN` を含むので policy sha が動く) が SHA 文字列を持たない golden にも波及する。T-2304 では焦点走で 104 failed / 75 errors、受入全走でさらに 24 件が出た (`output/insights/2026-09-20/t2304-pin-advance/README.md` §3)。
+3. ⑦ 現行 pin を期待する test の追随。材料 §5 の追随 15 件は ① の定数 file (`pin.py`・`s8b_approved.py`)、test、runbook・`patches/README.md`・probe を合わせた数で、test だけの件数ではない。**policy epoch の移動** (build admission の policy preimage が `repo_stock_pin = CURRENT_PIN` を含むので policy sha が動く) が SHA 文字列を持たない golden にも波及する。T-2304 では焦点走で 104 failed / 75 errors、受入全走でさらに 24 件が出た (`output/insights/2026-09-20/t2304-pin-advance/README.md` §3)。
 4. **判断が 1 件要る:** 衝突の `axis_mocc_temperature.py` は `PIN` が `CURRENT_PIN` に追随する一方、`PROOF_PIN`・template・proof は e9e477ca に束縛されている。更新 wave で「`PIN` を e9e477ca の値に固定して旧 proof の系列として保つ」か「C 系列の proof を作り直す」かを決める (前者が変更最小。温度述語は D2134 項 9 で proof-only)。
 5. land 後の submodule 同期: T-2304 と同じく `landed-postcondition-failed` (D16 の同期が要る) になり、主 checkout で `git submodule update` が要る。C の object は主 checkout の submodule 格納域に T-2844 で取り込み済み。
 6. ②③⑤⑥⑧ (登録・identity、driver 移行、floor protocol、較正、性能事前登録) は各新系列の着手時。floor protocol の解決器は候補が複数あると gitlink と一致するものを選ぶので、C の gitlink と一致する successor が無い間は MOCC の floor 系列は fail-closed になる (材料 §5、S2 の較正の前に要る)。
 
 ### 3.3 工数の試算 (T-2304 の実績からの換算であり、上下限ではない)
 
-- T-2304 の実績: Codex 子 15 本 (author 1・review 2・consult 2・fix 7・merge author 2)、計算ノードは generic 1 (26 秒)・焦点走 3〜6 回 (各 2.5〜3 分)・変異 2 回 (各約 15 分)・受入 4 回。
-- 受入 1 回 ≈ 0.25 node 時間 (D2219 項 1 の実測単価) で同じ回数を換算すると、合計は **約 1〜2 node 時間**。確認線 (1 タスク合計 2 node 時間) に近いので、更新 wave は投入前に見積りを出し直し、線を越える見込みならユーザーの確認を取る。
+- T-2304 の実績: Codex 子は worklog の記録 (`docs/archive/worklog-phase3-0920-1747.md` の T-2304 エントリ) で「15 本 (author 1・review 2・consult 2・fix 7・merge author 2)」。内訳の合計は 14 本で記録内に 1 本の食い違いがあり、insight §8 は記録時点の 8 本。計算ノードは generic 1 (26 秒)・焦点走 3〜6 回 (各 2.5〜3 分)・変異 2 回 (各約 15 分)・受入 4 回。
+- 受入 1 回 ≈ 0.25 node 時間 (D2219 項 1 の実測単価) で同じ回数を換算すると、合計は **約 1〜2 node 時間**。確認線 (1 タスク合計 2 node 時間) に近いので、更新 wave は投入前に見積りを出し直し、合計 2 node 時間以上の見込みならユーザーの確認を取る。
 - 波及の母集合は T-2304 当時より 9 件多いが、増分はすべて据置で書き換えの対象ではない。policy epoch の golden は T-2304 と同じ機構で動くので、fix の規模は T-2304 と同程度を想定する。
 
 ### 3.4 並走中の作業への影響
 
-- C は mocc の 1 file しか変えないので、silo の build は e9e477ca と同じ source から作られる。silo を扱う並走 (silo の壊し patch の変異実走 [T-2847]、silo-function-policy 軸 [T-2863]、TPC-C の silo emitter) は、pin が進んでも source の中身は変わらず、記録される `ccbench_commit` の文字列が変わるだけである。
-- 各 wave の worktree の submodule は各自の gitlink に従う。更新 wave の land 後に main を取り込んだ wave は submodule の同期が要る (T-2304 と同じ)。
+- C は mocc の 1 file しか変えないので、silo の build に入る source の中身は e9e477ca と同じである。ただし運用上の影響はそれだけではない。
+- **固定した checkout で続ける作業** (各 wave の worktree は自分の gitlink に従う) は、main を取り込まない限り影響を受けない。
+- **新しい main へ移って続ける作業** は、source・build admission・identity の整合が要る。pin 前進で policy epoch が動くので、旧 policy の下で作った binary・lock・凍結物は新 main から live に消費できなくなる (T-2304 insight §4、材料 §5 の「policy epoch」、D2184)。silo を扱う並走 ([T-2847] の壊し patch の変異実走、[T-2863] の silo-function-policy 軸、TPC-C の silo emitter) も、新 main で再投入するなら新しい policy の下で作り直す必要があり、記録される `ccbench_commit` も変わる。旧記録は規律 7 により旧 pin の取得事実として保つ。
+- 更新 wave の land 後に main を取り込んだ wave は submodule の同期が要る (T-2304 と同じ)。
 
 ## 4. TPC-C の候補 ([T-2854]) との切り分け
 
-- TPC-C の CCBench 側は、ccbench の local branch `izanagi-tpcc-v3-trace` に **現 pin e9e477ca の子** として C1 `56b5cb709628c9cac98e4e18ff676defc77a9117` と C2 `a6f2c7410d58ad140a62b11cc1beab29bfcd191b` がある (D2225)。C と C2 の共通祖先は e9e477ca で、両者は兄弟である (2026-09-23 に `git merge-base` で確認)。
+- TPC-C の CCBench 側は、ccbench の local branch `izanagi-tpcc-v3-trace` に **現 pin e9e477ca の子** として C1 `56b5cb709628c9cac98e4e18ff676defc77a9117` と C2 `a6f2c7410d58ad140a62b11cc1beab29bfcd191b` がある (D2225)。系図は e9e477ca → C1 → C2 (C2 の親は C1) と e9e477ca → C の 2 系列で、C と C2 の共通祖先は e9e477ca である (2026-09-23 に `git merge-base` と各 commit の親で確認)。
 - e9e477ca → C2 の差分は `cc/silo/transaction.cc`・`include/tpcc.hh`・`include/trace.hh` の 3 file (126 行追加・19 行削除)。C の `cc/mocc/transaction.cc` と重ならない (内容の結合確認は TPC-C 設計の単位 11 の仕事)。
 - TPC-C 設計 (`output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §5.3・§8 の 3) は「pin 前進は T-2844 の候補 C の上で 1 回」とする。これは同設計の親決定で、「段 1 を急いで使う必要が出た場合だけ 2 回に分ける (+1 wave)」とも書く。
 - **TPC-C の候補には未決着がある:** D297 の検査器は header の差分を例外なく拒否するので、`include/trace.hh`・`include/tpcc.hh` を変える TPC-C の候補では fail-closed で落ちる。受理方法 (検査器の拡張・別の保証名・裁定) は単位 11 で決める必要があり、D2225 は「D297 の合格とは呼ばない」とした (`output/insights/2026-09-22/t2854-tpcc-ccbench-v3/README.md` §8)。C は header に触れず、GCC 2 版で D297 に pass している。
