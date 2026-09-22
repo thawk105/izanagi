@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from copy import deepcopy
+import json
 from pathlib import Path
 import re
 import sys
@@ -371,6 +372,115 @@ def test_prepare_policy_real_four_stages_and_body_binding():
         else:
             raise AssertionError("U32 bool return passed smoke preparation")
         assert path.read_bytes() == before
+
+
+def test_condition_gates_isolate_each_macro_and_keep_axis_cache():
+    args = coverage.GENOME.cmake_defines() + ["-DCCBENCH_TRACE=1"]
+    assert "-DCCBENCH_SILO_POLICY_VARIANT=1" in args
+    cases = [((), [coverage.axis.FLAG])]
+    cases += [((macro,), [coverage.axis.FLAG, macro])
+              for _, macro in coverage.NEGATIVES.values()]
+    cases += [((coverage.PROBE_DEFINE,), [coverage.axis.FLAG, coverage.PROBE_DEFINE]),
+              ((coverage.BREAK_DEFINE,), [coverage.BREAK_DEFINE]),
+              ((coverage.PROBE_DEFINE, coverage.BREAK_DEFINE), [coverage.BREAK_DEFINE])]
+    for macros, expected in cases:
+        with patch.object(coverage, "_condition_gate", return_value={"admission": {"admitted": True}}) as gate:
+            receipts = coverage._condition_gates(Path("source"), macros, args, "c++", stock=False)
+        assert len(receipts) == len(expected)
+        assert [call.args[1] for call in gate.call_args_list] == expected
+        for call in gate.call_args_list:
+            assert call.args[2] == args
+            assert not any(a.startswith("-DCMAKE_CXX_FLAGS=") for a in call.args[2])
+
+
+def test_build_requires_gate_before_configure_and_keeps_build_macros():
+    for admitted in (False, True):
+        events = []
+
+        def gates(source, macros, args, cxx, *, stock):
+            events.append("gate")
+            assert "-DCCBENCH_SILO_POLICY_VARIANT=1" in args
+            assert not any(a.startswith("-DCMAKE_CXX_FLAGS=") for a in args)
+            return [{"admission": {"admitted": admitted}}]
+
+        def configure(argv):
+            assert events == ["gate"]
+            events.append("configure")
+            assert "-DCCBENCH_SILO_POLICY_VARIANT=1" in argv
+            assert ("-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_POLICY_PROBE=1 "
+                    "-DIZANAGI_BREAK_SILO_POLICY=1") in argv
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(coverage.site_policy, "current_site", return_value="test"), \
+             patch.object(coverage.site_policy, "refuses_heavy_work", return_value=False), \
+             patch.object(coverage.compute, "_common_configure_args", return_value=[]), \
+             patch.object(coverage, "_condition_gates", gates), \
+             patch.object(coverage.compute, "_run_checked", configure), \
+             patch.object(coverage.locks, "_run_cmake_build") as build:
+            root = Path(tmp)
+            binary = root / "cc/silo/ycsb_silo.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"fixture")
+            try:
+                coverage._build_variant(root, root, trace=1, toolchain={"cxx_path": "c++"},
+                                        dependencies={}, macros=(coverage.PROBE_DEFINE, coverage.BREAK_DEFINE))
+            except RuntimeError as exc:
+                assert not admitted
+                assert str(exc) == "condition gates rejected before build"
+            else:
+                assert admitted
+            assert events == (["gate", "configure"] if admitted else ["gate"])
+            assert build.call_count == int(admitted)
+
+
+def test_command_arguments_accepts_both_compile_command_forms():
+    argv = ["c++", "-DNAME=two words", "-c", "source file.cc"]
+    for row in ({"arguments": argv}, {"command": "c++ '-DNAME=two words' -c 'source file.cc'"}):
+        assert coverage._command_arguments(row) == argv
+        with patch.object(coverage.compute, "_run_checked") as run:
+            coverage._preprocess({**row, "directory": "/tmp"})
+        assert run.call_args.args[0] == ["c++", "-DNAME=two words", "source file.cc", "-E", "-P"]
+    assert coverage._command_arguments({"arguments": []}) == []
+    assert coverage._command_arguments({"arguments": [], "command": "must not be used"}) == []
+
+
+def test_condition_gate_rejection_preserves_arm_reasons_in_result_json():
+    supply = SimpleNamespace(terminal_status="green", reason_code="requested-default-preprocess-different")
+    meaning = SimpleNamespace(terminal_status="red", reason_code="compile-time-branch-selection-mismatch")
+
+    @contextmanager
+    def configured(*args, **kwargs):
+        yield object()
+
+    with patch.object(coverage.condition, "capture_define_inputs", return_value=object()), \
+         patch.object(coverage.condition, "_configured_define_compile_commands", configured), \
+         patch.object(coverage.condition, "evaluate_define_supply_effectuation", return_value=supply), \
+         patch.object(coverage.condition, "evaluate_define_runtime_meaning", return_value=meaning), \
+         patch.object(coverage.condition, "require_condition_gate_family", return_value=SimpleNamespace(admitted=False)):
+        try:
+            coverage._condition_gate(Path("source"), coverage.axis.FLAG, [], "c++")
+        except RuntimeError as exc:
+            rejection = exc
+        else:
+            raise AssertionError("rejected gate returned normally")
+    expected = ("condition gate rejected SILO_POLICY_VARIANT: "
+                "supply=green/requested-default-preprocess-different, "
+                "meaning=red/compile-time-branch-selection-mismatch")
+    assert str(rejection) == expected
+    with tempfile.TemporaryDirectory() as tmp, \
+         patch.object(coverage.site_policy, "current_site", return_value="test"), \
+         patch.object(coverage.site_policy, "refuses_heavy_work", return_value=False), \
+         patch.object(coverage, "_assert_single_tenant"), \
+         patch.object(coverage.compute, "_load_policy", return_value={}), \
+         patch.object(coverage.compute, "_resolve_toolchain", return_value={}), \
+         patch.object(coverage.compute, "_prepare_dependencies", return_value={}), \
+         patch.object(coverage, "run_coverage", side_effect=rejection):
+        out = Path(tmp) / "result.json"
+        assert coverage.main(["coverage", "--third-party-cache", tmp,
+                              "--policy", __file__, "--out", str(out)]) == 1
+        result = json.loads(out.read_text())
+    assert result["all_pass"] is False
+    assert result["error"] == "RuntimeError: " + expected
 
 
 def _run():

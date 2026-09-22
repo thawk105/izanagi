@@ -315,7 +315,11 @@ def _condition_gate(source: Path, macro: str, configure_args: list[str], cxx: st
             cxx=cxx, cmake="cmake", configured_commands=commands)
     admission = condition.require_condition_gate_family([supply], [meaning], use_class="raw-measurement")
     if not admission.admitted:
-        raise RuntimeError("condition gate rejected " + macro)
+        raise RuntimeError(
+            f"condition gate rejected {macro}: "
+            f"supply={supply.terminal_status}/{supply.reason_code}, "
+            f"meaning={meaning.terminal_status}/{meaning.reason_code}"
+        )
     return {"macro": macro, "supply": json.loads(supply.canonical_json()),
             "meaning": json.loads(meaning.canonical_json()),
             "admission": json.loads(admission.canonical_json())}
@@ -335,12 +339,11 @@ def _condition_gates(source: Path, macros: tuple[str, ...], args: list[str],
     if not stock and not gate_macros:
         raise RuntimeError("missing policy condition requests")
     for macro in gate_macros:
-        # For each receipt, companions stay enabled; the tested macro is supplied
-        # by the gate itself, so its own -D must not mask an ineffective request.
-        companions = [m for m in macros if m != macro]
-        gate_args = args + (["-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in companions)]
-                            if companions else [])
-        gates.append(_condition_gate(source, macro, gate_args, cxx))
+        # One receipt tests one macro. The norw break hides an axis site when
+        # enabled; probe/break sites need only the axis cache flag already in
+        # args. No declared break site is nested under the probe flag, so no
+        # diagnostic CXX companion is needed, even for probe-enabled builds.
+        gates.append(_condition_gate(source, macro, args, cxx))
     if len(gates) != len(gate_macros) or any(
             r["admission"]["admitted"] is not True for r in gates):
         raise RuntimeError("incomplete or rejected condition gates")
@@ -385,7 +388,7 @@ def _owner_command(build: Path, source: Path) -> dict:
 
 
 def _preprocess(command: dict, overrides: dict[str, str] | None = None):
-    args = list(command.get("arguments") or shlex.split(command["command"]))
+    args = _command_arguments(command)
     overrides = overrides or {}
     out = []
     i = 0
@@ -408,6 +411,11 @@ def _preprocess(command: dict, overrides: dict[str, str] | None = None):
     out += ["-E", "-P", *("-D" + k + "=" + v for k, v in overrides.items())]
     return compute._run_checked(out, cwd=Path(command["directory"]),
                                 allowed_returncodes=frozenset({0, 1}))
+
+
+def _command_arguments(command: dict) -> list[str]:
+    # Presence, not truthiness: an arguments row need not have a command key.
+    return list(command["arguments"]) if "arguments" in command else shlex.split(command["command"])
 
 
 def _break_evidence(case: str, command: dict, source: Path, patch: Path, macro: str) -> dict:
@@ -577,7 +585,7 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
                                   toolchain=toolchain, dependencies=dependencies)
         command = _owner_command(work / "build", source)
         result = _preprocess(command)
-        args = command.get("arguments") or shlex.split(command["command"])
+        args = _command_arguments(command)
         clean = (result.returncode == 0 and not any("IZANAGI_" in a for a in args)
                  and not any(t in result.stdout for t in
                              (PROBE_DEFINE, BREAK_DEFINE, "izanagi_silo_probe", "DELIBERATELY BROKEN")))

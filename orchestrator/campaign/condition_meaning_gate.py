@@ -85,12 +85,10 @@ _DEFINE_SPECS = {
     "IZANAGI_SILO_POLICY_PROBE": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/instr-silo-function-policy-probe.patch",
-        (("SILO_POLICY_VARIANT", "1"),),
     ),
     "IZANAGI_BREAK_SILO_POLICY": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-policy-no-commit-hook.patch",
-        (("SILO_POLICY_VARIANT", "1"),),
     ),
     "BACKOFF_FIXED": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",

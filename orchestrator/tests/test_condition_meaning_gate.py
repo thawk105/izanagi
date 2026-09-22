@@ -3423,7 +3423,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ):
         assert G.DEFINE_SPECS[macro] == G.DefineSpec(
             G.ROUTE_CMAKE_CXX_FLAGS, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
-            "patches/" + patch, (("SILO_POLICY_VARIANT", "1"),),
+            "patches/" + patch,
         )
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
