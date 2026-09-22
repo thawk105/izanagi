@@ -19,7 +19,7 @@ title: [T-2795] K2 の同 job pair を再投入して初めて成立させ (候�
 - pair 用 submit-tree で `tools/dev_wave_submodule_init.py` が 2 回とも `runtime-io-failure` を返し、入れ子の googletest が記録と違う commit のまま残った (Lustre の EINTR 警告多数)。job の検査は満たし、build は `--isolate-worktree` の別 checkout で入れ子を使わないので続行した。4 巡目用 tree は成功。
 - 並走中の掃除 session に備えて submit-tree 2 本を `git worktree lock` し、両 campaign の原本 14 file を job root の `originals-copy-20260922/` へ byte 複製した (MANIFEST に sha256)。
 - coder-5 の応答は JSON の前に 118 字の要約を付けていた (契約は JSON だけ)。JSON は機械的に取り出した。
-- 段 6 の read-only レビュー 1 本 (codex): NO-GO、must-fix 1 (上の見積りの外挿) と should 1 (候補間差の不確かさを「stock の揺れと同じ桁」と言い過ぎた) を real と裁定し、insight §3 / §6 と本段落を直した。数値・sha・判定・入力の由来は独立再抽出で一致。
+- 段 6 の read-only レビュー 1 本 (codex): NO-GO、must-fix 1 (上の見積りの外挿) と should 1 (候補間差の不確かさを「stock の揺れと同じ桁」と言い過ぎた) を real と裁定し、insight §3 / §6 と本段落を直した。数値・sha・判定・入力の由来は独立再抽出で一致。fix 後の焦点再レビュー 1 巡目は GO (2 件とも closed、派生値を再計算で一致)。
 - 工数: Claude の登録 role 子 2 本 (planner-v4、coder-v4-autonomous-k2、各約 37 秒)。codex の read-only レビュー 1 本と焦点再レビュー。計算ノード: pair 1 job、4 巡目 1 job、受入。
 
 ## 次の一手差分

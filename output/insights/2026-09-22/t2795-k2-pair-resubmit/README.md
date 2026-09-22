@@ -191,7 +191,10 @@ submit-tree は pair 走とは別の `submit-tree-r4` (同じ SHA・同じ PIN�
 - `verbatim/` — 依頼の逐語、`planner-5.json`、`coder-5-response.md` (応答全文)、`coder-5.json` (取り出した JSON)
 - `reviews/` — `s1-brief.md`、`s4-ruling.md`、段 6 の `s6-review-prompt.md` / `s6-review.md` (NO-GO、must-fix 1 = 見積りの外挿、should 1) / `s6-adjudication.md` (2 件とも real・採用)。
   `s6-review.md` は markdown 改行用の行末空白 15 行を除く可逆最小正規化を当てた: 原文 sha256 `241309447bd0b16c94942cdbcdc7abc3bac4804c6b5e5d92edc9d5526f6a9990` (5,806 B) →
-  `8576ad1e0bbe4d3190880d68038c72b4417b9d667b2e04027f3e8298f8e67309` (5,776 B)、job root の原文 `review.md` と `diff -w -B` で一致 (rc=0)
+  `8576ad1e0bbe4d3190880d68038c72b4417b9d667b2e04027f3e8298f8e67309` (5,776 B)、job root の原文 `review.md` と `diff -w -B` で一致 (rc=0)。
+  fix (`6dc046add`) 後の焦点再レビュー 1 巡目 `s6-focus-1-prompt.md` / `s6-focus-1.md`: **GO**、M1 / S1 とも closed、派生値 (6 node 時間・207 秒 ≈ 0.06 node 時間・正規化の値) を再計算で一致。
+  同じ正規化 (行末空白 4 行): 原文 sha256 `8808b7b58c68b41530d4f1f2375d89340252d18ea01da377a1f8d19d988b4fb9` (5,300 B) →
+  `ec7a0dd31982bb35efbf073bec687742ba1bae22d7c520d5c005f0c3408be317` (5,292 B)、job root の原文 `focus-1.md` と `diff -w -B` で一致 (rc=0)
 - `materials/` — 4 巡目の入力 (`planner-input-5.json`、`planner-context-5.json`、`coder-input-5.json`、`diagnosis-5.json`、prompt 全文 2 本)、`proposal-5.json`、
   再構成物 2 本、WAL 射影 (`wal-outcomes-pair.json`、`wal-outcomes-r4.json`、variant ごとの stage・admission・verify・bench)、epoch 比較 (`epoch-diff-pair.json`、`epoch-diff-r4.json`)
 - `evidence/attempt-{pair,r4}-0001/` — `job.stdout` / `job.stderr` / `compute-result.json` / `reservation.json` / `masstree-prebuild-receipt.json`。
