@@ -2300,7 +2300,7 @@ def _run_stock_control_resolved(
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Dict[str, str]] = None,
         b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
-        authorization_session=None,
+        authorization_session=None, reference_genome: Optional[Genome] = None,
 ) -> Dict:
     """Evaluate the adaptive control without constructing or advancing LoopState.
 
@@ -2311,7 +2311,8 @@ def _run_stock_control_resolved(
 
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
-    genome = Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    genome = (Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+              if reference_genome is None else reference_genome)
     layout.ensure()
     if b5_sidecar_dir is not None:
         _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
@@ -3447,6 +3448,7 @@ def main(
     --emit-planner-context は proposal 生成前の planner-v4 入力 JSON を出力する。"""
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--b5-slot")
+    ap.add_argument("--reference-genome", type=Path)
     ap.add_argument("--machine-generated-proposal", action="store_true")
     ap.add_argument("--b5-sidecar-dir", type=Path)
     ap.add_argument("--calibrated-perf", action="store_true")
@@ -3546,14 +3548,32 @@ def main(
                 ap.error(f"pair mode cannot be combined with --{dest.replace('_', '-')}")
     if a.b5_slot is not None:
         if (not a.b5_slot.isascii() or any(c.isspace() for c in a.b5_slot)
-                or not a.b5_slot.startswith("b5-generator-contrast-v1|")):
-            ap.error("--b5-slot requires nonempty ASCII without whitespace and B-5 prefix")
+                or not a.b5_slot.startswith(("b5-generator-contrast-v1|", "t2849-harness-v1|"))):
+            ap.error("--b5-slot requires nonempty ASCII without whitespace and B-5 or harness prefix")
         if not (a.calibrated_perf and a.perf_workload and a.verify_performance):
             ap.error("--b5-slot requires --calibrated-perf --perf-workload --verify-performance")
         if supplied & {"value", "emit_planner_context", "no_build", "b4_reflux_ablation"}:
             ap.error("--b5-slot conflicts with fixture, emit, no-build or B-4 options")
         if not (a.run_iteration or a.stock_control):
             ap.error("--b5-slot requires --run-iteration or --stock-control")
+    reference_genome = None
+    if a.reference_genome is not None:
+        if not (stock_only and a.b5_slot
+                and a.b5_slot.startswith("t2849-harness-v1|")):
+            ap.error("--reference-genome requires --stock-control and a harness slot only")
+        try:
+            document = json.loads(a.reference_genome.read_text(encoding="utf-8"))
+            keys = {"BACK_OFF", "NO_WAIT_LOCKING_IN_VALIDATION", "NO_WAIT_OF_TICTOC", "WAL"}
+            if (type(document) is not dict or set(document) != {"protocol", "flags"}
+                    or document["protocol"] != "silo"
+                    or type(document["flags"]) is not dict
+                    or set(document["flags"]) != keys
+                    or any(type(v) is not int or v not in (0, 1)
+                           for v in document["flags"].values())):
+                raise ValueError("expected silo with exactly four binary integer flags")
+            reference_genome = Genome("silo", document["flags"])
+        except (OSError, ValueError) as exc:
+            ap.error(f"--reference-genome: {exc}")
     if a.machine_generated_proposal:
         if not (a.run_iteration and a.b5_slot):
             ap.error("--machine-generated-proposal requires --run-iteration and --b5-slot")
@@ -3699,6 +3719,10 @@ def main(
         })
     if a.b5_slot is not None:
         cfg = replace(cfg, search_config={**cfg.search_config, "b5_slot": a.b5_slot})
+    if reference_genome is not None:
+        cfg = replace(cfg, search_config={
+            **cfg.search_config, "reference_genome": reference_genome.canonical(),
+        })
     if a.verify_performance:
         cfg = replace(cfg, search_config={
             **cfg.search_config, SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
@@ -3756,6 +3780,8 @@ def main(
     b5_options = {}
     if a.b5_slot is not None:
         b5_options = {"b5_mode": True, "b5_sidecar_dir": a.b5_sidecar_dir}
+    if reference_genome is not None:
+        b5_options["reference_genome"] = reference_genome
     if a.machine_generated_proposal:
         b5_options["capability_resolver"] = _machine_proposal_capability_resolver(
             build_context, hashlib.sha256(Path(a.run_iteration).read_bytes()).hexdigest())
