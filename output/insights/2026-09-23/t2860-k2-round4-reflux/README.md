@@ -51,16 +51,16 @@ harness の取込み口 (`--record-agent-output`、login) で AO 3 件として�
 |---|---|
 | 入力 | `materials/critic-input-4.json` (6,436 B、sha256 `a271116efec0deb1af6683d630415efcb289ba3289a5ba864f04f0db0ac59ed9`)。組立ては round 3 の `build_critic_input_3.py` と同型の `build_critic_input_4.py` (job root) |
 | prompt 全文 | `materials/critic-prompt-4.md` (7,083 B、sha256 `2a76630503ed632910427849ebcf6057921fd5655ec712a84ee4ad7d0f57eba4`)。親が Agent 呼出しへ写して送った (送った bytes と file の一致は機械照合していない、round 3 と同じ限定) |
-| 出力 | `verbatim/critic-4.md` (11,115 B、sha256 `bb9e3277b596e39ec7fae1ca6228a809682d3eaeb0aef0b01f3fa5049b6ae868`)。子の手渡し tool (`SubagentHandback`) の `message` 引数を transcript から bytes のまま取り出した (`extract_critic4.py`)。見出しは `## attribution` / `## recommend` / `## avoid` / `## uncertainty` を各 1 回と、追加の `## 異常の報告 (規律 6)` |
+| 出力 | `verbatim/critic-4.md` (11,115 B、sha256 `bb9e3277b596e39ec7fae1ca6228a809682d3eaeb0aef0b01f3fa5049b6ae868`)。子の手渡し tool (`SubagentHandback`) の `message` 引数を transcript から取り出し、末尾に LF を 1 つ補った (`extract_critic4.py`。引数そのものは 11,114 B、sha256 `25745b5f…`)。見出しは `## attribution` / `## recommend` / `## avoid` / `## uncertainty` を各 1 回と、追加の `## 異常の報告 (規律 6)` |
 | 付随 | 子が手渡しの後に書いた呼出し元向けの要約 `verbatim/critic-4-caller-summary.md` (3,945 B、`b2d3e87b…`)。取り込んでいない。transcript は job root `critic-4-transcript.jsonl` (`23c82e48…`) |
-| 工数 | tool 呼出し 9 (Bash 8 + 手渡し 1)、約 206 秒、子の token 58,748 |
+| 工数 | tool 呼出し 9 (Bash 8 + 手渡し 1)、2026-09-23 07:49:53〜07:53:19 JST (transcript の最初と最後の記録、205.7 秒)、子の token 58,748 |
 
 **入力開示 (round 3 と同型):** 本走の実測 (候補 5 と同 job stock)、stock の `src_token=stock` と BACK_OFF=0 ではないこと、perf 欠測、同じ campaign ID の別走 2 本 (pair 初投入 `13339.nqsv`、pair 再投入 `16269.nqsv`) と
 別 ID の 1〜3 巡の存在・値・記録 path、別 job の値を優劣の根拠にしないこと、critic が読むのは byte 写しであること、規律 6。pair 再投入の結果は 4 巡目の planner / coder の入力には入っていない (T-2795 段 4 P1) が、
 critic-4 には round 3 が同 ID 別走を開示した型に従い開示した (段 4 裁定 P3)。
 
-**critic-4 が実際に読んだもの (transcript の Bash 8 本から):** 写しの digest (sha256 再計算)・`runs/wal.jsonl` 全 10 行・`loop_state.json`、repo の既存 insight 2 本 (pair 再投入の README、
-`output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md`) と 1 設定 file の grep。8 本とも読取りで、書込みは無い。
+**critic-4 が実際に読んだもの (transcript の Bash 8 本から):** 写しの digest (sha256 再計算)・`loop_state.json`・WAL (`jq -c . | cut -c1-1800` で 10 record の先頭 1,800 字ずつを表示した。候補・stock の `build_start` / `build_done` の 4 record は 1,800 字を超え末尾が表示されていない。verify / bench / commit の 6 record は全文)、repo の既存 insight 2 本 (pair 再投入の README、
+`output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md`) と 1 設定 file の grep。8 本のうち python による WAL 読取りの 1 本は guard hook が拒否し、実行された 7 本はいずれも読取りで、書込みは無い。
 **受領証 (`knowledge_manifest_receipt.json`) と `campaign.lock` は `ls -la` で名前を列挙しただけで、本文は読んでいない。** 依頼が挙げた読取対象 5 種 (WAL・digest・loop_state・受領証・lock) のうち 2 種は本文未読である。
 round 3 の critic-3 は 5 種すべてを読んだと記録されている。本 wave は 1 回限りの起動なので再起動していない。WAL の `knowledge_provenance` の source 一覧は critic-4 が jq で読んでいる。
 

@@ -111,9 +111,9 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 
 ### 2.5 critic-4 (1 回、登録 role `critic`、Bash を持つ legacy role)
 
-- 入力 `critic-input-4.json` (6,436 B、sha256 `a271116e…`)、prompt 全文 `critic-prompt-4.md` (7,083 B、`2a766305…`)。出力 `critic-4.md` (11,115 B、`bb9e3277…`) は子の手渡しの本文を transcript から bytes のまま取り出した。
-- **読んだもの:** 写しの digest (sha256 を再計算し入力と一致)・WAL 全 10 行・`loop_state.json`、repo の既存 insight 2 本 (pair 再投入の記録と `2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md`)。
-  **受領証と `campaign.lock` は名前を列挙しただけで本文を読んでいない** (critic-3 は 5 種すべてを読んだと記録されている)。書込みは無い (Bash 8 本とも読取り)。
+- 入力 `critic-input-4.json` (6,436 B、sha256 `a271116e…`)、prompt 全文 `critic-prompt-4.md` (7,083 B、`2a766305…`)。出力 `critic-4.md` (11,115 B、`bb9e3277…`) は子の手渡しの本文を transcript から取り出し、末尾に LF を 1 つ補ったもの (引数そのものは 11,114 B)。
+- **読んだもの:** 写しの digest (sha256 を再計算し入力と一致)・`loop_state.json`・WAL (10 record の先頭 1,800 字ずつを表示。候補・stock の `build_start` / `build_done` の 4 record は末尾が表示されていない。verify / bench / commit の 6 record は全文)、repo の既存 insight 2 本 (pair 再投入の記録と `2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md`)。
+  **受領証と `campaign.lock` は名前を列挙しただけで本文を読んでいない** (critic-3 は 5 種すべてを読んだと記録されている)。書込みは無い (Bash 8 本のうち 1 本は guard hook が拒否、実行 7 本とも読取り)。
 - **attribution:** 動いた設計選択は `BACKOFF_FIXED` の 1 軸 (-1 → 5)。同 job の対で throughput 2.493 倍、perf build の abort_rate は 1.835% → 10.105% と逆向き。
   仮説「適応 backoff は待ちすぎ、この配線では abort して再試行する方が安い」— 待ち時間は測っておらず推定。llc / ipc 欠測で帰属不能。5 と 10 の優劣と診断の効果は言えない。
 - **recommend:** R1 = 同じ job で「5 / 次の候補 / stock」を並べる構成、R2 = decrease / small (2〜3 µs)、R3 = `BACKOFF_FIXED=0` の対照、R4 = perf カウンタの修復。
@@ -143,7 +143,7 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 | 11:16:18 → 11:16:25 → 11:18:07 | 巡 4 `16312.nqsv` の Created → Started → Ended (Elapse 107 秒) | T-2795 `evidence/attempt-r4-0001/job.stderr` |
 | 11:17:02 → 11:17:35 / 11:17:41 → 11:18:07 | 候補 build_start → commit / stock build_start → commit | 巡 4 WAL ts |
 | 2026-09-23 07:47:56 | 取込み用の写しを作成し原本と照合 | T-2860 `logs/setup-ao-root.log` |
-| 07:5x (起動時刻は保存されていない) | critic-4 を 1 回 (約 206 秒) | T-2860 insight §2 |
+| 07:49:53〜07:53:19 | critic-4 を 1 回 (transcript の最初と最後の記録、205.7 秒) | job root `critic-4-transcript.jsonl` |
 | 07:57:32〜07:57:35 | AO 3 件の取込み (各 rc=0) | T-2860 `logs/ingest-real.log` |
 | 07:58:20 | 材料レポート (2 回目、rc=0) | T-2860 `logs/layer3-r4.log` |
 
@@ -162,7 +162,7 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 
 - **巡 1・巡 3 の WAL 原本は消失** (F1034)。巡 1 は job 出力の表示値 (丸め・CV) だけを本稿は再抽出した。巡 3 は材料レポートの events (canonical ref 5/5 一致、bytes は不一致) による。巡 2 は材料レポートの events による。
 - **巡 4 の取込みは写しの上で行った。** 写しと原本の同一性は取込み前 (6 file) と取込み前後 (保護 5 file) の sha256 一致であり、`reports/p3_s4_loop_provenance.json` は取込み前にだけ照合した。
-- **巡 4 の planner-5 / coder-5 の起動時刻と、送った prompt の bytes** は保存成果物に無い (記録による)。critic-4 の起動時刻も保存されていない。
+- **巡 4 の planner-5 / coder-5 の起動時刻と、送った prompt の bytes** は保存成果物に無い (記録による)。critic-4 の時刻は transcript の記録時刻であって process の起動時刻ではない。
 - 巡 4 の入力組立ての正しさ (完全入力の組立て、critic-3 が読んだ対象全体の再監査、実送付) は sha 一致では証明されない (D2194 項 2 の限定)。
 
 ## 5. 一次資料
