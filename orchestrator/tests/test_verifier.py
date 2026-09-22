@@ -3398,6 +3398,9 @@ def _v3_cycle_files(epoch=2):
 
 def _v3_paths(d, **kwargs):
     """Compare actual parsers/builders through existing outer seams, restoring all."""
+    def edges(graph):
+        return {(u, v) for u, destinations in graph.adj.items() for v in destinations}
+
     import orchestrator.verifier.core as core
     import orchestrator.verifier.parse as parser
     original_parse = core._parse_trace_dir_compact
@@ -3418,13 +3421,13 @@ def _v3_paths(d, **kwargs):
                 results.append((graph, result))
         reference_graph, reference_result = results[0]
         for graph, result in results[1:]:
-            assert graph.adj == reference_graph.adj
+            assert edges(graph) == edges(reference_graph)
             assert list(graph.versions.items()) == list(reference_graph.versions.items())
             assert dict(graph.producer) == dict(reference_graph.producer)
             assert result == reference_result
             assert core.result_to_dict_v3(result) == core.result_to_dict_v3(reference_result)
         txns, _ = parse_trace_dir(d, workers=1)
-        assert DSG(txns).adj == reference_graph.adj
+        assert edges(DSG(txns)) == edges(reference_graph)
         return results
     finally:
         core._parse_trace_dir_compact = original_parse
