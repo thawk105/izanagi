@@ -3396,7 +3396,7 @@ def _v3_cycle_files(epoch=2):
     )
 
 
-def _v3_paths(d, *, expect_packed=True, **kwargs):
+def _v3_paths(d, *, expect_compact=True, expect_packed=True, **kwargs):
     """Compare actual parsers/builders through existing outer seams, restoring all."""
     def edges(graph):
         return {(u, v) for u, destinations in graph.adj.items() for v in destinations}
@@ -3421,6 +3421,9 @@ def _v3_paths(d, *, expect_packed=True, **kwargs):
                     if mode == "legacy" else original_parse)
                 DSG._build_compact = tuple_build if mode == "tuple" else original_build
                 parsed = core._parse_trace_dir_compact(d, workers=workers)
+                if mode != "legacy" and expect_compact:
+                    assert isinstance(parsed, parser._CompactTrace), (
+                        f"{mode} workers={workers}: expected compact parser result")
                 graph = (DSG(parsed.txns) if isinstance(parsed, parser._LegacyTrace)
                          else DSG.from_compact(parsed))
                 if not isinstance(parsed, parser._LegacyTrace):
@@ -3608,7 +3611,8 @@ def test_v3_tuple_and_legacy_fallback_preserve_metadata():
         try:
             parsed = parser._parse_trace_dir_compact(d, workers=2)
             assert isinstance(parsed, parser._LegacyTrace) == (epoch == 2**63)
-            for graph, result in _v3_paths(d, expect_packed=False):
+            for graph, result in _v3_paths(
+                    d, expect_compact=(epoch != 2**63), expect_packed=False):
                 assert not isinstance(graph.versions, _PackedVersions)
                 assert result.verdict == "non-serializable"
                 assert set(result.anomalies[0].cycle_tx_types) == {1, 2}
