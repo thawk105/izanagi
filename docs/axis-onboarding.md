@@ -199,6 +199,10 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
   (D39 決定 7 の構造遮断)・構造化出力のみ。**出力スキーマに具体戦略の例示を書かない** (例示
   経由のリーク、D43 必須修正)。planner-v4 は無改変で再利用し、direction の意味論を軸ごとに
   機序含みの言葉で具体化しない (reward hack 誘発、D43)。
+  **例外: §4 第 3 列の軸 (関数群・複数 hook・状態) では planner を外す** (D2214 決定 8)。
+  planner-v4 の方向契約 (増加 / 低下 / 両探索 + magnitude) が、複数 hook・補助関数・状態型に
+  合わないためである。この型では兄弟 driver と tool なしの coder role を、C++ 版と IR 版の
+  2 つの出力形で新設する。`.claude/agents/` の変更はユーザー明示承認を条件にする。
 - **runbook 兄弟文書** (`docs/phase3-s5-sort-runbook.md` が型): 実走前ゲート + iteration
   プロトコル + 停止条件。
 - 実装前に 3 レンズ敵対レビュー (リーク制御/fails-closed/regression)。fails-closed の検査
@@ -220,29 +224,41 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
   ずれを想定しておく (worklog 2026-07-10 (2))。
 - 出口 = outcome=certified (verify legacy+s2 とも anomaly 0)。
 
-## §4. 変異型による分岐 — スカラー値軸 vs コード片軸
+## §4. 変異型による分岐 — スカラー値軸・コード片軸・関数群軸
 
-**この二型は「これまでに実施した 2 軸」の分類であり、全変異軸の網羅ではない。** どちらにも
+**最初の二型は「これまでに実施した 2 軸」の分類であり、全変異軸の網羅ではない。** どの列にも
 綺麗に当てはまらない軸 (複数 hole にまたがる軸・値とコード片の複合軸・データ構造/型選択の軸
-など) が来たら、手順を無理に当てはめるのではなく**本テンプレ自体を改訂し (この表に第 3 列を
+など) が来たら、手順を無理に当てはめるのではなく**本テンプレ自体を改訂し (この表に列を
 追加)、その改訂を D41 水準の敵対レビューにかける**。
 (注: trigger-gating 軸は [T-428] で「固定 5-bit wire 軸」へ移行しコード片二型のどちらでも
 なくなった。第 3 列の追補は本注記のみとし、テンプレ本体の改訂は D41 水準レビューを伴う
 独立の変更単位で行う — 現行手順の正本は `docs/phase3-s8a-trigger-runbook.md`)既存機構の単一 hole 前提
 (`diff_quarantine.parse_template_file` は marker_id 単数) もその際に見直し対象になる。
 
-| 論点 | スカラー値軸 (backoff が型) | コード片軸 (sort が型) |
-|---|---|---|
-| フラグ設計 | 数値 sentinel (`BACKOFF_FIXED`) | on/off (`SORT_VARIANT`) |
-| coder 出力スキーマ | `value` + 実装 literal | 実装のみ (`value` なし) |
-| pre-build 整合チェック | `assert_value_literal_consistent` (値と literal の機械照合) | **auditor 機械 gate** — `auditor.diff_digest` (sha256) を proposal 必須フィールドにし、driver が実 diff の digest と機械照合。不一致 = `AuditorGateFailure` で即停止。「宣言止まり」(照合なしの verdict 参照) は fail-open であり不可 (D43) |
-| 安全性の問診 | 値域・オーバーフロー | **言語契約 (UB) を必ず含める** — 非 SWO で introsort が OOB/ハング (write_set 16 要素 = insertion-sort 閾値、D42 条件 1)。「クラッシュしない」は恒真化した安全に見える罠 |
-| 偵察の列挙 | 値グリッド | 構文契約からの構成的列挙 + 安全性の機械検査。ランダム生成は不可 (D46 決定 4) |
-| auditor の役 | 目視 (段 4 では未配線) | pre-build 機械 gate + ギャラリー型目視 |
+**第 3 列 (関数群・複数 hook・状態の軸) は、この規定に従って足した列である。** 軸
+`silo-function-policy` の段階 B (D2214) で起草し、同軸の設計 wave の 3 レンズ (codex 2 本 +
+auditor role) と焦点再レビュー 3 巡で攻撃した (案と逐語は
+`output/insights/2026-09-21/silo-function-synthesis-space/README.md` の §8・§11)。**先の 2 列は
+実施済みの軸から起こしたが、第 3 列は段階 B の設計の採用に基づき、段階 C 以降の実施ではまだ
+裏付けられていない。** 段階 C〜F の実測と食い違ったら、この列を改訂する。
+
+| 論点 | スカラー値軸 (backoff が型) | コード片軸 (sort が型) | 関数群・複数 hook・状態の軸 (silo-function-policy が型、D2214) |
+|---|---|---|---|
+| フラグ設計 | 数値 sentinel (`BACKOFF_FIXED`) | on/off (`SORT_VARIANT`) | on/off (`SILO_POLICY_VARIANT`)。型・状態・呼出し点・要因記録を全て軸 OFF で消す。軸 ON が前提とする他 flag (`BACK_OFF` と no-wait 系) は `#error` で固定する |
+| coder 出力スキーマ | `value` + 実装 literal | 実装のみ (`value` なし) | C++ 版は単一領域の implementation (`value` なし)、IR 版は IR JSON。どちらも justification は台帳に残すが、critic と次の coder には渡さない |
+| pre-build 整合チェック | `assert_value_literal_consistent` (値と literal の機械照合) | **auditor 機械 gate** — `auditor.diff_digest` (sha256) を proposal 必須フィールドにし、driver が実 diff の digest と機械照合。不一致 = `AuditorGateFailure` で即停止。「宣言止まり」(照合なしの verdict 参照) は fail-open であり不可 (D43) | 単一領域の検疫 + effect gate + 型付きの構文検査 + 単独 TU compile + 実 diff に束縛した auditor gate (LLM 由来の候補)。構文検査が閉じた領域制約に代わるのはこの型だけで、先の 2 型の受理集合は変えない |
+| 安全性の問診 | 値域・オーバーフロー | **言語契約 (UB) を必ず含める** — 非 SWO で introsort が OOB/ハング (write_set 16 要素 = insertion-sort 閾値、D42 条件 1)。「クラッシュしない」は恒真化した安全に見える罠 | UB (式の型・初期化・shift・除算)・状態の寿命・停止・呼出し graph・外部参照・代替綴り・lock 保持時間・公平性。IR の保証を自由 C++ に拡張しない |
+| 偵察の列挙 | 値グリッド | 構文契約からの構成的列挙 + 安全性の機械検査。ランダム生成は不可 (D46 決定 4) | 構成的に安全な型付き IR の部分空間。部分空間の結果と全空間の生死を区別する |
+| auditor の役 | 目視 (段 4 では未配線) | pre-build 機械 gate + ギャラリー型目視 | 関数・状態と固定骨格の境界、代理、公平性、検証条件への依存を監査。非 LLM の機械 IR 候補は auditor 段を省くが、endpoint 候補と勝ち候補の公平性目視は課す |
+| marker と呼出し点 | — (第 3 列で足した論点) | — (同左) | marker は 1、呼出し点は複数。呼出し点と namespace の外枠を hole にしない |
+| 状態 | — (第 3 列で足した論点) | — (同左) | 骨格が所有する 1 個を参照で渡す。hole は書換え可能な持続状態 (静的・thread 記憶域の可変変数) を定義しない (namespace の constexpr 定数は可) |
+| 実験主張 | — (第 3 列で足した論点) | — (同左) | IR 内の探索法比較と C++ 空間拡張の比較を分けて報告する |
 
 補足: ASan/UBSan での positive control (D41 条件 1) は実機で「UBSan は masstree の既存無関係
 UB (`kpermuter.hh` shift exponent) でノイズになる」と判明済み — driver 化する場合は UBSan を
-外すか既知 UB を許容リストする (D42)。
+外すか既知 UB を許容リストする (D42)。第 3 列の軸は候補ごとの sanitizer を置かない。型付きの
+部分言語が UB の型を構造的に除き、検査器の誤りは段階 C の UBSan 付き単独 TU harness 1 回
+(CC ヘッダと masstree を含めない) と検査段ごとの自己試験で見る (D2214)。
 
 ## §5. 規律チェックリスト (各段階の出口で確認)
 
@@ -322,14 +338,14 @@ backoff 軸 (段 4) と sort 軸 (段 5) の実装差分の機械的洗い出し
 
 ### 7.3 変異型で設計自体が分岐するもの
 
-§4 の表が正本 (二型に収まらない軸はテンプレ改訂 + 再レビュー、§4 冒頭)。存在自体が分岐する
+§4 の表が正本 (表のどの列にも収まらない軸はテンプレ改訂 + 再レビュー、§4 冒頭)。存在自体が分岐する
 資材: `--preview-diff` CLI・auditor spawn 段・`diff_digest` 照合 (コード片軸のみ) /
 `assert_value_literal_consistent` (スカラー値軸のみ) / mutation-red (**言語契約 = UB** の
 positive control、コード片軸のみ) / 列挙生成器 vs 数値グリッド。positive control の二種を
 混同しないこと — 「新 assert に歯があることを証明する broken patch + coverage driver」は
 新しい正しさ不変条件を導入する全軸で省略不可 (§1)、「UB 用の mutation-red」はコード片軸のみ。
 **新軸オンボードの最初の分岐点は変異型の判定** — この一点から出力スキーマ・pre-build gate・
-runbook の段数 ((a)-(e) 5 段 vs (a)-(g) 7 段) がすべて派生する。どちらの型でも
+runbook の段数 ((a)-(e) 5 段 vs (a)-(g) 7 段) がすべて派生する。どの型でも
 「build 前に coder 出力が hole 契約を破っていないかを機械で弾く fails-closed な一次防壁」の
 軸版を必ず設計する — 無いと正しさゲートを緩める変異が採用されうる (規律 2、D41 残存リスク)。
 
