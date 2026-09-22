@@ -1,0 +1,1345 @@
+[
+  {
+    "id": "D1",
+    "base": "C2",
+    "kind": "diag",
+    "expected": "pass",
+    "status": "PASS",
+    "replacements": [
+      {
+        "id": "D1",
+        "file": "include/tpcc.hh",
+        "anchor_count": 1,
+        "before_sha256": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+        "after_sha256": "19eaac486726fc8035b0d171e15a123673a3b76e0e3d1cc5b42c6e43200e8711",
+        "diff": "--- include/tpcc.hh:before\n+++ include/tpcc.hh:after\n@@ -115,6 +115,13 @@\n       goto RETRY;\n     }\n \n+#if TRACE\n+    static thread_local unsigned long long t2854_successes = 0;\n+    if (++t2854_successes == 1000) {\n+      std::fprintf(stderr, \"t2854-diag-quit\\n\");\n+      storeRelease(const_cast<bool&>(tx.quit_), true);\n+    }\n+#endif\n #if !TRACE\n #line 110\n     if (loadAcquire(tx.quit_)) return;\n"
+      }
+    ],
+    "reasons": [],
+    "first_reason": null,
+    "conditions": {
+      "diagnostic_marker": true,
+      "worker_c_at_least_1000": true,
+      "all_checks_pass": true
+    },
+    "result": {
+      "passed": true,
+      "first_reason": null,
+      "reasons": [],
+      "details": [],
+      "counts": {
+        "C": 1849,
+        "R": 25713,
+        "W": 27571,
+        "E": 1849
+      },
+      "files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 824505,
+          "sha256": "1fbd4f2a08967bf096d71cd12e8b058777fec8660ebbc7f52d5c21bf81affc94",
+          "counts": {
+            "C": 849,
+            "R": 11881,
+            "W": 12733,
+            "E": 849
+          }
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 959904,
+          "sha256": "068b2f596c96e25b06f83da3eca8d03c3759d8144ab034359990a4b9695e0e47",
+          "counts": {
+            "C": 1000,
+            "R": 13832,
+            "W": 14838,
+            "E": 1000
+          }
+        }
+      ],
+      "commit_counts": 1849,
+      "batch_commit_counts": 0,
+      "tx_types": {
+        "1": 1020,
+        "2": 829
+      },
+      "orderline_min": 0,
+      "orderline_samples": [
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 0
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 1
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 2
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 3
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 4
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 5
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 6
+        },
+        {
+          "txid": 4,
+          "w": 1,
+          "d": 6,
+          "o": 3002,
+          "line": 7
+        }
+      ],
+      "orderline_orders": 1020,
+      "orderline_zero_min_fraction": 1.0,
+      "seconds": 0.42503251100424677,
+      "result_name": "structure+witness+content pass",
+      "argv": [
+        "/scr/t2854-6azmkp1m/b1-mut/cc/silo/tpcc_silo.exe",
+        "-thread_num=2",
+        "-extime=1",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-clocks_per_us=2100"
+      ],
+      "stdout_excerpt": "#FLAGS_clocks_per_us:\t2100\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t2\n[start] load.\n[end] load.\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t152\nbatch_abort_counts_:\t0\ncommit_counts_:\t1849\nbatch_commit_counts_:\t0\nmaxrss:\t387428 kB\nabort_rate:\t0.0760\nbatch_abort_rate:\t-nan\nlatency[ns]:\t1081665.7653\nthroughput[tps]:\t1849\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+      "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0193.stdout",
+      "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0193.stderr",
+      "run_seconds": 1.3682164649944752,
+      "check_seconds": 0.42512258409988135,
+      "returncode": 0,
+      "diagnostic_marker_count": 1,
+      "raw_files": [
+        {
+          "name": "trace_1.log",
+          "bytes": 959904,
+          "sha256": "068b2f596c96e25b06f83da3eca8d03c3759d8144ab034359990a4b9695e0e47"
+        },
+        {
+          "name": "trace_0.log",
+          "bytes": 824505,
+          "sha256": "1fbd4f2a08967bf096d71cd12e8b058777fec8660ebbc7f52d5c21bf81affc94"
+        }
+      ],
+      "trace_bytes": 1784409,
+      "trace_bytes_per_run_second": 1304186.1764228991
+    },
+    "reason_match_policy": "all checks",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 6.082401591935195
+  },
+  {
+    "id": "M1",
+    "base": "C2",
+    "kind": "run",
+    "expected": "schema",
+    "status": "KILLED",
+    "replacements": [
+      {
+        "id": "M1",
+        "file": "include/tpcc.hh",
+        "anchor_count": 1,
+        "before_sha256": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+        "after_sha256": "793591b2f6f9001118a88646180ae0a1e68b66fab8096fc0d1f5d003a25a5131",
+        "diff": "--- include/tpcc.hh:before\n+++ include/tpcc.hh:after\n@@ -58,7 +58,6 @@\n \n     tx.begin();\n #if TRACE\n-    izanagi_trace::set_tpcc_tx_type(get_tx_type(query.type));\n #endif\n #line 56\n \n"
+      }
+    ],
+    "reasons": [
+      "schema",
+      "frame",
+      "witness",
+      "content-txtype",
+      "content-table"
+    ],
+    "first_reason": "schema",
+    "conditions": {
+      "first_reason_schema": true
+    },
+    "result": {
+      "passed": false,
+      "first_reason": "schema",
+      "reasons": [
+        "schema",
+        "frame",
+        "witness",
+        "content-txtype",
+        "content-table"
+      ],
+      "details": [
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:1: legacy C"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:2: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:3: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:4: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:5: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:6: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:7: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:8: legacy W"
+        },
+        {
+          "reason": "frame",
+          "detail": "trace_0.log:9: orphan/mismatched record"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:10: legacy C"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:11: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:12: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:13: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:14: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:15: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:16: legacy W"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:17: legacy W"
+        },
+        {
+          "reason": "frame",
+          "detail": "trace_0.log:18: orphan/mismatched record"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:19: legacy C"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:20: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:21: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:22: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:23: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:24: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:25: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:26: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:27: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:28: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:29: legacy R"
+        },
+        {
+          "reason": "schema",
+          "detail": "trace_0.log:30: legacy R"
+        }
+      ],
+      "counts": {},
+      "files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 16841166,
+          "sha256": "e0aca3ec1539f27578cefec648188d5c3075e38cd2ed135c27724e3a766cfe10",
+          "counts": {}
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 17617302,
+          "sha256": "9f47d0c8c062bc47a711e54cfaa2a6cb61e1236910ef4c7b1abab7e4f0d0a563",
+          "counts": {}
+        }
+      ],
+      "commit_counts": 36312,
+      "batch_commit_counts": 0,
+      "tx_types": {},
+      "orderline_min": null,
+      "orderline_samples": [],
+      "orderline_orders": 0,
+      "orderline_zero_min_fraction": null,
+      "seconds": 2.2633163949940354,
+      "result_name": "fail",
+      "argv": [
+        "/scr/t2854-6azmkp1m/b1-mut/cc/silo/tpcc_silo.exe",
+        "-thread_num=2",
+        "-extime=1",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-clocks_per_us=2100"
+      ],
+      "stdout_excerpt": "rder failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t2858\nbatch_abort_counts_:\t0\ncommit_counts_:\t36312\nbatch_commit_counts_:\t0\nmaxrss:\t507000 kB\nabort_rate:\t0.0730\nbatch_abort_rate:\t-nan\nlatency[ns]:\t55078.2111\nthroughput[tps]:\t36312\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+      "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0195.stdout",
+      "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0195.stderr",
+      "run_seconds": 1.3681841370416805,
+      "check_seconds": 2.2633784289937466,
+      "returncode": 0,
+      "diagnostic_marker_count": 0,
+      "raw_files": [
+        {
+          "name": "trace_1.log",
+          "bytes": 17617302,
+          "sha256": "9f47d0c8c062bc47a711e54cfaa2a6cb61e1236910ef4c7b1abab7e4f0d0a563"
+        },
+        {
+          "name": "trace_0.log",
+          "bytes": 16841166,
+          "sha256": "e0aca3ec1539f27578cefec648188d5c3075e38cd2ed135c27724e3a766cfe10"
+        }
+      ],
+      "trace_bytes": 34458468,
+      "trace_bytes_per_run_second": 25185548.543565854
+    },
+    "reason_match_policy": "first-reason (derived reasons allowed)",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 7.001590322004631
+  },
+  {
+    "id": "M2",
+    "base": "D1",
+    "kind": "run",
+    "expected": "witness",
+    "status": "KILLED",
+    "replacements": [
+      {
+        "id": "D1",
+        "file": "include/tpcc.hh",
+        "anchor_count": 1,
+        "before_sha256": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+        "after_sha256": "19eaac486726fc8035b0d171e15a123673a3b76e0e3d1cc5b42c6e43200e8711",
+        "diff": "--- include/tpcc.hh:before\n+++ include/tpcc.hh:after\n@@ -115,6 +115,13 @@\n       goto RETRY;\n     }\n \n+#if TRACE\n+    static thread_local unsigned long long t2854_successes = 0;\n+    if (++t2854_successes == 1000) {\n+      std::fprintf(stderr, \"t2854-diag-quit\\n\");\n+      storeRelease(const_cast<bool&>(tx.quit_), true);\n+    }\n+#endif\n #if !TRACE\n #line 110\n     if (loadAcquire(tx.quit_)) return;\n"
+      },
+      {
+        "id": "M2",
+        "file": "include/tpcc.hh",
+        "anchor_count": 1,
+        "before_sha256": "19eaac486726fc8035b0d171e15a123673a3b76e0e3d1cc5b42c6e43200e8711",
+        "after_sha256": "de2a34366ecdd06c4e2a9e4eee3a929193ee6754ed169effc98ebb1c55307f64",
+        "diff": "--- include/tpcc.hh:before\n+++ include/tpcc.hh:after\n@@ -122,7 +122,7 @@\n       storeRelease(const_cast<bool&>(tx.quit_), true);\n     }\n #endif\n-#if !TRACE\n+#if 1\n #line 110\n     if (loadAcquire(tx.quit_)) return;\n #endif\n"
+      }
+    ],
+    "reasons": [
+      "witness"
+    ],
+    "first_reason": "witness",
+    "conditions": {
+      "diagnostic_marker": true,
+      "worker_c_at_least_1000": true,
+      "reasons_only_witness": true,
+      "returncode_zero": true,
+      "witness_unique": true,
+      "e_equals_c": true,
+      "c_exceeds_commits": true
+    },
+    "result": {
+      "passed": false,
+      "first_reason": "witness",
+      "reasons": [
+        "witness"
+      ],
+      "details": [
+        {
+          "reason": "witness",
+          "detail": "commits=1948 batch=0 C=1950 E=1950 missing=[]"
+        }
+      ],
+      "counts": {
+        "C": 1950,
+        "R": 26370,
+        "W": 28332,
+        "E": 1950
+      },
+      "files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 902781,
+          "sha256": "6136dfd1c7566c16800f44c30a8b1bd63d7b585aba3f1b98f2c1a11faa425fd8",
+          "counts": {
+            "C": 950,
+            "R": 12988,
+            "W": 13942,
+            "E": 950
+          }
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 934470,
+          "sha256": "fe95cc69db3255754965b2d79e142fe59b7bce608ed79dae806042769a07116b",
+          "counts": {
+            "C": 1000,
+            "R": 13382,
+            "W": 14390,
+            "E": 1000
+          }
+        }
+      ],
+      "commit_counts": 1948,
+      "batch_commit_counts": 0,
+      "tx_types": {
+        "1": 1046,
+        "2": 904
+      },
+      "orderline_min": 0,
+      "orderline_samples": [
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 0
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 1
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 2
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 3
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 4
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 5
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 6
+        },
+        {
+          "txid": 0,
+          "w": 1,
+          "d": 9,
+          "o": 3002,
+          "line": 7
+        }
+      ],
+      "orderline_orders": 1046,
+      "orderline_zero_min_fraction": 1.0,
+      "seconds": 0.439608430955559,
+      "result_name": "fail",
+      "argv": [
+        "/scr/t2854-6azmkp1m/b1-mut/cc/silo/tpcc_silo.exe",
+        "-thread_num=2",
+        "-extime=1",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-clocks_per_us=2100"
+      ],
+      "stdout_excerpt": "#FLAGS_clocks_per_us:\t2100\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t2\n[start] load.\n[end] load.\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t195\nbatch_abort_counts_:\t0\ncommit_counts_:\t1948\nbatch_commit_counts_:\t0\nmaxrss:\t388240 kB\nabort_rate:\t0.0910\nbatch_abort_rate:\t-nan\nlatency[ns]:\t1026694.0452\nthroughput[tps]:\t1948\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+      "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0197.stdout",
+      "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0197.stderr",
+      "run_seconds": 1.3681749650277197,
+      "check_seconds": 0.43969784397631884,
+      "returncode": 0,
+      "diagnostic_marker_count": 1,
+      "raw_files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 902781,
+          "sha256": "6136dfd1c7566c16800f44c30a8b1bd63d7b585aba3f1b98f2c1a11faa425fd8"
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 934470,
+          "sha256": "fe95cc69db3255754965b2d79e142fe59b7bce608ed79dae806042769a07116b"
+        }
+      ],
+      "trace_bytes": 1837251,
+      "trace_bytes_per_run_second": 1342847.9887166892
+    },
+    "reason_match_policy": "exact reason set",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 5.146369575988501
+  },
+  {
+    "id": "M3",
+    "base": "C2",
+    "kind": "run",
+    "expected": "content-table",
+    "status": "KILLED",
+    "replacements": [
+      {
+        "id": "M3",
+        "file": "cc/silo/transaction.cc",
+        "anchor_count": 1,
+        "before_sha256": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+        "after_sha256": "fb7b52025569370bd3701a2929974cd9657563dece7eee161c1066d4ba38d550",
+        "diff": "--- cc/silo/transaction.cc:before\n+++ cc/silo/transaction.cc:after\n@@ -627,7 +627,7 @@\n                                                  : 'U';\n     if (izanagi_tx_type != 0) {\n       izanagi_trace::emit_write_v3(\n-          thid_, izanagi_txid, get_storage(we.storage_),\n+          thid_, izanagi_txid, (get_storage(we.storage_) == 6 ? 5 : get_storage(we.storage_)),\n           izanagi_trace::key_to_hex(we.key_), op, maxtid.epoch, maxtid.tid);\n     } else {\n       izanagi_trace::emit_write(thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_),\n"
+      }
+    ],
+    "reasons": [
+      "content-table"
+    ],
+    "first_reason": "content-table",
+    "conditions": {
+      "reasons_only_content-table": true
+    },
+    "result": {
+      "passed": false,
+      "first_reason": "content-table",
+      "reasons": [
+        "content-table"
+      ],
+      "details": [
+        {
+          "reason": "content-table",
+          "detail": "txid=3: NewOrder tables/keys"
+        }
+      ],
+      "counts": {
+        "C": 36008,
+        "R": 494150,
+        "W": 530343,
+        "E": 36008
+      },
+      "files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 18471414,
+          "sha256": "743f72f6143419276773ac112b3d857d744f283a9ce6ba432ab0eaf4077f14ae",
+          "counts": {
+            "C": 18210,
+            "R": 249154,
+            "W": 267449,
+            "E": 18210
+          }
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 18166194,
+          "sha256": "a5cb8c4cec3d9398ed51920513e6a1b1cdc7af35f3a99956c44e617f056e767f",
+          "counts": {
+            "C": 17798,
+            "R": 244996,
+            "W": 262894,
+            "E": 17798
+          }
+        }
+      ],
+      "commit_counts": 36008,
+      "batch_commit_counts": 0,
+      "tx_types": {
+        "2": 16530,
+        "1": 19478
+      },
+      "orderline_min": 0,
+      "orderline_samples": [
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 0
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 1
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 2
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 3
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 4
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 5
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 6
+        },
+        {
+          "txid": 3,
+          "w": 1,
+          "d": 4,
+          "o": 3002,
+          "line": 7
+        }
+      ],
+      "orderline_orders": 19478,
+      "orderline_zero_min_fraction": 1.0,
+      "seconds": 8.238603282021359,
+      "result_name": "fail",
+      "argv": [
+        "/scr/t2854-6azmkp1m/b1-mut/cc/silo/tpcc_silo.exe",
+        "-thread_num=2",
+        "-extime=1",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-clocks_per_us=2100"
+      ],
+      "stdout_excerpt": "rder failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t2893\nbatch_abort_counts_:\t0\ncommit_counts_:\t36008\nbatch_commit_counts_:\t0\nmaxrss:\t506308 kB\nabort_rate:\t0.0744\nbatch_abort_rate:\t-nan\nlatency[ns]:\t55543.2126\nthroughput[tps]:\t36008\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+      "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0199.stdout",
+      "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0199.stderr",
+      "run_seconds": 1.3681924720294774,
+      "check_seconds": 8.239419094054028,
+      "returncode": 0,
+      "diagnostic_marker_count": 0,
+      "raw_files": [
+        {
+          "name": "trace_1.log",
+          "bytes": 18166194,
+          "sha256": "a5cb8c4cec3d9398ed51920513e6a1b1cdc7af35f3a99956c44e617f056e767f"
+        },
+        {
+          "name": "trace_0.log",
+          "bytes": 18471414,
+          "sha256": "743f72f6143419276773ac112b3d857d744f283a9ce6ba432ab0eaf4077f14ae"
+        }
+      ],
+      "trace_bytes": 36637608,
+      "trace_bytes_per_run_second": 26778109.621999625
+    },
+    "reason_match_policy": "exact reason set",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 13.181478339014575
+  },
+  {
+    "id": "M4",
+    "base": "C2",
+    "kind": "run",
+    "expected": "content-txtype",
+    "status": "KILLED",
+    "replacements": [
+      {
+        "id": "M4",
+        "file": "cc/silo/transaction.cc",
+        "anchor_count": 1,
+        "before_sha256": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+        "after_sha256": "136cc1b6ccc02f12584e2d9342bf4c6d3672a9fdad89268b853b150fd514689e",
+        "diff": "--- cc/silo/transaction.cc:before\n+++ cc/silo/transaction.cc:after\n@@ -603,7 +603,7 @@\n   if (izanagi_tx_type != 0) {\n     izanagi_trace::emit_commit_v3(\n         thid_, izanagi_txid, maxtid.epoch, maxtid.tid,\n-        read_set_.size(), write_set_.size(), 0, 0, izanagi_tx_type);\n+        read_set_.size(), write_set_.size(), 0, 0, (izanagi_tx_type == 1 ? 2 : (izanagi_tx_type == 2 ? 1 : izanagi_tx_type)));\n   } else {\n     izanagi_trace::stream(thid_) << \"C \" << izanagi_txid << ' ' << thid_ << ' '\n                                  << maxtid.epoch << ' ' << maxtid.tid << ' '\n"
+      }
+    ],
+    "reasons": [
+      "content-txtype"
+    ],
+    "first_reason": "content-txtype",
+    "conditions": {
+      "reasons_only_content-txtype": true
+    },
+    "result": {
+      "passed": false,
+      "first_reason": "content-txtype",
+      "reasons": [
+        "content-txtype"
+      ],
+      "details": [
+        {
+          "reason": "content-txtype",
+          "detail": "txid=6: signature/type mismatch"
+        }
+      ],
+      "counts": {
+        "C": 35886,
+        "R": 493822,
+        "W": 529879,
+        "E": 35886
+      },
+      "files": [
+        {
+          "name": "trace_0.log",
+          "bytes": 18780280,
+          "sha256": "3044977d6c49f376c15b9bf89693ccd42e8bcbc0851bb48bf3c586288eacc897",
+          "counts": {
+            "C": 18410,
+            "R": 253658,
+            "W": 272167,
+            "E": 18410
+          }
+        },
+        {
+          "name": "trace_1.log",
+          "bytes": 17811439,
+          "sha256": "1b7bbf7d781dc3c7642c5aed260c3a51874d2e3f2b6d5f7940a729156ada53a0",
+          "counts": {
+            "C": 17476,
+            "R": 240164,
+            "W": 257712,
+            "E": 17476
+          }
+        }
+      ],
+      "commit_counts": 35886,
+      "batch_commit_counts": 0,
+      "tx_types": {
+        "2": 19499,
+        "1": 16387
+      },
+      "orderline_min": 0,
+      "orderline_samples": [
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 0
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 1
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 2
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 3
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 4
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 5
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 6
+        },
+        {
+          "txid": 6,
+          "w": 1,
+          "d": 1,
+          "o": 3002,
+          "line": 7
+        }
+      ],
+      "orderline_orders": 19499,
+      "orderline_zero_min_fraction": 1.0,
+      "seconds": 8.34760441398248,
+      "result_name": "fail",
+      "argv": [
+        "/scr/t2854-6azmkp1m/b1-mut/cc/silo/tpcc_silo.exe",
+        "-thread_num=2",
+        "-extime=1",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-clocks_per_us=2100"
+      ],
+      "stdout_excerpt": "rder failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t3044\nbatch_abort_counts_:\t0\ncommit_counts_:\t35886\nbatch_commit_counts_:\t0\nmaxrss:\t505692 kB\nabort_rate:\t0.0782\nbatch_abort_rate:\t-nan\nlatency[ns]:\t55732.0403\nthroughput[tps]:\t35886\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+      "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0201.stdout",
+      "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/0201.stderr",
+      "run_seconds": 1.3684558980166912,
+      "check_seconds": 8.34847939107567,
+      "returncode": 0,
+      "diagnostic_marker_count": 0,
+      "raw_files": [
+        {
+          "name": "trace_1.log",
+          "bytes": 17811439,
+          "sha256": "1b7bbf7d781dc3c7642c5aed260c3a51874d2e3f2b6d5f7940a729156ada53a0"
+        },
+        {
+          "name": "trace_0.log",
+          "bytes": 18780280,
+          "sha256": "3044977d6c49f376c15b9bf89693ccd42e8bcbc0851bb48bf3c586288eacc897"
+        }
+      ],
+      "trace_bytes": 36591719,
+      "trace_bytes_per_run_second": 26739421.455256637
+    },
+    "reason_match_policy": "exact reason set",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 13.312465972965583
+  },
+  {
+    "id": "M5",
+    "base": "C2",
+    "kind": "preprocess",
+    "expected": "trace0-preprocess",
+    "status": "KILLED",
+    "replacements": [
+      {
+        "id": "M5",
+        "file": "include/tpcc.hh",
+        "anchor_count": 1,
+        "before_sha256": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+        "after_sha256": "62795dafc2301352c167c7bf15cccfa85cd3ca8ca55278f33259eca377db5828",
+        "diff": "--- include/tpcc.hh:before\n+++ include/tpcc.hh:after\n@@ -60,7 +60,6 @@\n #if TRACE\n     izanagi_trace::set_tpcc_tx_type(get_tx_type(query.type));\n #endif\n-#line 56\n \n     switch (query.type) {\n       case TxType::NewOrder:\n"
+      }
+    ],
+    "reasons": [
+      "trace0-preprocess"
+    ],
+    "first_reason": "trace0-preprocess",
+    "conditions": {
+      "nine_tpcc_consumers": true,
+      "all_expanded_differ": true,
+      "all_include_activity_equal": true
+    },
+    "result": {
+      "passed": false,
+      "entry_count": 9,
+      "rows": [
+        {
+          "source": "cc/cicada/tpcc_cicada.cc",
+          "target": "tpcc_cicada.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "bf4019e0da1253aeee3e9334982def559b50139598afb91ebfb69e52326ae0ed",
+                "d3129e184dae34cf400acd8abb1b5f229ad4e3018a588646d0f76c00d7ed2b08"
+              ],
+              "bytes": [
+                5282045,
+                5282045
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-00-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-00-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149598,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/cicada/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/cicada/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "9d12feca5dff32e7b90a5c80f7d313bf370a70d1701c7e8067e423cd224a478d",
+                "9d12feca5dff32e7b90a5c80f7d313bf370a70d1701c7e8067e423cd224a478d"
+              ],
+              "bytes": [
+                63057,
+                63057
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-00-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-00-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/ermia/tpcc_ermia.cc",
+          "target": "tpcc_ermia.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "e7a38e9374ad14a4fc5c6642a1d9b416b8ef6291021b2fa9fe95367941518338",
+                "bc32ecc1c663dd3efd7f57923c74a9b57845cfe101cd7f0a2e065b74d850ed2a"
+              ],
+              "bytes": [
+                5273544,
+                5273544
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-01-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-01-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149438,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/ermia/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/ermia/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "79ae3f85fad23318ad85e6bc9dcc1685ed3f3cbf0af38942630ce830c54fd215",
+                "79ae3f85fad23318ad85e6bc9dcc1685ed3f3cbf0af38942630ce830c54fd215"
+              ],
+              "bytes": [
+                62874,
+                62874
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-01-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-01-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/mocc/tpcc_mocc.cc",
+          "target": "tpcc_mocc.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "c7fee59d432e285ce5af9846387682d6ff7d04c2f28e9fd4f5a9157ec34595ae",
+                "ac808a243f546f02fabc9ee6b8c260e75c98dcb71ae53ea39e0e27ad4a33a732"
+              ],
+              "bytes": [
+                5271064,
+                5271064
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-02-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-02-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149361,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/mocc/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/mocc/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "4696e59ddb0768f5bad1642a62620e119e35fecebd7cd73170c84edc822f8b7f",
+                "4696e59ddb0768f5bad1642a62620e119e35fecebd7cd73170c84edc822f8b7f"
+              ],
+              "bytes": [
+                62400,
+                62400
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-02-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-02-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/mvto/tpcc_mvto.cc",
+          "target": "tpcc_mvto.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "90a0f8f610e0c0d4edfec047ddd358e0822bc32a2edf21fd83733240037c8623",
+                "b215b7adb36183dbb039414c1049147d95e05b45275c83fa78b2947a42b81c84"
+              ],
+              "bytes": [
+                5271659,
+                5271659
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-07-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-07-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149490,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/mvto/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/mvto/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "e9cc97b317e47207ec8f8c2b92b8e8a1a6ab346dd0af4715cbd5f46264a20b97",
+                "e9cc97b317e47207ec8f8c2b92b8e8a1a6ab346dd0af4715cbd5f46264a20b97"
+              ],
+              "bytes": [
+                62486,
+                62486
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-07-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-07-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/oze/tpcc_oze.cc",
+          "target": "tpcc_oze.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "922eb94b158772edad51eb293fafabf0079197b56eb76ac59554469a6b098bd2",
+                "fb09c56335590552dd401b0e0911f730185d207d3e6e3ab4c1070e7e5c725f34"
+              ],
+              "bytes": [
+                5383309,
+                5383309
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-08-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-08-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 152774,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/oze/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/oze/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "3614a58a167e1dd3661580ab211d90375d3977a9393bd49ccfeea8eb4d407e7a",
+                "3614a58a167e1dd3661580ab211d90375d3977a9393bd49ccfeea8eb4d407e7a"
+              ],
+              "bytes": [
+                64059,
+                64059
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-08-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-08-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/si/tpcc_si.cc",
+          "target": "tpcc_si.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "674faaff42acdff6e26872515d46e761d1488dc5e5a0905d4ce7d2db0746059e",
+                "9fa845115a8f4d8d0c7ef906fba61a6ec0e306f701e0898ad603dd921343c679"
+              ],
+              "bytes": [
+                5273417,
+                5273417
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-09-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-09-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149437,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/si/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/si/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "0ebe18c35742ebc54e0a27bd009a75bad308e75fd453c0fec970e610792ca45a",
+                "0ebe18c35742ebc54e0a27bd009a75bad308e75fd453c0fec970e610792ca45a"
+              ],
+              "bytes": [
+                62415,
+                62415
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-09-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-09-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/silo/tpcc_silo.cc",
+          "target": "tpcc_silo.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "6315ba82c899022b23ca2385f8adef8b9bedc8469757197f93ada72939207fd4",
+                "a1de57d3f5d5c82cb805c483326c13f38b32672f7af0d01868842e2fa388bd36"
+              ],
+              "bytes": [
+                5310220,
+                5310220
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-14-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-14-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 150586,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/silo/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/silo/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "9a3cb575cf8cdc0c3e056d02a0340d021841a97b2bfb3baab14dad80a4c59bed",
+                "9a3cb575cf8cdc0c3e056d02a0340d021841a97b2bfb3baab14dad80a4c59bed"
+              ],
+              "bytes": [
+                65216,
+                65216
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-14-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-14-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/ss2pl/tpcc_ss2pl.cc",
+          "target": "tpcc_ss2pl.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "4471d0062222e3caecd259c05bece332d29b2a300e7bafb7fa5b5a49b3b20471",
+                "e571c4807261ce06791b80a553c306b6f20700d9867d55aa7f64685cf99cf56a"
+              ],
+              "bytes": [
+                5261246,
+                5261246
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-19-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-19-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149178,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/ss2pl/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/ss2pl/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "699264e20dd36b7b96f494b6f8e2325c880bc3123dd13167e870e99eb7b1dcf7",
+                "699264e20dd36b7b96f494b6f8e2325c880bc3123dd13167e870e99eb7b1dcf7"
+              ],
+              "bytes": [
+                62572,
+                62572
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-19-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-19-include_activity-1.normalized"
+              ]
+            }
+          }
+        },
+        {
+          "source": "cc/tictoc/tpcc_tictoc.cc",
+          "target": "tpcc_tictoc.exe",
+          "modes": {
+            "expanded": {
+              "sha256": [
+                "2f315cfce75cfe357dd6fd9f515dae06a0a67f6a897102e5170f589ce0f41e99",
+                "1ae902f20ded2d89c8f365504d9c3542bf7c4c919fdf8cdb101e86d5c7b2b82f"
+              ],
+              "bytes": [
+                5261215,
+                5261215
+              ],
+              "equal": false,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-20-expanded-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-20-expanded-1.normalized"
+              ],
+              "first_difference": {
+                "line": 149172,
+                "left": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/tictoc/../../include/tpcc.hh\", 88, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n",
+                "right": "        do { perror(\"ERROR\"); do { fprintf(stderr, \"%ld %16s %4d %16s\\n\", (long int) pthread_self(), \"<SOURCE>/cc/tictoc/../../include/tpcc.hh\", 91, __func__); fflush(stderr); } while (0); exit(1); } while (0);\n"
+              }
+            },
+            "include_activity": {
+              "sha256": [
+                "d95e7fe4878c9ca7a6a32bd4203d4840466377687ec074c056c7fb91bf3de521",
+                "d95e7fe4878c9ca7a6a32bd4203d4840466377687ec074c056c7fb91bf3de521"
+              ],
+              "bytes": [
+                62609,
+                62609
+              ],
+              "equal": true,
+              "normalized_files": [
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-20-include_activity-0.normalized",
+                "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-2/logs/M5-20-include_activity-1.normalized"
+              ]
+            }
+          }
+        }
+      ],
+      "first_reason": "trace0-preprocess",
+      "reasons": [
+        "trace0-preprocess"
+      ]
+    },
+    "reason_match_policy": "preprocess modes",
+    "restored_sha256": {
+      "cc/silo/transaction.cc": "14a2f1745f1bc9929c9b22975dd4c9a78b1878d6a6dc827490b728e1f96af8ce",
+      "include/tpcc.hh": "1743e7c6cc0241c36c9e89afd6b0c6a0e22b82dcc49321a7e33d20728ed7e854",
+      "include/trace.hh": "ea71e1e1c95c864aa89ff473016fd18f0f22dd182b5dffa4164532f57fd09b54"
+    },
+    "seconds": 10.347817094065249
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "schema_version": "t2854-ccbench-v3-probe/v1",
+  "node": "bnode049",
+  "all_pass": false,
+  "seconds": 12.481280636042356,
+  "error": {
+    "stage": "C0",
+    "message": "command failed rc=1: ['cmake', '-S', '/scr/t2854-vwo4de_8/src-pin', '-B', '/scr/t2854-vwo4de_8/b0-pin', '-DCMAKE_BUILD_TYPE=Release', '-DENABLE_SANITIZER=OFF', '-DCCBENCH_CCACHE=OFF', '-DCCBENCH_TRACE=0', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11', '-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11', '-DCMAKE_C_COMPILER_LAUNCHER=', '-DCMAKE_CXX_COMPILER_LAUNCHER=', '-DRULE_LAUNCH_COMPILE=', '-DCMAKE_TOOLCHAIN_FILE=', '-DCMAKE_PREFIX_PATH=/scr/t2854-vwo4de_8/gflags-install;/scr/t2854-vwo4de_8/glog-install', '-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2854-vwo4de_8/thirdparty-src/masstree', '-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2854-vwo4de_8/thirdparty-src/mimalloc', '-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2854-vwo4de_8/thirdparty-src/googletest']; logs=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/compute-1/logs/0023"
+  },
+  "checks": {
+    "C0": {
+      "passed": false
+    },
+    "C1": {
+      "passed": false
+    },
+    "C2": {
+      "passed": false
+    },
+    "C3": {
+      "passed": false
+    },
+    "C4": {
+      "passed": false
+    },
+    "C5": {
+      "passed": false
+    },
+    "C6": {
+      "passed": false
+    }
+  }
+}

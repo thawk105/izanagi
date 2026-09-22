@@ -1,0 +1,4 @@
+pin active non-directive lines: 24  candidate: 24
+first body mismatch at index 23: pin=(125, '') cand=(174, '')
+pin active directive lines (TRACE directives removed): 1  candidate: 1
+RESULT: MISMATCH

@@ -1,0 +1,46 @@
+[
+  {
+    "target": "tpcc_silo.exe",
+    "binaries": [
+      {
+        "sha256": "247ed1b3513b875792394ea57eeaf4a04b6dfddf1d43a69f13640a7361164a73",
+        "bytes": 756016,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "2c2cc6b05c7f1d81e68254cce56ddafb726ee3635bac2ecbbdf7d4d795063df9"
+      },
+      {
+        "sha256": "e32ac14685b6332fcc59e6202db74ab01140764f206a758726b081fe8c89afcf",
+        "bytes": 756016,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "2c2cc6b05c7f1d81e68254cce56ddafb726ee3635bac2ecbbdf7d4d795063df9"
+      }
+    ],
+    "equal": true
+  },
+  {
+    "target": "ycsb_silo.exe",
+    "binaries": [
+      {
+        "sha256": "eb7f22fa351df848b517fe9bdd15e80d88b0b14a2e32b320ec390a5e9e6b9939",
+        "bytes": 701720,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "964f5b404488ff6d2b145f64e8764b2e306a5b5df9ce9227ad4c399e87987e1f"
+      },
+      {
+        "sha256": "898b0fda9d0458c94572847195ae2cad92512281d8822d2f1fc8c6d38f7a4e9c",
+        "bytes": 701720,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "964f5b404488ff6d2b145f64e8764b2e306a5b5df9ce9227ad4c399e87987e1f"
+      }
+    ],
+    "equal": true
+  }
+]
