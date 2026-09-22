@@ -25,7 +25,8 @@ title: [T-2797] B-5 生成器対照の発効束 draft を完成させ、本走�
   MA9 は kill 先の erratum)。provenance 全史監査は各 commit 後に新規違反なし。受入全走は本記録の commit 後、同じ tip で land 直前に 1 回行う (本エントリの時点では未実施)。
 - **計算量 (第 31 回裁定の線):** 焦点走 202 s + 変異 probe ≤ 1,122 s + final ≤ 1,115 s ≈ 0.68 node 時間 (受入を足しても 2 node 時間の線の内側の見込み)。
 - **異常・near miss:** insight に置いた `diff` の出力 (`.diff`) が commit 前の provenance 検査で実装面と判定された (F698 の型、改名で解消)。環境契約の世代を当初誤って書いた (試走の build path と
-  `env_contract.lookup` の返り値で照合して訂正)。実装子 B への「tool は subprocess を起動しない」という字面が既存関数の内部の git 呼出しと衝突し、fix を 1 巡足した。待ち手を 1 本余分に張った (即停止)。
+  `env_contract.lookup` の返り値で照合して訂正)。実装子 B への「tool は subprocess を起動しない」という字面が既存関数の内部の git 呼出しと衝突し、fix を 1 巡足した ({{F:child-prompt-ban-vs-existing-internals}}、前段 Tier0 wave に続く独立 2 例目)。
+  `.diff` の件は F698 の再発として記録した。待ち手を 1 本余分に張った (即停止)。
 - **並走:** T-2795 (K2 pair 再投入)・T-2849 (比較基盤設計、D2220 は B-5 の事前登録・cohort を変えないと明記)・ComSys 原稿 wave が land。main の前進は docs・insight だけで、本 wave の所有 file との重なりは無かった。
 - 工数: codex 子 = plan 1 + consult 2 + author 2 + fix 3 (B1 / A1 / B2) + review 2 + focus review 1 の 11 本 (いずれも gpt-6-astra / medium)。Claude subagent 1 本 (Claude Code 公式 docs の確認)。
 
