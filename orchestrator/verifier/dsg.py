@@ -27,9 +27,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from .model import (ObjectIdentity, object_identity, object_label,
+                    TxnV3, EdgeReasonV3, AnomalyV3)
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
                     Integrity, Txn, Version)
-from .parse import _CompactTrace, _kill_pool_workers, _txn_from_columns
+from .parse import _object_at, _CompactTrace, _kill_pool_workers, _txn_from_columns
 
 
 # Bias the unsigned 64-bit version into signed array("q") without wrapping.
@@ -255,9 +257,7 @@ def _edge_candidates_for_task(
             read_start = columns.txn_read_offsets[row]
             read_end = columns.txn_read_offsets[row + 1]
             for read_index in range(read_start, read_end):
-                key_start = columns.token_offsets[columns.read_key_id[read_index]]
-                key_end = columns.token_offsets[columns.read_key_id[read_index] + 1]
-                key = columns.token_blob[key_start:key_end].decode("ascii")
+                key = _object_at(columns, columns.read_key_id[read_index])
                 version = (
                     columns.read_ver_epoch[read_index],
                     columns.read_ver_tid[read_index],
@@ -307,6 +307,12 @@ def _edge_worker(task: _EdgeTask) -> _EdgeCandidateColumns:
     return _edge_candidates_for_task(task)
 
 
+def _edge_reason(etype, key, u_ver, v_ver):
+    if isinstance(key, tuple):
+        return EdgeReasonV3(etype, key[1], u_ver, v_ver, table=key[0])
+    return EdgeReason(etype, key, u_ver, v_ver)
+
+
 class DSG:
     """trace から構築した依存グラフ。辺の type/witness は軽量化のため**保持せず**、
     cycle witness を見つけた後にその数本だけ再構成する (数百万辺の type を全保持
@@ -317,9 +323,9 @@ class DSG:
         self.txns = txns
         self.by_id: Dict[int, Txn] = {t.txid: t for t in txns}
         # (key, version) -> 産んだ trx の txid
-        self.producer: Dict[Tuple[str, Version], int] = {}
+        self.producer: Dict[Tuple[ObjectIdentity, Version], int] = {}
         # key -> その上の版の昇順リスト (real のみ。genesis は含めない)
-        self.versions: Dict[str, List[Version]] = {}
+        self.versions: Dict[ObjectIdentity, List[Version]] = {}
         # 軽量隣接 (type を捨てた純粋な有向グラフ)。SCC 検出にこれだけ使う
         self.adj: Dict[int, Set[int]] = defaultdict(set)
         self.integrity = Integrity()
@@ -342,7 +348,7 @@ class DSG:
     # ---- 構築 ----
 
     def _build(self) -> None:
-        per_key: Dict[str, List[Version]] = defaultdict(list)
+        per_key: Dict[ObjectIdentity, List[Version]] = defaultdict(list)
         for t in self.txns:
             # commit が genesis 番兵 (1,0) 以下の trx は非物理 (Silo の epoch/tid は 1 始まり)。
             # ちょうど (1,0) は「genesis 読み」と区別できず wr 辺が落ち、(1,0) 未満 (epoch=0 等)
@@ -354,15 +360,15 @@ class DSG:
                     f"txid {t.txid} commits at or below genesis sentinel (1,0): "
                     f"{t.commit} (non-physical)")
             for w in t.writes:
-                kv = (w.key, t.commit)
+                kv = (object_identity(w), t.commit)
                 if kv in self.producer and self.producer[kv] != t.txid:
                     self.integrity.version_dups += 1
                     self.integrity.notes.append(
-                        f"version dup: key={w.key} ver={t.commit} "
+                        f"version dup: {object_label(object_identity(w))} ver={t.commit} "
                         f"by txid {self.producer[kv]} and {t.txid}")
                 else:
                     self.producer[kv] = t.txid
-                per_key[w.key].append(t.commit)
+                per_key[object_identity(w)].append(t.commit)
         for k, vs in per_key.items():
             self.versions[k] = sorted(set(vs))
 
@@ -388,7 +394,7 @@ class DSG:
     def _build_compact_packed(self, trace: _CompactTrace) -> None:
         # Count/scatter into flat columns. Temporary Python sorting objects are
         # bounded by the hottest key, not the complete write population.
-        key_ids: Dict[str, int] = {}
+        key_ids: Dict[ObjectIdentity, int] = {}
         token_to_key = tuple(array("i", [-1]) * (len(c.token_offsets) - 1)
                              for c in trace.files)
         counts = array("Q")
@@ -402,8 +408,7 @@ class DSG:
                 token = columns.write_key_id[index]
                 key_id = local_ids[token]
                 if key_id < 0:
-                    key = columns.token_blob[columns.token_offsets[token]:
-                                             columns.token_offsets[token + 1]].decode("ascii")
+                    key = _object_at(columns, token)
                     key_id = key_ids.get(key, -1)
                     if key_id < 0:
                         key_id = len(key_ids)
@@ -415,9 +420,10 @@ class DSG:
         for path, columns in enumerate(trace.files):
             local_ids = token_to_key[path]
             for token in range(len(local_ids)):
+                if columns.schema == 3 and columns.token_table[token] < 0:
+                    continue
                 if local_ids[token] < 0:
-                    key = columns.token_blob[columns.token_offsets[token]:
-                                             columns.token_offsets[token + 1]].decode("ascii")
+                    key = _object_at(columns, token)
                     local_ids[token] = key_ids.get(key, -1)
         offsets = array("Q", [0])
         for count in counts:
@@ -482,18 +488,17 @@ class DSG:
                                    unique_offsets[key_id + 1])
                 first = writers[slot]
                 if first != txid:
-                    key = columns.token_blob[columns.token_offsets[token]:
-                                             columns.token_offsets[token + 1]].decode("ascii")
+                    key = _object_at(columns, token)
                     self.integrity.version_dups += 1
                     self.integrity.notes.append(
-                        f"version dup: key={key} ver={commit} "
+                        f"version dup: {object_label(key)} ver={commit} "
                         f"by txid {first} and {txid}")
 
     def _build_compact_tuple(self) -> None:
         trace = self._compact
         if trace is None:
             raise RuntimeError("compact DSG requested without compact trace")
-        per_key: Dict[str, List[Version]] = {}
+        per_key: Dict[ObjectIdentity, List[Version]] = {}
         for rank, txid in enumerate(trace.winner_txid):
             columns = trace.files[trace.winner_path_index[rank]]
             row = trace.winner_row[rank]
@@ -509,15 +514,13 @@ class DSG:
             write_end = columns.txn_write_offsets[row + 1]
             for write_index in range(write_start, write_end):
                 token_id = columns.write_key_id[write_index]
-                token_start = columns.token_offsets[token_id]
-                token_end = columns.token_offsets[token_id + 1]
-                key = columns.token_blob[token_start:token_end].decode("ascii")
+                key = _object_at(columns, token_id)
                 key_version = (key, commit)
                 if (key_version in self.producer
                         and self.producer[key_version] != txid):
                     self.integrity.version_dups += 1
                     self.integrity.notes.append(
-                        f"version dup: key={key} ver={commit} "
+                        f"version dup: {object_label(key)} ver={commit} "
                         f"by txid {self.producer[key_version]} and {txid}")
                 else:
                     self.producer[key_version] = txid
@@ -647,7 +650,7 @@ class DSG:
         for t in self.txns:
             tid = t.txid
             for r in t.reads:
-                k, rv = r.key, r.ver
+                k, rv = object_identity(r), r.ver
                 # wr: 読んだ版そのものを書いた producer -> 読み手。
                 # **genesis 判定は「値が (1,0) か」でなく「producer が居るか」で行う** (FIX2)。
                 # genesis (1,0) は誰も書かないので producer 不在 → wr 辺なし。逆に万一 (1,0) を
@@ -774,8 +777,8 @@ class DSG:
     def _reasons(self, u: int, v: int) -> List[EdgeReason]:
         ut, vt = self._txn_for_id(u), self._txn_for_id(v)
         reasons: List[EdgeReason] = []
-        u_writes = {w.key: ut.commit for w in ut.writes}
-        v_writes = {w.key: vt.commit for w in vt.writes}
+        u_writes = {object_identity(w): ut.commit for w in ut.writes}
+        v_writes = {object_identity(w): vt.commit for w in vt.writes}
 
         # ww: u の版の直後版を v が書いた
         for k in sorted(u_writes.keys() & v_writes.keys()):
@@ -785,21 +788,23 @@ class DSG:
             iu = bisect_left(vs, u_writes[k])
             if iu < len(vs) and vs[iu] == u_writes[k] and iu + 1 < len(vs) \
                     and vs[iu + 1] == v_writes[k]:
-                reasons.append(EdgeReason(WW, k, u_writes[k], v_writes[k]))
+                reasons.append(_edge_reason(WW, k, u_writes[k], v_writes[k]))
 
         # wr: u が書いた版そのものを v が読んだ
         for r in vt.reads:
-            if r.key in u_writes and r.ver == u_writes[r.key]:
-                reasons.append(EdgeReason(WR, r.key, u_writes[r.key], None))
+            k = object_identity(r)
+            if k in u_writes and r.ver == u_writes[k]:
+                reasons.append(_edge_reason(WR, k, u_writes[k], None))
 
         # rw: u が読んだ版の直後版を v が書いた
         for r in ut.reads:
-            vs = self.versions.get(r.key)
-            if not vs or r.key not in v_writes:
+            k = object_identity(r)
+            vs = self.versions.get(k)
+            if not vs or k not in v_writes:
                 continue
             idx = bisect_right(vs, r.ver)
-            if idx < len(vs) and vs[idx] == v_writes[r.key]:
-                reasons.append(EdgeReason(RW, r.key, r.ver, v_writes[r.key]))
+            if idx < len(vs) and vs[idx] == v_writes[k]:
+                reasons.append(_edge_reason(RW, k, r.ver, v_writes[k]))
         return reasons
 
     @staticmethod
@@ -844,6 +849,9 @@ class DSG:
                     self.integrity.notes.append(
                         f"witness edge {a}->{b} had no reconstructable reason")
                 edges.append(CycleEdge(src=a, dst=b, reasons=reasons))
-            out.append(Anomaly(cycle=nodes, phenomenon=self._classify(edges),
-                               edges=edges))
+            extra = {}
+            if isinstance(self._txn_for_id(nodes[0]), TxnV3):
+                extra["cycle_tx_types"] = tuple(self._txn_for_id(n).tx_type for n in nodes)
+            out.append((AnomalyV3 if extra else Anomaly)(
+                cycle=nodes, phenomenon=self._classify(edges), edges=edges, **extra))
         return out, total
