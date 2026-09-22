@@ -15,6 +15,7 @@ title: T-1851 の取り残し worktree dev-wave-t1851-c3c-official-floor の tra
 - 対象 worktree へは git を向けなかった (隔離 session の Bash guard が `git -C` と変数入りの find・heredoc を拒否する)。列挙・hash・保全は job dir `scripts/` の Python で行い、script は repo に入れていない。
 - insight の初稿に「T-2814 の原本判定は掃除手順に入っていない」と書いたが、T-2814 は 2026-09-21 (1775) に着地済みで誤りだった。記録前に訂正し、`/cleanup-branches` §2 が引く「証拠の所在」節を insight に設けた。
 - submodule 初期化の 1 回目は `runtime-io-failure` (`update-no-fetch`) で落ち、同じ command の再実行で通った。
-- 工数: codex 子 1 本 (段 6 review)。計算ノードは受入 1 回だけ (2026-09-21 の確認ライン 2 node 時間を下回る)。
+- 段 6 の独立 read-only レビュー 1 本 (codex、gpt-6-astra / medium) は GO・must-fix 0。real の should 2 件 (非保全 file の sha256 が残る範囲の誤記、本項の工数を予定と実績に分けていなかった) と nit 1 件 (結論文を照合範囲に限定) は親が docs で直した。
+- 工数 (本 entry を書いた時点の実績): codex 子 1 本 (段 6 review)。全史 provenance 監査は login の bounded local で 1 回。計算ノードは受入だけを予定し、2026-09-21 の確認ライン (1 タスク 2 node 時間) を下回るので確認は求めていない。受入と land の回数・結果は記録 commit の後に投入するため本 entry には書けない。
 
 ## 次の一手差分

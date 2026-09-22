@@ -26,9 +26,9 @@ branch `worktree-dev-wave-t1851-leftover-audit`、base `8fd2a2f5c775954d6a32cee0
     `e689599b63d451b7972bac497ea1d9fbf23fd745c076905581b98bcdc87b5ff5`
 - 残りの 3,269 件は保全していない。内訳と理由は §3 の表のとおり
   (正典と bytes 一致 12 件、pin 固定の第三者ソース複製 3,128 件、dispatch 1 回分 9 件、`__pycache__` 120 件)。
-- したがって **照合時点の中身のままなら、この worktree を撤去しても研究記録は失われない**
-  (保全物・正典・T-2724 の退避 bundle・repo 外 job 証拠置き場のどこかに bytes がある)。
-  照合後に worktree の中身が変われば、この結論は及ばない。
+- したがって **今回照合した範囲 (submodule `external/ccbench` の中を除く tracked 外 file 全部) の研究記録は、照合時点で
+  対象 worktree の外にも所在する** (保全物・正典・T-2724 の退避 bundle・repo 外 job 証拠置き場のどこかに bytes がある)。
+  submodule の中は走査しておらず、照合後に worktree の中身が変われば、この結論は及ばない。
 - **注意: tracked 外 file の約 3 分の 1 は `.gitignore` の無視対象で、`git status` に出ない。**
   `output/env/pegasus/floor/job-staging/`、`output/pegasus-dispatch/`、
   `output/env/pegasus/silo_ladder_rung1/job-staging/`、`__pycache__/` がそれに当たる (branch tip の `.gitignore` で確認)。
@@ -54,6 +54,9 @@ branch `worktree-dev-wave-t1851-leftover-audit`、base `8fd2a2f5c775954d6a32cee0
   - **(P2)** 正典 = 上記 evidence dir 2 本 (と T-2724 §4 の退避 bundle)。判定は sha256 一致。
     保全は第三者ソース複製以外で正典に bytes が無い file 全部 (rc・空 file も投入記録の一部として含める)。
   - **(P3)** 保全しないもの = 第三者ソース複製、dispatch 999017、`__pycache__`。§3 の理由による。
+- 独立の read-only レビュー 1 本 (codex、gpt-6-astra / medium) が件数・保全の過不足・第三者ソースの判定・正典側の主張・結論の強さ・
+  範囲拡張 (P1) の要否を点検し、GO・must-fix 0 だった。real の should 2 件と nit 1 件 (§4 の sha256 が残る範囲、§1 の結論文の限定、
+  worklog fragment の工数の書き方) は本文へ反映済み。レビューの全文は job dir の `codex/s6-review.md`。
 - 使った script (repo には入れていない): job dir の `scripts/` (`inventory.py`、`untracked_scan.py`、`classify.py`、
   `compare_third.py`、`preserve.py`、`verify_preserved.py`、`aggregate.py`、`summarize.py`)。
   棚卸し結果: `inventory.jsonl` (sha256 `9b1cd22e…`、2,409 行)、`inventory-extra.jsonl` (sha256 `ede3ca88…`、956 行)、
@@ -119,7 +122,8 @@ branch `worktree-dev-wave-t1851-leftover-audit`、base `8fd2a2f5c775954d6a32cee0
 - 照合は照合時点の bytes に対するものである。以後に対象 worktree の中身が変われば、§1 の結論は及ばない。
 - submodule `external/ccbench` の中 (build 生成物を含みうる) は走査していない。
 - 「研究記録かどうか」の線引き (dispatch 記録と `__pycache__` を保全しない、rc・空 file は保全する) は親の判断である。
-  保全しなかった file も sha256 は job dir の棚卸し file に残る。
+  保全しなかった file のうち、第三者ソース複製と dispatch 記録の sha256 は job dir の棚卸し file (`inventory*.jsonl`) に残る。
+  `__pycache__` 120 件は path (`untracked-all.txt`) だけで、sha256 は取っていない。
 - 保全先 `dev-wave-jobs/` は repo 外で snapshot が無い。T-2698 の `run-backup/` と同じ置き場であり、耐久性も同じである。
 - 撤去の可否は判断していない。D2194 項 10 (b) が前提にした原本判定の掃除手順への組み込み (T-2814) は
   2026-09-21 に着地している (worklog entry 1775、`.claude/commands/cleanup-branches.md` §2 の「未追跡 `output/` は
