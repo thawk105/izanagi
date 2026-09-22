@@ -23,6 +23,7 @@ set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING "static backoff")
 set(CCBENCH_BACKOFF_TRIGGER_GATING 0 CACHE STRING "trigger gate")
 set(CCBENCH_MOCC_TEMP_PREDICATE 0 CACHE STRING "mocc temperature predicate template (0=stock, 1=enabled)")
 set(CCBENCH_SORT_VARIANT 0 CACHE STRING "sort variant")
+set(CCBENCH_SILO_POLICY_VARIANT 0 CACHE STRING "silo function policy variant")
 
 function(ccbench_universal_definitions out_var)
   set(${out_var}
@@ -35,6 +36,7 @@ function(ccbench_universal_definitions out_var)
     BACKOFF_TRIGGER_GATING=${CCBENCH_BACKOFF_TRIGGER_GATING}
     MOCC_TEMP_PREDICATE=${CCBENCH_MOCC_TEMP_PREDICATE}
     SORT_VARIANT=${CCBENCH_SORT_VARIANT}
+    SILO_POLICY_VARIANT=${CCBENCH_SILO_POLICY_VARIANT}
     PARENT_SCOPE)
 endfunction()
 """

@@ -2,7 +2,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 index bc730f28c..a4b6240d1 100644
 --- a/cc/silo/transaction.cc
 +++ b/cc/silo/transaction.cc
-@@ -8,6 +8,112 @@
+@@ -8,6 +8,116 @@
  #include "include/scan_callback.hh"
  #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
  
@@ -32,6 +32,8 @@ index bc730f28c..a4b6240d1 100644
 +  uint64_t lock_mismatch = 0;
 +  uint64_t commit_match = 0;
 +  uint64_t commit_mismatch = 0;
++  uint64_t post_commit_match = 0;
++  uint64_t post_commit_mismatch = 0;
 +  uint64_t reason_match = 0;
 +  uint64_t reason_mismatch = 0;
 +  uint64_t site_lock_conflict = 0;
@@ -51,7 +53,7 @@ index bc730f28c..a4b6240d1 100644
 +  uint64_t reason_scan_node = 0;
 +  ~Counters() {
 +    std::lock_guard<std::mutex> lock(output_mutex);
-+    std::fprintf(stdout, "IZANAGI_SILO_POLICY_PROBE worker=%lu aborts=%lu locks=%lu commits=%lu retry_success=%lu limit_aborts=%lu limit_reason_mismatch=%lu clamps=%lu abort_match=%lu abort_mismatch=%lu lock_match=%lu lock_mismatch=%lu commit_match=%lu commit_mismatch=%lu reason_match=%lu reason_mismatch=%lu site_lock_conflict=%lu site_update_absent=%lu site_read_tid=%lu site_read_locked=%lu site_node_validation=%lu site_insert_node=%lu site_scan_node=%lu reason_unset=%lu reason_lock_conflict=%lu reason_update_absent=%lu reason_read_tid=%lu reason_read_locked=%lu reason_node_validation=%lu reason_insert_node=%lu reason_scan_node=%lu\n",
++    std::fprintf(stdout, "IZANAGI_SILO_POLICY_PROBE worker=%lu aborts=%lu locks=%lu commits=%lu retry_success=%lu limit_aborts=%lu limit_reason_mismatch=%lu clamps=%lu abort_match=%lu abort_mismatch=%lu lock_match=%lu lock_mismatch=%lu commit_match=%lu commit_mismatch=%lu post_commit_match=%lu post_commit_mismatch=%lu reason_match=%lu reason_mismatch=%lu site_lock_conflict=%lu site_update_absent=%lu site_read_tid=%lu site_read_locked=%lu site_node_validation=%lu site_insert_node=%lu site_scan_node=%lu reason_unset=%lu reason_lock_conflict=%lu reason_update_absent=%lu reason_read_tid=%lu reason_read_locked=%lu reason_node_validation=%lu reason_insert_node=%lu reason_scan_node=%lu\n",
 +                 static_cast<unsigned long>(worker),
 +                 static_cast<unsigned long>(aborts),
 +                 static_cast<unsigned long>(locks),
@@ -66,6 +68,8 @@ index bc730f28c..a4b6240d1 100644
 +                 static_cast<unsigned long>(lock_mismatch),
 +                 static_cast<unsigned long>(commit_match),
 +                 static_cast<unsigned long>(commit_mismatch),
++                 static_cast<unsigned long>(post_commit_match),
++                 static_cast<unsigned long>(post_commit_mismatch),
 +                 static_cast<unsigned long>(reason_match),
 +                 static_cast<unsigned long>(reason_mismatch),
 +                 static_cast<unsigned long>(site_lock_conflict),
@@ -115,7 +119,7 @@ index bc730f28c..a4b6240d1 100644
  #ifndef SILO_POLICY_VARIANT
  #error "SILO_POLICY_VARIANT must be supplied"
  #endif
-@@ -75,12 +181,27 @@ void wait_us(uint32_t delay) noexcept {
+@@ -75,12 +185,30 @@ void wait_us(uint32_t delay) noexcept {
  
  __attribute__((noipa)) uint32_t after_abort() noexcept {
    const ::izanagi_silo_api::AbortContext context{reason, next_random()};
@@ -129,6 +133,9 @@ index bc730f28c..a4b6240d1 100644
 +  (c.site != 0u && c.site == observed ? c.reason_match : c.reason_mismatch)++;
 +  ::izanagi_silo_probe::record_reason(observed);
 +  if (c.limit && observed != 1u) ++c.limit_reason_mismatch;
++  if (c.commits > 0u) {
++    ((ret & 7u) == (c.commits & 7u) ? c.post_commit_match : c.post_commit_mismatch)++;
++  }
 +#endif
 +  return ret;
  }
@@ -145,7 +152,7 @@ index bc730f28c..a4b6240d1 100644
  }
  
  __attribute__((noipa)) void on_commit() noexcept {
-@@ -127,7 +248,13 @@ void TxExecutor::abort() {
+@@ -127,7 +255,13 @@ void TxExecutor::abort() {
  #endif
  
  #if SILO_POLICY_VARIANT
@@ -159,7 +166,7 @@ index bc730f28c..a4b6240d1 100644
    ::izanagi_silo_skel::wait_us(std::min(ret, 1000u));
  #else
    Backoff::backoff(FLAGS_clocks_per_us);
-@@ -143,6 +270,10 @@ void TxExecutor::begin() {
+@@ -143,6 +277,10 @@ void TxExecutor::begin() {
    status_ = TransactionStatus::inflight;
  #if SILO_POLICY_VARIANT
    ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;
@@ -170,7 +177,7 @@ index bc730f28c..a4b6240d1 100644
  #endif
    max_wset_.obj_ = 0;
    max_rset_.obj_ = 0;
-@@ -187,6 +318,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -187,6 +325,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
          if (unlikely(it->second != insert_info.old_version)) {
            status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -180,7 +187,7 @@ index bc730f28c..a4b6240d1 100644
            ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::insert_node;
  #endif
            return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
-@@ -248,6 +382,9 @@ void TxExecutor::lockWriteSet() {
+@@ -248,6 +389,9 @@ void TxExecutor::lockWriteSet() {
    [[maybe_unused]] retry
        : for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if (itr->op_ == OpType::INSERT) continue;
@@ -190,7 +197,7 @@ index bc730f28c..a4b6240d1 100644
  #if SILO_POLICY_VARIANT
      uint32_t attempt = 0;
  #endif
-@@ -255,7 +392,14 @@ void TxExecutor::lockWriteSet() {
+@@ -255,7 +399,14 @@ void TxExecutor::lockWriteSet() {
      for (;;) {
  #if SILO_POLICY_VARIANT
        if (attempt >= 32u) {
@@ -205,7 +212,7 @@ index bc730f28c..a4b6240d1 100644
          ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
          if (itr != write_set_.begin()) unlockWriteSet(itr);
          return;
-@@ -264,13 +408,23 @@ void TxExecutor::lockWriteSet() {
+@@ -264,13 +415,23 @@ void TxExecutor::lockWriteSet() {
  #endif
        if (expected.lock) {
  #if SILO_POLICY_VARIANT
@@ -229,7 +236,7 @@ index bc730f28c..a4b6240d1 100644
          ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
          if (itr != write_set_.begin()) unlockWriteSet(itr);
          return;
-@@ -289,6 +443,9 @@ void TxExecutor::lockWriteSet() {
+@@ -289,6 +450,9 @@ void TxExecutor::lockWriteSet() {
          desired.lock = 1;
          if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
                              desired.obj_)) {
@@ -239,7 +246,7 @@ index bc730f28c..a4b6240d1 100644
  #if TRACE
            // This worker now holds the lock on this tuple (D38). On the skeleton
            // CAS-success path (not the coder edit surface = the conflict response
-@@ -304,6 +461,9 @@ void TxExecutor::lockWriteSet() {
+@@ -304,6 +468,9 @@ void TxExecutor::lockWriteSet() {
        unlockWriteSet(itr);
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -249,7 +256,7 @@ index bc730f28c..a4b6240d1 100644
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::update_absent;
  #endif
        return;
-@@ -578,6 +738,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -578,6 +745,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
  #endif
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -259,7 +266,7 @@ index bc730f28c..a4b6240d1 100644
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_tid;
  #endif
        unlockWriteSet();
-@@ -593,6 +756,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -593,6 +763,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
  #endif
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -269,7 +276,7 @@ index bc730f28c..a4b6240d1 100644
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_locked;
  #endif
        unlockWriteSet();
-@@ -607,6 +773,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -607,6 +780,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
      if (node->full_version_value() != it.second) {
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -279,7 +286,7 @@ index bc730f28c..a4b6240d1 100644
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::node_validation;
  #endif
        unlockWriteSet();
-@@ -837,6 +1006,9 @@ bool TxExecutor::commit() {
+@@ -837,6 +1013,9 @@ bool TxExecutor::commit() {
    if (validationPhase()) {
      writePhase();
  #if SILO_POLICY_VARIANT
@@ -289,7 +296,7 @@ index bc730f28c..a4b6240d1 100644
      ::izanagi_silo_skel::on_commit();
  #endif
      return true;
-@@ -871,6 +1043,9 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+@@ -871,6 +1050,9 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
    } else if ((*it).second != version) {
      tx_->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT

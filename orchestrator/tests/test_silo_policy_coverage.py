@@ -1,11 +1,14 @@
 """C1 diagnostic contracts; real patch application and real policy validators."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 import re
 import sys
 import tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -21,7 +24,7 @@ def _probe_totals():
     p = dict.fromkeys(coverage.PROBE_KEYS, 0)
     p.update(aborts=3, locks=5, commits=7, retry_success=2, limit_aborts=1,
              clamps=1, reason_lock_conflict=3, site_lock_conflict=3,
-             abort_match=5, lock_match=3, commit_match=3, reason_match=3)
+             abort_match=5, lock_match=3, commit_match=3, reason_match=3, post_commit_match=2)
     return p
 
 
@@ -162,6 +165,73 @@ def test_characterization_and_mechanism_predicates():
         assert not all(coverage.check_case(case, r).values())
 
 
+def test_coverage_reuses_controls_and_separates_prefix_exits():
+    observed = {}
+    builds = []
+    fixtures = _complete_runs()
+
+    @contextmanager
+    def source(policy, *, compiler, scratch, probe_patch=False, patch=None):
+        case = next(c for c in coverage.COVERAGE_CASES if c.replace("/", "-") == scratch.name)
+        observed[case] = (policy, probe_patch, patch)
+        yield scratch, {"accepted": True}
+
+    def build(source, build, **kwargs):
+        builds.append(source.name)
+        return source / "binary", {}
+
+    def run(binary, flags, *, source, trace, probe=False, numa=False):
+        case = next(c for c in fixtures if c.replace("/", "-") == source.name)
+        return deepcopy(fixtures[case])
+
+    def preprocess(command, overrides=None):
+        return SimpleNamespace(returncode=1 if overrides else 0, stdout="",
+                               stderr="Silo function policy requires BACK_OFF=1 and no-wait flags 1/0")
+
+    with tempfile.TemporaryDirectory() as tmp, \
+         patch.object(coverage, "_source", source), \
+         patch.object(coverage, "_build_variant", build), \
+         patch.object(coverage, "_run", run), \
+         patch.object(coverage, "_owner_command", return_value={"arguments": []}), \
+         patch.object(coverage, "_preprocess", preprocess), \
+         patch.object(coverage, "_break_evidence", return_value={"target_difference": True}), \
+         patch.object(coverage.compute, "_sha256_file", return_value="digest"):
+        result = coverage.run_coverage(Path(tmp), {"cxx_path": "unused"}, {})
+    assert result["all_pass"] is True
+    assert len(builds) == 23
+    assert set(coverage.CONTROL_OBSERVATIONS) == {
+        "control/no-reload", "control/no-abort-hook", "control/no-lock-hook",
+        "control/no-commit-hook", "control/wrong-reason",
+    }
+    for control, focus in coverage.CONTROL_OBSERVATIONS.items():
+        assert control not in observed
+        assert result["runs"][control]["observation_case"] == focus
+        assert result["runs"][control]["case_sha256"] == result["runs"][focus]["case_sha256"]
+        assert coverage.check_case(control, result["runs"][focus]) == {"expected": True}
+    for name, policy, exit_name in (
+            ("no-prefix-unlock-conflict", "abort0", "action-abort"),
+            ("no-prefix-unlock-limit", "maxwait", "attempt-limit")):
+        for kind in ("control", "mutation"):
+            case = kind + "/" + name
+            assert observed[case] == (policy, True, "broken-silo-policy-no-prefix-unlock.patch"
+                                      if kind == "mutation" else None)
+            assert result["runs"][case]["case_definition"]["target_exit"] == exit_name
+            assert result["checks"][case + ":expected"] is True
+
+
+def test_focus_requires_post_commit_state_observation():
+    runs = _complete_runs()
+    assert coverage.judge(runs, _checks(runs))["all_pass"] is True
+    p = runs["focus/focus"]["probe"]["totals"]
+    p["post_commit_match"] = 0
+    assert coverage.check_case("focus/focus", runs["focus/focus"])["commit"] is False
+    assert coverage.judge(runs, _checks(runs))["all_pass"] is False
+    p["post_commit_match"] = 2
+    p["post_commit_mismatch"] = 1
+    assert coverage.check_case("focus/focus", runs["focus/focus"])["commit"] is False
+    assert coverage.judge(runs, _checks(runs))["all_pass"] is False
+
+
 def test_no_lock_hook_rejects_extra_commit_mismatch():
     r = _complete_runs()["mutation/no-lock-hook"]
     assert coverage.check_case("mutation/no-lock-hook", r)["expected"] is True
@@ -244,7 +314,7 @@ def test_strict_patch_stacks_and_one_site_mutations():
         probe = path.read_text()
         for name in coverage.MUTATIONS:
             path.write_text(probe)
-            patch = ROOT / "patches" / ("broken-silo-policy-" + name + ".patch")
+            patch = ROOT / "patches" / coverage.MUTATION_PATCHES[name]
             assert patch.read_text().count("+#if IZANAGI_BREAK_SILO_POLICY\n") == 1
             _git(checkout, "apply", "--check", str(patch))
             _git(checkout, "apply", str(patch))

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager, nullcontext
-from dataclasses import asdict, replace
+from dataclasses import asdict
 import difflib
 import hashlib
 import json
@@ -26,14 +26,14 @@ if __package__ in {None, ""}:
 
 from . import axis_silo_function_policy as axis
 from . import condition_meaning_gate as condition
-from . import coder_effect_gate, diff_quarantine, site_policy, source_digest
+from . import site_policy, source_digest
 from . import s2_verify_calibration as calibration
 from . import s3_lock_coverage as locks
 from . import s3_mocc_lock_coverage as compute
 from .materializer_admission import non_admissible_materializer
 from .model import Genome
 from .p2_2 import _assert_single_tenant
-from .p3_s4_loop import make_working_diff, render_hole
+from .p3_s4_loop import quarantine
 from .patchharness import applied, apply_patch, checkout
 from .pipeline import (CorrectnessWorkload, PerfConfig,
                        performance_correctness_workload, _parse_commit_witness)
@@ -64,11 +64,22 @@ MUTATIONS = {
     "no-clamp": ("huge", False, "trace-timeout"),
     "no-reload": ("retry", True, "retry_success"),
     "no-limit": ("retry", False, "NON_DETECTION_CONTROL"),
-    "no-prefix-unlock": ("abort0", False, "trace-timeout"),
+    "no-prefix-unlock-conflict": ("abort0", False, "trace-timeout"),
+    "no-prefix-unlock-limit": ("maxwait", False, "trace-timeout"),
     "no-abort-hook": ("focus", True, "abort"),
     "no-lock-hook": ("focus", True, "lock"),
     "no-commit-hook": ("focus", True, "commit"),
     "wrong-reason": ("focus", True, "reason"),
+}
+MUTATION_PATCHES = {
+    name: "broken-silo-policy-" + ("no-prefix-unlock" if name.startswith("no-prefix-unlock-") else name) + ".patch"
+    for name in MUTATIONS
+}
+PREFIX_EXITS = {"no-prefix-unlock-conflict": "action-abort",
+                "no-prefix-unlock-limit": "attempt-limit"}
+CONTROL_OBSERVATIONS = {
+    "control/" + name: "focus/" + policy
+    for name, (policy, probe, _) in MUTATIONS.items() if probe
 }
 FLAG_BOUNDARIES = {
     "backoff0": ("BACK_OFF", "0"), "backoff2": ("BACK_OFF", "2"),
@@ -78,7 +89,7 @@ FLAG_BOUNDARIES = {
 REASONS = axis.REASON_NAMES
 PROBE_KEYS = frozenset((
     "aborts", "locks", "commits", "retry_success", "limit_aborts",
-    "limit_reason_mismatch", "clamps",
+    "limit_reason_mismatch", "clamps", "post_commit_match", "post_commit_mismatch",
     *(h + "_" + outcome for h in ("abort", "lock", "commit", "reason")
       for outcome in ("match", "mismatch")),
     *("site_" + r for r in REASONS[1:]), *("reason_" + r for r in REASONS),
@@ -197,6 +208,10 @@ def check_case(case: str, r: dict) -> dict[str, bool]:
                 "preprocess": r.get("break_evidence", {}).get("target_difference") is True}
     if case in FOCUS_CASES:
         checks = _focus_checks(r)
+        if case == "focus/focus":
+            p = r.get("probe", {}).get("totals", {})
+            checks["commit"] = (checks["commit"] and _positive(p.get("post_commit_match"))
+                                and p.get("post_commit_mismatch") == 0)
         return {k: checks[k] for k in CASE_CHECKS[case]}
     if case.startswith(("control/", "mutation/")):
         control, name = case.split("/")
@@ -244,7 +259,7 @@ def judge(runs: dict, checks: dict, *, mode: str = "coverage") -> dict:
     reached = complete and all(
         _positive(runs[c].get("commits"))
         for c in cases if not c.startswith("flag/") and c != "trace0"
-        and c not in {"mutation/no-clamp", "mutation/no-prefix-unlock"}
+        and c not in {"mutation/no-clamp", *("mutation/" + name for name in PREFIX_EXITS)}
     )
     derived = {}
     if complete:
@@ -264,20 +279,12 @@ def prepare_policy(path: Path, body: str, *, compiler: str, scratch_dir: str) ->
     The exact same body string is rendered and checked, without normalization.
     """
     from .silo_policy_compile import check_policy_body
-    base = path.read_text()
-    marker = diff_quarantine.parse_template_file(str(path), axis.MARKER_ID)
-    if marker is None:
-        raise RuntimeError("policy marker absent")
-    marker = replace(marker, source_rel=axis.SOURCE_REL)
-    rendered = render_hole(base, marker, body)
-    quarantine = diff_quarantine.DiffQuarantine(
-        marker, make_working_diff(base, rendered, axis.SOURCE_REL), head_text=base,
-    ).validate()
-    if not quarantine.passed:
-        raise ValueError("DiffQuarantine: " + str(quarantine.reason))
-    effects = coder_effect_gate.scan_host_effects(body)
-    if effects:
-        raise ValueError("host effect gate rejected policy")
+    sub = path.parents[len(Path(axis.SOURCE_REL).parts) - 1]
+    result, _base, rendered, _diff = quarantine(
+        str(sub), body, marker_id=axis.MARKER_ID, source_rel=axis.SOURCE_REL, write=False,
+    )
+    if not result.passed:
+        raise ValueError("DiffQuarantine/effect gate: " + str(result.reason))
     grammar, compiled = check_policy_body(body, compiler=compiler, scratch_dir=scratch_dir)
     if (grammar.accepted is not True or compiled is None or compiled.accepted is not True
             or compiled.timed_out or compiled.unavailable or compiled.returncode != 0):
@@ -314,6 +321,32 @@ def _condition_gate(source: Path, macro: str, configure_args: list[str], cxx: st
             "admission": json.loads(admission.canonical_json())}
 
 
+def _condition_gates(source: Path, macros: tuple[str, ...], args: list[str],
+                     cxx: str, *, stock: bool) -> list[dict]:
+    if stock and macros:
+        raise ValueError("stock build cannot supply diagnostic macros")
+    gates = []
+    # A mechanism mutation's one declared site is witnessed on its own actual
+    # source. Controls separately witness axis/probe sites. Enclosing mutations
+    # duplicate those sites in their inactive #else; a fixed site-count receipt
+    # for the unmutated probe must not be misrepresented as a mutation receipt.
+    gate_macros = ((BREAK_DEFINE,) if BREAK_DEFINE in macros else
+                   (() if stock else (axis.FLAG,)) + macros)
+    if not stock and not gate_macros:
+        raise RuntimeError("missing policy condition requests")
+    for macro in gate_macros:
+        # For each receipt, companions stay enabled; the tested macro is supplied
+        # by the gate itself, so its own -D must not mask an ineffective request.
+        companions = [m for m in macros if m != macro]
+        gate_args = args + (["-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in companions)]
+                            if companions else [])
+        gates.append(_condition_gate(source, macro, gate_args, cxx))
+    if len(gates) != len(gate_macros) or any(
+            r["admission"]["admitted"] is not True for r in gates):
+        raise RuntimeError("incomplete or rejected condition gates")
+    return gates
+
+
 def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
                    dependencies: dict, macros: tuple[str, ...] = (), stock: bool = False) -> tuple[Path, dict]:
     admission = non_admissible_materializer(MATERIALIZER)
@@ -326,20 +359,9 @@ def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
         if a not in compute.STOCK_G.cmake_defines()]
     args += (locks.STOCK_G if stock else GENOME).cmake_defines()
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
-    gates = []
-    # A mechanism mutation's one declared site is witnessed on its own actual
-    # source. Controls separately witness axis/probe sites. Enclosing mutations
-    # duplicate those sites in their inactive #else; a fixed site-count receipt
-    # for the unmutated probe must not be misrepresented as a mutation receipt.
-    gate_macros = ((BREAK_DEFINE,) if BREAK_DEFINE in macros else
-                   (() if stock else (axis.FLAG,)) + macros)
-    for macro in gate_macros:
-        # For each receipt, companions stay enabled; the tested macro is supplied
-        # by the gate itself, so its own -D must not mask an ineffective request.
-        companions = [m for m in macros if m != macro]
-        gate_args = args + (["-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in companions)]
-                            if companions else [])
-        gates.append(_condition_gate(source, macro, gate_args, toolchain["cxx_path"]))
+    gates = _condition_gates(source, macros, args, toolchain["cxx_path"], stock=stock)
+    if (not stock and not gates) or any(r["admission"]["admitted"] is not True for r in gates):
+        raise RuntimeError("condition gates rejected before build")
     if macros:
         args.append("-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in macros))
     configure = ["cmake", "-S", str(source), "-B", str(build),
@@ -506,9 +528,10 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
               (NEGATIVES[c.split("/")[0]][1],)) for c in NEGATIVE_CASES]
     cases += [(c, c.split("/")[1], True, True, None, (PROBE_DEFINE,)) for c in FOCUS_CASES]
     for name, (policy, probe, _) in MUTATIONS.items():
-        cases.append(("control/" + name, policy, True, probe, None, (PROBE_DEFINE,) if probe else ()))
+        if "control/" + name not in CONTROL_OBSERVATIONS:
+            cases.append(("control/" + name, policy, True, probe, None, (PROBE_DEFINE,) if probe else ()))
         cases.append(("mutation/" + name, policy, True, probe,
-                      "broken-silo-policy-" + name + ".patch",
+                      MUTATION_PATCHES[name],
                       ((PROBE_DEFINE,) if probe else ()) + (BREAK_DEFINE,)))
     for case, policy, probe_patch, probe, patch, macros in cases:
         print("case=" + case, flush=True)
@@ -525,6 +548,8 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
             definition = {"case": case, "policy": policy, "probe": probe,
                           "probe_patch": probe_patch, "patch": patch,
                           "macros": macros, "workload": flags, "trace": 1}
+            if case.split("/")[-1] in PREFIX_EXITS:
+                definition["target_exit"] = PREFIX_EXITS[case.split("/")[-1]]
             case_sha256 = sha(json.dumps(definition, sort_keys=True, separators=(",", ":")))
             evidence = (_break_evidence(case, _owner_command(work / "build", source), source,
                                         ROOT / "patches" / patch, macros[0])
@@ -541,6 +566,8 @@ def run_coverage(scratch: Path, toolchain: dict, dependencies: dict, *, runs: di
             if case == "mutation/no-limit":
                 r["classification"] = "NON_DETECTION_CONTROL"
             runs[case] = r
+    for control, observation in CONTROL_OBSERVATIONS.items():
+        runs[control] = {**runs[observation], "observation_case": observation}
     # One real ordinary TRACE=0 build supplies all four flag boundary preprocess
     # attempts and the local absence check, without creating four redundant binaries.
     work = scratch / "trace0"

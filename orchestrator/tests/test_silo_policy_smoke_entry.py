@@ -139,6 +139,26 @@ def test_smoke_entry_compile_exception_stops_before_build():
         assert stock == [1, 0]
 
 
+def test_smoke_entry_compile_timeout_stops_before_build():
+    # Reuse the real delayed-compiler fixture from the compile contract test.
+    compiler = _cxx()
+    with tempfile.TemporaryDirectory() as tmp:
+        wrapper = Path(tmp) / "delayed-compiler"
+        wrapper.write_text('#!/bin/sh\nif [ "$1" = "--version" ]; then exec "' + compiler + '" "$@"; fi\n'
+                           'sleep 60 &\nwait\nexec "' + compiler + '" "$@"\n')
+        wrapper.chmod(0o700)
+        with _entry(_body(), str(wrapper)) as (run, seen, stock):
+            try:
+                run()
+            except ValueError as exc:
+                assert "grammar/compile rejected" in str(exc)
+                assert "timed_out=True" in str(exc)
+            else:
+                raise AssertionError("compiler timeout passed smoke entry")
+            assert seen == []
+            assert stock == [1, 0]
+
+
 def _run():
     passed = failed = skipped = 0
     for name, fn in sorted(globals().items()):
