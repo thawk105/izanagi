@@ -533,6 +533,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      3巡の値・判定・稿・図は不変。round 3 の `loop_state.json` と round 2/3 の AO は repo 派生物から byte 一致で再構成でき、
      WAL は内容同一 (canonical ref 5/5) まで、roundtrip は転記値のみ。4巡目の入力元 (round 3 派生物からの射影 / 別走 /
      pair 走) は裁定パッケージ。記録は `output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md`。
+   - [x] [T-2795] D2211項1 で修復済み pair driver (D2205) の同job pair を再投入 (2026-09-22、実装差分ゼロ)。候補10と stock がともに
+     certified、stock の source は STOCK で、K2手動loopの同job stock対照が初めて成立 (候補/stock = 2.366)。続けて4巡目 (択A = round 3 の
+     派生物から入力、生成1回で候補5) を同job stock付き1 jobで評価し、両方 certified (2.493)。改善・一般化の主張ではない。critic-4 の還流は未。
+     記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
