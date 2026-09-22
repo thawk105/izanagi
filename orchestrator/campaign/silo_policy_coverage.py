@@ -315,11 +315,17 @@ def _condition_gate(source: Path, macro: str, configure_args: list[str], cxx: st
             cxx=cxx, cmake="cmake", configured_commands=commands)
     admission = condition.require_condition_gate_family([supply], [meaning], use_class="raw-measurement")
     if not admission.admitted:
-        raise RuntimeError(
+        rejection = RuntimeError(
             f"condition gate rejected {macro}: "
             f"supply={supply.terminal_status}/{supply.reason_code}, "
             f"meaning={meaning.terminal_status}/{meaning.reason_code}"
         )
+        rejection.condition_gate_evidence = {
+            "macro": macro, "supply": json.loads(supply.canonical_json()),
+            "meaning": json.loads(meaning.canonical_json()),
+            "admission": json.loads(admission.canonical_json()),
+        }
+        raise rejection
     return {"macro": macro, "supply": json.loads(supply.canonical_json()),
             "meaning": json.loads(meaning.canonical_json()),
             "admission": json.loads(admission.canonical_json())}
@@ -649,6 +655,17 @@ def smoke_checks(runs: dict) -> dict[str, bool]:
     return checks
 
 
+def _prepare_build_dependencies(scratch: Path, toolchain: dict, dependencies: dict) -> dict:
+    # Hydration supplies fresh per-job sources, not masstree's generated config.h.
+    # Complete one ungated stock build before either mode can enter a case gate.
+    work = scratch / "dependency-stock"
+    work.mkdir()
+    with _source("stock", compiler=toolchain["cxx_path"], scratch=work) as (source, _):
+        _, receipt = _build_variant(source, work / "build", trace=1,
+                                    toolchain=toolchain, dependencies=dependencies, stock=True)
+    return receipt
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("coverage", "smoke"))
@@ -673,10 +690,13 @@ def main(argv: list[str] | None = None) -> int:
         with tempfile.TemporaryDirectory(prefix="silo-policy-") as temporary:
             scratch = Path(temporary)
             dependencies = compute._prepare_dependencies(ROOT, policy, args.third_party_cache, scratch, toolchain)
+            result["dependency_preparation"] = _prepare_build_dependencies(scratch, toolchain, dependencies)
             result.update((run_coverage if args.command == "coverage" else run_smoke)(
                 scratch, toolchain, dependencies, runs=result["runs"]))
     except Exception as exc:
         result["error"] = type(exc).__name__ + ": " + str(exc)
+        if hasattr(exc, "condition_gate_evidence"):
+            result["condition_gate_evidence"] = exc.condition_gate_evidence
     out = args.out or ROOT / "output/env" / ENV_TAG / "calibration" / ("silo_function_policy_" + args.command + ".json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

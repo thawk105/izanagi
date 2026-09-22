@@ -447,6 +447,9 @@ def test_command_arguments_accepts_both_compile_command_forms():
 def test_condition_gate_rejection_preserves_arm_reasons_in_result_json():
     supply = SimpleNamespace(terminal_status="green", reason_code="requested-default-preprocess-different")
     meaning = SimpleNamespace(terminal_status="red", reason_code="compile-time-branch-selection-mismatch")
+    supply.canonical_json = lambda: json.dumps(vars_without_methods(supply))
+    meaning.canonical_json = lambda: json.dumps(vars_without_methods(meaning))
+    admission = SimpleNamespace(admitted=False, canonical_json=lambda: '{"admitted":false}')
 
     @contextmanager
     def configured(*args, **kwargs):
@@ -456,7 +459,7 @@ def test_condition_gate_rejection_preserves_arm_reasons_in_result_json():
          patch.object(coverage.condition, "_configured_define_compile_commands", configured), \
          patch.object(coverage.condition, "evaluate_define_supply_effectuation", return_value=supply), \
          patch.object(coverage.condition, "evaluate_define_runtime_meaning", return_value=meaning), \
-         patch.object(coverage.condition, "require_condition_gate_family", return_value=SimpleNamespace(admitted=False)):
+         patch.object(coverage.condition, "require_condition_gate_family", return_value=admission):
         try:
             coverage._condition_gate(Path("source"), coverage.axis.FLAG, [], "c++")
         except RuntimeError as exc:
@@ -474,6 +477,7 @@ def test_condition_gate_rejection_preserves_arm_reasons_in_result_json():
          patch.object(coverage.compute, "_load_policy", return_value={}), \
          patch.object(coverage.compute, "_resolve_toolchain", return_value={}), \
          patch.object(coverage.compute, "_prepare_dependencies", return_value={}), \
+         patch.object(coverage, "_prepare_build_dependencies", return_value={}), \
          patch.object(coverage, "run_coverage", side_effect=rejection):
         out = Path(tmp) / "result.json"
         assert coverage.main(["coverage", "--third-party-cache", tmp,
@@ -481,6 +485,125 @@ def test_condition_gate_rejection_preserves_arm_reasons_in_result_json():
         result = json.loads(out.read_text())
     assert result["all_pass"] is False
     assert result["error"] == "RuntimeError: " + expected
+
+
+def vars_without_methods(record):
+    return {key: value for key, value in vars(record).items() if not callable(value)}
+
+
+def test_condition_gate_failure_keeps_complete_receipts_and_stops_build():
+    payloads = {
+        "supply": {"terminal_status": "red", "reason_code": "preprocess-failed",
+                   "evidence": {"detail": "rc=1; stderr=b'config.h: No such file or directory'",
+                                "expected": None, "observed": {"nested": [1, 2]}}},
+        "meaning": {"terminal_status": "red", "reason_code": "compile-time-branch-preprocess-failed",
+                    "evidence": {"detail": "instrumented owner: config.h absent", "context_index": None}},
+        "admission": {"admitted": False, "reasons": ["supply", "meaning"]},
+    }
+    records = {key: SimpleNamespace(**value, canonical_json=lambda value=value: json.dumps(value))
+               for key, value in payloads.items()}
+
+    @contextmanager
+    def configured(*args, **kwargs):
+        yield object()
+
+    def rejected_case(scratch, toolchain, dependencies, *, runs):
+        coverage._build_variant(scratch, scratch / "case", trace=1,
+                                toolchain=toolchain, dependencies=dependencies)
+
+    for mode in ("coverage", "smoke"):
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(coverage.site_policy, "current_site", return_value="test"), \
+             patch.object(coverage.site_policy, "refuses_heavy_work", return_value=False), \
+             patch.object(coverage, "_assert_single_tenant"), \
+             patch.object(coverage.compute, "_load_policy", return_value={}), \
+             patch.object(coverage.compute, "_resolve_toolchain", return_value={"cxx_path": "c++"}), \
+             patch.object(coverage.compute, "_prepare_dependencies", return_value={}), \
+             patch.object(coverage, "_prepare_build_dependencies", return_value={}), \
+             patch.object(coverage.compute, "_common_configure_args", return_value=[]), \
+             patch.object(coverage.condition, "capture_define_inputs", return_value=object()), \
+             patch.object(coverage.condition, "_configured_define_compile_commands", configured), \
+             patch.object(coverage.condition, "evaluate_define_supply_effectuation", return_value=records["supply"]), \
+             patch.object(coverage.condition, "evaluate_define_runtime_meaning", return_value=records["meaning"]), \
+             patch.object(coverage.condition, "require_condition_gate_family", return_value=records["admission"]), \
+             patch.object(coverage.compute, "_run_checked") as configure, \
+             patch.object(coverage.locks, "_run_cmake_build") as build, \
+             patch.object(coverage, "run_" + mode, rejected_case):
+            out = Path(tmp) / "result.json"
+            assert coverage.main([mode, "--third-party-cache", tmp,
+                                  "--policy", __file__, "--out", str(out)]) == 1
+            result = json.loads(out.read_text())
+            assert result["all_pass"] is False
+            assert result["condition_gate_evidence"] == {"macro": coverage.axis.FLAG, **payloads}
+            assert "supply=red/preprocess-failed" in result["error"]
+            assert "meaning=red/compile-time-branch-preprocess-failed" in result["error"]
+            configure.assert_not_called()
+            build.assert_not_called()
+
+
+def test_main_prepares_dependencies_once_before_gates_in_either_case_order():
+    for mode in ("coverage", "smoke"):
+        for reverse in (False, True):
+            events = []
+            dependencies = {"masstree": Path("per-job-masstree")}
+            cases = (["norw/abort0", "lockskip/maxwait"] if mode == "coverage"
+                     else ["stock", "abort0", "retry"])
+            if reverse:
+                cases.reverse()
+
+            @contextmanager
+            def source(policy, *, compiler, scratch):
+                assert policy == "stock"
+                events.append("prepare")
+                yield scratch, {"accepted": True, "stock": True}
+
+            def configure(argv):
+                events.append("configure")
+
+            def build(argv, *, site):
+                root = Path(argv[argv.index("--build") + 1])
+                binary = root / "cc/silo/ycsb_silo.exe"
+                binary.parent.mkdir(parents=True)
+                binary.write_bytes(b"fixture")
+                events.append("prepared" if root.parent.name == "dependency-stock" else "built")
+
+            def gate(source, macro, args, cxx):
+                assert events.count("prepare") == events.count("prepared") == 1
+                events.append("gate")
+                return {"admission": {"admitted": True}}
+
+            def runner(scratch, toolchain, supplied, *, runs):
+                assert supplied is dependencies
+                assert events == ["prepare", "configure", "prepared"]
+                for case in cases:
+                    coverage._build_variant(scratch, scratch / case.replace("/", "-"),
+                                            trace=1, toolchain=toolchain,
+                                            dependencies=supplied, stock=case == "stock")
+                return {"all_pass": False}
+
+            with tempfile.TemporaryDirectory() as tmp, \
+                 patch.object(coverage.site_policy, "current_site", return_value="test"), \
+                 patch.object(coverage.site_policy, "refuses_heavy_work", return_value=False), \
+                 patch.object(coverage, "_assert_single_tenant"), \
+                 patch.object(coverage.compute, "_load_policy", return_value={}), \
+                 patch.object(coverage.compute, "_resolve_toolchain", return_value={"cxx_path": "c++"}), \
+                 patch.object(coverage.compute, "_prepare_dependencies", return_value=dependencies), \
+                 patch.object(coverage.compute, "_common_configure_args", return_value=[]), \
+                 patch.object(coverage.compute, "_sha256_file", return_value="fixture-digest"), \
+                 patch.object(coverage, "_source", source), \
+                 patch.object(coverage, "_condition_gate", gate), \
+                 patch.object(coverage.compute, "_run_checked", configure), \
+                 patch.object(coverage.locks, "_run_cmake_build", build), \
+                 patch.object(coverage, "run_" + mode, runner):
+                out = Path(tmp) / "result.json"
+                assert coverage.main([mode, "--third-party-cache", tmp,
+                                      "--policy", __file__, "--out", str(out)]) == 1
+                result = json.loads(out.read_text())
+                assert "error" not in result
+                assert result["dependency_preparation"]["condition_gates"] == []
+                assert result["dependency_preparation"]["binary_sha256"] == "fixture-digest"
+            assert events.count("prepare") == events.count("prepared") == 1
+            assert events.count("gate") == sum(case != "stock" for case in cases)
 
 
 def _run():
