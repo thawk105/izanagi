@@ -61,7 +61,7 @@ default_effect: no-state-change
 
 ## 3. TPC-C と YCSB の走行 (C4・C5、計算 2 本目)
 
-実行: `python3 tools/pegasus/dispatch_compute.py --task generic --walltime 01:00:00 -- /usr/bin/python3 <job dir>/probe/run_probe.py …` を wave worktree (clean、HEAD `eef04f5a7`) から。request 18131.nqsv、gen_S 1 node (bnode146)、21:22:58〜21:26:04 JST、Elapse 191 秒、child rc=0 (`evidence/compute-2-dispatch.log`)。段ごとの合否と所要 = `evidence/compute-2/compute-summary.json`。
+実行: `python3 tools/pegasus/dispatch_compute.py --task generic --walltime 01:00:00 -- /usr/bin/python3 <job dir>/probe/run_probe.py …` を wave worktree (clean、HEAD `eef04f5a7`) から。YCSB の検証に使った verifier はこの HEAD の版 (単位 4 の v3 対応 D2224 の着地前)。request 18131.nqsv、gen_S 1 node (bnode146)、21:22:58〜21:26:04 JST、Elapse 191 秒、child rc=0 (`evidence/compute-2-dispatch.log`)。段ごとの合否と所要 = `evidence/compute-2/compute-summary.json`。
 
 | 走 | 条件 | 結果 |
 |---|---|---|
