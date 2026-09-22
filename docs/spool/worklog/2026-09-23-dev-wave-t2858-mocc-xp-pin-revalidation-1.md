@@ -14,7 +14,7 @@ title: [T-2858] mocc の X/P 計装 commit C = 68106660 を新しい ccbench pin
 - 波及の再集計: `e9e477c` を含む tracked file は 45 → 54 件 (増 9 件はすべて過去の実測記録・固定した図の出所で据置)。pin 定数を読む file は T-2304 着地時 70 → 71 件 (silo-function-policy 軸の別名 1 件、C は silo に触れないので追随のみ)。
 - 素材: 「pin 前進は C の上で 1 回」は TPC-C 設計 §8 の親決定 3 であり、D2219 項 2 が採ったのは同 §8 の 4 (段 1 → 段 2) だけだった。依頼文は前者を確定事項のように引いていたので、提示ではユーザー裁定でないことを明記し、推奨 (a) = C を単独で承認して更新 wave を今起こす (pin 前進は計 2 回) とした。TPC-C の系列 (e9e477ca → C1 → C2) と C (e9e477ca の子) は e9e477ca から分岐した別系列で、現在の C1 / C2 と C は変更 file が重ならない。
 - 並走: 開始時の ListAgents に同じ T-2858 の session は無く、T-2854 の稼働 session・worktree も無かった。
-- 工数: 段 2・3 は省略 (実装差分ゼロの docs-only、DW-C00 軽量版)。段 6 は Codex read-only レビュー 1 本 (事実の再抽出と推奨の当否の 2 レンズ): NO-GO、must-fix 2 (C と C2 を兄弟とした系図の誤り、並走への影響を記録文字列だけとした過小表示) と should 4 (T-2304 の子本数の出典、追随 15 件を test 数とした読み、2 回目の承認の範囲、確認線の「以上」)。親は 6 件とも一次資料で real と判定して直した。受入全走は本 fragment を含む tip で行い、結果は job dir `/home/SFC/tanab/.claude/jobs/4811f999/` の receipt に残す (本 commit の後に走るのでここには書かない)。
+- 工数: 段 2・3 は省略 (実装差分ゼロの docs-only、DW-C00 軽量版)。段 6 は Codex read-only レビュー 1 本 (事実の再抽出と推奨の当否の 2 レンズ): NO-GO、must-fix 2 (C と C2 を兄弟とした系図の誤り、並走への影響を記録文字列だけとした過小表示) と should 4 (T-2304 の子本数の出典、追随 15 件を test 数とした読み、2 回目の承認の範囲、確認線の「以上」)。親は 6 件とも一次資料で real と判定して直した。焦点再レビュー 1 巡 (Codex read-only): GO、must-fix 0、closed 5・partial 1・regressed 0、残った should 2・nit 1 (推奨理由の限定、比較元の取り違え、系図の旧表現) も直した。受入全走は本 fragment を含む tip で行い、結果は job dir `/home/SFC/tanab/.claude/jobs/4811f999/` の receipt に残す (本 commit の後に走るのでここには書かない)。
 
 ## 次の一手差分
 
