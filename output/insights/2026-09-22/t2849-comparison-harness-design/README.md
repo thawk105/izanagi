@@ -150,9 +150,9 @@ random・sweep (座標探索)・BO・進化探索・LLM を同じ候補適用・
 |---|---|---|
 | BO / 進化の (v, fitness) | 台帳の `evaluation-result` event の `fitness_tps`・`outcome`・`quality` (`b5_generator_contrast.py:69-73`) | 初期点の event を同じ形で足す |
 | BO の失敗 v の集合 | `evaluation-result` (build 失敗・anomaly) と `proposal-rejected` (Tier0 不通過など、:806-807) | 両 event から候補起因の失敗だけを集める |
-| LLM の whiteboard 5 field | `expected_inputs` (:451-477) | B-5 のまま変えない: pipeline へ投入した評価だけを、iteration = b の連続で、certified なら success・それ以外は fail と写す (:796-800)。5 field と値域 (`p3_s4_loop.py:1418-1424`) も継承照合も変えない |
+| LLM の whiteboard 5 field | `expected_inputs` (:451-477) | B-5 のまま変えない: pipeline へ投入した評価だけを、iteration = b の連続で、certified なら success・それ以外は fail と写す (:796-800)。5 field と値域 (`p3_s4_loop.py:1418-1424`) も、whiteboard の継承照合 (iteration = b の連続) も変えない |
 | LLM への初期点と投入前の拒否 | 初期点は (無い)、拒否は `proposal-rejected` event (:750-752・:782-785・:806-807) | whiteboard には入れない (初期点は planner の方向を持たず、投入前の拒否には空出力・不正出力のように有効な planner 出力が無いものがあり、5 field の行を作ると方向・大きさを架空に補うことになるため)。planner / coder の入力に閉じた兄弟 key を 1 つ足し、2 つの列を渡す: 初期点ごとの (v・結果分類・fitness は certified・品質正常のときだけ) と、自系列の投入前の拒否ごとの (提出機会の番号 a・拒否の分類 = schema / 文法 / 検疫 / Tier0)。拒否の列に候補の値や自由文は入れない |
-| LLM の current_perf | `expected_inputs` の「最新の certified・品質正常」 (stock-start を含む) | 初期点も候補に入る。規則 (最新であって最良でない) は B-5 と同じ |
+| LLM の current_perf / baseline | `expected_inputs` の「最新の certified・品質正常」 (stock-start と evaluation-result だけから作る、:462-463) と、それを照合する `assert_inherited_inputs` (:477-484) | 初期点も候補に入る。規則 (最新であって最良でない) は B-5 と同じ。期待値の作り方と照合に初期点を加える (whiteboard の照合と違い、ここは変える) |
 | LLM の critic 診断 | D2155 の射影 | K0 へ適用範囲を広げる。診断の材料は自系列の記録だけ |
 | (どの手法にも渡さない) | Tier0 のスモークの数値 (D2215)、block stock、endpoint 再計測、参照点の測定値 (R0) | — |
 
@@ -353,7 +353,7 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 1. 機械生成の proposal の slot を B-5 の接頭辞から外す (本基盤の名前空間の slot key を受ける。`p3_s4_loop.py:3550`・`:3557-3559`)。
 2. S1 の 5 手法の系列制御: B-5 の `run_series` と同じ手順に、初期点の slot、5 arm、全 arm の A 上限を足した薄い制御。汎用 runner にしない。B-5 の module は並走の [T-2797] が発効束を扱っているので、同じ file を編集せず兄弟 module に置くのを推奨する。台帳は `SeriesLedger` を schema 名だけ変えて使う。
 3. 生成器: BO (§3.2)・進化 (§3.3) を標準ライブラリで。random / sweep は B-5 の関数を名前空間を変えて呼ぶ。固定入力での値の照合試験を持つ。
-4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、初期点と投入前の拒否を渡す閉じた兄弟 key (§4.1。whiteboard と継承照合は B-5 のまま)。
+4. K0 LLM の入口: 機械生成の印なし + `--allow-coder-derived-build` の経路の slot 実行、D2155 の射影の K0 への適用、初期点と投入前の拒否を渡す閉じた兄弟 key (§4.1)。whiteboard の 5 field・iteration = b・その継承照合は B-5 のままにし、current_perf / baseline の期待値と照合には初期点を加える。
 5. 参照点と endpoint の集約: 明示した参照 genome (`p2_2_flag_opt` の exact flags、BACK_OFF=0) を stock と同じ共通の検証・計測へ渡す入口と block ごとの測定、全系列への anomaly の波及、初期点を含む資格、§4.6 の欠測と fallback の優先。
 6. 費用の field: job ごとの Elapse、生成器の計算時間、LLM の役割呼び出しの回数と wall、人間の介入の記録。
 7. (並列に流すときだけ) node-local の bench lock を B-5 mode の外でも使えるようにする (D2209 は B-5 mode 限定。無いと共有 lock で直列化する、D2214 の insight §6)。
@@ -370,7 +370,12 @@ S3 の設計は D2214 と `output/insights/2026-09-21/silo-function-synthesis-sp
 - 段 5 (親): 本書と fragment 2 本を起草し、草稿として commit した (`4950bde6d`)。
 - 段 6 (Codex read-only review 1 本、事実の再抽出と設計択一の 2 レンズ、09:38〜09:43:14): NO-GO、must-fix 4 / should 3、段 3 の 21 件は closed 11 / partial 10 / not-closed 0。親は 7 件すべてを real と判定し (refuted 0)、次を直した。(R1) LLM の whiteboard の写し方 (iteration を提出機会の順、投入前の拒否を rejected) と初期点を渡す兄弟 key を定めた。(R2) endpoint が無いときの fallback と品質欠測・機械欠測の優先を B-5 の実装どおりに分けた。(R3) 進化の支持集合を「親の近傍、全域到達を保証しない」に直し、失敗点を使わないと定めた。(R4) `p2_2_flag_opt` を測る参照 genome の入口を実装単位に足し、read-heavy の flags を列挙した。(R5) K0 と K2 の差は coder の契約も含むと直した。(R6) 不在の断定を検索範囲つきに直し、pin と MOCC_SPACE は親が実測した。(R7) D2214 の項番号と insight の節番号を分け、「非 LLM の 3 手法」を 4 手法に直した。裁定の全文は `verbatim/s6-ruling.md`。
 - 段 6 焦点再レビュー 1 巡目 (Codex read-only、09:49〜09:52:18): NO-GO、must-fix 2 / should 1 / nit 1、R1〜R7 は closed 4 / partial 3 / regressed 0。親は 4 件とも real と判定し、次を直した。(F1) 空出力・不正出力の拒否には有効な planner 出力が無く whiteboard の 5 field を作れないので、R1 で入れた「iteration を提出機会の順にする」案を撤回し、whiteboard と継承照合は B-5 のままにして、初期点と投入前の拒否を 1 つの閉じた兄弟 key で渡すことにした。(F2) 機械故障の retry 上限超えは endpoint の有無を問わず系列を終えて score 欠測にする (B-5 §3.3 と実装 :810-816)。(F3) MOCC_SPACE は直接参照だけを数え、間接利用と driver の有無は未確認と書いた。(F4) `CURRENT_PIN` は 7 桁 prefix と書いた。逐語は `verbatim/s6-focus-1.md`、裁定は `verbatim/s6-focus-1-ruling.md`。
+- 段 6 焦点再レビュー 2 巡目 (Codex read-only、12:09:33〜12:11:28): **GO**、must-fix 0 / should 1、F1〜F4 はすべて closed。should (G1) は real と判定し、whiteboard の照合は B-5 のまま・current_perf / baseline の期待値と照合には初期点を加える、と §4.1・§11・fragment に明記した。逐語は `verbatim/s6-focus-2.md`。GO は設計文書に対する判定で、実装の正しさを保証しない。
 
 ## 13. 検査の記録
 
-(段 6・段 7 で追記する。)
+- 実装面の差分はゼロ (docs・insight・台帳 fragment だけ) なので、変異 matrix は `DW-S04` により免除した。
+- 記録 commit の前 (2026-09-22 12:1x JST、作業木 = 焦点 2 巡目の訂正後): `python3 tools/check_docs.py` は違反なし、`python3 tools/spool_fold.py --dry-run` は rc 0、新規 file の行末空白は 0 件。
+- 三軸語の走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は rc 1 だが、hit 3 件はいずれも main に既存の `output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/` の journal / manifest / result で、本 wave の file の hit は 0 件。
+- 草稿と訂正の各 commit の前に `python3 tools/check_ai_provenance.py --message-file` を通した (いずれも違反なし)。
+- 受入全走と land の結果は、本書を含む記録 commit の後に走り確定するので、本書には書かない (受領証は wave の job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2849-comparison-harness-design/`)。
