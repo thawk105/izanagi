@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] T-1851 の取り残し worktree `dev-wave-t1851-c3c-official-floor` の tracked 外 file 3,485 件を [T-1851] / [T-2698] の正典と照合し、
+  正典に bytes が無い研究記録 216 件 (claims 3・submissions の小 file 57・`.gitignore` 無視対象の job-staging 156) を repo 外の
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1851-leftover-audit/preserved/` へ sha256 付きで保全した (2026-09-22 のユーザー依頼、台帳 ID 未起票)。
+  lock・worktree・branch は変えず、撤去の可否は D2194 項 10 (b) のまま。照合結果と「証拠の所在」は
+  `output/insights/2026-09-22/t1851-leftover-worktree-audit/README.md`。
 - [x] 本体論文の日本語方法節と実装対応メモを 2026-09-21 版として改稿した (2026-09-21 の執筆依頼、台帳 ID 未起票)。
   `output/insights/2026-09-21/paper-methods-ja/{methods,implementation}.md` の方法節 §3 に B-8 の方法 (発効束・repo 外の runner v5・
   校正段と本走段・3 値判定の規則、D2202 / entry 1791) を加え、判定集合を「本走 24 枠 (独立 8 反復 × 3 workload・extime 10 s) + 校正の
