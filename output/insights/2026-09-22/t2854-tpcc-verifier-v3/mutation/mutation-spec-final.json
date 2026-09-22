@@ -1,0 +1,368 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-equivalent-int-base",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "    value = int(token, 10)\n",
+     "new": "    value = int(token)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-object-identity-drops-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/model.py",
+     "old": "    return (access.table, access.key) if isinstance(access, (ReadV3, WriteV3)) else access.key\n",
+     "new": "    return access.key\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-compact-intern-drops-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "        identity = (table, token) if schema == 3 and table >= 0 else token\n",
+     "new": "        identity = token\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-packed-readonly-resolution-wrong-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                    key = _object_at(columns, token)\n                    local_ids[token] = key_ids.get(key, -1)\n",
+     "new": "                    key = (9, _object_at(columns, token)[1]) if columns.schema == 3 else _object_at(columns, token)\n                    local_ids[token] = key_ids.get(key, -1)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4a-tuple-builder-drops-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                key = _object_at(columns, token_id)\n",
+     "new": "                key = _object_at(columns, token_id)[1] if columns.schema == 3 else _object_at(columns, token_id)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b-tuple-worker-read-drops-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                key = _object_at(columns, columns.read_key_id[read_index])\n",
+     "new": "                key = _object_at(columns, columns.read_key_id[read_index])[1] if columns.schema == 3 else _object_at(columns, columns.read_key_id[read_index])\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-cross-file-schema-check-disabled",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "    for path, current in sorted(files):\n",
+     "new": "    for path, current in []:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-in-file-schema-check-disabled",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                        if schema is not None and schema != current_schema:\n",
+     "new": "                        if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-tx-type-range-widened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                            extra[\"tx_type\"] = _v3_integer(f[9], \"tx_type\", 1, 5)\n",
+     "new": "                            extra[\"tx_type\"] = _v3_integer(f[9], \"tx_type\", 0, 6)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-table-range-widened",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                        access_extra[\"table\"] = _v3_integer(f[2], \"table\", 0, 10)\n",
+     "new": "                        access_extra[\"table\"] = _v3_integer(f[2], \"table\", 0, 11)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-scan-counts-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                            if ns != 0 or nq != 0:\n",
+     "new": "                            if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-canonical-decimal-check-disabled",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "    if re.fullmatch(r\"0|[1-9][0-9]*\", token) is None:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type",
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-reasons-match-raw-key",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "        u_writes = {object_identity(w): ut.commit for w in ut.writes}\n",
+     "new": "        u_writes = {w.key: ut.commit for w in ut.writes}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12-compact-tx-type-fixed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "        **({\"tx_type\": columns.txn_tx_type[row]} if v3 else {}),\n",
+     "new": "        **({\"tx_type\": 1} if v3 else {}),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13-v3-output-omits-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "                reason_dict[\"table\"] = reason.table\n",
+     "new": "                pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-v3-existence-mark-not-set",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "        dsg.integrity.v3_existence_unverified = True\n",
+     "new": "        dsg.integrity.v3_existence_unverified = False\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15a-v3-lock-coverage-not-collected",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                        issues.lock_coverage_violations.append(\n",
+     "new": "                        (issues.lock_coverage_violations if not access_extra else []).append(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15b-v3-write-intent-not-collected",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "                        issues.write_intent_violations.append(\n",
+     "new": "                        (issues.write_intent_violations if not access_extra else []).append(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16-diag-v3-always-legacy",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/parse.py",
+     "old": "    token_blob = bytearray()\n",
+     "new": "    if schema == 3: return _ParsedFileNeedsLegacy(path_index, path, os.getpid(), schema)\n    token_blob = bytearray()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+    "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
