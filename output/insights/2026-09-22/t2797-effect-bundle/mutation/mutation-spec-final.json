@@ -1,0 +1,464 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "PREREG_VERSION = \"b5-generator-contrast-v1\"\n",
+          "new": "PREREG_VERSION = \"b5-generator-contrast-v1\"\n# equivalent mutation marker: comment only\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma1-registered-purpose-pilot",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "\"purpose\": purpose,",
+          "new": "\"purpose\": \"pilot\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cli_reaches_real_producer[registered-run-block-stock]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cli_reaches_real_producer[registered-run-series]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cohort_mapping[registered-b5-registered-v1]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_registered_block_stock_header",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_registered_header_consumed_by_existing_report",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_registered_producer_leaves_allocation_validation_to_report"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma2-registered-cohort-pilot",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "\"cohort\": COHORT_REGISTERED if purpose == \"registered\" else COHORT_PILOT,",
+          "new": "\"cohort\": COHORT_PILOT,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cli_reaches_real_producer[registered-run-block-stock]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cli_reaches_real_producer[registered-run-series]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cohort_mapping[registered-b5-registered-v1]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_registered_block_stock_header"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma3-pilot-limits-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "\"Pilot only; does not establish preregistration section 10 completeness.\")],",
+          "new": "\"Pilot only; does not establish section 10 completeness.\")],"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_pilot_header_bytes_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma4-block-stock-drops-purpose",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "_header(\"stock\", workload, block, block, repo_root, purpose=purpose)",
+          "new": "_header(\"stock\", workload, block, block, repo_root)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_purpose_cli_reaches_real_producer[registered-run-block-stock]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_registered_block_stock_header"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma5-block-formula-shift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "block = (series - 1) // 4 + 1",
+          "new": "block = series // 4 + 1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_coordinates",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_llm_four_per_stage",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_six_orders_twice",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_stage_job_counts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma6-no-pair-rotation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "excluded = (w + block - 1) % 3",
+          "new": "excluded = w % 3"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_six_orders_twice"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma7-no-reverse-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "order = (x[0], y[0], x[1], y[1])[(series - 1) % 4]",
+          "new": "order = (x[0], y[0], x[0], y[0])[(series - 1) % 4]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_coordinates",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_llm_four_per_stage",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_schedule_six_orders_twice"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma8-block-stock-stage-1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "series=block, block=block, stage=2, arm=\"stock\", mode=\"block-stock\"",
+          "new": "series=block, block=block, stage=1, arm=\"stock\", mode=\"block-stock\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_dry_run_has_no_side_effects",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_job_specific_submit_trees",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_stage_job_counts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma9-job-id-without-series",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "job_id=f\"b{block}-{workload}-r{series:02d}-{arm}\"",
+          "new": "job_id=f\"b{block}-{workload}-{arm}\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_stage_job_counts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma10-walltime-floor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "to_integral_value(rounding=ROUND_CEILING)",
+          "new": "to_integral_value(rounding=\"ROUND_FLOOR\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_environment_exact",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_walltime_decimal_boundaries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma11-stock-uses-series-base",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "((\"series\", 21259), (\"block-stock\", 5447))",
+          "new": "((\"series\", 21259), (\"block-stock\", 21259))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_environment_exact",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_walltime_decimal_boundaries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma12-k2-to-every-arm",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "k2=k2 if row[\"arm\"] == \"llm\" else None",
+          "new": "k2=k2"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_cli_schedule_and_dry_run",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_dry_run_has_no_side_effects",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_environment_exact",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_job_specific_submit_trees",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_submit_stops_at_first_failure[2]",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_submit_stops_at_first_failure[None]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma13-dry-run-mkdir",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "    if not submit:\n        for job, tree, env, argv in commands:\n            print(json.dumps({\"job_id\": job.job_id, \"cwd\": str(tree.repo),",
+          "new": "    for job, tree, env, argv in commands:\n        Path(env[\"IZANAGI_S4_EVIDENCE_ROOT\"]).mkdir(mode=0o700, parents=True)\n    if not submit:\n        for job, tree, env, argv in commands:\n            print(json.dumps({\"job_id\": job.job_id, \"cwd\": str(tree.repo),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_cli_schedule_and_dry_run",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_dry_run_has_no_side_effects",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_submit_stops_at_first_failure[2]",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_registered_submit_stops_at_first_failure[None]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma14-pilot-env-gets-purpose",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "\"IZANAGI_S4_B5_LEDGER_ROOT\": str(ledger),",
+          "new": "\"IZANAGI_S4_B5_LEDGER_ROOT\": str(ledger),\n        \"IZANAGI_S4_B5_PURPOSE\": \"pilot\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_dry_run_prints_final_argv_without_runner_or_mkdir",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_four_qsub_argv_and_explicit_environment_are_exact",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_main_dry_run_validates_tree_and_prints_four_jobs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma15-job-body-purpose-unchecked",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "    pilot|registered) ;;",
+          "new": "    *) ;;"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_purpose_invalid_before_prebuild[Registered]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_purpose_invalid_before_prebuild[]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_purpose_invalid_before_prebuild[unknown]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "ma16-job-body-registered-not-forwarded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  if [[ \"${IZANAGI_S4_B5_PURPOSE-pilot}\" == registered ]]; then",
+          "new": "  if [[ \"${IZANAGI_S4_B5_PURPOSE-pilot}\" == never ]]; then"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[0-llm]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[0-random]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[0-stock]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[0-sweep-matched]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[7-llm]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[7-random]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[7-stock]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_b5_registered_purpose_reaches_driver[7-sweep-matched]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb1-context-fixed-rr5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "rratio=flags[\"ycsb_rratio\"]",
+          "new": "rratio=\"5\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_context_uses_calibrated_workload"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb2-a-as-k",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "        k = req[\"next_evaluation\"]",
+          "new": "        k = a"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_rejected_opportunity_preserves_evaluation_number"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb3-diagnosis-on-initial",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "        if k >= 2:",
+          "new": "        if k >= 1:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_initial_and_inherited_inputs",
+        "orchestrator/tests/test_b5_llm_round.py::test_proposal_rejects_changed_inheritance_before_publication",
+        "orchestrator/tests/test_b5_llm_round.py::test_proposal_rejects_k2_anomaly_before_publication",
+        "orchestrator/tests/test_b5_llm_round.py::test_proposal_uses_existing_checks_and_refuses_overwrite",
+        "orchestrator/tests/test_b5_llm_round.py::test_registered_round1_prompt_golden"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb4-missing-cv-as-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "cv_text = \"null (欠測)\" if bp.get(\"cv\") is None else",
+          "new": "cv_text = \"0.0000%\" if bp.get(\"cv\") is None else"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_critic_missing_metrics_remain_missing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb5-first-model-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "                models.add(model)",
+          "new": "                models.add(model) if not models else None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_models_collect_all_assistant_ids"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb6-meta-fields-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "\"agentType\": metadata.get(\"agentType\"), \"toolUseId\": metadata.get(\"toolUseId\"),",
+          "new": "\"agentType\": None, \"toolUseId\": None,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_model_record_metadata_and_raw_hashes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb7-matches-always-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "\"matches_expected\": not reasons,",
+          "new": "\"matches_expected\": True,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_model_record_flags_mismatch",
+        "orchestrator/tests/test_b5_llm_round.py::test_models_collect_all_assistant_ids"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb8-json-indent-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2)",
+          "new": "json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=1)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_registered_round1_prompt_golden"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb9-version-into-reasons",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "version_notes.append(f\"transcript line {number}: invalid version\")",
+          "new": "reasons.append(f\"transcript line {number}: invalid version\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_model_record_version_is_recorded_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

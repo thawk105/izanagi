@@ -71228,3 +71228,246 @@ check は既存 `compute_checks()` の 14 key を無変更で使い、候補固�
   `.text` bytes 比較を採らない代わりに、材料では `.text` bytes 一致を主張しない (TRACE=0 の証拠は D297 と、nm / strings / 正規化逆アセンブル一致)。**最も強い反論:** D1687 は補助 witness として `.text` の一致を compute JSON に記録すると書き、T-2294 は bytes 一致を login の別実測で支えていたので、候補には bytes 一致の証拠が無い。採らないのは、T-2294 の compute JSON 自体が正規化逆アセンブル一致を compute 側の witness として記録した先例であり、D1603 の材料 (2) が D297 の結果だからである。
 - 新しい driver file を作る — build・condition gate・負例 patch の経路を複製することになり、materializer 登録簿などの追随が増える。
 - 候補の source を repo に置かず、test が job dir の bundle を読む、または C を fetch する — 通常の受入の可搬性を満たさない。
+
+## D2219. 全 12 項の裁定 — 計算確認の線は開発の検査も数え、TPC-C は段 1 → 段 2 の分割で確定、VLDB は 2027-02-01 を目標に 12/11 頃に見切りを諮り、受入前段の縮約と同時本数の緩和は今は採らず、H100 の open-weight LLM と CCBench 所見の上流還元は条件付きで保留 (2026-09-22)
+
+**決定 (ユーザー裁定):** 索引 12 項 (ユーザー裁定待ち 7 + 人間手番 3 + 据え置き 1 + 収載維持 1) の説明と推奨に対し、ユーザーは
+「推奨通りで」と回答した (2026-09-22 08:4x JST)。下の番号は会話の索引番号と一致する。本決定は裁定記録であり、実装・記帳・commit・
+送信が完了したことを意味しない。各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 窓は entry 1809〜1818 (第 30 回 D2211 が提示時点で見た末尾 1808 の次から。1809 と 1810 は第 30 回の提示後に着地し、同回の控えが一部を扱った)。
+収集開始は main `c8884095f` (entry 1817)、収集中の 07:55 JST に別 wave が land し (entry 1818・D2218・F1040・T-2858)、提示は main `8fd2a2f5c` (08:08 JST に再照合)、
+受領時点 (08:43 JST) も main は不変。追跡 ref origin/main = `36fb14a3d` (背景 job では fetch しない)。次の一手 618 項を carry 鎖の実体まで解決し (未解決 0)、
+1809 以後に消えた ID は 5 (T-2632 / T-2836 / T-2839 / T-2842 / T-2844、いずれも正規の完了)、増えた ID は 13 (T-2846〜T-2858)。D2206 / D2211 と窓内の D2212〜D2218 の決定文、
+窓内 insight 8 本 (`t2826-modify-timing-resume`、`vldb-direction`、`t2632-b4-evidence-carrier`、`paper-results-figures`、`tpcc-trace-certification-design` §8・§9、
+`silo-function-synthesis-space`、`paper-methods-ja`、`t2797-tier0`) の決定要求と段 8、failures の窓内追記 (新 F 4 件、F633 ほかの再発追記)、repo 内外の handoff・
+rulings-inbox (新着 2 本は D2211 / D2212 に記録済み)、稼働 session・job dir、`docs/phase3.md` 現行チェックポイント (ユーザー gate 0)、見送り台帳 (所有 file = 項文 + 起点 entry +
+項が引く D の本文、窓内の変更 file 479 本と照合)、数値条件、Git 未 push を照合した。VLDB の投稿規定は公式 (https://www.vldb.org/2027/submission-guidelines.html) を
+08:1x に取得して確かめた (毎月 1 日締切、前月 25 日までの概要提出が必須、最終 2027-03-01、研究トラック却下後は元の投稿日から 1 年再投稿不可)。
+
+**相談の採否:** 別系統モデル 2 本 (A 推奨の当否 / B 索引漏れ、いずれも read-only、rc=0 で受理)。A は 7 判定 (同意 5・反対 1・既裁定誤引用 1) で 3 件を書き換えた —
+項 4 (T-2845) は起草の「設計 wave を起こす」が D1894 (次の短縮対象は最大 worker 占有、3 shard 共通の collection は対象にしない) と D1936 項 35 (次も実測で律速を選ぶ、
+未確認のまま実装しない) を読み違えていたので「今は起こさない」へ反転、項 5 (T-2838 択 B) は既裁定に無い従属条件 (T-2845 の縮約の効果) と probe から言えない負荷の推論を削除、
+項 3 は「03-01 は予備」を「02-01 に間に合わない場合の延期先 (却下後の救済枠ではない)」へ直し前月 25 日の概要締切を足した。B は索引漏れ 1 行 (項 2 = TPC-C の段階分割の
+明示確認。D2212 項 2 と TPC-C 設計 README §1 が「明示確認は未取得、確定裁定ではない」と書く)、外すべき 1 行 (T-2382 は再提示条件の不成立を判定するだけの AI 手番)、
+事実誤り 2 件 (probe 内の数値を実受入の効果へ広げた、F633 の再発追記の「裁定を要する」を 0 件と数えた) を挙げ、親が原典で検算して全件採用した。
+
+### 項 1 — 未採番 (D2212 項 4 の解釈): 計算確認の線に開発の検査も数える
+
+対象: 未採番。資料: D2212 項 4、rulings-inbox `2026-09-21-vldb-direction-verdicts.md` 項 4 (ユーザー逐語「計算予算を2ノード時間以上使うものは確認が欲しいな。
+つまりこれは2ノードで一時間ずつか、1ノードで2時間か。4ノードで30分ずつか。」)、entry 1817 / 1818 の計算量の段。
+
+**決定:** 1 つのタスク (1 本の実験、または 1 本の wave) で投げる job の合計が 2 node 時間以上なら事前にユーザー確認を取る線に、開発の検査 (受入・焦点走・変異) の
+計算も数える。D2212 項 4 が「親の解釈、明示確認は未取得」とした部分を本決定で確定する。見積りは外側の待ち時間ではなく job の実測所要 (Elapse) の単価で出し
+(受入 1 回 ≈ 0.25 node 時間)、2 node 時間未満の見込みなら確認待ちにしない。`docs/roadmap.md` §5 の該当文を本決定で協議改訂として in-place に改める。
+
+**理由・採らない案:** ユーザーの文言は計算の種類を分けておらず、検査も同じ計算資源を使う。実測単価で見積もれば通常の wave は線の下に収まり、止まるのは受入を
+繰り返すような重い wave だけである。(b) 数えない — 重い wave の検査だけで 2 node 時間を超えても知らせない。(c) 開発の検査に別の線 — 実測の無い新しい線を足す。
+
+### 項 2 — 未採番 (D2212 項 2): TPC-C を段 1 → 段 2 の分割で必須にする改訂推奨を確定する
+
+対象: 未採番 (T-2854 / T-2855 の分割)。資料: D2212 項 2、`output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §1・§7.2・§8 の 4。
+
+**決定:** TPC-C を「段 1 = NewOrder / Payment (CCBench 既定比 88%、点読み・点書き・insert のみ) の直列化可能性の認定 → 段 2 = 範囲読み (`tx.scan`) を含む全 5 取引へ拡張
+(範囲読みを述語読みとして扱い phantom 依存を検出)」の順で必須にする改訂推奨を確定する。正しさゲートは不変。
+
+**理由・採らない案:** 設計 wave (entry 1814) の敵対検証を経て、段 1 の v3 frame は段 2 の件数欄を最初から持ち、段 2 のために作り直さない。段 1 は既存の枠組みの延長で閉じる。
+(b) 全 5 取引を一体で作る — 段 2 の意味論 (不在の観測版を直接の証拠で決める) が未検証のまま全体を作り、手戻りの危険がある。主経路に近い (VLDB で期待される workload での認定の前提)。
+
+### 項 3 — 未採番 (D2212 項 1・7): VLDB の目標投稿月と見切り判定の時期
+
+対象: 未採番 → 本決定で見切り判定の再提示項を起票する。資料: D2212 項 1・7・9、`output/insights/2026-09-21/vldb-direction/gap-analysis.md` §6・§7、公式投稿規定。
+
+**決定:** PVLDB Vol.20 への目標投稿を 2027-02-01 とする (概要の提出は 2027-01-25 まで)。2027-03-01 (Vol.20 の最終締切) は 02-01 に間に合わない場合の延期先であり、
+却下後の出し直し枠ではない (研究トラックで却下されると元の投稿日から 1 年再投稿できない)。見切り投稿はしない。研究課題の見切り判定は ComSys 2026 原稿締切 (10/30) の
+6 週後 = 2026-12-11 頃に /rulings が諮る。判定の基準は差分分析の文言 (強い基準との比較から新しい境界・原因・評価方法が出たか) を使い、「材料が足りない」と
+「否定的な結果が出た」を分けて扱う。
+
+**理由・採らない案:** 02-01 から逆算すると 1 月上旬に結果が要り、10/30 までは ComSys が帯域を使うので、今から 4〜6 週の判定は VLDB 実験がほぼ無い時点になる。
+03-01 を目標にする — 最終締切ちょうどで延期先が無い。判定時期を決めない — 組み替えの判断点が無いまま実験費用が積み上がる。
+
+### 項 4 — T-2845: 受入前段の `Path.resolve()` の重複を縮める設計は今は起こさない
+
+対象: T-2845。資料: `output/insights/2026-09-21/t2826-modify-timing-resume/README.md` 結論・§5・§6、`output/insights/2026-09-16_t2617-acceptance-collection-cost/README.md` §4、
+D1894、D1936 項 35、D1728。
+
+**決定:** 縮約方式の設計・実受入の隣接対・T-2617 §4 の再判定は今は起こさない。T-2617 §4 の判定は条件 (login 単独 process) の違う記録として残し、T-2826 の計測
+(計算ノード 48 worker) も記録として残す (規律 7)。再提示の目安 = T-2273 の律速 (shard-0 の最大 worker 占有、active_v2 系 node) への対処が進み前段が律速になったとき、
+または実受入での効果を実装なしで測る安い手段が出たとき。
+
+**理由・採らない案:** D1894 は受入短縮の次の対象を最大 worker 占有とし、3 shard 共通の collection を対象から外した (却下欄「collection を対象にする — D1728 の既裁定に触れる」)。
+D1936 項 35 はそれを「次も実測で律速を選ぶ。prewarm 等は効果を先に測り、未確認のまま実装しない」と追認した。T-2826 の反実仮想は collection だけの probe の 1 条件で、
+同 insight §6 が「実受入の wall の予測・短縮策の効果の見込みには使わない」と限定している。(a) 設計 wave を起こす — 律速でない側を先に実装し、効果の確認を実装後の
+land 判定へ回す。主経路からは遠い (開発基盤)。
+
+### 項 5 — T-2838 択 B: 他 wave の受入 leader 上限を期間限定で 2 に上げる案は今は採らない
+
+対象: T-2838。資料: D2206 項 6、D2211 項 4、`output/insights/2026-09-21/acceptance-gate-wait-diagnosis/README.md` §3.4・§7。
+
+**決定:** D2206 項 6 の再提示条件 (門番待ちの実測 wave と受入律速の診断が揃う) は entry 1809 で成立したので再提示し、今は採らないと決める。D2211 項 4 の択 A
+(leader の数え方を argv 先頭一致に統一、AI 手番) を先に実施し、同じ probe で閉門の内訳を取り直し、なお長い待ちが残る場合に期間限定の B を改めて提示する。
+試すときは待ち・受入 wall・赤率を同時刻対照で比べる。
+
+**理由・採らない案:** A だけで、記録上は走行 1 本以下なのに leaders 起因で閉じていた時間 (9/19 以降の推定 1,003 分、約 49%) が消える可能性があり、B を先に入れると
+A の効果と同時走行増の影響が区別できない。A を先に採る順序は insight §7 の提案で、既裁定の義務ではない。(a) 今すぐ B — 効果の帰属が取れない。(c) 恒久に採らない —
+A の後にもなお待ちが残る場合の手を捨てる。主経路からは遠い (運用)。
+
+### 項 6 — 未採番 (D2212 項 8): 計算ノードの H100 で open-weight のコード LLM を動かす案は今は採らない
+
+対象: 未採番。資料: D2212 項 8、差分分析 §7 項 8、全体共通の鉄則 (サブスクのログインが無いホストから LLM を呼ぶ設計は実装前にユーザーへ諮る)。
+
+**決定:** 今は採らない。再提示の条件 = 本比較 (T-2850) の規模を決める時点で LLM の直列時間が律速になるとき、または第 2 モデルでの一般性が研究上必要になったとき。
+条件の成立は実装の許可ではなく、成立時に改めて諮る。
+
+**理由・採らない案:** ComSys を優先する間、関数単位の軸の C 段・D 段と試走はサブスクの直列時間に収まる見込みで、推論基盤の構築と第 2 系統の交絡を今足す理由が無い。
+(b) 下調べだけ・(c) 採る — 論文の必須経路の外の基盤作業を ComSys 期間に足す。
+
+### 項 7 — 未採番 (TPC-C 設計 insight §9): CCBench で見つかった問題の上流還元は今は送らない
+
+対象: 未採番 (T-2854 / T-2855 の実装 wave へ再現の手番を載せる)。資料: `output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §8・§9、D2186 項 7、
+`CLAUDE.md` の作業の進め方 4 (上流 PR / push は人間の判断)。
+
+**決定:** 静的に読んだ所見 (挿入 tuple の公開後・write set 登録前の return、abort による挿入 tuple の即時解放、si の update / delete が read set を消す、OrderLine の番号の食い違い、
+OrderStatus が最古の order を読む、Delivery の NOT_FOUND 無視) は今は上流へ送らない。TPC-C 段 1・段 2 の実装 wave で実行による再現を試み、その結果 (再現できなかった分の
+扱いを含む) で T-2791 と同じ形 (英語本文 + 一次資料対応表、送信は人間) の報告案を作るかを改めて諮る。si の trace が v1 形式である件は izanagi の計装
+(ccbench `fee622f01`、2026-06-19) に由来するので上流報告に含めない。
+
+**理由・採らない案:** 静的所見だけで出すと誤報の危険がある。段 2 の寿命修正で必ず再現できるとは限らないので、再現できなかった分の扱いも再提示時に決める。
+(b) 静的所見のまま今報告案を作る — 再現なしの報告と人間の送信手番を今増やす。(c) 恒久に還元しない — 再現できた不具合も返さない。
+
+### 項 8 — T-2858: ccbench の branch `izanagi-mocc-xp-instrumentation` の GitHub への push は人間手番
+
+対象: T-2858。**決定:** 決めることではなく実行手番の確認である。C = `68106660686232781bca3be792a750d3e19d7a8a` は bundle と記録に固定済みで、推奨は今 push すること
+(`git -C <main checkout>/external/ccbench push origin izanagi-mocc-xp-instrumentation`)。AI は push しない。push の後に pin 再承認の提示 wave (AI) を起こす。
+
+### 項 9 — Git: izanagi main の送信を承認する
+
+**決定:** local main `8fd2a2f5c` までの送信を承認し、push は人間が行う。提示時点の未 push 81 は追跡 ref `36fb14a3d` との差で、背景 job では fetch できず remote の現在値は
+確認していない。承認上限は提示の値のまま後続へ自動拡張しない。
+
+### 項 10 — T-2791: mocc G2 観測の上流報告は人間が送信する (実行手番、継続)
+
+D2186 項 7 / D2194 項 12 / D2200 項 10 / D2206 項 14 / D2211 項 13 の継続確認であり、決めることではない。送信済みなら次回の索引で閉じる。
+
+### 項 11 — T-2605: 著作権者表示は具体的指定まで据え置く
+
+**決定:** 指定が来るまで据え置き (直近 D2211 項 14)。git author identity から推測しない。今回も表示名の指定は無い。
+
+### 項 12 — 収載維持 7 件は変更なし
+
+対象: T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708。D1911 が追認し D1936 項 50 で「既裁定と留保維持」とした 7 件は変更なし。
+
+### 索引外の既裁定・移管済み項の扱い
+
+- T-2382 (観測 field の拡張・closed schema の v2 移行を実施しない): D2200 項 7 の再提示条件「T-2826 の内訳が出て schema なしでは次の一手が決まらないと示せたとき」は、
+  T-2826 が schema の外の probe で内訳と次の一手 (T-2845) を出したので不成立。見送り維持 (相談 B の指摘で索引から外し、判定だけを記録する)。
+- F633 (並行 session の worktree 撤去で受入の t810 系 test が赤) は 09-21 に 3 回再発した (T-2825 03-B、entry 1816 の受入 1 回目、entry 1818 の受入 2 回目)。窓内の再発追記は
+  「受理集合を変えるため裁定を要する」を保つが、D2206 項 10 で既存の受入律速診断の材料へ移管済みで、移管先のうち T-2825 / T-2826 は着地、T-2273 が残る (AI 手番)。
+- 第 30 回の索引 15 行はすべて D2211 で裁定済み。窓内で完了したのは D2211 項 3 (運用は記憶へ)。項 1 (T-2795 の pair 再投入)、項 4 (T-2838 択 A)、項 5 (T-2344 次段)、
+  項 7 (T-2837)、項 9 (T-2846) は未実施の AI 手番。
+- 09-21 20:26 JST の掃除 (d 回) が -D した 6 commit (`author-t2825-*` 5 本と `author-t2826-probe`、bundle `cleanup-branches-20260921d-rescue/deleted-branches.bundle`) は
+  main から到達できず到達不能 object 台帳に未記帳だったので、本記録で T-2840 の記帳対象へ足した (記帳自体は AI 手番、解決は記帳後に /rulings へ)。
+- 見送り台帳の相乗り条件が窓内の同一 file 編集で再成立したのは T-281 (`orchestrator/tests/test_p3_s4_loop.py`、T-2632 と T-2797 の wave) と T-436 (`docs/phase3.md`) で、
+  いずれも D1780 のまま (新しいユーザー手番ではない)。
+- 条件未到達の将来の確認: T-2857 (C 段、設計時の換算 2.41〜4.12 node 時間)、D2214 の D 段・人間判断・`.claude/agents/` の変更の明示承認、D2217 の倍率 k、T-2795、
+  TPC-C の最初の計算投入、VLDB P0〜P6 の各投入。
+- 裁定済み未実装は 50 (第 30 回の 46 + D2211 で実装手番が生じた 5 − 窓内完了 1)。別枠で、D2212 / D2214 から起票した新規研究項 11 件 (T-2847〜T-2857) は未着手。
+  本決定で実装手番が生じる項 = 項 1 (roadmap §5 の文言、本記録で実施)、項 3 (見切り判定の再提示項、本記録で起票)。
+- 主経路との距離: 項 2・3 は VLDB 論文の計画と TPC-C 上の認定に直結し、項 7・8 は TPC-C と第 2 プロトコル (mocc) の前提。項 1 は全実験の運用規則。項 4・5 は開発基盤・運用。
+  裁定の一次控えは repo 外 rulings-inbox の `2026-09-22-rulings-full31-verdicts.md`。
+
+## D2220. 5 手法の比較基盤は候補 identity・評価要求・結果分類・費用計上の 4 契約だけを共通化し、具体化は silo の backoff 値空間に限る。主構成は参照値を生成器へ渡さない R0・知識射影なしの K0 LLM・系列ごとの共通初期点とし、BO と進化は逐次 GP-EI と (1+1) の再実装にする (2026-09-22)
+
+**決定 (設計のみ、実装しない):** VLDB 方針 (D2212) の差分分析 P2 に当たる比較基盤 (T-2849) の設計を、insight `output/insights/2026-09-22/t2849-comparison-harness-design/README.md` のとおり定める。要点は次のとおり。
+
+1. **共通化の範囲。** random・sweep・BO・進化・LLM が共有するのは、候補の identity (protocol・genome flags・PIN・材料化した source)、評価の要求 (`p3_s4_loop` の単回評価 → 検疫 → Tier0 → `run_campaign` / `pipeline.evaluate`、手法で経路を変えない)、結果の分類 (B-5 の分類)、費用の計上の 4 つの契約だけとする。候補を運ぶ入口 (S1 の proposal 文書、S3 の IR JSON・C++ 本文) は空間ごとに別とする。汎用の系列 runner・汎用台帳・S3 の表現設計は作らない。
+2. **具体化するのは S1 (silo の backoff 値 1..1000 µs) だけ。** random は B-5 の log-uniform、sweep は B-5 の 28 点格子から初期点の値を除いた hash 順の非適応走査 (1 次元では座標探索が格子の走査順に退化すると明記する)、BO は x = ln v の逐次 GP-EI (追加の初期 design 0、候補起因で失敗した v は獲得から外す)、進化は log 尺度の (1+1) 変異 (各提案は親の近傍に限られ全域到達を保証しない局所探索で、失敗点は使わない)、LLM は B-5 §4.1 の運用契約から knowledge manifest を除いた K0 構成 (planner・coder・critic、還流あり) とする。coder の role と proposal 契約は K2 版と通常版で違うので、K0 と K2 の差は知識射影だけではない。critic 診断の射影 (D2155) は K0 へ適用範囲だけを広げる (射影の中身と 6 field は変えない)。LLM の whiteboard の 5 field とその継承照合は B-5 のまま (pipeline へ投入した評価だけ、iteration = b) とし、current_perf / baseline の期待値と照合には初期点を加え、初期点と投入前の拒否 (提出機会の番号と拒否の分類だけ) は 1 つの閉じた兄弟 key で渡す。有効な planner 出力の無い拒否に方向・大きさを補わない。
+3. **揃え方。** 全 arm が読める共通入力 (自系列の slot の記録) と、各手法が消費する field を分けて定義する。主構成 R0 では、自系列の探索履歴に加えて生成器へ渡す初期情報は、系列開始 stock と空間内の初期点の観測だけとする。`p2_2_flag_opt` は exact flags (BACK_OFF=0) で block ごとに同じ動作点・session 契約・correctness 条件で fresh に測る報告用の対照とし、値を生成器へ渡さない。今の stock / 候補の経路は BACK_OFF=1 固定なので、参照 genome を同じ検証・計測へ渡す入口を実装する。渡す構成は R1「既知結果を条件とする探索」として別に名乗る。S1 の初期点は静的 5 µs と 10 µs (案) で、系列ごとに fresh に測り、最初の提案の前に全 arm へ渡し、B の外に置き (総評価数 k + B)、endpoint の候補に含める。anomaly による endpoint 資格の喪失は集約側で全系列へ波及させ、生成器へは還流しない。欠測と fallback は B-5 の実装と同じ優先で分ける: stock が成立しなければ判定不能、初期点・探索の機械故障が retry 上限を超えたら endpoint の有無を問わず系列を終えて score 欠測、endpoint が無く品質欠測があれば score 欠測、endpoint が無く失敗がすべて候補起因なら block stock の fallback。
+4. **費用の計上。** A は候補提出の機会 (空出力・不正出力を含む) で全 arm に上限を掛ける。A を消費しない内部計算は獲得関数の採点・乱数の偏り除去・事前に定めた構成規則だけとする。重複 (同じ系列で評価済みの identity の再提案) は A と B を消費して fresh に測る。Tier0 の compile / smoke 不通過は A だけを消費し、所要は物理費用に入れる。pipeline 内の build 失敗と anomaly は B を消費する。job Elapse は job ごとに 1 回数え、slot の wall は内訳とする。LLM の役割呼び出しは A でなく物理費用とし、token 数を金額に換算しない。統計単位は独立な探索系列、時間原点は系列開始 stock の開始時刻とし、checkpoint の最良は結果が使えるようになった候補だけから求める。B・A・k・系列数・費用上限・checkpoint・N_eval の値と比較の族は T-2850 の事前登録へ残す。
+5. **B-5 の再利用。** 規則 (A/B・retry・品質欠測・endpoint・fallback・Tier0・全 arm 同一 walltime・LLM 親運用) は継承し、S1 で呼べる関数 (重み表・格子・文法・`SeriesLedger`・slot の分類) は呼び、B-5 固有の結合 (arm 3 固定・slot 接頭辞・K2 必須・系列 1..12) は変える。B-5 の事前登録・cohort・判定規則は変えず、標本を混ぜない。
+6. **MOCC の差し込み口。** 人間の push → D1603 の材料での pin 再承認の提示と承認 → gitlink 等を更新する別 wave、の順が済むまで S2 は無効とする。S2 は、固定した MOCC flags (BACK_OFF=1 必須) の上で S1 と同じ literal の材料化 (合成枝を `double now_backoff = <v>;` に置換) が成立する場合の差し込み候補とする。MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する。温度述語 hole は使わない (D2134 項 9)。
+7. **S3 を足すときの条件。** 5 手法の主比較では、全 arm が同じ支持集合を探索するか、支持集合の制限を含む構成比較と明記するかを結果を見る前に選ぶ。LLM×C++ は比較 B で 5 手法の族に入れない (D2214)。
+
+**理由:**
+- 依頼は口の形・揃え方・B-5 の再利用範囲・BO / 進化の出所・費用単位・MOCC の差し込み口を求め、gate・検査・台帳・一般化の追加を scope 外とした。現に口が実在するのは S1 だけで、S3 は D2214 自身が実装・計算投入をしていないと書き (指定した識別子の検索でも実装コードは見つからなかった)、S2 は pin 前進前である。
+- 空間外の参照値 (BACK_OFF=0 の `p2_2_flag_opt`) を使えるのは LLM だけなので、主構成で渡すと LLM だけに情報が増え、差が情報の差か探索の差か分からなくなる。
+- 評価数 8〜10 程度の小予算で BO に初期 design を払わせると獲得による提案がほぼ起きず (例: 初期 design 8 点なら B = 8 で獲得 0 回)、(μ+λ) で μ = 4・λ = 4 を B = 8 から払えば初期集団の後に 1 世代しか残らない (予算の算術で、性能の予測ではない)。共通初期点を学習データと親に使う逐次更新なら、最初の提案から手法の性質が出る。
+- login の python3 で import を確かめた numpy・scipy・sklearn・optuna のうち、使えたのは numpy 2.2.6 だけだった (親が実測)。計算ノードは未測定。BO・進化の実装は、指定した語で `orchestrator/` と `tools/` の `.py` を検索した範囲では見つからなかった。S1 は学習点が数十・候補 1000 点なので標準ライブラリで足りる。numpy を使わないことは研究要件ではなく、使うなら実装 wave が可用性を測ってから。
+- 合成枝の既定式は BACKOFF_FIXED の千の位で待ち方の形を切り替える (`patches/silo-backoff-fixed.patch`) ので、MOCC で macro の値だけを流用すると 1..1000 µs の意味が S1 と一致しない。
+- 段 3 の Codex 相談 2 本 (比較の公平性・情報の漏れ / 実効性と過剰・再利用) の must-fix 15 件と should 6 件、段 6 の read-only review の must-fix 4 件と should 3 件、焦点再レビュー 1 巡目の must-fix 2 件・should 1 件・nit 1 件、2 巡目 (GO) の should 1 件を、いずれも real と判定し、上の形へ直した。
+
+**却下した選択肢:**
+- 汎用の系列 runner と arm 汎用の台帳 — 依頼の scope 外。`SeriesLedger` は arm も値も検査しないので、schema 名を変えるだけで足りる。
+- S3 で sweep / BO だけが template の部分集合を動く構成を「探索法の比較」と呼ぶ — 表現制限の効果が混ざる。
+- 参照値を全 arm へ渡す構成を主比較にする — 上記の情報の非対称。R1 として別に名乗るのは許す。
+- 初期点を B の中に入れる、または系列間で測定値を共有する — 前者は手法ごとの初期化支援量が予算を変え、後者は系列の独立性を崩す。
+- 初期点を endpoint から外す — 初期点より劣る探索点が endpoint になりうる。
+- BO の初期 design と (μ+λ) の個体群を B から払う — 小予算で手法が初期点の比較に退化する。
+- 外部の最適化 library の移植・呼び出し — login で使えず、計算ノードも未測定。S1 では不要。
+- K2 知識つきの LLM を主比較に入れる — 非 LLM に無い既知結果の射影を LLM だけが持つ (B-5 の限界と同じ)。K2 は B-5 cohort の構成として残す。
+- MOCC で BACKOFF_FIXED の macro だけを使う — 値の意味が S1 と違う。
+- MOCC の flag 8 点の全列挙を差し込みの必須前提にする — 指定条件の flag 参照最良を得る別研究であり、差し込み口の成立条件ではない。
+
+## D2221. B-5 本走の投入経路は repo に最小実装する — driver の registered 出力、job body の受け渡し、launcher の逆順組 schedule と stage 投入、LLM 巡 tool と model 記録 (2026-09-22)
+
+**決定:** D2200 項 1 の段階認可のうち発効束の完成に要る実装として、本走を投入する経路を repo に置く。新しい gate・検査・台帳 field・report の変更は足さない。
+
+- **driver:** `run-series` / `run-block-stock` に `--purpose {pilot,registered}` (既定 pilot)。registered は cohort `b5-registered-v1` と limits 第 2 文だけが変わり、pilot の header は不変。
+  registered の探索系列に block と系列番号の拒否条件は足さない (report の既存検査と schedule の生成で足りる)。
+- **job body:** `IZANAGI_S4_B5_PURPOSE` は任意 (未設定 = pilot)、pilot / registered 以外は既存の拒否、registered のときだけ driver へ `--purpose registered`。非 B-5 の既存経路と pilot の argv は不変。
+- **launcher:** `registered-schedule` (純関数) と `registered` (block・stage 指定の dry-run / submit、job ごとの submit-tree、D2217 の W / W_stock を Decimal の切り上げで `elapstim_req` へ)。
+  pilot 経路と walltime literal は不変。launcher 用の新しい process 起動目録 test は作らない。登録簿の launcher の説明文は今回は変えない (説明文まで完全一致で比較する hooks の golden を scope に入れないため、class は不変)。
+- **schedule:** 逆順の組 A = {LRS, SRL}、B = {LSR, RSL}、C = {RLS, SLR} (L = llm、R = random、S = sweep-matched)。workload 番号 w と block b で除く組を e = (w + b − 1) mod 3 とし、
+  残る 2 組 X・Y を block 内 4 系列へ X 第 1・Y 第 1・X 第 2・Y 第 2 の順に割り付ける。stage s は順序の s 番目の arm。block-stock は stage 2 (series = block)。
+  各 workload で 6 順序が各 2 回、各 (block, stage) の LLM 系列はちょうど 4 本 (= D2216 の p)、各 (workload, block) で LLM と各 baseline の先後が 2 対ずつになる。
+  次の stage は前 stage の全 job 終了後、次の block は前 block の全 job 終了から 1 時間以上後 (手順、runtime 検査なし)。
+- **LLM 巡 tool:** `tools/b5_llm_round.py` は試走の親 glue (repo 外、sha256 8b29d95c…) の一般化で、prompt template を file 内に持つ。試走版からの変更は label・動作点・
+  「同時刻対照」の訂正・欠測指標の表示 (0 や None ではなく「null (欠測)」)・path の引数化・知識射影の照合先の repo 内の写しに限る。`record-models` は会話記録の
+  assistant 発話の model ID を全件集め `matches_expected` を記録する (拒否 gate ではない)。client の版は記録するだけで一致判定に入れない。
+
+**理由:**
+- 段 1 の実測で、driver は試走の cohort と purpose を header に固定し、launcher は試走 4 job の形しか受けず、prompt 生成器は試走専用の repo 外 script だった。事前登録 §12 は
+  「実行 script・生成器の bytes と hash」「§10 の欠ける部品を満たす実装の所在」「全役割の prompt」を要求し、D2198 は 108 系列 launcher を見送り、D2216 が schedule・launcher を発効束の段へ送っていた。
+- repo に置くのは、job dir の原本が消えた前例 (F1034) があり、本走は数日にわたり 36 本の親 session が同じ tool を使うため。§7.1 の配置性質は schedule 生成の test で確かめるのが最も安い。
+- schedule を逆順組にしたのは、段 2 の案 (workload・block ごとに LLM の位置が一定) が workload 内で block と LLM の位置を完全に交絡させるため (段 3 相談)。
+
+**却下した選択肢:**
+- 実行 script を repo 外に置き hash で束縛する (B-8 の runner と同型) — 最強の形は「§12 が要るのは bytes と hash と所在だけで、test・変異・受入の対象が減る」。
+  採らないのは、原本消失の前例、配置性質の test の置き場、既存 launcher の `_validate_job` が pilot 形しか受けず env 組立てを複製することになるため。
+- role 定義 3 file の `model:` を完全 ID へ書き換えて model を固定する — 3 file の sha256 が role adapter・review ledger・test・図の provenance に束縛されている。
+- producer 側に block と系列番号の拒否条件を足す、launcher 用に起動目録 test を新設する — 新しい検査面の追加で依頼の scope 外。
+
+## D2222. B-5 発効束の draft は D2202 と同型にし、LLM は起動構成で `claude-opus-5` に固定、不一致・A だけを消費する拒否・toolchain の扱いを事前に登録する。推奨は k = 3、総 wall 上限は試走の job Elapse 総和の 40 倍 (2026-09-22)
+
+**決定:** 事前登録 §12 の全項目を `output/insights/2026-09-22/t2797-effect-bundle/bundle/b5-effective-bundle.draft.json` (status draft) と同 README の表に固定する。
+発効 commit は構成値を変えず status と effective 節 (承認情報) だけを足す。自己 hash は書かない。
+
+1. **承認対象:** 本 wave の land commit と、承認に基づく発効 commit。校正 job と本走は発効 commit の固定 checkout で走らせる。列挙した hash が一致しても他の commit は承認の対象外。
+   束は実装・検査器・環境契約など 31 file の sha256 と、束の data file 12 本の sha256 を持つ。
+2. **LLM:** 親 session (1 系列 1 本、D2216) を `claude --model claude-opus-5 --settings <束の b5-parent-settings.json>` で起動する。settings は alias `opus` を `claude-opus-5` に対応づける
+   `ANTHROPIC_DEFAULT_OPUS_MODEL` (API キーでも課金経路の切替でもない) と親の effort だけを持つ。role 定義は `model: opus` / `effort: high` のまま、Agent 起動時に model 引数を渡さず、
+   `CLAUDE_CODE_SUBAGENT_MODEL`・`CLAUDE_CODE_EFFORT_LEVEL` が未設定であることを起動手順で確かめる。生成 parameter は client が指定口を持たず観測もできない (client 既定) と明記する。
+3. **不一致時の処置:** role の記録のどれかで `matches_expected` が false なら、その原提案では proposal も reject も公開せず親 session を閉じる。系列は通常 handshake の期限切れ、
+   walltime が先に不足すれば allocation-exhausted で終わり、どちらでも score は欠測。救済・再抽選しない。
+4. **critic の実行条件:** 次の原提案の request が公開され、その評価番号が増えたときに、還流する直前の評価の critic だけを走らせる。最後の評価の後は走らせない
+   (driver は最後の評価の後に handshake を待たず score へ進むので、そこでの不一致は欠測にできない)。
+5. **A だけを消費する拒否:** planner / coder の出力が空・不正・検査落ちなら、親は候補を直さず role を呼び直さず reject する。子側の前処理拒否・Tier0 不通過では評価が出ず、同じ評価番号の次の request が来る。
+6. **toolchain:** 本走の要求値 = 試走の計算ノードの観測値 (gcc / g++ 11.4.0-1ubuntu1~22.04.3、cmake 3.22.1、python3.10 sha256 d6bca2b8…)。compiler・cmake は prebuild receipt、python は同じ job の
+   `compute-result.json` から照合し、異なる job はその系列 (または block-stock) を集計時に欠測扱いにする (手順であって機械 gate ではない)。
+7. **rep 1 (D2200 項 1 (2) 2):** 試走 53 session で rep 1 を除いた 4 rep の中央値との差は最大 0.6960%、1% 以上 0 件、CV 5% 判定の変化 0 件なので、5 rep 構成を維持する
+   (write-heavy 試走の範囲の感度分析で、warm-up 不要の一般証明ではない。D28 とは別の操作)。
+8. **N1 (投入済み duplicate-skip の B 計上):** コードは変えない。fresh layout と 1 呼出し 1 genome の下では到達せず、到達しても report の invalid では検出されずに系列は score 欠測になる
+   (初回 attempt なら B が 1 少なく記録、retry なら保持)。
+9. **推奨値 (ユーザー裁定):** k = 3 (W = 63,777 s、W_stock = 16,341 s)、総 wall 上限 = 試走の job Elapse 総和 61,261 s の 40 倍 (2,450,440 s)。
+
+**理由:**
+- 事前登録 §4.1 は「可変 alias や既定モデルのまま発効させない」と定め、Claude Code の公式 docs は alias の解決先が時間とともに更新されると書く。起動構成で対応を固定し、巡ごとの記録で実際の ID を確かめる。
+- 不一致・critic・A だけの拒否の扱いは、段 6 のレビュー 2 本と焦点再レビューが driver の実挙動との食い違いを指摘した点を、driver に待機や gate を足さずに手順で閉じたもの。
+- k = 3 は換算の中心 (read-heavy の LLM 系列 ≈ 24,500 s) では余るが、旧単価のストレス例と A = 30 の使い切りを重ねた試算 (63,312 s、各機会 780 s の仮定) まで覆う。
+  総 wall の分母は事前登録 §11 の「試走の実測所要への倍率」に最も忠実な raw の job Elapse 総和とし、session 比例の外挿値とは混ぜない。
+
+**却下した選択肢:**
+- alias 起動のまま観測 ID を事後に記録するだけ — §4.1 を満たさない (段 3 相談 2 本)。
+- 最後の critic を待つ driver の待機、model 記録を読む report、台帳の不一致 field — critic の実行条件を手順で限れば不要で、新しい gate・台帳の追加になる。
+- session 定義を warm-up rep 付きに変える — 登録した感度基準を満たさない。
+- k = 2 — 換算の中心では足りるが、ストレス例と A = 30 の使い切りで不足しうる。walltime の不足は n や正しさ条件を下げる理由にしない (§11)。

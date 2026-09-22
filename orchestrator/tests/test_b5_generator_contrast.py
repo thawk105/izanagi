@@ -1097,6 +1097,101 @@ def test_header_declares_shared_tier0_contract():
     assert h["tier0_contract"]["build"]["trace"] is False
 
 
+def test_registered_header_consumed_by_existing_report(tmp_path, monkeypatch):
+    from orchestrator.campaign import b5_generator_contrast_report as report
+    # Actual producer -> on-disk ledger -> unchanged consumer. Expiry avoids
+    # external evaluation, leaving a valid, explicitly missing series.
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "0")
+    result = _series(tmp_path, FakeRunner(), purpose="registered")
+    assert result["events"][-1]["reason"] == "allocation-exhausted"
+    consumed = report.build_report([tmp_path / "ledger"], purpose="registered")
+    assert consumed["invalid"] == []
+    assert consumed["purpose"] == "registered"
+    assert consumed["registered_judgment"] == "see-comparisons"
+    assert len(consumed["series"]) == 1
+    assert len(consumed["comparisons"]) == 6
+    assert {c["judgment"] for c in consumed["comparisons"]} == {"indeterminate-missing"}
+    wrong_purpose = report.build_report([tmp_path / "ledger"], purpose="pilot")
+    assert [(i["category"], i["detail"]) for i in wrong_purpose["invalid"]] == [
+        ("schema-inconsistent", "header contract")]
+    assert wrong_purpose["registered_judgment"] == "not-applicable-pilot"
+    assert "comparisons" not in wrong_purpose
+
+
+@pytest.mark.parametrize("purpose,cohort", [("pilot", "t2797-beta-v1"), ("registered", "b5-registered-v1")])
+def test_purpose_cohort_mapping(purpose, cohort):
+    h = B._header("random", "balanced", 6, 2, ROOT, purpose=purpose)
+    assert (h["purpose"], h["cohort"]) == (purpose, cohort)
+
+
+def test_pilot_header_bytes_unchanged(tmp_path, monkeypatch):
+    # Frozen Git HEAD, host, job and deadline; expected dictionary is the
+    # pre-change header, not a second call through the changed producer.
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".git/HEAD").write_text("a" * 40 + "\n")
+    monkeypatch.setattr(B.socket, "gethostname", lambda: "fixed-host")
+    monkeypatch.setenv("PBS_JOBID", "fixed-job")
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "1234567890")
+    expected = {
+        "schema": "b5-generator-contrast-ledger/v1",
+        "cohort": "t2797-beta-v1", "purpose": "pilot", "arm": "random", "workload": "write-heavy",
+        "series": 1, "block": 1, "repo_head": "a" * 40, "pin": L.PIN,
+        "mode": "series", "perf_config": asdict(L.calibrated_perf("write-heavy")),
+        "verify_mode": "legacy+performance", "bench_max_rounds": 3,
+        "B": 10, "A": 30, "N_eval": 5,
+        "tier0_status": "implemented", "tier0_contract": L.B5_TIER0_CONTRACT,
+        "job": {"PBS_JOBID": "fixed-job", "host": "fixed-host"},
+        "allocation_deadline_epoch": 1234567890.0, "allocation_deadline_status": "known",
+        "limits": ["Parent intervention and actual input delivery are not mechanically guaranteed.",
+                   "Pilot only; does not establish preregistration section 10 completeness."],
+    }
+    expected_bytes = (json.dumps(expected, sort_keys=True, ensure_ascii=True, allow_nan=False,
+                                 separators=(",", ":")) + "\n").encode("ascii")
+    for kwargs in ({}, {"purpose": "pilot"}):
+        actual = B._header("random", "write-heavy", 1, 1, repo, **kwargs)
+        assert B._json_bytes({**actual, "schema": B.LEDGER_SCHEMA}) == expected_bytes
+
+
+def test_registered_block_stock_header(tmp_path, monkeypatch):
+    from orchestrator.campaign import b5_generator_contrast_report as report
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "0")
+    result = B.run_block_stock("read-heavy", 3, ledger_root=tmp_path / "stock",
+                               prebuild_receipt=tmp_path / "receipt", repo_root=ROOT,
+                               runner=FakeRunner(), purpose="registered")
+    h = result["header"]
+    assert (h["purpose"], h["cohort"], h["series"], h["block"], h["mode"]) == (
+        "registered", "b5-registered-v1", 3, 3, "block-stock")
+    assert report.build_report([tmp_path / "stock"], purpose="registered")["invalid"] == []
+
+
+def test_registered_producer_leaves_allocation_validation_to_report(tmp_path, monkeypatch):
+    from orchestrator.campaign import b5_generator_contrast_report as report
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "0")
+    B.run_series("random", "balanced", 12, 1, ledger_root=tmp_path / "ledger",
+                 prebuild_receipt=tmp_path / "receipt", repo_root=ROOT,
+                 runner=FakeRunner(), purpose="registered")
+    consumed = report.build_report([tmp_path / "ledger"], purpose="registered")
+    assert [(i["category"], i["detail"]) for i in consumed["invalid"]] == [
+        ("schema-inconsistent", "allocation mismatch")]
+
+
+@pytest.mark.parametrize("command", ["run-series", "run-block-stock"])
+@pytest.mark.parametrize("purpose", [None, "pilot", "registered"])
+def test_purpose_cli_reaches_real_producer(tmp_path, monkeypatch, command, purpose):
+    monkeypatch.setenv("IZANAGI_RESERVATION_DEADLINE_EPOCH", "0")
+    argv = [command, "--workload", "balanced", "--block", "2", "--ledger-root", str(tmp_path / "ledger"),
+            "--fetchcontent-prebuild-receipt", str(tmp_path / "receipt")]
+    if command == "run-series":
+        argv += ["--arm", "random", "--series", "5"]
+    if purpose is not None:
+        argv += ["--purpose", purpose]
+    assert B.main(argv) == 1
+    h = B.SeriesLedger(tmp_path / "ledger").header
+    assert h["purpose"] == (purpose or "pilot")
+    assert h["cohort"] == ("b5-registered-v1" if purpose == "registered" else "t2797-beta-v1")
+
+
 def _run() -> int:
     return pytest.main([__file__, "-q"])
 

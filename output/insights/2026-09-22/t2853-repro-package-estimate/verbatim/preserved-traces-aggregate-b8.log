@@ -1,0 +1,43 @@
+# ROOT=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2807-b8-effective/run
+# per-run rows (rel, phase, candidate, workload, extime, complete, nfiles, raw_bytes, lines, stored_bytes, ratio, bytes_per_line, verdict, result.json bytes, verifier.json bytes)
+calib/balanced/extime-10	calibrate	?	balanced	10	True	48	2873831427	86994581	641639321	4.48	33.0		54233	1266
+calib/balanced/extime-6	calibrate	?	balanced	6	True	48	1699535584	52084142	381496393	4.45	32.6		54076	1265
+calib/read-heavy/extime-10	calibrate	?	read-heavy	10	True	48	7618414142	233551229	1888746616	4.03	32.6		54394	1267
+calib/read-heavy/extime-6	calibrate	?	read-heavy	6	True	48	4486146956	140810793	1111865329	4.03	31.9		54301	1267
+calib/write-heavy/extime-10	calibrate	?	write-heavy	10	True	48	3391035263	99900538	534242457	6.35	33.9		54340	1264
+calib/write-heavy/extime-6	calibrate	?	write-heavy	6	True	48	2013221228	59939355	320187650	6.29	33.6		54233	1264
+verify/balanced-j1/rep-1/attempt-1	verify	?	balanced	10	True	48	2823674792	85486126	630461058	4.48	33.0		54763	1266
+verify/balanced-j1/rep-2/attempt-1	verify	?	balanced	10	True	48	2883781227	87300223	643933470	4.48	33.0		54764	1266
+verify/balanced-j1/rep-3/attempt-1	verify	?	balanced	10	True	48	2834338035	85819786	632981792	4.48	33.0		54765	1266
+verify/balanced-j1/rep-4/attempt-1	verify	?	balanced	10	True	48	2876536280	87084475	642316156	4.48	33.0		54770	1266
+verify/balanced-j2/rep-5/attempt-1	verify	?	balanced	10	True	48	2871186741	86923977	641140645	4.48	33.0		54762	1266
+verify/balanced-j2/rep-6/attempt-1	verify	?	balanced	10	True	48	2846573304	86177531	635597802	4.48	33.0		54761	1266
+verify/balanced-j2/rep-7/attempt-1	verify	?	balanced	10	True	48	2846331246	86175634	635581904	4.48	33.0		54758	1266
+verify/balanced-j2/rep-8/attempt-1	verify	?	balanced	10	True	48	2850731157	86310876	636623947	4.48	33.0		54763	1266
+verify/read-heavy-j1/rep-1/attempt-1	verify	?	read-heavy	10	True	48	7663132567	234884076	1899841897	4.03	32.6		54932	1267
+verify/read-heavy-j1/rep-2/attempt-1	verify	?	read-heavy	10	True	48	7717423848	236512723	1913092981	4.03	32.6		54932	1267
+verify/read-heavy-j1/rep-3/attempt-1	verify	?	read-heavy	10	True	48	7661979292	234847987	1899452163	4.03	32.6		54932	1267
+verify/read-heavy-j1/rep-4/attempt-1	verify	?	read-heavy	10	True	48	7755472526	237645145	1922607626	4.03	32.6		54933	1267
+verify/read-heavy-j2/rep-5/attempt-1	verify	?	read-heavy	10	True	48	7685244524	235514712	1905029624	4.03	32.6		54926	1267
+verify/read-heavy-j2/rep-6/attempt-1	verify	?	read-heavy	10	True	48	7688267686	235639877	1906022651	4.03	32.6		54924	1267
+verify/read-heavy-j2/rep-7/attempt-1	verify	?	read-heavy	10	True	48	7653088867	234562240	1897135250	4.03	32.6		54924	1267
+verify/read-heavy-j2/rep-8/attempt-1	verify	?	read-heavy	10	True	48	7689113518	235623395	1906023469	4.03	32.6		54922	1267
+verify/write-heavy-j1/rep-1/attempt-1	verify	?	write-heavy	10	True	48	3373241289	99380367	531433672	6.35	33.9		54872	1264
+verify/write-heavy-j1/rep-2/attempt-1	verify	?	write-heavy	10	True	48	3372708421	99362155	531336504	6.35	33.9		54875	1264
+verify/write-heavy-j1/rep-3/attempt-1	verify	?	write-heavy	10	True	48	3385007176	99725797	533373944	6.35	33.9		54869	1264
+verify/write-heavy-j1/rep-4/attempt-1	verify	?	write-heavy	10	True	48	3370025207	99287419	530941247	6.35	33.9		54874	1265
+verify/write-heavy-j2/rep-5/attempt-1	verify	?	write-heavy	10	True	48	3397949998	100102498	535313385	6.35	33.9		54874	1264
+verify/write-heavy-j2/rep-6/attempt-1	verify	?	write-heavy	10	True	48	3404582058	100299165	536447155	6.35	33.9		54875	1264
+verify/write-heavy-j2/rep-7/attempt-1	verify	?	write-heavy	10	True	48	3380993269	99606604	532585574	6.35	33.9		54878	1264
+verify/write-heavy-j2/rep-8/attempt-1	verify	?	write-heavy	10	True	48	3396849670	100071131	535161621	6.35	33.9		54876	1264
+
+# summary by (workload, extime): n, raw GiB min/median/max, stored GiB min/median/max, ratio median
+balanced	10s	n=9	raw=2.630/2.655/2.686	stored=0.587/0.593/0.600	ratio_med=4.48
+balanced	6s	n=1	raw=1.583/1.583/1.583	stored=0.355/0.355/0.355	ratio_med=4.45
+read-heavy	10s	n=9	raw=7.095/7.157/7.223	stored=1.759/1.774/1.791	ratio_med=4.03
+read-heavy	6s	n=1	raw=4.178/4.178/4.178	stored=1.036/1.036/1.036	ratio_med=4.03
+write-heavy	10s	n=9	raw=3.139/3.153/3.171	stored=0.494/0.497/0.500	ratio_med=6.35
+write-heavy	6s	n=1	raw=1.875/1.875/1.875	stored=0.298/0.298/0.298	ratio_med=6.29
+
+# total runs=30 files=1440 raw_bytes=133510417298 stored_bytes=29492613303 ratio=4.527 lines=4047624557 bytes_per_line=32.98
+# result.json bytes: min=54076 max=54933; verifier.json bytes: min=1264 max=1267

@@ -369,6 +369,10 @@
 - **再発: 2026-09-21 (near miss、2 件)** — 受領証の再利用診断 wave の親が、(1) checker の版と実装形式 (旧形 / 中間形 / 新形) の対応表を**一次資料から機械で導出せず手で書いて** Codex author の prompt に埋め、probe がそれを忠実に実装した結果、T-2804 枝の 2 版 (`89a60a88…` / `65476daf…`) が新形に分類され、参考母集団 3 件の cause が誤った (親が後から checker の中身を実測して気づき、author 3 巡目で訂正。着地後の母集団の結論は不変)。(2) 同 wave の insight 初稿で「main の checker が変わった回数」を手元の commit 一覧から目で数えて 2 回と書いたが、reflog を読む probe で 3 回だった (T-2804 の land 2026-09-20 23:29:54 を見落とし。段 6 レビューが出所不足として指摘し、probe を 1 本足して訂正)。型はどちらも「一次資料から転写・導出せず手で書く」で 2026-09-20 の再発と同じ。恒久対応は変更なし — **prompt に載せる対応表・分類表は、子が一次資料から導出できる形で渡すか、親が導出した出力 file を射影する** (memory `ruling-literals-in-prompts-point-to-the-file` の族)。
 
 - **再発: 2026-09-21 (near miss、2 件)** — [T-2826] の前 wave (entry 1800) の親が、段 5 author の prompt に段 4 裁定 §4 の判定式を**手で要約して**書いた。(1) R8 の候補抽出で裁定の「session の作成時刻」を「dir の mtime を近似に使ってよい」に置き換え、(2) R6 (ii) の予測から「worker の待ちが伸びる」を落とした。再開 wave (`dev-wave-t2826-resume`) は起動引数どおりこの prompt を雛形にして wave 固有値だけを差し替えたため、集計器がその要約どおりに実装された。段 6 の read-only review が must-fix 2 件として捕捉した。親が作成時刻 (stat の birth time) で全 2,207 session を再照合して全セル候補 0、R6 は 3 条件で出し直して的中のままで、結論への実害は無い。転写元が裁定 file の逐語でなく親の要約である点で、2026-09-20 [T-2804] の再発 (裁定の literal を prompt へ手打ち) と同型。一次資料 `output/insights/2026-09-21/t2826-modify-timing-resume/README.md` §8、同 `verbatim/s6-review-out.md` 所見 1・2。恒久対応は変更なし — memory `ruling-literals-in-prompts-point-to-the-file` (判定式・定数・文面は裁定 file を正本と指し、逐語は file から機械的に切り出す) を、前 wave の prompt を雛形に流用する再開 wave にも当て、判定式の節は投入前に裁定 file の逐語と照合する。
+
+- **再発: 2026-09-22 (near-miss)** — T-2849 の設計 wave で、親が段 4 裁定の見出し時刻を「10:0x JST」、handoff の段 3 相談の投入時刻を「09:3x JST」と推定で書いた。実際は `date` の 09:29 と、pid file の mtime 09:20:49 / 09:20:54 だった。repo へ入る前 (job dir の段階) に `date` と mtime で直し、insight と worklog fragment には実測の時刻だけを書いた。恒久対応は `DW-S01` の「日時・hash・件数は commit / 成果物 field から取る」と memory `timestamps-from-date-or-mtime-not-estimation` から変更なし (時刻を書く直前に `date` か mtime を取る)。
+
+- **再発: 2026-09-22 (near-miss、論文ストーリー 2026-09-22 版の wave)** — 版の置換案を書いた下書き役 (Claude の子) が、起点より前に着地した出来事を「2026-09-22 版で (Tier0 を) 実装」「2026-09-21 版で (D297 が) 拒否」のように版の出来事として書いた (11 か所)。版名 (文書の版) と出来事の日付が同じ日付文字列を持つので取り違えが起きる。親が置換案の new を版名の正規表現で走査して見つけ、「この版の起点までに」「前版の起点の後」へ直した (job dir `story/fix_r4_versionwords.py`)。同じ wave で親自身も brief の見出しに推定の時刻を書き、file の mtime で直した。恒久対応は既存のとおり (時点語の機械置換を先に当てる手順と、`grep -n "前版\|この版"` の全走)。今回は加えて、置換案の new に出る「<日付> 版で」を機械で洗った。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -15538,6 +15542,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   段 3 の敵対レビューが指摘し、親が再計算して訂正した。結論は変わらない
   (当該軸は計算ノードの実測で棄却済み)。複数 column を持つ probe 出力では、
   比・差・throughput を同じ column から採り、どの column かを明記する。
+
+- **再発: 2026-09-22** — [T-2847] の設計 insight で、親が「どの test も被覆していない」案を、`_tmp_trace(...)` の直接の文字列引数だけを拾う自作走査と、読み取り子の「G0 / G1c の巡回は fixture に無い」という報告から書いた。走査は helper で組み立てる trace 文字列を構造的に拾わず、`test_verifier.py` の `_ordinal_witness_trace()` が既に wr だけの巡回を trace 入力で使っていた (呼び出し数も関数定義を含めて 1 件多く数えていた)。段 6 の焦点再レビュー 1 巡目が既存 test を示して訂正し、親は走査を verifier を使う test file 13 本の全文字列リテラルへ広げて再集計した (未被覆 3 → 2)。記録前に閉じ、成果物への波及はない。不在を書く前に、走査が拾わない形 (helper・実行時生成) を 1 行で言う。F473 の恒久対応 (memory `tool-filtered-view-is-not-the-total`) は変更しない。
+
+- **再発: 2026-09-22** — [T-2853] 再現パッケージ初段の段 4 で、段 3 相談 B の「D2160 保全系列の verifier.json が 0 B の走は 4 件」を、親が自前で打った awk の件数 3 で「誤り」と裁定した。awk は見出し 1 行の集計 log に `NR>2` を掛けており、先頭のデータ行 (`calib/fixed-10-balanced/extime-10`) を構造的に必ず落とす道具だった (本文の型 2「抽出器が端の要素を構造的に落とした」と同じ)。段 6 の read-only レビューが log の走別行を数え直して must-fix で逆転させ、insight `output/insights/2026-09-22/t2853-repro-package-estimate/README.md` §12 に erratum を書いた (段 4 裁定の逐語は保存)。子の数値指摘を覆す裁定の根拠にした自前の数を、母集合 (どの行から数えたか) を確かめずに使った点が本型の再発で、再発検知 (敵対レビューが親の数値を再現コマンドで確かめる) がそのまま働いた。
 ### F474. registry の期待表を literal 複製する consumer が識別子 grep から漏れた [手順漏れ] [テスト代表性]
 
 - 事象: 親は保留 registry を編集する前に pin 閉包を監査し、`key_sha256` /
@@ -20976,6 +20984,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   受入投入前に確かめる。既存 insight には `.py` を含むものがあるが、
   それらは Codex が書いた harness であり本件とは出所が違う。
 
+
+- **再発: 2026-09-22** — [T-2797] 発効束 wave で、試走と本走の知識射影の `diff` の出力を insight の `bundle/` に拡張子 `.diff` で置いたところ、commit 前の
+  `tools/check_ai_provenance.py --message-file` が実装面 (patch / diff) と判定した。拡張子を `.diff.txt` に変えて解消した (commit 前に検出、実害なし)。
+  再発検知の `git ls-files <insight dir>` の grep は `\.py$` だけでなく `\.(patch|diff)$` も対象にする。
 ### F699. 昇格禁止 marker と use class が 1 つも発火しておらず、恒真な保証だった [恒真ゲート] [誤前提]
 
 - 事象: A-1 の campaign config は `promotion_prohibited=True` を持ち、`declared_use_class` も
@@ -28292,3 +28304,35 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: submodule の hook commit は superproject の `check_ai_provenance.py --message-file` 検査の対象外 (submodule には provenance の導入履歴も checker も無い) で、trailer の欠落を機械では検出できない。親は commit script と message の下書きを段 4 裁定より前に用意し、裁定後に message を読み直さなかった。
 - 恒久対応: memory `hook-commit-trailer-from-ruling` (hook commit の `commit -F` 直前に、message の trailer を段 4 裁定の trailer 決定と行単位で照合する。OID は下流の固定期待値・bundle・fetch に焼かれるので、照合は D297 や compute の前に行う)。
 - 再発検知: submodule commit の message を `git show -s --format=%B <OID>` で出し、段 4 裁定の trailer 行と比べる。差があれば下流が参照する前に置き換える。
+
+### F1041. 計算確認ラインの見積りに、裁定が名指しで禁じた外挿を「仮定」と断って使い、確認を省いて投入した [権限逸脱] [手順漏れ]
+
+- 事象: [T-2795] (2026-09-22) で、D2211 項 1 が「過去の K2 1 job の Elapse 69〜432 秒は候補走の値で、pair の完走時間へ外挿しない」と明示していたのに、親は pair job を
+  「3〜15 分 (外挿を含む仮定、実測扱いしない)」と置いて合計 ≈ 0.35〜1.25 node 時間とし、D2212 項 4 の確認ライン (2 node 時間) 未満として確認なしで 1 本目 (`16269.nqsv`) を投入した。
+  外挿を使わない上限は walltime 3 時間 × 2 job = 6 node 時間で線を越える。段 6 の read-only レビューが must-fix として指摘した。実使用は 2 job で 207 秒、測定値・判定への影響はない。
+- 根本原因: 禁止された根拠を、断り書き (「仮定」「実測扱いしない」) を添えれば使ってよいと親が読み替えた。第 31 回 項 1 の「見積りは job Elapse の実測で出す」を、別の job 種の実測にも当てはめた。
+  その job 種 (pair) の実測単価が無いときの見積り方を決めていなかった。
+- 恒久対応: memory `experiment-compute-needs-user-confirmation` の節「裁定が禁じた外挿を『仮定』と断って使わない」— 実測単価の無い新種 job は walltime (または明示した上限) × job 数で見積もり、
+  2 node 時間以上なら確認を取る。2 本目以降は 1 本目の実測 Elapse で取り直してよい。記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md` §6。
+- 再発検知: 段 6 の read-only レビューの照合項目 (依頼・裁定の但し書きと見積りの根拠の対応)。機械検査はない。
+
+### F1042. LaTeX 原稿の文の途中に差し込んだ出所コメント行が、同じ物理行の後続の本文を PDF から消した [手順漏れ]
+
+- 事象: ComSys 2026 投稿原稿 (1 段落 = 1 物理行) の段 6 の修正で、親が文を差し替える置換に「文．\n% 出所: …」を入れた。置換した文の後ろに続いていた同じ行の本文が新しいコメント行の末尾に付き、
+  長時間検証の段落の後続 3 文と第 1 節の貢献 (2) の 1 文が PDF から消えた。組版はエラー・警告を出さず、数値照合 (数値 token の出現) でも捕まらなかった。
+- 根本原因: LaTeX は `%` から行末までを捨てる。段落の途中に改行してコメントを足すと、後続の本文が同じ物理行に残ってコメントに飲まれる。差し替え後に段落単位で PDF を目視しなかった。
+- 恒久対応: memory `latex-comment-insertion-swallows-body` — 出所コメントは段落末の次行にだけ足し、組版前に `grep -n "^%.*．" <tex>` が 0 件であることを確かめる。原稿 README §5 に同じ検査を書いた。
+- 再発検知: Codex の焦点再レビューが 1 か所目を検出、親の機械走査が 2 か所目を検出した。
+
+### F1043. 実装子への禁止の字面が、呼ぶよう指示した既存関数の内部挙動まで射程に入り、子が正しく停止して fix が 1 巡増えた [手順漏れ]
+
+- 事象: [T-2797] 発効束 wave の段 5 で、LLM 巡 tool の実装子へ「tool は subprocess を起動しない」と「知識解決は既存関数を使う」を同じ prompt で指示した。既存の
+  `orchestrator/campaign/knowledge_manifest.py` の `load_and_resolve_manifest` は内部で読み取り専用の git を起動するので、子は両立できないと判断して知識解決を
+  `NotImplementedError` で止め、確認を求めて報告した。親が「tool 自身のコードが直接起動しない」の意味と裁定し、fix を 1 巡足した (約 3 分、codex 1 本)。
+  前段の同タスク Tier0 wave でも、fix 子への「差し替えてよいのは 2 つだけ」という広すぎる禁止で子が正しく停止し、1 巡を空費している (独立 2 例目)。
+- 根本原因: 禁止を「何を起動・編集してはいけないか」の字面だけで書き、呼ぶよう指示した既存関数の内部挙動 (process 起動・既存 fixture の差し替え) が禁止の射程に入るかを決めていなかった。
+  子は禁止を広く読んで止まるのが正しい振る舞いなので、曖昧さの費用は毎回 1 巡になる。
+- 恒久対応: 実装子・fix 子への禁止は「子が書くコード自身が直接行うこと」に限定し、呼ぶよう指示した既存関数の内部挙動は禁止の外であると prompt に明記する。
+  memory `codex-child-discipline` の「実装子への禁止は直接行うことに限る」節。
+- 再発検知: 子の報告に「指示間の衝突」「確認への回答がない」が出たらこの型である。prompt を書く時点で、禁止語 (起動しない・差し替えない・触らない) と
+  「既存関数を使う」が同じ prompt にあれば、その既存関数の内部を grep して衝突の有無を確かめる。

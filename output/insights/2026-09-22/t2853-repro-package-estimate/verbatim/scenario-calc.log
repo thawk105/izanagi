@@ -1,0 +1,40 @@
+# A. one 3 s full-scale trace (raw GiB, stored GiB) — scenario B-8-rate / D2160-rate
+write-heavy	raw 0.946..0.922	stored 0.149..0.149
+balanced	raw 0.796..1.565	stored 0.178..0.354
+read-heavy	raw 2.147..5.758	stored 0.532..1.414
+equal-mix mean stored per 3 s trace: 0.286..0.639 GiB
+
+# B. B-5-type complete evaluation = performance verify 5 reps x 3 s (legacy excluded)
+write-heavy	raw 4.73..4.61	stored 0.746..0.745 GiB
+balanced	raw 3.98..7.82	stored 0.889..1.770 GiB
+read-heavy	raw 10.74..28.79	stored 2.661..7.070 GiB
+equal-mix per candidate: stored 1.43..3.19 GiB, raw 6.48..13.74 GiB
+N=480: stored 0.67..1.50 TiB (0.74..1.65 TB), raw 3.04..6.44 TiB, Zenodo 50 GB records 14.8..32.9
+N=3600: stored 5.03..11.23 TiB (5.54..12.35 TB), raw 22.79..48.31 TiB, Zenodo 50 GB records 110.7..247.0
+
+# C. anomaly-detected iteration kept in full: one 3 s trace per rejected candidate (equal mix)
+rejected=10: stored 2.9..6.4 GiB (if rejection at the k-th rep, multiply by k<=5 for all reps kept)
+rejected=48: stored 13.7..30.7 GiB (if rejection at the k-th rep, multiply by k<=5 for all reps kept)
+rejected=144: stored 41.2..92.0 GiB (if rejection at the k-th rep, multiply by k<=5 for all reps kept)
+rejected=480: stored 137.5..306.7 GiB (if rejection at the k-th rep, multiply by k<=5 for all reps kept)
+rejected=3600: stored 1031.0..2300.4 GiB (if rejection at the k-th rep, multiply by k<=5 for all reps kept)
+
+# D. sample per series: stock + selected x 3 workloads x one 3 s trace
+stored 1.72..3.83 GiB
+
+# E. existing preserved series
+D2160 48928578277 B, B-8 29492613303 B, total 78421191580 B = 78.42 GB = 73.04 GiB
+each series <= 50 GB record: D2160 True, B-8 True; files per series 3072 / 1440 (> 100 files -> archive per run)
+
+# F. Pegasus SFC group /work quota (check_quota kbytes, read as KiB = 1024 B)
+used	4330395672 KB	4.03 TiB	4.43 TB
+soft	91268055040 KB	85.00 TiB	93.46 TB
+hard	96636764160 KB	90.00 TiB	98.96 TB
+soft-used	86937659368 KB	80.97 TiB	89.02 TB
+
+# G. re-execution unit costs (recorded) and conversions
+B-5 pilot job Elapse 61261 s = 17.02 node-h over 53 sessions = 1156 s/session occupancy
+B-5 intrinsic 217..509 s/session -> 53 sessions 3.19..7.49 h (recorded sum 22,230 s = 6.17 h)
+B-8 main 9,280 s / 24 = 387 s = 0.107 node-h per 10 s verify job slot; calib 1,920 s / 6 = 320 s
+B-8 pure verifier wall per 10 s trace: wh 295.3 / bal 219.2 / rh 496.4 s = 0.061..0.138 h
+D2160 calib+main: fixed-5 12,778 S + fixed-10 12,473 S = 25251 S = 7.01 node-h
