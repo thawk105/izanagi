@@ -3,7 +3,7 @@
 authority: none / default_effect: no-state-change (可変状態の正本は worklog 末尾と現行 phase doc)。
 wave `dev-wave-t2847-verifier-detection-design` (branch `worktree-dev-wave-t2847-verifier-detection-design`)、起点 local main `8fd2a2f5c` (開始 gate rc 0、2026-09-22 08:5x JST)、CCBench submodule `e9e477ca`。
 job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-design/` (brief・事実要約・Codex の prompt / 出力・待ち手)。
-段 1〜6 の全文は `verbatim/` (段 3 は軽量版で省略、段 5 は実装なし。段 6 は read-only review 1 本 `s6-review.md` の NO-GO (must-fix 10・should 3) を全件採用して本文を直し、焦点再レビュー `s6-focus-*.md` で閉じた)。一次資料は `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §4 P0 (VLDB 方針 D2212)。
+段 1〜6 の全文は `verbatim/` (段 3 は軽量版で省略、段 5 は実装なし。段 6 は read-only review 1 本 `s6-review.md` の NO-GO (must-fix 10・should 3) を全件採用して本文を直した。焦点再レビュー 1 巡目 `s6-focus-1.md` は NO-GO (前巡 13 件のうち closed 10・partial 3、新しい must-fix 1・should 4・nit 1) で、これも全件採用して直した。2 巡目の結果は `s6-focus-2.md`)。一次資料は `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §4 P0 (VLDB 方針 D2212)。
 
 **性質の断り:** 本書は静的な調査 (source・記録・test を読む) による設計である。実 trace の取得・変異の build と実走・parser の改修・fixture の追加はしていない。表の「期待」は**実行結果ではない**。実行結果として引くのは、日付と出所を添えた既存の記録だけである。唯一の実行は、既存 patch 16 本が現行 pin に当たるかの `git apply --check` (作業ツリーを変えない、§5.1) である。
 
@@ -14,9 +14,9 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 結論:
 
 1. **現行 verifier の判定は 3 つの層 (依存グラフの巡回、trace の完全性、証拠面) と trace の外の commit 件数で決まる** (§2.1)。certified は「取引 1 件以上 ∧ 巡回なし ∧ 他の層がすべて成立」。abort した取引、取引内の中間の版、値そのもの、範囲読みの phantom、liveness は trace に現れず、**判定の外**である (§2.2)。末尾の取引の欠落は commit 件数の証人が無いと certified のまま通る (特性化 test あり)。
-2. **小履歴コーパスは 6 カテゴリ 27 案** (§3)。期待はすべて辺・版・欠落箇所から手で導いた。内訳は、既存 fixture の意味を手で説明し直す 13 案と、追加候補 14 案。**追加候補のうち 9 案は inline test (`test_verifier.py` の `_tmp_trace`) が意味を被覆済み**で、fixture として置く候補に留まる。2 案は新しい trace ではなく説明の追加。**どの test も被覆していないのは 3 案** (B06 = G1c に分類される巡回を trace 入力で与える、F03 / F06 = 同じ取引が同じ key を 2 回読む) である。verifier 側の壊れ方をどの案が殺すかの対応表も付けた (§3.1)。
+2. **小履歴コーパスは 6 カテゴリ 27 案** (§3)。期待はすべて辺・版・欠落箇所から手で導いた。内訳は、既存 fixture の意味を手で説明し直す 13 案と、追加候補 14 案。**追加候補のうち 10 案は test 内で作る合成 trace (`test_verifier.py`) が意味を被覆済み**で、fixture として置く候補に留まる (うち B06 は巡回としては被覆済みで、分類 `G1c` を独立の期待値として固定する assert だけが無い)。2 案は新しい trace ではなく説明の追加。**本書が調べた範囲 (fixture 22 件と、verifier を使う test file 13 本の全文字列リテラル) で同じ意味の test が無いのは 2 案** (F03 / F06 = 同じ取引が同じ key を 2 回読む。実 silo は 2 度目の読みを read set から返すので実 trace には出ず、read set の再利用を外す変更を捕まえるための合成入力) である。verifier 側の壊れ方をどの案が殺すかの対応表も付けた (§3.1)。
 3. **CC 変異の検出期待表は 35 項目 (表の行は 32)** (§4)。うち 1 項目 (V36) は無改変の si で変異ではないので、**変異は 34、族にまとめて 26、正しさを保つ対照 4 を除くと 22 の変更機構**になる (依頼の 20〜40 を満たす)。期待の層は、巡回 4、integrity・証拠面 11、盲点 (宣言範囲の外) 13、si (現状は parse error) 3、正しさを保つ対照 4。盲点と対照を表に入れたのは、「検出しなかった = 正しい」と読ませず、誤検出の側も測るためである。
-4. **既存 16 本の再利用範囲** (§5.1): 現行 pin にそのまま当たるのは silo の 11 本 (`git apply --check`、fuzz なし)。mocc の 4 本は計装 patch の上、trigger-misattr は trigger-gating 骨格の上でだけ当たる。write-intent の 4 本は当たるが、現行 pin には `I` の emitter が無いので「certified になりうる盲点」側に入る。**検出の型は thread 数と regime に依存する** (mocc の lockskip / early-unlock / hot-update-unlock は 1 thread では X だけ、4 thread では version dup が併発し、lockskip と early-unlock は巡回も出す)。
+4. **既存 16 本の再利用範囲** (§5.1): 現行 pin にそのまま当たるのは silo の 11 本 (`git apply --check`、fuzz なし)。mocc の 4 本は計装 patch の上、trigger-misattr は trigger-gating 骨格の上でだけ当たる。write-intent の 4 本は当たるが、現行 pin には `I` の emitter が無いので「certified になりうる盲点」側に入る。**検出の型は thread 数と regime に依存する** (mocc の lockskip / early-unlock と hot regime の hot-update-unlock は 1 thread では X だけ、4 thread では version dup が併発し、lockskip と early-unlock は巡回も出す。hot-update-unlock は cold / default では hot 分岐に届かず certified)。
 5. **si は現行 verifier でどの workload も検証できない** (§5.3)。emitter が 5 field の C 行 (v1) を出し、parser が拒否する。2026-06-18 の「無改変の si で 3,576 巡回」は当時の verifier の記録として残るが、現行の検出力の主張には使えない。v2 に上げても証拠面が無いので、巡回が出なければ certified ではなく indeterminate になり、使い道は検出に限られる。さらに update が read set から要素を消すので、同じ key を読んで書く lost update は巡回として残らない (§4.5)。
 6. **容量は、巡回 0 の trace で balanced 10 s が 32.4 GiB・478 s、read-heavy 6 s が 81.2 GiB・896 s まで測ってある** (§6.1)。未測は巡回の多い大 trace・mocc の大 trace・read-heavy 10 s・TPC-C・trace を取る側の費用 (§6.2)。まず実験が要る長さを計算なしで決め、範囲外だけを測る。[T-2351] は「要る trace が 115 GiB か時間の上限を超える」と分かったときに発火する後段であり、P0 の前提ではない (§6.4)。時間窓ごとの独立検査は全体の検査と同等ではない (§6.5)。
 7. **論文用の射程文を 3 つの長さで用意した** (§7): 「certified は、trace を有効にした build を有限回走らせて観測した空でない committed 取引の履歴について、依存グラフに巡回がなく、trace の完全性と証拠面の検査も通ったという判定であり、すべての実行での直列化可能性の証明ではない」。
@@ -48,8 +48,8 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 | 値だけが壊れ、版スタンプは正しい | 値は記録しない | 判定なし (lock 被覆 `X` が捕まえる経路はある) | trace.hh の schema、`X` は §2.1 の 3 |
 | 範囲読みの phantom (述語の依存) | 範囲読みで返った record は通常の読みとして R に出る (silo は scan 結果ごとに `read_internal()` を呼ぶ、`cc/silo/transaction.cc:304-317`)。**出ないのは、範囲 (述語) そのものと、範囲内で返らなかった key への依存**である。現行 YCSB は範囲読みを呼ばない | 判定なし (宣言範囲の外) | `docs/isolation-phenomena.md` の「スコープ外」、fixture `p1_phantom_skew` (certified を固定) |
 | 途中の取引が丸ごと欠ける | txid の欠番 (txid は commit 直前に密に採番) | `indeterminate` | `parse.py` の欠番計算、`core.py:78-83` の note |
-| 末尾の取引が丸ごと欠ける | 欠番にならない | commit 証人があれば `indeterminate`、**無ければ certified のまま** | `orchestrator/tests/test_verifier.py:1252` (証人なしは偽の緑を特性化)、`:1265` (証人ありは indeterminate) |
-| thread の trace file が丸ごと欠ける | 途中の txid を持つ file なら欠番。末尾の txid だけを持つ file なら欠番にならない | 欠番なら `indeterminate`。末尾だけの file の欠落は、commit 証人があれば `indeterminate`、**無ければ certified のまま** (§3 の D03) | `test_verifier.py:1312` (証人を渡し、欠番 0 のまま `indeterminate` になることを確認) |
+| 末尾の取引が丸ごと欠ける | 欠番にならない | commit 証人があれば `indeterminate`、**無ければ certified になりうる** (残った履歴が空でなく、他の条件も満たすとき) | `orchestrator/tests/test_verifier.py:1252` (証人なしは偽の緑を特性化)、`:1265` (証人ありは indeterminate) |
+| thread の trace file が丸ごと欠ける | 途中の txid を持つ file なら欠番。末尾の txid だけを持つ file なら欠番にならない | 欠番なら `indeterminate`。末尾だけの file の欠落は、commit 証人があれば `indeterminate`、**無ければ certified になりうる** (残った履歴が空でなく他の条件も満たすとき。§3 の D03) | `test_verifier.py:1312` (証人を渡し、欠番 0 のまま `indeterminate` になることを確認) |
 | 取引の R/W/E の一部が欠ける | 宣言件数の不一致・E 欠落 | `indeterminate` | `test_verifier.py:1285` (`test_characterization_txn_tail_loss_is_indeterminate`) |
 | 同じ (key, 版) を 2 取引が書く | version dup | `indeterminate` | fixture `m2_version_dup` |
 | genesis (1,0) 以下への commit | genesis_commits | `indeterminate` (wr 辺は落とさない) | `dsg.py:345-356`、fixture `m1_commit_at_genesis` |
@@ -85,7 +85,7 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 | B03 | (b) 長い巡回 | T0@v1:W(x),W(a)；T1@v2:R(a,v1),W(b)；T2@v3:R(b,v2),W(c)；T3@v4:R(c,v3),R(x,g) | wr 0→1→2→3、rw 3→0。短い巡回なし | N (G2)、最短の長さ 4 | `r9_dense_cycle4` (長さ 3 は `r3_cycle3`) | 再説明 (任意の長さへ同型に延ばせる) |
 | B04 | (b) 非最新版の直後版 | T0@v1:W(x)；T1@v2:R(x,v1),W(y)；T2@v3:W(x),R(y,g)；T3@v4:W(x) | ww 0→2→3、wr 0→1、rw 1→2、2→1 | N (G2)、1↔2。rw を最新版 (T3) へ張ると巡回を失う | `r5_nonlatest_transitive`、混在は `r4_mixed_cycle` | 再説明 |
 | B05 | (b) epoch を跨ぐ版順 | T0@(1,9):W(x)；T1@(2,1):W(x),R(y,g)；T2@(2,2):R(x,(1,9)),W(y) | ww 0→1、wr 0→2、rw 2→1、1→2 | N (G2)。epoch を捨てると x の版順が逆転し、2→1 を失う | `r6`、`r7` | 再説明 |
-| B06 | (b) 分類の対照 (正常な実行では起きない) | T0@v1:R(y,v2),W(x)；T1@v2:R(x,v1),W(y) | wr 0→1、1→0。rw・ww なし | N、分類は **G1c**。互いに相手の commit 後の版を読んでおり、dirty read なしには起きない | 22 件に無し。分類は合成 `CycleEdge` の単体 test (`test_classify_branches`) だけ | **未被覆** (trace 入力として)。正常な CC の異常の再現には数えない |
+| B06 | (b) 分類の対照 (正常な実行では起きない) | T0@v1:R(y,v2),W(x)；T1@v2:R(x,v1),W(y) | wr 0→1、1→0。rw・ww なし | N、分類は **G1c**。互いに相手の commit 後の版を読んでおり、dirty read なしには起きない | inline `_ordinal_witness_trace()` (`test_verifier.py:2484-2530`、T1 と T8 が互いの書いた版を読む wr だけの 2-巡回で、巡回 `[1,8]` を期待)。分類 `G1c` の assert は無い (分類の枝は合成 `CycleEdge` の単体 test `test_classify_branches` だけ) | inline 被覆済み (巡回として)。分類を独立の期待値に固定する assert が追加候補 |
 | C01 | (c) abort は見えない | 実行: A が x を書きかけて abort；T0@v1:R(x,g)。trace は T0 だけ | 辺なし | S。abort の書きは committed の履歴に入らない | trace は E01 / `g3` と同じ形 | 説明の追加 (abort の有無で同じ trace になることの説明で、新しい trace ではない) |
 | C02 | (c) abort 版の読み | 実行: A が未 commit の版 u=(1,7) を作り abort；T0@v8:R(x,u)。A の C/W は無い | 書き手が居ないので wr を張れない | I (orphan)。巡回ではなく読んだ版の証拠の欠落 | `integrity_orphan` | 再説明 (abort 由来だという説明だけが新しい) |
 | C03 | (c) 全部 abort | 空の trace file、commit 証人 0 | 節点なし | I。検証する取引が無い。空のグラフを certified にしない | inline `test_empty_trace_indeterminate_not_certified` (`test_verifier.py:336`) | inline 被覆済み (fixture 化の候補) |
@@ -100,14 +100,15 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 | E03 | (e) 番兵より前の commit | T0@(0,9):W(x) | 辺なし | I (genesis commit)。(0,9) < (1,0) | inline `test_commit_below_genesis_indeterminate` (`:766`) | inline 被覆済み (境界値) |
 | F01 | (f) 読み → 書き | T0@v1:R(x,g),W(x)；T1@v2:R(x,v1),W(x) | wr・ww 0→1、自己辺なし | S。逐次の read-modify-write | `g2_rmw_chain` | 再説明 |
 | F02 | (f) 二重書き | T0@v1:W(x),W(x)；T1@v2:R(x,v1)。C の W 件数は 2 | wr 0→1。同じ取引の x は 1 版 | S。別取引の version dup ではない。中間値はこの表現に現れない | inline の容量 test (`test_verifier.py:3003-3008`、同じ取引の二重 W で version dup 0) | inline 被覆済み |
-| F03 | (f) 二重読み (同じ版) | T0@v1:W(x)；T1@v2:R(x,v1),R(x,v1)。C の R 件数は 2 | wr 0→1 を 1 本 | S。制約は増えない | 無し (`g5` の実データに偶発的にあるだけで、独立根拠にしない) | **未被覆** |
+| F03 | (f) 二重読み (同じ版) | T0@v1:W(x)；T1@v2:R(x,v1),R(x,v1)。C の R 件数は 2 | wr 0→1 を 1 本 | S。制約は増えない | 無し (verifier を使う test file 13 本の全文字列リテラルの走査。fixture は `g5` の実データに偶発的にあるだけで独立根拠にしない)。実 silo は 2 度目の読みを read set から返す (S:211-215) ので実 trace には出ない | **未被覆** (合成入力。read set の再利用を外す変更の検出に要る) |
 | F04 | (f) 書き → 読み (自分の書き) | API 上は T0:W(x),自分の x を読む。trace は T0@v1:W(x) (自分の書きの読みは R にならない)；T1@v2:R(x,v1) | wr 0→1 | S。自分の書きの読みは取引間の依存ではない。返した値の正しさは分からない | trace は A01 型 (自分の書きの読みは R にならない) | 説明の追加 |
 | F05 | (f) 別取引の同版書き | T0@v1:W(x)；T1@v1:W(x) | 版から書き手を一意に決められない | I (version dup)。F02 との違いは書き手が別取引であること | `m2_version_dup` | 再説明 (F02 との対が要点) |
-| F06 | (f) 二重読み (違う版) | T0@v1:W(x)；T1@v2:W(x)；T2@v3:R(x,v1),R(x,v2) | ww 0→1、wr 0→2・1→2、rw 2→1 | N (G2)。T2 を T1 の前にも後にも置く必要がある | 無し (inline の二重読みは `:3041` の範囲外の版の境界 test だけ) | **未被覆** |
+| F06 | (f) 二重読み (違う版) | T0@v1:W(x)；T1@v2:W(x)；T2@v3:R(x,v1),R(x,v2) | ww 0→1、wr 0→2・1→2、rw 2→1 | N (G2)。T2 を T1 の前にも後にも置く必要がある | 無し (同じ走査で、二重読みは `test_verifier.py:3041-3045` の範囲外の版の境界 test だけ)。実 trace に出ないのは F03 と同じ | **未被覆** (合成入力) |
 
 - F02 は parser と依存グラフの表現力を試す合成入力で、現行 silo が 2 度の update ごとに W 行を出すという主張ではない (silo は 2 度目の update を飛ばし、最終の write set を出す: S:529、:611-616)。
-- **区分の集計 (27 案):** 再説明 13 (A01〜A03、B01〜B05、C02、E01、E02、F01、F05)、inline 被覆済み 9 (C03、D01〜D06、E03、F02)、説明の追加 2 (C01、F04)、**未被覆 3 (B06、F03、F06)**。
-- 「inline 被覆済み」は `test_verifier.py` の `_tmp_trace` による合成 trace の test が同じ意味を押さえているもので、fixture dir として置くかどうかは実装のときに決める (置けば §5.2 の凍結一覧の更新が要る)。「未被覆」の 3 案は、本書の走査 (fixture 22 件と、inline の `_tmp_trace` 呼び出し 63 箇所の文字列) で同じ意味の test が見つからなかったもので、inline 以外の組み立て方の test までは調べていない。
+- **区分の集計 (27 案):** 再説明 13 (A01〜A03、B01〜B05、C02、E01、E02、F01、F05)、inline 被覆済み 10 (B06、C03、D01〜D06、E03、F02)、説明の追加 2 (C01、F04)、**未被覆 2 (F03、F06)**。
+- 「inline 被覆済み」は、test の中で作る合成入力 (`_tmp_trace()` の文字列、helper で組み立てる文字列、C03 のように直接作る空 file) による test が同じ意味を押さえているもの。fixture dir として置くかどうかは実装のときに決める (置けば §5.2 の凍結一覧の更新が要る)。B06 は巡回としては被覆済みで、分類 `G1c` を独立に固定する assert だけが無い。
+- 「未被覆」の 2 案は、本書の走査 (fixture 22 件と、verifier を使う test file 13 本の全文字列リテラルを隣接連結して C..E の frame 内の同じ取引・同じ key の R を探す。`test_verifier.py` の `_tmp_trace` 呼び出しは 62 箇所) で同じ意味の test が見つからなかったもの。走査の生出力は `raw/double-read-scan.txt` (走査 script は repo に入れず job dir に置いた)。文字列リテラルに現れない形 (実行時の計算だけで作る trace) の test までは調べていない。
 
 ### 3.1 verifier 側の壊れ方をどの案が殺すか
 
@@ -117,7 +118,7 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 |---|---|---|---|
 | 常に serializable | B01〜B03 | 手で導いた巡回がある | 実データは `r8` |
 | 常に non-serializable | A01〜A03 | 直列順がある、または辺が無い | 実データは `g6` |
-| 分類器が常に G2 | B06 | 巡回の辺が wr だけ = G1c。**分類まで比べる必要がある** | 正常な YCSB の trace だけでは区別できない |
+| 分類器が常に G2 | B06 | 巡回の辺が wr だけ = G1c。**分類まで比べる必要がある** | 正常な YCSB の trace だけでは区別できない。同型の既存 trace (`_ordinal_witness_trace`) は巡回だけを assert し分類を見ない |
 | 版比較が epoch を無視 | B05 | tid だけで並べると巡回が消える | `r6` / `r7` |
 | 長さ 4 以上の巡回を無視 | B03 | 短い巡回の無い長さ 4 | **現在は `r9_dense_cycle4` が被覆** (D799 の時点では未被覆。D1455) |
 | framing violation を常に 0 | D04 | 件数は合い、E だけが無い | D05 は複数の framing 理由を併発させる |
@@ -148,7 +149,7 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-detection-desig
 - source の略号: **S** = `external/ccbench/cc/silo/transaction.cc`、**M** = `cc/mocc/transaction.cc`、**SI** = `cc/si/transaction.cc` (pin `e9e477ca`、patch 適用前の行)。
 - verdict: **S** = serializable (certified を含む)、**N** = non-serializable、**I** = indeterminate、**E** = parse error。
 - **巡回と integrity 違反が同時にあると N が優先する** (`model.py:511-514`)。「X なら I」「orphan なら I」は巡回が無いときの話である。
-- 「schedule 依存」= 異常を許す変更でも、有限の走で必ず起きるとは限らない。起きなければ S のまま。
+- 「schedule 依存」= 異常を許す変更でも、有限の走で必ず起きるとは限らない。起きなければ、silo と計装つき mocc では S のまま、証拠面の無い si と素の pin の mocc では I。
 - M の行は `patches/instr-mocc-lock-coverage.patch` を重ねた build が前提 (素の pin の mocc は巡回なしでも I)。
 - 帰属は「その変更だけを戻した source と比べる」で確かめる (並行走の schedule まで同じになるという意味ではない)。
 - **すべて静的な推定で、実行結果ではない。** 既存の記録は §5.1 を指す。
@@ -254,7 +255,7 @@ si は現行の parser が v1 trace を拒否するので、3 行とも現状の
 - **inline の合成 trace:** `test_verifier.py` の `_tmp_trace()` (60 箇所超の呼び出し) による test が parse・frame・integrity・証拠面の境界を押さえる。欠損系 (末尾欠落・R/W/E 欠落・file 欠落) はここにだけある。
 - **凍結一覧:** `test_verifier.py:2893` (`test_capacity_all_fixture_results_match_frozen_baseline`) は 22 件の結果 hash を凍結し、**trace を持つ fixture dir の集合がこの 22 件と一致することも assert する**。§3 のコーパスを fixture dir として足すなら、この一覧の更新が同じ変更に要る (inline の合成 trace として足すなら要らない)。
 - **property-based・乱数生成の履歴 test は無い** (`hypothesis` の import なし)。
-- **再利用の仕方:** §3 のコーパスは既存 22 件と inline test を「被覆済み」として数え、新しい検査対象は「未被覆」の 3 案だけにする (§3 の表の「区分」列)。
+- **再利用の仕方:** §3 のコーパスは既存 22 件と inline test を「被覆済み」として数え、新しい検査対象は「未被覆」の 2 案と B06 の分類の assert だけにする (§3 の表の「区分」列)。
 
 ### 5.3 si の v1 制約
 
@@ -275,7 +276,7 @@ si は現行の parser が v1 trace を拒否するので、3 行とも現状の
 | read-heavy 6 s | 32.75M / 594.8M | 896 s | 81.2 GiB | serializable |
 
 - 他に 3 s / 6 s の 11 本も完走している (同 §4)。完了条件は node 128 GiB のうち 115 GiB 以内・3,600 s 以内 (同 §4 の裁定 D-1)。
-- job 単位の実測 (同 wave の job dir、旧版と新版を同じ job で順に走らせた compare): balanced 10 s = 1,224 s、write-heavy 10 s = 805 s、read-heavy 6 s = 1,868 s (生の抜き出しは `raw/verifier-capacity-job-elapse.txt`)。compare は旧版と新版の両方を含むので、新版だけを走らせる job の費用とは違う。同じ抜き出しの profile job (`P-*`) は旧版の失敗を観測した走で、条件が違う (例: `P-wh10` = 2,717 s は旧版が worker の OOM で停滞した走)。
+- job 単位の実測 (同 wave の job dir、旧版と新版を同じ job で順に走らせた compare): balanced 10 s = 1,224 s、write-heavy 10 s = 805 s、read-heavy 6 s = 1,868 s (生の抜き出しは `raw/verifier-capacity-job-elapse.txt`)。compare は旧版と新版の両方を含むので、新版だけを走らせる job の費用とは違う。同じ抜き出しの profile job (`P-*`) は旧版の profile で、失敗を観測した走 (例: `P-wh10` = 2,717 s は旧版が worker の OOM で停滞した走) と完走の参照走 (bal6・rh6・wh3、worker 数を減らした走など) を含み、compare とも条件が違う。
 - 依頼文の「balanced 10 秒で 32 GiB、read-heavy 6 秒で約 81 GiB、ノード上限約 115 GiB」はこの表の値である。
 
 ### 6.2 まだ測っていないこと
@@ -340,14 +341,14 @@ si は現行の parser が v1 trace を拒否するので、3 行とも現状の
 
 本 wave は新しい T を起票しない。以下は [T-2847] の残り (完了条件の「検出表・容量の実測表」) を進めるときの順序の案である。
 
-1. **小履歴コーパスの実装** (§3 の「未被覆」3 案。inline 被覆済みの 9 案を fixture として置くかは同じ変更で決める)。Codex author が test を書く (D95)。inline の合成 trace なら §5.2 の凍結一覧は不変。計算は開発の検査 (焦点走・受入・変異) だけ。
+1. **小履歴コーパスの実装** (§3 の「未被覆」2 案と B06 の分類の assert。inline 被覆済みの 10 案を fixture として置くかは同じ変更で決める)。Codex author が test を書く (D95)。inline の合成 trace なら §5.2 の凍結一覧は不変。計算は開発の検査 (焦点走・受入・変異) だけ。
 2. **変異の実走** (§4)。既存 16 本は既存の driver (`orchestrator/campaign/s2_verify_calibration.py`・`s3_lock_coverage.py`・`s5_permutation_coverage.py`・`s3_mocc_mutation_proof.py`・`t152_write_intent_coverage.py`) で走らせる。新規の変異は out-of-tree の patch (D16 の第 3 類) として Codex author が書く。変異ごとに build が要るので費用は build が支配的になる見込み。参考の実測: [T-2844] の compute 1 走 (stock 2 走 + 負例 4 走、14 check) は 1 node で Elapse 132 s (worklog entry 1818。build がこの job に含まれるかは本書では確かめていない)。
 3. **容量の実測** (§6.3)。
 4. **si の v2 化** (§5.3)。[T-2854] の実装単位 (12) に相乗りする。
 
 1〜3 はいずれも、同じタスクで投げる job の合計 (開発の検査を含む) が 2 node 時間以上になるなら投入前に内訳を示してユーザーの確認を取る (D2212 項 4、D2219 項 1)。
 
-**P1 (関数単位のコード空間) との関係:** D2214 の軸 `silo-function-policy` (条件付き採用) の v1 は、LLM に abort 後の待機・lock 競合時の retry / abort・commit 後の状態更新の方策だけを開き、validation・lock・TID 生成・writePhase・trace は骨格に残す。§4 の層で言えば、v1 の候補が作りうる変化は「正しさを保つ対照」(V31・V33 型) と「盲点」のうち liveness (V25 型の停止・飢餓) の側で、巡回・integrity・証拠面の層を開く機構には触れない。D2214 項 2 も「v1 は LLM が壊した CC 論理を verifier が捕らえることを実証しない」と書く。**LLM が生成した候補を verifier が捕まえた記録 (差分分析 §0 の不在) を作るには、§4.1・§4.2 の機構のどれかを開く空間が要る。**
+**P1 (関数単位のコード空間) との関係:** D2214 の軸 `silo-function-policy` (条件付き採用) の v1 は、LLM に abort 後の待機・lock 競合時の retry / abort・commit 後の状態更新の方策だけを開き、validation・lock・TID 生成・writePhase・trace は骨格に残す。D2214 項 2 の安全の主張は条件付きで、「メモリ安全・外部干渉なし・契約に適合した方策が正常に返る限り、方策の選択は固定骨格の直列化可能性の条件を弱めない」までである。この条件の下では、§4 の層で言えば v1 の候補が作りうる変化は「正しさを保つ対照」(V31・V33 型) と「盲点」のうち liveness (V25 型の停止・飢餓) の側で、§4.1・§4.2 の機構は骨格に残る (条件が破れた場合、例えばメモリ破壊は別の話で、本書は扱わない)。D2214 項 2 も「v1 は LLM が壊した CC 論理を verifier が捕らえることを実証しない」と書く。**LLM が生成した候補を verifier が捕まえた記録 (差分分析 §0 の不在) を作るには、例えば §4.1・§4.2 のように、固定骨格が守っている条件を候補が変えられる空間が要る** (§4.1・§4.2 の列挙は必要な機構の網羅ではない)。
 
 ## 9. 限界・言わないこと
 
