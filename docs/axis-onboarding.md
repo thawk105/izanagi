@@ -231,7 +231,7 @@ hack) が出た (D41)。**コード片軸では言語契約違反 (UB) を必ず
 など) が来たら、手順を無理に当てはめるのではなく**本テンプレ自体を改訂し (この表に列を
 追加)、その改訂を D41 水準の敵対レビューにかける**。
 (注: trigger-gating 軸は [T-428] で「固定 5-bit wire 軸」へ移行しコード片二型のどちらでも
-なくなった。第 3 列の追補は本注記のみとし、テンプレ本体の改訂は D41 水準レビューを伴う
+なくなった。trigger-gating 軸についての追補は本注記のみとし、テンプレ本体の改訂は D41 水準レビューを伴う
 独立の変更単位で行う — 現行手順の正本は `docs/phase3-s8a-trigger-runbook.md`)既存機構の単一 hole 前提
 (`diff_quarantine.parse_template_file` は marker_id 単数) もその際に見直し対象になる。
 
@@ -339,9 +339,10 @@ backoff 軸 (段 4) と sort 軸 (段 5) の実装差分の機械的洗い出し
 ### 7.3 変異型で設計自体が分岐するもの
 
 §4 の表が正本 (表のどの列にも収まらない軸はテンプレ改訂 + 再レビュー、§4 冒頭)。存在自体が分岐する
-資材: `--preview-diff` CLI・auditor spawn 段・`diff_digest` 照合 (コード片軸のみ) /
-`assert_value_literal_consistent` (スカラー値軸のみ) / mutation-red (**言語契約 = UB** の
-positive control、コード片軸のみ) / 列挙生成器 vs 数値グリッド。positive control の二種を
+資材: `--preview-diff` CLI・auditor spawn 段・`diff_digest` 照合 (コード片軸と、関数群軸の
+LLM 由来候補) / `assert_value_literal_consistent` (スカラー値軸のみ) / mutation-red (**言語契約 = UB** の
+positive control、コード片軸のみ。関数群軸は §4 第 3 列の補足どおり UBSan 単独 TU harness 1 回と
+検査段ごとの自己試験で代える) / 列挙生成器 vs 数値グリッド。positive control の二種を
 混同しないこと — 「新 assert に歯があることを証明する broken patch + coverage driver」は
 新しい正しさ不変条件を導入する全軸で省略不可 (§1)、「UB 用の mutation-red」はコード片軸のみ。
 **新軸オンボードの最初の分岐点は変異型の判定** — この一点から出力スキーマ・pre-build gate・
