@@ -8696,6 +8696,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   非NFC混入箇所が増える限り同型が再発しうる。今回は prompt へ「この行範囲は絶対に読むな」
   という明示制約を追加する運用回避で凌いだ (3回目で解消)。
 - **supersede: 2026-08-25** — `evidence_status=invalid` の原因は web 検索と非 NFC の 2 つだけではない。内容側の条件をすべて満たしても invalid になる 3 つ目の型を F540 に記録した。invalid を見たら 3 つとも判定する。
+
+- **再発: 2026-09-23** — [T-2862] の段 6 read-only レビューで、子が `manuscript.pdf` を `pdftotext` で読み、参考文献の「Vũ」(tex 側は ASCII の `V\~{u}`) が u + U+0303 の分解列で `command_execution` の event 行に載り、`evidence_status=invalid` で不採用になった (10 model call・191 秒)。非 NFC の出所は tracked file ではなく PDF の文字抽出が作った派生出力なので、本 F の再発検知の後半 (tracked file の棚卸し) では見つからない。events.jsonl の NFC 判定で 36 行目を特定し、prompt で PDF の文字抽出を禁じた 2 回目 (別 job-id) は受理された。
 ### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
 
 - 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
