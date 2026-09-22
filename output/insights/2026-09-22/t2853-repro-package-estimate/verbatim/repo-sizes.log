@@ -1,0 +1,21 @@
+# root=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-repro-package-estimate entries=32761 missing=0
+(all)	files=32760	bytes=959525089
+output/	files=29594	bytes=847642838
+docs/	files=1750	bytes=61828160
+patches/	files=36	bytes=284375
+tools/plotting/	files=19	bytes=697025
+docs/paper-story/figures/	files=56	bytes=7045996
+docs/paper-story/results/	files=21	bytes=810275
+output/campaigns/	files=123	bytes=1828610
+output/s6-rounds/	files=314	bytes=6764001
+output/env/	files=3650	bytes=219098496
+output/insights/	files=25425	bytes=618792439
+output/reports/	files=4	bytes=199458
+output/s1-freeze/	files=2	bytes=80856
+output/s8b-freeze/	files=20	bytes=79426
+output/s8c-preregistration/	files=17	bytes=33127
+orchestrator/	files=1063	bytes=41665080
+tools/	files=253	bytes=7463162
+hooks/	files=7	bytes=207330
+external/	files=0	bytes=0
+(all minus output/ and docs/)	files=1416	bytes=50054091
