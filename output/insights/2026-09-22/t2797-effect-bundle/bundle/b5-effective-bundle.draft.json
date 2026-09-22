@@ -1,0 +1,217 @@
+{
+  "schema": "b5-effective-bundle/v1",
+  "status": "draft",
+  "status_note": "Draft configuration for user approval (D2200 item 1 (3)). Not effective: no run is authorized by this file. The effect commit keeps every configuration value, sets status to effective and adds an effective section (decision, approval date, approved object, recording commit); it never records its own commit hash.",
+  "preregistration": {
+    "path": "docs/b5-generator-contrast-preregistration.md",
+    "version": "v1",
+    "raw_sha256": "66cc3911e0e4026de7ff6d33d419c362d40130944ec1f30be1ec2f2ac9afd669",
+    "bytes": 51385,
+    "git_blob": "58c4eacbe07a456cf04138ced09006175dd69c4e",
+    "last_changed_commit": "c6e4538526068c08fdd47a9bc118c2c107404d54",
+    "storage": "Git blob in the repository history at the path above; the effect decision copies raw_sha256"
+  },
+  "cohort": "b5-registered-v1",
+  "prereg_version_tag": "b5-generator-contrast-v1",
+  "implementation": {
+    "wave_integration_commit": "d327dd30c4e93799b9024a3b332f00487015ca2a",
+    "target_commit_rule": "The land commit of this wave on local main (named in the re-presentation). File identity is bound by content sha256 below; a later main is acceptable only while every listed file keeps the same sha256.",
+    "section10_parts": {
+      "llm_entry_and_k2_manifest": "p3_s4_loop proposal path, --coder-role coder-v4-autonomous-k2, --knowledge-manifest (existing)",
+      "series_state_inheritance_and_start_stock_order": "b5_generator_contrast.expected_inputs / assert_inherited_inputs / run_series stock-start (D2198)",
+      "operating_point": "p3_s4_loop.calibrated_perf via --calibrated-perf --perf-workload (D2198)",
+      "session_contract": "pipeline bench 5 rep, CV > 0.05 remeasure up to 3 rounds (bench_max_rounds=3), ledger quality classification (D2198)",
+      "stop_and_budget": "b5_generator_contrast.run_series A/B ledger, fresh layout per slot (D2198)",
+      "duplicates": "B-5 mode duplicate-skip refusal (D2198); post-submission skip limitation recorded in insight (N1)",
+      "correctness_and_tier0": "--verify-performance legacy + performance trace; Tier0 (D2215)",
+      "compute_job_and_schedule": "tools/pegasus/p3_s4_loop_pegasus.sh B-5 mode + node-local bench lock (T-2830); registered schedule and stage submitter in tools/pegasus/b5_contrast_launch.py (this wave)",
+      "random_generator": "b5_generator_contrast.random_value (D2198)",
+      "sweep_generator": "b5_generator_contrast.sweep_order (D2198)",
+      "stock": "BACKOFF_FIXED=-1 stock-start per series and block-stock per workload x block (D2198, this wave's schedule)",
+      "analysis": "orchestrator/campaign/b5_generator_contrast_report.py --purpose registered (D2198)",
+      "llm_prompt_tool": "tools/b5_llm_round.py (this wave)"
+    }
+  },
+  "versions": {
+    "ccbench_pin_used_by_child": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "ccbench_gitlink_at_base": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "grammar_module_sha256": "d013131d9d40364a4b370cd38de608c92897409eee088eae8b5f1d0e5ff447f1",
+    "environment": {
+      "env_tag": "pegasus",
+      "resolved_by": "orchestrator.campaign.env_contract.lookup('pegasus') (the child's path via p3_s4_loop._SITE_ENV_TAGS)",
+      "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+      "clocks_per_us": 2100,
+      "numactl": [],
+      "calibration_ref": {
+        "path": "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+        "sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+      },
+      "note": "The same contract hash appears in the pilot build-variant path (contracts/e576e9cd...). A later generation entry (calibration-94a4b79f..., contract 1346c20b...) exists in env_contract.py but is not what lookup returns for this path."
+    },
+    "toolchain_observed_in_pilot": {
+      "source": "pilot job 13638.nqsv masstree-prebuild-receipt toolchain_manifest (compute node)",
+      "cc": "/usr/bin/x86_64-linux-gnu-gcc-11 = x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "cxx": "/usr/bin/x86_64-linux-gnu-g++-11 = x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "cmake": "/usr/bin/cmake = cmake version 3.22.1",
+      "python": "/usr/bin/python3.10 sha256 d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+      "registered_runs": "Each job records its own toolchain_manifest in the prebuild receipt; there is no automatic comparison gate."
+    },
+    "claude_code_client_observed": "2.1.278 (login node, 2026-09-22); recorded per round by record-models, not pinned"
+  },
+  "operating_points": {
+    "common": {"records": 1000000, "threads": 48, "extime_s": 3, "reps": 5, "ycsb_zipf_skew": "0.9", "ycsb_rmw": "0", "ycsb_max_ope": "10"},
+    "write-heavy": {"ycsb_rratio": "5"},
+    "balanced": {"ycsb_rratio": "50"},
+    "read-heavy": {"ycsb_rratio": "95"},
+    "source": "orchestrator.campaign.p3_s4_loop.calibrated_perf (p2_2 constants)"
+  },
+  "genome": {
+    "candidate": "silo BACK_OFF=1 NO_WAIT_LOCKING_IN_VALIDATION=1 NO_WAIT_OF_TICTOC=0 WAL=0 BACKOFF_FIXED=<v>, hole literal == v, v integer 1..1000",
+    "stock": "same flags with BACKOFF_FIXED=-1 (adaptive backoff; not BACK_OFF=0)"
+  },
+  "execution_contract": {
+    "slot_invocation": "python3 -B -m orchestrator.campaign.p3_s4_loop (--stock-control | --run-iteration <frozen proposal>) --isolate-worktree --fetchcontent-prebuild-receipt <receipt> --calibrated-perf --perf-workload <w> --verify-performance --b5-slot <slot key> --b5-sidecar-dir <dir> [llm: --allow-coder-derived-build (candidates) --knowledge-manifest <m> --coder-role coder-v4-autonomous-k2 (candidates) --knowledge-classification known_result_conditioned_derivative --knowledge-de-novo-claim false] [random/sweep candidates: --machine-generated-proposal]",
+    "slot_key": "b5-generator-contrast-v1|b5-registered-v1|<arm>|<workload>|<series>|<kind>|<n>|attempt-<t> (kind: stock-start 1, search 1..30, score 1..5, block-stock 1..5; attempt 0..2)",
+    "tier0": {
+      "contract_id": "b5-tier0/v1",
+      "build": "one perf build, pipeline._build_one(trace=False), before pipeline-submitted.json",
+      "smoke_flags": ["--thread_num=4", "--ycsb_tuple_num=200", "--extime=1", "--ycsb_rratio=50", "--ycsb_zipf_skew=0.9", "--ycsb_rmw=true", "--ycsb_max_ope=5"],
+      "clocks_per_us": "env contract (2100)", "numactl": "env contract (none)",
+      "timeout_s": 32, "strict_returncode": true, "use_perf": false,
+      "pass": ["rc == 0", "commits > 0 (benchparse.integer_abort_commit_counts)", "throughput finite and > 0"],
+      "failure": "candidate-caused: consumes A only, no retry, no B (D2215)",
+      "applies_to": ["search", "score"]
+    },
+    "correctness": {
+      "legacy_trace": {"ycsb_tuple_num": "200", "thread_num": "4", "ycsb_rratio": "50", "ycsb_zipf_skew": "0.9", "ycsb_rmw": "true", "ycsb_max_ope": "5", "extime": "1", "traces": 1},
+      "performance_trace": "same records / threads / rratio / skew / rmw / max_ope as the operating point, extime 3, traces 5 (pipeline.performance_correctness_workload)",
+      "verifier": "Python API pipeline -> orchestrator.verifier (verify_trace_dir_with_capability); module file sha256 in files_sha256; any anomaly in any trace rejects the candidate before bench (rule 2)",
+      "seed": "No explicit benchmark seed is passed; generator seeds are the SHA-256 preimages below and are not a benchmark RNG control"
+    },
+    "bench": {
+      "build": "trace-disabled perf build",
+      "reps": 5, "cv_threshold": 0.05, "max_rounds": 3, "adopted_round": "lowest CV round", "settle": "admission settle before the first round and between rounds",
+      "lock": "IZANAGI_BENCH_LOCK=$TMPDIR/bench.lock (node-local, T-2830)",
+      "session_value": "median throughput of the adopted round's 5 reps",
+      "quality_missing": "len(tps) != reps or unstable or settled is not True (ledger classification, D2198)",
+      "warmup_rep": "none (5 rep kept; see insight rep 1 section)"
+    },
+    "perf_counters": "llc_miss_rate and ipc are expected null on gen_S (perf unavailable); critic attribution limited to throughput / abort / CV (D2200 item 1 (2) 1)"
+  },
+  "budget": {
+    "B": 10, "A": 30, "N_eval": 5, "block_stock_sessions": 5, "machine_retries": 2,
+    "logical_sessions": 1773, "series": 108, "block_stock_jobs": 9,
+    "d39_decision2_revision_for_approval": "B = 10 / A = 30, no 3600 s series cap, no convergence or reverse-exhaustion stop (preregistration section 3.4)",
+    "llm_wait_s": 2700, "llm_poll_s": 15, "session_budget_s": 1800
+  },
+  "generators": {
+    "random": {
+      "formula": "floor(2^128 * ln((v+1)/v)), v=1..1000 (precisions 100 and 130 must agree)",
+      "weights_sha256": "876b1b4798fbf79dfefaffd9ccefceaf0beb16cb8561cc5ea4e28745bbd20bdd",
+      "M": "2350927428781729131458637903205781083070",
+      "preimage": "b5-generator-contrast-v1|random|<w>|<r>|<a>|<c> (rejection counter c)",
+      "material_file": {"path": "bundle/weights-material.json", "sha256": "af36f720aa12a09000ee8cbd7810c6ea353e73a8344afc2826f620e9c17c67a3", "producer": "python3 -m orchestrator.campaign.b5_generator_contrast weights-material"},
+      "values_file": {"path": "bundle/random-values.json", "sha256": "cdae6be89a7747eb3cace63b37b0326dae76e1bc4c0616ce7b1b4a746766ba40", "content": "36 series x 30 opportunities [value, counter]; every counter is 0"}
+    },
+    "sweep_matched": {
+      "grid": "EXTENDED_SWEEP_US restricted to 1..1000 (28 points)",
+      "order": "sort by SHA-256 of b5-generator-contrast-v1|sweep|<w>|<r>|<v>, then v",
+      "orders_file": {"path": "bundle/sweep-orders.json", "sha256": "6300ba1163adfc737699f8bc1f064b7dd7c92ec057a13091fbcc8b406cf49afd", "content": "36 series full orders"}
+    },
+    "llm": {
+      "configuration": "knowledge-bearing K2 manual loop (planner-v4 / coder-v4-autonomous-k2 / critic, reflux on, D2155 critic diagnosis), one fresh parent session per series (D2216)",
+      "expected_model": "claude-opus-5",
+      "parent_launch": "claude --model claude-opus-5 --settings output/insights/2026-09-22/t2797-effect-bundle/bundle/b5-parent-settings.json (CLAUDE_CODE_SUBAGENT_MODEL and CLAUDE_CODE_EFFORT_LEVEL unset)",
+      "parent_settings": {"path": "bundle/b5-parent-settings.json", "content": {"env": {"ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5"}, "effortLevel": "xhigh"}, "note": "alias-to-model mapping variable, not a credential"},
+      "roles": {
+        "planner-v4": {"definition": ".claude/agents/planner-v4.md", "model_field": "opus", "effort": "high", "tools": "none"},
+        "coder-v4-autonomous-k2": {"definition": ".claude/agents/coder-v4-autonomous-k2.md", "model_field": "opus", "effort": "high", "tools": "none"},
+        "critic": {"definition": ".claude/agents/critic.md", "model_field": "opus", "effort": "high", "tools": "Read, Grep, Glob, Bash"},
+        "parent": {"model": "claude-opus-5 (--model)", "effort": "xhigh (settings)"}
+      },
+      "generation_parameters": "temperature, top_p, max tokens and similar sampling parameters have no specification interface in the client and are not observable; they are recorded as client defaults, not as fixed values",
+      "model_recording": "tools/b5_llm_round.py record-models per role call: all assistant message.model values, client versions, agentType, toolUseId, raw sha256 of transcript and meta; matches_expected is recorded, not enforced by the tool",
+      "mismatch_rule": "If any role record in a round has matches_expected false, the parent does not publish that proposal and closes the session; the series ends by proposal-wait-timeout (unclassified missing), no rescue or re-draw",
+      "knowledge": {
+        "manifest": {"path": "bundle/knowledge-manifest-wal-only.json", "raw_sha256": "68eb3d5f4bcdab1e91a379868d188493bda548c5f26d6c3965a00dc5c9a70977", "digest": "396cd5594c3f22fb0d52476aa3eec51e62f26c5d3e81b1e25a5935697b73588e", "source": "commit 2fa13a262a53b7f4e610a40a7a7af7f86fc9d621 output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl sha256 2163b794fa3b1fce4de76a1b69262cadfc095bd986225a7266d6eacb6210a611"},
+        "planner_projection_reference": {"path": "output/insights/2026-09-18/t2746-k2-loop-round2/materials/knowledge-input.json", "sha256": "05f2b2673f6769767dab788b187a5a951ff79ab9df1d4795a529b12037fd5808"},
+        "classification": "known_result_conditioned_derivative", "de_novo_claim": "false"
+      },
+      "leakproof_contexts": {
+        "write-heavy": {"path": "bundle/leakproof-context-write-heavy.md", "sha256": "ed5217cc2afac3d3421921e22fe516b354d66fdaede08a1d2de7bba10daf8957"},
+        "balanced": {"path": "bundle/leakproof-context-balanced.md", "sha256": "5e33b7c3a95379a501961b1b7f1d2b02bf879413cd1408515368bf3b88dbff86"},
+        "read-heavy": {"path": "bundle/leakproof-context-read-heavy.md", "sha256": "9dca7fda71a625c395627511093e6b2d694ca4484640a46b8fb22bea58b4d073"},
+        "producer": "python3 tools/b5_llm_round.py context --workload <w>"
+      },
+      "prompts": "Templates live in tools/b5_llm_round.py (sha256 in files_sha256). Generated prompts do not exist before the run (they embed each series' start-stock value); the tool prints and stores each generated prompt's sha256 under the materials root",
+      "input_schema": "planner input {current_perf, leading_indicators {cache_miss_rate_pct, contention_level, IPC_overall}, whiteboard (exactly k-1 entries), knowledge_input, k2_critic_diagnosis (k >= 2 only, 6 fields)}; coder input {leakproof_context, knowledge_input, baseline, planner_direction, whiteboard, k2_critic_diagnosis (k >= 2)}",
+      "initial_input": "k = 1: current_perf and baseline = series-start stock of the same job; empty whiteboard; no diagnosis key",
+      "missing_values": "null and the text 'null (欠測)'; never 0",
+      "parent_template": {"path": "bundle/b5-llm-parent-template.md"},
+      "retained_pilot_constraint": "coder is asked for an integer literal (narrower than the accepted grammar); kept as a pilot configuration fact"
+    }
+  },
+  "schedule": {
+    "file": {"path": "bundle/registered-schedule.json", "sha256": "01df7ed05813d05e0cd3ba51a8377887197353372ee681bd0c53977a01e23207", "producer": "python3 tools/pegasus/b5_contrast_launch.py registered-schedule"},
+    "design": "reverse-order pairs A={LRS,SRL} B={LSR,RSL} C={RLS,SLR}; excluded pair e=(w+b-1) mod 3; block b holds series 4(b-1)+1..4b; stage s runs position s; block-stock (series=block) in stage 2",
+    "properties_checked_by_parent": "36 order rows, 117 jobs (36 per arm + 9 stock), jobs per (block, stage) 12/15/12, LLM jobs per (block, stage) = 4, each workload uses each of 6 orders twice, LLM before/after each baseline 2/2 per (workload, block)",
+    "procedure": "next stage only after every job of the previous stage ended; next block at least 1 h after the previous block's last job ended; recorded from job and ledger timestamps, no runtime check",
+    "concurrent_llm_series": "at most 4 (= p, D2216)"
+  },
+  "walltime": {
+    "formula": "W = ceil(21259 s x k) for series jobs of all three search arms; W_stock = ceil(5447 s x k) for block-stock jobs (D2217); 0 < k <= 4.06",
+    "candidates": {"2": {"W": 42518, "W_stock": 10894}, "3": {"W": 63777, "W_stock": 16341}, "4.06": {"W": 86312, "W_stock": 22115}},
+    "recommended_k": "3",
+    "approved_k": null
+  },
+  "total_wall": {
+    "counted": "sum of job Elapse including parent waits (preregistration section 11, D2200 item 1 (3))",
+    "base_pilot_elapse_s": 61261,
+    "recommended_multiplier": 40,
+    "recommended_cap_s": 2450440,
+    "approved_multiplier": null,
+    "estimate_file": {"path": "bundle/cost-model.txt", "sha256": "cffbf5e091ee7359c257e897c8e548f1fe82c149bb5d21e7d35656d497a59a8d"}
+  },
+  "rep1_warmup_check": "No session-definition change: max |median(2..5)/median(1..5)-1| = 0.6960% over 53 pilot sessions, 0 at or above 1%, 0 CV-gate changes (insight rep 1 section)",
+  "n1_duplicate_skip": "No code change; reachable only by re-running a slot in the same submit-tree or importing a campaign; if reached, B is under-recorded by 1, the report does not flag it and the series becomes score-missing (insight N1 section)",
+  "files_sha256": {
+    "orchestrator/campaign/b5_generator_contrast.py": "55da1f0fb58fe1ffcd5d39b5ae446c5950f23b00220c08932f8900c02521625b",
+    "orchestrator/campaign/b5_generator_contrast_report.py": "6ce783ab17986f47c417d0c0fce94a98e19e31a4ba3cbcabcda427e5f85d9d68",
+    "orchestrator/campaign/p3_s4_loop.py": "39fba9a8b91b38b35f5181dada2fd529a50d84f0a24be643064084447bbe5337",
+    "orchestrator/campaign/pipeline.py": "472cc7a23d1f8d442db8c3a85fb2af03242e55540258ff284c678051a82c11df",
+    "orchestrator/campaign/loop.py": "3b671cf69518c34db3826c62c99e3585fd1e661d6f5511325b29b01343972e3f",
+    "orchestrator/campaign/backoff_hole_grammar.py": "d013131d9d40364a4b370cd38de608c92897409eee088eae8b5f1d0e5ff447f1",
+    "orchestrator/campaign/backoff_extended_sweep.py": "a3648f098415423a392b56c62735b7a9c1964e9d56eb04b5f337d5f9e7cc017f",
+    "orchestrator/campaign/p2_2.py": "9b30a7ad764f7a2dac0554349af9a46f08587db7e9ecdc91bc8501f8d2734db3",
+    "orchestrator/campaign/env_contract.py": "292bbed314a6824e0618da83d1d94253f0290e4db0b3e509200a79221508bc9a",
+    "orchestrator/campaign/projection_guard.py": "aafa0046698de487f0dc1df05704bdcb81dd95ef060f030f30d8a444e6d92f22",
+    "orchestrator/campaign/knowledge_manifest.py": "9cff2402029ed07cdd7d4396cbc4b90a8a95d100994af698aa653e4689d35351",
+    "orchestrator/calibrator/stability.py": "65aca32fd6b1572b9488d1a98ee998aaea16915542078b5a99679c3a2204f92e",
+    "orchestrator/calibrator/analyze.py": "dae37dde2a4f164605448a644dd79c62305aec8d1ad59062a8ca71b390341aef",
+    "orchestrator/calibrator/runner.py": "afa697ee4527a790c93ea9e77e98a0605a5543645ac064d5eba23f587913d7ed",
+    "orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+    "orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+    "orchestrator/verifier/cli.py": "68e690c6370617aabe95a26ecef1d55df0f5bfda74336ae822b2513bca0fba91",
+    "orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+    "orchestrator/verifier/core.py": "4d70c244848fc7410bd1a724cad7aa0f7f856ddfeb43717d8d8abb45385e42d0",
+    "orchestrator/verifier/dsg.py": "e5989092476a6208e5631c63b12cc66d64945cbe307514b074c1a7f0fc6365aa",
+    "orchestrator/verifier/model.py": "59136847b040e70002ee73f1b1de52a9ac2545e7beb36f60d95a0a43596067fb",
+    "orchestrator/verifier/parse.py": "a588bc3095fefb5f107be16de5976ed726c84bcfbe9a5a1f5d670951515f23af",
+    "orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd",
+    "tools/pegasus/b5_contrast_launch.py": "093904ee4841d9499ff8b4d9e71433d92ab0de7c13c6724353823c5dda8485c9",
+    "tools/pegasus/p3_s4_loop_pegasus.sh": "ee6a00bf8299b65188dbcac6443f15766a84936dea4f0297263945b04c74f706",
+    "tools/b5_llm_round.py": "03506f4767f59f72c325fb2278ff77c57a86213db3f7144a42d49c55cb253f68",
+    ".claude/agents/planner-v4.md": "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027",
+    ".claude/agents/coder-v4-autonomous-k2.md": "5d730eeaf09b639ef146157e6a7fe4786e79ace60af3de5c15bb23a16bf9e427",
+    ".claude/agents/critic.md": "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b",
+    "docs/b5-generator-contrast-preregistration.md": "66cc3911e0e4026de7ff6d33d419c362d40130944ec1f30be1ec2f2ac9afd669",
+    "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49"
+  },
+  "not_closed_by_this_bundle": [
+    "Live Tier0 check (test_b5_tier0.py::test_live_*) runs in the calibration job after approval",
+    "Generated prompts and observed model IDs exist only after the run",
+    "Toolchain identity of each registered job is recorded, not compared by a gate",
+    "Execution order and block separation are procedures recorded from timestamps; the report does not verify them",
+    "The admission registry reason for tools/pegasus/b5_contrast_launch.py still describes the pilot submitter (class unchanged)"
+  ]
+}
