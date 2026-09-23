@@ -202,6 +202,207 @@ def _aggregate(tmp_path, jobs, remeasure=()):
     return json.loads(args.out.read_text()), json.loads(args.projection_out.read_text())
 
 
+def _compare_jobs():
+    jobs = []
+    for job in range(8):
+        rows = [_row(role, cid, throughput=100) for role, cid, _ in R._cases("compare", job, None)]
+        for row in rows:
+            if row["role"] == "fixed10":
+                row["genome"]["flags"] = {**C.locks._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 10}
+                row["backoff_fixed_define"] = {trace: {"effective": True,
+                    "defines": ["-DBACK_OFF=1", "-DBACKOFF_FIXED=10"]}
+                    for trace in ("trace1", "trace0")}
+        jobs.append({"schema_version": R.SCHEMA, "phase": "compare", "job": job,
+                     "hostname": "host", "started_at": f"time-{job}", "pin": C.PIN,
+                     "toolchain": {"cxx": "g++"},
+                     "workload": {"legacy": C.LEGACY, "performance": R.FLAGS,
+                                  "bench_reps": 5, "numa": True}, "cases": rows})
+    return jobs
+
+
+def _compare_row(jobs, job, case_id):
+    return next(row for row in jobs[job]["cases"] if row["case_id"] == case_id)
+
+
+def _set_tps(row, throughput):
+    for rep in row["bench"]:
+        rep["throughput"] = throughput
+
+
+def test_compare_cases_rotate_by_job():
+    seen = []
+    for job in range(8):
+        actual = R._cases("compare", job, None)
+        base = [*[("ir", c.case_id) for c in IR.enumerate_recon()
+                   if IR.job_of(c.case_id) == job], ("abort0", "abort0"),
+                ("stock", "stock"), ("b0_l_w0", "B0-L-W0"), ("fixed10", "fixed10")]
+        assert [(role, cid) for role, cid, _ in actual] == base[job:] + base[:job]
+        seen += [cid for role, cid, _ in actual if role == "ir"]
+    assert sorted(seen) == sorted(c.case_id for c in IR.enumerate_recon())
+
+
+def test_compare_aggregate_uses_best_reference():
+    jobs = _compare_jobs()
+    _set_tps(_compare_row(jobs, 0, "0000"), 120)
+    for cid, tps in (("stock", 80), ("B0-L-W0", 100), ("fixed10", 110)):
+        _set_tps(_compare_row(jobs, 0, cid), tps)
+    result = R._compare_detail(jobs)
+    row = next(r for r in result["comparisons"] if r["case_id"] == "0000")
+    assert result["errors"] == [] and row["best_ref_ratio"] == 120 / 110
+    assert row["ratio_vs"] == {"stock": 120 / 80, "b0_l_w0": 120 / 100,
+                                "fixed10": 120 / 110}
+
+
+def test_compare_aggregate_null_when_reference_ineligible():
+    jobs = _compare_jobs()
+    _compare_row(jobs, 0, "fixed10")["verify"]["legacy"]["certified"] = False
+    result = R._compare_detail(jobs)
+    row = next(r for r in result["comparisons"] if r["case_id"] == "0000")
+    assert row["best_ref_ratio"] is None and row["reason"] == "reference-ineligible"
+    assert row["ratio_vs"]["stock"] == 1 and row["ratio_vs"]["b0_l_w0"] == 1
+    assert row["ratio_vs"]["fixed10"] is None
+
+
+def test_compare_aggregate_rejects_wrong_order():
+    jobs = _compare_jobs()
+    jobs[0]["cases"][0], jobs[0]["cases"][1] = jobs[0]["cases"][1], jobs[0]["cases"][0]
+    result = R._compare_detail(jobs)
+    assert result["summary"] is None and any("sequence" in e for e in result["errors"])
+
+
+def test_compare_aggregate_rejects_fixed10_flag_mismatch():
+    jobs = _compare_jobs()
+    _compare_row(jobs, 0, "fixed10")["genome"]["flags"]["BACKOFF_FIXED"] = 9
+    result = R._compare_detail(jobs)
+    assert result["summary"] is None and any("fixed10 genome flags" in e for e in result["errors"])
+
+
+def test_compare_aggregate_floor_boundary():
+    jobs = _compare_jobs()
+    _set_tps(_compare_row(jobs, 0, "0000"), 102)
+    _set_tps(_compare_row(jobs, 0, "1111"), 104)
+    result = R._compare_detail(jobs)
+    rows = {r["case_id"]: r for r in result["comparisons"]}
+    assert rows["0000"]["exceeds"] is False
+    assert rows["1111"]["exceeds"] is True
+    assert result["summary"]["exceeds_count"] == 1
+
+
+def test_compare_fixed10_genome_and_build_args(tmp_path):
+    owner = tmp_path / C.axis.SOURCE_REL
+    owner.parent.mkdir(parents=True)
+    owner.write_text("// owner\n")
+    @contextmanager
+    def source(policy, **kwargs):
+        assert policy == "stock" and kwargs["backoff_fixed_patch"] is True
+        yield tmp_path, {"accepted": True, "stock": True, "backoff_fixed_patch": True}
+
+    genomes, builds = [], []
+    evidence = SimpleNamespace(src_token="token", as_receipt=lambda: {"source": "same"})
+
+    def resolve(genome, *args, **kwargs):
+        genomes.append(genome)
+        return evidence
+
+    def build(source, path, **kwargs):
+        builds.append(kwargs)
+        path.mkdir(parents=True)
+        (path / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(source), "file": str(owner),
+            "arguments": ["c++", "-DBACK_OFF=1", "-DBACKOFF_FIXED=10", "-o",
+                          "CMakeFiles/ycsb_silo.exe.dir/owner.o", "-c", str(owner)]}]))
+        return path / "binary", {"built": True}
+
+    certified = {"certified": True, "verdict": "serializable", "exit_code": 0, "commits": 10}
+    def run(*args, **kwargs):
+        return certified if kwargs["trace"] else {"throughput": 100.0, "commits": 90, "aborts": 10}
+
+    with patch.object(C, "_source", source), patch.object(C, "_build_variant", side_effect=build), \
+         patch.object(C.source_digest, "resolve_evidence", side_effect=resolve), \
+         patch.object(C, "_run", side_effect=run), \
+         patch.object(R, "_trace0", return_value={"clean": True}):
+        row = R._one("fixed10", "fixed10", None, tmp_path / "case", {"cxx_path": "c++"}, {})
+    assert row["status"] == "complete"
+    assert row["genome"]["flags"]["BACKOFF_FIXED"] == 10
+    assert all(g.flags["BACKOFF_FIXED"] == 10 for g in genomes)
+    assert [b["trace"] for b in builds] == [1, 0]
+    assert all(b["stock"] is True and b["stock_backoff"] == 1 and
+               b["stock_backoff_fixed"] == 10 for b in builds)
+
+
+def test_compare_fixed10_define_check_rejects_missing_define(tmp_path):
+    source = tmp_path / "source"
+    owner = source / C.axis.SOURCE_REL
+    owner.parent.mkdir(parents=True)
+    owner.write_text("// owner\n")
+    build = tmp_path / "build"
+    build.mkdir()
+
+    def command(defines):
+        (build / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(source), "file": str(owner),
+            "arguments": ["c++", *defines, "-o", "CMakeFiles/ycsb_silo.exe.dir/owner.o", "-c", str(owner)]}]))
+        return R._backoff_fixed_define(build, source)
+
+    assert command(["-DBACK_OFF=1", "-DBACKOFF_FIXED=10"])["effective"] is True
+    for defines in (["-DBACK_OFF=1"], ["-DBACK_OFF=1", "-DBACKOFF_FIXED=9"]):
+        assert command(defines)["effective"] is False
+
+    @contextmanager
+    def source_context(*args, **kwargs):
+        yield source, {"accepted": True}
+
+    calls = []
+    def build_variant(*args, **kwargs):
+        calls.append("build")
+        return build / "binary", {"built": True}
+    def run(*args, **kwargs):
+        calls.append("run")
+        return {}
+    evidence = SimpleNamespace(src_token="token", as_receipt=lambda: {"source": "same"})
+    for index, defines in enumerate((["-DBACK_OFF=1"],
+                                     ["-DBACK_OFF=1", "-DBACKOFF_FIXED=9"])):
+        command(defines)
+        calls.clear()
+        with patch.object(C, "_source", source_context), \
+             patch.object(C, "_build_variant", side_effect=build_variant), \
+             patch.object(C, "_run", side_effect=run), \
+             patch.object(C.source_digest, "resolve_evidence", return_value=evidence):
+            row = R._one("fixed10", "fixed10", None, tmp_path / f"case-{index}",
+                         {"cxx_path": "c++"}, {})
+        assert row["status"] == "backoff-fixed-not-effective" and calls == ["build"]
+        assert row["backoff_fixed_define"]["trace1"]["defines"] == defines
+
+
+def test_source_backoff_fixed_patch_materializes_markers(tmp_path):
+    from orchestrator.campaign.backoff_extended_sweep import _BACKOFF_FIXED_PATCH_MARKERS
+    with patch.object(C, "checkout", _checkout):
+        with C._source("stock", compiler=_cxx(), scratch=tmp_path) as (source, contract):
+            assert contract == {"accepted": True, "stock": True}
+            assert any(marker not in (source / relative).read_text()
+                       for relative, markers in _BACKOFF_FIXED_PATCH_MARKERS.items()
+                       for marker in markers)
+        with C._source("stock", compiler=_cxx(), scratch=tmp_path,
+                       backoff_fixed_patch=True) as (source, contract):
+            assert contract == {"accepted": True, "stock": True, "backoff_fixed_patch": True}
+            assert all(marker in (source / relative).read_text()
+                       for relative, markers in _BACKOFF_FIXED_PATCH_MARKERS.items()
+                       for marker in markers)
+    with pytest.raises(ValueError, match="backoff_fixed_patch"):
+        with C._source("abort0", compiler=_cxx(), scratch=tmp_path,
+                       backoff_fixed_patch=True):
+            pass
+
+
+def test_build_variant_backoff_fixed_rejects_non_stock(tmp_path):
+    kwargs = {"trace": 1, "toolchain": {"cxx_path": "c++"}, "dependencies": {}}
+    with pytest.raises(ValueError, match="stock_backoff_fixed"):
+        C._build_variant(tmp_path, tmp_path / "bad", stock_backoff_fixed=10, **kwargs)
+    with pytest.raises(ValueError, match="stock_backoff_fixed"):
+        C._build_variant(tmp_path, tmp_path / "bad", stock=True, stock_backoff=0,
+                         stock_backoff_fixed=10, **kwargs)
+
+
 def test_aggregate_exact_floor_and_no_candidate(tmp_path):
     jobs = _jobs()
     # Exactly 1.03 is not above the strict floor.
