@@ -40,9 +40,9 @@ from ..verifier import (                                        # noqa: E402
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
     issue_commit_receipt,
-    result_to_dict,
     verify_trace_dir_with_capability,
 )
+from ..verifier.core import result_to_dict_v3                 # noqa: E402
 from ..verifier.commit_receipt import (                          # noqa: E402
     admit_remote_verification_receipt,
     campaign_lock_sha256_or_absent,
@@ -431,9 +431,18 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
         raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e
     if existing_traces:
         raise _TraceDirNotEmpty(existing_traces)
-    if not os.path.basename(binary).startswith("ycsb_"):
-        # commit 後に counter を無条件加算することを確認済みなのは YCSB だけ。
-        # TPCC/BoMB 等を denylist で列挙せず、証明済み workload を allowlist する。
+    name = os.path.basename(binary)
+    # YCSB は既存の commit witness 対象。TPC-C 段 1 は設計 §3.5 の
+    # CCBench 側 commit 計数修正を前提に、57:43 のみ trace を許す。
+    # TPC-C の v3 schema は trace の verifier 後に要求する。
+    tpcc_stage1 = (
+        name.startswith("tpcc_")
+        and flags.get("tpcc_perc_payment") == "43"
+        and flags.get("tpcc_perc_order_status") == "0"
+        and flags.get("tpcc_perc_delivery") == "0"
+        and flags.get("tpcc_perc_stock_level") == "0"
+    )
+    if not (name.startswith("ycsb_") or tpcc_stage1):
         raise _TraceWitnessUnsupportedWorkload(binary)
     args = (list(numactl) if numactl else []) + [binary] \
         + [f"-{k}={v}" for k, v in flags.items()] \
@@ -630,6 +639,14 @@ def _execute_verification_repetition(
             {"error": _exc_summary(exc)},
         )
 
+    if (os.path.basename(binary).startswith("tpcc_")
+            and verify_result.integrity.existence_violation_details is None):
+        return abort(
+            "trace-witness-unsupported-workload",
+            f"v3 trace でない TPC-C workload ({receipt_workload_tag}) → reject",
+            {"trace_schema": "v2"},
+        )
+
     verify_payload: Dict[str, Any] = {
         "build_attempt_id": build_attempt_id,
         "verdict": verify_result.verdict,
@@ -653,7 +670,7 @@ def _execute_verification_repetition(
         })
     rejected = None
     if not verify_result.certified:
-        diagnostic = result_to_dict(verify_result)
+        diagnostic = result_to_dict_v3(verify_result)
         diagnostic.pop("trace_dir", None)
         rejected = _RepetitionAbortOutcome(
             reason=verify_result.verdict,

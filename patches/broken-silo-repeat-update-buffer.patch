@@ -1,0 +1,77 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..fff4356e9 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -1,6 +1,26 @@
+ #include <stdio.h>
+ #include <algorithm>
+ #include <string>
++#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER
++#include <atomic>
++#include <cstdint>
++namespace {
++std::atomic<std::uint64_t> t2847_reached{0}, t2847_changed{0}, t2847_committed{0};
++thread_local bool t2847_changed_tx = false;
++void t2847_mark_changed() {
++  t2847_changed.fetch_add(1, std::memory_order_relaxed);
++  t2847_changed_tx = true;
++}
++struct T2847Report {
++  ~T2847Report() {
++    fprintf(stderr, "T2847_FIRED slug=repeat-update-buffer reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)t2847_reached.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_changed.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_committed.load(std::memory_order_relaxed));
++  }
++} t2847_report;
++}
++#endif
+ 
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+@@ -53,6 +73,9 @@ void TxExecutor::abort() {
+ }
+ 
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER
++  t2847_changed_tx = false;
++#endif
+   status_ = TransactionStatus::inflight;
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -526,7 +549,24 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+   std::uint64_t start = rdtscp();
+ #endif
+ 
++#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER
++  if (auto* existing = searchWriteSet(s, key)) {
++    t2847_reached.fetch_add(1, std::memory_order_relaxed);
++    // Stock discards the second input. Use a byte distinct from both old and new.
++    if (existing->op_ == OpType::UPDATE &&
++        existing->body_.get_val_size() != 0 && body.get_val_size() != 0) {
++      auto* dest = static_cast<unsigned char*>(existing->body_.get_val_ptr());
++      auto* input = static_cast<const unsigned char*>(body.get_val_ptr());
++      unsigned int replacement = 0;
++      while (replacement == dest[0] || replacement == input[0]) ++replacement;
++      dest[0] = static_cast<unsigned char>(replacement);
++      t2847_mark_changed();
++    }
++    goto FINISH_WRITE;
++  }
++#else
+   if (searchWriteSet(s, key)) goto FINISH_WRITE;
++#endif
+ 
+   /**
+    * Search tuple from data structure.
+@@ -706,6 +746,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER
++    if (t2847_changed_tx)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;

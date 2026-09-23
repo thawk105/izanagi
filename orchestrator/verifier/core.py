@@ -281,7 +281,7 @@ def _bind_verifier_capability_entrypoint():
         ) -> None:
             if _token is not issuer_token or type(result) is not VerifyResult:
                 raise TypeError("VerificationCapability is verifier-issued")
-            projection = result_to_dict(result)
+            projection = result_to_dict_v3(result)
             projection.pop("trace_dir", None)
             projection["integrity"].pop("framing_violation_details", None)
             projection["integrity"].pop("permutation_violation_details", None)

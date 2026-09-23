@@ -1,0 +1,80 @@
+{
+ "source": "mutation-final-results.json (job dir)",
+ "source_sha256": "56e3f6fd6d42867ba07f234c17a3aa9a24aeba1cb42ce7dae14f22fd82153cb4",
+ "repo_head": "ff9e48b66206beb95d074cdfab19e86934dfdcf0",
+ "spec_sha256": "d951ad2ac5af7b9c80fcc6fcd2fdf1cfd0bd90df777cd7950c60a2901e6b25e0",
+ "summary": {
+  "KILLED": 4,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 5,
+  "matching": 5,
+  "recorded": 5,
+  "registered": 5
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0
+ },
+ "mutations": [
+  {
+   "id": "M0",
+   "status": "SURVIVED",
+   "rc": 0,
+   "failed_nodes": []
+  },
+  {
+   "id": "M1",
+   "status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+    "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+   ]
+  },
+  {
+   "id": "M2",
+   "status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+   ]
+  },
+  {
+   "id": "M3",
+   "status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+    "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+   ]
+  },
+  {
+   "id": "M4",
+   "status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]"
+   ]
+  }
+ ]
+}

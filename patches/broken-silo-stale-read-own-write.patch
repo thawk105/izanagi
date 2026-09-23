@@ -1,0 +1,73 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..e88be6b6d 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -1,6 +1,26 @@
+ #include <stdio.h>
+ #include <algorithm>
+ #include <string>
++#if IZANAGI_BREAK_STALE_READ_OWN_WRITE
++#include <atomic>
++#include <cstdint>
++namespace {
++std::atomic<std::uint64_t> t2847_reached{0}, t2847_changed{0}, t2847_committed{0};
++thread_local bool t2847_changed_tx = false;
++void t2847_mark_changed() {
++  t2847_changed.fetch_add(1, std::memory_order_relaxed);
++  t2847_changed_tx = true;
++}
++struct T2847Report {
++  ~T2847Report() {
++    fprintf(stderr, "T2847_FIRED slug=stale-read-own-write reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)t2847_reached.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_changed.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_committed.load(std::memory_order_relaxed));
++  }
++} t2847_report;
++}
++#endif
+ 
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+@@ -53,6 +73,9 @@ void TxExecutor::abort() {
+ }
+ 
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_STALE_READ_OWN_WRITE
++  t2847_changed_tx = false;
++#endif
+   status_ = TransactionStatus::inflight;
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -214,10 +237,20 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+     goto FINISH_READ;
+   }
+   we = searchWriteSet(s, key);
++#if IZANAGI_BREAK_STALE_READ_OWN_WRITE
++  if (we) {
++    t2847_reached.fetch_add(1, std::memory_order_relaxed);
++    TupleBody& old_body = we->rcdptr_->body_;
++    if (old_body.get_val() != we->body_.get_val()) t2847_mark_changed();
++    *body = &old_body;
++    goto FINISH_READ;
++  }
++#else
+   if (we) {
+     *body = &(we->body_);
+     goto FINISH_READ;
+   }
++#endif
+ 
+   /**
+    * Search tuple from data structure.
+@@ -706,6 +739,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if IZANAGI_BREAK_STALE_READ_OWN_WRITE
++    if (t2847_changed_tx)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;

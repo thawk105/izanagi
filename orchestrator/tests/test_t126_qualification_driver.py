@@ -782,7 +782,7 @@ def test_qualification_stock_source_reaches_build_with_exact_class(
         }, extime=3, reps=5,
     )
     stock = campaign_fixtures._source_evidence(
-        genome, "e9e477c", source_root=str(tmp_path / "clean-stock-source"),
+        genome, "6810666", source_root=str(tmp_path / "clean-stock-source"),
     )
     seen = []
 
