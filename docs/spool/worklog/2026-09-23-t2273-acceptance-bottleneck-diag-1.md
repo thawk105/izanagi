@@ -14,6 +14,7 @@ title: [T-2273] [T-2560] 受入 shard-0 の律速を第 4 回として取り直�
 - 計算ノード job 4 本 (R1 18929 / R2 19029 / R2' 19108 / R2'' 19131、合計 Elapse 2,598 秒 ≈ 0.72 node 時間、受入を除く)。R2 の対照走は計算ノード /tmp のユーザー quota 超過で無効 (infra、probe の置き場)。R2' は**親が走行中に wave 木へ insight の下書きを書いた**ため smoke 後の clean 検査で止まった (検査は正しく働いた。下書きは job dir へ退避した)。
 - probe (runner / plugin / analyze) は Codex author が 4 巡 (author・author-r2・fix1・fix2) で書き、repo 外で実行した。repo には逐語 `.md` だけを置いた。変異 matrix は実装面の差分ゼロで免除。記録前の実 repo テストの実走として、wave tip の受入 shard-0 相当 (4,269 件 = 4,216 passed・53 skipped) を R1・R2 の A2・R2'' の A2 / X で計 4 回完走した (rc 0)。
 - 段 6 の独立 read-only レビュー 1 本 (修正後 GO、must-fix 1 = copytree の区間の混同、should 4 = 超過率・走と key の取り違え・非共有 builder の記載漏れ・可視集合件数と実複製件数の区別、nit 2) を全件反映した。受入全走は本記録 commit を含む tip で段 9 の前に行う。
+- 受入 1 回目 (tip `ffc9ca932`、post-claim merge 後) は赤 1 件: `orchestrator/tests/test_mutation_harness.py::test_local_timeout_after_dispatch_submission_stops_without_terminal_record` が `assert MH.main(...) == 2` で 0 を返した (hang timeout を 1 秒に置く時間依存の test)。本 wave の差分は insight と本 fragment だけで mutation harness に到達しない。同一 tip の単独再走 (request 19554.nqsv) は 1 passed in 6.23 秒で再現せず → 非帰属と判定し (DW-O18)、本追記を含む tip で受入を取り直した。
 - 今回の 4 走は pre が 128.8〜130.2 秒で、T-2825 の実受入 (62.6〜64.4 秒) の約 2 倍だった。原因は分解していない (insight 結論 8)。
 
 ## 次の一手差分
