@@ -2932,7 +2932,7 @@ def test_production_build_sinks_include_certify_calibration_script():
     }
     assert _BuildSink(
         "orchestrator/campaign/silo_policy_coverage.py",
-        "<module>._build_variant", 382, "direct-cmake-target",
+        "<module>._build_variant", 386, "direct-cmake-target",
     ) in sinks
 
 

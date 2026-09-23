@@ -233,11 +233,14 @@ def test_other_operators_and_lock_commit_updates_execution():
 
 
 def test_job_factor_balance():
-    for job in (0, 1):
+    seen = []
+    for job in range(8):
         cases = [c for c in ir.enumerate_recon() if ir.job_of(c.case_id) == job]
-        assert len(cases) == 8
+        assert len(cases) == 2
+        seen.extend(c.case_id for c in cases)
         for factor in range(4):
-            assert sum(c.factors[factor] for c in cases) == 4
+            assert sum(c.factors[factor] for c in cases) == 1
+    assert sorted(seen) == [c.case_id for c in ir.enumerate_recon()]
     for invalid in ('abort0', '000', '00000', '0002', ''):
         with pytest.raises(ValueError):
             ir.job_of(invalid)

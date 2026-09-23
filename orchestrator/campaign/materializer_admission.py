@@ -103,7 +103,7 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
     "orchestrator.campaign.silo_policy_coverage._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,
-            "Silo function-policy coverage and smoke builds are diagnostic only",
+            "Silo function-policy coverage, smoke, and fixed recon builds are diagnostic only",
         ),
     "orchestrator.campaign.s8a_trigger_coverage._build":
         MaterializerRegistration(

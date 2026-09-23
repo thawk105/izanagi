@@ -360,7 +360,10 @@ def _condition_gates(source: Path, macros: tuple[str, ...], args: list[str],
 
 
 def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
-                   dependencies: dict, macros: tuple[str, ...] = (), stock: bool = False) -> tuple[Path, dict]:
+                   dependencies: dict, macros: tuple[str, ...] = (), stock: bool = False,
+                   stock_backoff: int = 1) -> tuple[Path, dict]:
+    if stock_backoff not in (0, 1) or (not stock and stock_backoff != 1):
+        raise ValueError("stock_backoff is only available for stock builds")
     admission = non_admissible_materializer(MATERIALIZER)
     site = site_policy.current_site(require_evidence=True)
     if site_policy.refuses_heavy_work(site):
@@ -369,7 +372,8 @@ def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
     args = [a for a in compute._common_configure_args(
         trace=trace, toolchain=toolchain, dependencies=dependencies)
         if a not in compute.STOCK_G.cmake_defines()]
-    args += (locks.STOCK_G if stock else GENOME).cmake_defines()
+    stock_genome = Genome("silo", {**locks._BASE, "BACK_OFF": stock_backoff})
+    args += (stock_genome if stock else GENOME).cmake_defines()
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     gates = _condition_gates(source, macros, args, toolchain["cxx_path"], stock=stock)
     if (not stock and not gates) or any(r["admission"]["admitted"] is not True for r in gates):
@@ -544,7 +548,9 @@ def _run(binary: Path, flags: dict, *, source: Path, trace: bool, probe: bool = 
 
 @contextmanager
 def _source(policy: str, *, probe_patch: bool = False, patch: str | None = None,
-            compiler: str, scratch: Path):
+            compiler: str, scratch: Path, body: str | None = None):
+    if body is not None and policy == "stock":
+        raise ValueError("stock and body cannot be specified together")
     with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as value:
         source = Path(value)
         stock = policy == "stock"
@@ -556,7 +562,8 @@ def _source(policy: str, *, probe_patch: bool = False, patch: str | None = None,
                     apply_patch(str(ROOT / "patches" / PROBE_PATCH), value)
                 if patch:
                     apply_patch(str(ROOT / "patches" / patch), value)
-                body = (ROOT / axis.HAND_POLICY_DIR / (policy + ".cpp")).read_text()
+                if body is None:
+                    body = (ROOT / axis.HAND_POLICY_DIR / (policy + ".cpp")).read_text()
                 path = source / axis.SOURCE_REL
                 rendered, contract = prepare_policy(path, body, compiler=compiler, scratch_dir=str(scratch))
                 path.write_text(rendered)

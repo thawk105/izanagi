@@ -341,7 +341,8 @@ def enumerate_recon() -> tuple[ReconCase, ...]:
 
 def job_of(case_id: str) -> int:
     _require(isinstance(case_id, str) and len(case_id) == 4 and set(case_id) <= {'0', '1'}, 'expected LSRM case ID')
-    return sum(map(int, case_id)) % 2
+    number = int(case_id, 2)
+    return min(number, number ^ 15)
 
 
 def main(argv: list[str] | None = None) -> int:
