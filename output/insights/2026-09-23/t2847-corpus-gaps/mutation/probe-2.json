@@ -1,0 +1,166 @@
+{
+ "checkout": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-corpus-gaps",
+ "head": "d0ed93bab39acc17089e410261eb3585db98d56e",
+ "spec_sha256": "c5e699abd96a983e78076e9fc42ab709f76491f2e28359e370611e97b08a1735",
+ "files": [
+  "orchestrator/tests/test_verifier_corpus_gaps.py",
+  "orchestrator/tests/test_verifier.py"
+ ],
+ "baseline": [
+  {
+   "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+   "rc": 0,
+   "wall_s": 0.3,
+   "failed_nodes": [],
+   "summary": "3 passed, 0 failed, 0 skipped",
+   "fail_lines": []
+  },
+  {
+   "file": "orchestrator/tests/test_verifier.py",
+   "rc": 0,
+   "wall_s": 8.2,
+   "failed_nodes": [],
+   "summary": "132 passed, 0 failed, 0 skipped",
+   "fail_lines": []
+  }
+ ],
+ "mutations": [
+  {
+   "id": "M0",
+   "runs": [
+    {
+     "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+     "rc": 0,
+     "wall_s": 0.2,
+     "failed_nodes": [],
+     "summary": "3 passed, 0 failed, 0 skipped",
+     "fail_lines": []
+    },
+    {
+     "file": "orchestrator/tests/test_verifier.py",
+     "rc": 0,
+     "wall_s": 8.2,
+     "failed_nodes": [],
+     "summary": "132 passed, 0 failed, 0 skipped",
+     "fail_lines": []
+    }
+   ],
+   "failed_nodes": []
+  },
+  {
+   "id": "M5",
+   "runs": [
+    {
+     "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+     "rc": 1,
+     "wall_s": 0.1,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c"
+     ],
+     "summary": "2 passed, 1 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_b06_wr_only_cycle_is_g1c: Anomaly(cycle=[0, 1], phenomenon='G0', edges=[CycleEdge(src=0, dst=1, reasons=[EdgeReason(etype='wr', key='aa', u_ver=(1, 1), v_ver=None)]), CycleEdge(src=1, dst=0, reasons=[EdgeReason(etype='wr', key='bb', u_ver=(1, 2), v_ver=None)])])"
+     ]
+    },
+    {
+     "file": "orchestrator/tests/test_verifier.py",
+     "rc": 0,
+     "wall_s": 5.5,
+     "failed_nodes": [],
+     "summary": "132 passed, 0 failed, 0 skipped",
+     "fail_lines": []
+    }
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c"
+   ]
+  },
+  {
+   "id": "M6",
+   "runs": [
+    {
+     "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+     "rc": 1,
+     "wall_s": 0.1,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+     ],
+     "summary": "2 passed, 1 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_f06_different_version_double_read: {1: (2,), 0: (1,)}"
+     ]
+    },
+    {
+     "file": "orchestrator/tests/test_verifier.py",
+     "rc": 1,
+     "wall_s": 6.0,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+      "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds"
+     ],
+     "summary": "130 passed, 2 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_capacity_packed_versions_preserve_bounds_duplicates_and_notes: ",
+      "FAIL test_v3_packed_mapping_and_read_bounds: "
+     ]
+    }
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+   ]
+  },
+  {
+   "id": "M8",
+   "runs": [
+    {
+     "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+     "rc": 1,
+     "wall_s": 0.2,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier_corpus_gaps.py::test_f03_same_version_double_read"
+     ],
+     "summary": "2 passed, 1 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_f03_same_version_double_read: {0: (1, 1)}"
+     ]
+    },
+    {
+     "file": "orchestrator/tests/test_verifier.py",
+     "rc": 1,
+     "wall_s": 6.2,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+      "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+      "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+      "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+      "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+      "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+      "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds"
+     ],
+     "summary": "125 passed, 7 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_broken_silo_norw_fixture_contract: ",
+      "FAIL test_capacity_all_fixture_results_match_frozen_baseline: ('g5_silo_real_prefix', 1)",
+      "FAIL test_capacity_packed_versions_preserve_bounds_duplicates_and_notes: ",
+      "FAIL test_concurrent_verifications_keep_edge_worker_inputs_isolated: ",
+      "FAIL test_real_silo_serializable: ",
+      "FAIL test_silo_serial_1thread_fixture_contract: ",
+      "FAIL test_v3_packed_mapping_and_read_bounds: "
+     ]
+    }
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+    "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+    "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+    "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+    "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_f03_same_version_double_read"
+   ]
+  }
+ ]
+}

@@ -9123,7 +9123,7 @@ def test_dev_wave_model_pin_rejects_dw_o01_authority_drift():
     try:
         rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
-        changed = text.replace("gpt-6-astra", "gpt-5.6-terra", 1)
+        changed = text.replace("gpt-6-sol", "gpt-5.6-terra", 1)
         assert changed != text
         _write(root, rel, changed)
         _assert_findings(
@@ -9409,7 +9409,7 @@ def test_dev_wave_model_pins_accept_current_docs_contract():
 
 def test_dev_wave_model_pin_contract_is_time_invariant():
     assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
-        "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。"
+        "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。"
     )
     assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
         "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"
