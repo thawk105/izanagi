@@ -555,6 +555,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      certified、stock の source は STOCK で、K2手動loopの同job stock対照が初めて成立 (候補/stock = 2.366)。続けて4巡目 (択A = round 3 の
      派生物から入力、生成1回で候補5) を同job stock付き1 jobで評価し、両方 certified (2.493)。改善・一般化の主張ではない。critic-4 の還流は未。
      記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md`。
+   - [x] [T-2860] K2 4巡目の還流を閉じた (2026-09-23、計算なし・実装差分ゼロ)。critic-4 を1回、planner-5 / coder-5 / critic-4 の AO 3件を
+     原本と byte 一致の写しへ取り込み (原本は不変)、層3材料レポート (mechanism_hypotheses 1件、source_refs 14) と4巡の results 稿を置いた。
+     B-6 の充足・K2 の必須経路化ではない (D2211項1)。記録は `output/insights/2026-09-23/t2860-k2-round4-reflux/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
