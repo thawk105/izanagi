@@ -1,0 +1,548 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m0-control-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "\"\"\"S1 R0 comparison harness. Fresh sessions, immutable events, derived reports.\n",
+          "new": "\"\"\"S1 R0 comparison harness (control). Fresh sessions, immutable events, derived reports.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-harness-prefix",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "a.b5_slot.startswith((\"b5-generator-contrast-v1|\", \"t2849-harness-v1|\"))",
+          "new": "a.b5_slot.startswith((\"b5-generator-contrast-v1|\",))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-reference-uses-stock-genome",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "              if reference_genome is None else reference_genome)",
+          "new": "              if reference_genome is None else Genome(\"silo\", {**_BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1}))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-reference-accepted-outside-harness",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if not (stock_only and a.b5_slot\n                and a.b5_slot.startswith(\"t2849-harness-v1|\")):",
+          "new": "        if not (stock_only and a.b5_slot):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_rejected_outside_harness[b5]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-rmtree-before-preservation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            preserved = True\n            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")",
+          "new": "            shutil.rmtree(tdir, ignore_errors=True)\n            preserved = True\n            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_archive_before_cleanup",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[relative]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-delete-original-after-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if preserved:\n                shutil.rmtree(tdir, ignore_errors=True)",
+          "new": "            if True:\n                shutil.rmtree(tdir, ignore_errors=True)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[relative]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-preservation-error-propagates",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                except Exception as exc:\n                    preserved = False",
+          "new": "                except ZeroDivisionError as exc:\n                    preserved = False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[relative]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[inventory]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[spawn]",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-preserve-without-env",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if archive_root is not None:\n                try:\n                    _preserve_trace_directory(",
+          "new": "            if True:\n                try:\n                    _preserve_trace_directory("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[True]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[balanced]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[read-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_read_heavy_reference_exact_flags[write-heavy]",
+        "orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults",
+        "orchestrator/tests/test_t2853_trace_preservation.py::test_unset_env_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-initial-counts-b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "            if kind == \"search\":\n                b += 1",
+          "new": "            if kind in {\"search\", \"initial\"}:\n                b += 1"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_initial_outside_b"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-retry-counts-b-each-attempt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        if observation[\"submitted\"] and not submitted_once:",
+          "new": "        if observation[\"submitted\"]:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_retry_counts_b_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-bo-keeps-tier0-failures",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "elif event.get(\"outcome\") in {\"rejected-tier0\", \"build-failed\", \"anomaly\"}",
+          "new": "elif event.get(\"outcome\") in {\"build-failed\", \"anomaly\"}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_generators.py::test_bo_excludes_candidate_failures"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-matern-on-raw-v",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "    xs = [math.log(v) for v, _ in observations]",
+          "new": "    xs = [float(v) for v, _ in observations]"
+        },
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "        k = [matern52(math.log(value), x, length, signal) for x in xs]",
+          "new": "        k = [matern52(float(value), x, length, signal) for x in xs]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_generators.py::test_ei_latent_variance",
+        "orchestrator/tests/test_t2849_generators.py::test_gp_two_point_independent_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-ei-adds-noise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "        ei = [expected_improvement(m, v, incumbent)",
+          "new": "        ei = [expected_improvement(m, v + NOISE, incumbent)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_generators.py::test_ei_latent_variance"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-evolution-replaces-on-tie",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "event[\"fitness_tps\"] > self.parent[1]",
+          "new": "event[\"fitness_tps\"] >= self.parent[1]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_generators.py::test_equal_fitness_keeps_parent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-initial-not-endpoint-candidate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        event = ledger.append(\"evaluation-result\", **observed)\n        evaluations.append(event)\n        if generator:",
+          "new": "        event = ledger.append(\"evaluation-result\", **observed)\n        if generator:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[initial]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[score]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[search]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_job_cost_deduplicated_initial_retry_and_critic_retained",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_initial_can_be_endpoint"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15-own-series-disqualification-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        disqualified = _disqualified(ledgers, h[\"workload\"])",
+          "new": "        disqualified = _disqualified([ledger], h[\"workload\"])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[initial]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[score]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[search]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m16-quality-missing-filled-by-stock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "            if any(e.get(\"quality\") == \"quality-missing\" for e in evaluations):\n                status = \"quality-missing\"",
+          "new": "            if any(e.get(\"quality\") == \"quality-missing\" for e in evaluations):\n                score, status = stock, \"quality-missing\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes0-quality-missing]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m17-current-perf-best-not-latest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "    current = candidates[-1]",
+          "new": "    current = max(candidates, key=lambda e: e[\"fitness_tps\"])"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_k0_uses_latest_normal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m18-reference-skips-wal-genome",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "                or build.payload.get(\"genome\") != expected_genome.canonical()\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_reference_genome_mismatch_not_certified",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_reference_incomplete_or_anomalous_not_certified[identity]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m19-n-eval-as-reps",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        observation = classifier(sidecar, None, SESSION_REPS, genome)",
+          "new": "        observation = classifier(sidecar, None, h[\"N_eval\"], genome)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_block_control_session_counts_and_exact_reference_argv",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[initial]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[score]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_series_disqualification[search]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_cross_workload_and_cohort_do_not_contaminate",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_job_cost_deduplicated_initial_retry_and_critic_retained",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes0-quality-missing]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes1-fallback-candidate-rejected]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes2-machine-missing]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes3-fallback-score-anomaly]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_missingness_precedence[outcomes4-score-missing]",
+        "orchestrator/tests/test_t2849_comparison_aggregate.py::test_reference_missing_not_stock_imputed",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_allocation_exhaustion_records_initial_without_tell_crash",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_failure_endings[outcomes0-a-exhausted]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_failure_endings[outcomes1-unclassified-missing]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_failure_endings[outcomes2-unclassified-missing]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_grid_exhaustion_and_all_arm_a_cap",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_inheritance_exact_prior_and_diagnosis",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_initial_can_be_endpoint",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_initial_machine_failure_ends_before_search",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_initial_outside_b",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_k0_uses_latest_normal",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_machine_arms_fresh_slots[bo]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_machine_arms_fresh_slots[evolution]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_machine_arms_fresh_slots[random]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_machine_arms_fresh_slots[sweep]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_n_eval_independent_of_reps",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_rejection_does_not_advance_whiteboard",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_retry_counts_b_once",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_role_costs_recorded",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_sweep_initial_order_in_generator_wall"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m20-llm-gets-machine-flag",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "argv += [\"--allow-coder-derived-build\" if origin == \"llm\" else \"--machine-generated-proposal\"]",
+          "new": "argv += [\"--machine-generated-proposal\"]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_llm_slot_argv_k0"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m21-whiteboard-iteration-a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "observed[\"whiteboard_entry\"] = {\"iteration\": b,",
+          "new": "observed[\"whiteboard_entry\"] = {\"iteration\": a,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_rejection_does_not_advance_whiteboard"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m22-role-costs-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "\"role_calls\": costs.get(\"role_calls\"),",
+          "new": "\"role_calls\": None,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_role_costs_recorded"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m23-job-body-no-bench-lock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  export IZANAGI_BENCH_LOCK=\"$TMPDIR/bench.lock\"\n  \"$PY\" -B -m orchestrator.campaign.t2849_comparison_harness",
+          "new": "  \"$PY\" -B -m orchestrator.campaign.t2849_comparison_harness"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_bench_lock"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m24-job-body-falls-through",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  exit \"$harness_rc\"\n",
+          "new": "  : \"$harness_rc\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_bench_lock",
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_single_driver[0-block-controls]",
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_single_driver[0-series]",
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_single_driver[7-block-controls]",
+        "orchestrator/tests/test_t2849_job_contract.py::test_harness_single_driver[7-series]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m25-prior-only-to-planner",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t2849_llm_round.py",
+          "old": "\"baseline\": req[\"baseline\"], \"planner_direction\": None, **shared}",
+          "new": "\"baseline\": req[\"baseline\"], \"planner_direction\": None, **{k: v for k, v in shared.items() if k != \"t2849_prior_observations\"}}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_llm_round.py::test_prior_observations_both_roles[0]",
+        "orchestrator/tests/test_t2849_llm_round.py::test_prior_observations_both_roles[1]",
+        "orchestrator/tests/test_t2849_llm_round.py::test_publish_costs_and_no_overwrite"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m26-reference-skips-stock-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        if (not attempt or src != source_digest.STOCK\n",
+          "new": "        if (not attempt\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_reference_nonstock_source_not_certified[balanced]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_reference_nonstock_source_not_certified[read-heavy]",
+        "orchestrator/tests/test_t2849_comparison_harness.py::test_reference_nonstock_source_not_certified[write-heavy]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

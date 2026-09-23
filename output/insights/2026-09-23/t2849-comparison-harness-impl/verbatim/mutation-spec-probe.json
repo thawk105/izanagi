@@ -1,0 +1,391 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m0-control-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "\"\"\"S1 R0 comparison harness. Fresh sessions, immutable events, derived reports.\n",
+          "new": "\"\"\"S1 R0 comparison harness (control). Fresh sessions, immutable events, derived reports.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-harness-prefix",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "a.b5_slot.startswith((\"b5-generator-contrast-v1|\", \"t2849-harness-v1|\"))",
+          "new": "a.b5_slot.startswith((\"b5-generator-contrast-v1|\",))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-reference-uses-stock-genome",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "              if reference_genome is None else reference_genome)",
+          "new": "              if reference_genome is None else Genome(\"silo\", {**_BASE, \"BACK_OFF\": 1, \"BACKOFF_FIXED\": -1}))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-reference-accepted-outside-harness",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if not (stock_only and a.b5_slot\n                and a.b5_slot.startswith(\"t2849-harness-v1|\")):",
+          "new": "        if not (stock_only and a.b5_slot):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-rmtree-before-preservation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            preserved = True\n            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")",
+          "new": "            shutil.rmtree(tdir, ignore_errors=True)\n            preserved = True\n            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-delete-original-after-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if preserved:\n                shutil.rmtree(tdir, ignore_errors=True)",
+          "new": "            if True:\n                shutil.rmtree(tdir, ignore_errors=True)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-preservation-error-propagates",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                except Exception as exc:\n                    preserved = False",
+          "new": "                except ZeroDivisionError as exc:\n                    preserved = False"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-preserve-without-env",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            if archive_root is not None:\n                try:\n                    _preserve_trace_directory(",
+          "new": "            if True:\n                try:\n                    _preserve_trace_directory("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-initial-counts-b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "            if kind == \"search\":\n                b += 1",
+          "new": "            if kind in {\"search\", \"initial\"}:\n                b += 1"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-retry-counts-b-each-attempt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        if observation[\"submitted\"] and not submitted_once:",
+          "new": "        if observation[\"submitted\"]:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-bo-keeps-tier0-failures",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "elif event.get(\"outcome\") in {\"rejected-tier0\", \"build-failed\", \"anomaly\"}",
+          "new": "elif event.get(\"outcome\") in {\"build-failed\", \"anomaly\"}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-matern-on-raw-v",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "    xs = [math.log(v) for v, _ in observations]",
+          "new": "    xs = [float(v) for v, _ in observations]"
+        },
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "        k = [matern52(math.log(value), x, length, signal) for x in xs]",
+          "new": "        k = [matern52(float(value), x, length, signal) for x in xs]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-ei-adds-noise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "        ei = [expected_improvement(m, v, incumbent)",
+          "new": "        ei = [expected_improvement(m, v + NOISE, incumbent)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-evolution-replaces-on-tie",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_generators.py",
+          "old": "event[\"fitness_tps\"] > self.parent[1]",
+          "new": "event[\"fitness_tps\"] >= self.parent[1]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14-initial-not-endpoint-candidate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        event = ledger.append(\"evaluation-result\", **observed)\n        evaluations.append(event)\n        if generator:",
+          "new": "        event = ledger.append(\"evaluation-result\", **observed)\n        if generator:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15-own-series-disqualification-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        disqualified = _disqualified(ledgers, h[\"workload\"])",
+          "new": "        disqualified = _disqualified([ledger], h[\"workload\"])"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m16-quality-missing-filled-by-stock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "            if any(e.get(\"quality\") == \"quality-missing\" for e in evaluations):\n                status = \"quality-missing\"",
+          "new": "            if any(e.get(\"quality\") == \"quality-missing\" for e in evaluations):\n                score, status = stock, \"quality-missing\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m17-current-perf-best-not-latest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "    current = candidates[-1]",
+          "new": "    current = max(candidates, key=lambda e: e[\"fitness_tps\"])"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m18-reference-skips-wal-genome",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "                or build.payload.get(\"genome\") != expected_genome.canonical()\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m19-n-eval-as-reps",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        observation = classifier(sidecar, None, SESSION_REPS, genome)",
+          "new": "        observation = classifier(sidecar, None, h[\"N_eval\"], genome)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m20-llm-gets-machine-flag",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "argv += [\"--allow-coder-derived-build\" if origin == \"llm\" else \"--machine-generated-proposal\"]",
+          "new": "argv += [\"--machine-generated-proposal\"]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m21-whiteboard-iteration-a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "observed[\"whiteboard_entry\"] = {\"iteration\": b,",
+          "new": "observed[\"whiteboard_entry\"] = {\"iteration\": a,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m22-role-costs-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "\"role_calls\": costs.get(\"role_calls\"),",
+          "new": "\"role_calls\": None,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m23-job-body-no-bench-lock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  export IZANAGI_BENCH_LOCK=\"$TMPDIR/bench.lock\"\n  \"$PY\" -B -m orchestrator.campaign.t2849_comparison_harness",
+          "new": "  \"$PY\" -B -m orchestrator.campaign.t2849_comparison_harness"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m24-job-body-falls-through",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "  exit \"$harness_rc\"\n",
+          "new": "  : \"$harness_rc\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m25-prior-only-to-planner",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t2849_llm_round.py",
+          "old": "\"baseline\": req[\"baseline\"], \"planner_direction\": None, **shared}",
+          "new": "\"baseline\": req[\"baseline\"], \"planner_direction\": None, **{k: v for k, v in shared.items() if k != \"t2849_prior_observations\"}}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m26-reference-skips-stock-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2849_comparison_harness.py",
+          "old": "        if (not attempt or src != source_digest.STOCK\n",
+          "new": "        if (not attempt\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

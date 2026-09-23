@@ -2175,7 +2175,23 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             )
             return _project_repetition_outcome(tag, outcome)
         finally:
-            shutil.rmtree(tdir, ignore_errors=True)
+            preserved = True
+            archive_root = os.environ.get("IZANAGI_TRACE_ARCHIVE_ROOT")
+            if archive_root is not None:
+                try:
+                    _preserve_trace_directory(
+                        tdir, archive_root,
+                        campaign_id=os.path.basename(os.path.normpath(layout.root)),
+                        variant=v, build_attempt_id=build_attempt_id, tag=tag,
+                        workload_flags=workload.flags, genome=genome,
+                        trace_binary_sha256=tr.bin_sha256,
+                    )
+                except Exception as exc:
+                    preserved = False
+                    print(f"trace preservation failed; original retained at {tdir}: {exc}",
+                          file=sys.stderr)
+            if preserved:
+                shutil.rmtree(tdir, ignore_errors=True)
 
     def _run_one_pass(tag: str, workload: CorrectnessWorkload,
                       pass_numactl: Optional[Sequence[str]]) -> Optional[EvalResult]:
@@ -2580,6 +2596,80 @@ def _commit_prepared(
             commit_receipt=prepared.receipt_for(commit_payload),
         )
     return res
+
+
+def _compress_trace_archive(stream, compressed) -> None:
+    """Launch only the archive compressor; keep its failure seam local."""
+    subprocess.run(["zstd", "-T0", "-3"], stdin=stream,
+                   stdout=compressed, stderr=subprocess.PIPE, check=True)
+
+
+def _preserve_trace_directory(
+        tdir: str, archive_root: str, *, campaign_id: str, variant: str,
+        build_attempt_id: str, tag: str, workload_flags: Mapping,
+        genome: Genome, trace_binary_sha256: str,
+) -> None:
+    """Archive one local repetition; failures propagate to the cleanup boundary.
+
+    inventory.json is published as complete only after all compressed files exist.
+    It is an archival index, never verification or certification evidence.
+    """
+    if not os.path.isabs(archive_root):
+        raise ValueError("IZANAGI_TRACE_ARCHIVE_ROOT must be absolute")
+    destination = os.path.join(archive_root, campaign_id, variant,
+                               build_attempt_id, tag, os.path.basename(tdir))
+    inventory = {
+        "status": "incomplete", "original_directory": tdir,
+        "workload_flags": dict(workload_flags), "genome": genome.canonical(),
+        "trace_binary_sha256": trace_binary_sha256, "files": [],
+    }
+    os.makedirs(destination, exist_ok=False)
+    inventory_path = os.path.join(destination, "inventory.json")
+    try:
+        if not os.path.isdir(tdir):
+            raise FileNotFoundError(tdir)
+
+        def walk_error(error):
+            raise error
+
+        for directory, dirs, files in os.walk(tdir, onerror=walk_error):
+            dirs.sort()
+            for name in sorted(files):
+                source = os.path.join(directory, name)
+                relative = os.path.relpath(source, tdir)
+                archive_relative = os.path.join("archive", relative + ".zst")
+                archive = os.path.join(destination, archive_relative)
+                os.makedirs(os.path.dirname(archive), exist_ok=True)
+                digest = hashlib.sha256()
+                size = lines = 0
+                last = b""
+                with open(source, "rb") as stream:
+                    while chunk := stream.read(1024 * 1024):
+                        digest.update(chunk)
+                        size += len(chunk)
+                        lines += chunk.count(b"\n")
+                        last = chunk[-1:]
+                lines += int(bool(last) and last != b"\n")
+                row = {"path": relative, "sha256": digest.hexdigest(),
+                       "bytes": size, "lines": lines,
+                       "archive_path": archive_relative, "status": "incomplete"}
+                inventory["files"].append(row)
+                partial = archive + ".partial"
+                with open(source, "rb") as stream, open(partial, "xb") as compressed:
+                    _compress_trace_archive(stream, compressed)
+                os.replace(partial, archive)
+                row.update(status="complete", compressed_bytes=os.path.getsize(archive))
+        inventory["status"] = "complete"
+        with open(inventory_path, "x", encoding="utf-8") as stream:
+            json.dump(inventory, stream, sort_keys=True)
+    except Exception as exc:
+        inventory.update(status="failed", error=str(exc))
+        try:
+            with open(inventory_path, "w", encoding="utf-8") as stream:
+                json.dump(inventory, stream, sort_keys=True)
+        except Exception:
+            pass  # The caller reports the failure and keeps the original directory.
+        raise
 
 
 def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,

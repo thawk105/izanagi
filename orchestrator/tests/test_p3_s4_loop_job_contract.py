@@ -1111,7 +1111,7 @@ def _k2_preflight_environment(
     )
     environment = dict(os.environ)
     for name in list(environment):
-        if name.startswith("IZANAGI_S4_B5_") or name == "IZANAGI_S4_FIXTURE_VALUE":
+        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
             environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",
@@ -1358,7 +1358,7 @@ def _run_actual_job_body_through_driver(
 
     environment = dict(os.environ)
     for name in list(environment):
-        if name.startswith("IZANAGI_S4_B5_") or name == "IZANAGI_S4_FIXTURE_VALUE":
+        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
             environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",

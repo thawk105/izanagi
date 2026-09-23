@@ -708,8 +708,8 @@ def _extend_t2703_role_source_baseline(
         (
             "planner",
             "c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9",
-            # T-2783: fixed pin for the reviewed planner diagnostic-input revision.
-            "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027",
+            # T-2849: fixed pin for the reviewed K0 observation-input revision.
+            "a2e01d52bb4d6399c40a5e1ae280ec9e7c64201e79a4a365f00734d006d3eb55",
         ),
         (
             "critic",

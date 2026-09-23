@@ -51,6 +51,40 @@ export https_proxy="http://10.120.96.1:8080"
 export PYTHONNOUSERSITE=1
 export PYTHONDONTWRITEBYTECODE=1
 
+harness_mode=${IZANAGI_S4_T2849_MODE-}
+harness_env_names=(COHORT COHORT_ROOT WORKLOAD BLOCK N_EVAL ARM SERIES A_LIMIT B_LIMIT BLOCK_STOCK_SESSIONS)
+if [[ -v IZANAGI_S4_T2849_MODE ]]; then
+  case "$harness_mode" in
+    series|block-controls) ;;
+    *) refuse "invalid T-2849 mode" ;;
+  esac
+  if [[ -v IZANAGI_S4_B5_MODE || -v IZANAGI_S4_PROPOSAL_PATH \
+     || -v IZANAGI_S4_FIXTURE_VALUE || "${IZANAGI_S4_STOCK_CONTROL-}" == 1 ]]; then
+    refuse "T-2849 excludes B-5, proposal, fixture, and stock-control"
+  fi
+  harness_required=(COHORT COHORT_ROOT WORKLOAD BLOCK N_EVAL)
+  if [[ "$harness_mode" == series ]]; then
+    harness_required+=(ARM SERIES A_LIMIT B_LIMIT)
+    [[ ! -v IZANAGI_S4_T2849_BLOCK_STOCK_SESSIONS ]] || refuse "series excludes block stock sessions"
+  else
+    harness_required+=(BLOCK_STOCK_SESSIONS)
+    for suffix in ARM SERIES A_LIMIT B_LIMIT; do
+      name="IZANAGI_S4_T2849_$suffix"
+      [[ ! -v $name ]] || refuse "block-controls excludes series environment"
+    done
+  fi
+  for suffix in "${harness_required[@]}"; do
+    name="IZANAGI_S4_T2849_$suffix"
+    [[ -n "${!name:-}" ]] || refuse "missing T-2849 environment: $name"
+  done
+  [[ "$IZANAGI_S4_T2849_COHORT_ROOT" == /* ]] || refuse "T-2849 cohort root must be absolute"
+else
+  for suffix in "${harness_env_names[@]}"; do
+    name="IZANAGI_S4_T2849_$suffix"
+    [[ ! -v $name ]] || refuse "T-2849 environment requires mode"
+  done
+fi
+
 b5_mode=${IZANAGI_S4_B5_MODE-}
 b5_env_names=(
   IZANAGI_S4_B5_ARM IZANAGI_S4_B5_WORKLOAD IZANAGI_S4_B5_SERIES
@@ -120,6 +154,9 @@ if [[ -n "$b5_mode" ]]; then
   fi
 fi
 
+if [[ -n "$harness_mode" && "$k2_requested" == true ]]; then
+  refuse "T-2849 K0 excludes K2 environment"
+fi
 k2_argv=()
 if [[ "$k2_requested" == true ]]; then
   for name in "${k2_required_env_names[@]}"; do
@@ -186,6 +223,14 @@ git_common_dir=$(git -C "$repo" rev-parse --path-format=absolute --git-common-di
   || refuse "cannot resolve git common directory"
 [[ "$git_common_dir" == /* ]] || refuse "git common directory is not absolute"
 git_common_repo=${git_common_dir%/.git}
+if [[ -n "$harness_mode" ]]; then
+  harness_cohort_root=$(realpath -m -- "$IZANAGI_S4_T2849_COHORT_ROOT") \
+    || refuse "cannot resolve T-2849 cohort root"
+  if [[ "$harness_cohort_root" == "$repo" || "$harness_cohort_root" == "$repo/"* \
+     || "$harness_cohort_root" == "$git_common_repo" || "$harness_cohort_root" == "$git_common_repo/"* ]]; then
+    refuse "T-2849 cohort root resolves inside a repository"
+  fi
+fi
 if [[ -n "$b5_mode" ]]; then
   b5_ledger_root=$(realpath -m -- "$IZANAGI_S4_B5_LEDGER_ROOT") \
     || refuse "cannot resolve B-5 ledger root"
@@ -648,6 +693,24 @@ with open(receipt_path, "x", encoding="utf-8") as stream:
 PY
 sync "$prebuild_receipt"
 sync "$evidence_root"
+
+if [[ -n "$harness_mode" ]]; then
+  harness_argv=("run-$harness_mode"
+    --cohort "$IZANAGI_S4_T2849_COHORT" --cohort-root "$harness_cohort_root"
+    --workload "$IZANAGI_S4_T2849_WORKLOAD" --block "$IZANAGI_S4_T2849_BLOCK"
+    --n-eval "$IZANAGI_S4_T2849_N_EVAL"
+    --fetchcontent-prebuild-receipt "$prebuild_receipt")
+  if [[ "$harness_mode" == series ]]; then
+    harness_argv+=(--arm "$IZANAGI_S4_T2849_ARM" --series "$IZANAGI_S4_T2849_SERIES"
+      --a-limit "$IZANAGI_S4_T2849_A_LIMIT" --b-limit "$IZANAGI_S4_T2849_B_LIMIT")
+  else
+    harness_argv+=(--block-stock-sessions "$IZANAGI_S4_T2849_BLOCK_STOCK_SESSIONS")
+  fi
+  harness_rc=0
+  export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
+  "$PY" -B -m orchestrator.campaign.t2849_comparison_harness "${harness_argv[@]}" || harness_rc=$?
+  exit "$harness_rc"
+fi
 
 if [[ -n "$b5_mode" ]]; then
   b5_argv=("run-$b5_mode")

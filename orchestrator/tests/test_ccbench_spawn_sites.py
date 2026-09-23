@@ -90,6 +90,8 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # Opt-in trace archive compression; fixed zstd argv, no shell or CCBench.
+    ("campaign/pipeline.py", "<module>._compress_trace_archive"): 1,
     # Standalone policy TU compiler and UBSan harness; no CCBench binary.
     ("campaign/silo_policy_compile.py", "<module>._run"): 1,
     # CMake installs gflags/glog only; the helper verifies/hydrates sources.

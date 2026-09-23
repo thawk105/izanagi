@@ -2559,6 +2559,8 @@
   `test_check_subprocess_bytecode_guard.py` で回して閉じた。費用は受入全走 1 回分 + fix 子 1 本 + 焦点走 1 回。
 
 - **再発: 2026-09-21** — [T-2797] で新設した `orchestrator/tests/test_b5_tier0.py` が自走入口 (`__main__`) を持たず、焦点走 f1 の `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` が赤になった。段 4 で「新規 test file」と決めたのに、段 5 の author prompt へ自走入口の定型を入れなかった (親の落ち度)。焦点走に同 meta-test を入れていたので受入は空振りしていない。段 6 fix1 で自走入口を足した。
+
+- **再発: 2026-09-23** — [T-2849] で U-A の実装子が足した新規 test 2 本 (`orchestrator/tests/test_t2849_loop_entry.py`・`test_t2853_trace_preservation.py`) に自走 harness も allowlist 記載も無く、最終の受入全走 1 回目が `orchestrator/tests/test_plain_runner_coverage.py` の 1 件だけで赤になった (同じ wave の他の新規 5 本は自走 harness を持っていた)。子の sandbox は試験を実走できず、親は焦点走の file 集合に DW-O26 の「新規 test file を足す走は file 集合列挙のメタテストも含める」を適用しなかった。U-A の fix 子が 2 本へ同形の自走 harness を足して受入を取り直した。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -28334,6 +28336,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   2 node 時間以上なら確認を取る。2 本目以降は 1 本目の実測 Elapse で取り直してよい。記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md` §6。
 - 再発検知: 段 6 の read-only レビューの照合項目 (依頼・裁定の但し書きと見積りの根拠の対応)。機械検査はない。
 
+
+- **再発: 2026-09-23** — [T-2849] の段 4 で親は、開発の検査の見積りを「≤ 0.99 node 時間」と置いたが、変異 dispatch の job (新しい種類) の単価を実測しておらず、walltime × job 数の上限も取らないまま変異 probe 29 job を投入した (本項の恒久対応の不適用)。probe の後、`tools/mutation_worktree.py` が使い捨て作業木ごと dispatch の受領証を消していて Elapse を実測できないと分かり、同じ runner argv の 1 job を dispatch して単価 (job Elapse 13 秒) を実測してから本走を投じた。本走 28 job の実測は計 435 秒で、wave の合計は ≈ 0.31 node 時間 (線の内側、測定値・判定への影響なし)。是正: 変異のように job 数が多い新種 job は、投入前に同じ argv の 1 job を dispatch して単価を実測し、変異の台帳に Elapse が残らない点を見込んで受領証を走行中に写す (insight `output/insights/2026-09-23/t2849-comparison-harness-impl/README.md` §7)。
 ### F1042. LaTeX 原稿の文の途中に差し込んだ出所コメント行が、同じ物理行の後続の本文を PDF から消した [手順漏れ]
 
 - 事象: ComSys 2026 投稿原稿 (1 段落 = 1 物理行) の段 6 の修正で、親が文を差し替える置換に「文．\n% 出所: …」を入れた。置換した文の後ろに続いていた同じ行の本文が新しいコメント行の末尾に付き、

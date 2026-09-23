@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2849] (1) 5 手法比較基盤の実装 (D2220 の単位 1〜7、S1 = silo の backoff 値空間) と [T-2853] (1) の標準評価経路の trace 保全口 (2026-09-23)。
+  B-5 の兄弟 module の系列 driver と BO・進化の生成器、`--reference-genome` と harness slot の評価入口、K0 LLM の巡 tool と planner-v4・coder-v4-autonomous の改訂、
+  job body の harness 分岐、env `IZANAGI_TRACE_ARCHIVE_ROOT` の opt-in の zstd 保全。焦点走 3,645 passed、変異 26 / 26 KILLED。[T-2849] の (2) MOCC と (3) 疎通、
+  [T-2853] の R1 入力一式の組は残り。記録 = `output/insights/2026-09-23/t2849-comparison-harness-impl/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
   (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。
