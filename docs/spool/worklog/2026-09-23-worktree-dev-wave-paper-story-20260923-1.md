@@ -15,6 +15,7 @@ title: 論文ストーリー 2026-09-23 版を作った — 起点 65fd1422f ま
 - 版の作り方: 前版を複製して時点語を機械置換 (「前版」→「2026-09-21c 版」269 件、「この版」→「前版」222 件) し、継続の主張 17 か所を「前版でもこの版でも」へ延ばした。冒頭・§0・§10 は差し替え、§3・§6・§7・§8 を導き直し、§1・§2・§4・§5・§9 は起点で偽になった状態語 (「未 push」「今も真」など) を直した。§7 は前半 133 項 + 後半 8 項 = 141 項。見出しの禁止句そのものが起点で真になった項 (TPC-C の段の分割、K2 の pair の成立、B-5 本走の認可ほか) は、見出しを書き換えず「前版の起点までの規律」と読む範囲を更新文で示した。
 - 段 6 (Codex `gpt-6-sol` read-only レビュー 1 本、20:22〜20:26 JST): NO-GO、must-fix 2 (certified の保証範囲を YCSB に無条件で限る文が TPC-C 段 1 の公開 API での certified と矛盾、§9 の論文用結論が K2 を未成立・B-5 を未認可と現在形で書く)。親は 2 件とも real と裁定して直した。P1・P3 (訂正 0 件)・P4・項数・置換件数への攻撃は不成立。焦点再レビュー 1 巡目 (20:27〜20:29 JST) は GO (M1・M2 とも closed、新規所見 0)。
 - 記録前検査: 三軸語の走査器 (`s8b_holdout_freeze search`) は rc=1 だが、holdout の hit は main に既存の `output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/` の 3 file だけで本 wave の file は 0 件 (paper-story の図 provenance 6 件は陽性対照の hit)。`check_docs` 違反なし、`git diff --check` 指摘なし、fold の dry-run は planned、版が引く path の実在確認 (304 path、欠けて見える 5 件は旧版から運んだ雛形表記と削除済み文書)。受入全走は記録 commit の後に行い、結果は land の受領証に残る。
+- 親の誤り (near miss、land 前に閉じた): 段 6 の fix commit を `git commit -m` の 3 分割で作り、AI-Agent trailer が最終段落に入らず全史 provenance 監査が新規違反 1 件 (rc=1) を出した。forward correction の枠は消費済みなので、未共有のうちに `20db3244d` へ soft reset して記録 commit と 1 つにまとめて作り直した (fix の内容は同じ)。wave branch の reflog に旧 commit が残るので、land 後の自己撤去は rc=20 で拒否されうる。
 - 工数: Codex 子 = review 1 本、focus 1 本。Claude の子は使っていない。計算ノードは受入のみ。
 
 ## 次の一手差分
