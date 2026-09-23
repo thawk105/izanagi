@@ -359,17 +359,28 @@ class DSG:
                            item.op if writes else None)
             return
         trace = self._compact
+        caches = [({}, {}) for _ in trace.files]
         for rank, txid in enumerate(trace.winner_txid):
-            columns = trace.files[trace.winner_path_index[rank]]
+            path_index = trace.winner_path_index[rank]
+            columns = trace.files[path_index]
+            objects, ops = caches[path_index]
             row = trace.winner_row[rank]
             offsets = columns.txn_write_offsets if writes else columns.txn_read_offsets
+            version = ((columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
+                       if writes else None)
             for index in range(offsets[row], offsets[row + 1]):
                 token = (columns.write_key_id if writes else columns.read_key_id)[index]
-                version = ((columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
-                           if writes else
-                           (columns.read_ver_epoch[index], columns.read_ver_tid[index]))
-                op = _token_at(columns, columns.write_op_id[index]) if writes else None
-                yield txid, _object_at(columns, token), version, op
+                if not writes:
+                    version = (columns.read_ver_epoch[index], columns.read_ver_tid[index])
+                if token not in objects:
+                    objects[token] = _object_at(columns, token)
+                op = None
+                if writes:
+                    op_token = columns.write_op_id[index]
+                    if op_token not in ops:
+                        ops[op_token] = _token_at(columns, op_token)
+                    op = ops[op_token]
+                yield txid, objects[token], version, op
 
     def _check_existence(self):
         """Apply the stage-1 v3 contract after edge building, once in the parent.
@@ -382,28 +393,33 @@ class DSG:
         if ig.version_dups or ig.genesis_commits:
             return
         histories = defaultdict(dict)
+        mixed = {}
         for txid, obj, version, op in self._existence_rows(True):
-            owner, ops = histories[obj].setdefault(version, (txid, set()))
-            ops.add(op)
+            history = histories[obj]
+            prior = history.get(version)
+            if prior is None:
+                history[version] = (txid, op)
+            elif prior[1] != op:
+                mixed.setdefault((obj, version), {prior[1]}).add(op)
         unborn, ambiguous = set(), set()
+        deleted = set()
 
         def add(txid, obj, version, kind, ops=()):
             details.append(ExistenceViolation(txid, obj[0], obj[1], version, kind, ops))
 
+        for (obj, version), ops in mixed.items():
+            add(histories[obj][version][0], obj, version,
+                "ambiguous-write-version", tuple(sorted(ops)))
+            ambiguous.add(obj)
         for obj, history in histories.items():
-            for version, (txid, ops) in history.items():
-                if len(ops) > 1:
-                    add(txid, obj, version, "ambiguous-write-version", tuple(sorted(ops)))
-                    ambiguous.add(obj)
             if obj in ambiguous:
                 continue
             versions = sorted(history)
-            live = history[versions[0]][1] != {"I"}
+            live = history[versions[0]][1] != "I"
             if not live:
                 unborn.add(obj)
             for version in versions:
-                txid, ops = history[version]
-                op = next(iter(ops))
+                txid, op = history[version]
                 kind = None
                 if op == "I" and live:
                     kind = "insert-on-live"
@@ -414,14 +430,15 @@ class DSG:
                 if kind:
                     add(txid, obj, version, kind, (op,))
                 live = op != "D"
-        for txid, obj, version, _ in self._existence_rows(False):
-            if obj in ambiguous:
-                continue
-            if version == GENESIS:
-                if obj in unborn:
-                    add(txid, obj, version, "read-unborn-genesis")
-            elif histories.get(obj, {}).get(version, (None, set()))[1] == {"D"}:
-                add(txid, obj, version, "read-deleted-version")
+                if not live:
+                    deleted.add((obj, version))
+        if unborn or deleted:
+            for txid, obj, version, _ in self._existence_rows(False):
+                if version == GENESIS:
+                    if obj in unborn:
+                        add(txid, obj, version, "read-unborn-genesis")
+                elif (obj, version) in deleted:
+                    add(txid, obj, version, "read-deleted-version")
         details.sort(key=lambda v: (v.txid, v.table, v.key, v.version, v.kind))
         ig.existence_violations = len(details)
         if details:

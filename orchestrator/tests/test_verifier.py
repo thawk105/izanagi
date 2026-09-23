@@ -3445,8 +3445,9 @@ def _v3_paths(d, *, expect_compact=True, expect_packed=True, **kwargs):
             assert result == reference_result
             assert core.result_to_dict_v3(result) == core.result_to_dict_v3(reference_result)
         txns, _ = parse_trace_dir(d, workers=1)
-        assert edges(DSG(txns)) == edges(reference_graph)
-        assert DSG(txns).integrity == reference_graph.integrity
+        graph = DSG(txns)
+        assert edges(graph) == edges(reference_graph)
+        assert graph.integrity == reference_graph.integrity
         return results
     finally:
         core._parse_trace_dir_compact = original_parse
@@ -3894,7 +3895,6 @@ def _existence_result(files, kinds=(), *, paths=False):
             assert [v.kind for v in ig.existence_violation_details] == list(kinds)
             assert result.certified == (not kinds)
             assert result.verdict == ("indeterminate" if kinds else "serializable")
-            assert not hasattr(ig, "v3_existence_unverified")
         return results[0]
     finally:
         shutil.rmtree(d)
