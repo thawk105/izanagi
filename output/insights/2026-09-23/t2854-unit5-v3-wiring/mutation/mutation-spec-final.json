@@ -1,0 +1,183 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-equivalent-basename-str",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    name = os.path.basename(binary)\n",
+     "new": "    name = os.path.basename(str(binary))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-cli-legacy-projection",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/cli.py",
+     "old": "            \"results\": [result_to_dict_v3(r) for r in results],\n",
+     "new": "            \"results\": [result_to_dict_v3.__globals__[\"result_to_dict\"](r) for r in results],\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-pipeline-diagnostic-legacy",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "        diagnostic = result_to_dict_v3(verify_result)\n",
+     "new": "        diagnostic = result_to_dict_v3.__globals__[\"result_to_dict\"](verify_result)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-capability-legacy-projection",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            projection = result_to_dict_v3(result)\n",
+     "new": "            projection = result_to_dict(result)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-capability-pops-existence",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n",
+     "new": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n            projection[\"integrity\"].pop(\"existence_violation_details\", None)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-payment-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n",
+     "new": "        and True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-delivery-absent-allowed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "        and flags.get(\"tpcc_perc_delivery\") == \"0\"\n",
+     "new": "        and flags.get(\"tpcc_perc_delivery\", \"0\") == \"0\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-payment-numeric-compare",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n",
+     "new": "        and int(flags.get(\"tpcc_perc_payment\", \"-1\")) == 43\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-tpcc-v3-requirement-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "            and verify_result.integrity.existence_violation_details is None):\n",
+     "new": "            and False):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-ycsb-acceptance-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n",
+     "new": "    if not tpcc_stage1:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+    "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-tpcc-acceptance-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n",
+     "new": "    if not name.startswith(\"ycsb_\"):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
