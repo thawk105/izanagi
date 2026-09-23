@@ -720,12 +720,16 @@ def _sealed_case_floor_manifest_golden_stable(tmp_path):
     _T816_MANIFEST_GOLDEN_SHA256 = (
         "d65177baf2d5a597ae0468893a54573584b04b2684d9e1f7d7071ecf4fb8a50d"
     )
-    # manifest は build record の admission receipt (policy sha) を含むため pin 前進 (policy epoch) で動く。
-    # T-2304 epoch の値は計算ノードの sealed 実走から取得した。
-    assert actual_sha256 == (
+    _T2304_MANIFEST_GOLDEN_SHA256 = (
         "f7f7a4218e20bbac33a9e6dc3346cfee18ce628d60a5cd62575cfcf16a49f916"
+    )
+    # manifest は build record の admission receipt (policy sha) を含むため pin 前進 (policy epoch) で動く。
+    # T-2858 epoch の値は計算ノードの sealed 実走から取得した。
+    assert actual_sha256 == (
+        "08158021e8e05d32af66109589a6d7bcf2d0309bab5ceb684804d55136d138e0"
     ), actual_sha256
     assert actual_sha256 != _T816_MANIFEST_GOLDEN_SHA256
+    assert actual_sha256 != _T2304_MANIFEST_GOLDEN_SHA256
 
 
 # --------------------------------------------------------------------------- #

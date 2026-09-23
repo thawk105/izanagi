@@ -71948,3 +71948,22 @@ coder・planner の入力へ渡さず (手順書 §3-D の firewall)、読んだ
 - `docs/phase3.md` 現行チェックポイントの [T-2862] 行「著者・所属・頁数・ADRS はユーザー手番のまま」は記入時点の記録として残す (現況は T-2864 の本文)。
 - 提示側の手順漏れ (next-tasks が D2227 項 7 を控え箱で照合せず push をユーザー手番として提示した) は F937 の再発として failures に記録する。
 - 投入前確認の予告 (今は諮らない): T-2850 試走 (試算 128.7〜145.4 node 時間、上限 200)、T-2849 残り (3)、T-2851 測定の発効、T-2847 残り (2)、T-2853 残り (5)、T-2858 の更新 wave。
+
+## D2236. ccbench pin を C へ進める更新では、温度述語の軸の `PIN` は現行 pin への追随のまま据え置き、現行 pin で mocc が X/P 証拠を持つことを正の事実として test に固定し、証拠の無い経路の負例は旧 pin の明示 checkout に任せる (2026-09-23)
+
+**決定:**
+1. D2227 項 1 の更新 (範囲は D2150 項 1 と同じ ①④⑦) で、`orchestrator/campaign/axis_mocc_temperature.py` は変更しない。`PIN = pin.CURRENT_PIN` の consumer は `s3_mocc_template_proof.py` の wrong-oid 負例 1 箇所だけで、C の 7 桁でも `PROOF_PIN` (e9e477ca の 40 桁) と一致しないまま負例として働く。`PROOF_PIN`・template・proof は e9e477ca に束縛したまま保持する (温度述語は D2134 項 9 で proof-only)。
+2. 現行 pin の実 compiled source を読む verifier の正負対は、C で mocc の X / P が evidence-present になった事実へ追随する。同じ trace を mocc として検証すると clean・serializable・certified になる。拒否側の被験は X/P 計装を持たない tictoc へ移す (proof surface は対象外 protocol として unavailable)。test の nodeid は real-repo 系の登録簿に載るので変えない。
+3. 「対応 protocol の実 source に X/P 計装が無い → evidence-absent → 非認定」の経路は、対応 protocol の silo・mocc がどちらも C で計装を持つので現行 checkout では到達不能になった。この経路は旧 pin (e9e477ca) を明示 checkout する mocc proof surface の test が被覆し続けるので、新しい負例・gate は足さない。
+4. D2150 項 1 (iv) (較正 record の扱い)・clang 比較の未完了・旧証拠の保持・計算確認の線 (D2212 項 4) は変えない。policy epoch の移動による旧 binary / lock の live 消費不能は D2150 項 1 の射程限定 (T-2304 で記録) と同型で、この更新で新たに壊れるものは段 6 レビューで見つからなかった。
+
+**理由:**
+- D2227 項 1 の資料 §3.2 項 4 は、`PIN` を e9e477ca の値に固定するか C 系列の proof を作り直すかの判断を求めていた。consumer を実読すると `PIN` は負例にしか使われず、どちらの手当ても挙動を変えない。変更しないのが最小である。
+- C は mocc に X/P 計装を足す commit なので、「現行 pin の mocc に証拠が無い」は旧 pin の事実であって現行の事実ではない。前例 T-2304 の between-run floor の source-facts と同じく、新 pin の事実へ追随し、負例は証拠を持たない protocol に移して意味を保つ。
+- 同じ負例を現行 pin で作るには verifier の対象 protocol 集合や source の人工改変が要り、要求外の仮想リスクに対する追加になる。
+
+**却下した選択肢:**
+- `axis_mocc_temperature.PIN` を e9e477ca の値に固定する — 挙動が同じで、alias 追随の設計 (pin.py の方針) から外れる。
+- C 系列の温度述語 proof を作り直す — D2227 項 1 の範囲 ①④⑦ の外。温度述語 hole の採用は別判断 (D2134 項 9)。
+- verifier の test の拒否側を mocc のまま残し期待値だけ反転させない — 現行 pin で事実と異なる主張になり赤のまま。
+- test を改名する — nodeid が real-repo 系の登録簿と所要台帳に載っており、改名の波及が意味の改善に見合わない。
