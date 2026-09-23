@@ -536,7 +536,7 @@ mocc (`cc/mocc/transaction.cc`) に Silo と同じ 2 種の `#if TRACE` 検査�
 (`ReaderWriterLock` の counter、`-1` = writer 保持) と CLL (`CLL_` の `LockElement`)** であり、Silo の
 Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は submodule
 **`e9e477ca1b55348ab4530de0b1cf663ce4555290`** (branch `izanagi-t1943-mocc-g2-readfrom-witness`、mocc trace v2 hook
-入り) で、現 pin 511c9538 には当たらない (`git apply --check` が拒否する。test で固定)。
+入り) で、旧 pin 511c9538 には当たらない (`git apply --check` が拒否する。test で固定)。
 
 - **X (lock 被覆) 3 検査点** — writePhase 内、非 INSERT の write のみ:
   (1) **入口** = C/R/W emit 直後: `CLL_` に `key_ == rcdptr_` ∧ writer `mode_` ∧ `lock_ == &rcdptr_->rwlock_` の要素があり、かつ
@@ -590,6 +590,8 @@ P の動的負例は size 違反までで、同サイズ pointer 置換・多重
 候補の実走証拠は `s3_mocc_xp_pin_candidate.json` に別途保存し、旧実測を候補へ引き継がない。
 TRACE=0 の正本は D297、driver の nm / strings / 正規化逆アセンブル一致は補助である。
 `.text` bytes 一致、hot 経路の再立証、I 被覆は主張しない。候補 mode の build も NON_ADMISSIBLE の診断である。
+2026-09-23 [T-2858] で C を現行 pin に採用した (D2227 項 1、値の正本は `orchestrator/campaign/pin.py` の `CURRENT_PIN`)。
+本 patch と旧計装 patch の preimage は引き続き e9e477ca であり、C の checkout に重ねない (C は同じ計装を既に含む)。
 
 ---
 

@@ -28405,3 +28405,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 新しい検査は足さない。近傍判定の記録と原稿では、近さを順位でなく条件ごとの充足 (満たす / 一部だけ / 満たさない) で書く。
   「広い読みでは条件をすべて満たすと読む余地がある」のように、読みの選択を明示する形にする。
 - 再発検知: 段 6 の独立レビュー (過大主張レンズ) と、`grep -n "最も近\|唯一\|初めて"` の自己走査 (否定文と破れる短縮形の例示は除く)。
+
+### F1048. 前例の等価変異を写したら contract-loader 閉包の drift 層に殺され、等価でなかった (near miss) [テスト代表性] [ドリフト]
+
+- 事象: pin 前進 wave で、前例 (2026-09-20 の pin 前進) と同じく `orchestrator/campaign/pin.py` のコメント言い換えを等価変異 (SURVIVED 期待) として段 4 に事前登録した。probe で 46 node が落ち、同じ file の値変異の 63 node のうち 46 node を同じ層が占めていた。probe を観測走と明記していたので final の前に分かり、実害はない。
+- 根本原因: pin.py は contract-loader binding の enforcement 閉包 (作業木 bytes == HEAD blob を要求) に入っており、変異 harness は変異を commit せずに作業木へ注入するので、閉包 file はどんな書換えでも `contract-loader-drift` で fail-closed する。この層は前例の後に入ったが、前例の spec を写す際に「等価」の前提を再確認しなかった。
+- 恒久対応: memory `equivalent-mutation-must-avoid-contract-loader-closure` (正例は閉包外 file に置く、閉包 file の値変異は drift 層の node を引いた差を単一理由の証拠にする)。当該 wave は erratum を残し、正例を閉包外の `s8b_approved.py` へ移し、drift 層を負例として再登録した (`output/insights/2026-09-23/t2858-mocc-xp-pin-advance/README.md` §5)。
+- 再発検知: DW-M08 の probe (全件 SURVIVED 期待の観測走) が、正例の MISMATCH として表に出す。
