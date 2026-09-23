@@ -177,3 +177,11 @@ def test_multiple_archives_and_streaming_counts(tmp_path, archive):
             assert row['bytes'] == len(payloads[row['path']])
             assert row['sha256'] == hashlib.sha256(payloads[row['path']]).hexdigest()
     assert len(list(archive.rglob('inventory.json'))) == 2
+
+
+def _run():
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

@@ -16,6 +16,7 @@ title: [T-2849] 5 手法比較基盤 (S1) の単位 1〜7 と [T-2853] (1) の t
 - 棄却した所見: 段 6 レビュー B の nit 2 件 (台帳 `append` を B-5 から継承できる、生成器の未使用の設定引数)。成果物を変えないので採用しなかった。
 - 変異: probe (全件 SURVIVED 期待) で 26 件すべてが名指し試験に帰属し、観測 node を登録した本走で 26 / 26 KILLED、対照 1 件 SURVIVED。
 - 計算 (D2212 項 4): 開発の検査の job Elapse は実測で焦点走 241 s・collect 8 s・単価実測 13 s・変異本走 435 s。変異 probe は受領証が使い捨て作業木と一緒に消えて実測できず、同じ runner argv の本走と同程度とみなすと合計 ≈ 0.31 node 時間。段 4 の見積り (≤ 0.99) は変異 job の単価を測らずに置いた値で、probe 後に同じ argv の 1 job で単価 (13 s) を実測してから本走を投じた。受入全走はこの記録 commit の後に走る。
+- 最終の受入全走 1 回目 (tip `6c62652da`、tested main `fb12a492b`、13:29〜13:39 JST) は 10,998 件中 1 件の赤で止まった: `orchestrator/tests/test_plain_runner_coverage.py` が、U-A の新規 test 2 本 (`test_t2849_loop_entry.py`・`test_t2853_trace_preservation.py`) に自走 harness も allowlist 記載も無いことを検出した。本 wave 起因 (F42 の再発、failures fragment)。U-A の fix 子が 2 本へ同形の自走 harness を足し (試験の本体・期待値は不変、production 不変なので変異の結果は変わらない)、受入を取り直した。
 - 並走との調整: [T-2853] (2)(3) の wave と「同じ項は後から land する側が main を取り込んで統合する」と取り決め、相手の land (`a2c2d2976`) 後の本文を base にした。
 
 ## 次の一手差分

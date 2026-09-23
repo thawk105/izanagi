@@ -150,3 +150,11 @@ def test_reference_identity_and_absent_defaults(tmp_path, monkeypatch):
         path, _ = reference(tmp_path, workload)
         assert L.main([*args(), '--stock-control', '--reference-genome', str(path)]) == 1
     assert len({str(ident.campaign_id(call[0])) for call in calls}) == 3
+
+
+def _run():
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
