@@ -70,6 +70,8 @@ class SeriesLedger:
         event = {key: None for key in EVENT_FIELDS}
         event.update(values)
         event.update(event_seq=len(self.events) + 1, kind=kind, ts_utc=_utc())
+        # Freeze nested payloads before callers add timing to later events.
+        event = json.loads(json.dumps(event))
         _publish(self.root / "events" / f"{event['event_seq']:06d}-{kind}.json", event)
         self.events.append(event)
         _publish(self.root / "series.json", self.view(), replace=True)
@@ -147,7 +149,7 @@ def classify_reference_slot(sidecar_dir, campaign_root, expected_reps, expected_
         build = starts[0]
         attempt = build.payload.get("build_attempt_id")
         src = build.payload.get("src_token")
-        if (not attempt or (src is not None and not isinstance(src, str))
+        if (not attempt or src != source_digest.STOCK
                 or build.payload.get("genome") != expected_genome.canonical()
                 or build.variant != variant_id(expected_genome, src if src is not None else source_digest.STOCK)
                 or any(r.variant != build.variant or r.payload.get("build_attempt_id") != attempt
@@ -509,7 +511,7 @@ def run_series(arm, workload, series, block, *, cohort, cohort_root, a_limit, b_
             generator.tell(event)
         if _stop_reason(observed):
             return _finish(ledger, _stop_reason(observed), 0, 0, score=None)
-    grid = G.sweep_order(workload, series) if arm == "sweep" else None
+    grid = None
     a = b = 0
     reason = "b-complete"
     while a < a_limit and b < b_limit:
@@ -535,7 +537,9 @@ def run_series(arm, workload, series, block, *, cohort, cohort_root, a_limit, b_
             if arm == "random":
                 value, counter = G.random_value(workload, series, a)
                 provenance = {"preimage": f"{G.NAMESPACE}|random|{workload}|{series}|{a}|{counter}"}
-            elif grid is not None:
+            elif arm == "sweep":
+                if grid is None:
+                    grid = G.sweep_order(workload, series)
                 value = grid[a-1]
                 provenance = {"preimage": f"{G.NAMESPACE}|sweep|{workload}|{series}|{value}"}
             else:

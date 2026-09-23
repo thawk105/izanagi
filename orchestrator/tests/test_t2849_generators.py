@@ -34,13 +34,34 @@ def test_gp_two_point_independent_values():
     assert posterior["log_likelihood"] == pytest.approx(likelihood)
 
 
-def test_ei_latent_variance():
+def test_ei_latent_variance(monkeypatch):
     posterior = G.gp_posterior([(1, 100)], [1, 10], length_scale=1, signal_variance=1)
     for i, v in enumerate([1, 10]):
         variance = 1-kernel(v, 1)**2/(1+math.log(1.03)**2+1e-10)
         assert posterior["means"][i] == pytest.approx(math.log(100))
         assert posterior["variances"][i] == pytest.approx(variance)
         assert G.expected_improvement(posterior["means"][i], posterior["variances"][i], math.log(100)) == pytest.approx(math.sqrt(variance/(2*math.pi)))
+    # One observation selects signal=.25 by likelihood and length=.25 by tie.
+    # Observe the real ask -> posterior -> EI path without replacing its math.
+    real_ei = G.expected_improvement
+    scores = []
+    def checked_ei(mean, variance, incumbent):
+        value = len(scores) + 1
+        expected_variance = .25-kernel(value, 1000, .25, .25)**2/(.25+math.log(1.03)**2+1e-10)
+        expected = math.sqrt(expected_variance/(2*math.pi))
+        assert mean == pytest.approx(math.log(100))
+        assert incumbent == pytest.approx(math.log(100))
+        assert variance == pytest.approx(expected_variance)
+        actual = real_ei(mean, variance, incumbent)
+        assert actual == pytest.approx(expected)
+        scores.append(expected)
+        return actual
+    monkeypatch.setattr(G, "expected_improvement", checked_ei)
+    bo = G.BOGenerator("balanced", 1)
+    bo.tell(observation(1000))
+    selected = bo.ask(1)
+    assert len(scores) == 1000
+    assert selected == max(range(1, 1001), key=lambda v: (scores[v-1], -v))
 
 
 def test_bo_excludes_candidate_failures():

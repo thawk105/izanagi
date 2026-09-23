@@ -232,6 +232,22 @@ def test_reference_genome_mismatch_not_certified(tmp_path):
         record["genome"] = H.reference_genome("balanced").canonical()
         path.write_text(json.dumps(record))
     assert H.classify_reference_slot(tmp_path, root, 5, genome)["outcome"] != "certified"
+    # Isolate the WAL build genome binding: both sidecars and variants match.
+    sidecar = tmp_path / "wal-only"
+    root = _write_attempt(sidecar, value=-1, genome=genome)
+    path = root / "runs/wal.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    rows[0]["payload"]["genome"] = H.reference_genome("balanced").canonical()
+    path.write_text("".join(json.dumps(row)+"\n" for row in rows))
+    assert H.classify_reference_slot(sidecar, root, 5, genome)["outcome"] != "certified"
+
+
+@pytest.mark.parametrize("workload", H.B.WORKLOADS)
+def test_reference_nonstock_source_not_certified(tmp_path, workload):
+    genome = H.reference_genome(workload)
+    # Exact genome, complete verify/bench evidence and self-consistent variants.
+    root = _write_attempt(tmp_path, value=-1, genome=genome, src="d" * 64)
+    assert H.classify_reference_slot(tmp_path, root, 5, genome)["outcome"] != "certified"
 
 
 @pytest.mark.parametrize("tamper", ["performance", "anomaly", "identity", "terminal"])
@@ -284,7 +300,8 @@ def test_inheritance_exact_prior_and_diagnosis(tmp_path):
     run(tmp_path, a_limit=1, b_limit=1)
     path = tmp_path / "balanced/random/series-1"
     expected = H.expected_inputs(path, 2)
-    diagnosis = L.k2_critic_diagnosis_from_bytes(b"fixture critic")
+    diagnosis = L.k2_critic_diagnosis_from_bytes(
+        b"## attribution\nobservation\n## recommend\ntry\n## avoid\nunknown\n## uncertainty\nnoise\n")
     planner = {"whiteboard": expected["expected_whiteboard"], "current_perf": expected["current_perf"],
                "t2849_prior_observations": expected["t2849_prior_observations"], "k2_critic_diagnosis": diagnosis}
     coder = {"whiteboard": expected["expected_whiteboard"], "baseline": expected["baseline"],
@@ -300,6 +317,24 @@ def test_grid_exhaustion_and_all_arm_a_cap(tmp_path):
                  runner=Runner({"search": {"outcome": "rejected-tier0"}}))
     assert result["events"][-1]["reason"] == "grid-exhausted"
     assert result["events"][-1]["a"] == 26 and result["events"][-1]["b"] == 0
+
+
+def test_sweep_initial_order_in_generator_wall(tmp_path, monkeypatch):
+    now, calls = [0.], []
+    order = H.G.sweep_order
+    def timed_order(*args):
+        calls.append(args)
+        result = order(*args)
+        now[0] += 7.
+        return result
+    monkeypatch.setattr(H.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(H.G, "sweep_order", timed_order)
+    result = run(tmp_path, arm="sweep")
+    search = [e for e in events(result, "evaluation-result") if e["slot_kind"] == "search"]
+    assert calls == [("balanced", 1)]
+    assert [e["timing"]["generator_wall_s"] for e in search] == [7., 0.]
+    ledger = H.SeriesLedger(tmp_path / "balanced/sweep/series-1")
+    assert H._costs(ledger)["generator_wall_s"] == 7.
 
 
 def test_initial_machine_failure_ends_before_search(tmp_path):

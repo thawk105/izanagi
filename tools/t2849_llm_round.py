@@ -139,7 +139,7 @@ class RoundTool:
         assert_closed_proposal_schema(doc, require_auditor=False, require_coder_value=True,
                                       coder_contract=CODER_CONTRACT_IMPLEMENTATION)
         L.load_proposal_file(d / "proposal.json")
-        if not BG.validate_backoff_preflight(doc["coder"]["implementation"]).accepted:
+        if not BG.validate_backoff_implementation(doc["coder"]["implementation"]).accepted:
             raise ValueError("invalid implementation grammar")
         inputs = {"planner_input": load(d / "planner-input.json"), "coder_input": load(d / "coder-input.json")}
         req = load(self.handshake / f"request-{a}.json")
