@@ -1,0 +1,46 @@
+[
+  {
+    "target": "tpcc_mocc.exe",
+    "binaries": [
+      {
+        "sha256": "9d8467a0316954d7f348d511895cd5238776b16a8d062410e358119981084c3f",
+        "bytes": 748992,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "a091a2729579e67c20317650d4087bf55dbdbfdbd70152ed656a0f4760e24f68"
+      },
+      {
+        "sha256": "2aecfba0914331a0ee2085eb0ea534355e6843fef34a25ca474ef7b831e1324a",
+        "bytes": 748992,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "a091a2729579e67c20317650d4087bf55dbdbfdbd70152ed656a0f4760e24f68"
+      }
+    ],
+    "equal": true
+  },
+  {
+    "target": "ycsb_mocc.exe",
+    "binaries": [
+      {
+        "sha256": "eb3a9075c1bfea074ccf23da7c3619389fe2f6b2fb660e7c6f704b197e4e9eb8",
+        "bytes": 698672,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "72f4471922b17f488205d163296efc7d666005d7e40bd52365ba4339f1fbe634"
+      },
+      {
+        "sha256": "e32979554d3a32b11e09dc8921c8974f8826cd13c92222529ae98ecd6d792424",
+        "bytes": 698672,
+        "nm_izanagi": 0,
+        "strings_trace": 0,
+        "strings_macro": 0,
+        "disassembly_sha256": "72f4471922b17f488205d163296efc7d666005d7e40bd52365ba4339f1fbe634"
+      }
+    ],
+    "equal": true
+  }
+]

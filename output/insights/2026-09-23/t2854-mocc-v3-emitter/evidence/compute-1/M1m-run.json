@@ -1,0 +1,189 @@
+{
+  "passed": false,
+  "first_reason": "schema",
+  "reasons": [
+    "schema",
+    "frame",
+    "witness",
+    "content-txtype",
+    "content-table"
+  ],
+  "details": [
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:1: legacy C"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:2: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:3: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:4: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:5: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:6: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:7: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:8: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:9: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:10: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:11: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:12: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:13: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:14: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:15: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:16: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:17: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:18: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:19: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:20: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:21: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:22: legacy R"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:23: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:24: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:25: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:26: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:27: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:28: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:29: legacy W"
+    },
+    {
+      "reason": "schema",
+      "detail": "trace_0.log:30: legacy W"
+    }
+  ],
+  "counts": {},
+  "files": [
+    {
+      "name": "trace_0.log",
+      "bytes": 17577617,
+      "sha256": "1e8665b182114d43228184d10fd9480f65dc4781e4c53cb86f58fc9d69983973",
+      "counts": {}
+    },
+    {
+      "name": "trace_1.log",
+      "bytes": 17375354,
+      "sha256": "0a15db4cbcca8250d25fa8f8a507a34f4dccef966390523fc6849e2a0f67a716",
+      "counts": {}
+    }
+  ],
+  "commit_counts": 37016,
+  "batch_commit_counts": 0,
+  "tx_types": {},
+  "orderline_min": null,
+  "orderline_samples": [],
+  "orderline_orders": 0,
+  "orderline_zero_min_fraction": null,
+  "seconds": 2.3004973829956725,
+  "result_name": "fail",
+  "argv": [
+    "/scr/t2854-6_91myis/b1-mut/cc/mocc/tpcc_mocc.exe",
+    "-thread_num=2",
+    "-extime=1",
+    "-tpcc_num_wh=1",
+    "-tpcc_perc_payment=43",
+    "-tpcc_perc_order_status=0",
+    "-tpcc_perc_delivery=0",
+    "-tpcc_perc_stock_level=0",
+    "-clocks_per_us=2100"
+  ],
+  "stdout_excerpt": "t order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n#ShowOptParameters() : ADD_ANALYSIS 0: BACK_OFF 1: MASSTREE_USE 1: KEY_SIZE 8: KEY_SORT 0: TEMPERATURE_RESET_OPT 1: VAL_SIZE 4\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t3150\nbatch_abort_counts_:\t0\ncommit_counts_:\t37016\nbatch_commit_counts_:\t0\nmaxrss:\t627800 kB\nabort_rate:\t0.0784\nbatch_abort_rate:\t-nan\nlatency[ns]:\t54030.6894\nthroughput[tps]:\t37016\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+  "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0195.stdout",
+  "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0195.stderr",
+  "run_seconds": 1.4185742780100554,
+  "check_seconds": 2.3005636680172756,
+  "returncode": 0,
+  "diagnostic_marker_count": 0,
+  "raw_files": [
+    {
+      "name": "trace_0.log",
+      "bytes": 17577617,
+      "sha256": "1e8665b182114d43228184d10fd9480f65dc4781e4c53cb86f58fc9d69983973"
+    },
+    {
+      "name": "trace_1.log",
+      "bytes": 17375354,
+      "sha256": "0a15db4cbcca8250d25fa8f8a507a34f4dccef966390523fc6849e2a0f67a716"
+    }
+  ],
+  "trace_bytes": 34952971,
+  "trace_bytes_per_run_second": 24639507.103590835
+}

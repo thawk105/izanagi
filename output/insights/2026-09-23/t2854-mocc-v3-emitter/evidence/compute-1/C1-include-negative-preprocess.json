@@ -1,0 +1,416 @@
+[
+  {
+    "source": "cc/cicada/tpcc_cicada.cc",
+    "target": "tpcc_cicada.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "61132bdb2ea796f1a588ec2462223d1fe87fc0513ad2f9f0f1880339cd99862e",
+          "689b7545cf1777536d3672395712937930170120ffa33b0b135a1b836bd1c576"
+        ],
+        "bytes": [
+          5282045,
+          5282053
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-00-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-00-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149546,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "9d6fb19469f709d379573bb18f3b53e33a8048d6c67b57299b7bd761f7477eea",
+          "007940e272ad152d3346376134e131a4e8adae87707fb3ad25cfeab765fb494e"
+        ],
+        "bytes": [
+          63057,
+          63148
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-00-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-00-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1356,
+          "left": "2 \"<SOURCE>/cc/cicada/tpcc_cicada.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/cicada/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/ermia/tpcc_ermia.cc",
+    "target": "tpcc_ermia.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "508937f4500f4544b6a26fdd6209d43c073dc0cd7bdf7eb8796c017385c5122b",
+          "65a806061bf08f36dfe61e02e08808ad62f78951d7148fc44b8d1ce6f2843474"
+        ],
+        "bytes": [
+          5273544,
+          5273552
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-01-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-01-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149386,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "cbc8df392ccaa42076b7ee3b07c9879a049778828046a79f7b78db1ff57e3c3b",
+          "e5aeee174686254a92b25f94855ab8323b9ec18a803f9e818684fc8e4508e206"
+        ],
+        "bytes": [
+          62874,
+          62963
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-01-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-01-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1356,
+          "left": "2 \"<SOURCE>/cc/ermia/tpcc_ermia.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/ermia/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/mocc/tpcc_mocc.cc",
+    "target": "tpcc_mocc.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "176c10f7622b5a390d934bb310afe6a7fe92f6239c58a0752ce44ae569d2d48e",
+          "a50321fde0a7ec68d3c62aabae8d2f007930c1046d5b0cae635a134e48f7e53c"
+        ],
+        "bytes": [
+          5271064,
+          5271072
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-02-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-02-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149309,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "aedf614d1ef8a660850fcf20c8e924056a2cfa8b5bee6f76c6e3d8f83a856a53",
+          "b0e00a81cf3e9c44d191f4eba91f8db75affeace805ecda091b461191289fae2"
+        ],
+        "bytes": [
+          62400,
+          62487
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-02-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-02-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1352,
+          "left": "2 \"<SOURCE>/cc/mocc/tpcc_mocc.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/mocc/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/mvto/tpcc_mvto.cc",
+    "target": "tpcc_mvto.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "a0bb85a9b86bf656d7ae1cb2f1e698710b65ee7cfd386aa7242eb234a2e023b3",
+          "0a6bdba6ef0ddb82427a74dfd843ad283817cab1758dd8b459d71e441d554a69"
+        ],
+        "bytes": [
+          5271659,
+          5271667
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-07-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-07-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149438,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "603b08e1ddfecda17db80ba09237d5d56e197164eb37f05d478537e212accde7",
+          "00e70527d748a4c6d05b37df81797735a8b6d465ac6b86070c8ec507a9ffae8c"
+        ],
+        "bytes": [
+          62486,
+          62573
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-07-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-07-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1350,
+          "left": "2 \"<SOURCE>/cc/mvto/tpcc_mvto.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/mvto/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/oze/tpcc_oze.cc",
+    "target": "tpcc_oze.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "c1d9c8ff79425cc97166296ce9db9e187f82a14c25f26360690745c4062311df",
+          "27d0d233e81451ae585ad3827de3402e8e822157c552a6dceefdf056d0da5b70"
+        ],
+        "bytes": [
+          5383309,
+          5383317
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-08-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-08-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 152722,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "472f05840675eac610bfe541573fed21c27af98ced1d0bd52815d8629c2bfc14",
+          "dd75de731d7249d0801f5102d4c12cc0587f66d65035650f31ac78233b77bccc"
+        ],
+        "bytes": [
+          64059,
+          64144
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-08-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-08-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1394,
+          "left": "2 \"<SOURCE>/cc/oze/tpcc_oze.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/oze/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/si/tpcc_si.cc",
+    "target": "tpcc_si.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "00a9e6320cd187a6ff25e5aa5e9fc9ea1d2be19904686c7551da68052f9b4e22",
+          "bb88c456792cb3d939e0f08bd33eadad14121180a2fbcf14b36b93cc3f45e630"
+        ],
+        "bytes": [
+          5273417,
+          5273425
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-09-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-09-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149385,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "6d91be030bab796b70f135eea30a79146eac4e484cc574079b03d5816d9bdd15",
+          "507fba36f10577f660ecc78dc7d25392015e844422991d014c8940b2f828b2e6"
+        ],
+        "bytes": [
+          62415,
+          62498
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-09-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-09-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1356,
+          "left": "2 \"<SOURCE>/cc/si/tpcc_si.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/si/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/silo/tpcc_silo.cc",
+    "target": "tpcc_silo.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "aacba25c63170f094f827e6ca923ed8da9056cf84862cb5ae3dc015e30eddb4d",
+          "372f9e3f843b1328fd726431b4c702133854debed829f36ec9b751609482b9e5"
+        ],
+        "bytes": [
+          5310220,
+          5310228
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-14-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-14-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 150534,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "2fec1022ccca6e914ec3aaaf647e6a2746a00c74652adbea39553a9dda944a9a",
+          "d775d5094a2c9a638ff472baced3af4ca71217d63aea060fc275ddd359dac860"
+        ],
+        "bytes": [
+          65216,
+          65303
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-14-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-14-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1416,
+          "left": "2 \"<SOURCE>/cc/silo/tpcc_silo.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/silo/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/ss2pl/tpcc_ss2pl.cc",
+    "target": "tpcc_ss2pl.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "084f33e2c1d339315d43b77352863efb338cd5a70082d201d0dfb65651501798",
+          "eeffcfe619ec293b09d37d1e34d957c6ecb465ebf078474fb39e74218851afe7"
+        ],
+        "bytes": [
+          5261246,
+          5261254
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-19-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-19-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149126,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "000d847539f02a1f512dc5bdf7214a1a047626f1bdb752cc82765ea6a9b484dc",
+          "5885fe52101ac369e68be72266a6cad0a7ee29473bd3d05d26d6949153cc4333"
+        ],
+        "bytes": [
+          62572,
+          62661
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-19-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-19-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1346,
+          "left": "2 \"<SOURCE>/cc/ss2pl/tpcc_ss2pl.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/ss2pl/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  },
+  {
+    "source": "cc/tictoc/tpcc_tictoc.cc",
+    "target": "tpcc_tictoc.exe",
+    "modes": {
+      "expanded": {
+        "sha256": [
+          "04934dd74d98ba0f0f3c265cd5b8fe4fb2bf5c4d42cb2c39ce036ef83dff5945",
+          "66ae48d62dfcaf41f664a8d1a4a48e24116bbbc818fdc10c3256661447cd5d47"
+        ],
+        "bytes": [
+          5261215,
+          5261223
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-20-expanded-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-20-expanded-1.normalized"
+        ],
+        "first_difference": {
+          "line": 149120,
+          "left": "template <typename Tuple, typename Param>\n",
+          "right": "       \n"
+        }
+      },
+      "include_activity": {
+        "sha256": [
+          "284fc3ccbeab80d2225a6a3954671c41010728cfd7290c691c6e9174c9a1a6f6",
+          "5edb8cc5d86b3e3f15b57a358ef373aab46300c4f7a6c4b8371a8aa951fc7243"
+        ],
+        "bytes": [
+          62609,
+          62700
+        ],
+        "equal": false,
+        "normalized_files": [
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-20-include_activity-0.normalized",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/C1-include-negative-20-include_activity-1.normalized"
+        ],
+        "first_difference": {
+          "line": 1346,
+          "left": "2 \"<SOURCE>/cc/tictoc/tpcc_tictoc.cc\"\n",
+          "right": "1 \"<SOURCE>/cc/tictoc/../../include/trace.hh\"\n"
+        }
+      }
+    }
+  }
+]
