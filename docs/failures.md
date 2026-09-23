@@ -8698,6 +8698,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **supersede: 2026-08-25** — `evidence_status=invalid` の原因は web 検索と非 NFC の 2 つだけではない。内容側の条件をすべて満たしても invalid になる 3 つ目の型を F540 に記録した。invalid を見たら 3 つとも判定する。
 
 - **再発: 2026-09-23** — [T-2862] の段 6 read-only レビューで、子が `manuscript.pdf` を `pdftotext` で読み、参考文献の「Vũ」(tex 側は ASCII の `V\~{u}`) が u + U+0303 の分解列で `command_execution` の event 行に載り、`evidence_status=invalid` で不採用になった (10 model call・191 秒)。非 NFC の出所は tracked file ではなく PDF の文字抽出が作った派生出力なので、本 F の再発検知の後半 (tracked file の棚卸し) では見つからない。events.jsonl の NFC 判定で 36 行目を特定し、prompt で PDF の文字抽出を禁じた 2 回目 (別 job-id) は受理された。
+
+- **再発: 2026-09-23** — model 移行 wave (D2229) の段 5 author 1 回目が、所有 file の `orchestrator/tests/test_check_docs.py` を `cat` で全体表示し、5756 / 5779 行の非 NFC 文字を含む event 行 (約 47 万 byte) で `evidence_status=invalid`・`launcher_rc=1`・`outcome=not_accepted` になった (codex exit 0、12 call、約 3 分、差分自体は裁定どおり)。同じ unit で base から branch を切り直し、prompt に「5740〜5800 行を表示しない・全体を `cat` しない」を足した 2 回目は `accepted` (12 call)。[T-855] (非 NFC 行の正規化と機械検査) は見送り台帳にあり未実装で、同ファイルを所有・編集する wave では prompt への行範囲禁止が今も唯一の回避策である。
 ### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
 
 - 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
@@ -19587,6 +19589,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **過剰拒否は正例テストでしか捕まらない** — 負例だけを増やしても (1)(2) は緑のままだった。
   受理集合を縮小する wave では過剰拒否検出の正例を段 4 で事前登録する (D1000)。
 
+
+- **再発: 2026-09-23** — [T-2858] の段 9 land が `status=fold-failed` (rc=26、main 不動) で止まった。worklog fragment の `見送り追記` で見送り台帳 [T-167] へ足した 1 行に現行 pin の値の短縮形を書いたため、生成後の `docs/phase3.md` が `tools/check_docs.py` の「`pin.CURRENT_PIN` の値の literal 再掲」規則に当たった。`spool_fold.py --dry-run` と作業木の `check_docs.py` はどちらも緑で (fragment の段階では phase3.md に入っていない)、受入全走 (child-green) の後に lock 内で初めて赤になり、受入を取り直すことになった。追記行を `pin.CURRENT_PIN` への記号参照に直し、受入の前に使い捨て worktree で fold を実走して生成後の検査を通した。
 ### F639. `pipefail` 下の `| grep -q` が、一致していたのに関門を素通りさせた [恒真ゲート] [手順漏れ]
 
 - 事象: `tools/pegasus/submit_t126_qualification.sh` の

@@ -1,0 +1,28 @@
+start 2026-09-23 08:58:52 JST
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/review/files/cc/mocc/transaction.cc sha256=48067b3a8cbc0edcfb47ec4d97bec0a238c2fdd61711bcf5c4ebd60fccbe7b41
+input: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/msg-C3.txt sha256=7726e095c3ec2f8164469ffb9a2d3e64f06fb86069e0ea72451dd54bdfaf6de7
+sub HEAD before: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+Preparing worktree (checking out 'izanagi-tpcc-v3-mocc')
+Updating files:  51% (210/405)Updating files:  52% (211/405)Updating files:  53% (215/405)Updating files:  54% (219/405)Updating files:  55% (223/405)Updating files:  56% (227/405)Updating files:  57% (231/405)Updating files:  58% (235/405)Updating files:  59% (239/405)Updating files:  60% (243/405)Updating files:  61% (248/405)Updating files:  62% (252/405)Updating files:  63% (256/405)Updating files:  64% (260/405)Updating files:  65% (264/405)Updating files:  66% (268/405)Updating files:  67% (272/405)Updating files:  68% (276/405)Updating files:  69% (280/405)Updating files:  70% (284/405)Updating files:  71% (288/405)Updating files:  72% (292/405)Updating files:  73% (296/405)Updating files:  74% (300/405)Updating files:  75% (304/405)Updating files:  76% (308/405)Updating files:  77% (312/405)Updating files:  78% (316/405)Updating files:  79% (320/405)Updating files:  80% (324/405)Updating files:  81% (329/405)Updating files:  82% (333/405)Updating files:  83% (337/405)Updating files:  84% (341/405)Updating files:  85% (345/405)Updating files:  86% (349/405)Updating files:  87% (353/405)Updating files:  88% (357/405)Updating files:  89% (361/405)Updating files:  90% (365/405)Updating files:  91% (369/405)Updating files:  92% (373/405)Updating files:  93% (377/405)Updating files:  94% (381/405)Updating files:  95% (385/405)Updating files:  96% (389/405)Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at 6aa7a58f feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+C3 cc/mocc/transaction.cc placed=30bea5c21911182cde7c1f428f3185c7124fb47f expected=30bea5c21911182cde7c1f428f3185c7124fb47f
+staged:
+:100644 100644 e393efbf 30bea5c2 M	cc/mocc/transaction.cc
+[izanagi-tpcc-v3-mocc 53f6b097] feat(mocc/trace): emit trace v3 frames under the TPC-C context
+ 1 file changed, 61 insertions(+), 10 deletions(-)
+C3 = 53f6b09757331ac7200f3f6bb5d526a676480fe3 parents: 53f6b09757331ac7200f3f6bb5d526a676480fe3 6aa7a58fccff9efa218067d1b7ce83026a75357d tree: a0ffd57c2971a762fd6c9ae9c5afb9b499a4b79e
+diff-tree C1'..C3 (raw):
+:100644 100644 e393efbfd5fad7bbe05117b43669ccc0f44abb6a 30bea5c21911182cde7c1f428f3185c7124fb47f M	cc/mocc/transaction.cc
+53f6b09757331ac7200f3f6bb5d526a676480fe3 6aa7a58fccff9efa218067d1b7ce83026a75357d feat(mocc/trace): emit trace v3 frames under the TPC-C context
+6aa7a58fccff9efa218067d1b7ce83026a75357d 68106660686232781bca3be792a750d3e19d7a8a feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+68106660686232781bca3be792a750d3e19d7a8a e9e477ca1b55348ab4530de0b1cf663ce4555290 feat(mocc): add TRACE-only lock coverage and permutation checks
+e9e477ca1b55348ab4530de0b1cf663ce4555290 ae6880f747834805ebea1ed4f0e1b15f3e960b23 fix(mocc): preserve TRACE=0 include identity
+sub HEAD after: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+branch ref: 53f6b09757331ac7200f3f6bb5d526a676480fe3
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/C.bundle is okay
+The bundle contains this ref:
+53f6b09757331ac7200f3f6bb5d526a676480fe3 refs/heads/izanagi-tpcc-v3-mocc
+The bundle records a complete history.
+bundle bytes: 3199059 sha256: 306a68a6777847d03e8f597f4d8acd613bde2c04d4f43d0aaac8ddf38c0adbb7
+53f6b09757331ac7200f3f6bb5d526a676480fe3 refs/heads/izanagi-tpcc-v3-mocc
+end 2026-09-23 08:59:01 JST
