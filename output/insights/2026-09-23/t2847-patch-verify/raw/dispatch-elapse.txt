@@ -1,0 +1,30 @@
+$ grep -h "tag=\|Request ID\|Elapse:\|Started Request\|Ended Request\|^end" runs/s3-1.log runs/s5-1.log runs/t152-1.log runs/s2-1.log
+(job dir = /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify。出力は grep の生 stdout のまま。grep の出力順は file ごとの塊で、t152 の塊が先頭に出ている)
+start 2026-09-23 08:29:14 JST tag=t152-1 driver=t152 wall=00:30:00 head=3886a1fd36657537af2b6c6ed389257363d92bef
+| Request ID:             18994.nqsv
+| Started Request Time:   Wed Sep 23 08:29:22 2026
+| Ended Request Time:     Wed Sep 23 08:32:22 2026
+|   Elapse:               185S
+|   Remaining Elapse:     1615S
+end 2026-09-23 08:32:35 JST rc=1
+start 2026-09-23 08:22:48 JST tag=s3-1 driver=s3 wall=00:20:00 head=3886a1fd36657537af2b6c6ed389257363d92bef
+| Request ID:             18931.nqsv
+| Started Request Time:   Wed Sep 23 08:22:57 2026
+| Ended Request Time:     Wed Sep 23 08:25:13 2026
+|   Elapse:               140S
+|   Remaining Elapse:     1060S
+end 2026-09-23 08:25:24 JST rc=0
+start 2026-09-23 08:26:43 JST tag=s5-1 driver=s5 wall=00:20:00 head=3886a1fd36657537af2b6c6ed389257363d92bef
+| Request ID:             18993.nqsv
+| Started Request Time:   Wed Sep 23 08:26:52 2026
+| Ended Request Time:     Wed Sep 23 08:29:01 2026
+|   Elapse:               134S
+|   Remaining Elapse:     1066S
+end 2026-09-23 08:29:14 JST rc=0
+start 2026-09-23 08:32:35 JST tag=s2-1 driver=s2 wall=00:40:00 head=3886a1fd36657537af2b6c6ed389257363d92bef
+| Request ID:             18995.nqsv
+| Started Request Time:   Wed Sep 23 08:32:45 2026
+| Ended Request Time:     Wed Sep 23 08:36:10 2026
+|   Elapse:               209S
+|   Remaining Elapse:     2191S
+end 2026-09-23 08:36:24 JST rc=0

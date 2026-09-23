@@ -555,6 +555,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      certified、stock の source は STOCK で、K2手動loopの同job stock対照が初めて成立 (候補/stock = 2.366)。続けて4巡目 (択A = round 3 の
      派生物から入力、生成1回で候補5) を同job stock付き1 jobで評価し、両方 certified (2.493)。改善・一般化の主張ではない。critic-4 の還流は未。
      記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md`。
+   - [x] [T-2860] K2 4巡目の還流を閉じた (2026-09-23、計算なし・実装差分ゼロ)。critic-4 を1回、planner-5 / coder-5 / critic-4 の AO 3件を
+     原本と byte 一致の写しへ取り込み (原本は不変)、層3材料レポート (mechanism_hypotheses 1件、source_refs 14) と4巡の results 稿を置いた。
+     B-6 の充足・K2 の必須経路化ではない (D2211項1)。記録は `output/insights/2026-09-23/t2860-k2-round4-reflux/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
@@ -1913,7 +1916,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-853] 択 (a) 採用 — 文面を「実装面差分ゼロ」にする。誤分類の向きが免除拡大であり絶対規律 2 の面に当たる。「実装面」は入口が既に定義済みの… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
-- [T-855] 択 (a) 採用 — 分解済みの 2 行を正規化し、非正規形を弾く機械検査も入れる。判定は 2 秒で、混入時点で止まれば子を走らせてから捨てる… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
+- [T-855] 択 (a) 採用 — 分解済みの 2 行を正規化し、非正規形を弾く機械検査も入れる。判定は 2 秒で、混入時点で止まれば子を走らせてから捨てる… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。 2026-09-23 に再発火 (F223 再発、model 移行 wave の段 5 author 1 回目が test_check_docs.py 5756 / 5779 行を表示して不受理)。追加裁定はせず記録のみ。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-865] test_spool_fold.py の _copy_real_canonical_family が dependency closure を… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
