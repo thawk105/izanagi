@@ -138,3 +138,23 @@ compiler は全 job で policy が選んだ `x86_64-linux-gnu-g++-11`。各 job 
 - trigger-misattr は driver の `main()` ではなく、起動器が同じ関数と同じ checks の式で組んだ手順で走らせた。差異は misattr の build が admission を通らないことだけである。
 - 性能値は取っていない。job の Elapse は計算資源の記録である。
 - tracked の verifier・driver・source digest は編集していない。条件 gate への登録・screening の既定値・test の表の更新は、新しい patch を既存の経路で build するためのものである。
+
+## 7. 変異 matrix (実装面の変異テスト)
+
+実装面 (patch・条件 gate の登録・test の表) の誤りを既存の test が殺すかを、`tools/mutation_worktree.py` を独立 clone に当てて確かめた。runner = `tools/run_tests.py --force-dispatch` で `test_condition_meaning_gate.py`・`test_ccbench_spawn_sites.py`・`test_screening_driver.py`・`test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted`。
+
+- 事前登録 (段 4 R6) の M1〜M4 のうち、M4 は「patch に同じ `#if` の site を 1 つ足す」だと patch の hunk 行数が壊れて別の理由で赤になるため、同じ誤り (site 数の虚偽) を登録簿側の site 数 (`IZANAGI_BREAK_READ_LOCK_CHECK: 4 → 5`) で起こす形に再照準した (erratum)。
+- probe (全件 SURVIVED 期待、独立 clone = `6c67f0679`、spec sha256 `59db9354…`): 正例 M0 (comment だけの変更) は生存、M1〜M4 はすべて赤 (`raw/mutation-probe-summary.json`)。
+- final (観測した赤 node を期待 node に固定、独立 clone = 最終の実装 commit `ff9e48b66`、spec sha256 `d951ad2ac5af7b9c80fcc6fcd2fdf1cfd0bd90df777cd7950c60a2901e6b25e0`): **KILLED 4・SURVIVED 1 (正例)・MISMATCH 0** (`raw/mutation-final-summary.json`、原本 sha256 `56e3f6fd6d42867ba07f234c17a3aa9a24aeba1cb42ce7dae14f22fd82153cb4`)。
+
+| 変異 | 誤り | 赤 node 数 | 赤の理由 |
+|---|---|---|---|
+| M0 (正例) | comment 1 語の変更 | 0 | — |
+| M1 | `_DEFINE_SPECS` から新 macro 1 件を削る | 7 | 登録簿から 1 件欠けた (在庫照合・domain 件数・branch 選択・screening の既定値照合) |
+| M2 | `_CONDITIONAL_BRANCH_WITNESSES` から 1 件を削る | 5 | witness の欠落 (patch 束縛・branch 選択・domain 件数) |
+| M3 | `_DEFINE_SPECS` の key を 1 字違える | 7 | 登録名と patch の macro の不一致 |
+| M4 | 登録簿の site 数を 4 → 5 | 4 | site 数と patch 本文の不一致 |
+
+各変異の赤 node は複数だが、どれも 1 つの誤り (登録簿の 1 件の欠落・名前違い・件数違い) から生じている。patch の中身の誤り (未定義側の pin 一致・1 patch 1 機構・変更の向き) は test では殺せないので、実装子と親の source 照合 (`verbatim/s5-author-*.md`・段 6 レビュー) と §3 の実走で確かめた。
+
+計算ノードの使用 (job Elapse): probe 7 request 673 秒、final 7 request 670 秒。
