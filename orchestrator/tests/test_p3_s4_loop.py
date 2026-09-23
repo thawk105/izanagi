@@ -573,6 +573,7 @@ def test_base_site_admission_is_exact_two_site_set():
 
 # T-816 policy epoch; T-2304 advances repo_stock_pin in admission policy.
 _T816_BASE_CFG_HASHES = {True: "8cf3efb9", False: "93d98106"}
+_T2304_BASE_CFG_HASHES = {True: "9c24faca", False: "5b6dd269"}
 
 
 def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
@@ -595,7 +596,7 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert compute.bound_environment_contract is pegasus_contract
     assert "measurement_env" not in other.search_config
     assert str(ident.campaign_id(other)) == (
-        "p3-s4-loop-s4-autonomous-9c24faca"
+        "p3-s4-loop-s4-autonomous-4c200821"
     )
     assert ident.campaign_id(compute) != ident.campaign_id(other)
     assert compute.search_config["measurement_env"] == "pegasus"
@@ -608,7 +609,7 @@ def test_base_campaign_projection_preserves_other_golden_and_splits_compute():
     assert other_off.bound_environment_contract is linux_contract
     assert "measurement_env" not in other_off.search_config
     assert str(ident.campaign_id(other_off)) == (
-        "p3-s4-loop-s4-autonomous-5b6dd269"
+        "p3-s4-loop-s4-autonomous-7b19f909"
     )
 
 
@@ -5071,10 +5072,10 @@ def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
     )
     assert ordinary == explicit_false
     assert str(ident.campaign_id(ordinary)) == (
-        "p3-s4-loop-s4-autonomous-9c24faca"
+        "p3-s4-loop-s4-autonomous-4c200821"
     )
     assert str(ident.campaign_id(L.default_cfg(reflux=False))) == (
-        "p3-s4-loop-s4-autonomous-5b6dd269"
+        "p3-s4-loop-s4-autonomous-7b19f909"
     )
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert L.b4_reflux_ablation_mode(ordinary) is False
@@ -6440,7 +6441,7 @@ def test_planner_context_payload_rejects_non_string_policy_hint(hint):
 
 @pytest.mark.parametrize(
     ("reflux", "expected_hash"),
-    ((True, "9c24faca"), (False, "5b6dd269")),
+    ((True, "4c200821"), (False, "7b19f909")),
 )
 def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
     reflux, expected_hash, tmp_path, monkeypatch,
@@ -6457,7 +6458,9 @@ def test_knowledge_manifest_absence_preserves_exact_cfg_hashes(
         classification="reproduction_or_selection",
         de_novo_claim=False,
     )
-    assert expected_hash != _T816_BASE_CFG_HASHES[reflux]
+    assert expected_hash not in {
+        _T816_BASE_CFG_HASHES[reflux], _T2304_BASE_CFG_HASHES[reflux],
+    }
     assert prepared == base
     assert projection is None
     assert wal.KNOWLEDGE_LEVEL_SEARCH_KEY not in prepared.search_config
@@ -10198,7 +10201,8 @@ def test_t2783_crlf_and_role_data_contract(tmp_path):
 
 
 # Captured from default_cfg() at the unmodified author base. (T-2304 で repo_stock_pin を e9e477c へ追随)
-_DEFAULT_PREIMAGE_BEFORE_PAIR = '{"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"e9e477c","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"records":100000,"reflux":"on","scale":"silo","threads":4},"search_tag":"s4-autonomous","spec_content":"P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に 還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない","trial":"p3-s4-loop"}'
+_T2304_DEFAULT_PREIMAGE_BEFORE_PAIR = '{"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"e9e477c","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"records":100000,"reflux":"on","scale":"silo","threads":4},"search_tag":"s4-autonomous","spec_content":"P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に 還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない","trial":"p3-s4-loop"}'
+_DEFAULT_PREIMAGE_BEFORE_PAIR = '{"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"6810666","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"records":100000,"reflux":"on","scale":"silo","threads":4},"search_tag":"s4-autonomous","spec_content":"P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に 還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない","trial":"p3-s4-loop"}'
 
 
 def _stock_cli_fixture(tmp_path, monkeypatch):
