@@ -5307,3 +5307,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-23","base":"cadaf3805e75bb0d02744955469ef588aabcd5c6","content_sha256":"8109bc2fcb4e6e6f4b80e4e388af47a4550d01e620873627d0df73bc0cad508e","seq":1,"tested_tip":"bacc92f1492ca143e4110d0026a907a02d069809","wave":"dev-wave-t2860-k2-round4-reflux","wave_ref":"refs/heads/worktree-dev-wave-t2860-k2-round4-reflux"}
 
 - {"allocations":{},"authored":"2026-09-23","base":"46933e4da09b38619dfc1293856c76e8c13b8b6f","content_sha256":"de1b946fe13dcb4f0dd36d296202fb3fe744eef886c80526692988694158e122","seq":1,"tested_tip":"3a89ced2eef9809acab8e67600a476765a2f8ab9","wave":"worktree-t2853-repro-package-rest","wave_ref":"refs/heads/worktree-t2853-repro-package-rest"}
+
+- {"allocations":{},"authored":"2026-09-23","base":"a2c2d2976b9a5abf572730b75cc73e36f2a9f4d6","content_sha256":"783123d8176c77c2fcea676ebc6bc96542476438d8ce895b1285ded195b60da6","seq":1,"tested_tip":"c7089d207981e5b3f6733b7d93ec5eea9562ce0a","wave":"t2847-patch-verify","wave_ref":"refs/heads/worktree-t2847-patch-verify"}
