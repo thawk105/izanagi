@@ -1,0 +1,479 @@
+{
+ "__baseline__": {
+  "rc": 0,
+  "seconds": 10.4,
+  "failed_nodes": []
+ },
+ "M0-equivalent-sort-key": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 0,
+    "seconds": 6.8,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [],
+  "rc_nonzero": []
+ },
+ "M1-genesis-always-live": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 7.2,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M2-deleted-read-unchecked": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M3a-insert-on-live-unchecked": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 12.3,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M3b-update-on-absent-unchecked": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 10.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M3c-delete-on-absent-unchecked": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 7.5,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M4-delete-keeps-live": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 7.0,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M5-clean-ignores-existence": {
+  "touched": [
+   "orchestrator/verifier/model.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.1,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M6-object-entry-skips-check": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 5.0,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+     "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+     "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+   "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+   "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M7-compact-entry-skips-check": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.7,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+     "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+     "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+     "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+   "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+   "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+   "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+   "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M8-check-applies-to-v2": {
+  "touched": [
+   "orchestrator/verifier/dsg.py",
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 7.0,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+     "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+   "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M9-order-tid-then-epoch": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.4,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M10-order-by-txid": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.8,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M11-read-uses-latest-op": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.5,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M12a-ambiguous-collapsed-to-I": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.9,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M12b-ambiguous-collapsed-to-D": {
+  "touched": [
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 6.9,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M13-v3-output-omits-details": {
+  "touched": [
+   "orchestrator/verifier/core.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 7.4,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ },
+ "M14-existence-identity-drops-table": {
+  "touched": [
+   "orchestrator/verifier/dsg.py",
+   "orchestrator/verifier/dsg.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_verifier.py": {
+    "rc": 1,
+    "seconds": 20.3,
+    "nodes": [
+     "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+     "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+     "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+     "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+     "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+   "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+   "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+   "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+   "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_verifier.py"
+  ]
+ }
+}

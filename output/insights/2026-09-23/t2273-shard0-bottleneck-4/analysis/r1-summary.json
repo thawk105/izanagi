@@ -1,0 +1,275 @@
+{
+  "note": "現行 tip の A 条件 1 走の観測。中央値ではない。",
+  "key_count": 7,
+  "keys": [
+    {
+      "key": [
+        "AI-Agent: codex",
+        false,
+        true,
+        false,
+        false
+      ],
+      "builds": [
+        {
+          "worker": "gw11",
+          "begin_epoch": 1790119541.582261,
+          "end_epoch": 1790119747.9704401,
+          "seconds": {
+            "copy": 113.36648805765435,
+            "git": 13.449654712923802,
+            "history": 0.008576744003221393,
+            "runtime": 0.004820707137696445,
+            "issue": 79.49916611798108,
+            "total": 206.38817914796527,
+            "residual": 0.05947280826512724,
+            "other": 0.07287025940604508,
+            "copy_breakdown": {
+              "copy.list": 4.635593791957945,
+              "copy.copytree": 95.21536477899645,
+              "copy.other": 13.515529486699961
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: fixture",
+        false,
+        true,
+        false,
+        true
+      ],
+      "builds": [
+        {
+          "worker": "gw16",
+          "begin_epoch": 1790119541.5900245,
+          "end_epoch": 1790119747.9085526,
+          "seconds": {
+            "copy": 113.35545096371789,
+            "git": 13.475123405805789,
+            "history": 0.008841210044920444,
+            "runtime": 0.003388705779798329,
+            "issue": 79.41344227700029,
+            "total": 206.31852850597352,
+            "residual": 0.06228194362483919,
+            "other": 0.07451185944955796,
+            "copy_breakdown": {
+              "copy.list": 4.973445518058725,
+              "copy.copytree": 95.13954582100268,
+              "copy.other": 13.242459624656476
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        false,
+        false,
+        false
+      ],
+      "builds": [
+        {
+          "worker": "gw21",
+          "begin_epoch": 1790119541.5825422,
+          "end_epoch": 1790119668.4444656,
+          "seconds": {
+            "copy": 113.37992559792474,
+            "git": 13.42165184195619,
+            "history": 0.008925206959247589,
+            "runtime": 0,
+            "issue": 0,
+            "total": 126.86192364396993,
+            "residual": 0.05142099712975323,
+            "other": 0.06034620408900082,
+            "copy_breakdown": {
+              "copy.list": 5.224169870954938,
+              "copy.copytree": 95.24189503781963,
+              "copy.other": 12.91386068915017
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        false,
+        false
+      ],
+      "builds": [
+        {
+          "worker": "gw18",
+          "begin_epoch": 1790119541.5803056,
+          "end_epoch": 1790119747.9950087,
+          "seconds": {
+            "copy": 113.36907067161519,
+            "git": 13.48681444406975,
+            "history": 0.008820925024338067,
+            "runtime": 0.0033710721181705594,
+            "issue": 79.4879072670592,
+            "total": 206.41470310196746,
+            "residual": 0.05871872208081186,
+            "other": 0.07091071922332048,
+            "copy_breakdown": {
+              "copy.list": 5.3018734029028565,
+              "copy.copytree": 95.19658806791995,
+              "copy.other": 12.870609200792387
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        false,
+        true
+      ],
+      "builds": [
+        {
+          "worker": "gw14",
+          "begin_epoch": 1790119541.5887184,
+          "end_epoch": 1790119748.1158092,
+          "seconds": {
+            "copy": 113.35714205971453,
+            "git": 13.487102087819949,
+            "history": 0.008906992035917938,
+            "runtime": 0.00368462095502764,
+            "issue": 79.60796362499241,
+            "total": 206.52709083689842,
+            "residual": 0.062291451380588114,
+            "other": 0.07488306437153369,
+            "copy_breakdown": {
+              "copy.list": 4.987252289080061,
+              "copy.copytree": 95.19926134101115,
+              "copy.other": 13.17062842962332
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        true,
+        false
+      ],
+      "builds": [
+        {
+          "worker": "gw5",
+          "begin_epoch": 1790119541.5795364,
+          "end_epoch": 1790119747.897827,
+          "seconds": {
+            "copy": 113.37397310382221,
+            "git": 13.484536828938872,
+            "history": 0.008559607085771859,
+            "runtime": 0.0032997661037370563,
+            "issue": 79.39271942002233,
+            "total": 206.31829083198681,
+            "residual": 0.05520210601389408,
+            "other": 0.067061479203403,
+            "copy_breakdown": {
+              "copy.list": 4.649768903036602,
+              "copy.copytree": 95.22197025094647,
+              "copy.other": 13.502233949839137
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        true,
+        true,
+        false,
+        false
+      ],
+      "builds": [
+        {
+          "worker": "gw12",
+          "begin_epoch": 1790119541.5820973,
+          "end_epoch": 1790119748.549947,
+          "seconds": {
+            "copy": 113.37019596120808,
+            "git": 13.47532257810235,
+            "history": 0.008683248073793948,
+            "runtime": 0.0034102349309250712,
+            "issue": 80.05409765895456,
+            "total": 206.9678498340072,
+            "residual": 0.05614015273749828,
+            "other": 0.0682336357422173,
+            "copy_breakdown": {
+              "copy.list": 4.6393002739641815,
+              "copy.copytree": 95.24351105908863,
+              "copy.other": 13.487384628155269
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "shard": {
+    "W": 429.433,
+    "pre": 130.24833631515503,
+    "post": 10.0679771900177,
+    "O_max": 289.045067351,
+    "O_max_worker": "gw2",
+    "L": 272.093,
+    "L_worker": "gw40",
+    "L_item": {
+      "nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+      "duration_s": 272.093
+    },
+    "F": 140.387932649
+  },
+  "critical_worker_decomposition": {
+    "gw2": {
+      "largest_component": "flock_wait",
+      "totals_s": {
+        "flock_wait": 206.5146906375885,
+        "build.copy.list": 0,
+        "build.copy.copytree": 0,
+        "build.copy.other": 0,
+        "build.git": 0,
+        "build.issue": 0,
+        "build.other": 0,
+        "base_copy": 14.542853355407715,
+        "verify": 0.6632306575775146,
+        "remaining": 67.32322534942627
+      }
+    },
+    "gw40": {
+      "largest_component": "flock_wait",
+      "totals_s": {
+        "flock_wait": 206.5350842475891,
+        "build.copy.list": 0,
+        "build.copy.copytree": 0,
+        "build.copy.other": 0,
+        "build.git": 0,
+        "build.issue": 0,
+        "build.other": 0,
+        "base_copy": 14.620160102844238,
+        "verify": 6.113422393798828,
+        "remaining": 44.82633325576784
+      }
+    }
+  },
+  "visible_path_count": [
+    29885
+  ],
+  "missing": [
+    "未計測: resource counters or sampler errors (see resource_sampling)"
+  ]
+}

@@ -1,0 +1,524 @@
+{
+  "validity": {
+    "valid": true,
+    "checks": {
+      "runner_complete": true,
+      "staging": true,
+      "rc": true,
+      "outcomes_equal": true,
+      "record_error_zero": true,
+      "clean": true,
+      "same_HEAD": true,
+      "others_zero": true,
+      "observations_present": true,
+      "A2_source_control": true,
+      "X_source_control": true,
+      "visible_digest_equal_all_builders": true,
+      "visible_matches_staging": true,
+      "argv_env_equal": true,
+      "separate_sessions": true,
+      "A2_shard_spec": true,
+      "A2_junit_route": true,
+      "A2_intervention_env": true,
+      "X_shard_spec": true,
+      "X_junit_route": true,
+      "X_intervention_env": true,
+      "builder_keys_equal": true,
+      "one_builder_per_key": true,
+      "staging_time": true
+    },
+    "failed": []
+  },
+  "metrics_s": {
+    "W_0": {
+      "A2": 454.623,
+      "X": 330.677,
+      "A2_minus_X": 123.94599999999997
+    },
+    "O_max": {
+      "A2": 314.67039645,
+      "X": 191.092335427,
+      "A2_minus_X": 123.578061023
+    },
+    "L": {
+      "A2": 295.604,
+      "X": 174.199,
+      "A2_minus_X": 121.40499999999997
+    },
+    "pre": {
+      "A2": 129.81816005706787,
+      "X": 129.43776941299438,
+      "A2_minus_X": 0.38039064407348633
+    },
+    "post": {
+      "A2": 10.064376831054688,
+      "X": 10.073291540145874,
+      "A2_minus_X": -0.008914709091186523
+    }
+  },
+  "builders": [
+    {
+      "key": [
+        "AI-Agent: codex",
+        false,
+        true,
+        false,
+        false
+      ],
+      "A2_workers": [
+        "gw11"
+      ],
+      "X_workers": [
+        "gw11"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.86107858002651,
+          "X": 104.40421624202281,
+          "A2_minus_X": 126.4568623380037
+        },
+        "copy": {
+          "A2": 137.98807542119175,
+          "X": 11.11564387823455,
+          "A2_minus_X": 126.8724315429572
+        },
+        "copy.list": {
+          "A2": 5.758419379941188,
+          "X": 0.05003364791627973,
+          "A2_minus_X": 5.708385732024908
+        },
+        "copy.copytree": {
+          "A2": 117.068157340982,
+          "X": 8.539216669043526,
+          "A2_minus_X": 108.52894067193847
+        },
+        "git": {
+          "A2": 13.539619414368644,
+          "X": 13.817361715133302,
+          "A2_minus_X": -0.27774230076465756
+        },
+        "issue": {
+          "A2": 79.23989457800053,
+          "X": 79.27448605303653,
+          "A2_minus_X": -0.034591475035995245
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: fixture",
+        false,
+        true,
+        false,
+        true
+      ],
+      "A2_workers": [
+        "gw16"
+      ],
+      "X_workers": [
+        "gw16"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.93573071504943,
+          "X": 104.29077198903542,
+          "A2_minus_X": 126.64495872601401
+        },
+        "copy": {
+          "A2": 137.97631376970094,
+          "X": 11.089754937100224,
+          "A2_minus_X": 126.88655883260071
+        },
+        "copy.list": {
+          "A2": 6.284683437901549,
+          "X": 0.049618487944826484,
+          "A2_minus_X": 6.235064949956723
+        },
+        "copy.copytree": {
+          "A2": 117.09982711903285,
+          "X": 8.548767019994557,
+          "A2_minus_X": 108.5510600990383
+        },
+        "git": {
+          "A2": 13.505842688959092,
+          "X": 13.907772774691693,
+          "A2_minus_X": -0.4019300857326016
+        },
+        "issue": {
+          "A2": 79.35816718894057,
+          "X": 79.10059155791532,
+          "A2_minus_X": 0.2575756310252473
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        false,
+        false,
+        false
+      ],
+      "A2_workers": [
+        "gw21"
+      ],
+      "X_workers": [
+        "gw21"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 151.5800301269628,
+          "X": 25.127398025011644,
+          "A2_minus_X": 126.45263210195117
+        },
+        "copy": {
+          "A2": 137.99266193713993,
+          "X": 11.127532295533456,
+          "A2_minus_X": 126.86512964160647
+        },
+        "copy.list": {
+          "A2": 5.849712829920463,
+          "X": 0.04818536201491952,
+          "A2_minus_X": 5.801527467905544
+        },
+        "copy.copytree": {
+          "A2": 117.06217592512257,
+          "X": 8.544447908061557,
+          "A2_minus_X": 108.51772801706102
+        },
+        "git": {
+          "A2": 13.500623311032541,
+          "X": 13.850286329048686,
+          "A2_minus_X": -0.34966301801614463
+        },
+        "issue": {
+          "A2": 0,
+          "X": 0,
+          "A2_minus_X": 0
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        false,
+        false
+      ],
+      "A2_workers": [
+        "gw4"
+      ],
+      "X_workers": [
+        "gw7"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.90313712705392,
+          "X": 104.25260298291687,
+          "A2_minus_X": 126.65053414413705
+        },
+        "copy": {
+          "A2": 137.98906596843153,
+          "X": 11.118004607502371,
+          "A2_minus_X": 126.87106136092916
+        },
+        "copy.list": {
+          "A2": 5.616218426963314,
+          "X": 0.04792124405503273,
+          "A2_minus_X": 5.568297182908282
+        },
+        "copy.copytree": {
+          "A2": 117.08070775307715,
+          "X": 8.496288698050193,
+          "A2_minus_X": 108.58441905502696
+        },
+        "git": {
+          "A2": 13.537881433032453,
+          "X": 13.786753045162186,
+          "A2_minus_X": -0.24887161212973297
+        },
+        "issue": {
+          "A2": 79.27731088199653,
+          "X": 79.13685268105473,
+          "A2_minus_X": 0.14045820094179362
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        false,
+        true
+      ],
+      "A2_workers": [
+        "gw15"
+      ],
+      "X_workers": [
+        "gw14"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.92278042202815,
+          "X": 104.57737716997508,
+          "A2_minus_X": 126.34540325205307
+        },
+        "copy": {
+          "A2": 137.97717116994318,
+          "X": 11.106967916013673,
+          "A2_minus_X": 126.8702032539295
+        },
+        "copy.list": {
+          "A2": 5.849790703970939,
+          "X": 0.04889650992117822,
+          "A2_minus_X": 5.800894194049761
+        },
+        "copy.copytree": {
+          "A2": 117.04607072903309,
+          "X": 8.500259433989413,
+          "A2_minus_X": 108.54581129504368
+        },
+        "git": {
+          "A2": 13.535850561107509,
+          "X": 13.862275437335484,
+          "A2_minus_X": -0.3264248762279749
+        },
+        "issue": {
+          "A2": 79.31614067906048,
+          "X": 79.41073162690736,
+          "A2_minus_X": -0.09459094784688205
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        true,
+        false
+      ],
+      "A2_workers": [
+        "gw5"
+      ],
+      "X_workers": [
+        "gw5"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.8345717440825,
+          "X": 104.3608204779448,
+          "A2_minus_X": 126.4737512661377
+        },
+        "copy": {
+          "A2": 137.9875272322679,
+          "X": 11.116011690581217,
+          "A2_minus_X": 126.87151554168668
+        },
+        "copy.list": {
+          "A2": 6.337723003001884,
+          "X": 0.04930386901833117,
+          "A2_minus_X": 6.2884191339835525
+        },
+        "copy.copytree": {
+          "A2": 117.0984382549068,
+          "X": 8.554583146935329,
+          "A2_minus_X": 108.54385510797147
+        },
+        "git": {
+          "A2": 13.529802264063619,
+          "X": 13.848118207999505,
+          "A2_minus_X": -0.318315943935886
+        },
+        "issue": {
+          "A2": 79.22599556401838,
+          "X": 79.19682550500147,
+          "A2_minus_X": 0.029170059016905725
+        }
+      }
+    },
+    {
+      "key": [
+        "AI-Agent: none",
+        true,
+        true,
+        false,
+        false
+      ],
+      "A2_workers": [
+        "gw12"
+      ],
+      "X_workers": [
+        "gw12"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 230.83572968898807,
+          "X": 104.38966594194062,
+          "A2_minus_X": 126.44606374704745
+        },
+        "copy": {
+          "A2": 137.9916113165673,
+          "X": 11.118772859801538,
+          "A2_minus_X": 126.87283845676575
+        },
+        "copy.list": {
+          "A2": 5.6396437250077724,
+          "X": 0.047781771048903465,
+          "A2_minus_X": 5.591861953958869
+        },
+        "copy.copytree": {
+          "A2": 117.063674723031,
+          "X": 8.566783967078663,
+          "A2_minus_X": 108.49689075595234
+        },
+        "git": {
+          "A2": 13.535386042087339,
+          "X": 13.863939428934827,
+          "A2_minus_X": -0.3285533868474886
+        },
+        "issue": {
+          "A2": 79.21526249009185,
+          "X": 79.21346033294685,
+          "A2_minus_X": 0.0018021571449935436
+        }
+      }
+    },
+    {
+      "key": {
+        "key": [
+          "AI-Agent: none",
+          false,
+          false,
+          false,
+          false
+        ],
+        "nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes",
+        "shared_session": false
+      },
+      "A2_workers": [
+        "gw20"
+      ],
+      "X_workers": [
+        "gw20"
+      ],
+      "seconds": {
+        "build": {
+          "A2": 151.5990116429748,
+          "X": 25.111554672010243,
+          "A2_minus_X": 126.48745697096456
+        },
+        "copy": {
+          "A2": 137.98046796803828,
+          "X": 11.109043211210519,
+          "A2_minus_X": 126.87142475682776
+        },
+        "copy.list": {
+          "A2": 6.198595638968982,
+          "X": 0.049929306958802044,
+          "A2_minus_X": 6.14866633201018
+        },
+        "copy.copytree": {
+          "A2": 117.10004352813121,
+          "X": 8.519050869042985,
+          "A2_minus_X": 108.58099265908822
+        },
+        "git": {
+          "A2": 13.529622048139572,
+          "X": 13.855142119922675,
+          "A2_minus_X": -0.32552007178310305
+        },
+        "issue": {
+          "A2": 0,
+          "X": 0,
+          "A2_minus_X": 0
+        }
+      }
+    }
+  ],
+  "critical_worker_decomposition": {
+    "A2": {
+      "gw2": {
+        "largest_component": "flock_wait",
+        "totals_s": {
+          "flock_wait": 230.9167559146881,
+          "build.copy.list": 0,
+          "build.copy.copytree": 0,
+          "build.copy.other": 0,
+          "build.git": 0,
+          "build.issue": 0,
+          "build.other": 0,
+          "base_copy": 14.638219118118286,
+          "verify": 0.687065839767456,
+          "remaining": 68.42695912742616
+        }
+      },
+      "gw40": {
+        "largest_component": "flock_wait",
+        "totals_s": {
+          "flock_wait": 230.93618202209473,
+          "build.copy.list": 0,
+          "build.copy.copytree": 0,
+          "build.copy.other": 0,
+          "build.git": 0,
+          "build.issue": 0,
+          "build.other": 0,
+          "base_copy": 14.29839301109314,
+          "verify": 6.1103949546813965,
+          "remaining": 44.261030012130725
+        }
+      }
+    },
+    "X": {
+      "gw2": {
+        "largest_component": "flock_wait",
+        "totals_s": {
+          "flock_wait": 104.56653928756714,
+          "build.copy.list": 0,
+          "build.copy.copytree": 0,
+          "build.copy.other": 0,
+          "build.git": 0,
+          "build.issue": 0,
+          "build.other": 0,
+          "base_copy": 15.372303009033203,
+          "verify": 0.6832590103149414,
+          "remaining": 70.46989869308472
+        }
+      },
+      "gw40": {
+        "largest_component": "flock_wait",
+        "totals_s": {
+          "flock_wait": 104.58479523658752,
+          "build.copy.list": 0,
+          "build.copy.copytree": 0,
+          "build.copy.other": 0,
+          "build.git": 0,
+          "build.issue": 0,
+          "build.other": 0,
+          "base_copy": 15.807737112045288,
+          "verify": 6.110751390457153,
+          "remaining": 47.69771626091005
+        }
+      }
+    }
+  },
+  "X_maximum_worker": "gw2",
+  "X_largest_component": "flock_wait",
+  "staging_wall_s": 43.94033200002741,
+  "delta_W_0_s": 123.94599999999997,
+  "delta_W_0_fraction": 0.27263468852213807,
+  "delta_W_0_minus_staging_s": 80.00566799997256,
+  "D357_classification": "10 % 以上の短縮",
+  "builder_copy_shorter_all": true,
+  "recommendation": "複製元の局所化を次の一手として提示",
+  "missing": {
+    "A2": [
+      "未計測: resource counters or sampler errors (see resource_sampling)"
+    ],
+    "X": [
+      "未計測: resource counters or sampler errors (see resource_sampling)"
+    ]
+  }
+}

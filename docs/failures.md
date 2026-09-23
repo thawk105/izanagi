@@ -6714,6 +6714,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   担い手として指す `DW-S06-C` が **stale になった**。現在の担い手は `DW-O16` である
   (条件 16 = 焦点再レビュー直前に必読、かつ「表なしで root cause が閉じたと判定しない」まで持つ)。
   canonical の既存 bytes は通常 fold では置換できないため、本追記で現担い手を明示する。
+
+- **再発: 2026-09-23** — [T-2850] の docs のみの事前登録で、段 6 レビューの所見 (経過時間の族で T_c の時点に走っている途中の候補の扱い) への親の fix が、比較基盤の設計 §4.6 から継承した欠測・fallback の優先を逆にした (品質欠測を endpoint より先に置き、資格ある候補があっても欠測にする)。焦点再レビュー 1 巡目が regressed として検出し、基盤設計の順へ戻して 2 巡目で GO。既存の対応 (regressed が 0 になるまで焦点再レビューを回す) が働き、費用は焦点 1 巡分だった。
 ### F147. 拒否メッセージの生成が subprocess を起動した [恒真ゲート]
 
 - 事象: `site_policy.heavy_work_refusal()` へキュー状態の診断を織り込んだ結果、拒否文を作る
@@ -8696,6 +8698,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   非NFC混入箇所が増える限り同型が再発しうる。今回は prompt へ「この行範囲は絶対に読むな」
   という明示制約を追加する運用回避で凌いだ (3回目で解消)。
 - **supersede: 2026-08-25** — `evidence_status=invalid` の原因は web 検索と非 NFC の 2 つだけではない。内容側の条件をすべて満たしても invalid になる 3 つ目の型を F540 に記録した。invalid を見たら 3 つとも判定する。
+
+- **再発: 2026-09-23** — [T-2862] の段 6 read-only レビューで、子が `manuscript.pdf` を `pdftotext` で読み、参考文献の「Vũ」(tex 側は ASCII の `V\~{u}`) が u + U+0303 の分解列で `command_execution` の event 行に載り、`evidence_status=invalid` で不採用になった (10 model call・191 秒)。非 NFC の出所は tracked file ではなく PDF の文字抽出が作った派生出力なので、本 F の再発検知の後半 (tracked file の棚卸し) では見つからない。events.jsonl の NFC 判定で 36 行目を特定し、prompt で PDF の文字抽出を禁じた 2 回目 (別 job-id) は受理された。
+
+- **再発: 2026-09-23** — model 移行 wave (D2229) の段 5 author 1 回目が、所有 file の `orchestrator/tests/test_check_docs.py` を `cat` で全体表示し、5756 / 5779 行の非 NFC 文字を含む event 行 (約 47 万 byte) で `evidence_status=invalid`・`launcher_rc=1`・`outcome=not_accepted` になった (codex exit 0、12 call、約 3 分、差分自体は裁定どおり)。同じ unit で base から branch を切り直し、prompt に「5740〜5800 行を表示しない・全体を `cat` しない」を足した 2 回目は `accepted` (12 call)。[T-855] (非 NFC 行の正規化と機械検査) は見送り台帳にあり未実装で、同ファイルを所有・編集する wave では prompt への行範囲禁止が今も唯一の回避策である。
 ### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
 
 - 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
@@ -19585,6 +19591,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **過剰拒否は正例テストでしか捕まらない** — 負例だけを増やしても (1)(2) は緑のままだった。
   受理集合を縮小する wave では過剰拒否検出の正例を段 4 で事前登録する (D1000)。
 
+
+- **再発: 2026-09-23** — [T-2858] の段 9 land が `status=fold-failed` (rc=26、main 不動) で止まった。worklog fragment の `見送り追記` で見送り台帳 [T-167] へ足した 1 行に現行 pin の値の短縮形を書いたため、生成後の `docs/phase3.md` が `tools/check_docs.py` の「`pin.CURRENT_PIN` の値の literal 再掲」規則に当たった。`spool_fold.py --dry-run` と作業木の `check_docs.py` はどちらも緑で (fragment の段階では phase3.md に入っていない)、受入全走 (child-green) の後に lock 内で初めて赤になり、受入を取り直すことになった。追記行を `pin.CURRENT_PIN` への記号参照に直し、受入の前に使い捨て worktree で fold を実走して生成後の検査を通した。
 ### F639. `pipefail` 下の `| grep -q` が、一致していたのに関門を素通りさせた [恒真ゲート] [手順漏れ]
 
 - 事象: `tools/pegasus/submit_t126_qualification.sh` の
@@ -27235,6 +27243,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (レビュー A が 4 件、焦点が訂正由来の 4 件)。**既存の防壁は破れていない** — 破れたのは
   「親が先に自分で検算する」という手順の不在であり、費用はレビュー 1 巡分である。
 
+
+- **再発: 2026-09-23** — [T-2850] の段 4 で親が書いた本比較の費用の試算 script が、同じ文書 §8.1 に登録した費用式と違う規則で計算した (試走していない課題を「1 block 合計の最大」で代入し、計画用に常に足すと書いた E_T の再計測を下側に足さなかった)。§8.1 の文言も「c の最大値」と曖昧だった。段 6 の独立レビューが式から再計算して検出し、文言を「手法ごとの最大値」と明確にして試算を v3 で計算し直した (S1 の 3 workload の C(5) は下側 343.8 → 417.8 node 時間)。既存の対応 (DW-O16 の派生値の再計算) はレビュー側で働いた。書いた派生値を、登録した式そのものへ当てて自分で計算し直す段が親に無かったことが残る原因で、F985 の根本原因と同じである。
 ### F986. 層予算を節の和だけで見積もり、leaf の preamble 304 bytes を落とした [手順漏れ]
 
 - 事象: 段 1 brief で dev-wave 読み込み契約の L1 層を「10,320 / 10,625、残 305 bytes」と実測として

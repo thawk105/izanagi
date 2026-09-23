@@ -1,0 +1,67 @@
+{
+  "note": "原本は Codex の最終メッセージ (job dir)。可視文字は不変。行末の空白・タブを除き、末尾に LF が無ければ 1 つ足した。",
+  "files": [
+    {
+      "name": "s3-consult-A.md",
+      "original_sha256": "ec9961db7418cbf8b43be3d1f073639f688c2eae1020e53fb2bc3c68809aceb0",
+      "original_bytes": 12223,
+      "normalized_sha256": "0b6ab48394640119981578fc267db0a6d7cc2b88c58b0061d8a7fe9cf1105ced",
+      "trailing_whitespace_removed": [
+        {
+          "line": 23,
+          "removed": "  "
+        }
+      ],
+      "final_lf_added": true
+    },
+    {
+      "name": "s3-consult-B.md",
+      "original_sha256": "a110d9dece2f2a09fde0991758602d24019f9c61a040ca52af6eb18581f6c291",
+      "original_bytes": 12763,
+      "normalized_sha256": "958ebb53a1838653b56746c30ec11337fcb27a90ed0ac31152c484e5fe314c78",
+      "trailing_whitespace_removed": [
+        {
+          "line": 16,
+          "removed": "  "
+        },
+        {
+          "line": 17,
+          "removed": "  "
+        },
+        {
+          "line": 18,
+          "removed": "  "
+        },
+        {
+          "line": 19,
+          "removed": "  "
+        },
+        {
+          "line": 20,
+          "removed": "  "
+        },
+        {
+          "line": 21,
+          "removed": "  "
+        }
+      ],
+      "final_lf_added": true
+    },
+    {
+      "name": "s6-review.md",
+      "original_sha256": "1c8c1f6996069acae7a50aad6c14e853a26b11f25ed42481797839d39be02085",
+      "original_bytes": 11417,
+      "normalized_sha256": "6ddf164461ba6355dd246e3f45fad2abeb20964fd39484560f99332ccbf02aff",
+      "trailing_whitespace_removed": [],
+      "final_lf_added": true
+    },
+    {
+      "name": "s6-focus-1.md",
+      "original_sha256": "772709bcbf4ae4534463008821ab058df79cba3af6ffacf34bd37b4ccab0a1d4",
+      "original_bytes": 4144,
+      "normalized_sha256": "9527cd4ddded191be2befadedf0397acbfa54e79b01db2ba6bb75df549804d7b",
+      "trailing_whitespace_removed": [],
+      "final_lf_added": true
+    }
+  ]
+}

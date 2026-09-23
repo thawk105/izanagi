@@ -1,0 +1,73 @@
+{
+  "schema_version": "t2854-mutation-spec/v1",
+  "anchor_status": "checked-against-C3-53f6b09757331ac7200f3f6bb5d526a676480fe3",
+  "note": "Anchors checked by the parent against the C3 blobs of include/tpcc.hh and cc/mocc/transaction.cc (each occurs exactly once; M2 after D1), check_anchors.log. Entries are unchanged from the author B template.",
+  "entries": [
+    {
+      "id": "D1",
+      "base": "C3",
+      "file": "include/tpcc.hh",
+      "anchor": "#if !TRACE\n#line 110\n    if (loadAcquire(tx.quit_)) return;\n#endif\n#line 111\n",
+      "replacement": "#if TRACE\n    static thread_local unsigned long long t2854_successes = 0;\n    if (++t2854_successes == 1000) {\n      std::fprintf(stderr, \"t2854-diag-quit\\n\");\n      storeRelease(const_cast<bool&>(tx.quit_), true);\n    }\n#endif\n#if !TRACE\n#line 110\n    if (loadAcquire(tx.quit_)) return;\n#endif\n#line 111\n",
+      "target": "tpcc_mocc.exe",
+      "kind": "diag",
+      "expected": "pass",
+      "intent": "Set quit after the 1000th successful commit on a worker, before the old quit/count boundary. Require stderr diagnostic marker and a worker trace with at least 1000 C frames in both D1 and M2."
+    },
+    {
+      "id": "M1m",
+      "base": "C3",
+      "file": "cc/mocc/transaction.cc",
+      "anchor": "  const std::uint32_t izanagi_tx_type = izanagi_trace::tpcc_tx_type();\n",
+      "replacement": "  const std::uint32_t izanagi_tx_type = 0U;\n",
+      "target": "tpcc_mocc.exe",
+      "kind": "run",
+      "expected": "schema",
+      "intent": "Ignore the TPC-C context in mocc, causing legacy v2 C records in TPC-C."
+    },
+    {
+      "id": "M2",
+      "base": "D1",
+      "file": "include/tpcc.hh",
+      "anchor": "#if !TRACE\n#line 110\n    if (loadAcquire(tx.quit_)) return;\n",
+      "replacement": "#if 1\n#line 110\n    if (loadAcquire(tx.quit_)) return;\n",
+      "target": "tpcc_mocc.exe",
+      "kind": "run",
+      "expected": "witness",
+      "intent": "After applying D1, restore the old post-commit quit return before counting."
+    },
+    {
+      "id": "M3m",
+      "base": "C3",
+      "file": "cc/mocc/transaction.cc",
+      "anchor": "      izanagi_trace::emit_write_v3(\n          thid_, izanagi_txid, get_storage(we.storage_),\n",
+      "replacement": "      izanagi_trace::emit_write_v3(\n          thid_, izanagi_txid, (get_storage(we.storage_) == 6 ? 5 : get_storage(we.storage_)),\n",
+      "target": "tpcc_mocc.exe",
+      "kind": "run",
+      "expected": "content-table",
+      "intent": "Map table 6 to table 5 only at the v3 W emitter; preserve schema and witness."
+    },
+    {
+      "id": "M4m",
+      "base": "C3",
+      "file": "cc/mocc/transaction.cc",
+      "anchor": "        read_set_.size(), write_set_.size(), 0, 0, izanagi_tx_type);\n",
+      "replacement": "        read_set_.size(), write_set_.size(), 0, 0, (izanagi_tx_type == 1 ? 2 : (izanagi_tx_type == 2 ? 1 : izanagi_tx_type)));\n",
+      "target": "tpcc_mocc.exe",
+      "kind": "run",
+      "expected": "content-txtype",
+      "intent": "Swap 1 and 2 only in the v3 C emitter; operation signatures remain unchanged."
+    },
+    {
+      "id": "M5m",
+      "base": "C3",
+      "file": "cc/mocc/transaction.cc",
+      "anchor": "#line 1187\n",
+      "replacement": "",
+      "target": null,
+      "kind": "preprocess",
+      "expected": "trace0-preprocess",
+      "intent": "Delete the DELETE-side logical-line restoration; compare all 21 entries without building. All four mocc transaction entries must differ only in expansion; the other 17 entries must match in both modes."
+    }
+  ]
+}

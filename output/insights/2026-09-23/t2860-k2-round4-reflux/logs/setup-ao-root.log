@@ -1,0 +1,26 @@
+start 2026-09-23 07:47:56 JST
+== original sha256 (read only)
+4a709002aa7e671529d729b4ad1bb9d10b2eae060168a4dab4ff67dc8a794274  ./campaign.lock
+c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a  ./knowledge_manifest_receipt.json
+2a648649221c4adbf89a25cee7869431947d6940d7020450ee94ee9b8b068184  ./loop_state.json
+944c75f08ea175e47efac753f633be5b3b7d38883434fa08defc2a5a3fdd7c33  ./reports/p3_s4_loop_provenance.json
+6444159d2710a99aada7ee7cf079e0f4289e331ffe1fe8f2bf14aa1ef25f631d  ./runs/wal.jsonl
+8d5640349425fe32abe63c2e2c9d86263891d3472c98b8ca144dec8cea9a1a07  ./s4_loop_digest.txt
+== copy sha256
+4a709002aa7e671529d729b4ad1bb9d10b2eae060168a4dab4ff67dc8a794274  ./campaign.lock
+c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a  ./knowledge_manifest_receipt.json
+2a648649221c4adbf89a25cee7869431947d6940d7020450ee94ee9b8b068184  ./loop_state.json
+944c75f08ea175e47efac753f633be5b3b7d38883434fa08defc2a5a3fdd7c33  ./reports/p3_s4_loop_provenance.json
+6444159d2710a99aada7ee7cf079e0f4289e331ffe1fe8f2bf14aa1ef25f631d  ./runs/wal.jsonl
+8d5640349425fe32abe63c2e2c9d86263891d3472c98b8ca144dec8cea9a1a07  ./s4_loop_digest.txt
+== MANIFEST r4 lines
+4a709002aa7e671529d729b4ad1bb9d10b2eae060168a4dab4ff67dc8a794274  r4/campaign/campaign.lock
+c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a  r4/campaign/knowledge_manifest_receipt.json
+2a648649221c4adbf89a25cee7869431947d6940d7020450ee94ee9b8b068184  r4/campaign/loop_state.json
+944c75f08ea175e47efac753f633be5b3b7d38883434fa08defc2a5a3fdd7c33  r4/campaign/reports/p3_s4_loop_provenance.json
+6444159d2710a99aada7ee7cf079e0f4289e331ffe1fe8f2bf14aa1ef25f631d  r4/campaign/runs/wal.jsonl
+8d5640349425fe32abe63c2e2c9d86263891d3472c98b8ca144dec8cea9a1a07  r4/campaign/s4_loop_digest.txt
+== calibration copies (original vs copy)
+calibration copy identical (9 files)
+end 2026-09-23 07:47:58 JST
+rc=0

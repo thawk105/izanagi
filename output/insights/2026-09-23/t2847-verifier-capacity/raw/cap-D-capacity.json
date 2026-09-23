@@ -1,0 +1,1625 @@
+{
+  "workloads": [
+    "rh"
+  ],
+  "builds": {
+    "B0-T-W0": {
+      "genome_flags": {
+        "BACK_OFF": 0,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 0,
+        "NO_WAIT_OF_TICTOC": 1,
+        "WAL": 0
+      },
+      "cmake_defines": [
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=0",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=1",
+        "-DCCBENCH_WAL=0"
+      ],
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/submit-tree-B/external/ccbench",
+        "-B",
+        "/scr/t2847-capacity-1i1742lb/capacity_B0-T-W0_630byd1f",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=0",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=1",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=1"
+      ],
+      "patch": null,
+      "define": null,
+      "walltime_s": 5.032482773065567
+    }
+  },
+  "runs": [
+    {
+      "build": "B0-T-W0",
+      "workload": "rh",
+      "flags": {
+        "ycsb_tuple_num": "1000000",
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rratio": "95",
+        "ycsb_rmw": "false",
+        "ycsb_max_ope": "10",
+        "thread_num": "48"
+      },
+      "run_walltime_s": 14.484599830931984,
+      "run": {
+        "commits": 16683499,
+        "aborts": 2180406,
+        "abort_rate": 0.11558614189373834,
+        "walltime_s": 3.38,
+        "trace_stats": {
+          "files": 48,
+          "bytes": 6346081109,
+          "lines": 198745114
+        }
+      },
+      "verify": {
+        "exit_code": 0,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "anomaly_count": 0,
+        "txns": 16683499,
+        "edges": 288640680,
+        "reads": 157037794,
+        "writes": 8340322,
+        "keys": 859286,
+        "walltime_s": 419.99,
+        "maxrss_gb": 40.63,
+        "timed_out": false,
+        "stdout_record": "verifier/0001.json"
+      },
+      "node_memory": {
+        "before": {
+          "MemTotal_kib": 130536328,
+          "MemAvailable_kib": 123054328,
+          "SwapFree_kib": 25165304,
+          "node_used_gib": 7.1353912353515625,
+          "at_utc": "2026-09-23T00:44:06.720514+00:00"
+        },
+        "sample_interval_s": 2,
+        "errors": [],
+        "oom_kill_before": 0,
+        "samples": [
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 123054328,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 7.1353912353515625,
+            "at_utc": "2026-09-23T00:44:06.720514+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 119847956,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 10.193225860595703,
+            "at_utc": "2026-09-23T00:44:08.721096+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 116699508,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 13.195819854736328,
+            "at_utc": "2026-09-23T00:44:10.721301+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 113820956,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.941020965576172,
+            "at_utc": "2026-09-23T00:44:12.721459+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110745744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.87377166748047,
+            "at_utc": "2026-09-23T00:44:14.721588+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 108126708,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 21.371479034423828,
+            "at_utc": "2026-09-23T00:44:16.721721+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 104946732,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 24.40414047241211,
+            "at_utc": "2026-09-23T00:44:18.721837+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101852748,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 27.354793548583984,
+            "at_utc": "2026-09-23T00:44:20.721964+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 99855000,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 29.259994506835938,
+            "at_utc": "2026-09-23T00:44:22.722091+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 118912572,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 11.085277557373047,
+            "at_utc": "2026-09-23T00:44:24.722242+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117672040,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.268341064453125,
+            "at_utc": "2026-09-23T00:44:26.722395+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114581564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.215648651123047,
+            "at_utc": "2026-09-23T00:44:28.722553+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 111414932,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.235584259033203,
+            "at_utc": "2026-09-23T00:44:30.722693+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 108403380,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 21.107624053955078,
+            "at_utc": "2026-09-23T00:44:32.722822+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 105161312,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 24.199501037597656,
+            "at_utc": "2026-09-23T00:44:34.723103+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 102358064,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 26.872886657714844,
+            "at_utc": "2026-09-23T00:44:36.723271+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 99233264,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 29.852928161621094,
+            "at_utc": "2026-09-23T00:44:38.723428+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 107259284,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 22.198719024658203,
+            "at_utc": "2026-09-23T00:44:40.723583+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 116563988,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 13.325061798095703,
+            "at_utc": "2026-09-23T00:44:42.723722+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 113908340,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.857685089111328,
+            "at_utc": "2026-09-23T00:44:44.723851+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110718776,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.899490356445312,
+            "at_utc": "2026-09-23T00:44:46.723990+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 107577848,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 21.894912719726562,
+            "at_utc": "2026-09-23T00:44:48.724134+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 104335620,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 24.986942291259766,
+            "at_utc": "2026-09-23T00:44:50.724270+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101229720,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 27.948959350585938,
+            "at_utc": "2026-09-23T00:44:52.724400+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98356920,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.688674926757812,
+            "at_utc": "2026-09-23T00:44:54.724523+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 99669456,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 29.43694305419922,
+            "at_utc": "2026-09-23T00:44:56.724646+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112487652,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.21255874633789,
+            "at_utc": "2026-09-23T00:44:58.724757+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117861804,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.08736801147461,
+            "at_utc": "2026-09-23T00:45:00.724888+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 116785860,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 13.113468170166016,
+            "at_utc": "2026-09-23T00:45:02.725017+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 115498964,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 14.340747833251953,
+            "at_utc": "2026-09-23T00:45:04.725174+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114687536,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.114585876464844,
+            "at_utc": "2026-09-23T00:45:06.725320+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114599552,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.198493957519531,
+            "at_utc": "2026-09-23T00:45:08.725434+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114469520,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.322502136230469,
+            "at_utc": "2026-09-23T00:45:10.725548+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114435500,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.35494613647461,
+            "at_utc": "2026-09-23T00:45:12.725648+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114400976,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.387870788574219,
+            "at_utc": "2026-09-23T00:45:14.725743+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117795992,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.150131225585938,
+            "at_utc": "2026-09-23T00:45:16.725856+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117795992,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.150131225585938,
+            "at_utc": "2026-09-23T00:45:18.725953+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117794480,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.151573181152344,
+            "at_utc": "2026-09-23T00:45:20.726052+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117732740,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.210453033447266,
+            "at_utc": "2026-09-23T00:45:22.726158+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117712328,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.22991943359375,
+            "at_utc": "2026-09-23T00:45:24.726262+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117658904,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.280868530273438,
+            "at_utc": "2026-09-23T00:45:26.726367+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117649332,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.289997100830078,
+            "at_utc": "2026-09-23T00:45:28.726495+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117643536,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.295524597167969,
+            "at_utc": "2026-09-23T00:45:30.726623+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117641524,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.297443389892578,
+            "at_utc": "2026-09-23T00:45:32.726756+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117641420,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.297542572021484,
+            "at_utc": "2026-09-23T00:45:34.727019+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639928,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.298965454101562,
+            "at_utc": "2026-09-23T00:45:36.727190+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639680,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.299201965332031,
+            "at_utc": "2026-09-23T00:45:38.727353+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639428,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.299442291259766,
+            "at_utc": "2026-09-23T00:45:40.727482+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639428,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.299442291259766,
+            "at_utc": "2026-09-23T00:45:42.727602+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639428,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.299442291259766,
+            "at_utc": "2026-09-23T00:45:44.727713+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117639428,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.299442291259766,
+            "at_utc": "2026-09-23T00:45:46.727827+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509144,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423690795898438,
+            "at_utc": "2026-09-23T00:45:48.727963+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509404,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423442840576172,
+            "at_utc": "2026-09-23T00:45:50.728082+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509404,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423442840576172,
+            "at_utc": "2026-09-23T00:45:52.728191+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509404,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423442840576172,
+            "at_utc": "2026-09-23T00:45:54.728302+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509404,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423442840576172,
+            "at_utc": "2026-09-23T00:45:56.728404+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117509404,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.423442840576172,
+            "at_utc": "2026-09-23T00:45:58.728504+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504232,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.428375244140625,
+            "at_utc": "2026-09-23T00:46:00.728613+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117502252,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.43026351928711,
+            "at_utc": "2026-09-23T00:46:02.728714+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117502968,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.429580688476562,
+            "at_utc": "2026-09-23T00:46:04.728837+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504376,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.428237915039062,
+            "at_utc": "2026-09-23T00:46:06.728945+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504628,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.427997589111328,
+            "at_utc": "2026-09-23T00:46:08.729064+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504628,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.427997589111328,
+            "at_utc": "2026-09-23T00:46:10.729176+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504628,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.427997589111328,
+            "at_utc": "2026-09-23T00:46:12.729286+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504880,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.427757263183594,
+            "at_utc": "2026-09-23T00:46:14.729387+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117504880,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.427757263183594,
+            "at_utc": "2026-09-23T00:46:16.729490+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 117410128,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.518119812011719,
+            "at_utc": "2026-09-23T00:46:18.729584+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 116967112,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 12.94061279296875,
+            "at_utc": "2026-09-23T00:46:20.729682+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 116660816,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 13.232719421386719,
+            "at_utc": "2026-09-23T00:46:22.729834+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 115603676,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 14.240886688232422,
+            "at_utc": "2026-09-23T00:46:24.729969+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114890776,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 14.920761108398438,
+            "at_utc": "2026-09-23T00:46:26.730126+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114014824,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.756134033203125,
+            "at_utc": "2026-09-23T00:46:28.730271+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 113299396,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 16.438419342041016,
+            "at_utc": "2026-09-23T00:46:30.730411+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112763140,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 16.949832916259766,
+            "at_utc": "2026-09-23T00:46:32.730549+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112192508,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.494029998779297,
+            "at_utc": "2026-09-23T00:46:34.730701+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 111727064,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.937911987304688,
+            "at_utc": "2026-09-23T00:46:36.730836+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 111132488,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.50494384765625,
+            "at_utc": "2026-09-23T00:46:38.730978+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110428824,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 19.176010131835938,
+            "at_utc": "2026-09-23T00:46:40.731123+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110144860,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 19.446819305419922,
+            "at_utc": "2026-09-23T00:46:42.731254+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 109493656,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 20.067855834960938,
+            "at_utc": "2026-09-23T00:46:44.731391+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 111788368,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.87944793701172,
+            "at_utc": "2026-09-23T00:46:46.731504+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112578480,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.125938415527344,
+            "at_utc": "2026-09-23T00:46:48.731635+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 114055152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 15.717674255371094,
+            "at_utc": "2026-09-23T00:46:50.731792+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 113397180,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 16.345165252685547,
+            "at_utc": "2026-09-23T00:46:52.731917+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112766928,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 16.94622039794922,
+            "at_utc": "2026-09-23T00:46:54.732034+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 112040556,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 17.63894271850586,
+            "at_utc": "2026-09-23T00:46:56.732150+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 111428448,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.222694396972656,
+            "at_utc": "2026-09-23T00:46:58.732262+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110893704,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 18.732666015625,
+            "at_utc": "2026-09-23T00:47:00.732375+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 110506316,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 19.102108001708984,
+            "at_utc": "2026-09-23T00:47:02.732505+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 109463900,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 20.096233367919922,
+            "at_utc": "2026-09-23T00:47:04.732657+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 109417796,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 20.140201568603516,
+            "at_utc": "2026-09-23T00:47:06.732775+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 108164096,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 21.33582305908203,
+            "at_utc": "2026-09-23T00:47:08.732902+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 108057248,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 21.437721252441406,
+            "at_utc": "2026-09-23T00:47:10.733017+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 107341568,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 22.12024688720703,
+            "at_utc": "2026-09-23T00:47:12.733140+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 106342640,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 23.072898864746094,
+            "at_utc": "2026-09-23T00:47:14.733246+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 106341888,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 23.07361602783203,
+            "at_utc": "2026-09-23T00:47:16.733356+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 105788244,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 23.601612091064453,
+            "at_utc": "2026-09-23T00:47:18.733466+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 104538504,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 24.79345703125,
+            "at_utc": "2026-09-23T00:47:20.733577+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 104077848,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 25.232772827148438,
+            "at_utc": "2026-09-23T00:47:22.733686+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 104077596,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 25.233013153076172,
+            "at_utc": "2026-09-23T00:47:24.733802+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 103528744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 25.756439208984375,
+            "at_utc": "2026-09-23T00:47:26.733914+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 102372064,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 26.859535217285156,
+            "at_utc": "2026-09-23T00:47:28.734035+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101333320,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 27.85015869140625,
+            "at_utc": "2026-09-23T00:47:30.734152+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101333320,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 27.85015869140625,
+            "at_utc": "2026-09-23T00:47:32.734266+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101332716,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 27.85073471069336,
+            "at_utc": "2026-09-23T00:47:34.734517+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 101032836,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 28.136722564697266,
+            "at_utc": "2026-09-23T00:47:36.734671+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 99745120,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 29.364784240722656,
+            "at_utc": "2026-09-23T00:47:38.734827+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98624480,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.433509826660156,
+            "at_utc": "2026-09-23T00:47:40.734967+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98093264,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.94011688232422,
+            "at_utc": "2026-09-23T00:47:42.735086+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98093264,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.94011688232422,
+            "at_utc": "2026-09-23T00:47:44.735201+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98093264,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.94011688232422,
+            "at_utc": "2026-09-23T00:47:46.735305+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 98092772,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 30.94058609008789,
+            "at_utc": "2026-09-23T00:47:48.735432+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 97013708,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 31.969661712646484,
+            "at_utc": "2026-09-23T00:47:50.735560+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 95790500,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 33.13620376586914,
+            "at_utc": "2026-09-23T00:47:52.735678+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 94633316,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 34.23978042602539,
+            "at_utc": "2026-09-23T00:47:54.735790+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 93418676,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.39815139770508,
+            "at_utc": "2026-09-23T00:47:56.735902+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 93418676,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.39815139770508,
+            "at_utc": "2026-09-23T00:47:58.736016+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 93418676,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.39815139770508,
+            "at_utc": "2026-09-23T00:48:00.736130+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 93415408,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.401268005371094,
+            "at_utc": "2026-09-23T00:48:02.736241+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 93415556,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.401126861572266,
+            "at_utc": "2026-09-23T00:48:04.736498+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 92942804,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 35.85197830200195,
+            "at_utc": "2026-09-23T00:48:06.736672+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 91727408,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 37.011070251464844,
+            "at_utc": "2026-09-23T00:48:08.736817+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 90599460,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 38.08676528930664,
+            "at_utc": "2026-09-23T00:48:10.736958+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 89486880,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 39.147804260253906,
+            "at_utc": "2026-09-23T00:48:12.737079+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88352376,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.22975158691406,
+            "at_utc": "2026-09-23T00:48:14.737203+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88352376,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.22975158691406,
+            "at_utc": "2026-09-23T00:48:16.737315+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88356148,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.22615432739258,
+            "at_utc": "2026-09-23T00:48:18.737427+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88356148,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.22615432739258,
+            "at_utc": "2026-09-23T00:48:20.737526+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88356148,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.22615432739258,
+            "at_utc": "2026-09-23T00:48:22.737628+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88347080,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.23480224609375,
+            "at_utc": "2026-09-23T00:48:24.737727+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 88086504,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 40.483306884765625,
+            "at_utc": "2026-09-23T00:48:26.737896+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 87005428,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 41.51430130004883,
+            "at_utc": "2026-09-23T00:48:28.738025+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 85892596,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 42.57558059692383,
+            "at_utc": "2026-09-23T00:48:30.738187+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 84744736,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 43.670265197753906,
+            "at_utc": "2026-09-23T00:48:32.738324+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 84559916,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 43.84652328491211,
+            "at_utc": "2026-09-23T00:48:34.738568+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 84361592,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.03565979003906,
+            "at_utc": "2026-09-23T00:48:36.738729+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 84158732,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.229122161865234,
+            "at_utc": "2026-09-23T00:48:38.738853+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83786024,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.584564208984375,
+            "at_utc": "2026-09-23T00:48:40.738977+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83188100,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 45.154788970947266,
+            "at_utc": "2026-09-23T00:48:42.739098+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 82548200,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 45.765045166015625,
+            "at_utc": "2026-09-23T00:48:44.739211+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 82044200,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 46.245697021484375,
+            "at_utc": "2026-09-23T00:48:46.739329+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 81272580,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 46.981571197509766,
+            "at_utc": "2026-09-23T00:48:48.739440+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 80758752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 47.471595764160156,
+            "at_utc": "2026-09-23T00:48:50.739561+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 82708800,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 45.61188507080078,
+            "at_utc": "2026-09-23T00:48:52.739684+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 82708800,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 45.61188507080078,
+            "at_utc": "2026-09-23T00:48:54.739798+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 82708800,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 45.61188507080078,
+            "at_utc": "2026-09-23T00:48:56.739898+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83363316,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98768997192383,
+            "at_utc": "2026-09-23T00:48:58.739998+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83363316,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98768997192383,
+            "at_utc": "2026-09-23T00:49:00.740120+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361572,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98935317993164,
+            "at_utc": "2026-09-23T00:49:02.740259+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361724,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98920822143555,
+            "at_utc": "2026-09-23T00:49:04.740449+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361724,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98920822143555,
+            "at_utc": "2026-09-23T00:49:06.740587+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361880,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98905944824219,
+            "at_utc": "2026-09-23T00:49:08.740696+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361880,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98905944824219,
+            "at_utc": "2026-09-23T00:49:10.740825+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361628,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98929977416992,
+            "at_utc": "2026-09-23T00:49:12.740943+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361628,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98929977416992,
+            "at_utc": "2026-09-23T00:49:14.741059+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:16.741177+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:18.741289+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:20.741396+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:22.741510+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:24.741623+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:26.741745+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:28.741857+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:30.741975+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361752,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98918151855469,
+            "at_utc": "2026-09-23T00:49:32.742088+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:34.742355+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83360904,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989990234375,
+            "at_utc": "2026-09-23T00:49:36.742551+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83360904,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989990234375,
+            "at_utc": "2026-09-23T00:49:38.742701+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361156,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989749908447266,
+            "at_utc": "2026-09-23T00:49:40.742835+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361156,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989749908447266,
+            "at_utc": "2026-09-23T00:49:42.742951+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361156,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989749908447266,
+            "at_utc": "2026-09-23T00:49:44.743059+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361156,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.989749908447266,
+            "at_utc": "2026-09-23T00:49:46.743173+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:48.743297+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:50.743431+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:52.743541+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:54.743649+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:56.743756+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:49:58.743861+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83361152,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.98975372314453,
+            "at_utc": "2026-09-23T00:50:00.743965+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357668,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99307632446289,
+            "at_utc": "2026-09-23T00:50:02.744088+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357560,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99317932128906,
+            "at_utc": "2026-09-23T00:50:04.744354+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357560,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99317932128906,
+            "at_utc": "2026-09-23T00:50:06.744508+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357312,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99341583251953,
+            "at_utc": "2026-09-23T00:50:08.744659+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357312,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99341583251953,
+            "at_utc": "2026-09-23T00:50:10.744792+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357312,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99341583251953,
+            "at_utc": "2026-09-23T00:50:12.744908+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:14.745041+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:16.745161+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:18.745271+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:20.745380+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:22.745485+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:24.745587+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357564,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9931755065918,
+            "at_utc": "2026-09-23T00:50:26.745717+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357816,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99293518066406,
+            "at_utc": "2026-09-23T00:50:28.745842+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83357816,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99293518066406,
+            "at_utc": "2026-09-23T00:50:30.745975+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358320,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.992454528808594,
+            "at_utc": "2026-09-23T00:50:32.746105+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358472,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9923095703125,
+            "at_utc": "2026-09-23T00:50:34.746266+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358976,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99182891845703,
+            "at_utc": "2026-09-23T00:50:36.746391+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358724,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.992069244384766,
+            "at_utc": "2026-09-23T00:50:38.746513+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358728,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9920654296875,
+            "at_utc": "2026-09-23T00:50:40.746630+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358728,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9920654296875,
+            "at_utc": "2026-09-23T00:50:42.746739+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358728,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9920654296875,
+            "at_utc": "2026-09-23T00:50:44.746847+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358488,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99229431152344,
+            "at_utc": "2026-09-23T00:50:46.746955+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358740,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.9920539855957,
+            "at_utc": "2026-09-23T00:50:48.747068+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99205017089844,
+            "at_utc": "2026-09-23T00:50:50.747204+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99205017089844,
+            "at_utc": "2026-09-23T00:50:52.747325+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99205017089844,
+            "at_utc": "2026-09-23T00:50:54.747446+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99205017089844,
+            "at_utc": "2026-09-23T00:50:56.747556+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 83358744,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 44.99205017089844,
+            "at_utc": "2026-09-23T00:50:58.747658+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 86922780,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 41.59312057495117,
+            "at_utc": "2026-09-23T00:51:00.747770+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 90173104,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 38.493370056152344,
+            "at_utc": "2026-09-23T00:51:02.747902+00:00"
+          },
+          {
+            "MemTotal_kib": 130536328,
+            "MemAvailable_kib": 97956464,
+            "SwapFree_kib": 25165304,
+            "node_used_gib": 31.070579528808594,
+            "at_utc": "2026-09-23T00:51:04.748173+00:00"
+          }
+        ],
+        "sample_count": 210,
+        "node_used_gib_peak": 47.471595764160156,
+        "oom_kill_after": 0,
+        "oom_kill_delta": 0
+      },
+      "verify_walltime_s": 419.9899803129956,
+      "trace_deleted": true
+    }
+  ],
+  "timings": {
+    "dependencies_walltime_s": 25.706105103949085
+  },
+  "genome": "B0-T-W0",
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "flags": {
+    "ycsb_tuple_num": "1000000",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "thread_num": "48"
+  },
+  "extime": 3,
+  "clocks_per_us": 2100,
+  "verifier_timeout_s": 1800,
+  "run_timeout_s": 120.0,
+  "free_disk_gb_at_start": 5463.998504638672,
+  "dependency_preparation": {
+    "admission": {
+      "admission_status": "non-admissible",
+      "materializer": "orchestrator.campaign.silo_policy_coverage._build_variant",
+      "reason": "Silo function-policy coverage and smoke builds are diagnostic only"
+    },
+    "condition_gates": [],
+    "configure": [
+      "cmake",
+      "-S",
+      "/scr/t2847-capacity-1i1742lb/izanagi_wt_76zeekgu/wt",
+      "-B",
+      "/scr/t2847-capacity-1i1742lb/dependency-stock/build",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCCBENCH_CCACHE=OFF",
+      "-DCCBENCH_TRACE=1",
+      "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+      "-DCMAKE_C_COMPILER_LAUNCHER=",
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+      "-DCMAKE_TOOLCHAIN_FILE=",
+      "-DCMAKE_PREFIX_PATH=/scr/t2847-capacity-1i1742lb/gflags-install;/scr/t2847-capacity-1i1742lb/glog-install",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2847-capacity-1i1742lb/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2847-capacity-1i1742lb/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2847-capacity-1i1742lb/thirdparty-src/googletest",
+      "-DCCBENCH_BACK_OFF=1",
+      "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+      "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+      "-DCCBENCH_WAL=0",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    ],
+    "binary_sha256": "785286def52f71da3b84372d8872414c2086c188d8c08c855a8aa20556868480"
+  },
+  "condition_gates": []
+}

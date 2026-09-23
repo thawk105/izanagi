@@ -1,0 +1,85 @@
+{
+  "hostname": "bnode051",
+  "started_at": "2026-09-22T23:26:53.000782+00:00",
+  "finished_at": "2026-09-22T23:29:01.857967+00:00",
+  "driver": "s5",
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "python_executable": "/usr/bin/python3.10",
+  "cmake": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+  "compiler": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "cc_version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "cxx_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "argv": [
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/launch_patch_verify.py",
+    "s5",
+    "--third-party-cache",
+    "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+    "--out-dir",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1",
+    "--repo-root",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2847-patch-verify"
+  ],
+  "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2847-patch-verify",
+  "driver_rc": 0,
+  "exception": null,
+  "replaced_names": [
+    "s5.buildcache.DEFAULT_CC",
+    "s5.buildcache.DEFAULT_CXX",
+    "s5.buildcache.build(cc,cxx,cache_root)",
+    "s5.source_digest.resolve_evidence(cxx)",
+    "s5.ENV_TAG",
+    "s5.repo_output_root",
+    "s5.subprocess.run(verifier passive recording)"
+  ],
+  "environment": {
+    "TMPDIR": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch",
+    "CMAKE_TOOLCHAIN_FILE": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/dependencies.cmake",
+    "CMAKE_PREFIX_PATH": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/gflags-install:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/glog-install"
+  },
+  "verifier_save_failures": [],
+  "ccbench_head": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "dependency_preparation": {
+    "admission": {
+      "admission_status": "non-admissible",
+      "materializer": "orchestrator.campaign.silo_policy_coverage._build_variant",
+      "reason": "Silo function-policy coverage and smoke builds are diagnostic only"
+    },
+    "condition_gates": [],
+    "configure": [
+      "cmake",
+      "-S",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/izanagi_wt_vnsd79r4/wt",
+      "-B",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/dependency-stock/build",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCCBENCH_CCACHE=OFF",
+      "-DCCBENCH_TRACE=1",
+      "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+      "-DCMAKE_C_COMPILER_LAUNCHER=",
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+      "-DCMAKE_TOOLCHAIN_FILE=",
+      "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/gflags-install;/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/glog-install",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/runs/s5-1/scratch/thirdparty-src/googletest",
+      "-DCCBENCH_BACK_OFF=1",
+      "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+      "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+      "-DCCBENCH_WAL=0",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    ],
+    "binary_sha256": "f6c8ee50fc3f550f769a316af47dd4937f5765174dde391c46fd7f7d4b3b53e8"
+  },
+  "phase": "driver",
+  "launcher_rc": 0
+}
