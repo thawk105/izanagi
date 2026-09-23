@@ -11,7 +11,7 @@ prompt非空・参照path実在・`--dry-run`のargvを先に検査（段別flag
 wait側`--receipt-file`はworker launcher receiptと別pathにする。
 完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
-`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
+`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。
 `--artifact-root`は先に作る。
 重い巡はcall/tokenを見積もる。未受理は未完了と記し次の子に監査させる。
 

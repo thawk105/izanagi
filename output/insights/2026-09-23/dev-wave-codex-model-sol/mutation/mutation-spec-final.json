@@ -1,0 +1,61 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n)\n",
+          "new": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n)\n# equivalent mutation marker: comment only\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-checkdocs-literal-astra",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n",
+          "new": "    \"`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_rejects_dw_o01_authority_drift",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_contract_is_time_invariant"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-docs-authority-astra",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/dev-wave/operations.md",
+          "old": "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\n",
+          "new": "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_all_stage_models_match_independent_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_review_effort_matches_independent_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_author_effort_matches_independent_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_derivation",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_focus_effort_matches_independent_docs_cross_check",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_snapshot_and_derive_current_authority_positive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
