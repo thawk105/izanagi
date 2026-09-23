@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -41,19 +42,18 @@ def test_cells_and_known_separate():
     assert not runner.known_separate("mocc", "bal-rmw1")
     assert not runner.known_separate("silo", "wh-rmw1")
     assert next(c for c in y if c.name == "wh-rr25").flags["ycsb_rratio"] == "25"
+    assert next(c for c in y if c.name == "wh-base").flags["ycsb_rmw"] == "false"
+    assert next(c for c in y if c.name == "wh-rmw1").flags["ycsb_rmw"] == "true"
     assert next(c for c in runner.cells("tpcc", "s2") if c.name == "s2-L-scan10").flags["tpcc_perc_delivery"] == "10"
 
 
 def test_order_hand_calculated_and_prefix():
     names = ["c", "a", "b"]
-    ordered = sorted(names)
-    key = "t2851-order-v1|1|silo|wh-base|1"
-    for i in (2, 1):
-        j = int.from_bytes(hashlib.sha256(f"{key}|{i}".encode()).digest(), "big") % (i + 1)
-        ordered[i], ordered[j] = ordered[j], ordered[i]
     actual = runner.order_identities(names, workload="ycsb", stage=None,
                                      cohort=1, protocol="silo", cell="wh-base", block=1)
-    assert actual == tuple(ordered)
+    assert actual == ("b", "a", "c")
+    assert runner.order_identities(names, workload="ycsb", stage=None, cohort=1,
+                                   protocol="silo", cell="wh-bbse", block=1) == ("c", "a", "b")
     assert any(actual != runner.order_identities(names, workload="ycsb", stage=None,
                cohort=1, protocol="silo", cell="wh-base", block=b) for b in range(2, 33))
     assert runner.order_identities(names, workload="tpcc", stage="s1", cohort=1,
@@ -71,7 +71,7 @@ def test_freeze_m_and_same_identity():
     same = runner.freeze_candidates(changed)
     assert any(x["same_identity"] for x in same["comparisons"])
     assert same["m_by_family"]["ycsb"] == 9
-    assert all(x["family"] == "descriptive" for x in frozen["comparisons"]
+    assert all(x["kind"] == "descriptive" for x in frozen["comparisons"]
                if x["reference"] == "R0")
 
 
@@ -146,15 +146,34 @@ def test_isolation_retry_once(monkeypatch):
         runner.run_job(spec | {"attempt_history": [first, second]})
 
 
+def test_job_failure_retry_once(tmp_path, monkeypatch):
+    binary = tmp_path / "binary"
+    binary.write_bytes(b"fake")
+    record = _record()
+    for pair in record["binaries"].values():
+        pair.update(perf_path=str(binary), perf_sha256=hashlib.sha256(b"fake").hexdigest())
+    frozen = runner.freeze_candidates(record)
+    monkeypatch.setattr(runner, "_probe", lambda *a, **kw: True)
+    def failed_process(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="failed")
+    spec = dict(freeze=frozen, cohort=1, protocol="silo", cell="wh-base")
+    first = runner.run_job(spec, subprocess_runner=failed_process)
+    assert first["next_action"] == "resubmit-job-failure" and first["attempt"] == 1
+    second = runner.run_job(spec | {"attempt_history": [first]}, subprocess_runner=failed_process)
+    assert second["next_action"] == "retry-exhausted" and second["attempt"] == 2
+    with pytest.raises(ValueError, match="retry limit"):
+        runner.run_job(spec | {"attempt_history": [first, second]}, subprocess_runner=failed_process)
+
+
 def test_verification_mapping():
     base = dict(completed=True, serializable=True, anomalies=0,
                 witness_ok=True, certified=True)
     assert runner.verification_status(**base) == "certified"
     for change in (dict(completed=False), dict(witness_ok=False),
                    dict(certified=False), dict(serializable=None)):
-        assert runner.verification_status(**(base | change)) == "未確定"
-    assert runner.verification_status(**(base | {"anomalies": 1})) == "失格"
-    assert runner.verification_status(**(base | {"serializable": False})) == "失格"
+        assert runner.verification_status(**(base | change)) == "indeterminate"
+    assert runner.verification_status(**(base | {"anomalies": 1})) == "disqualified"
+    assert runner.verification_status(**(base | {"serializable": False})) == "disqualified"
 
 
 def test_verification_mapping_with_real_verifier_fixtures():
@@ -162,12 +181,12 @@ def test_verification_mapping_with_real_verifier_fixtures():
     red = verify_trace_dir(str(fixtures / "r1_write_skew"), max_report=0)
     assert runner.verification_status(completed=True, serializable=red.serializable,
            anomalies=max(len(red.anomalies), red.total_cycles), witness_ok=True,
-           certified=red.certified) == "失格"
+           certified=red.certified) == "disqualified"
     green_graph = verify_trace_dir(str(fixtures / "g1_serial"))
     assert green_graph.serializable and not green_graph.certified
     assert runner.verification_status(completed=True, serializable=green_graph.serializable,
            anomalies=max(len(green_graph.anomalies), green_graph.total_cycles),
-           witness_ok=True, certified=green_graph.certified) == "未確定"
+           witness_ok=True, certified=green_graph.certified) == "indeterminate"
 
 
 def test_tpcc_parser_from_result_cc_shape():
@@ -182,9 +201,10 @@ def test_run_job_anchor_uses_real_run_once_with_subprocess_seam(tmp_path, monkey
     binary = tmp_path / "binary"
     binary.write_bytes(b"fake")
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
-    frozen = _freeze()
-    for pair in frozen["binaries"].values():
+    record = _record()
+    for pair in record["binaries"].values():
         pair.update(perf_path=str(binary), perf_sha256=digest)
+    frozen = runner.freeze_candidates(record)
     calls = []
     def subprocess_runner(cmd, **kwargs):
         calls.append(cmd)
@@ -199,18 +219,82 @@ def test_run_job_anchor_uses_real_run_once_with_subprocess_seam(tmp_path, monkey
 
 
 def test_verify_tpcc_anchor_is_indeterminate():
-    frozen = {"workload": "tpcc", "stage": "s1", "sha256": "h",
-              "jobs": [{"cohort": 1, "protocol": "silo", "cell": "s1-H-base",
-                        "R0": "R0", "identities": ["R0", "K"]}]}
+    record = dict(workload="tpcc", stage="s1", selection_rule="frozen",
+                  series=[dict(task="t", method="m", independent_search="1",
+                               protocol="silo", anchor="s1-H-base", selected_identity="K")],
+                  search_groups=[dict(task="t", method="m", learning_cells=["s1-H-base"],
+                                      independent_searches=["1"], reachability=False)],
+                  references={"silo": {"mode": "a", "R0": "R0", "reference_identity": "K"}},
+                  binaries={k: dict(perf_path="/unused", perf_sha256="0" * 64,
+                                    trace_path="/unused", trace_sha256="0" * 64) for k in ("R0", "K")})
+    frozen = runner.freeze_candidates(record)
     result = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
                                           cell="s1-H-base", identity="K"))
-    assert result["status"] == "未確定" and result["reason"] == "認定経路なし"
+    assert result["status"] == "indeterminate" and result["reason"] == "認定経路なし"
+    assert result["attempt"] is None
     repeated = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
         cell="s1-H-base", identity="K", attempt_history=[result]))
-    assert repeated["reason"] == "reverification-not-admitted"
-    exhausted = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
-        cell="s1-H-base", identity="K", attempt_history=[result, repeated]))
-    assert exhausted["reason"] == "reverification-limit"
+    assert repeated["status"] == "indeterminate" and repeated["reason"] == "認定経路なし"
+    assert repeated["attempt"] is None
+
+
+def test_ycsb_reverification_counts_only_trace_runs(monkeypatch, tmp_path):
+    binary = tmp_path / "trace"
+    binary.write_bytes(b"fake")
+    record = _record()
+    record["binaries"]["K"].update(trace_path=str(binary),
+        trace_sha256=hashlib.sha256(b"fake").hexdigest())
+    frozen = runner.freeze_candidates(record)
+    spec = dict(freeze=frozen, protocol="silo", cell="wh-base", identity="K")
+    trace_calls = []
+    def trace_runner(*args, **kwargs):
+        trace_calls.append(args)
+        return SimpleNamespace(returncode=1, trace_c_lines=0, abort_counts=None,
+            commit_count_witness=None, batch_commit_count_witness=None)
+    def verifier(*args, **kwargs):
+        raise AssertionError("witness failure reached verifier")
+    monkeypatch.setattr(runner.socket, "gethostname", lambda: "node-A")
+    first = runner.verify_candidate(spec, trace_runner=trace_runner, verifier=verifier)
+    assert first["status"] == "indeterminate" and first["attempt"] == 1
+    same = runner.verify_candidate(spec | {"attempt_history": [first]},
+        trace_runner=trace_runner, verifier=verifier)
+    assert same["reason"] == "reverification-not-admitted" and same["attempt"] is None
+    assert len(trace_calls) == 1
+    monkeypatch.setattr(runner.socket, "gethostname", lambda: "node-B")
+    second = runner.verify_candidate(spec | {"attempt_history": [first, same]},
+        trace_runner=trace_runner, verifier=verifier)
+    assert second["status"] == "indeterminate" and second["attempt"] == 2
+    assert len(trace_calls) == 2
+    monkeypatch.setattr(runner.socket, "gethostname", lambda: "node-C")
+    exhausted = runner.verify_candidate(spec | {"attempt_history": [first, same, second]},
+        trace_runner=trace_runner, verifier=verifier)
+    assert exhausted["reason"] == "reverification-limit" and exhausted["attempt"] is None
+    assert len(trace_calls) == 2
+
+
+@pytest.mark.parametrize("change", ["rc", "empty", "abort", "commit", "batch"])
+def test_trace_witness_each_missing_condition_is_indeterminate(change, tmp_path):
+    binary = tmp_path / "trace"
+    binary.write_bytes(b"fake")
+    record = _record()
+    record["binaries"]["K"].update(trace_path=str(binary),
+        trace_sha256=hashlib.sha256(b"fake").hexdigest())
+    frozen = runner.freeze_candidates(record)
+    witness = dict(returncode=0, trace_c_lines=1, abort_counts={"abort": 1},
+                   commit_count_witness=1, batch_commit_count_witness=0)
+    key, value = {"rc": ("returncode", 1), "empty": ("trace_c_lines", 0),
+                  "abort": ("abort_counts", None), "commit": ("commit_count_witness", None),
+                  "batch": ("batch_commit_count_witness", 1)}[change]
+    witness[key] = value
+    def trace_runner(*args, **kwargs):
+        return SimpleNamespace(**witness)
+    def verifier(*args, **kwargs):
+        raise AssertionError("invalid witness reached verifier")
+    result = runner.verify_candidate(dict(freeze=frozen, protocol="silo", cell="wh-base",
+                                          identity="K"), trace_runner=trace_runner,
+                                     verifier=verifier)
+    assert result["status"] == "indeterminate" and result["reason"] == "trace-witness-failed"
+    assert result["attempt"] == 1
 
 
 def test_freeze_cli_create_only(tmp_path):

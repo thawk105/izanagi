@@ -4,18 +4,21 @@ Minimum JSON fields read from A (all identities are strings):
 freeze: workload ('ycsb'|'tpcc'), stage (TPC-C 's1'|'s2'),
   m_by_family {family: positive integer}, comparisons [{protocol, cell,
   anchor, candidate, reference, kind ('primary'|'descriptive'|'known_separate'),
-  task, method, independent_search, factor?, level?, same_identity?}].
-  family is 'ycsb' or the TPC-C stage. Each comparison is one frozen series;
-  repeated identities share measurement, but remain separate method series.
+  comparison_type, reference_mode, factor, level, same_identity,
+  series ([[task, method, independent_search], ...])}].
+  family is 'ycsb' or the TPC-C stage. Comparisons deduplicate identities;
+  series preserves every selection for descriptive method summaries.
   same_identity records a deliberately excluded comparison.
   series? [{stage?, task, method, independent_search, selected_identity? |
   selection_failure?}] lists frozen searches, including failures for summaries.
-jobs: [{stage?, cohort (1|2), protocol, cell, attempt (integer, starts at 1),
-  solo_start, solo_end, complete_blocks (integer), within_retry_limit,
-  separate_allocation (cohort 2), blocks [{block (1..32), tps {identity: positive
-  finite throughput or null}}]}]. The first qualifying attempt is adopted.
+jobs: [{stage, cohort (1|2), protocol, cell, attempt (integer, starts at 1),
+  hostname, start_utc, end_utc, isolation_start, isolation_end, completed_blocks,
+  within_retry_limit, separate_allocation, next_action,
+  blocks [{block (1..32), order, runs {identity: {tps, rc, reason?, walltime?,
+  transaction_counts?}}}]}]. The first qualifying attempt is adopted.
 verify: [{stage?, protocol, cell, identity, status
-  ('certified'|'disqualified'|'indeterminate'), attempt?}]. The latest
+  ('certified'|'disqualified'|'indeterminate'), reason, anomalies, attempt,
+  verifier}]. The latest measured
   verification for a cell/identity resolves uncertainty; any disqualification
   is permanent. Missing verification is indeterminate; R0 needs none.
 """
@@ -57,8 +60,9 @@ def _effect(job: dict | None, candidate: str, reference: str) -> dict:
     differences = []
     if job is not None:
         for block in job.get("blocks", []):
-            tps = block.get("tps", {})
-            k, r = tps.get(candidate), tps.get(reference)
+            runs = block.get("runs", {})
+            k = runs.get(candidate, {}).get("tps")
+            r = runs.get(reference, {}).get("tps")
             if _usable(k) and _usable(r):
                 differences.append(math.log(k) - math.log(r))
     n = len(differences)
@@ -96,14 +100,10 @@ def _adopt_jobs(jobs: list[dict]) -> dict:
     for key, attempts in grouped.items():
         attempts.sort(key=lambda j: j["attempt"])
         for job in attempts:
-            if (job.get("within_retry_limit") is True and job.get("solo_start") is True
-                    and job.get("solo_end") is True and job.get("complete_blocks") == BLOCKS):
+            if (job.get("within_retry_limit") is True and job.get("isolation_start") is True
+                    and job.get("isolation_end") is True and job.get("completed_blocks") == BLOCKS):
                 adopted[key] = job
                 break
-        if key not in adopted:
-            eligible = [j for j in attempts if j.get("within_retry_limit") is True]
-            if eligible:
-                adopted[key] = eligible[-1]  # descriptive values only
     return adopted
 
 
@@ -117,7 +117,7 @@ def _verification_status(records: list[dict]) -> tuple[dict, dict]:
             disqualified[key[:2]].add(key[3])  # M11: global protocol/stage exclusion
     statuses = {}
     for key, attempts in grouped.items():
-        attempts.sort(key=lambda r: r.get("attempt", 1))
+        attempts.sort(key=lambda r: r.get("attempt") or 0)
         statuses[key] = ("disqualified" if any(r["status"] == "disqualified" for r in attempts)
                          else attempts[-1]["status"])
     return statuses, disqualified
@@ -167,8 +167,8 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
             effect = _effect(job, candidate, reference)
             qualified = (kind == "primary" and m > 0
                          and _qualified(effect, job, statuses, key, disqualified)
-                         and job.get("complete_blocks") == BLOCKS
-                         and job.get("solo_start") is True and job.get("solo_end") is True)
+                         and job.get("completed_blocks") == BLOCKS
+                         and job.get("isolation_start") is True and job.get("isolation_end") is True)
             q = quantile if qualified else (student_t_quantile(0.975, effect["n_eff"] - 1)
                                            if effect["n_eff"] >= 2 else None)
             lower, upper = _interval(effect, q)
@@ -192,7 +192,7 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
     winners = []
     all_rows = [r for values in rows.values() for r in values]
     by_key = {(r.get("stage", freeze.get("stage")), r["protocol"], r["cell"],
-                       r["candidate"], r["reference"], r.get("independent_search")): r
+                       r["candidate"], r["reference"]): r
               for r in all_rows}
     for row in all_rows:
         row["transfer_difference"] = None
@@ -200,7 +200,7 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
             continue
         stage = row.get("stage", freeze.get("stage"))
         anchor = by_key.get((stage, row["protocol"], row["anchor"], row["candidate"],
-                             row["reference"], row.get("independent_search")))
+                             row["reference"]))
         if anchor:
             key = (stage, row["protocol"], row["cell"], row["candidate"], row["reference"])
             base_key = (stage, row["protocol"], row["anchor"], row["candidate"], row["reference"])
@@ -212,7 +212,7 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
             continue
         stage = row.get("stage", freeze.get("stage"))
         anchor = by_key.get((stage, row["protocol"], row["anchor"], row["candidate"],
-                             row["reference"], row.get("independent_search")))
+                             row["reference"]))
         if anchor and anchor["primary_result"] == "superior":
             key = (stage, row["protocol"], row["cell"], row["candidate"], row["reference"])
             winners.append({"comparison": key, "anchor": row["anchor"],
@@ -222,8 +222,8 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
     for kind, values in rows.items():
         for row in values:
             stage = row.get("stage", freeze.get("stage"))
-            method_key = (stage, row.get("task"), row.get("method"))
-            methods[method_key].append(row)
+            for task, method, independent_search in row.get("series", []):
+                methods[(stage, task, method)].append((independent_search, row))
             if row.get("factor") and not row["claim_excluded"]:
                 factors[(stage, row["protocol"], row["factor"], row.get("level"),
                          row["candidate"], row["reference"])].append(row)
@@ -252,8 +252,8 @@ def analyze(freeze: dict, jobs: list[dict], verify: list[dict]) -> dict:
         methods.setdefault(key, [])
     for key, values in methods.items():
         series = defaultdict(list)
-        for row in values:
-            series[row.get("independent_search")].append(row)
+        for independent_search, row in values:
+            series[independent_search].append(row)
         for cohort in (1, 2):
             series_means, counts = [], Counter()
             for series_rows in series.values():

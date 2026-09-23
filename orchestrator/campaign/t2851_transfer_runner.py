@@ -4,9 +4,11 @@
 block 番号の始点は登録文に明記なし、実装の選択として 1..32 とする。
 
 JSON minimum examples (field names and types):
-freeze: {"workload":"ycsb", "sha256":"hex", "jobs":[{"cohort":1,"protocol":"silo","cell":"wh-base","identities":["R0"]}], "comparisons":[], "m_by_family":{"ycsb":0}, "binaries":{"R0":{"perf_path":"/x","perf_sha256":"hex","trace_path":"/y","trace_sha256":"hex"}}}
-run-job: {"workload":"ycsb","cohort":1,"protocol":"silo","cell":"wh-base","hostname":"node","start_utc":"ISO","end_utc":"ISO","blocks":[{"block":1,"order":["R0"],"runs":{"R0":{"tps":1.0,"rc":0}}}],"completed_blocks":32,"isolation_ok":true,"separate_allocation":true,"next_action":"none"}
-verify: {"workload":"ycsb","protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","status":"未確定","reason":"trace-empty","anomalies":0}
+freeze: {"workload":"ycsb","stage":null,"sha256":"hex","jobs":[{"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","identities":["R0"]}],"comparisons":[{"stage":null,"protocol":"silo","cell":"wh-base","anchor":"wh-base","factor":null,"level":null,"candidate":"K","reference":"R1","kind":"primary","comparison_type":"selected","reference_mode":"a","same_identity":false,"series":[["task","method","1"]]}],"m_by_family":{"ycsb":1}}
+run-job: {"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","attempt":1,"hostname":"node","start_utc":"ISO","end_utc":"ISO","isolation_start":true,"isolation_end":true,"completed_blocks":32,"within_retry_limit":true,"separate_allocation":true,"next_action":"none","blocks":[{"block":1,"order":["R0"],"runs":{"R0":{"tps":1.0,"rc":0}}}]}
+verify: {"stage":null,"protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","status":"indeterminate","reason":"trace-empty","anomalies":null,"attempt":1,"verifier":null}
+Status vocabulary maps v1 §8 certified / 失格 / 未確定 to
+certified / disqualified / indeterminate respectively.
 """
 from __future__ import annotations
 
@@ -16,7 +18,6 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
-import os
 from pathlib import Path
 import re
 import socket
@@ -52,7 +53,7 @@ def cells(workload: str, stage: str | None = None) -> tuple[Cell, ...]:
     if workload == "ycsb" and stage is None:
         for anchor, ratio in (("wh", 5), ("bal", 50), ("rh", 95)):
             base = dict(ycsb_rratio=ratio, ycsb_zipf_skew="0.9", thread_num=48,
-                        ycsb_max_ope=10, ycsb_rmw=0, ycsb_tuple_num=1000000, extime=3)
+                        ycsb_max_ope=10, ycsb_rmw="false", ycsb_tuple_num=1000000, extime=3)
             def add(suffix, factor, **changed):
                 out.append(_cell(workload, None, anchor + "-" + suffix,
                                  anchor + "-base", factor, base | changed))
@@ -68,7 +69,7 @@ def cells(workload: str, stage: str | None = None) -> tuple[Cell, ...]:
                 ("thr24", "threads", "thread_num", 24),
                 ("ope05", "operations", "ycsb_max_ope", 5),
                 ("ope20", "operations", "ycsb_max_ope", 20),
-                ("rmw1", "overlap", "ycsb_rmw", 1),
+                ("rmw1", "overlap", "ycsb_rmw", "true"),
             ):
                 add(suffix, factor, **{key: value})
     elif workload == "tpcc" and stage in {"s1", "s2"}:
@@ -129,6 +130,15 @@ def _sha(value):
     return hashlib.sha256(_canonical(value).encode()).hexdigest()
 
 
+_FREEZE_BODY = ("workload", "stage", "series", "search_groups", "selection_rule",
+                "references", "binaries")
+
+
+def _require_freeze_hash(freeze):
+    if _sha({key: freeze[key] for key in _FREEZE_BODY}) != freeze.get("sha256"):
+        raise ValueError("freeze sha256 mismatch")
+
+
 def _reference_for(refs, protocol, anchor):
     p = refs[protocol]
     return p.get(anchor, p) if protocol == "silo" and isinstance(p, dict) else p
@@ -176,7 +186,7 @@ def freeze_candidates(record: Mapping[str, object]) -> dict:
                                ("perf_path", "perf_sha256", "trace_path", "trace_sha256")):
             raise ValueError("incomplete binary pair")
     jobs, comparisons = [], []
-    m = 0
+    primary_pairs = set()
     for protocol in sorted(refs):
         if protocol not in ("silo", "mocc"):
             raise ValueError("unsupported protocol")
@@ -197,25 +207,44 @@ def freeze_candidates(record: Mapping[str, object]) -> dict:
             for cohort in (1, 2):
                 jobs.append(dict(stage=stage, cohort=cohort, protocol=protocol,
                                  cell=cell.name, identities=identities, R0=r0))
+            selected_series = {}
             for s in series:
                 candidate = s.get("selected_identity")
-                if s["protocol"] != protocol or s["anchor"] != cell.anchor or not candidate:
-                    continue
+                if s["protocol"] == protocol and s["anchor"] == cell.anchor and candidate:
+                    selected_series.setdefault(candidate, []).append(
+                        [s["task"], s["method"], s["independent_search"]])
+            for candidate, related in sorted(selected_series.items()):
                 for reference in [r0, *strong]:
                     primary = reference in strong and mode == "a" and not known_separate(protocol, cell.name)
                     same = candidate == reference
+                    kind = ("known_separate" if known_separate(protocol, cell.name) else
+                            "primary" if primary else "descriptive")
                     comparisons.append(dict(stage=stage, protocol=protocol, cell=cell.name,
+                                            anchor=cell.anchor, factor=cell.factor,
+                                            level=cell.flags.get({"read_ratio":"ycsb_rratio",
+                                                "skew":"ycsb_zipf_skew", "threads":"thread_num",
+                                                "operations":"ycsb_max_ope", "overlap":"ycsb_rmw",
+                                                "warehouses":"tpcc_num_wh", "mix":"tpcc_perc_payment"}.get(cell.factor, ""))
+                                            if cell.factor else None,
                                             candidate=candidate, reference=reference,
-                                            series=[s["task"], s["method"], s["independent_search"]],
-                                            family="primary" if primary else "descriptive",
-                                            same_identity=same, known_separate=known_separate(protocol, cell.name)))
+                                            kind=kind, comparison_type="selected",
+                                            reference_mode=mode, same_identity=same,
+                                            series=related))
                     if primary and not same:
-                        m += 1
+                        primary_pairs.add((protocol, cell.name, candidate, reference))
+            reference_ids = list(dict.fromkeys([r0, *strong]))
+            for i, candidate in enumerate(reference_ids):
+                for reference in reference_ids[i + 1:]:
+                    comparisons.append(dict(stage=stage, protocol=protocol, cell=cell.name,
+                                            anchor=cell.anchor, factor=cell.factor, level=None,
+                                            candidate=candidate, reference=reference,
+                                            kind="descriptive", comparison_type="reference_pair",
+                                            reference_mode=mode, same_identity=False, series=[]))
     normalized = dict(workload=workload, stage=stage, series=series,
                       search_groups=groups, selection_rule=record["selection_rule"],
                       references=refs, binaries=binaries)
     return dict(**normalized, sha256=_sha(normalized), jobs=jobs,
-                comparisons=comparisons, m_by_family={stage or "ycsb": m})
+                comparisons=comparisons, m_by_family={stage or "ycsb": len(primary_pairs)})
 
 
 def activation_allowed(cell: Cell, freeze: Mapping, activation: Mapping | None) -> bool:
@@ -303,6 +332,7 @@ def _probe(workload, probe=calibrator.composite_competing_probe,
 def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
             probe=calibrator.composite_competing_probe) -> dict:
     freeze = spec["freeze"]
+    _require_freeze_hash(freeze)
     cell = _find_cell(freeze, spec["cell"])
     _require_activation(cell, freeze, spec.get("activation"))
     protocol, cohort = spec["protocol"], spec["cohort"]
@@ -312,12 +342,13 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
     result = dict(workload=cell.workload, stage=cell.stage, cohort=cohort,
                   protocol=protocol, cell=cell.name, hostname=host,
                   start_utc=start, end_utc=None, freeze_sha256=freeze["sha256"],
-                  blocks=[], completed_blocks=0, isolation_ok=False,
-                  separate_allocation=True, next_action="none")
+                  blocks=[], completed_blocks=0, isolation_start=False,
+                  isolation_end=False, separate_allocation=True, next_action="none")
     history = [h for h in spec.get("attempt_history", [])
                if h.get("stage") == cell.stage and h.get("cohort") == cohort and
                h.get("protocol") == protocol and h.get("cell") == cell.name]
-    if any(h.get("completed_blocks") == 32 and h.get("isolation_ok")
+    result.update(attempt=len(history) + 1, within_retry_limit=True)
+    if any(h.get("completed_blocks") == 32 and h.get("isolation_start") and h.get("isolation_end")
            for h in history):
         raise ValueError("completed job already present in attempt history")
     if any(h.get("next_action") == "retry-exhausted" for h in history) or sum(
@@ -329,12 +360,17 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
     def retry_action(reason):
         return "retry-exhausted" if retried else "resubmit-" + reason
     if cohort == 2:
-        prior = spec["cohort1_record"]
-        if (prior.get("stage"), prior.get("cohort"), prior.get("protocol"),
-                prior.get("cell")) != (cell.stage, 1, protocol, cell.name):
-            raise ValueError("cohort1_record job key mismatch")
+        cohort1 = spec["cohort1_records"]
+        if not cohort1 or any(h.get("cohort") != 1 or not h.get("end_utc") for h in cohort1):
+            raise ValueError("cohort1_records incomplete")
+        matches = [h for h in cohort1 if (h.get("stage"), h.get("protocol"), h.get("cell"))
+                   == (cell.stage, protocol, cell.name)]
+        if len(matches) != 1:
+            raise ValueError("cohort1_records job key mismatch")
+        prior = matches[0]
         rejects = sum(h.get("next_action") == "resubmit-same-host" for h in history)
-        gate = cohort2_admission(cohort1_last_end_utc=spec["cohort1_last_end_utc"],
+        last_end = max(h["end_utc"] for h in cohort1)
+        gate = cohort2_admission(cohort1_last_end_utc=last_end,
                                  cohort2_first_start_utc=start,
                                  prior_hostname=prior["hostname"],
                                  current_hostname=host, same_host_rejections=rejects)
@@ -346,7 +382,7 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
     if not _probe(cell.workload, probe, subprocess_runner):
         result.update(next_action=retry_action("isolation"), end_utc=_utc())
         return result
-    result["isolation_ok"] = True
+    result["isolation_start"] = True
     perf_binaries = {identity: _binary(freeze, identity, "perf")
                      for identity in job["identities"]}
     def once(identity):
@@ -383,8 +419,8 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
             result["completed_blocks"] = block
     except Exception as exc:
         result.update(next_action=retry_action("job-failure"), error=str(exc).splitlines()[0])
-    result["isolation_ok"] = _probe(cell.workload, probe, subprocess_runner)
-    if not result["isolation_ok"]:
+    result["isolation_end"] = _probe(cell.workload, probe, subprocess_runner)
+    if not result["isolation_end"]:
         result["next_action"] = retry_action("isolation")
     result["end_utc"] = _utc()
     return result
@@ -394,13 +430,14 @@ def verification_status(*, completed: bool, serializable: bool | None,
                         anomalies: int | None, witness_ok: bool,
                         certified: bool) -> str:
     if anomalies is not None and anomalies >= 1 or serializable is False:
-        return "失格"
-    return "certified" if completed and serializable is True and anomalies == 0 and witness_ok and certified else "未確定"
+        return "disqualified"
+    return "certified" if completed and serializable is True and anomalies == 0 and witness_ok and certified else "indeterminate"
 
 
 def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
                      verifier=verify_trace_dir) -> dict:
     freeze = spec["freeze"]
+    _require_freeze_hash(freeze)
     cell = _find_cell(freeze, spec["cell"])
     _require_activation(cell, freeze, spec.get("activation"))
     identity, protocol = spec["identity"], spec["protocol"]
@@ -409,22 +446,22 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
     if identity == job["R0"] or identity not in job["identities"]:
         raise ValueError("verify identity must be a non-R0 measured candidate")
     host = socket.gethostname()
-    previous = spec.get("previous_record")
     result = dict(workload=cell.workload, stage=cell.stage, protocol=protocol,
                   cell=cell.name, identity=identity, hostname=host,
-                  freeze_sha256=freeze["sha256"], status="未確定", reason="",
-                  anomalies=None, start_utc=_utc(), end_utc=None)
+                  freeze_sha256=freeze["sha256"], status="indeterminate", reason="",
+                  anomalies=None, verifier=None, attempt=None,
+                  start_utc=_utc(), end_utc=None)
     prior_attempts = [h for h in spec.get("attempt_history", [])
                       if (h.get("stage"), h.get("protocol"), h.get("cell"),
                           h.get("identity")) == (cell.stage, protocol, cell.name, identity)]
-    if len(prior_attempts) >= 2:
+    measured = [h for h in prior_attempts if h.get("attempt") is not None]
+    if len(measured) >= 2:
         result["reason"] = "reverification-limit"
         result["end_utc"] = _utc()
         return result
-    if prior_attempts and previous is None:
-        previous = prior_attempts[-1]
+    previous = measured[-1] if measured else None
     if previous:
-        if previous.get("status") != "未確定" or previous.get("hostname") == host:
+        if previous.get("status") != "indeterminate" or previous.get("hostname") == host:
             result["reason"] = "reverification-not-admitted"
             result["end_utc"] = _utc()
             return result
@@ -434,16 +471,14 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
         return result
     try:
         binary = _binary(freeze, identity, "trace")
+        result["attempt"] = len(measured) + 1
         with tempfile.TemporaryDirectory(prefix="t2851_trace_") as trace_dir:
             tr = trace_runner(binary, trace_dir, cell.flags, spec.get("clocks_per_us", 2400),
                               timeout_s=spec.get("timeout_s", 120),
                               numactl=spec.get("numactl"))
             # pipeline.py:572-613: same rc, nonempty trace, abort and two commit
             # witnesses, zero batch commits before verifier admission.
-            witness_ok = (tr.returncode == 0 and tr.trace_c_lines > 0 and
-                          tr.abort_counts is not None and
-                          tr.commit_count_witness is not None and
-                          tr.batch_commit_count_witness == 0)
+            witness_ok = _trace_witness_ok(tr)
             if not witness_ok:
                 result["reason"] = "trace-witness-failed"
             else:
@@ -461,6 +496,13 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
     return result
 
 
+def _trace_witness_ok(tr):
+    # pipeline.py:572-613 checks these five conditions before verifier admission.
+    return (tr.returncode == 0 and tr.trace_c_lines > 0 and
+            tr.abort_counts is not None and tr.commit_count_witness is not None and
+            tr.batch_commit_count_witness == 0)
+
+
 def _create_json(path, value):
     with open(path, "x", encoding="utf-8") as f:
         f.write(_canonical(value) + "\n")
@@ -475,7 +517,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         q.add_argument("output")
         if name != "freeze":
             q.add_argument("--activation")
-            q.add_argument("--cohort1-record")
+            q.add_argument("--cohort1-records")
             q.add_argument("--attempt-history")
     args = p.parse_args(argv)
     try:
@@ -483,8 +525,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command != "freeze":
             if args.activation:
                 spec["activation"] = json.loads(Path(args.activation).read_text())
-            if args.cohort1_record:
-                spec["cohort1_record"] = json.loads(Path(args.cohort1_record).read_text())
+            if args.cohort1_records:
+                spec["cohort1_records"] = json.loads(Path(args.cohort1_records).read_text())
             if args.attempt_history:
                 spec["attempt_history"] = json.loads(Path(args.attempt_history).read_text())
         value = (freeze_candidates(spec) if args.command == "freeze" else

@@ -1,17 +1,20 @@
 """Fixture-only checks for the frozen transfer analysis."""
 import math
+import hashlib
+import subprocess
+from types import SimpleNamespace
 
 import pytest
 
 from orchestrator.campaign.t2851_transfer_analysis import (
     DELTA, analyze, bonferroni_quantile, classify,
 )
+from orchestrator.campaign import t2851_transfer_runner as runner
 
 
 def comparison(cell="wh-base", candidate="K", reference="R1", **extra):
     result = dict(protocol="silo", cell=cell, anchor="wh-base", candidate=candidate,
-                  reference=reference, kind="primary", task="task", method="method",
-                  independent_search="1")
+                  reference=reference, kind="primary", series=[["task", "method", "1"]])
     result.update(extra)
     return result
 
@@ -28,10 +31,10 @@ def job(cell="wh-base", cohort=1, ratios=None, *, candidate="K", reference="R1",
         attempt=1, complete=32, separate=True, solo=True, stage=None):
     if ratios is None:
         ratios = [math.exp(0.10)] * 32
-    blocks = [dict(block=i + 1, tps={candidate: ratio * 100 if ratio is not None else None,
-                                      reference: 100}) for i, ratio in enumerate(ratios)]
+    blocks = [dict(block=i + 1, runs={candidate: {"tps": ratio * 100 if ratio is not None else None},
+                                      reference: {"tps": 100}}) for i, ratio in enumerate(ratios)]
     return dict(stage=stage, cohort=cohort, protocol="silo", cell=cell, attempt=attempt,
-                solo_start=solo, solo_end=solo, complete_blocks=complete,
+                isolation_start=solo, isolation_end=solo, completed_blocks=complete,
                 within_retry_limit=True, separate_allocation=separate, blocks=blocks)
 
 
@@ -187,7 +190,7 @@ def test_descriptive_r0_known_separate_and_uncertain_verification():
 
 def test_method_series_include_selection_failures_without_duplicate_measurements():
     first = comparison()
-    second = comparison(independent_search="2")
+    second = comparison(series=[["task", "method", "2"]])
     frozen = freeze(first, second)
     frozen["series"] = [dict(task="task", method="method", independent_search="1",
                              selected_identity="K"),
@@ -199,6 +202,46 @@ def test_method_series_include_selection_failures_without_duplicate_measurements
     assert result["method_summary"][0]["series_count"] == 3
     assert result["method_summary"][0]["classification_counts"]["selection_failure"] == 1
     assert result["method_summary"][0]["series_means"] == pytest.approx([0.1, 0.1])
+
+
+def test_runner_outputs_flow_into_analysis_without_schema_adapter(tmp_path, monkeypatch):
+    binary = tmp_path / "binary"
+    binary.write_bytes(b"fixture")
+    pair = dict(perf_path=str(binary), perf_sha256=hashlib.sha256(b"fixture").hexdigest(),
+                trace_path=str(binary), trace_sha256=hashlib.sha256(b"fixture").hexdigest())
+    record = dict(workload="ycsb", selection_rule="frozen", binaries={i: dict(pair)
+                  for i in ("R0", "R1", "R2", "K")},
+                  references={"silo": {a: {"R0": "R0", "R1": "R1", "R2": "R2"}
+                                       for a in ("wh-base", "bal-base", "rh-base")}},
+                  search_groups=[dict(task="t", method="m", learning_cells=["wh-base"],
+                                      independent_searches=["1"], reachability=False)],
+                  series=[dict(task="t", method="m", independent_search="1", protocol="silo",
+                               anchor="wh-base", selected_identity="K")])
+    frozen = runner.freeze_candidates(record)
+    monkeypatch.setattr(runner, "_probe", lambda *a, **kw: True)
+    def process(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout="throughput[tps]:\t100\n", stderr="")
+    observed = runner.run_job(dict(freeze=frozen, cohort=1, protocol="silo", cell="wh-base"),
+                              subprocess_runner=process)
+    def trace(*args, **kwargs):
+        return SimpleNamespace(returncode=0, trace_c_lines=0, abort_counts={"abort": 0},
+                               commit_count_witness=1, batch_commit_count_witness=0)
+    def verifier(*args, **kwargs):
+        raise AssertionError("empty trace reached verifier")
+    checked = runner.verify_candidate(dict(freeze=frozen, protocol="silo", cell="wh-base",
+                                            identity="K"), trace_runner=trace, verifier=verifier)
+    result = analyze(frozen, [observed], [checked])
+    assert result["m_by_family"] == {"ycsb": 18}
+    primary = next(r for r in result["primary_rows"] if r["cell"] == "wh-base"
+                   and r["candidate"] == "K" and r["reference"] == "R1")
+    assert primary["cohorts"][1]["n_eff"] == 32
+    assert primary["cohorts"][1]["adopted_attempt"] == observed["attempt"] == 1
+    assert primary["cohorts"][1]["qualified"] is False
+    assert primary["primary_result"] is None
+    descriptive = next(r for r in result["descriptive_rows"] if r["cell"] == "wh-base"
+                       and r["candidate"] == "K" and r["reference"] == "R0")
+    assert descriptive["cohorts"][1]["n_eff"] == 32
+    assert checked["status"] == "indeterminate" and checked["attempt"] == 1
 
 
 if __name__ == "__main__":
