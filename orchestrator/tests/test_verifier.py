@@ -3436,6 +3436,7 @@ def _v3_paths(d, *, expect_compact=True, expect_packed=True, **kwargs):
                 results.append((graph, result))
         reference_graph, reference_result = results[0]
         for graph, result in results[1:]:
+            assert graph.integrity == reference_graph.integrity
             assert edges(graph) == edges(reference_graph)
             assert list(graph.versions.items()) == list(reference_graph.versions.items())
             assert dict(graph.producer) == dict(reference_graph.producer)
@@ -3445,6 +3446,7 @@ def _v3_paths(d, *, expect_compact=True, expect_packed=True, **kwargs):
             assert core.result_to_dict_v3(result) == core.result_to_dict_v3(reference_result)
         txns, _ = parse_trace_dir(d, workers=1)
         assert edges(DSG(txns)) == edges(reference_graph)
+        assert DSG(txns).integrity == reference_graph.integrity
         return results
     finally:
         core._parse_trace_dir_compact = original_parse
@@ -3502,6 +3504,7 @@ def test_v3_serial_tables_types_and_ops():
     try:
         for graph, result in _v3_paths(d):
             assert result.serializable and result.n_keys == 11 and result.n_edges == 11
+            assert result.integrity.existence_violations == 3 and not result.certified
             for table in range(11):
                 txn = graph._txn_for_id(table)
                 assert txn.tx_type == table % 5 + 1 and txn.schema == 3
@@ -3607,7 +3610,8 @@ def test_v3_tuple_and_legacy_fallback_preserve_metadata():
     import orchestrator.verifier.parse as parser
     from orchestrator.verifier.dsg import _PackedVersions
     for epoch in (2**32, 2**63):
-        d = _tmp_trace(*_v3_cycle_files(epoch))
+        files = _v3_cycle_files(epoch)
+        d = _tmp_trace(files[0].replace("aa U", "aa I"), files[1])
         try:
             parsed = parser._parse_trace_dir_compact(d, workers=2)
             assert isinstance(parsed, parser._LegacyTrace) == (epoch == 2**63)
@@ -3617,6 +3621,7 @@ def test_v3_tuple_and_legacy_fallback_preserve_metadata():
                 assert result.verdict == "non-serializable"
                 assert set(result.anomalies[0].cycle_tx_types) == {1, 2}
                 assert set(graph.versions) == {(0, "aa"), (9, "aa")}
+                assert result.integrity.existence_violations == 1
         finally:
             shutil.rmtree(d)
 
@@ -3711,7 +3716,7 @@ def test_v3_x_i_keep_table_and_make_indeterminate():
             shutil.rmtree(d)
 
 
-def test_v3_existence_unverified_and_v2_control():
+def test_v3_existence_violations_and_v2_control():
     import shutil
     from orchestrator.verifier.core import verify_trace_dir_with_capability
     import commit_receipt_support as receipt_support
@@ -3722,20 +3727,25 @@ def test_v3_existence_unverified_and_v2_control():
         try:
             for _, result in _v3_paths(d, expected_commits=2):
                 ig = result.integrity
-                assert result.verdict == "indeterminate" and not result.certified
-                assert ig.v3_existence_unverified and ig.proof_surfaces.certification_gate_satisfied()
+                assert result.certified == (op == "U")
+                assert result.verdict == ("serializable" if op == "U" else "indeterminate")
+                assert ig.existence_violations == (0 if op == "U" else 1)
+                assert ig.proof_surfaces.certification_gate_satisfied()
                 assert ig.expected_commits == ig.observed_commits == 2
-                assert ig.orphan_reads == 0
-                assert len(ig.notes) == 1 and "v3 existence history unverified" in ig.notes[0]
-                assert replace(ig, v3_existence_unverified=False).clean()
+                assert ig.orphan_reads == ig.framing_violations == 0
+                assert len(ig.notes) == (0 if op == "U" else 1)
+                if op != "U":
+                    assert ig.existence_violation_details[0].kind == (
+                        "read-unborn-genesis" if op == "I" else "read-deleted-version")
+                assert replace(ig, existence_violations=0).clean()
             genome, evidence, admission = receipt_support._proof_build_binding("baseline")
             result, capability = verify_trace_dir_with_capability(
                 d, expected_commits=2, workers=1, genome=genome, source_evidence=evidence,
                 build_admission=admission, receipt_sink_kind="test",
                 receipt_lock_identity_sha256="0" * 64, receipt_variant="baseline",
                 receipt_operation_identity="v3-existence", receipt_workload_tag="unit")
-            assert not result.certified and not capability._certified
-            assert capability._verdict == "indeterminate"
+            assert result.certified == capability._certified == (op == "U")
+            assert capability._verdict == ("serializable" if op == "U" else "indeterminate")
         finally:
             shutil.rmtree(d)
         v2 = []
@@ -3752,7 +3762,8 @@ def test_v3_existence_unverified_and_v2_control():
         d = _tmp_trace(*v2)
         try:
             result = verify_trace_dir(d, expected_commits=2)
-            assert result.certified and not result.integrity.v3_existence_unverified
+            assert result.certified
+            assert result.integrity.existence_violation_details is None
             assert result.integrity.notes == []
         finally:
             shutil.rmtree(d)
@@ -3776,7 +3787,7 @@ def test_v3_framing_and_neutral_files():
     d = _tmp_trace("", "P unknown\nA abort\n")
     try:
         assert verify_trace_dir(d).verdict == "indeterminate"
-        assert not verify_trace_dir(d).integrity.v3_existence_unverified
+        assert verify_trace_dir(d).integrity.existence_violations == 0
     finally:
         shutil.rmtree(d)
 
@@ -3786,11 +3797,13 @@ def test_v3_parallel_processes_and_pool_failure_fallback():
     import orchestrator.verifier.parse as parser
     import orchestrator.verifier.dsg as dsg_module
     from orchestrator.verifier.core import result_to_dict_v3
-    d = _tmp_trace(*_v3_cycle_files())
+    files = _v3_cycle_files()
+    d = _tmp_trace(files[0].replace("aa U", "aa I"), files[1])
     parent_pid = os.getpid()
     original_build = DSG._build_compact
     try:
         expected = verify_trace_dir(d, workers=1)
+        assert expected.integrity.existence_violations == 1
         assert verify_trace_dir(d, workers=2) == expected
         assert parser._LAST_PARSE_WORKER_PIDS and parent_pid not in parser._LAST_PARSE_WORKER_PIDS
         assert dsg_module._LAST_DSG_WORKER_PIDS and parent_pid not in dsg_module._LAST_DSG_WORKER_PIDS
@@ -3859,6 +3872,167 @@ def test_v3_output_validation_and_v2_projection():
                 pass
             else:
                 raise AssertionError("malformed v3 witness projected silently")
+    finally:
+        shutil.rmtree(d)
+
+
+# Existence tests exercise the stage-1 contract, not native emitter behavior.
+def _existence_result(files, kinds=(), *, paths=False):
+    import shutil
+    d = _tmp_trace(*files)
+    try:
+        results = ([r for _, r in _v3_paths(d, expected_commits=len(files))]
+                   if paths else [verify_trace_dir(d, expected_commits=len(files))])
+        for result in results:
+            ig = result.integrity
+            assert result.serializable and result.total_cycles == 0
+            assert ig.orphan_reads == ig.framing_violations == 0
+            assert ig.expected_commits == ig.observed_commits == len(files)
+            assert ig.proof_surfaces.certification_gate_satisfied()
+            assert replace(ig, existence_violations=0).clean()
+            assert ig.existence_violations == len(kinds)
+            assert [v.kind for v in ig.existence_violation_details] == list(kinds)
+            assert result.certified == (not kinds)
+            assert result.verdict == ("indeterminate" if kinds else "serializable")
+            assert not hasattr(ig, "v3_existence_unverified")
+        return results[0]
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_existence_negative_pairs():
+    from orchestrator.verifier.model import ExistenceViolation
+    # Each repair changes exactly one R or W line; framing counts stay intact.
+    cases = [
+        ((_v3_frame(0, writes=[(5, "aa", "I")]),
+          _v3_frame(1, [(5, "aa", 1, 0)])),
+         1, "aa 1 0", "aa 2 1", "read-unborn-genesis", (1, 0), ()),
+        ((_v3_frame(0, writes=[(5, "aa", "D")]),
+          _v3_frame(1, [(5, "aa", 2, 1)])),
+         0, "aa D", "aa U", "read-deleted-version", (2, 1), ()),
+    ]
+    for first, second, kind, repair in (
+            ("U", "I", "insert-on-live", "U"),
+            ("D", "U", "update-on-absent", "I"),
+            ("D", "D", "delete-on-absent", "I")):
+        cases.append(((_v3_frame(0, writes=[(5, "aa", first)]),
+                       _v3_frame(1, writes=[(5, "aa", second)])),
+                      1, f"aa {second}", f"aa {repair}", kind, (2, 2), (second,)))
+    for files, index, old, new, kind, version, ops in cases:
+        result = _existence_result(files, [kind], paths=True)
+        assert result.integrity.existence_violation_details == [
+            ExistenceViolation(1, 5, "aa", version, kind, ops)]
+        repaired = list(files)
+        repaired[index] = repaired[index].replace(old, new)
+        _existence_result(repaired, paths=True)
+
+
+def test_v3_existence_valid_histories_and_self_reads():
+    cases = [
+        (_v3_frame(0, [(5, "aa", 1, 0)]),),
+        (_v3_frame(0, writes=[(5, "aa", "U")]), _v3_frame(1, [(5, "aa", 1, 0)])),
+        (_v3_frame(0, writes=[(5, "aa", "I")]), _v3_frame(1, [(5, "aa", 2, 1)])),
+        (_v3_frame(0, writes=[(5, "aa", "D")]),
+         _v3_frame(1, writes=[(5, "aa", "I")]), _v3_frame(2, [(5, "aa", 2, 2)])),
+        (_v3_frame(0, writes=[(5, "aa", "I")]),
+         _v3_frame(1, writes=[(5, "aa", "D")]), _v3_frame(2, [(5, "aa", 2, 1)])),
+    ]
+    for files in cases:
+        result = _existence_result(files)
+        assert result.integrity.notes == []
+    files = list(cases[-1])
+    files[-1] = files[-1].replace("aa 2 1", "aa 2 2")
+    _existence_result(files, ["read-deleted-version"])
+    # Synthetic format semantics: no claim that the native emitter emits self R.
+    for op in ("I", "U", "D"):
+        _existence_result((_v3_frame(0, [(5, "aa", 2, 1)], [(5, "aa", op)]),),
+                          ["read-deleted-version"] if op == "D" else [])
+
+
+def test_v3_existence_version_order_and_table_isolation():
+    _existence_result((_v3_frame(0, writes=[(5, "aa", "U")], commit=(3, 1)),
+                       _v3_frame(1, writes=[(5, "aa", "I")], commit=(2, 9))), paths=True)
+    files = (_v3_frame(0, writes=[(5, "aa", "I")]), _v3_frame(1, [(9, "aa", 1, 0)]))
+    _existence_result(files, paths=True)
+    _existence_result((files[0], files[1].replace("R 1 9", "R 1 5")),
+                      ["read-unborn-genesis"], paths=True)
+
+
+def test_v3_existence_write_duplicates():
+    from orchestrator.verifier.model import ExistenceViolation
+    files = (_v3_frame(0, writes=[(5, "aa", "I"), (5, "aa", "D")]),)
+    result = _existence_result(files, ["ambiguous-write-version"], paths=True)
+    assert result.integrity.existence_violation_details == [
+        ExistenceViolation(0, 5, "aa", (2, 1), "ambiguous-write-version", ("D", "I"))]
+    _existence_result((files[0].replace("aa D", "aa I"),), paths=True)
+    # All P1/P2/P3 diagnostics on the ambiguous object are suppressed.
+    _existence_result((files[0], _v3_frame(1, [(5, "aa", 1, 0)]),
+                       _v3_frame(2, [(5, "aa", 2, 1)]),
+                       _v3_frame(3, writes=[(5, "aa", "I")])),
+                      ["ambiguous-write-version"])
+
+
+def test_v3_existence_integrity_overlap_and_winners():
+    import shutil
+    cases = [
+        ((_v3_frame(0, writes=[(5, "aa", "I")]),
+          _v3_frame(1, writes=[(5, "aa", "D")], commit=(2, 1))), "version_dups", 0),
+        ((_v3_frame(0, writes=[(5, "aa", "I")], commit=(1, 0)),), "genesis_commits", 0),
+        ((_v3_frame(0, [(5, "aa", 7, 7)]),), "orphan_reads", 0),
+        ((_v3_frame(0, writes=[(5, "aa", "I")]),
+          _v3_frame(1, [(5, "aa", 1, 0), (5, "bb", 7, 7)])), "orphan_reads", 1),
+        ((_v3_frame(0, writes=[(5, "aa", "I")]),
+          _v3_frame(0, writes=[(5, "aa", "U")]),
+          _v3_frame(1, [(5, "aa", 1, 0)])), "dup_txids", 0),
+    ]
+    for files, counter, count in cases:
+        d = _tmp_trace(*files)
+        try:
+            for _, result in _v3_paths(d):
+                assert getattr(result.integrity, counter) == 1
+                assert result.integrity.existence_violations == count
+                assert result.integrity.existence_violation_details is not None
+                assert not result.certified
+        finally:
+            shutil.rmtree(d)
+    # A neutral first file must not hide the later v3 schema.
+    d = _tmp_trace("", _v3_frame(0, writes=[(5, "aa", "I")]),
+                   _v3_frame(1, [(5, "aa", 1, 0)]))
+    try:
+        for _, result in _v3_paths(d, expected_commits=2):
+            assert result.integrity.existence_violations == 1
+            assert replace(result.integrity, existence_violations=0).clean()
+    finally:
+        shutil.rmtree(d)
+
+
+def test_v3_existence_output_samples_and_cycle():
+    import shutil
+    from orchestrator.verifier.core import result_to_dict_v3
+    files = tuple(_v3_frame(t, [(5, "aa", 2, 1)] * 2) for t in (3, 2, 1))
+    files += (_v3_frame(0, writes=[(5, "aa", "D")]),)
+    result = _existence_result(files, ["read-deleted-version"] * 6, paths=True)
+    ig = result.integrity
+    assert [v.txid for v in ig.existence_violation_details] == [1, 1, 2, 2, 3, 3]
+    assert ig.notes == [
+        "6 v3 existence violation(s) [read-deleted-version×6]: " + "; ".join(
+            f"txn{t} table=5 key=aa ver=(2, 1) kind=read-deleted-version"
+            for t in (1, 1, 2, 2, 3))]
+    projected = result_to_dict_v3(result)["integrity"]
+    assert projected["existence_violations"] == 6
+    assert projected["existence_violation_details"] == [
+        {"txid": t, "table": 5, "key": "aa", "version": [2, 1],
+         "kind": "read-deleted-version", "ops": []} for t in (1, 1, 2, 2, 3, 3)]
+    assert "existence_violations" not in result_to_dict(result)["integrity"]
+    assert "existence_violation_details" not in result_to_dict(result)["integrity"]
+    d = _tmp_trace(*_v3_cycle_files(), _v3_frame(
+        2, [(5, "bb", 2, 3)], [(5, "bb", "D")]))
+    try:
+        for _, result in _v3_paths(d, expected_commits=3, max_report=0):
+            assert result.verdict == "non-serializable" and not result.certified
+            assert result.total_cycles > 0
+            assert result.integrity.existence_violations == 1
+            assert len(result_to_dict_v3(result)["integrity"]["existence_violation_details"]) == 1
     finally:
         shutil.rmtree(d)
 

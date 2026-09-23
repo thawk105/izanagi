@@ -426,6 +426,17 @@ class AnomalyV3(Anomaly):
     cycle_tx_types: tuple[int, ...]
 
 
+@dataclass(frozen=True)
+class ExistenceViolation:
+    """A v3 existence-history violation for one read or write version."""
+    txid: int
+    table: int
+    key: str
+    version: Version
+    kind: str
+    ops: Tuple[str, ...] = ()
+
+
 @dataclass
 class Integrity:
     """trace データ自体の健全性 (CC の正しさとは別軸)。これが非ゼロなら
@@ -484,7 +495,8 @@ class Integrity:
         default_factory=ProofSurfaceAssessment,
     )
 
-    v3_existence_unverified: bool = False
+    existence_violations: int = 0
+    existence_violation_details: Optional[List[ExistenceViolation]] = None
 
     def clean(self) -> bool:
         commit_witness_clean = (
@@ -503,7 +515,7 @@ class Integrity:
                 and self.write_intent_violations == 0
                 and self.permutation_violations == 0
                 and self.proof_surfaces.certification_gate_satisfied()
-                and not self.v3_existence_unverified
+                and self.existence_violations == 0
                 and commit_witness_clean)
 
 

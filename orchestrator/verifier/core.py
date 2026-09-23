@@ -15,7 +15,7 @@ from typing import Dict, Optional
 
 from .dsg import DSG
 from .model import (
-    AnomalyV3, EdgeReasonV3, TxnV3, object_label,
+    AnomalyV3, EdgeReasonV3, object_label,
     CompiledProtocolSourceSnapshot,
     VerifyResult,
     assess_compiled_protocol_source_snapshot,
@@ -39,7 +39,6 @@ def verify_trace_dir(
     if isinstance(parsed, _CompactTrace):
         issues = parsed.issues
         dsg = DSG.from_compact(parsed)
-        is_v3 = any(c.schema == 3 for c in parsed.files)
         n_txns = len(parsed.winner_txid)
         n_reads = parsed.n_reads
         n_writes = parsed.n_writes
@@ -47,7 +46,6 @@ def verify_trace_dir(
         txns = parsed.txns
         issues = parsed.issues
         dsg = DSG(txns)
-        is_v3 = bool(txns) and isinstance(txns[0], TxnV3)
         n_txns = len(txns)
         n_reads = sum(len(txn.reads) for txn in txns)
         n_writes = sum(len(txn.writes) for txn in txns)
@@ -60,11 +58,6 @@ def verify_trace_dir(
             _proof_source_snapshot,
         )
     dsg.integrity.proof_surfaces = assessment
-    if is_v3 and n_txns > 0:
-        dsg.integrity.v3_existence_unverified = True
-        dsg.integrity.notes.append(
-            "v3 existence history unverified: insert/delete existence history "
-            "(design §3.3) is not checked; certification withheld until unit 5 or later")
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。
@@ -199,8 +192,15 @@ def verify_trace_dir(
 
 
 def result_to_dict_v3(res: VerifyResult) -> dict:
-    """Extend only v3 anomaly witnesses; the legacy wire projection stays frozen."""
+    """Extend v3 anomaly witnesses and existence details; preserve legacy projection."""
     result = result_to_dict(res)
+    if res.integrity.existence_violation_details is not None:
+        result["integrity"]["existence_violations"] = res.integrity.existence_violations
+        result["integrity"]["existence_violation_details"] = [
+            {"txid": v.txid, "table": v.table, "key": v.key,
+             "version": list(v.version), "kind": v.kind, "ops": list(v.ops)}
+            for v in res.integrity.existence_violation_details
+        ]
     for anomaly, projected in zip(res.anomalies, result["anomalies"]):
         if not isinstance(anomaly, AnomalyV3):
             continue

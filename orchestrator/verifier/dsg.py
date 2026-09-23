@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from array import array
 from bisect import bisect_left, bisect_right
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
@@ -30,8 +30,8 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 from .model import (ObjectIdentity, object_identity, object_label,
                     TxnV3, EdgeReasonV3, AnomalyV3)
 from .model import (GENESIS, RW, WR, WW, Anomaly, CycleEdge, EdgeReason,
-                    Integrity, Txn, Version)
-from .parse import _object_at, _CompactTrace, _kill_pool_workers, _txn_from_columns
+                    ExistenceViolation, Integrity, Txn, Version)
+from .parse import _token_at, _object_at, _CompactTrace, _kill_pool_workers, _txn_from_columns
 
 
 # Bias the unsigned 64-bit version into signed array("q") without wrapping.
@@ -330,6 +330,8 @@ class DSG:
         self.adj: Dict[int, Set[int]] = defaultdict(set)
         self.integrity = Integrity()
         self._build()
+        if txns and isinstance(txns[0], TxnV3):
+            self._check_existence()
 
     @classmethod
     def from_compact(cls, trace: _CompactTrace) -> "DSG":
@@ -343,7 +345,92 @@ class DSG:
         graph.adj = {}
         graph.integrity = Integrity()
         graph._build_compact()
+        if any(c.schema == 3 for c in trace.files):
+            graph._check_existence()
         return graph
+
+    def _existence_rows(self, writes):
+        """Yield winner rows as (txid, object, version, op), without Txn copies."""
+        if self._compact is None:
+            for txn in self.txns:
+                for item in (txn.writes if writes else txn.reads):
+                    yield (txn.txid, object_identity(item),
+                           txn.commit if writes else item.ver,
+                           item.op if writes else None)
+            return
+        trace = self._compact
+        for rank, txid in enumerate(trace.winner_txid):
+            columns = trace.files[trace.winner_path_index[rank]]
+            row = trace.winner_row[rank]
+            offsets = columns.txn_write_offsets if writes else columns.txn_read_offsets
+            for index in range(offsets[row], offsets[row + 1]):
+                token = (columns.write_key_id if writes else columns.read_key_id)[index]
+                version = ((columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
+                           if writes else
+                           (columns.read_ver_epoch[index], columns.read_ver_tid[index]))
+                op = _token_at(columns, columns.write_op_id[index]) if writes else None
+                yield txid, _object_at(columns, token), version, op
+
+    def _check_existence(self):
+        """Apply the stage-1 v3 contract after edge building, once in the parent.
+
+        First-write I implies unborn genesis; this is not an independent check
+        of the initial load set. Ambiguous objects have no derived diagnostics.
+        """
+        ig = self.integrity
+        ig.existence_violation_details = details = []
+        if ig.version_dups or ig.genesis_commits:
+            return
+        histories = defaultdict(dict)
+        for txid, obj, version, op in self._existence_rows(True):
+            owner, ops = histories[obj].setdefault(version, (txid, set()))
+            ops.add(op)
+        unborn, ambiguous = set(), set()
+
+        def add(txid, obj, version, kind, ops=()):
+            details.append(ExistenceViolation(txid, obj[0], obj[1], version, kind, ops))
+
+        for obj, history in histories.items():
+            for version, (txid, ops) in history.items():
+                if len(ops) > 1:
+                    add(txid, obj, version, "ambiguous-write-version", tuple(sorted(ops)))
+                    ambiguous.add(obj)
+            if obj in ambiguous:
+                continue
+            versions = sorted(history)
+            live = history[versions[0]][1] != {"I"}
+            if not live:
+                unborn.add(obj)
+            for version in versions:
+                txid, ops = history[version]
+                op = next(iter(ops))
+                kind = None
+                if op == "I" and live:
+                    kind = "insert-on-live"
+                elif op == "U" and not live:
+                    kind = "update-on-absent"
+                elif op == "D" and not live:
+                    kind = "delete-on-absent"
+                if kind:
+                    add(txid, obj, version, kind, (op,))
+                live = op != "D"
+        for txid, obj, version, _ in self._existence_rows(False):
+            if obj in ambiguous:
+                continue
+            if version == GENESIS:
+                if obj in unborn:
+                    add(txid, obj, version, "read-unborn-genesis")
+            elif histories.get(obj, {}).get(version, (None, set()))[1] == {"D"}:
+                add(txid, obj, version, "read-deleted-version")
+        details.sort(key=lambda v: (v.txid, v.table, v.key, v.version, v.kind))
+        ig.existence_violations = len(details)
+        if details:
+            counts = Counter(v.kind for v in details)
+            kinds = ", ".join(f"{kind}×{counts[kind]}" for kind in sorted(counts))
+            sample = "; ".join(
+                f"txn{v.txid} table={v.table} key={v.key} ver={v.version} kind={v.kind}"
+                for v in details[:5])
+            ig.notes.append(f"{len(details)} v3 existence violation(s) [{kinds}]: {sample}")
 
     # ---- 構築 ----
 
