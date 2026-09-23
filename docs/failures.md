@@ -28395,3 +28395,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: probe は pin と候補の source を bundle の bare 保管庫から `git archive` で取り出していた。CCBench の `.gitattributes` は `oze* export-ignore` (と `.gitignore` / `.gitattributes` の export-ignore) を持つので、archive は commit の tree を忠実に再現しない。取り出し後に tree との一致を照合していなかったため、欠落は build 段まで黙って進んだ。
 - 恒久対応: 同 wave の probe (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/probe/run_probe.py` の `sources()`) は、scratch 保管庫の `info/attributes` に `* -export-ignore` / `* -export-subst` を置き、取り出した regular file の集合と各 blob id を `git ls-tree -r` と完全一致で照合し、不一致なら C0 で fail-closed に止める (2 本目で pin・候補とも 404 / 404 一致)。以後の wave 向けの作法は memory `ccbench-git-archive-drops-export-ignore-paths` (CCBench の source を取り出すときは tree 照合付きにするか worktree checkout を使う)。記録 = `output/insights/2026-09-22/t2854-tpcc-ccbench-v3/README.md` §6。
 - 再発検知: 取り出した file 集合と blob の tree 照合が fail-closed で止める。照合を持たない取り出し経路では、CMake の configure が同じ message で落ちる。
+
+### F1047. 1 論文を読んだだけの近傍判定で「最も近い」という世界順位を書いた (near miss) [過大主張]
+
+- 事象: [T-2864] の ADRS (arXiv `2510.06189`) の判定で、親が判定記録 (`docs/related-work/claim-survey/2026-09-23-adrs-adjudication.md`)・正典 7.0 の索引・原稿の 2 節末段と限界節の 5 か所に
+  「最も近い研究」「3 条件の境界に最も近い」と書いた。段 6 の Codex read-only レビューが must-fix として捕まえ、記録の land 前に 5 か所とも順位を含まない形へ直した (成果物への実害なし)。
+- 根本原因: 軸 1 は `RW1` で、判定は 1 論文を読んだだけで母集合を持たないのに、比較の語 (最も) を近さの修飾に使った。
+  世界順位の禁止は正典 7.1 (Declarative Concurrent Data Structures のエントリ) に書かれていたが、親は 7.7 (判定語彙と成熟度) だけを判定規則として読み、7.1 の規則文を引かなかった。
+- 恒久対応: 新しい検査は足さない。近傍判定の記録と原稿では、近さを順位でなく条件ごとの充足 (満たす / 一部だけ / 満たさない) で書く。
+  「広い読みでは条件をすべて満たすと読む余地がある」のように、読みの選択を明示する形にする。
+- 再発検知: 段 6 の独立レビュー (過大主張レンズ) と、`grep -n "最も近\|唯一\|初めて"` の自己走査 (否定文と破れる短縮形の例示は除く)。
