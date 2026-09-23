@@ -1,0 +1,64 @@
+{
+  "hostname": "bnode005",
+  "started_at": "2026-09-23T01:01:42.283608+00:00",
+  "finished_at": "2026-09-23T01:13:01.270077+00:00",
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "python_executable": "/usr/bin/python3.10",
+  "cmake": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+  "compiler": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "cc_version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "cxx_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "argv": [
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/launch_capacity.py",
+    "--workloads",
+    "wh,bal,rh",
+    "--third-party-cache",
+    "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+    "--scratch-root",
+    "/scr",
+    "--out-dir",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/runs/cap-C",
+    "--repo-root",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/submit-tree-A",
+    "--verifier-timeout-s",
+    "1800",
+    "--genome",
+    "B0-L-W0"
+  ],
+  "exception": null,
+  "replaced_names": [
+    "s2.PIN",
+    "s2.CLK",
+    "s2.GATE2_VERIFIER_WALL_S",
+    "s2.buildcache.DEFAULT_CC",
+    "s2.buildcache.DEFAULT_CXX",
+    "s2.subprocess.run(verifier passive recording)"
+  ],
+  "environment": {
+    "TMPDIR": "/scr/t2847-capacity-s6e2qasg",
+    "CMAKE_TOOLCHAIN_FILE": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/runs/cap-C/dependencies.cmake",
+    "CMAKE_PREFIX_PATH": "/scr/t2847-capacity-s6e2qasg/gflags-install:/scr/t2847-capacity-s6e2qasg/glog-install"
+  },
+  "verifier_save_failures": [],
+  "scratch_root": "/scr",
+  "scratch_root_free_gib_at_start": 5463.998504638672,
+  "scratch_path": "/scr/t2847-capacity-s6e2qasg",
+  "scratch_cleanup": {
+    "path": "/scr/t2847-capacity-s6e2qasg",
+    "success": true
+  },
+  "genome": "B0-L-W0",
+  "loadavg_at_start": "0.80 1.01 4.02 1/999 1602106",
+  "other_user_process_count_at_start": 923,
+  "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/submit-tree-A",
+  "phase": "B0-L-W0_rh_verify",
+  "launcher_rc": 0
+}
