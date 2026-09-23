@@ -1,0 +1,52 @@
+[
+  {
+    "stage": "build_start",
+    "variant": "002642c7ac96",
+    "ref": "wal:4cb5209069c1751ac8585c94f07bc248d3f506556f6c2ebd1e6b0f4280eb1853"
+  },
+  {
+    "stage": "build_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:7dd51e167f0df4819d1b035b78d51bcbcf31b5f07e4b7979e6f2377662cfd37e"
+  },
+  {
+    "stage": "verify_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:a60684d52d6bc020055aab55aec977337eebe3a0c27fd8b62f126927c693ca31"
+  },
+  {
+    "stage": "bench_done",
+    "variant": "002642c7ac96",
+    "ref": "wal:c04a2f8f0fae5c789f598ec6b164238a6dba07f5c6ccf107c75b6526e6c3116b"
+  },
+  {
+    "stage": "commit",
+    "variant": "002642c7ac96",
+    "ref": "wal:65768befe633d5258bd79f4e345849c64854761f543670bfd1533a6c2b0789e8"
+  },
+  {
+    "stage": "build_start",
+    "variant": "602b4ce9c788",
+    "ref": "wal:c4d8cc85860cc7200331ab8ac6e6ca28bf9fa8cdbec5f72e9db2c789f8709ff4"
+  },
+  {
+    "stage": "build_done",
+    "variant": "602b4ce9c788",
+    "ref": "wal:4464d43e1a6b53529f189d3128c1319b259fd9ece85a6d3c58bf38c30c597ff2"
+  },
+  {
+    "stage": "verify_done",
+    "variant": "602b4ce9c788",
+    "ref": "wal:422605bd45a18b983ad1b8e48ef50b9a6be55f38db578eba59ce453e2bfbc5d2"
+  },
+  {
+    "stage": "bench_done",
+    "variant": "602b4ce9c788",
+    "ref": "wal:a0b72c786f9c31c8de90666d09cf040841fdf8fa5b5a68b12759b0471f483fcd"
+  },
+  {
+    "stage": "commit",
+    "variant": "602b4ce9c788",
+    "ref": "wal:7862c6b8e91d46972451aa2e6d7fb10d4736329f2adc8ee08dd5861681edffa6"
+  }
+]

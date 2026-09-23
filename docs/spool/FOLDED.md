@@ -5303,3 +5303,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:comsys-user-inputs":"[T-2864]"},"authored":"2026-09-23","base":"3886a1fd36657537af2b6c6ed389257363d92bef","content_sha256":"ab7ad3af6a33a443a9b23c2c846f51af6ebba0c50a9ae4958407cad749478438","seq":1,"tested_tip":"e1e54fe8cff966bed3a01e61c625e2ca5eac8c8a","wave":"t2862-comsys-manuscript-revision","wave_ref":"refs/heads/worktree-t2862-comsys-manuscript-revision"}
 - {"allocations":{},"authored":"2026-09-23","base":"3886a1fd36657537af2b6c6ed389257363d92bef","content_sha256":"ccac0c14f062e0b332ac1167e4fc4f547a89fd1d4fee524b373f676fc5c98f75","seq":2,"tested_tip":"e1e54fe8cff966bed3a01e61c625e2ca5eac8c8a","wave":"t2862-comsys-manuscript-revision","wave_ref":"refs/heads/worktree-t2862-comsys-manuscript-revision"}
+
+- {"allocations":{},"authored":"2026-09-23","base":"cadaf3805e75bb0d02744955469ef588aabcd5c6","content_sha256":"8109bc2fcb4e6e6f4b80e4e388af47a4550d01e620873627d0df73bc0cad508e","seq":1,"tested_tip":"bacc92f1492ca143e4110d0026a907a02d069809","wave":"dev-wave-t2860-k2-round4-reflux","wave_ref":"refs/heads/worktree-dev-wave-t2860-k2-round4-reflux"}
