@@ -1,0 +1,65 @@
+{
+ "checkout": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-corpus-gaps",
+ "head": "d0ed93bab39acc17089e410261eb3585db98d56e",
+ "spec_sha256": "7ede805c562af153c0d064c0748202f90192eb46862e6b8e599af2252cdf7861",
+ "files": [
+  "orchestrator/tests/test_verifier_corpus_gaps.py",
+  "orchestrator/tests/test_verifier.py"
+ ],
+ "baseline": [
+  {
+   "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+   "rc": 0,
+   "wall_s": 0.1,
+   "failed_nodes": [],
+   "summary": "3 passed, 0 failed, 0 skipped",
+   "fail_lines": []
+  },
+  {
+   "file": "orchestrator/tests/test_verifier.py",
+   "rc": 0,
+   "wall_s": 6.2,
+   "failed_nodes": [],
+   "summary": "132 passed, 0 failed, 0 skipped",
+   "fail_lines": []
+  }
+ ],
+ "mutations": [
+  {
+   "id": "M9",
+   "runs": [
+    {
+     "file": "orchestrator/tests/test_verifier_corpus_gaps.py",
+     "rc": 1,
+     "wall_s": 0.2,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+     ],
+     "summary": "2 passed, 1 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_f06_different_version_double_read: {1: (2,), 0: (1,)}"
+     ]
+    },
+    {
+     "file": "orchestrator/tests/test_verifier.py",
+     "rc": 1,
+     "wall_s": 7.9,
+     "failed_nodes": [
+      "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+      "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds"
+     ],
+     "summary": "130 passed, 2 failed, 0 skipped",
+     "fail_lines": [
+      "FAIL test_capacity_packed_versions_preserve_bounds_duplicates_and_notes: ",
+      "FAIL test_v3_packed_mapping_and_read_bounds: "
+     ]
+    }
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+   ]
+  }
+ ]
+}
