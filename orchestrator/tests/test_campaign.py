@@ -32,6 +32,7 @@ import threading
 import time
 import tokenize
 import types
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock as unittest_mock
 
@@ -7495,6 +7496,117 @@ def test_run_trace_parses_abort_from_stdout():
         fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800,
     )
     assert result2.abort_counts is None      # 集計行なし → None (呼び手が fails-closed)
+
+
+def test_tpcc_stage1_run_trace_allowlist():
+    root = _tmpdir("izanagi_tpcc_allowlist_")
+    for name in ("tpcc_fake", "ycsb_fake", "other_fake"):
+        path = os.path.join(root, name)
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write("#!/bin/sh\nprintf 'abort_counts_:\\t0\\n"
+                         "commit_counts_:\\t0\\n"
+                         "batch_commit_counts_:\\t0\\n'\n")
+        os.chmod(path, 0o755)
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    for name, values, accepted in (
+        ("tpcc_fake", flags, True),
+        ("tpcc_fake", {**flags, "tpcc_perc_payment": "44"}, False),
+        ("tpcc_fake", {k: v for k, v in flags.items()
+                       if k != "tpcc_perc_delivery"}, False),
+        ("tpcc_fake", {**flags, "tpcc_perc_payment": "043"}, False),
+        ("ycsb_fake", {}, True),
+        ("other_fake", flags, False),
+    ):
+        binary = os.path.join(root, name)
+        trace_dir = _tmpdir("izanagi_tpcc_trace_")
+        if accepted:
+            result = pipeline._run_trace(binary, trace_dir, values, 1800)
+            assert result.returncode == 0
+            assert result.commit_count_witness == 0
+        else:
+            try:
+                pipeline._run_trace(binary, trace_dir, values, 1800)
+                assert False, (name, values)
+            except pipeline._TraceWitnessUnsupportedWorkload:
+                pass
+
+
+def test_tpcc_executor_v3_v2_existence_and_witness():
+    genome, evidence, admission = commit_receipts._proof_build_binding("baseline")
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa I 2 1\nE 0\n"
+    second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n"
+    existence = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 1 0\nE 1\n"
+    third = "C 2 0 2 3 0 0 0 0 1\nE 2\n"
+    v2 = "C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n"
+    for case, frames, witness in (
+        ("certified", (first, second), 2),
+        ("v2", (v2,), 1),
+        ("existence", (first, existence), 2),
+        # 元の (first + second + third) の完全な末尾 frame を除去。
+        ("tail-loss", ((first + second + third).removesuffix(third),), 3),
+        # 最大 txid の全 frame を除去。残存 file はそれぞれ正常。
+        ("max-txid-loss", (first, second), 3),
+        # 元の thread file 群 (first + second, third) の後者を除去。
+        ("thread-file-loss", (first + second,), 3),
+    ):
+        trace_dir = _tmpdir("izanagi_tpcc_executor_")
+
+        def trace_runner(binary, path, run_flags, clocks, **kwargs):
+            assert binary.endswith("tpcc_fake") and run_flags == flags
+            for index, frame in enumerate(frames):
+                with open(os.path.join(path, f"trace_{index}.log"), "w") as stream:
+                    stream.write(frame)
+            return pipeline._TraceRunResult(
+                trace_c_lines=sum(frame.count("\nC ") + frame.startswith("C ")
+                                  for frame in frames),
+                returncode=0, abort_counts=0,
+                commit_count_witness=witness, batch_commit_count_witness=0)
+
+        outcome = pipeline._execute_verification_repetition(
+            binary="/tmp/tpcc_fake", trace_dir=trace_dir, flags=flags,
+            clocks_per_us=1800, timeout_s=10, numactl=None,
+            genome=genome, source_evidence=evidence, build_admission=admission,
+            receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+            receipt_variant="baseline", receipt_operation_identity="tpcc-unit",
+            receipt_workload_tag="tpcc-stage1", build_attempt_id="unit",
+            trace_binary_sha256="0" * 64,
+            include_qualification_evidence=False, trace_runner=trace_runner)
+        if case == "certified":
+            assert outcome.abort is None and outcome.verify_result.certified
+            assert outcome.verification_capability._certified
+        elif case == "v2":
+            assert outcome.abort.reason == "trace-witness-unsupported-workload"
+            assert outcome.abort.detail["trace_schema"] == "v2"
+            standalone, _ = pipeline.verify_trace_dir_with_capability(
+                trace_dir, expected_commits=witness, genome=genome,
+                source_evidence=evidence, build_admission=admission,
+                receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+                receipt_variant="baseline", receipt_operation_identity="tpcc-unit",
+                receipt_workload_tag="tpcc-stage1")
+            assert standalone.certified
+        else:
+            assert outcome.abort.reason == "indeterminate"
+            integrity = outcome.abort.detail["verify"]["integrity"]
+            if case == "existence":
+                assert integrity["existence_violations"] == 1
+                assert integrity["existence_violation_details"][0]["table"] == 1
+                assert integrity["existence_violation_details"][0]["kind"] == "read-unborn-genesis"
+                assert integrity["malformed_keys"] == 0
+                assert integrity["framing_violations"] == 0
+                assert outcome.verify_result.integrity.expected_commits == witness
+                assert outcome.verify_result.integrity.observed_commits == witness
+                assert not any("witness" in note for note in integrity["notes"])
+                assert replace(outcome.verify_result.integrity, existence_violations=0).clean()
+            else:
+                assert integrity["framing_violations"] == 0
+                assert integrity["orphan_reads"] == 0
+                assert integrity["missing_txids"] == 0
+                assert integrity["existence_violations"] == 0
+                assert integrity["notes"] == [
+                    "commit witness mismatch: expected=3 observed=2 delta=-1"]
 
 
 def test_run_trace_parses_commit_witness_from_stdout():
