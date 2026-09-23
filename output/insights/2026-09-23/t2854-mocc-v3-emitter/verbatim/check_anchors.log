@@ -1,0 +1,7 @@
+D1: base=C3 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=pass
+M1m: base=C3 file=cc/mocc/transaction.cc occurrences=1 changes_bytes=True expected=schema
+M2: base=D1 file=include/tpcc.hh occurrences=1 changes_bytes=True expected=witness
+M3m: base=C3 file=cc/mocc/transaction.cc occurrences=1 changes_bytes=True expected=content-table
+M4m: base=C3 file=cc/mocc/transaction.cc occurrences=1 changes_bytes=True expected=content-txtype
+M5m: base=C3 file=cc/mocc/transaction.cc occurrences=1 changes_bytes=True expected=trace0-preprocess
+RESULT: OK
