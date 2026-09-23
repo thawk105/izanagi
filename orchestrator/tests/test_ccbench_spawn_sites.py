@@ -2904,6 +2904,24 @@ def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):
 
 def test_patch_define_inventory_matches_condition_gate_registry():
     patch_sources, non_tu_interfaces = _patch_added_define_interfaces()
+    new_patch_defines = {
+        "IZANAGI_BREAK_READ_LOCK_CHECK": "broken-silo-read-lock-check.patch",
+        "IZANAGI_BREAK_NO_WRITE_TID_MAX": "broken-silo-no-write-tid-max.patch",
+        "IZANAGI_BREAK_FIXED_COMMIT_VERSION": "broken-silo-fixed-commit-version.patch",
+        "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH": "broken-silo-published-version-mismatch.patch",
+        "IZANAGI_BREAK_TAIL_COMMIT_OMISSION": "broken-silo-tail-commit-omission.patch",
+        "IZANAGI_BREAK_NO_READ_TID_MAX": "broken-silo-no-read-tid-max.patch",
+        "IZANAGI_BREAK_STALE_READ_PAYLOAD": "broken-silo-stale-read-payload.patch",
+        "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD": "broken-silo-corrupt-write-payload.patch",
+        "IZANAGI_BREAK_SKIP_NODE_VALIDATION": "broken-silo-skip-node-validation.patch",
+        "IZANAGI_BREAK_STALE_READ_OWN_WRITE": "broken-silo-stale-read-own-write.patch",
+        "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER": "broken-silo-repeat-update-buffer.patch",
+        "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": "control-silo-double-abort-backoff.patch",
+        "IZANAGI_BREAK_REVERSE_WRITE_ORDER": "control-silo-reverse-write-order.patch",
+        "IZANAGI_BREAK_CONSERVATIVE_ABORT": "control-silo-conservative-abort.patch",
+    }
+    for macro, patch_name in new_patch_defines.items():
+        assert patch_sources[macro] == {"patches/" + patch_name}
     assert frozenset(patch_sources) == frozenset(
         condition_meaning_gate.DEFINE_SPECS
     )

@@ -56,6 +56,20 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "SORT_VARIANT",
     "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     "IZANAGI_BREAK_TRIGGER_MISATTR",
+    "IZANAGI_BREAK_READ_LOCK_CHECK",
+    "IZANAGI_BREAK_NO_WRITE_TID_MAX",
+    "IZANAGI_BREAK_FIXED_COMMIT_VERSION",
+    "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH",
+    "IZANAGI_BREAK_TAIL_COMMIT_OMISSION",
+    "IZANAGI_BREAK_NO_READ_TID_MAX",
+    "IZANAGI_BREAK_STALE_READ_PAYLOAD",
+    "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD",
+    "IZANAGI_BREAK_SKIP_NODE_VALIDATION",
+    "IZANAGI_BREAK_STALE_READ_OWN_WRITE",
+    "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER",
+    "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF",
+    "IZANAGI_BREAK_REVERSE_WRITE_ORDER",
+    "IZANAGI_BREAK_CONSERVATIVE_ABORT",
     "IZANAGI_SILO_LADDER_RUNG1",
     "BACKOFF_TRIGGER_GATING",
     "BACKOFF_REQUESTED_US",
@@ -82,6 +96,48 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "IZANAGI_BREAK_TRIGGER_MISATTR": (
         "cc/silo/transaction.cc", "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR", 1, None,
+    ),
+    "IZANAGI_BREAK_READ_LOCK_CHECK": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_READ_LOCK_CHECK", 4, 0,
+    ),
+    "IZANAGI_BREAK_NO_WRITE_TID_MAX": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_NO_WRITE_TID_MAX", 5, 0,
+    ),
+    "IZANAGI_BREAK_FIXED_COMMIT_VERSION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_FIXED_COMMIT_VERSION", 4, 0,
+    ),
+    "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH", 4, 0,
+    ),
+    "IZANAGI_BREAK_TAIL_COMMIT_OMISSION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_TAIL_COMMIT_OMISSION", 3, 0,
+    ),
+    "IZANAGI_BREAK_NO_READ_TID_MAX": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_NO_READ_TID_MAX", 5, 0,
+    ),
+    "IZANAGI_BREAK_STALE_READ_PAYLOAD": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_STALE_READ_PAYLOAD", 4, 0,
+    ),
+    "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD", 4, 0,
+    ),
+    "IZANAGI_BREAK_SKIP_NODE_VALIDATION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_SKIP_NODE_VALIDATION", 4, 0,
+    ),
+    "IZANAGI_BREAK_STALE_READ_OWN_WRITE": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_STALE_READ_OWN_WRITE", 4, 0,
+    ),
+    "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER", 4, 0,
+    ),
+    "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF", 4, 0,
+    ),
+    "IZANAGI_BREAK_REVERSE_WRITE_ORDER": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_REVERSE_WRITE_ORDER", 4, 0,
+    ),
+    "IZANAGI_BREAK_CONSERVATIVE_ABORT": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_CONSERVATIVE_ABORT", 4, 0,
     ),
     "IZANAGI_SILO_LADDER_RUNG1": (
         "cc/silo/transaction.cc", "#if IZANAGI_SILO_LADDER_RUNG1", 2, 0,
@@ -3411,6 +3467,14 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
+        "IZANAGI_BREAK_READ_LOCK_CHECK", "IZANAGI_BREAK_NO_WRITE_TID_MAX",
+        "IZANAGI_BREAK_FIXED_COMMIT_VERSION",
+        "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH",
+        "IZANAGI_BREAK_TAIL_COMMIT_OMISSION", "IZANAGI_BREAK_NO_READ_TID_MAX",
+        "IZANAGI_BREAK_STALE_READ_PAYLOAD", "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD",
+        "IZANAGI_BREAK_SKIP_NODE_VALIDATION", "IZANAGI_BREAK_STALE_READ_OWN_WRITE",
+        "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER", "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF",
+        "IZANAGI_BREAK_REVERSE_WRITE_ORDER", "IZANAGI_BREAK_CONSERVATIVE_ABORT",
     }
     assert G.SUPPLY_DOMAIN_MACROS == supply_domain
     assert G.DEFINE_SPECS["SILO_POLICY_VARIANT"] == G.DefineSpec(
@@ -3428,8 +3492,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 25
-    assert len(G.MEANING_SUPPORTED_MACROS) == 26
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 39
+    assert len(G.MEANING_SUPPORTED_MACROS) == 40
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3639,10 +3703,10 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
-    assert "supply domain contains the 43 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_57_define_supply_domain() -> None:
+    assert "supply domain contains the 57 patch-derived defines" in G.__doc__
     assert (
-        "Twenty-five\nregistered macros additionally have a bounded compile-time witness"
+        "Thirty-nine\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

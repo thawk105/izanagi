@@ -734,6 +734,44 @@ smoke は 5 case・30 check すべて真 (stock と 4 方策が legacy / 性能�
 
 ---
 
+## broken-silo-{read-lock-check,…} 11 本 / control-silo-{double-abort-backoff,reverse-write-order,conservative-abort} 3 本 — 検出期待表の新規 silo 変異 ([T-2847])
+
+verifier が何を検出し何を判定しないかを実測で示すための変異 14 本。設計 (期待の層と発生条件) は
+`output/insights/2026-09-22/t2847-verifier-detection-design/README.md` §4、V 番号はその表のもの。
+**broken-silo** 11 本は正しさ (または宣言範囲外の規則) を変える変異、**control-silo** 3 本は正しさを保つ
+対照 (誤検出を測る側)。いずれも pin `e9e477ca` の `cc/silo/transaction.cc` に**単独で**当てる
+(同時適用しない。特に V18 と V35 は同じ代入を逆方向に変える)。
+
+| V | patch | 裸マクロ | 変更 |
+|---|---|---|---|
+| V17 | broken-silo-read-lock-check | `IZANAGI_BREAK_READ_LOCK_CHECK` | 他者が lock 中の読み key での abort を外す (版一致検査は残す) |
+| V18 | broken-silo-no-write-tid-max | `IZANAGI_BREAK_NO_WRITE_TID_MAX` | commit TID の元から書く key の現版を外す |
+| V19 | broken-silo-fixed-commit-version | `IZANAGI_BREAK_FIXED_COMMIT_VERSION` | commit 版を非 genesis の固定値 (1,1) にする |
+| V20 | broken-silo-published-version-mismatch | `IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH` | UPDATE で tuple に公開する版だけを C/W 行と違う値にする |
+| V21 | broken-silo-tail-commit-omission | `IZANAGI_BREAK_TAIL_COMMIT_OMISSION` | 終了 flag が立った後の取引で writePhase を呼ばず成功を返す |
+| V22 | broken-silo-stale-read-payload | `IZANAGI_BREAK_STALE_READ_PAYLOAD` | read の再確認で 2 度目の TID を採り payload を取り直さない |
+| V23 | broken-silo-corrupt-write-payload | `IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD` | 公開する payload の先頭 byte を反転 (版・lock は正常) |
+| V24 | broken-silo-skip-node-validation | `IZANAGI_BREAK_SKIP_NODE_VALIDATION` | node map の検証 (phantom 防止) を外す |
+| V26 | broken-silo-stale-read-own-write | `IZANAGI_BREAK_STALE_READ_OWN_WRITE` | 自分の書いた key の read で旧 tuple の payload を返す |
+| V27 | broken-silo-repeat-update-buffer | `IZANAGI_BREAK_REPEAT_UPDATE_BUFFER` | 同じ key への 2 度目の update で write buffer を誤って書く |
+| V35 | broken-silo-no-read-tid-max | `IZANAGI_BREAK_NO_READ_TID_MAX` | commit TID の元から読んだ版を外す (Silo の TID 規則を破る) |
+| V31 | control-silo-double-abort-backoff | `IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF` | abort 後の backoff を 2 回呼ぶ |
+| V32 | control-silo-reverse-write-order | `IZANAGI_BREAK_REVERSE_WRITE_ORDER` | write set を全 worker 共通の逆順で並べる |
+| V33 | control-silo-conservative-abort | `IZANAGI_BREAK_CONSERVATIVE_ABORT` | 要素数が偶数の非空 write set の取引を lock 前に abort する |
+
+- **既定 OFF inert:** 各 patch は `CCBENCH_` 外の裸マクロ 1 個の `#if` 枝に閉じ、未定義で pin と一致する。
+  pipeline の genome からは定義できない (broken-silo と同じ隔離規約、絶対規律 2)。
+  条件 gate (`orchestrator/campaign/condition_meaning_gate.py`) の許可ドメインへの登録は、既存の壊し patch と同じく
+  driver の `-DCMAKE_CXX_FLAGS=-D<macro>=1` 経路で build するためのもので、判定基準は変えない。
+- **発火診断:** マクロ有効時だけ、変異が枝に入った回数 (reached)・元コードと違う挙動を実際に生んだ回数 (changed)・
+  changed を含む取引が commit した回数 (committed) を relaxed atomic で数え、process 終了時に stderr へ
+  `T2847_FIRED slug=<slug> reached=<n> changed=<n> committed=<n>` の 1 行を出す (V18・V21・V35 は追加の数も出す)。
+  「盲点として certified」と「未発生」を分けるための記録であり、verifier の判定には使わない。
+- **駆動:** 既存の `orchestrator/campaign/s2_verify_calibration._broken_build_and_verify` (patch 適用・condition gate・
+  commit 証人つき verifier) を repo 外の起動器から呼ぶ。実走の記録は `output/insights/2026-09-23/t2847-mutation-run/`。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`
