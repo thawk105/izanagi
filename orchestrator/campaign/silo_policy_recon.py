@@ -40,7 +40,8 @@ def _cases(phase: str, job: int | None, candidate: str | None) -> list[tuple[str
         result = [("ir", c.case_id, c) for c in cases if IR.job_of(c.case_id) == job]
         result += [("abort0", "abort0", None), ("stock", "stock", None),
                    ("b0_l_w0", "B0-L-W0", None), ("fixed10", "fixed10", None)]
-        return result[job:] + result[:job]
+        offset = job % 6
+        return result[offset:] + result[:offset]
     if phase == "initial":
         if job not in range(8):
             raise ValueError("initial job must be 0..7")
@@ -79,9 +80,9 @@ def _backoff_fixed_define(build: Path, source: Path) -> dict:
 
 
 def _backoff_fixed_defines_effective(found: list[str]) -> bool:
-    return (found.count("-DBACKOFF_FIXED=10") == 1 and found.count("-DBACK_OFF=1") == 1
-            and not any(arg.startswith("-DBACKOFF_FIXED=") and arg != "-DBACKOFF_FIXED=10"
-                        for arg in found))
+    return ([arg for arg in found if arg.startswith("-DBACK_OFF=")] == ["-DBACK_OFF=1"]
+            and [arg for arg in found if arg.startswith("-DBACKOFF_FIXED=")]
+            == ["-DBACKOFF_FIXED=10"])
 
 
 def _one(role: str, case_id: str, case: object | None, work: Path,
@@ -388,7 +389,9 @@ def _compare_detail(jobs: list[dict]) -> dict:
             job = p["job"]
             expected = _cases("compare", job, None)
             rows = p.get("cases", [])
-            if p.get("phase") != "compare" or [r.get("case_id") for r in rows] != [x[1] for x in expected]:
+            expected_ids = [x[1] for x in expected]
+            if (p.get("phase") != "compare" or [r.get("case_id") for r in rows] != expected_ids
+                    or p.get("case_order") != expected_ids):
                 raise ValueError("compare case sequence mismatch")
             if [r.get("role") for r in rows] != [x[0] for x in expected]:
                 raise ValueError("compare case roles mismatch")

@@ -216,7 +216,8 @@ def _compare_jobs():
                      "hostname": "host", "started_at": f"time-{job}", "pin": C.PIN,
                      "toolchain": {"cxx": "g++"},
                      "workload": {"legacy": C.LEGACY, "performance": R.FLAGS,
-                                  "bench_reps": 5, "numa": True}, "cases": rows})
+                                  "bench_reps": 5, "numa": True},
+                     "case_order": [row["case_id"] for row in rows], "cases": rows})
     return jobs
 
 
@@ -230,13 +231,20 @@ def _set_tps(row, throughput):
 
 
 def test_compare_cases_rotate_by_job():
+    expected = [
+        ["0000", "1111", "abort0", "stock", "B0-L-W0", "fixed10"],
+        ["1110", "abort0", "stock", "B0-L-W0", "fixed10", "0001"],
+        ["abort0", "stock", "B0-L-W0", "fixed10", "0010", "1101"],
+        ["stock", "B0-L-W0", "fixed10", "0011", "1100", "abort0"],
+        ["B0-L-W0", "fixed10", "0100", "1011", "abort0", "stock"],
+        ["fixed10", "0101", "1010", "abort0", "stock", "B0-L-W0"],
+        ["0110", "1001", "abort0", "stock", "B0-L-W0", "fixed10"],
+        ["1000", "abort0", "stock", "B0-L-W0", "fixed10", "0111"],
+    ]
     seen = []
     for job in range(8):
         actual = R._cases("compare", job, None)
-        base = [*[("ir", c.case_id) for c in IR.enumerate_recon()
-                   if IR.job_of(c.case_id) == job], ("abort0", "abort0"),
-                ("stock", "stock"), ("b0_l_w0", "B0-L-W0"), ("fixed10", "fixed10")]
-        assert [(role, cid) for role, cid, _ in actual] == base[job:] + base[:job]
+        assert [cid for _, cid, _ in actual] == expected[job]
         seen += [cid for role, cid, _ in actual if role == "ir"]
     assert sorted(seen) == sorted(c.case_id for c in IR.enumerate_recon())
 
@@ -266,6 +274,14 @@ def test_compare_aggregate_null_when_reference_ineligible():
 def test_compare_aggregate_rejects_wrong_order():
     jobs = _compare_jobs()
     jobs[0]["cases"][0], jobs[0]["cases"][1] = jobs[0]["cases"][1], jobs[0]["cases"][0]
+    result = R._compare_detail(jobs)
+    assert result["summary"] is None and any("sequence" in e for e in result["errors"])
+
+
+def test_compare_aggregate_rejects_case_order_mismatch():
+    jobs = _compare_jobs()
+    jobs[0]["case_order"][0], jobs[0]["case_order"][1] = (
+        jobs[0]["case_order"][1], jobs[0]["case_order"][0])
     result = R._compare_detail(jobs)
     assert result["summary"] is None and any("sequence" in e for e in result["errors"])
 
@@ -372,6 +388,23 @@ def test_compare_fixed10_define_check_rejects_missing_define(tmp_path):
                          {"cxx_path": "c++"}, {})
         assert row["status"] == "backoff-fixed-not-effective" and calls == ["build"]
         assert row["backoff_fixed_define"]["trace1"]["defines"] == defines
+
+
+def test_compare_fixed10_define_check_rejects_duplicate_back_off(tmp_path):
+    source = tmp_path / "source"
+    owner = source / C.axis.SOURCE_REL
+    owner.parent.mkdir(parents=True)
+    owner.write_text("// owner\n")
+    build = tmp_path / "build"
+    build.mkdir()
+    defines = ["-DBACK_OFF=1", "-DBACK_OFF=0", "-DBACKOFF_FIXED=10"]
+    (build / "compile_commands.json").write_text(json.dumps([{
+        "directory": str(source), "file": str(owner),
+        "arguments": ["c++", *defines, "-o", "CMakeFiles/ycsb_silo.exe.dir/owner.o",
+                      "-c", str(owner)]}]))
+    receipt = R._backoff_fixed_define(build, source)
+    assert receipt["defines"] == defines
+    assert receipt["effective"] is False
 
 
 def test_source_backoff_fixed_patch_materializes_markers(tmp_path):
