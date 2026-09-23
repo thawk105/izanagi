@@ -10,7 +10,7 @@ index 054a7e5f1..6790f388f 100644
 +#include <atomic>
 +namespace {
 +std::atomic<uint64_t> fired_reached{0}, fired_changed{0}, fired_committed{0};
-+std::atomic<uint32_t> next_published_epoch{UINT32_MAX};
++std::atomic<uint32_t> next_published_epoch{uint32_t(1) << 31};
 +thread_local bool fired_this_tx = false;
 +void fired_mark_changed() {
 +  fired_changed.fetch_add(1, std::memory_order_relaxed);
@@ -46,8 +46,8 @@ index 054a7e5f1..6790f388f 100644
 +#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
 +        fired_reached.fetch_add(1, std::memory_order_relaxed);
 +        Tidword published = maxtid;
-+        // W4's one-second run cannot consume the 32-bit epoch or 28-bit tid ranges.
-+        published.epoch = next_published_epoch.fetch_sub(1, std::memory_order_relaxed);
++        // Increasing high epochs preserve per-key order; W4 cannot exhaust epoch/tid ranges.
++        published.epoch = next_published_epoch.fetch_add(1, std::memory_order_relaxed);
 +        published.tid = uint64_t(1) << 28;
 +        published.lock = 0;
 +        published.latest = 1;
