@@ -25889,6 +25889,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   2026-09-14 に満たされたことで別途認可されており、D1936 項36 の対象ではない。
   既載の再発検知 (検索語と hit 0 件の記録を handoff へ残す) も行っていなかったため、
   段 4 の差し戻しも発火しなかった。
+
+- **再発: 2026-09-23** — next-tasks のセッションが、[T-2854] の台帳の持ち越し文言「GitHub への push は人間手番 (D16)」だけを根拠に ccbench branch `izanagi-tpcc-v3-trace` の push をユーザー手番として提示し、push script を渡した。ユーザーが 08:4x JST に実行した。その約 20 分前 (08:2x) に /rulings 第 32 回の裁定 7「今は push しない」が下り、repo 外の控え箱 (`rulings-inbox/2026-09-23-rulings-full32-verdicts.md`) にだけあった (decisions への着地は 10:0x、D2227 項 7)。台帳の古い文言を、後から下りた裁定と照合しないまま前提にした点が本項と同型。影響: pin・gitlink は不変、公開されたのは bundle に保全済みの C1 / C2 だけ。事後の扱いは D2235 項 1 (残し、乗せ直し版は別名)。是正: 人間手番を提示する直前に、`docs/decisions.md` だけでなく控え箱 `rulings-inbox/` の新着を対象 ID で grep する (memory `rulings-discipline` 第 30 回の規律を next-tasks の提示にも適用)。
 ### F938. fix 子が既存テストを無断削除し、親の通常検算では検出できなかった [テスト代表性] [手順漏れ]
 
 - 事象: 段 6 の fix 1 巡目が、基底 commit から存在する既存テスト
