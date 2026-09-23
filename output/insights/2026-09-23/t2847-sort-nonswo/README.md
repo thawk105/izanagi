@@ -102,6 +102,7 @@ compiler は `x86_64-linux-gnu-g++-11` (Ubuntu 11.4.0-1ubuntu1~22.04.3)。gate �
 - **R3 は「16 要素では壊れない」の証明ではない。** 比較関数の反対称性の破れは要素数に関わらず C++ の契約違反 (未定義動作) で、今回の build と libstdc++ 11 の実装で 16 要素の insertion sort が要素を保ったことだけを示す。permutation 保存検査 (P) も 0 だった。
 - **V07 は設計書で「盲点」の行である。** verifier の判定は今回も V07 を捕まえていない (R3 は S。R4 は空の trace に I (`stats.txns` 0) が出たが、事前登録の順で signal 終了が先に当たるので分類に使わず、V07 の検出力にも数えない)。「別の層で検出」は process の異常終了で止まったという意味で、verifier の検出力に数えない。論文で「sort の反対称性の破れは検出される」と書かない。
 - gate の通過は「供給経路が効く」ことの証拠で、sort-nonswo の挙動の証拠には数えていない。gate の登録 patch は `silo-sort-variant.patch` で、sort-nonswo の木で gate を評価したのは同じ 2 file (transaction.cc・Options.cmake) を変える別 patch の上である。
+- 実走は pin `e9e477ca` で行った。記録の直前に local main の pin が `68106660` へ進んだ ([T-2858]、mocc の X/P 計装)。2 つの pin の差は `cc/mocc/transaction.cc` の追加 64 行だけで、silo の source は同じ (`git diff --stat e9e477ca 68106660`)。新 pin で走らせ直してはいない。
 - 性能値は取っていない。job の Elapse は計算資源の記録。
 - raw trace は起動器が走の後に消すので残っていない。残っているのは trace の C 行統計・verifier の出力全文・build 記録。
 - repo に入れたのは本書と `raw/`・`verbatim/` の記録だけで、実装面の差分はゼロ。起動器は repo 外に置き、逐語を `verbatim/launcher-source.md` に残した。
