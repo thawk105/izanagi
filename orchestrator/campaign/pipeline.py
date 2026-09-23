@@ -2598,6 +2598,12 @@ def _commit_prepared(
     return res
 
 
+def _compress_trace_archive(stream, compressed) -> None:
+    """Launch only the archive compressor; keep its failure seam local."""
+    subprocess.run(["zstd", "-T0", "-3"], stdin=stream,
+                   stdout=compressed, stderr=subprocess.PIPE, check=True)
+
+
 def _preserve_trace_directory(
         tdir: str, archive_root: str, *, campaign_id: str, variant: str,
         build_attempt_id: str, tag: str, workload_flags: Mapping,
@@ -2650,8 +2656,7 @@ def _preserve_trace_directory(
                 inventory["files"].append(row)
                 partial = archive + ".partial"
                 with open(source, "rb") as stream, open(partial, "xb") as compressed:
-                    subprocess.run(["zstd", "-T0", "-3"], stdin=stream,
-                                   stdout=compressed, stderr=subprocess.PIPE, check=True)
+                    _compress_trace_archive(stream, compressed)
                 os.replace(partial, archive)
                 row.update(status="complete", compressed_bytes=os.path.getsize(archive))
         inventory["status"] = "complete"

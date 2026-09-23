@@ -82,8 +82,8 @@ def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failur
         def fail(*a, **kw):
             if failure == 'spawn':
                 raise FileNotFoundError('zstd missing')
-            raise subprocess.CalledProcessError(1, a[0])
-        monkeypatch.setattr(P.subprocess, 'run', fail)
+            raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+        monkeypatch.setattr(P, '_compress_trace_archive', fail)
     elif failure == 'inventory':
         real = builtins.open
         def fail(path, *a, **kw):
@@ -105,7 +105,7 @@ def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failur
 def test_preservation_error_does_not_replace_result(tmp_path, monkeypatch, archive):
     def fail(*a, **kw):
         raise OSError('zstd spawn failed')
-    monkeypatch.setattr(P.subprocess, 'run', fail)
+    monkeypatch.setattr(P, '_compress_trace_archive', fail)
     result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
     assert result.certified and calls and all(d.exists() for d in dirs)
 
@@ -124,7 +124,7 @@ def test_preservation_error_does_not_replace_exception(tmp_path, monkeypatch, ar
         raise OSError('spawn error')
     monkeypatch.setattr(P, 'verify_trace_dir_with_capability', verify)
     if failure == 'spawn':
-        monkeypatch.setattr(P.subprocess, 'run', fail_spawn)
+        monkeypatch.setattr(P, '_compress_trace_archive', fail_spawn)
     else:
         monkeypatch.setattr(builtins, 'open', fail_open)
     with pytest.raises(RuntimeError) as exc:
@@ -148,7 +148,7 @@ def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
     def makedirs(path, *a, **kw):
         writes.append(os.fspath(path))
         return real_makedirs(path, *a, **kw)
-    monkeypatch.setattr(P.subprocess, 'run', run)
+    monkeypatch.setattr(P, '_compress_trace_archive', run)
     monkeypatch.setattr(builtins, 'open', opened)
     monkeypatch.setattr(os, 'makedirs', makedirs)
     result, calls, dirs = evaluate(tmp_path, monkeypatch)

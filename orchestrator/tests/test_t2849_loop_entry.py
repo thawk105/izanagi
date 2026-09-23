@@ -36,8 +36,9 @@ def test_harness_machine_slot_accepted(tmp_path, monkeypatch, machine):
     real_context = L.build_run_context
 
     def context(**kwargs):
-        contexts.append(kwargs.get('coder_authority'))
-        return real_context(**kwargs)
+        result = real_context(**kwargs)
+        contexts.append((result, kwargs.get('coder_authority')))
+        return result
 
     monkeypatch.setattr(L, 'build_run_context', context)
 
@@ -54,7 +55,9 @@ def test_harness_machine_slot_accepted(tmp_path, monkeypatch, machine):
     with pytest.raises(Boundary):
         L.main(argv)
     assert len(observed) == 1
-    assert contexts and all((authority is None) == machine for authority in contexts)
+    evaluation_authorities = [authority for ctx, authority in contexts if ctx is observed[0]]
+    assert len(evaluation_authorities) == 1
+    assert (evaluation_authorities[0] is None) == machine
     assert (sidecar / 'pipeline-submitted.json').exists()
 
 
@@ -127,6 +130,9 @@ def test_reference_schema_exact(tmp_path, bad):
 
 def test_reference_identity_and_absent_defaults(tmp_path, monkeypatch):
     _, _, calls = F._stock_cli_fixture(tmp_path, monkeypatch)
+    # Each CLI config gets its own campaign.lock, just as in production.
+    monkeypatch.setattr(L, 'exploration_campaign_layout',
+                        lambda cid: F.CampaignLayout(str(tmp_path / cid)))
     monkeypatch.setattr(L, '_require_condition_gate', lambda *a, **k: None)
     received = []
     real = L._run_stock_control_resolved
