@@ -1,0 +1,586 @@
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[spawn]
+| 10 failed, 3631 passed, 18 skipped in 114.37s (0:01:54)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_t2849_loop_entry.py::test_reference_identity_and_absent_defaults" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=7035 retained_bytes=3381 omitted_bytes=3654 rendered_excerpt_bytes=4096 sha256=463a7cbb7dbc6483573488cad06cd5e8d7882abf18fe23ada20c63ae10713402
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| >     raise IdentityMismatch("campaign.lock schema \u304c\u4e0d\u6b63") from exc
+| >     
+| >         if require_environment_contract and decoded.is_v1:
+| >             raise IdentityMismatch(
+| >                 "certified lane \u3067\u306f v1 campaign.lock \u306f read-only",
+| >                 reason="legacy-lock-read-only",
+| >             )
+| >         if not require_environment_contract and decoded.is_v2:
+| >             raise IdentityMismatch(
+| >                 "guided exemption \u3067 v2 campaign.lock \u3092\u958b\u3051\u306a\u3044",
+| >                 reason="v2-lock-requires-authority",
+| >             )
+| >     
+| >         cur = canonical_preimage(cfg)
+| >         if cur != decoded.identity_preimage:
+| > >           raise IdentityMismatch(
+| >                 "campaign.lock \u3068\u73fe\u5728 config \u306e\u6b63\u6e96 pre-image \u304c\u4e0d\u4e00\u81f4\u3002"
+| >                 "\u30cf\u30c3\u30b7\u30e5\u885d\u7a81\u304b config \u30c9\u30ea\u30d5\u30c8\u3002\u9ed9\u3063\u3066\u30de\u30fc\u30b8\u305b\u305a\u505c\u6b62\u3059\u308b\u3002\x5cn"
+| >                 f"  stored : {decoded.identity_preimage}\x5cn  current: {cur}")
+| > E           orchestrator.campaign.ident.IdentityMismatch: campaign.lock \u3068\u73fe\u5728 config \u306e\u6b63\u6e96 pre-image \u304c\u4e0d\u4e00\u81f4\u3002\u30cf\u30c3\u30b7\u30e5\u885d\u7a81\u304b config \u30c9\u30ea\u30d5\u30c8\u3002\u9ed9\u3063\u3066\u30de\u30fc\u30b8\u305b\u305a\u505c\u6b62\u3059\u308b\u3002
+| > E             stored : {"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"e9e477c","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"records":100000,"reflux":"on","scale":"silo","threads":4},"search_tag":"s4-autonomous","spec_content":"P3 \u5f8c\u7d9a\u6bb5 4: coder \u81ea\u5f8b\u30eb\u30fc\u30d7\u3002planner \u304c\u65b9\u5411 (\u5024\u306a\u3057) \u3092\u63d0\u6848\u3057 coder \u304c\u52dd\u3061\u7b4b\u5024\u3092\u898b\u305a\u306b backoff \u5024\u3092\u5408\u6210\u3001diff \u691c\u75ab (4a) \u3092\u901a\u3057\u305f hole \u5909\u7570\u306e\u307f build/verify/bench \u306b\u9032\u3080\u3002critic \u5e30\u5c5e\u3092\u6b21 iteration \u306b \u9084\u6d41 (LLM ablation \u306e on \u30a2\u30fc\u30e0)\u3002fixture red \u3092\u6b63\u7cfb\u5217\u306b\u6df7\u305c\u306a\u3044","trial":"p3-s4-loop"}
+| > E             current: {"ccbench_commit":"511c9538e4e8efa54b45cda62e72389ed3b706ec","search_config":{"axis":"silo-backoff-magnitude","b5_slot":"t2849-harness-v1|fixture","backoff_grammar_version":1,"build_admission":{"coder_authority":"cli-opt-in","generator_registry":["backoff-overthrottle","backoff-profile","backoff-repro","backoff-sweep","s1-extime-calibration","s6-sort-sweep","s8a-trigger-sweep"],"repo_stock_pin":"e9e477c","review_registry":["s1-known-axes","s8b-floor","s8b-oracle"],"schema":"build-admission-policy/v1"},"extime":3,"perf_workload":{"ycsb_max_ope":"10","ycsb_rmw":"0","ycsb_rratio":"50","ycsb_zipf_skew":"0.9"},"records":1000000,"reference_genome":"silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0","reflux":"on","reps":5,"scale":"silo","threads":48,"verify":"legacy+performance"},"search_tag":"s4-autonomous","spec_content":"P3 \u5f8c\u7d9a\u6bb5 4: coder \u81ea\u5f8b\u30eb\u30fc\u30d7\u3002planner \u304c\u65b9\u5411 (\u5024\u306a\u3057) \u3092\u63d0\u6848\u3057 coder \u304c\u52dd\u3061\u7b4b\u5024\u3092\u898b\u305a\u306b backoff \u5024\u3092\u5408\u6210\u3001diff \u691c\u75ab (4a) \u3092\u901a\u3057\u305f hole \u5909\u7570\u306e\u307f build/verify/bench \u306b\u9032\u3080\u3002critic \u5e30\u5c5e\u3092\u6b21 iteration \u306b \u9084\u6d41 (LLM ablation \u306e on \u30a2\u30fc\u30e0)\u3002fixture red \u3092\u6b63\u7cfb\u5217\u306b\u6df7\u305c\u306a\u3044","trial":"p3-s4-loop"}
+| > 
+| > orchestrator/campaign/ident.py:380: IdentityMismatch
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=6436 retained_bytes=3794 omitted_bytes=2642 rendered_excerpt_bytes=4096 sha256=0aab66d9afce1f36544dad71a568e6aa0d6f3edc8e0c51fa74504d2c8e190014
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > tified_lock
+| >     wal.write_lock(layout, _certified_lock_text(cfg))
+| > orchestrator/tests/test_campaign.py:517: in _certified_lock_text
+| >     return build_v2_lock(ident.canonical_preimage(cfg))
+| > orchestrator/tests/campaign_lock_test_support.py:34: in build_v2_campaign_lock
+| >     binding = _binding_from_recorded_head()
+| > orchestrator/tests/campaign_lock_test_support.py:12: in _binding_from_recorded_head
+| >     root = contract_loader_binding._validated_root()
+| > orchestrator/campaign/contract_loader_binding.py:114: in _validated_root
+| >     raw_toplevel = _run_git(root, "rev-parse", "--show-toplevel")
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2849-comparison-harness')
+| > input_bytes = None, timeout_seconds = 10
+| > args = ('rev-parse', '--show-toplevel')
+| > 
+| >     def _run_git(
+| >         root: Path,
+| >         *args: str,
+| >         input_bytes: bytes | None = None,
+| >         timeout_seconds: int = GIT_TIMEOUT_SECONDS,
+| >     ) -> bytes:
+| >         if not _GIT_EXECUTABLE.is_absolute():
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u7d76\u5bfe path \u3067\u306a\u3044"
+| >             )
+| >         try:
+| >             present = _GIT_EXECUTABLE.is_file()
+| >         except OSError as exc:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u3092\u89e3\u6c7a\u3067\u304d\u306a\u3044"
+| >             ) from exc
+| >         if not present:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u898b\u3064\u304b\u3089\u306a\u3044"
+| >             )
+| >         executable = os.fspath(_GIT_EXECUTABLE)
+| >         contaminated = sorted(
+| >             key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
+| >         )
+| >         if contaminated:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-environment: ambient Git repository/object "
+| >                 f"override \u3092\u62d2\u5426: {contaminated!r}"
+| >             )
+| >         git_env = {
+| >             key: os.environ[key]
+| >             for key in _GIT_ENV_ALLOWLIST
+| >             if key in os.environ
+| >         }
+| >         git_env.update({
+| >             "GIT_CONFIG_GLOBAL": os.devnull,
+| >             "GIT_CONFIG_NOSYSTEM": "1",
+| >             "GIT_NO_REPLACE_OBJECTS": "1",
+| >             "GIT_OPTIONAL_LOCKS": "0",
+| >         })
+| >         try:
+| >             completed = subprocess.run(
+| >                 [
+| >                     executable,
+| >                     *_GIT_HARDEN,
+| >                     "--no-replace-objects",
+| >                     "-C", str(root),
+| >                     *args,
+| >                 ],
+| >                 input=input_bytes,
+| >                 stdout=subprocess.PIPE,
+| >                 stderr=subprocess.PIPE,
+| >                 check=False,
+| >                 env=git_env,
+| >                 timeout=timeout_seconds,
+| >             )
+| >         except subprocess.TimeoutExpired as exc:
+| >             raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-timeout: git \u304c {timeout_seconds} \u79d2\u3067\u5b8c\u4e86\u3057\u306a\u3044"
+| >             ) from exc
+| >         except (OSError, subprocess.SubprocessError) as exc:
+| > >           raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: {exc}"
+| >             ) from exc
+| > E           orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: Command '['/usr/bin/git', '--no-pager', '-c', 'core.useReplaceRefs=false', '-c', 'core.commitGraph=false', '-c', 'core.fsmonitor=false', '--no-replace-objects', '-C', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2849-comparison-harness', 'rev-parse', '--show-toplevel']' returned non-zero exit status 1.
+| > 
+| > orchestrator/campaign/contract_loader_binding.py:313: ContractLoaderBindingError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_t2849_comparison_harness.py::test_inheritance_exact_prior_and_diagnosis" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=2335 retained_bytes=2335 omitted_bytes=0 rendered_excerpt_bytes=2450 sha256=2c1ca52f80d6055ce45c9c2f29c0a13e9f85b631a5a4ec2cddda9fbded6d2412
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > [gw23] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_inheritance_exact_prior_a0')
+| > 
+| >     def test_inheritance_exact_prior_and_diagnosis(tmp_path):
+| >         run(tmp_path, a_limit=1, b_limit=1)
+| >         path = tmp_path / "balanced/random/series-1"
+| >         expected = H.expected_inputs(path, 2)
+| > >       diagnosis = L.k2_critic_diagnosis_from_bytes(b"fixture critic")
+| > 
+| > orchestrator/tests/test_t2849_comparison_harness.py:287: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/campaign/p3_s4_loop.py:1267: in k2_critic_diagnosis_from_bytes
+| >     **agent_outputs.extract_critic_sections(raw.decode("utf-8")),
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > raw = 'fixture critic'
+| > 
+| >     def extract_critic_sections(raw: str) -> dict:
+| >         """Select exact, unique level-two sections outside Markdown fences.
+| >     
+| >         Bodies end at the next unfenced ``## `` line and are stripped at both ends.
+| >         Preserve interior bytes, including CRLF and fenced examples.
+| >         """
+| >         headings = []
+| >         offset = 0
+| >         fence = None
+| >         for line in re.findall(r"[^\x5cn]*\x5cn|[^\x5cn]+$", raw):
+| >             text = line.rstrip("\x5cr\x5cn")
+| >             marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", text)
+| >             if fence is not None:
+| >                 if (marker and marker[1][0] == fence[0]
+| >                         and len(marker[1]) >= len(fence) and not marker[2].strip()):
+| >                     fence = None
+| >             elif marker and (marker[1][0] != "`" or "`" not in marker[2]):
+| >                 fence = marker[1]
+| >             elif text.startswith("## "):
+| >                 headings.append((offset, offset + len(line), text))
+| >             offset += len(line)
+| >         sections = {}
+| >         for name in ("attribution", "recommend", "avoid", "uncertainty"):
+| >             matches = [i for i, (_, _, text) in enumerate(headings)
+| >                        if re.fullmatch(r"## " + name + r"\x5cs*", text)]
+| >             if len(matches) != 1:
+| > >               raise AgentOutputError(f"critic heading ## {name} must occur exactly once")
+| > E               orchestrator.campaign.agent_outputs.AgentOutputError: critic heading ## attribution must occur exactly once
+| > 
+| > orchestrator/campaign/agent_outputs.py:62: AgentOutputError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_t2849_llm_round.py::test_normal_schema_and_grammar_rejection[implementation-double now_backoff = 1 + 2;]" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=774 retained_bytes=774 omitted_bytes=0 rendered_excerpt_bytes=809 sha256=e4b61c3121a5d68ba5c5e5565f1e83e8caba8822ca821d34b1f7a96bfef80c5b
+| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+| > [gw22] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_normal_schema_and_grammar0')
+| > field = 'implementation', value = 'double now_backoff = 1 + 2;'
+| > 
+| >     @pytest.mark.parametrize("field,value", [("implementation", "double now_backoff = 1 + 2;"),
+| >                                              ("knowledge_use", [])])
+| >     def test_normal_schema_and_grammar_rejection(tmp_path, field, value):
+| >         tool, _ = prepared(tmp_path)
+| >         path = tool.materials_root / "verbatim/coder-3.json"
+| >         doc = T.load(path)
+| >         doc["proposal"][field] = value
+| >         write(path, doc)
+| > >       with pytest.raises(ValueError):
+| > E       Failed: DID NOT RAISE ValueError
+| > 
+| > orchestrator/tests/test_t2849_llm_round.py:161: Failed
+| --- IZANAGI FAILURE EXCERPT rank=4 END ---
+| IZANAGI_FAILURE rank=5 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=5770 retained_bytes=3784 omitted_bytes=1986 rendered_excerpt_bytes=4096 sha256=4328aa335136f9e1e5c4cb56f07b1d4cec6e9fa91959e0d3e7368aecdcc7c425
+| --- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---
+| >  _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_t2853_trace_preservation.py:42: in evaluate
+| >     result, calls = F._eval(layout, **kwargs)
+| > orchestrator/tests/test_campaign.py:6121: in _eval
+| >     _write_certified_lock(lay, _bound(cfg))
+| > orchestrator/tests/test_campaign.py:521: in _write_certified_lock
+| >     wal.write_lock(layout, _certified_lock_text(cfg))
+| > orchestrator/tests/test_campaign.py:517: in _certified_lock_text
+| >     return build_v2_lock(ident.canonical_preimage(cfg))
+| > orchestrator/tests/campaign_lock_test_support.py:34: in build_v2_campaign_lock
+| >     binding = _binding_from_recorded_head()
+| > orchestrator/tests/campaign_lock_test_support.py:12: in _binding_from_recorded_head
+| >     root = contract_loader_binding._validated_root()
+| > orchestrator/campaign/contract_loader_binding.py:114: in _validated_root
+| >     raw_toplevel = _run_git(root, "rev-parse", "--show-toplevel")
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2849-comparison-harness')
+| > input_bytes = None, timeout_seconds = 10
+| > args = ('rev-parse', '--show-toplevel')
+| > 
+| >     def _run_git(
+| >         root: Path,
+| >         *args: str,
+| >         input_bytes: bytes | None = None,
+| >         timeout_seconds: int = GIT_TIMEOUT_SECONDS,
+| >     ) -> bytes:
+| >         if not _GIT_EXECUTABLE.is_absolute():
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u7d76\u5bfe path \u3067\u306a\u3044"
+| >             )
+| >         try:
+| >             present = _GIT_EXECUTABLE.is_file()
+| >         except OSError as exc:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u3092\u89e3\u6c7a\u3067\u304d\u306a\u3044"
+| >             ) from exc
+| >         if not present:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u898b\u3064\u304b\u3089\u306a\u3044"
+| >             )
+| >         executable = os.fspath(_GIT_EXECUTABLE)
+| >         contaminated = sorted(
+| >             key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
+| >         )
+| >         if contaminated:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-environment: ambient Git repository/object "
+| >                 f"override \u3092\u62d2\u5426: {contaminated!r}"
+| >             )
+| >         git_env = {
+| >             key: os.environ[key]
+| >             for key in _GIT_ENV_ALLOWLIST
+| >             if key in os.environ
+| >         }
+| >         git_env.update({
+| >             "GIT_CONFIG_GLOBAL": os.devnull,
+| >             "GIT_CONFIG_NOSYSTEM": "1",
+| >             "GIT_NO_REPLACE_OBJECTS": "1",
+| >             "GIT_OPTIONAL_LOCKS": "0",
+| >         })
+| >         try:
+| >             completed = subprocess.run(
+| >                 [
+| >                     executable,
+| >                     *_GIT_HARDEN,
+| >                     "--no-replace-objects",
+| >                     "-C", str(root),
+| >                     *args,
+| >                 ],
+| >                 input=input_bytes,
+| >                 stdout=subprocess.PIPE,
+| >                 stderr=subprocess.PIPE,
+| >                 check=False,
+| >                 env=git_env,
+| >                 timeout=timeout_seconds,
+| >             )
+| >         except subprocess.TimeoutExpired as exc:
+| >             raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-timeout: git \u304c {timeout_seconds} \u79d2\u3067\u5b8c\u4e86\u3057\u306a\u3044"
+| >             ) from exc
+| >         except (OSError, subprocess.SubprocessError) as exc:
+| > >           raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: {exc}"
+| >             ) from exc
+| > E           orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: zstd missing
+| > 
+| > orchestrator/campaign/contract_loader_binding.py:313: ContractLoaderBindingError
+| --- IZANAGI FAILURE EXCERPT rank=5 END ---
+| IZANAGI_FAILURE rank=6 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_exception[spawn]" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=5616 retained_bytes=3784 omitted_bytes=1832 rendered_excerpt_bytes=4096 sha256=10b27b5aeb46e1012a98d087589fe42ebaaa696000aaa6d0cfa04547994a5142
+| --- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_t2853_trace_preservation.py:42: in evaluate
+| >     result, calls = F._eval(layout, **kwargs)
+| > orchestrator/tests/test_campaign.py:6121: in _eval
+| >     _write_certified_lock(lay, _bound(cfg))
+| > orchestrator/tests/test_campaign.py:521: in _write_certified_lock
+| >     wal.write_lock(layout, _certified_lock_text(cfg))
+| > orchestrator/tests/test_campaign.py:517: in _certified_lock_text
+| >     return build_v2_lock(ident.canonical_preimage(cfg))
+| > orchestrator/tests/campaign_lock_test_support.py:34: in build_v2_campaign_lock
+| >     binding = _binding_from_recorded_head()
+| > orchestrator/tests/campaign_lock_test_support.py:12: in _binding_from_recorded_head
+| >     root = contract_loader_binding._validated_root()
+| > orchestrator/campaign/contract_loader_binding.py:114: in _validated_root
+| >     raw_toplevel = _run_git(root, "rev-parse", "--show-toplevel")
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2849-comparison-harness')
+| > input_bytes = None, timeout_seconds = 10
+| > args = ('rev-parse', '--show-toplevel')
+| > 
+| >     def _run_git(
+| >         root: Path,
+| >         *args: str,
+| >         input_bytes: bytes | None = None,
+| >         timeout_seconds: int = GIT_TIMEOUT_SECONDS,
+| >     ) -> bytes:
+| >         if not _GIT_EXECUTABLE.is_absolute():
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u7d76\u5bfe path \u3067\u306a\u3044"
+| >             )
+| >         try:
+| >             present = _GIT_EXECUTABLE.is_file()
+| >         except OSError as exc:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u3092\u89e3\u6c7a\u3067\u304d\u306a\u3044"
+| >             ) from exc
+| >         if not present:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u898b\u3064\u304b\u3089\u306a\u3044"
+| >             )
+| >         executable = os.fspath(_GIT_EXECUTABLE)
+| >         contaminated = sorted(
+| >             key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
+| >         )
+| >         if contaminated:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-environment: ambient Git repository/object "
+| >                 f"override \u3092\u62d2\u5426: {contaminated!r}"
+| >             )
+| >         git_env = {
+| >             key: os.environ[key]
+| >             for key in _GIT_ENV_ALLOWLIST
+| >             if key in os.environ
+| >         }
+| >         git_env.update({
+| >             "GIT_CONFIG_GLOBAL": os.devnull,
+| >             "GIT_CONFIG_NOSYSTEM": "1",
+| >             "GIT_NO_REPLACE_OBJECTS": "1",
+| >             "GIT_OPTIONAL_LOCKS": "0",
+| >         })
+| >         try:
+| >             completed = subprocess.run(
+| >                 [
+| >                     executable,
+| >                     *_GIT_HARDEN,
+| >                     "--no-replace-objects",
+| >                     "-C", str(root),
+| >                     *args,
+| >                 ],
+| >                 input=input_bytes,
+| >                 stdout=subprocess.PIPE,
+| >                 stderr=subprocess.PIPE,
+| >                 check=False,
+| >                 env=git_env,
+| >                 timeout=timeout_seconds,
+| >             )
+| >         except subprocess.TimeoutExpired as exc:
+| >             raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-timeout: git \u304c {timeout_seconds} \u79d2\u3067\u5b8c\u4e86\u3057\u306a\u3044"
+| >             ) from exc
+| >         except (OSError, subprocess.SubprocessError) as exc:
+| > >           raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: {exc}"
+| >             ) from exc
+| > E           orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: spawn error
+| > 
+| > orchestrator/campaign/contract_loader_binding.py:313: ContractLoaderBindingError
+| --- IZANAGI FAILURE EXCERPT rank=6 END ---
+| IZANAGI_FAILURE rank=7 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=4966 retained_bytes=3784 omitted_bytes=1182 rendered_excerpt_bytes=4096 sha256=b0105c3de88130c7b4c1464c9293bec7fa4407603c46d3bdcec0086b86d2c042
+| --- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---
+| > _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_t2853_trace_preservation.py:42: in evaluate
+| >     result, calls = F._eval(layout, **kwargs)
+| > orchestrator/tests/test_campaign.py:6121: in _eval
+| >     _write_certified_lock(lay, _bound(cfg))
+| > orchestrator/tests/test_campaign.py:521: in _write_certified_lock
+| >     wal.write_lock(layout, _certified_lock_text(cfg))
+| > orchestrator/tests/test_campaign.py:517: in _certified_lock_text
+| >     return build_v2_lock(ident.canonical_preimage(cfg))
+| > orchestrator/tests/campaign_lock_test_support.py:34: in build_v2_campaign_lock
+| >     binding = _binding_from_recorded_head()
+| > orchestrator/tests/campaign_lock_test_support.py:12: in _binding_from_recorded_head
+| >     root = contract_loader_binding._validated_root()
+| > orchestrator/campaign/contract_loader_binding.py:114: in _validated_root
+| >     raw_toplevel = _run_git(root, "rev-parse", "--show-toplevel")
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2849-comparison-harness')
+| > input_bytes = None, timeout_seconds = 10
+| > args = ('rev-parse', '--show-toplevel')
+| > 
+| >     def _run_git(
+| >         root: Path,
+| >         *args: str,
+| >         input_bytes: bytes | None = None,
+| >         timeout_seconds: int = GIT_TIMEOUT_SECONDS,
+| >     ) -> bytes:
+| >         if not _GIT_EXECUTABLE.is_absolute():
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u7d76\u5bfe path \u3067\u306a\u3044"
+| >             )
+| >         try:
+| >             present = _GIT_EXECUTABLE.is_file()
+| >         except OSError as exc:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u3092\u89e3\u6c7a\u3067\u304d\u306a\u3044"
+| >             ) from exc
+| >         if not present:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-error: git executable \u304c\u898b\u3064\u304b\u3089\u306a\u3044"
+| >             )
+| >         executable = os.fspath(_GIT_EXECUTABLE)
+| >         contaminated = sorted(
+| >             key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
+| >         )
+| >         if contaminated:
+| >             raise ContractLoaderBindingError(
+| >                 "contract-loader-git-environment: ambient Git repository/object "
+| >                 f"override \u3092\u62d2\u5426: {contaminated!r}"
+| >             )
+| >         git_env = {
+| >             key: os.environ[key]
+| >             for key in _GIT_ENV_ALLOWLIST
+| >             if key in os.environ
+| >         }
+| >         git_env.update({
+| >             "GIT_CONFIG_GLOBAL": os.devnull,
+| >             "GIT_CONFIG_NOSYSTEM": "1",
+| >             "GIT_NO_REPLACE_OBJECTS": "1",
+| >             "GIT_OPTIONAL_LOCKS": "0",
+| >         })
+| >         try:
+| >             completed = subprocess.run(
+| >                 [
+| >                     executable,
+| >                     *_GIT_HARDEN,
+| >                     "--no-replace-objects",
+| >                     "-C", str(root),
+| >                     *args,
+| >                 ],
+| >                 input=input_bytes,
+| >                 stdout=subprocess.PIPE,
+| >                 stderr=subprocess.PIPE,
+| >                 check=False,
+| >                 env=git_env,
+| >                 timeout=timeout_seconds,
+| >             )
+| >         except subprocess.TimeoutExpired as exc:
+| >             raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-timeout: git \u304c {timeout_seconds} \u79d2\u3067\u5b8c\u4e86\u3057\u306a\u3044"
+| >             ) from exc
+| >         except (OSError, subprocess.SubprocessError) as exc:
+| > >           raise ContractLoaderBindingError(
+| >                 f"contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: {exc}"
+| >             ) from exc
+| > E           orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-git-error: git \u3092\u5b9f\u884c\u3067\u304d\u306a\u3044: zstd spawn failed
+| > 
+| > orchestrator/campaign/contract_loader_binding.py:313: ContractLoaderBindingError
+| --- IZANAGI FAILURE EXCERPT rank=7 END ---
+| IZANAGI_FAILURE rank=8 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_unset_env_unchanged" nodeid_bytes=77 nodeid_omitted_bytes=0 source_bytes=2777 retained_bytes=2777 omitted_bytes=0 rendered_excerpt_bytes=2888 sha256=393bad03fbc39a100af60f573b991bb23c063e3a498e7ede8990413c5ed4819c
+| --- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---
+| > [gw16] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_unset_env_unchanged0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147cba0dccd0>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x147cba0dd780>
+| > 
+| >     def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
+| >         monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT', raising=False)
+| >         subprocess_calls = []
+| >         writes = []
+| >         real_open, real_makedirs = builtins.open, os.makedirs
+| >         def run(*a, **kw):
+| >             subprocess_calls.append(a)
+| >             raise AssertionError('unexpected subprocess')
+| >         def opened(path, mode='r', *a, **kw):
+| >             if any(m in mode for m in 'wax'):
+| >                 writes.append(os.fspath(path))
+| >             return real_open(path, mode, *a, **kw)
+| >         def makedirs(path, *a, **kw):
+| >             writes.append(os.fspath(path))
+| >             return real_makedirs(path, *a, **kw)
+| >         monkeypatch.setattr(P.subprocess, 'run', run)
+| >         monkeypatch.setattr(builtins, 'open', opened)
+| >         monkeypatch.setattr(os, 'makedirs', makedirs)
+| > >       result, calls, dirs = evaluate(tmp_path, monkeypatch)
+| > 
+| > orchestrator/tests/test_t2853_trace_preservation.py:154: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_t2853_trace_preservation.py:42: in evaluate
+| >     result, calls = F._eval(layout, **kwargs)
+| > orchestrator/tests/test_campaign.py:6121: in _eval
+| >     _write_certified_lock(lay, _bound(cfg))
+| > orchestrator/tests/test_campaign.py:521: in _write_certified_lock
+| >     wal.write_lock(layout, _certified_lock_text(cfg))
+| > orchestrator/tests/test_campaign.py:517: in _certified_lock_text
+| >     return build_v2_lock(ident.canonical_preimage(cfg))
+| > orchestrator/tests/campaign_lock_test_support.py:34: in build_v2_campaign_lock
+| >     binding = _binding_from_recorded_head()
+| > orchestrator/tests/campaign_lock_test_support.py:12: in _binding_from_recorded_head
+| >     root = contract_loader_binding._validated_root()
+| > orchestrator/campaign/contract_loader_binding.py:114: in _validated_root
+| >     raw_toplevel = _run_git(root, "rev-parse", "--show-toplevel")
+| > orchestrator/campaign/contract_loader_binding.py:293: in _run_git
+| >     completed = subprocess.run(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > a = (['/usr/bin/git', '--no-pager', '-c', 'core.useReplaceRefs=false', '-c', 'core.commitGraph=false', ...],)
+| > kw = {'input': None, 'stdout': -1, 'stderr': -1, 'check': False, ...}
+| > 
+| >     def run(*a, **kw):
+| >         subprocess_calls.append(a)
+| > >       raise AssertionError('unexpected subprocess')
+| > E       AssertionError: unexpected subprocess
+| > 
+| > orchestrator/tests/test_t2853_trace_preservation.py:143: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=8 END ---
+| IZANAGI_FAILURE rank=9 category=failed when=call nodeid="orchestrator/tests/test_t2849_loop_entry.py::test_harness_machine_slot_accepted[False]" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1993 retained_bytes=1993 omitted_bytes=0 rendered_excerpt_bytes=2078 sha256=bc9eb40e05ccfd598fc92539e7d9f32342b3945fb50c2dec52029d3be1287c30
+| --- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---
+| > [gw25] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw25/test_harness_machine_slot_acce0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1527254a1270>
+| > machine = False
+| > 
+| >     @pytest.mark.parametrize('machine', [True, False])
+| >     def test_harness_machine_slot_accepted(tmp_path, monkeypatch, machine):
+| >         _, _, _, sidecar, argv = F._b5_candidate_fixture(tmp_path, monkeypatch)
+| >         argv[argv.index('--b5-slot') + 1] = 't2849-harness-v1|fixture'
+| >         if not machine:
+| >             argv.remove('--machine-generated-proposal')
+| >             argv.append('--allow-coder-derived-build')
+| >         monkeypatch.setattr(L, '_require_condition_gate', lambda *a, **k: None)
+| >         observed = []
+| >         contexts = []
+| >         real_context = L.build_run_context
+| >     
+| >         def context(**kwargs):
+| >             contexts.append(kwargs.get('coder_authority'))
+| >             return real_context(**kwargs)
+| >     
+| >         monkeypatch.setattr(L, 'build_run_context', context)
+| >     
+| >         class Boundary(Exception):
+| >             pass
+| >     
+| >         def campaign(cfg, genomes, *a, **kw):
+| >             observed.append(kw['build_context'])
+| >             assert cfg.search_config['b5_slot'].startswith('t2849-harness-v1|')
+| >             assert 'reference_genome' not in cfg.search_config
+| >             raise Boundary
+| >     
+| >         monkeypatch.setattr(L, 'run_campaign', campaign)
+| >         with pytest.raises(Boundary):
+| >             L.main(argv)
+| >         assert len(observed) == 1
+| > >       assert contexts and all((authority is None) == machine for authority in contexts)
+| > E       AssertionError: assert ([None, CoderBuildAuthority(_nonce='7de4709408ebdd6d0870795677d3746976fa98982975311fc96393cb1cca3360', _coder_entrypoint_site='orchestrator.campaign.p3_s4_loop.main')] and False)
+| > E        +  where False = all(<generator object test_harness_machine_slot_accepted.<locals>.<genexpr> at 0x1527252dda10>)
+| > 
+| > orchestrator/tests/test_t2849_loop_entry.py:57: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=9 END ---
+| IZANAGI_FAILURE rank=10 category=failed when=call nodeid="orchestrator/tests/test_t2849_comparison_harness.py::test_ledger_immutable_and_reconstructable" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1166 sha256=10d677bd0d46038e1525aeb13a240716a4f516f66e2e2a4ce70d10517acb10fa
+| --- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---
+| > [gw23] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_ledger_immutable_and_reco0')
+| > 
+| >     def test_ledger_immutable_and_reconstructable(tmp_path):
+| >         result = run(tmp_path)
+| >         root = tmp_path / "balanced/random/series-1"
+| > >       assert H.SeriesLedger(root).view() == result
+| > E       AssertionError: assert {'schema': 't...0, ...}, ...]} == {'schema': 't...0, ...}, ...]}
+| > E         
+| > E         Omitting 2 identical items, use -vv to show
+| > E         Differing items:
+| > E         {'events': [{'a': 0, 'anomalies': None, 'attempt': None, 'b': 0, ...}, {'a': 0, 'anomalies': None, 'attempt': 0, 'b': ...w23/test_ledger_immutable_and_reco0/balanced/random/series-1/proposals/initial-1.json', ...], 'attempt': 0, ...}, ...]} != {'events': [{'a': 0, 'b': 0, 'logical_slot': None, 'attempt': None, ...}, {'a': 0, 'b': 0, 'logical_slot': 'stock-star...logical_slot': 'initial-1', 'attempt': 0, ...}, {'a': 0, 'b': 0, 'logical_slot': 'initial-1', 'attempt': 0, ...}, ...]}
+| > E         Use -v to get more diff
+| > 
+| > orchestrator/tests/test_t2849_comparison_harness.py:326: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=10 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=10 failed=10 errors=0 selected=10 omitted_failures=0 source_bytes=38835 retained_bytes=27539 omitted_bytes=11296 budget_bytes=49152 rendered_bytes=34544 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 19033.nqsv child stdout end
