@@ -1,0 +1,35 @@
+originals-copy MANIFEST entries: 16
+   # [T-2795 resubmit] campaign 原本の byte 複製 (2026-09-22 11:2x JST、cp -a、原本は lock 済み submit-tree-pair2 / submit-tree-r4 の中)
+   4a709002aa7e pair/campaign/campaign.lock
+   c42dc712bbd1 pair/campaign/knowledge_manifest_receipt.json
+   a955b88ad44d pair/campaign/loop_state.json
+   c2b94552a937 pair/campaign/reports/p3_s4_loop_provenance.json
+   5415d01a3c74 pair/campaign/runs/wal.jsonl
+   eab8c7896d3d pair/campaign/s4_loop_digest.txt
+   f9f11d8da75c pair/claims/p3-s4-loop-s4-autonomous-b24749ae.claim
+   4a709002aa7e r4/campaign/campaign.lock
+   c42dc712bbd1 r4/campaign/knowledge_manifest_receipt.json
+   2a648649221c r4/campaign/loop_state.json
+   944c75f08ea1 r4/campaign/reports/p3_s4_loop_provenance.json
+   6444159d2710 r4/campaign/runs/wal.jsonl
+   8d5640349425 r4/campaign/s4_loop_digest.txt
+   fdc176ad19ee r4/claims/p3-s4-loop-s4-autonomous-b24749ae.claim
+   # 原本側の sha256 は複製前に同じ file を測って一致を確認した (reports/ の 2 file は複製後にだけ測った)。
+== k2-resubmit-pair2-originals
+   match           f9f11d8da75c dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/env/pegasus/claims/p3-s4-loop-s4-autonomous-b24749ae.claim
+   match           4a709002aa7e dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/campaign.lock
+   match           c42dc712bbd1 dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/knowledge_manifest_receipt.json
+   match           a955b88ad44d dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/loop_state.json
+   match           c2b94552a937 dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/reports/p3_s4_loop_provenance.json
+   match           5415d01a3c74 dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/runs/wal.jsonl
+   match           eab8c7896d3d dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/s4_loop_digest.txt
+   no-counterpart  8850302a7c5f dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2/output/exploration/namespace.json
+== k2-resubmit-r4-originals
+   match           fdc176ad19ee dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/env/pegasus/claims/p3-s4-loop-s4-autonomous-b24749ae.claim
+   match           4a709002aa7e dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/campaign.lock
+   match           c42dc712bbd1 dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/knowledge_manifest_receipt.json
+   match           2a648649221c dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/loop_state.json
+   match           944c75f08ea1 dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/reports/p3_s4_loop_provenance.json
+   match           6444159d2710 dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/runs/wal.jsonl
+   match           8d5640349425 dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/s4_loop_digest.txt
+   no-counterpart  8850302a7c5f dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/output/exploration/namespace.json

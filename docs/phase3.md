@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
+  4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
+  (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。
+  著者・所属・頁数・ADRS はユーザー手番のまま。記録 = `output/insights/2026-09-22/comsys2026-manuscript/README.md` §9。
+
 - [x] 論文ストーリー 2026-09-22 版と ComSys 2026 投稿原稿 (日本語・情報処理学会 研究報告の書式) を作成した (2026-09-22 の執筆依頼、台帳 ID 未起票、根拠 D2212 項 9)。
   版 `docs/paper-story/2026-09-22.md` は起点 local main `8fd2a2f5c` (entry 1818) までの正典 (entry 1796〜1818、D2206〜D2218、前版 README の stale 注記 3 件) を
   全面再導出の作法で反映し、静的 backoff の一事例を機構の新しさとして書かない限定 (D2212 の理由欄、Polyjuice OSDI'21 §4.5) と、差分分析が挙げた ADRS と位置づけの 1 文の関係が
@@ -550,6 +555,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      certified、stock の source は STOCK で、K2手動loopの同job stock対照が初めて成立 (候補/stock = 2.366)。続けて4巡目 (択A = round 3 の
      派生物から入力、生成1回で候補5) を同job stock付き1 jobで評価し、両方 certified (2.493)。改善・一般化の主張ではない。critic-4 の還流は未。
      記録は `output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md`。
+   - [x] [T-2860] K2 4巡目の還流を閉じた (2026-09-23、計算なし・実装差分ゼロ)。critic-4 を1回、planner-5 / coder-5 / critic-4 の AO 3件を
+     原本と byte 一致の写しへ取り込み (原本は不変)、層3材料レポート (mechanism_hypotheses 1件、source_refs 14) と4巡の results 稿を置いた。
+     B-6 の充足・K2 の必須経路化ではない (D2211項1)。記録は `output/insights/2026-09-23/t2860-k2-round4-reflux/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
