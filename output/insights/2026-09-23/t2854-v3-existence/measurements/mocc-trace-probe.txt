@@ -1,0 +1,2 @@
+{'verdict': 'indeterminate', 'serializable': True, 'n_txns': 35572, 'edges': 262372, 'existence': 0, 'orphan': 0, 'vdup': 0, 'gate': False}
+[]
