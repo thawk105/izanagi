@@ -1,0 +1,13 @@
+{'rep': 0, 'code': 'old', 'workers': 1, 'seconds': 6.86, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 0, 'code': 'old', 'workers': 2, 'seconds': 4.05, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 0, 'code': 'new', 'workers': 1, 'seconds': 8.42, 'verdict': 'serializable', 'edges': 268209}
+{'rep': 0, 'code': 'new', 'workers': 2, 'seconds': 6.06, 'verdict': 'serializable', 'edges': 268209}
+{'rep': 1, 'code': 'old', 'workers': 1, 'seconds': 6.79, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 1, 'code': 'old', 'workers': 2, 'seconds': 4.37, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 1, 'code': 'new', 'workers': 1, 'seconds': 8.61, 'verdict': 'serializable', 'edges': 268209}
+{'rep': 1, 'code': 'new', 'workers': 2, 'seconds': 6.08, 'verdict': 'serializable', 'edges': 268209}
+{'rep': 2, 'code': 'old', 'workers': 1, 'seconds': 6.55, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 2, 'code': 'old', 'workers': 2, 'seconds': 4.48, 'verdict': 'indeterminate', 'edges': 268209}
+{'rep': 2, 'code': 'new', 'workers': 1, 'seconds': 8.46, 'verdict': 'serializable', 'edges': 268209}
+{'rep': 2, 'code': 'new', 'workers': 2, 'seconds': 6.1, 'verdict': 'serializable', 'edges': 268209}
+[{"rep": 0, "code": "old", "workers": 1, "seconds": 6.86, "verdict": "indeterminate", "edges": 268209}, {"rep": 0, "code": "old", "workers": 2, "seconds": 4.05, "verdict": "indeterminate", "edges": 268209}, {"rep": 0, "code": "new", "workers": 1, "seconds": 8.42, "verdict": "serializable", "edges": 268209}, {"rep": 0, "code": "new", "workers": 2, "seconds": 6.06, "verdict": "serializable", "edges": 268209}, {"rep": 1, "code": "old", "workers": 1, "seconds": 6.79, "verdict": "indeterminate", "edges": 268209}, {"rep": 1, "code": "old", "workers": 2, "seconds": 4.37, "verdict": "indeterminate", "edges": 268209}, {"rep": 1, "code": "new", "workers": 1, "seconds": 8.61, "verdict": "serializable", "edges": 268209}, {"rep": 1, "code": "new", "workers": 2, "seconds": 6.08, "verdict": "serializable", "edges": 268209}, {"rep": 2, "code": "old", "workers": 1, "seconds": 6.55, "verdict": "indeterminate", "edges": 268209}, {"rep": 2, "code": "old", "workers": 2, "seconds": 4.48, "verdict": "indeterminate", "edges": 268209}, {"rep": 2, "code": "new", "workers": 1, "seconds": 8.46, "verdict": "serializable", "edges": 268209}, {"rep": 2, "code": "new", "workers": 2, "seconds": 6.1, "verdict": "serializable", "edges": 268209}]

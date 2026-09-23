@@ -1,0 +1,270 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-equivalent-sort-key",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            versions = sorted(history)\n",
+     "new": "            versions = sorted(history, key=lambda v: (v[0], v[1]))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-genesis-always-live",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            live = history[versions[0]][1] != \"I\"\n",
+     "new": "            live = True\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-deleted-read-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                elif (obj, version) in deleted:\n",
+     "new": "                elif False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3a-insert-on-live-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                if op == \"I\" and live:\n",
+     "new": "                if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3b-update-on-absent-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                elif op == \"U\" and not live:\n",
+     "new": "                elif False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3c-delete-on-absent-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                elif op == \"D\" and not live:\n",
+     "new": "                elif False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-delete-keeps-live",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                live = op != \"D\"\n                if not live:\n                    deleted.add((obj, version))\n",
+     "new": "                if op == \"D\":\n                    deleted.add((obj, version))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-clean-ignores-existence",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/model.py",
+     "old": "                and self.existence_violations == 0\n",
+     "new": "                and True\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-object-entry-skips-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "        if txns and isinstance(txns[0], TxnV3):\n            self._check_existence()\n",
+     "new": "        if False:\n            self._check_existence()\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-compact-entry-skips-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "        if any(c.schema == 3 for c in trace.files):\n            graph._check_existence()\n",
+     "new": "        if False:\n            graph._check_existence()\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-check-applies-to-v2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "        if txns and isinstance(txns[0], TxnV3):\n            self._check_existence()\n",
+     "new": "        if txns:\n            self._check_existence()\n"
+    },
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "        if any(c.schema == 3 for c in trace.files):\n            graph._check_existence()\n",
+     "new": "        if True:\n            graph._check_existence()\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-order-tid-then-epoch",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            versions = sorted(history)\n",
+     "new": "            versions = sorted(history, key=lambda v: (v[1], v[0]))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-order-by-txid",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            versions = sorted(history)\n",
+     "new": "            versions = sorted(history, key=lambda v: history[v][0])\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-read-uses-latest-op",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                elif (obj, version) in deleted:\n",
+     "new": "                elif histories.get(obj) and histories[obj][max(histories[obj])][1] == \"D\":\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12a-ambiguous-collapsed-to-I",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            elif prior[1] != op:\n                mixed.setdefault((obj, version), {prior[1]}).add(op)\n",
+     "new": "            elif prior[1] != op:\n                history[version] = (prior[0], \"I\" if \"I\" in (prior[1], op) else op)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12b-ambiguous-collapsed-to-D",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "            elif prior[1] != op:\n                mixed.setdefault((obj, version), {prior[1]}).add(op)\n",
+     "new": "            elif prior[1] != op:\n                history[version] = (prior[0], \"D\" if \"D\" in (prior[1], op) else op)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13-v3-output-omits-details",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "        result[\"integrity\"][\"existence_violation_details\"] = [\n",
+     "new": "        result[\"integrity\"][\"existence_violation_details_omitted\"] = [\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-existence-identity-drops-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                    yield (txn.txid, object_identity(item),\n",
+     "new": "                    yield (txn.txid, (0, object_identity(item)[1]),\n"
+    },
+    {
+     "file": "orchestrator/verifier/dsg.py",
+     "old": "                    objects[token] = _object_at(columns, token)\n",
+     "new": "                    objects[token] = (0, _object_at(columns, token)[1])\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
