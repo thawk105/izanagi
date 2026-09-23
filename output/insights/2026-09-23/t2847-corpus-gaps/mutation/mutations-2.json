@@ -1,0 +1,48 @@
+{
+ "target_file": "orchestrator/verifier/dsg.py",
+ "mutations": [
+  {
+   "id": "M0",
+   "category": "positive",
+   "intent": "comment-only control (drift core in the 2 runner files)",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "G0/G1c 枝は **非 realizable",
+     "new": "G0/G1c 枝は **非実現可能"}
+   ]
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "intent": "B06 re-target: classifier labels G1c only when ww is also present (wr-only cycle falls to G0)",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "        if WR in all_types:\n            return \"G1c\"",
+     "new": "        if WR in all_types and WW in all_types:\n            return \"G1c\""}
+   ]
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "intent": "F06 re-target: packed read loop drops the earlier read when the same key is read again at a different version",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n",
+     "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id\n                            and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                        continue\n"}
+   ]
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "intent": "F03 re-target: replay keeps duplicate edges within one outcome run (cross-outcome duplicates still folded)",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "adjacency: Dict[int, Set[int]] = defaultdict(set)",
+     "new": "adjacency: Dict[int, List[int]] = defaultdict(list)"},
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "adjacency[source].update(outcome.run_dst[start:end])",
+     "new": "_before = set(adjacency[source]); adjacency[source].extend(d for d in outcome.run_dst[start:end] if d not in _before)"}
+   ]
+  }
+ ]
+}
