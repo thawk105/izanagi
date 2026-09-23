@@ -1,0 +1,67 @@
+{
+  "m-snapshot": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution",
+    "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution"
+  ],
+  "m-satadd": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+    "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]"
+  ],
+  "m-satsub": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+    "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]"
+  ],
+  "m-depth": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_depth_boundary"
+  ],
+  "m-nodes": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary"
+  ],
+  "m-fields": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary"
+  ],
+  "m-shift": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]",
+    "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]",
+    "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]",
+    "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]"
+  ],
+  "m-partition": [
+    "orchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance"
+  ],
+  "m-cert": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps"
+  ],
+  "m-reps": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps"
+  ],
+  "m-floor": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept",
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort",
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate"
+  ],
+  "m-highabort": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+  ],
+  "m-null": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+  ],
+  "m-agg-sha": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+  ],
+  "m-projection": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate"
+  ],
+  "m-agg-workload": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[workload-workload]"
+  ],
+  "m-agg-control": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]",
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]"
+  ],
+  "m-agg-jobid": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key"
+  ]
+}

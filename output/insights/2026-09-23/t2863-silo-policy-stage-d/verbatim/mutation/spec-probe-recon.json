@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-cert",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if not all(C._certified(v) for v in row[\"verify\"].values()):",
+          "new": "if False:  # mutation M-CERT"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-reps",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "for _ in range(5):",
+          "new": "for _ in range(4):"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-floor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "            if ratio is not None and ratio > 1.03:\n                candidates.append(case_id)\n",
+          "new": "            if ratio is not None and ratio >= 1.0:\n                candidates.append(case_id)\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-highabort",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if ra > 2 * ba:",
+          "new": "if False:  # mutation M-HIGHABORT"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-null",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "detail[\"binary\"] = True if reproduced else None if uncertain else False",
+          "new": "detail[\"binary\"] = True if reproduced else False"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if row.get(\"body_sha256\") != C.sha(expected_body):",
+          "new": "if False:  # mutation M-AGG-SHA"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "projection = {\"binary\": detail[\"binary\"], \"scope\": SCOPE, \"excluded\": detail[\"excluded\"]}",
+          "new": "projection = {\"binary\": detail[\"binary\"], \"scope\": SCOPE, \"excluded\": detail[\"excluded\"], \"candidates\": detail[\"remeasure_candidates\"]}"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if any(json.dumps(p.get(\"workload\"), sort_keys=True) !=",
+          "new": "if False and any(json.dumps(p.get(\"workload\"), sort_keys=True) !="
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-control",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if role == \"abort0\" and row.get(\"body_sha256\") != abort0_sha:",
+          "new": "if False:  # mutation M-AGG-CONTROL"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-jobid",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "key in initial_keys or key in rem_keys or",
+          "new": "key in rem_keys or"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}

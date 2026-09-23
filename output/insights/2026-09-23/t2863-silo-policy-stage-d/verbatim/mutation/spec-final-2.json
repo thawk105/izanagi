@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-satsub",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "f'{a} < {b} ? {zero} : {a} - {b}'",
+          "new": "f'{a} - {b}'"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-cert",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if not all(C._certified(v) for v in row[\"verify\"].values()):",
+          "new": "if False:  # mutation M-CERT"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "projection = {\"binary\": detail[\"binary\"], \"scope\": SCOPE, \"excluded\": detail[\"excluded\"]}",
+          "new": "projection = {\"binary\": detail[\"binary\"], \"scope\": SCOPE, \"excluded\": detail[\"excluded\"], \"candidates\": detail[\"remeasure_candidates\"]}"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate"
+      ],
+      "hang_risk": false
+    }
+  ]
+}

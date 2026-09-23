@@ -1,0 +1,66 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-snapshot",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "            lines.append(f'  {_CPP[ir.fields[i].type]} v{i} = s.f{i};')\n",
+          "new": "            pass  # mutation M-SNAPSHOT\n"
+        },
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "                return f'v{expr.index}', ir.fields[expr.index].type\n",
+          "new": "                return f's.f{expr.index}', ir.fields[expr.index].type  # mutation M-SNAPSHOT\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-shift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "0 <= expr.amount < (32 if types[0] == 'u32' else 64)",
+          "new": "0 <= expr.amount <= (32 if types[0] == 'u32' else 64)"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-null",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "detail[\"binary\"] = True if reproduced else None if uncertain else False",
+          "new": "detail[\"binary\"] = True if reproduced else False"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+      ],
+      "hang_risk": false
+    }
+  ]
+}

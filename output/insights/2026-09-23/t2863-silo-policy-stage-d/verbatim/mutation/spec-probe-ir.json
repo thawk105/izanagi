@@ -1,0 +1,125 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-snapshot",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "            lines.append(f'  {_CPP[ir.fields[i].type]} v{i} = s.f{i};')\n",
+          "new": "            pass  # mutation M-SNAPSHOT\n"
+        },
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "                return f'v{expr.index}', ir.fields[expr.index].type\n",
+          "new": "                return f's.f{expr.index}', ir.fields[expr.index].type  # mutation M-SNAPSHOT\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-satadd",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "f'{a} > {maximum} - {b} ? {maximum} : {a} + {b}'",
+          "new": "f'{a} + {b}'"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-satsub",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "f'{a} < {b} ? {zero} : {a} - {b}'",
+          "new": "f'{a} - {b}'"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-depth",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "_require(depth <= 4, 'depth limit (4)')",
+          "new": "_require(depth <= 5, 'depth limit (4)')"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-nodes",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "_require(nodes <= 64, 'node limit (64)')",
+          "new": "_require(nodes <= 65, 'node limit (64)')"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-fields",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "len(ir.fields) <= 4, 'field limit (4) or tuple'",
+          "new": "len(ir.fields) <= 5, 'field limit (4) or tuple'"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-shift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "0 <= expr.amount < (32 if types[0] == 'u32' else 64)",
+          "new": "0 <= expr.amount <= (32 if types[0] == 'u32' else 64)"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-partition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "    return min(number, number ^ 15)\n",
+          "new": "    return number % 8  # mutation M-PARTITION\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}

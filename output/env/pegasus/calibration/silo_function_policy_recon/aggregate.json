@@ -1,0 +1,114 @@
+{
+  "schema_version": "silo-function-policy-recon/v1",
+  "binary": true,
+  "remeasure_candidates": [
+    "0000",
+    "0001",
+    "0010",
+    "0011",
+    "0100",
+    "0101",
+    "0110",
+    "0111",
+    "1000",
+    "1001",
+    "1010",
+    "1011",
+    "1100",
+    "1101",
+    "1110",
+    "1111"
+  ],
+  "comparisons": [
+    {
+      "case_id": "0000",
+      "initial_ratio": 1.5843178225828223,
+      "status": "evaluated",
+      "remeasure_ratio": 1.619033197011212,
+      "remeasure_status": "evaluated"
+    },
+    {
+      "case_id": "0001",
+      "initial_ratio": 1.6268783379116143,
+      "status": "evaluated",
+      "remeasure_ratio": 1.586384709218267,
+      "remeasure_status": "evaluated"
+    },
+    {
+      "case_id": "0010",
+      "initial_ratio": 1.5364760968495472,
+      "status": "evaluated",
+      "remeasure_ratio": 1.5318899936704231,
+      "remeasure_status": "evaluated"
+    },
+    {
+      "case_id": "0011",
+      "initial_ratio": 1.609803360119247,
+      "status": "evaluated",
+      "remeasure_ratio": 1.610408059598324,
+      "remeasure_status": "evaluated"
+    },
+    {
+      "case_id": "0100",
+      "initial_ratio": 1.4665109452288585,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "0101",
+      "initial_ratio": 1.3399051922423901,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "0110",
+      "initial_ratio": 1.6158172351829176,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "0111",
+      "initial_ratio": 1.543922175169167,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1000",
+      "initial_ratio": 1.6048905218395273,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1001",
+      "initial_ratio": 1.7753403541796542,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1010",
+      "initial_ratio": 1.362374983181594,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1011",
+      "initial_ratio": 1.6397459329948518,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1100",
+      "initial_ratio": 1.6057227221311758,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1101",
+      "initial_ratio": 1.461826801256775,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1110",
+      "initial_ratio": 1.768431752182143,
+      "status": "evaluated"
+    },
+    {
+      "case_id": "1111",
+      "initial_ratio": 1.7075066692506948,
+      "status": "evaluated"
+    }
+  ],
+  "errors": [],
+  "excluded": {}
+}

@@ -1,0 +1,1067 @@
+{
+  "compiler": "/usr/bin/g++-12",
+  "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "policies": {
+    "0000": {
+      "body_sha256": "8d2037e3c41f0bca932d215bfe1023b865f6ec3fefe944e4b5da517448fa9391",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Const(type='u32', value=5), next_state=None), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-kw1_6_5n/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0001": {
+      "body_sha256": "c9eca37af1a26a80253d1e4c31a8a177734fbee1346f58d7e7c6558b77114ec2",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Const(type='u32', value=10), next_state=None), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-rtjlykvo/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0010": {
+      "body_sha256": "0ce4a361b36414addb58fd287ca9c793b345535689a1c0be5b770fe012296a8d",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Const(type='u32', value=5), no=Const(type='u32', value=0)), next_state=None), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-iicsxpzo/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0011": {
+      "body_sha256": "073026d8d6695559602d3da3936637d263eaf4822cbc8dc3beadeec82c4b524d",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Const(type='u32', value=10), no=Const(type='u32', value=0)), next_state=None), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-l17fi5br/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0100": {
+      "body_sha256": "f5ce615811a5d6d1470f82fa53cd47fff74c1a3d7d08fc9787e7347e5a1bd295",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))),)), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-_sgpx99c/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0101": {
+      "body_sha256": "0bb88a16af9cbf4f248091d977e289e3bfca9ceb3939d39ce42552cdb2337013",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))),)), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-6ov2ceq9/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0110": {
+      "body_sha256": "da4f8915331c90b1afdaae41f9935e8e85f44bfe4d3d6addf382c0925e503cc1",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))), no=Const(type='u32', value=0)), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))),)), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-hudfyh80/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "0111": {
+      "body_sha256": "fbee4d926c4fae5ce6817a95a5dacb46e6758e939c99c296285c55a799b7548d",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))), no=Const(type='u32', value=0)), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))),)), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-icz0dhzj/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1000": {
+      "body_sha256": "fa58c9769cb0dfac63d25836c4f78b9706eeef46c606dc575a8f2f1bead9934d",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Const(type='u32', value=5), next_state=None), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-p49inucy/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1001": {
+      "body_sha256": "daecefa2a11320939980f7b3983ed5c66d929dbb82a91f27195e35314e31a70d",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Const(type='u32', value=10), next_state=None), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-o7wzk8s7/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1010": {
+      "body_sha256": "c4844f5ca403c51bd623cfacc15c4f2b1bf560fb0bd7ea73bdf2cb9aec651d49",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Const(type='u32', value=5), no=Const(type='u32', value=0)), next_state=None), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-8lu81ddw/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1011": {
+      "body_sha256": "3875e9fb8428d4772c61e87229a7767ddddc31f6238d0e7a84ac7f2cb623ee77",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Const(type='u32', value=10), no=Const(type='u32', value=0)), next_state=None), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-l1map0ke/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1100": {
+      "body_sha256": "91e217b44f5d12ec2510516f9a49a011acb2d97e625243cea2345ea3b33803ed",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))),)), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-09n2l4il/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1101": {
+      "body_sha256": "74f27e3510514623307ab2c84c032bd290779ccc33e028e1b1609c4645a8b75e",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))),)), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-8etx4cie/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1110": {
+      "body_sha256": "3feecc3cfd1cbe7e2360ceac69cd0cff5b95ca13ed72c3de0b811df73a7323b3",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))), no=Const(type='u32', value=0)), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=5))),)), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-265jkq_k/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "1111": {
+      "body_sha256": "aa0e911afaab4d824921fbc5b72432d6386417b72ee0404449a91071ef861e3d",
+      "ir": "PolicyIR(fields=(StateField(type='u32', initial_literal=Const(type='u32', value=0)),), after_abort=AbortHook(wait=Select(condition=Compare(op='==', left=Reason(), right=Const(type='reason', value='lock_conflict')), yes=Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))), no=Const(type='u32', value=0)), next_state=(Min(left=Const(type='u32', value=1000), right=SatAdd(left=StateRef(index=0), right=Const(type='u32', value=10))),)), on_lock_conflict=LockHook(action=Select(condition=Compare(op='<', left=Attempt(), right=Const(type='u32', value=4)), yes=Const(type='action', value='retry'), no=Const(type='action', value='abort')), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=(Const(type='u32', value=0),)))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-wx6fcmww/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    },
+    "abort0": {
+      "body_sha256": "0473a0b8c9f86a5cda408f56de5181c343b400dddbda432feaed28d30ce7ab56",
+      "ir": "PolicyIR(fields=(), after_abort=AbortHook(wait=Const(type='u32', value=0), next_state=None), on_lock_conflict=LockHook(action=Const(type='action', value='abort'), wait=Const(type='u32', value=0), next_state=None), on_commit=CommitHook(next_state=None))",
+      "grammar": {
+        "accepted": true,
+        "stage": "grammar",
+        "rule_id": null,
+        "offset": null,
+        "line": null,
+        "column": null,
+        "reason": null
+      },
+      "compile": {
+        "accepted": true,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "diagnostic": "",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsyntax-only",
+          "/tmp/silo-ir-a__q04_o/policy-a72xoroo/policy.cpp"
+        ],
+        "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+      }
+    }
+  },
+  "ubsan": {
+    "compiler": "/usr/bin/g++-12",
+    "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+    "policies": {
+      "0000": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0000.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0000"
+        ],
+        "passed": true
+      },
+      "0001": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0001.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0001"
+        ],
+        "passed": true
+      },
+      "0010": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0010.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0010"
+        ],
+        "passed": true
+      },
+      "0011": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0011.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0011"
+        ],
+        "passed": true
+      },
+      "0100": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0100.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0100"
+        ],
+        "passed": true
+      },
+      "0101": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0101.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0101"
+        ],
+        "passed": true
+      },
+      "0110": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0110.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0110"
+        ],
+        "passed": true
+      },
+      "0111": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0111.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/0111"
+        ],
+        "passed": true
+      },
+      "1000": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1000.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1000"
+        ],
+        "passed": true
+      },
+      "1001": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1001.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1001"
+        ],
+        "passed": true
+      },
+      "1010": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1010.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1010"
+        ],
+        "passed": true
+      },
+      "1011": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1011.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1011"
+        ],
+        "passed": true
+      },
+      "1100": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1100.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1100"
+        ],
+        "passed": true
+      },
+      "1101": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1101.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1101"
+        ],
+        "passed": true
+      },
+      "1110": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1110.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1110"
+        ],
+        "passed": true
+      },
+      "1111": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1111.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/1111"
+        ],
+        "passed": true
+      },
+      "abort0": {
+        "negative": false,
+        "build_returncode": 0,
+        "returncode": 0,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 1904,
+        "ubsan": false,
+        "diagnostic": "calls=1904\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/abort0.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/abort0"
+        ],
+        "passed": true
+      },
+      "ub_division_zero": {
+        "negative": true,
+        "build_returncode": 0,
+        "returncode": 1,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 0,
+        "ubsan": true,
+        "diagnostic": "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_division_zero.cpp:4:322: runtime error: division by zero\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_division_zero.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_division_zero"
+        ],
+        "passed": true
+      },
+      "ub_overshift": {
+        "negative": true,
+        "build_returncode": 0,
+        "returncode": 1,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 0,
+        "ubsan": true,
+        "diagnostic": "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_overshift.cpp:4:323: runtime error: shift exponent 32 is too large for 32-bit type 'unsigned int'\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_overshift.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_overshift"
+        ],
+        "passed": true
+      },
+      "ub_signed_overflow": {
+        "negative": true,
+        "build_returncode": 0,
+        "returncode": 1,
+        "timed_out": false,
+        "unavailable": false,
+        "calls": 0,
+        "ubsan": true,
+        "diagnostic": "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_signed_overflow.cpp:4:326: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'\n",
+        "diagnostic_truncated": false,
+        "command": [
+          "/usr/bin/g++-12",
+          "-std=c++17",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fsanitize=undefined",
+          "-fno-sanitize-recover=undefined",
+          "-O1",
+          "-g",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_signed_overflow.cpp",
+          "-o",
+          "/tmp/silo-ir-a__q04_o/ubsan-pl9gdmlx/ub_signed_overflow"
+        ],
+        "passed": true
+      }
+    },
+    "abort_reasons": 8,
+    "attempts": 34,
+    "sequences": [
+      "abort-lock-commit-lock-abort",
+      "abort-abort"
+    ],
+    "all_pass": true
+  },
+  "all_pass": true
+}

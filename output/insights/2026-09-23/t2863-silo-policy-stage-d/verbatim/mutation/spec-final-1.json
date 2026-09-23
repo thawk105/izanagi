@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-satadd",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "f'{a} > {maximum} - {b} ? {maximum} : {a} + {b}'",
+          "new": "f'{a} + {b}'"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-partition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "    return min(number, number ^ 15)\n",
+          "new": "    return number % 8  # mutation M-PARTITION\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if row.get(\"body_sha256\") != C.sha(expected_body):",
+          "new": "if False:  # mutation M-AGG-SHA"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+      ],
+      "hang_risk": false
+    }
+  ]
+}

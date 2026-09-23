@@ -1,0 +1,5 @@
+{
+  "binary": true,
+  "scope": "固定 16 点のテンプレート部分空間で、両 verify certified・非 high-abort の点が、同 job の abort0 に対して 5 rep 中央値で 3% 超を示し、それが別 job の再測でも再現したか",
+  "excluded": {}
+}

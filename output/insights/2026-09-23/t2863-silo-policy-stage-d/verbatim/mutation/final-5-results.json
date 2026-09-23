@@ -1,0 +1,388 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/692dd40cffa927f1a184c623c013617f/izdw-692dd40cff.o20411",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/692dd40cffa927f1a184c623c013617f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 82%]\n...............                                                          [100%]\n87 passed in 5.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "b03410c055cf13f4fe1d3ace89c4c03d1607d19a7287c12031ccda537ea56dcb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5ca5b33a632163f11339c84dc71cba557ea8d8913261ecb02dbf3723d1b5ee5d",
+    "duration_s": 32.618,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "360c60bf9046d82b9778b4a147859719fa1292f5ebd156e20ab89744ee705622",
+    "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+    "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+    "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+    "status": "PASSED",
+    "test_output_sha256": "b03410c055cf13f4fe1d3ace89c4c03d1607d19a7287c12031ccda537ea56dcb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007"
+  },
+  "date": "2026-09-23T05:45:53.693749+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/949302138c095fe6a26aea4b00173760/izdw-949302138c.o20416",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/949302138c095fe6a26aea4b00173760/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................................F....... [ 82%]\n...............                                                          [100%]\n=================================== FAILURES ===================================\n_____________________________ test_field_boundary ______________________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_field_boundary():\n        fields = (ir.StateField('u32', ZERO),) * 4\n        _accepted(_policy(fields=fields))\n>       with pytest.raises(ValueError, match='field limit'):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_silo_policy_ir.py:86: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_ir.py::test_field_boundary - Faile...\n1 failed, 86 passed in 5.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_ir.py::test_field_boundary\" nodeid_bytes=62 nodeid_omitted_bytes=0 source_bytes=327 retained_bytes=327 omitted_bytes=0 rendered_excerpt_bytes=346 sha256=db78835aba8b7a51456326323beb63bc7c2ff7b2926ea591284fbfcfe261e0f9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_field_boundary():\n>         fields = (ir.StateField('u32', ZERO),) * 4\n>         _accepted(_policy(fields=fields))\n> >       with pytest.raises(ValueError, match='field limit'):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_silo_policy_ir.py:86: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=327 retained_bytes=327 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1030 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f131ae996f8b2688d724fab723d26ee900f90a911e3f2a7e660d3c200f1996c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5ca5b33a632163f11339c84dc71cba557ea8d8913261ecb02dbf3723d1b5ee5d",
+      "duration_s": 27.696,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary"
+      ],
+      "hang_risk": false,
+      "id": "m-fields",
+      "injection_diff_sha256": "1eee34fcd9ff29aa1804a221995a84d8dd10cd23ae9e1f7255677bbfa9aad6b1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d007705745d69802a89a522381647e046faa3252daa31c758d82127188785e30",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "new": "len(ir.fields) <= 5, 'field limit (4) or tuple'",
+          "old": "len(ir.fields) <= 4, 'field limit (4) or tuple'"
+        }
+      ],
+      "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+      "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+      "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+      "status": "KILLED",
+      "test_output_sha256": "f131ae996f8b2688d724fab723d26ee900f90a911e3f2a7e660d3c200f1996c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/efeab7319cf229dedffda79d107b51f8/izdw-efeab7319c.o20422",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/efeab7319cf229dedffda79d107b51f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F..................................... [ 82%]\n...............                                                          [100%]\n=================================== FAILURES ===================================\n_______________ test_aggregate_hash_missing_zero_and_high_abort ________________\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_aggregate_hash_missing_ze0')\n\n    def test_aggregate_hash_missing_zero_and_high_abort(tmp_path):\n        jobs = _jobs()\n        jobs[0][\"cases\"][0][\"body_sha256\"] = \"bad\"\n        assert _aggregate(tmp_path, jobs)[0][\"binary\"] is None\n        jobs = _jobs(rate=0)\n        assert _aggregate(tmp_path, jobs)[0][\"binary\"] is None\n        jobs = _jobs(rate=.1)\n        jobs[0][\"cases\"][0] = _row(\"ir\", \"0000\", throughput=104, rate=.21)\n>       assert _aggregate(tmp_path, jobs)[0][\"binary\"] is False\nE       assert None is False\n\norchestrator/tests/test_silo_policy_recon.py:238: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort\n1 failed, 86 passed in 5.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=705 retained_bytes=705 omitted_bytes=0 rendered_excerpt_bytes=738 sha256=3dc97577e18d9e8cd6ea02675a49db2332b09e8f45bd2e5c836227c6c680ad25\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_aggregate_hash_missing_ze0')\n> \n>     def test_aggregate_hash_missing_zero_and_high_abort(tmp_path):\n>         jobs = _jobs()\n>         jobs[0][\"cases\"][0][\"body_sha256\"] = \"bad\"\n>         assert _aggregate(tmp_path, jobs)[0][\"binary\"] is None\n>         jobs = _jobs(rate=0)\n>         assert _aggregate(tmp_path, jobs)[0][\"binary\"] is None\n>         jobs = _jobs(rate=.1)\n>         jobs[0][\"cases\"][0] = _row(\"ir\", \"0000\", throughput=104, rate=.21)\n> >       assert _aggregate(tmp_path, jobs)[0][\"binary\"] is False\n> E       assert None is False\n> \n> orchestrator/tests/test_silo_policy_recon.py:238: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=705 retained_bytes=705 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1453 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c95d1c3b763394addb73e8e3ecf55fe81edf68bdf883a03fbeaa1f0b3f7d90f3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5ca5b33a632163f11339c84dc71cba557ea8d8913261ecb02dbf3723d1b5ee5d",
+      "duration_s": 27.65,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+      ],
+      "hang_risk": false,
+      "id": "m-highabort",
+      "injection_diff_sha256": "bb42be970e16e4d549be2a6473238993fe409a3ac19699bc5ea4a27573d0bebe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1b97965873c00c70dc2ba0485e596352da755be889edce15b1facbc70d13fd45",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "new": "if False:  # mutation M-HIGHABORT",
+          "old": "if ra > 2 * ba:"
+        }
+      ],
+      "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+      "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+      "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+      "status": "KILLED",
+      "test_output_sha256": "c95d1c3b763394addb73e8e3ecf55fe81edf68bdf883a03fbeaa1f0b3f7d90f3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/17d86b2a11fd7ea83803e10e26bba7b5/izdw-17d86b2a11.o20425",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/17d86b2a11fd7ea83803e10e26bba7b5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F..................................... [ 82%]\n...............                                                          [100%]\n=================================== FAILURES ===================================\n_______ test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key _______\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_aggregate_null_pbs_jobid_0')\n\n    def test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key(tmp_path):\n        jobs = _jobs()\n        for job in jobs:\n            job[\"pbs_jobid\"] = None\n        jobs[0][\"cases\"][0][\"bench\"] = _row(\"ir\", \"0000\", throughput=104)[\"bench\"]\n        rem = {**jobs[0], \"phase\": \"remeasure\", \"job\": \"0000\",\n               \"cases\": [_row(\"abort0\", \"abort0\", throughput=100),\n                         _row(\"ir\", \"0000\", throughput=104)]}\n        detail, projection = _aggregate(tmp_path, jobs, [rem])\n>       assert detail[\"binary\"] is None and projection[\"binary\"] is None\nE       assert (True is None)\n\norchestrator/tests/test_silo_policy_recon.py:307: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key\n1 failed, 86 passed in 5.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=820 retained_bytes=820 omitted_bytes=0 rendered_excerpt_bytes=855 sha256=44cc6d14fcaac693d49573e2bf5f597e497d1516989e8a49304fb23993159792\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_aggregate_null_pbs_jobid_0')\n> \n>     def test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key(tmp_path):\n>         jobs = _jobs()\n>         for job in jobs:\n>             job[\"pbs_jobid\"] = None\n>         jobs[0][\"cases\"][0][\"bench\"] = _row(\"ir\", \"0000\", throughput=104)[\"bench\"]\n>         rem = {**jobs[0], \"phase\": \"remeasure\", \"job\": \"0000\",\n>                \"cases\": [_row(\"abort0\", \"abort0\", throughput=100),\n>                          _row(\"ir\", \"0000\", throughput=104)]}\n>         detail, projection = _aggregate(tmp_path, jobs, [rem])\n> >       assert detail[\"binary\"] is None and projection[\"binary\"] is None\n> E       assert (True is None)\n> \n> orchestrator/tests/test_silo_policy_recon.py:307: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=820 retained_bytes=820 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1588 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cea41794058f9cb9aad4d1c586686c6f71f69f6f349320360e837614b8ed3d7a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5ca5b33a632163f11339c84dc71cba557ea8d8913261ecb02dbf3723d1b5ee5d",
+      "duration_s": 26.98,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key"
+      ],
+      "hang_risk": false,
+      "id": "m-agg-jobid",
+      "injection_diff_sha256": "dbda525100fe7aadcb4d1545b4c6ad2af18619338293fb14bc72a7b52eb84d2d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7988845ca91c45e917966b469736e0b30a4979fb599eecd3e350df95a8de9964",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "new": "key in rem_keys or",
+          "old": "key in initial_keys or key in rem_keys or"
+        }
+      ],
+      "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+      "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+      "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+      "status": "KILLED",
+      "test_output_sha256": "cea41794058f9cb9aad4d1c586686c6f71f69f6f349320360e837614b8ed3d7a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/4bbd7ef30589670d0ae6022b883def5d/izdw-4bbd7ef305.o20403",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/output/pegasus-dispatch/4bbd7ef30589670d0ae6022b883def5d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0000]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0001]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0010]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0011]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0100]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0101]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0110]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0111]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1000]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1001]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1010]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1011]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1100]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1101]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1110]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1111]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[abort0]\norchestrator/tests/test_silo_policy_ir.py::test_deterministic_render_and_seed_bytes\norchestrator/tests/test_silo_policy_ir.py::test_depth_boundary\norchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary\norchestrator/tests/test_silo_policy_ir.py::test_field_boundary\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad0]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad1]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad2]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad4]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad5]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad6]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad7]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad8]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad9]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad10]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad11]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad12]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad13]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad14]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad15]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad16]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad17]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad18]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad19]\norchestrator/tests/test_silo_policy_ir.py::test_hook_inputs_and_state_types\norchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution\norchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0000]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0001]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0010]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0011]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0100]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0101]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0110]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0111]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1000]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1001]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1010]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1011]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1100]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1101]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1110]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1111]\norchestrator/tests/test_silo_policy_ir.py::test_other_operators_and_lock_commit_updates_execution\norchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance\norchestrator/tests/test_silo_policy_recon.py::test_body_entry_real_four_gates_before_build\norchestrator/tests/test_silo_policy_recon.py::test_schedule_and_flags\norchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps\norchestrator/tests/test_silo_policy_recon.py::test_build_variant_uses_only_fixed_genomes\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[workload-workload]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[stock-stock genome flags]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[b0_l_w0-b0_l_w0 genome flags]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_remeasurement_workload_and_abort0_accept\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobids_distinct_job_keys_determine_binary\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_initial_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_remeasurement_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[workload-workload]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]\n\n87 tests collected in 0.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f54294710f07bff8857c80a3ec8b8e6d6d8f65f142b11d8484526f0c2ce251d7"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[abort0]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_deterministic_render_and_seed_bytes",
+        "orchestrator/tests/test_silo_policy_ir.py::test_depth_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad0]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad1]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad2]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad4]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad5]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad6]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad7]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad8]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad9]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad10]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad11]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad12]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad13]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad14]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad15]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad16]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad17]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad18]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad19]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_hook_inputs_and_state_types",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_other_operators_and_lock_commit_updates_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance",
+        "orchestrator/tests/test_silo_policy_recon.py::test_body_entry_real_four_gates_before_build",
+        "orchestrator/tests/test_silo_policy_recon.py::test_schedule_and_flags",
+        "orchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps",
+        "orchestrator/tests/test_silo_policy_recon.py::test_build_variant_uses_only_fixed_genomes",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[workload-workload]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[stock-stock genome flags]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[b0_l_w0-b0_l_w0 genome flags]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_remeasurement_workload_and_abort0_accept",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobids_distinct_job_keys_determine_binary",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_initial_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_remeasurement_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[workload-workload]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]"
+      ],
+      "duration_s": 83.125,
+      "rc": 0,
+      "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+      "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+      "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+      "status": "PASSED",
+      "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m-agg-jobid": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dbda525100fe7aadcb4d1545b4c6ad2af18619338293fb14bc72a7b52eb84d2d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_recon.py",
+            "new": "key in rem_keys or",
+            "old": "key in initial_keys or key in rem_keys or"
+          }
+        ]
+      },
+      "m-fields": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1eee34fcd9ff29aa1804a221995a84d8dd10cd23ae9e1f7255677bbfa9aad6b1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_ir.py",
+            "new": "len(ir.fields) <= 5, 'field limit (4) or tuple'",
+            "old": "len(ir.fields) <= 4, 'field limit (4) or tuple'"
+          }
+        ]
+      },
+      "m-highabort": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bb42be970e16e4d549be2a6473238993fe409a3ac19699bc5ea4a27573d0bebe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_recon.py",
+            "new": "if False:  # mutation M-HIGHABORT",
+            "old": "if ra > 2 * ba:"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "360c60bf9046d82b9778b4a147859719fa1292f5ebd156e20ab89744ee705622",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_ir.py",
+      "orchestrator/tests/test_silo_policy_recon.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "4eab7c65cfd8d93310b682507fbf115764edd367",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_ir.py",
+      "orchestrator/tests/test_silo_policy_recon.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-recon-7/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4a9c661e531f8503206e90c0fd78c518c2090e86",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0bc8cd80cab0aca9ed4afa4e40e37c4a8fc128761b79f5b5d364d97090e84931",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "5e7f8632ae9b0464b824b8e5a59f6ce08bb264cc15f3de1ec8422742e2fe4291",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": null,
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2863-silo-policy-stage-d/tools/mutation_harness.py",
+    "repo_path": null,
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "70454ce41d592b6dc14cd5ad6bc683851bc8f69667badd77c3370b1ba60ed007",
+  "updated_at": "2026-09-23T05:48:40.910945+00:00"
+}

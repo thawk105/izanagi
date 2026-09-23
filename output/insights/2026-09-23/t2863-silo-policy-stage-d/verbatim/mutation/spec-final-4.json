@@ -1,0 +1,60 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-nodes",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "old": "_require(nodes <= 64, 'node limit (64)')",
+          "new": "_require(nodes <= 65, 'node limit (64)')"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-floor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "            if ratio is not None and ratio > 1.03:\n                candidates.append(case_id)\n",
+          "new": "            if ratio is not None and ratio >= 1.0:\n                candidates.append(case_id)\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-agg-control",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if role == \"abort0\" and row.get(\"body_sha256\") != abort0_sha:",
+          "new": "if False:  # mutation M-AGG-CONTROL"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]"
+      ],
+      "hang_risk": false
+    }
+  ]
+}
