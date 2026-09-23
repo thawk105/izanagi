@@ -18,7 +18,7 @@ job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-mutation-run/` (brief・
 3. **「盲点として certified」の 6 行は、変異が実際に挙動を変え、その取引が commit したことを発火診断で確かめたうえで certified だった** (§3.2)。発火診断は各 patch の有効枝だけにある計数で、終了時に stderr へ 1 行出す (段 4 裁定 R2)。「検出しなかった」を「発火しなかった」と取り違えないための記録で、verifier の判定には使っていない。
 4. **V20 は初回の実装に誤りがあった。** 公開版の番号を更新ごとに減らす版で走らせると、巡回 1 本 (G2・長さ 4) と orphan が出た。巡回の rw 辺はすべて V20 自身が公開した版の番号の逆転から生じており、狙った機構 (公開版と C/W 行の不一致) とは別物だった。番号を増やす向きに直した patch で測り直すと orphan だけの I になった。初回の結果も表に残す (§3.1、段 1 brief P5)。
 5. **trigger-misattr は既存 driver のままでは現行コードで走らなかった。** `s8a_trigger_coverage.main()` は misattr の build を admission (source digest) に通すが、現行の source digest は裸マクロ `IZANAGI_BREAK_TRIGGER_MISATTR` を未知マクロとして fail-closed で拒否する (T-148)。この防壁は緩めず、repo 外の起動器で misattr の build だけを他の壊し patch と同じ直 CMake 経路 (condition gate は通す、admission は通さない) に替えた。checks 11 個は driver の式のまま、すべて真 (§3.3)。
-6. 計算ノードの使用 (job Elapse): 計測 7 run 計 1,148 秒 (§2.3。うち 1 run は driver の停止、1 run は V20 修正後の測り直し)、焦点走 2 回 393 秒。
+6. 計算ノードの使用 (job Elapse): 計測 7 run 計 1,148 秒 (§2.3。うち 1 run は driver の停止、1 run は V20 修正後の測り直し)、焦点走 2 回 393 秒、変異 matrix 1,343 秒 (§7)、受入 890 秒 (§8)。合計 3,774 秒 ≈ 1.05 node 時間。
 
 ## 2. 何をどう走らせたか
 
@@ -158,3 +158,11 @@ compiler は全 job で policy が選んだ `x86_64-linux-gnu-g++-11`。各 job 
 各変異の赤 node は複数だが、どれも 1 つの誤り (登録簿の 1 件の欠落・名前違い・件数違い) から生じている。patch の中身の誤り (未定義側の pin 一致・1 patch 1 機構・変更の向き) は test では殺せないので、実装子と親の source 照合 (`verbatim/s5-author-*.md`・段 6 レビュー) と §3 の実走で確かめた。
 
 計算ノードの使用 (job Elapse): probe 7 request 673 秒、final 7 request 670 秒。
+
+## 8. 受入全走
+
+- 1 回目 (tag final): 投入前の main 取り込みで `orchestrator/tests/test_p3_s4_loop.py` が両親と違う内容に自動合流し、実装面に Codex author の無い merge として provenance の事前検査が赤 (rc=94、merge は中止)。Codex が 3 版 (base `4f0a74997`・wave `5ee4e8578`・main `973db24ed`) と照合して修正なしで確定し、親が merge `0721f059f` (Codex author つき、submodule は pin C `68106660`) を作った。
+- 2 回目 (tag final2): 3 shard とも test は 1 件も走らず、shard-0 が計算ノードの待ち行列で `queue-wait-timeout`、shard-1・2 は連動して中止 (signal 15) した (rc=70、`dispatch-attestation-missing`)。基盤の赤でコードに帰属しない (DW-O18)。Elapse は log に残っていない。
+- 3 回目 (tag final3): 投入時に local main `aa96126f2` を merge `ddb079e34` で取り込み、**27,557 passed・74 skipped、child-green** (受領証 `acceptance-receipt-final3-1.json`、tested main `aa96126f2`・tested tip `ddb079e34`)。3 shard の Elapse 249・247・394 秒 (計 890 秒)。
+
+計算ノードの使用 (記録のある job Elapse の合計): 計測 1,148 秒 + 焦点走 393 秒 + 変異 1,343 秒 + 受入 890 秒 = 3,774 秒 ≈ 1.05 node 時間 (受入 2 回目の中止分は含まない)。
