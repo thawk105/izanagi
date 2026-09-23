@@ -32,6 +32,7 @@ import threading
 import time
 import tokenize
 import types
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock as unittest_mock
 
@@ -7516,7 +7517,7 @@ def test_tpcc_executor_v3_v2_existence_and_witness():
     genome, evidence, admission = commit_receipts._proof_build_binding("baseline")
     flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
              "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
-    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa U 2 1\nE 0\n"
+    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa I 2 1\nE 0\n"
     second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n"
     existence = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 1 0\nE 1\n"
     third = "C 2 0 2 3 0 0 0 0 1\nE 2\n"
@@ -7573,6 +7574,13 @@ def test_tpcc_executor_v3_v2_existence_and_witness():
             if case == "existence":
                 assert integrity["existence_violations"] == 1
                 assert integrity["existence_violation_details"][0]["table"] == 1
+                assert integrity["existence_violation_details"][0]["kind"] == "read-unborn-genesis"
+                assert integrity["malformed_keys"] == 0
+                assert integrity["framing_violations"] == 0
+                assert outcome.verify_result.integrity.expected_commits == witness
+                assert outcome.verify_result.integrity.observed_commits == witness
+                assert not any("witness" in note for note in integrity["notes"])
+                assert replace(outcome.verify_result.integrity, existence_violations=0).clean()
             else:
                 assert integrity["framing_violations"] == 0
                 assert integrity["orphan_reads"] == 0
