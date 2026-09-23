@@ -1,0 +1,8 @@
+main job-staging (418, 121498718, 'f20d02136207529ba9636319e27d165ce60a9a7e3ffbcc672c24d9a414b78ea2')
+dev-wave-t2797-b5-contrast/submit-tree flock n= 53 total bytes= 0 job-staging (1389, 169493326, '4146c43674690b6080e3e358de0db1d7116a1db9ac7f7435dc5d8ebcf11def46')
+dev-wave-t2795-k2-pair/submit-tree-pair flock n= 1 total bytes= 0 job-staging (1389, 169493326, '1288c1ff153490871455b99f807ba9006c43addbdf77174eda11eb4d8840526c')
+dev-wave-t2795-k2-pair-resubmit/submit-tree-pair2 flock n= 1 total bytes= 0 job-staging (1389, 169493326, '31e84e44106700699b9a768aa5e492b607e9f5bfb007bbcb7353394b78adf67e')
+dev-wave-t2795-k2-pair-resubmit/submit-tree-r4 flock n= 1 total bytes= 0 job-staging (1389, 169493326, 'f77762745d5d4aebc9a8a2020dc4069287ea1387e9cdbfec68305d801f799ef3')
+dev-wave-t2792-a1-sized-attempt2/submit-tree flock n= 0 total bytes= 0 job-staging (1389, 169493326, '267f72e16e143d18704f326c2e39c2424b6cfa8a637da39e57e0ecd022ea8e05')
+
+[exited with code 0]

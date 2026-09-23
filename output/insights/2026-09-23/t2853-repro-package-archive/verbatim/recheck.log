@@ -1,0 +1,14 @@
+start 2026-09-23T08:43:43+0900
+a1-attempt2-jobdir.sha256 lines=123 rc=0
+a1-durable-authority.sha256 lines=353 rc=0
+b5-pilot-jobdir.sha256 lines=1683 rc=0
+b5-pilot-originals.sha256 lines=274 rc=0
+b8-effective.sha256 lines=2003 rc=0
+b8-prerun-runner.sha256 lines=364 rc=0
+d2160-verify-phase.sha256 lines=3991 rc=0
+k2-pair-first-jobdir.sha256 lines=130 rc=0
+k2-pair-first-originals.sha256 lines=7 rc=0
+k2-resubmit-jobdir.sha256 lines=163 rc=0
+k2-resubmit-pair2-originals.sha256 lines=8 rc=0
+k2-resubmit-r4-originals.sha256 lines=8 rc=0
+end 2026-09-23T08:51:45+0900 rc=0
