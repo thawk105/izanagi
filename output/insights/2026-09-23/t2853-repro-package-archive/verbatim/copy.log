@@ -1,0 +1,39 @@
+start 2026-09-23T08:25:37+0900
+[k2-pair-first-originals] 7 entries enumerated
+[k2-pair-first-originals] copied=7 pre-existing=0 in 1s
+[k2-pair-first-originals] verify ok=True mismatch=0 files=7 bytes=19231 verify=0s
+[k2-resubmit-pair2-originals] 8 entries enumerated
+[k2-resubmit-pair2-originals] copied=8 pre-existing=0 in 0s
+[k2-resubmit-pair2-originals] verify ok=True mismatch=0 files=8 bytes=31597 verify=0s
+[k2-resubmit-r4-originals] 8 entries enumerated
+[k2-resubmit-r4-originals] copied=8 pre-existing=0 in 0s
+[k2-resubmit-r4-originals] verify ok=True mismatch=0 files=8 bytes=31584 verify=0s
+[b5-pilot-originals] 274 entries enumerated
+[b5-pilot-originals] copied=274 pre-existing=0 in 17s
+[b5-pilot-originals] verify ok=True mismatch=0 files=274 bytes=1161686 verify=0s
+[k2-resubmit-jobdir] 163 entries enumerated
+[k2-resubmit-jobdir] copied=163 pre-existing=0 in 4s
+[k2-resubmit-jobdir] verify ok=True mismatch=0 files=163 bytes=1538269 verify=0s
+[k2-pair-first-jobdir] 130 entries enumerated
+[k2-pair-first-jobdir] copied=130 pre-existing=0 in 7s
+[k2-pair-first-jobdir] verify ok=True mismatch=0 files=130 bytes=2322714 verify=0s
+[b5-pilot-jobdir] 1683 entries enumerated
+[b5-pilot-jobdir] copied=1683 pre-existing=0 in 85s
+[b5-pilot-jobdir] verify ok=True mismatch=0 files=1683 bytes=27358224 verify=2s
+[a1-durable-authority] 353 entries enumerated
+[a1-durable-authority] copied=353 pre-existing=0 in 17s
+[a1-durable-authority] verify ok=True mismatch=0 files=353 bytes=18774872 verify=1s
+[a1-attempt2-jobdir] 123 entries enumerated
+[a1-attempt2-jobdir] copied=123 pre-existing=0 in 5s
+[a1-attempt2-jobdir] verify ok=True mismatch=0 files=123 bytes=198915 verify=0s
+[b8-prerun-runner] 364 entries enumerated
+[b8-prerun-runner] copied=364 pre-existing=0 in 23s
+[b8-prerun-runner] verify ok=True mismatch=0 files=364 bytes=5677309 verify=1s
+[b8-effective] 2003 entries enumerated
+[b8-effective] copied=2003 pre-existing=0 in 243s
+[b8-effective] verify ok=True mismatch=0 files=2003 bytes=29497936741 verify=36s
+[d2160-verify-phase] 3991 entries enumerated
+[d2160-verify-phase] copied=3991 pre-existing=0 in 551s
+[d2160-verify-phase] verify ok=True mismatch=0 files=3991 bytes=48939853127 verify=67s
+[all] walked=9107 listed=9107 extra=[] missing=[]
+end 2026-09-23T08:43:24+0900 rc=0

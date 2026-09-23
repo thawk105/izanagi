@@ -1,0 +1,29 @@
+campaign.lock: sha256=4a709002aa7e671529d729b4ad1bb9d10b2eae060168a4dab4ff67dc8a794274 bytes=12003
+runs/wal.jsonl: sha256=5415d01a3c746f0cad7e81ee966d7cb552215097cbe68de9cadd7f9f5e4e4367 bytes=14897
+loop_state.json: sha256=a955b88ad44dbfdd211519b035653a9bb1dfcc4621d3cb856eeb9ab4322c2bfa bytes=255
+s4_loop_digest.txt: sha256=eab8c7896d3da857f929cc5edbd1e372f745f479125d4d1ac0655ddda6a24307 bytes=2103
+knowledge_manifest_receipt.json: sha256=c42dc712bbd11fc7e7a29921f7e760fa5a4e8c315a5ea62266c32f5ea97d4d2a bytes=1317
+reports/p3_s4_loop_provenance.json: sha256=c2b94552a937d3e64714380bd3d4006d3e7adaf48896beb28c95c0adf049d5a8 bytes=671
+wal records: 10 truncated_tail: False
+   build_start 002642c7ac96 pegasus 1790036716.3125336 2026-09-22 09:25:16 JST
+   build_done 002642c7ac96 pegasus 1790036731.3420026 2026-09-22 09:25:31 JST
+   verify_done 002642c7ac96 pegasus 1790036744.202357 2026-09-22 09:25:44 JST
+   bench_done 002642c7ac96 pegasus 1790036746.4013984 2026-09-22 09:25:46 JST
+   commit 002642c7ac96 pegasus 1790036746.420951 2026-09-22 09:25:46 JST
+   build_start 602b4ce9c788 pegasus 1790036751.853165 2026-09-22 09:25:51 JST
+   build_done 602b4ce9c788 pegasus 1790036766.9298854 2026-09-22 09:26:06 JST
+   verify_done 602b4ce9c788 pegasus 1790036774.2032099 2026-09-22 09:26:14 JST
+   bench_done 602b4ce9c788 pegasus 1790036776.3396575 2026-09-22 09:26:16 JST
+   commit 602b4ce9c788 pegasus 1790036776.3502073 2026-09-22 09:26:16 JST
+loop_state: iteration 1 whiteboard [{'iteration': 1, 'direction': 'decrease', 'magnitude': 'large', 'result': 'success', 'delta_pct': None}]
+ref build_start 002642c7ac96 wal:4cb5209069c1751ac8585c94f07bc248d3f506556f6c2ebd1e6b0f4280eb1853
+ref build_done 002642c7ac96 wal:7dd51e167f0df4819d1b035b78d51bcbcf31b5f07e4b7979e6f2377662cfd37e
+ref verify_done 002642c7ac96 wal:a60684d52d6bc020055aab55aec977337eebe3a0c27fd8b62f126927c693ca31
+ref bench_done 002642c7ac96 wal:c04a2f8f0fae5c789f598ec6b164238a6dba07f5c6ccf107c75b6526e6c3116b
+ref commit 002642c7ac96 wal:65768befe633d5258bd79f4e345849c64854761f543670bfd1533a6c2b0789e8
+ref build_start 602b4ce9c788 wal:c4d8cc85860cc7200331ab8ac6e6ca28bf9fa8cdbec5f72e9db2c789f8709ff4
+ref build_done 602b4ce9c788 wal:4464d43e1a6b53529f189d3128c1319b259fd9ece85a6d3c58bf38c30c597ff2
+ref verify_done 602b4ce9c788 wal:422605bd45a18b983ad1b8e48ef50b9a6be55f38db578eba59ce453e2bfbc5d2
+ref bench_done 602b4ce9c788 wal:a0b72c786f9c31c8de90666d09cf040841fdf8fa5b5a68b12759b0471f483fcd
+ref commit 602b4ce9c788 wal:7862c6b8e91d46972451aa2e6d7fb10d4736329f2adc8ee08dd5861681edffa6
+wrote materials/run-summary-pair.json and materials/wal-refs-pair.json
