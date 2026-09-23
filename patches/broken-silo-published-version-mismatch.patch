@@ -2,7 +2,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 index 054a7e5f1..6790f388f 100644
 --- a/cc/silo/transaction.cc
 +++ b/cc/silo/transaction.cc
-@@ -2,6 +2,25 @@
+@@ -2,6 +2,26 @@
  #include <algorithm>
  #include <string>
  
@@ -10,6 +10,7 @@ index 054a7e5f1..6790f388f 100644
 +#include <atomic>
 +namespace {
 +std::atomic<uint64_t> fired_reached{0}, fired_changed{0}, fired_committed{0};
++std::atomic<uint32_t> next_published_epoch{UINT32_MAX};
 +thread_local bool fired_this_tx = false;
 +void fired_mark_changed() {
 +  fired_changed.fetch_add(1, std::memory_order_relaxed);
@@ -28,7 +29,7 @@ index 054a7e5f1..6790f388f 100644
  #include "include/atomic_tool.hh"
  #include "include/log.hh"
  #include "include/transaction.hh"
-@@ -53,6 +72,9 @@ void TxExecutor::abort() {
+@@ -53,6 +73,9 @@ void TxExecutor::abort() {
  }
  
  void TxExecutor::begin() {
@@ -38,15 +39,15 @@ index 054a7e5f1..6790f388f 100644
    status_ = TransactionStatus::inflight;
    max_wset_.obj_ = 0;
    max_rset_.obj_ = 0;
-@@ -657,7 +679,21 @@ void TxExecutor::writePhase() {
+@@ -657,7 +680,21 @@ void TxExecutor::writePhase() {
  #endif
          memcpy((*itr).rcdptr_->body_.get_val_ptr(), (*itr).body_.get_val_ptr(),
                 (*itr).body_.get_val_size());
 +#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
 +        fired_reached.fetch_add(1, std::memory_order_relaxed);
 +        Tidword published = maxtid;
-+        // 1s W4: epoch starts at 1 and advances per 40 ms (~25 steps), so ordinary C/W cannot reach UINT32_MAX; tid=2^28 leaves 2^28 increments before 29-bit wrap.
-+        published.epoch = UINT32_MAX;
++        // W4's one-second run cannot consume the 32-bit epoch or 28-bit tid ranges.
++        published.epoch = next_published_epoch.fetch_sub(1, std::memory_order_relaxed);
 +        published.tid = uint64_t(1) << 28;
 +        published.lock = 0;
 +        published.latest = 1;
@@ -60,7 +61,7 @@ index 054a7e5f1..6790f388f 100644
          break;
        }
        case OpType::INSERT: {
-@@ -706,6 +742,10 @@ void TxExecutor::writePhase() {
+@@ -706,6 +743,10 @@ void TxExecutor::writePhase() {
  bool TxExecutor::commit() {
    if (validationPhase()) {
      writePhase();
