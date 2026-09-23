@@ -1,0 +1,14 @@
+== D2160 patch at 657e1e5a7 (記録 a5e0710c…)
+a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a  -
+== B-8 template patch at 624c84986 (記録 31316713…)
+31316713b9783fc7fbbbcffb4fa1d791e3f9d1c0bbea6db52ac45b77cef7d620  -
+== A-1 submit-tree の未追跡 4 file と現行追跡下の比較
+README.md 034cd1fd2f5004b1 034cd1fd2f5004b1
+receipt.json 98c35cca4fe0e9f1 98c35cca4fe0e9f1
+result.json b7e0518e197500f2 b7e0518e197500f2
+.complete.json 7ad34232eaf920ba 7ad34232eaf920ba
+== D2160 校正 10 s の verifier.json の大きさ
+0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-verify-phase-adopted-backoff/run/calib/fixed-5-write-heavy/extime-10/verifier.json
+0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-verify-phase-adopted-backoff/run/calib/fixed-5-balanced/extime-10/verifier.json
+0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-verify-phase-adopted-backoff/run/calib/fixed-10-write-heavy/extime-10/verifier.json
+0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-verify-phase-adopted-backoff/run/calib/fixed-10-balanced/extime-10/verifier.json
