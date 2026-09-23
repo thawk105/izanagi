@@ -11533,6 +11533,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 負例が緑なのに、期待する detail code が production の総括 `except` の値と
   同じであること。fixture が参照する名前が test module で束縛されているかの確認。
 
+
+- **再発: 2026-09-23** — [T-2854] 単位 5 の段 5 で Codex author が足した v3 の試験 2 本が、key に 16 進でない `district` を使い、verifier の malformed key で integrity が汚れていた。lost update 試験の「lost 側が non-serializable」の assertion は malformed のまま偶然成り立ち、executor 試験の存在違反 case は key を直すと「最初の write が U の key の genesis 読み」で存在の契約上違反でなく certified になった (fixture が狙った存在検査に届いていなかった)。子は pytest を走らせられず未実走と報告し、親の自走と焦点走 2 回で赤として見つかり、fix 2 巡で閉じた (最初の write を I、malformed 0・framing 0・witness 一致・存在件数 0 なら clean を assert)。成果物への影響なし (land 前)。是正: 負例は赤理由が狙った機構だけであることを assert する (本項の恒久対応どおり)。子が未実走とした試験のうち login で直接呼べるもの (trace_runner seam の executor 試験) は、統合前に親が呼ぶ (insight `output/insights/2026-09-23/t2854-unit5-v3-wiring/README.md` §2・§3)。
 ### F327. 待ち手が成果物・`.done` 不在かつ生産者生存のまま rc=0 で終了した [観測] [完了誤認]
 
 - 事象: (2026-08-16) 背景 job の待ち手 `tools/dev_wave_wait.py producer` が、
@@ -28342,6 +28344,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-23** — [T-2849] の段 4 で親は、開発の検査の見積りを「≤ 0.99 node 時間」と置いたが、変異 dispatch の job (新しい種類) の単価を実測しておらず、walltime × job 数の上限も取らないまま変異 probe 29 job を投入した (本項の恒久対応の不適用)。probe の後、`tools/mutation_worktree.py` が使い捨て作業木ごと dispatch の受領証を消していて Elapse を実測できないと分かり、同じ runner argv の 1 job を dispatch して単価 (job Elapse 13 秒) を実測してから本走を投じた。本走 28 job の実測は計 435 秒で、wave の合計は ≈ 0.31 node 時間 (線の内側、測定値・判定への影響なし)。是正: 変異のように job 数が多い新種 job は、投入前に同じ argv の 1 job を dispatch して単価を実測し、変異の台帳に Elapse が残らない点を見込んで受領証を走行中に写す (insight `output/insights/2026-09-23/t2849-comparison-harness-impl/README.md` §7)。
+
+- **再発: 2026-09-23** — [T-2854] 単位 5 の段 6 で親は、変異 dispatch の probe (13 job 予定) を、同じ runner argv の 1 job で単価を実測せず、walltime (1 時間) × job 数の上限 (約 13 node 時間) も取らずに投入した (本項の 2026-09-23 の是正の不適用)。基準の commit は試験が赤のままで、harness は「baseline が緑でない」と正しく abort し、使ったのは 2 job (開始〜終了の合計 462 秒) だけだった。その後、同 argv の 1 job (Elapse 13 秒) で単価を実測してから probe-2・本走を投じた。wave の合計は約 0.9 node 時間 (線の内側、測定値・判定への影響なし)。是正は本項のとおりで新しい手順は足さない。加えて、変異の基準にする commit で試験が緑であることを確かめてから投入する (DW-C01「変異 harness は baseline 緑必須」の不適用、insight §7)。
 ### F1042. LaTeX 原稿の文の途中に差し込んだ出所コメント行が、同じ物理行の後続の本文を PDF から消した [手順漏れ]
 
 - 事象: ComSys 2026 投稿原稿 (1 段落 = 1 物理行) の段 6 の修正で、親が文を差し替える置換に「文．\n% 出所: …」を入れた。置換した文の後ろに続いていた同じ行の本文が新しいコメント行の末尾に付き、
