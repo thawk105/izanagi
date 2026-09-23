@@ -52,8 +52,8 @@
   この操作的な比較として成立するが、「同じ業務を速く処理した」とは言わない。
 - **勝者交代** の定義は v1 §6.4 と同じで、錨の cell は候補を選んだ錨 X の cell (§2.3 の `s-X-base`) に読み替える。
 - 結論は**登録した点での局所的な転移**であり、段の中での転移である。段 1 で選んだ候補を段 2 の cell で測ることは本書の主張に入れない。
-- 倉庫数の留保は 2 点 (4 と 16) だけで、どちらも錨の倉庫数 1 と 48 の間にある (内挿)。thread 数と取引構成は錨ごとに上下を置く。
-  この非対称を結果の報告に添える。
+- 倉庫数の留保は 2 点 (4 と 16) だけで、どちらも錨の倉庫数 1 と 48 の間にある (内挿)。thread 数は錨ごとに錨より低い 2 水準 (12・24) だけで、
+  48 より高い並列度は測らない。取引構成は錨ごとに上下を置く。この非対称を結果の報告に添える。
 
 ### 1.2 主張しないこと
 
@@ -85,9 +85,9 @@ v1 §1.3 の 4 文に加え、次の 2 文を書かない。
 
 ### 2.1 錨 (学習条件)
 
-TPC-C には既存の campaign 定義も学習条件も無い (起草時点の local main で `orchestrator/` と `tools/` に TPC-C の引数名は現れない。
-trace witness の経路は `ycsb_` 以外の binary を拒否する、`orchestrator/campaign/pipeline.py` の `_TraceWitnessUnsupportedWorkload`)。
-そこで本書が錨を定める。段ごとに、高競合を意図した設計点 H と低競合を意図した設計点 L の 2 つを置く。H・L は設計点の名前であって、
+起草時点の local main の検索範囲 (§7) では、TPC-C の campaign 定義や学習条件の記録は見つからなかった (`orchestrator/` と `tools/` に
+TPC-C の引数名は現れない。trace witness の経路は `ycsb_` 以外の binary を拒否する、`orchestrator/campaign/pipeline.py` の
+`_TraceWitnessUnsupportedWorkload`)。そこで本書が錨を定める。段ごとに、高競合を意図した設計点 H と低競合を意図した設計点 L の 2 つを置く。H・L は設計点の名前であって、
 競合を測って分類した結果ではない。
 
 | 錨 | 倉庫数 | thread 数 | Payment (%) | OrderStatus / Delivery / StockLevel (%) | NewOrder (%、残差) | think time | extime |
@@ -141,7 +141,8 @@ Delivery が毎回 10 行消せる間は、commit 1 回あたり 0.27 − 10 × 
 この過渡変化を含んだまま測り、範囲読みの費用を固定した状態で推定する設計とは扱わない。
 
 **因子間の相互作用がある cell:** 倉庫 48 で thread を 12・24 にすると、home warehouse は 12・24 倉庫にしか付かない (残りの倉庫は remote
-アクセスだけを受ける)。倉庫 1 では remote が無い。OFAT は「引数を 1 つ変えること」と定義し、その差を単一の因果効果とは書かない。
+アクセスだけを受ける)。倉庫 1 では remote が無い。OFAT は「上の表で定義した因子を 1 つ変えること」と定義する。段 2 の取引構成の因子は
+3 つの比率の引数を連動して変える。いずれの差も単一の因果効果とは書かない。
 
 ### 2.3 留保条件の一覧 (1 因子ずつ動かす配置)
 
@@ -290,9 +291,9 @@ protocol p・段 s・錨 X ごとに、次を比較対象とする。identity �
 | TPC-C の設計上の性質 | 1 倉庫の初期行数、Delivery による未配送注文の減少、home 割当て (§2.2) | コードの静的確認で、測定ではない |
 
 **検索の射程:** git 管理下の `output/`・`docs/`・`orchestrator/`・`tools/` を、起草時点の local main で検索した。TPC-C の実行時引数の名前が現れる file は
-[T-2854] の構造検査の記録 8 file だけで、倉庫数は全て 1、thread 数は全て 2、extime は全て 1 s だった。binary 名 (`tpcc_silo`、`tpcc_mocc`) が
-現れる `output/` の 116 file は、build の log (compile 行)、source path の参照、レビュー・設計の文、[T-2854] の構造検査の記録で、親が開いた範囲に
-TPC-C の性能測定は無かった。検索式・件数・hit した path は起草記録の insight にある。未追跡の file、別の worktree・
+[T-2854] の構造検査の記録 8 file だけで、倉庫数は全て 1、thread 数は全て 2、extime は全て 1 s だった。binary 名 (`tpcc_silo`、`tpcc_mocc`) は
+`output/` の 116 file に現れた。親が読んだ file と標本では、build の log (compile 行)、source path の参照、レビュー・設計の文、[T-2854] の構造検査の
+記録で、TPC-C の性能測定は無かった。116 file のうち一部 (`output/s6-rounds` の 74 file など) は標本だけを読み、全行は読んでいない。検索式・件数・hit した path は起草記録の insight にある。未追跡の file、別の worktree・
 job dir・campaign の作業領域、repo 外は見ていない。
 
 ## 8. 費用の形 (仮定付き)
@@ -304,12 +305,13 @@ TPC-C の 1 走の所要・初期ロードの秒数・RSS は未測定なので�
   静定の捨て走は job 数と同じ (段ごとに 2 cohort × protocol 数 × 12)。
 - 1 走の所要 = 初期ロード (倉庫数に依存) + extime 3 s + 終了処理。初期ロードは 1 倉庫あたり一次表で約 529,011 行 (Warehouse 1、District 10、
   Stock 100,000、Customer 30,000、History 30,000、Order 30,000、NewOrder 9,000、OrderLine 約 330,000) と、共有の Item 100,000 行と二次索引を作り、
-  load は 1 + 3 × 倉庫数 本の thread を起こす (`tpcc_initializer.hh`)。倉庫 48 の一次表は約 2,549 万行になる。extime だけを足した値は費用の下限の
-  形でもない (ロードを落とす)。
+  load は 1 + 3 × 倉庫数 本の thread を起こす (`tpcc_initializer.hh`)。倉庫 48 の一次表は約 2,549 万行になる。extime の合計は成功した走の
+  計時区間だけであり、総費用の見積りには使えない。
 - 検証の本数 = Σ (K − 1)。所要は trace の容量と verifier の容量に依存し、未測定 (§6)。
 - 例 (上限ではない): 2 protocol・2 段・全 cell で K = 6 なら、性能は 2 × 32 × 6 × 48 = 18,432 走、捨て走 96、検証 240 本。extime だけで 15.36 node 時間相当で、
   既に D2212 項 4 の確認ライン (2 node 時間) を超える。
-- 予算不足を、結果を見た後に cell や cohort を減らす理由にしない。減らすなら結果を見る前の発効の決定で、段ごとに cell を丸ごと外した旨を書く。
+- 本書の cell・cohort は発効の決定でも減らさない (§9.2)。予算が足りなければ、その段の発効を延期する。縮小した配置で測るなら、それは
+  別の登録として作り、本書の結果と混同しない。
 
 ## 9. 発効束と改訂契約
 
