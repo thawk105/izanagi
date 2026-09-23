@@ -6,7 +6,7 @@
 - 一次資料: `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §4 P3、同 dir `codex-consult-1.md` の優先 2。比較基盤の設計 = D2220 と
   `output/insights/2026-09-22/t2849-comparison-harness-design/README.md`。依頼の逐語は `verbatim/request.md`。
 - 段の記録: 段 1 brief (`verbatim/s1-brief.md`)、段 3 の Codex 相談 2 本 (`verbatim/s3-consult-A.md` / `s3-consult-B.md`)、段 4 裁定 (`verbatim/s4-ruling.md`)、
-  費用と系列数の試算 (`verbatim/cost-model-v2.md`)。段 6 以降は下の §2 に追記する。
+  費用と系列数の試算 (`verbatim/cost-model-v2.md`、段 6 で v3 に更新)、段 6 のレビューと焦点再レビュー 2 巡 (`verbatim/s6-*.md`)。
 - **性質の断り:** すべて静的調査と算術による。「試算」と書いた値は仮定を置いた模型の値で、上限の保証ではない。
 
 ## 1. 要点
@@ -29,3 +29,20 @@
   既存規則との整合と過剰) は must-fix 7 / should 5 / nit 2。
 - 段 4 (親): 27 件をすべて real と判定し採用した。段 4 直前の裁定 inbox の再走査で、/rulings 第 32 回 (2026-09-23 08:2x) の 2 件 (MOCC の pin 承認、B-5 本走の承認) を
   本文に反映した。brief の提案値 (P6 の 1 段の精度・P8 の 600 node 時間) は裁定で 2 段の精度・510 node 時間に改めた (brief は起草時の記録として残す)。
+  草稿を commit した (`a63017745`)。
+- 段 6 (Codex read-only review 1 本、事実の再抽出・派生値の検算と設計の閉じ方の 2 レンズ): **NO-GO**、must-fix 3 / should 3 / nit 1、段 3 の 27 件は closed 24 / partial 3 /
+  not-closed 0。7 件すべて real (refuted 0)。最大は本比較の費用の試算が §8.1 の式と一致しなかったこと。§8.1 を「手法ごとの最大値」と明確にし、試算を v3 (`verbatim/cost-model-v3.md`)
+  で計算し直した。裁定は `verbatim/s6-ruling.md`、fix commit `377b0df17`。
+- 段 6 焦点再レビュー 1 巡目: **NO-GO**、must-fix 1 / should 2、前回 7 件は closed 5 / partial 1 / regressed 1。must-fix は段 6 の fix で親が入れた回帰 (E_T の優先で品質欠測を
+  endpoint より先に置き基盤設計 §4.6 と逆転) で、基盤設計の順へ戻した。費用の再計算は一致。裁定は `verbatim/s6-focus-1-ruling.md`、fix commit `0b2bb7c79`。
+- 段 6 焦点再レビュー 2 巡目: **GO**、must-fix 0 / should 1 (機械故障による結果の未解決を §6.2 の列挙に残す)、前回 3 件は closed 2 / partial 1 / regressed 0。should は real と判定して反映した
+  (逐語 `verbatim/s6-focus-2.md`)。GO は文書に対する判定で、実走の成立を保証しない。
+
+## 3. 検査の記録
+
+- 実装面の差分はゼロ (docs・insight・台帳 fragment だけ) なので、変異 matrix は DW-S04 により免除した。
+- 記録 commit の前 (作業木 = 焦点 2 巡目の反映後): `python3 tools/check_docs.py` は違反なし、`python3 tools/spool_fold.py --dry-run` は rc 0。
+- 三軸語の走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は rc 1 だが、hit 3 件はいずれも main に既存の
+  `output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/` の file で、本 wave の file の hit は 0 件。
+- 各 commit の前に `python3 tools/check_ai_provenance.py --message-file` を通した (違反なし)。草稿 commit の後の全史監査は 12,613 件で新規違反なし。
+- 受入全走と land の結果は、本書を含む記録 commit の後に走り確定するので、本書には書かない (受領証は wave の job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-prereg/`)。
