@@ -209,7 +209,9 @@ def test_runner_outputs_flow_into_analysis_without_schema_adapter(tmp_path, monk
     binary.write_bytes(b"fixture")
     pair = dict(perf_path=str(binary), perf_sha256=hashlib.sha256(b"fixture").hexdigest(),
                 trace_path=str(binary), trace_sha256=hashlib.sha256(b"fixture").hexdigest())
-    record = dict(workload="ycsb", selection_rule="frozen", binaries={i: dict(pair)
+    record = dict(workload="ycsb", selection_rule="frozen",
+                  environment={"env_tag": "fixture", "clocks_per_us": 1777, "numactl": []},
+                  binaries={i: dict(pair)
                   for i in ("R0", "R1", "R2", "K")},
                   references={"silo": {a: {"R0": "R0", "R1": "R1", "R2": "R2"}
                                        for a in ("wh-base", "bal-base", "rh-base")}},

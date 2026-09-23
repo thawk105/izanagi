@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import copy
 import hashlib
 import json
 from pathlib import Path
 import subprocess
-import sys
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +22,8 @@ def _record():
                     "trace_path": "/unused/" + k, "trace_sha256": "0" * 64}
                 for k in ("R0", "R1", "R2", "K")}
     return dict(workload="ycsb", selection_rule="frozen", binaries=binaries,
+                environment={"env_tag": "fixture", "clocks_per_us": 1777,
+                             "numactl": ["numactl", "--localalloc"]},
                 references={"silo": refs},
                 search_groups=[dict(task="t", method="m", learning_cells=["wh-base"],
                                     independent_searches=["1"], reachability=False)],
@@ -65,7 +67,7 @@ def test_freeze_m_and_same_identity():
     assert frozen["m_by_family"] == {"ycsb": 18}  # wh: 9 cells, 2 strong refs
     assert len(frozen["jobs"]) == 2 * 26
     assert frozen["sha256"] == runner._sha({k: frozen[k] for k in
-        ("workload", "stage", "series", "search_groups", "selection_rule", "references", "binaries")})
+        ("workload", "stage", "series", "search_groups", "selection_rule", "references", "binaries", "environment")})
     changed = _record()
     changed["series"][0]["selected_identity"] = "R1"
     same = runner.freeze_candidates(changed)
@@ -92,6 +94,65 @@ def test_freeze_rejects_invalid(change):
         rec["references"]["silo"]["wh-base"]["R1"] = "absent"
     with pytest.raises(ValueError):
         runner.freeze_candidates(rec)
+
+
+def test_environment_required_and_bound_to_hash():
+    record = _record()
+    del record["environment"]
+    with pytest.raises(ValueError, match="^environment invalid$"):
+        runner.freeze_candidates(record)
+    record["environment"] = {"env_tag": "fixture", "clocks_per_us": 0,
+                             "numactl": []}
+    with pytest.raises(ValueError, match="^environment invalid$"):
+        runner.freeze_candidates(record)
+    frozen = _freeze()
+    frozen["environment"]["clocks_per_us"] += 1
+    with pytest.raises(ValueError, match="^freeze sha256 mismatch$"):
+        runner.run_job(dict(freeze=frozen, cohort=1, protocol="silo", cell="wh-base"))
+
+
+@pytest.mark.parametrize("field", ["jobs", "comparisons", "m_by_family"])
+def test_mutated_derived_freeze_rejected_before_execution(field, monkeypatch):
+    frozen = copy.deepcopy(_freeze())
+    if field == "jobs":
+        frozen["jobs"][0]["identities"] = ["R0"]
+    elif field == "comparisons":
+        frozen["comparisons"][0]["kind"] = "primary"
+    else:
+        frozen["m_by_family"]["ycsb"] += 1
+    def forbidden(*args, **kwargs):
+        raise AssertionError("execution reached")
+    monkeypatch.setattr(runner.calibrator, "run_once", forbidden)
+    with pytest.raises(ValueError, match="^freeze sha256 mismatch$"):
+        runner.run_job(dict(freeze=frozen, cohort=1, protocol="silo", cell="wh-base"))
+    with pytest.raises(ValueError, match="^freeze sha256 mismatch$"):
+        runner.verify_candidate(dict(freeze=frozen, protocol="silo", cell="wh-base",
+                                     identity="K"), trace_runner=forbidden)
+
+
+def test_cohort_one_complete_keys_and_mixed_utc_max(monkeypatch):
+    frozen = _freeze()
+    records = [dict(stage=j["stage"], cohort=1, protocol=j["protocol"], cell=j["cell"],
+                    hostname="old-node", end_utc="2026-01-01T00:00:00Z",
+                    completed_blocks=32, isolation_start=True, isolation_end=True,
+                    within_retry_limit=True, next_action="none")
+               for j in frozen["jobs"] if j["cohort"] == 1]
+    records[0]["end_utc"] = "2026-01-01T00:00:00.500000+00:00"
+    monkeypatch.setattr(runner, "_utc", lambda: "2026-01-02T00:00:00Z")
+    monkeypatch.setattr(runner.socket, "gethostname", lambda: "new-node")
+    spec = dict(freeze=frozen, cohort=2, protocol="silo", cell="wh-base")
+    with pytest.raises(ValueError, match="^cohort1_records incomplete$"):
+        runner.run_job(spec | {"cohort1_records": records[1:]})
+    def forbidden(*args, **kwargs):
+        raise AssertionError("measurement reached")
+    monkeypatch.setattr(runner.calibrator, "run_once", forbidden)
+    result = runner.run_job(spec | {"cohort1_records": records})
+    assert result["next_action"] == "wait-24h" and result["completed_blocks"] == 0
+    assert result["environment"] == frozen["environment"]
+    monkeypatch.setattr(runner, "_utc", lambda: "2026-01-02T00:00:00.500000Z")
+    monkeypatch.setattr(runner, "_probe", lambda *args, **kwargs: False)
+    ontime = runner.run_job(spec | {"cohort1_records": records})
+    assert ontime["next_action"] == "resubmit-isolation"
 
 
 def test_activation_rejects_before_measurement(monkeypatch):
@@ -215,11 +276,15 @@ def test_run_job_anchor_uses_real_run_once_with_subprocess_seam(tmp_path, monkey
     assert result["completed_blocks"] == 32
     assert len(calls) == 1 + 32 * 4
     assert all("perf" not in str(cmd[0]) for cmd in calls)
+    assert all("-clocks_per_us=1777" in cmd for cmd in calls)
+    assert all(cmd[:2] == ["numactl", "--localalloc"] for cmd in calls)
+    assert result["environment"] == frozen["environment"]
     assert result["blocks"][0]["runs"]["K"]["tps"] == 100
 
 
 def test_verify_tpcc_anchor_is_indeterminate():
     record = dict(workload="tpcc", stage="s1", selection_rule="frozen",
+                  environment={"env_tag": "fixture", "clocks_per_us": 1777, "numactl": []},
                   series=[dict(task="t", method="m", independent_search="1",
                                protocol="silo", anchor="s1-H-base", selected_identity="K")],
                   search_groups=[dict(task="t", method="m", learning_cells=["s1-H-base"],
@@ -270,6 +335,33 @@ def test_ycsb_reverification_counts_only_trace_runs(monkeypatch, tmp_path):
         trace_runner=trace_runner, verifier=verifier)
     assert exhausted["reason"] == "reverification-limit" and exhausted["attempt"] is None
     assert len(trace_calls) == 2
+
+
+def test_trace_environment_and_prelaunch_failure(tmp_path, monkeypatch):
+    binary = tmp_path / "trace"
+    binary.write_bytes(b"fake")
+    record = _record()
+    record["binaries"]["K"].update(trace_path=str(binary),
+        trace_sha256=hashlib.sha256(b"fake").hexdigest())
+    frozen = runner.freeze_candidates(record)
+    spec = dict(freeze=frozen, protocol="silo", cell="wh-base", identity="K")
+    def fail_dir(*args, **kwargs):
+        raise OSError("fixture directory failure")
+    original = runner.tempfile.TemporaryDirectory
+    monkeypatch.setattr(runner.tempfile, "TemporaryDirectory", fail_dir)
+    failed = runner.verify_candidate(spec)
+    assert failed["status"] == "indeterminate" and failed["attempt"] is None
+    assert failed["reason"] == "OSError: fixture directory failure"
+    monkeypatch.setattr(runner.tempfile, "TemporaryDirectory", original)
+    seen = []
+    def trace(binary_path, trace_dir, flags, clocks_per_us, **kwargs):
+        seen.append((clocks_per_us, kwargs["numactl"]))
+        return SimpleNamespace(returncode=1, trace_c_lines=0, abort_counts=None,
+                               commit_count_witness=None, batch_commit_count_witness=None)
+    observed = runner.verify_candidate(spec | {"attempt_history": [failed]},
+                                       trace_runner=trace)
+    assert observed["attempt"] == 1 and seen == [(1777, ["numactl", "--localalloc"])]
+    assert observed["environment"] == frozen["environment"]
 
 
 @pytest.mark.parametrize("change", ["rc", "empty", "abort", "commit", "batch"])

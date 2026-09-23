@@ -4,9 +4,9 @@
 block 番号の始点は登録文に明記なし、実装の選択として 1..32 とする。
 
 JSON minimum examples (field names and types):
-freeze: {"workload":"ycsb","stage":null,"sha256":"hex","jobs":[{"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","identities":["R0"]}],"comparisons":[{"stage":null,"protocol":"silo","cell":"wh-base","anchor":"wh-base","factor":null,"level":null,"candidate":"K","reference":"R1","kind":"primary","comparison_type":"selected","reference_mode":"a","same_identity":false,"series":[["task","method","1"]]}],"m_by_family":{"ycsb":1}}
-run-job: {"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","attempt":1,"hostname":"node","start_utc":"ISO","end_utc":"ISO","isolation_start":true,"isolation_end":true,"completed_blocks":32,"within_retry_limit":true,"separate_allocation":true,"next_action":"none","blocks":[{"block":1,"order":["R0"],"runs":{"R0":{"tps":1.0,"rc":0}}}]}
-verify: {"stage":null,"protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","status":"indeterminate","reason":"trace-empty","anomalies":null,"attempt":1,"verifier":null}
+freeze: {"workload":"ycsb","stage":null,"environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"sha256":"hex","jobs":[{"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","identities":["R0"]}],"comparisons":[{"stage":null,"protocol":"silo","cell":"wh-base","anchor":"wh-base","factor":null,"level":null,"candidate":"K","reference":"R1","kind":"primary","comparison_type":"selected","reference_mode":"a","same_identity":false,"series":[["task","method","1"]]}],"m_by_family":{"ycsb":1}}
+run-job: {"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","attempt":1,"hostname":"node","environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"start_utc":"ISO","end_utc":"ISO","isolation_start":true,"isolation_end":true,"completed_blocks":32,"within_retry_limit":true,"separate_allocation":true,"next_action":"none","blocks":[{"block":1,"order":["R0"],"runs":{"R0":{"tps":1.0,"rc":0}}}]}
+verify: {"stage":null,"protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"status":"indeterminate","reason":"trace-empty","anomalies":null,"attempt":1,"verifier":null}
 Status vocabulary maps v1 §8 certified / 失格 / 未確定 to
 certified / disqualified / indeterminate respectively.
 """
@@ -131,11 +131,15 @@ def _sha(value):
 
 
 _FREEZE_BODY = ("workload", "stage", "series", "search_groups", "selection_rule",
-                "references", "binaries")
+                "references", "binaries", "environment")
 
 
 def _require_freeze_hash(freeze):
-    if _sha({key: freeze[key] for key in _FREEZE_BODY}) != freeze.get("sha256"):
+    try:
+        regenerated = freeze_candidates({key: freeze[key] for key in _FREEZE_BODY})
+    except (KeyError, TypeError) as exc:
+        raise ValueError("freeze invalid") from exc
+    if regenerated != freeze:
         raise ValueError("freeze sha256 mismatch")
 
 
@@ -145,6 +149,15 @@ def _reference_for(refs, protocol, anchor):
 
 
 def freeze_candidates(record: Mapping[str, object]) -> dict:
+    environment = record.get("environment")
+    if (not isinstance(environment, dict) or
+        not isinstance(environment.get("env_tag"), str) or
+        not environment["env_tag"] or
+        type(environment.get("clocks_per_us")) is not int or
+        environment["clocks_per_us"] <= 0 or
+        not isinstance(environment.get("numactl"), list) or
+        any(not isinstance(arg, str) or not arg for arg in environment["numactl"])):
+        raise ValueError("environment invalid")
     workload, stage = record["workload"], record.get("stage")
     table = cells(workload, stage)
     anchors = {c.name for c in table if not c.held_out}
@@ -242,7 +255,7 @@ def freeze_candidates(record: Mapping[str, object]) -> dict:
                                             reference_mode=mode, same_identity=False, series=[]))
     normalized = dict(workload=workload, stage=stage, series=series,
                       search_groups=groups, selection_rule=record["selection_rule"],
-                      references=refs, binaries=binaries)
+                      references=refs, binaries=binaries, environment=environment)
     return dict(**normalized, sha256=_sha(normalized), jobs=jobs,
                 comparisons=comparisons, m_by_family={stage or "ycsb": len(primary_pairs)})
 
@@ -274,6 +287,13 @@ def cohort2_admission(*, cohort1_last_end_utc: str, cohort2_first_start_utc: str
 
 def _utc():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_utc(value):
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("end_utc must include timezone")
+    return parsed.astimezone(timezone.utc)
 
 
 def _find_cell(freeze, name):
@@ -342,6 +362,7 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
     result = dict(workload=cell.workload, stage=cell.stage, cohort=cohort,
                   protocol=protocol, cell=cell.name, hostname=host,
                   start_utc=start, end_utc=None, freeze_sha256=freeze["sha256"],
+                  environment=freeze["environment"],
                   blocks=[], completed_blocks=0, isolation_start=False,
                   isolation_end=False, separate_allocation=True, next_action="none")
     history = [h for h in spec.get("attempt_history", [])
@@ -363,13 +384,22 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
         cohort1 = spec["cohort1_records"]
         if not cohort1 or any(h.get("cohort") != 1 or not h.get("end_utc") for h in cohort1):
             raise ValueError("cohort1_records incomplete")
+        expected_keys = {(j["stage"], j["protocol"], j["cell"])
+                         for j in freeze["jobs"] if j["cohort"] == 1}
+        actual_keys = [(h.get("stage"), h.get("protocol"), h.get("cell")) for h in cohort1]
+        if len(actual_keys) != len(expected_keys) or set(actual_keys) != expected_keys:
+            raise ValueError("cohort1_records incomplete")
+        if any(h.get("completed_blocks") != 32 or not h.get("isolation_start") or
+               not h.get("isolation_end") or not h.get("within_retry_limit") or
+               h.get("next_action") != "none" or not h.get("hostname") for h in cohort1):
+            raise ValueError("cohort1_records not adopted")
         matches = [h for h in cohort1 if (h.get("stage"), h.get("protocol"), h.get("cell"))
                    == (cell.stage, protocol, cell.name)]
         if len(matches) != 1:
             raise ValueError("cohort1_records job key mismatch")
         prior = matches[0]
         rejects = sum(h.get("next_action") == "resubmit-same-host" for h in history)
-        last_end = max(h["end_utc"] for h in cohort1)
+        last_end = max(_parse_utc(h["end_utc"]) for h in cohort1).isoformat()
         gate = cohort2_admission(cohort1_last_end_utc=last_end,
                                  cohort2_first_start_utc=start,
                                  prior_hostname=prior["hostname"],
@@ -394,7 +424,9 @@ def run_job(spec: Mapping, *, subprocess_runner=subprocess.run,
         rcs = []
         try:
             metrics, _, wall = calibrator.run_once(
-                perf_binaries[identity], _flags(cell), use_perf=False,
+                perf_binaries[identity], _flags(cell) +
+                [f"-clocks_per_us={freeze['environment']['clocks_per_us']}"],
+                numactl=freeze["environment"]["numactl"], use_perf=False,
                 rep_returncodes=rcs, subprocess_runner=capture)
             tps = float(metrics["throughput[tps]"])
             if rcs != [0] or not math.isfinite(tps) or tps <= 0:
@@ -449,6 +481,7 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
     result = dict(workload=cell.workload, stage=cell.stage, protocol=protocol,
                   cell=cell.name, identity=identity, hostname=host,
                   freeze_sha256=freeze["sha256"], status="indeterminate", reason="",
+                  environment=freeze["environment"],
                   anomalies=None, verifier=None, attempt=None,
                   start_utc=_utc(), end_utc=None)
     prior_attempts = [h for h in spec.get("attempt_history", [])
@@ -471,11 +504,12 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
         return result
     try:
         binary = _binary(freeze, identity, "trace")
-        result["attempt"] = len(measured) + 1
         with tempfile.TemporaryDirectory(prefix="t2851_trace_") as trace_dir:
-            tr = trace_runner(binary, trace_dir, cell.flags, spec.get("clocks_per_us", 2400),
+            result["attempt"] = len(measured) + 1
+            tr = trace_runner(binary, trace_dir, cell.flags,
+                              freeze["environment"]["clocks_per_us"],
                               timeout_s=spec.get("timeout_s", 120),
-                              numactl=spec.get("numactl"))
+                              numactl=freeze["environment"]["numactl"])
             # pipeline.py:572-613: same rc, nonempty trace, abort and two commit
             # witnesses, zero batch commits before verifier admission.
             witness_ok = _trace_witness_ok(tr)
