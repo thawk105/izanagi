@@ -1,0 +1,54 @@
+start 2026-09-23 08:41:40 JST
+sub HEAD before: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+C parents: 68106660686232781bca3be792a750d3e19d7a8a e9e477ca1b55348ab4530de0b1cf663ce4555290
+C1 parents: 56b5cb709628c9cac98e4e18ff676defc77a9117 e9e477ca1b55348ab4530de0b1cf663ce4555290
+Preparing worktree (detached HEAD 68106660)
+Updating files:  35% (144/405)Updating files:  36% (146/405)Updating files:  37% (150/405)Updating files:  38% (154/405)Updating files:  39% (158/405)Updating files:  40% (162/405)Updating files:  41% (167/405)Updating files:  42% (171/405)Updating files:  43% (175/405)Updating files:  44% (179/405)Updating files:  45% (183/405)Updating files:  46% (187/405)Updating files:  47% (191/405)Updating files:  48% (195/405)Updating files:  49% (199/405)Updating files:  50% (203/405)Updating files:  51% (207/405)Updating files:  52% (211/405)Updating files:  53% (215/405)Updating files:  54% (219/405)Updating files:  55% (223/405)Updating files:  56% (227/405)Updating files:  57% (231/405)Updating files:  58% (235/405)Updating files:  59% (239/405)Updating files:  60% (243/405)Updating files:  61% (248/405)Updating files:  62% (252/405)Updating files:  63% (256/405)Updating files:  64% (260/405)Updating files:  65% (264/405)Updating files:  65% (267/405)Updating files:  66% (268/405)Updating files:  67% (272/405)Updating files:  68% (276/405)Updating files:  69% (280/405)Updating files:  70% (284/405)Updating files:  71% (288/405)Updating files:  72% (292/405)Updating files:  73% (296/405)Updating files:  74% (300/405)Updating files:  75% (304/405)Updating files:  76% (308/405)Updating files:  77% (312/405)Updating files:  78% (316/405)Updating files:  78% (319/405)Updating files:  79% (320/405)Updating files:  80% (324/405)Updating files:  81% (329/405)Updating files:  82% (333/405)Updating files:  83% (337/405)Updating files:  84% (341/405)Updating files:  85% (345/405)Updating files:  86% (349/405)Updating files:  87% (353/405)Updating files:  88% (357/405)Updating files:  89% (361/405)Updating files:  90% (365/405)Updating files:  91% (369/405)Updating files:  92% (373/405)Updating files:  93% (377/405)Updating files:  94% (381/405)Updating files:  95% (385/405)Updating files:  96% (389/405)Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at 68106660 feat(mocc): add TRACE-only lock coverage and permutation checks
+Switched to a new branch 'izanagi-tpcc-v3-mocc'
+[izanagi-tpcc-v3-mocc 6aa7a58f] feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+ Date: Tue Sep 22 20:55:53 2026 +0900
+ 2 files changed, 61 insertions(+)
+C1' = 6aa7a58fccff9efa218067d1b7ce83026a75357d parents: 6aa7a58fccff9efa218067d1b7ce83026a75357d 68106660686232781bca3be792a750d3e19d7a8a tree: d5be6f74b6142a9b03501a40a921654e8723458e
+include/trace.hh C1'=1ff95bcec49e49d02669321b09414ab114c20df2 C1=1ff95bcec49e49d02669321b09414ab114c20df2
+include/tpcc.hh C1'=24e7d13288cf7df1e86a87aac0bd44ab9112eb9c C1=24e7d13288cf7df1e86a87aac0bd44ab9112eb9c
+diff-tree C..C1' (raw):
+:100644 100644 5cd9c7f729d3dafdd59e87a87b70e2c72b5dd6a1 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c M	include/tpcc.hh
+:100644 100644 570e35e308e1104d53d43ea5556f54b3fb86922a 1ff95bcec49e49d02669321b09414ab114c20df2 M	include/trace.hh
+mocc blob C1'=e393efbfd5fad7bbe05117b43669ccc0f44abb6a C=e393efbfd5fad7bbe05117b43669ccc0f44abb6a
+message:
+feat(trace): add TPC-C trace v3 helpers and trace-only commit counting
+
+Add the TRACE-only building blocks of the Izanagi TPC-C trace v3 frame:
+- include/trace.hh: a per-thread TPC-C transaction-type context
+  (set / read / clear through an external-linkage inline accessor so that
+  the workload TU and the protocol TU share one thread_local) and v3
+  emitters whose R/W/X lines carry the table id (Storage) and whose C line
+  carries nR nW nS nQ and the transaction type:
+    C <txid> <thid> <epoch> <tid> <nR> <nW> <nS> <nQ> <tx_type>
+    R <txid> <table> <key_hex> <ver_epoch> <ver_tid>
+    W <txid> <table> <key_hex> <U|I|D> <epoch> <tid>
+    X <txid> <table> <key_hex> <reason>
+  The existing v1/v2 helpers and their output bytes are unchanged.
+- include/tpcc.hh: include trace.hh and set the context right after
+  tx.begin(), both under #if TRACE, and make the post-commit quit check
+  #if !TRACE so that a TRACE build counts every successful commit (the
+  commit counter then equals the number of committed C lines). The
+  TRACE=0 behaviour and counting order are unchanged, and #line
+  directives keep the TRACE=0 logical line numbers (ERR's __LINE__)
+  identical to the base.
+
+Everything added is compiled out when TRACE=0 (Izanagi discipline 1,
+D14). This commit alone does not change what any protocol emits; the
+Silo v3 emitter is the next commit. Design record: izanagi
+output/insights/2026-09-21/tpcc-trace-certification-design sections 3.1
+and 3.5 (units 1 and 2 of section 7.1).
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager
+(cherry picked from commit 56b5cb709628c9cac98e4e18ff676defc77a9117)
+
+sub HEAD after: e9e477ca1b55348ab4530de0b1cf663ce4555290 porcelain=0
+branch ref: 6aa7a58fccff9efa218067d1b7ce83026a75357d
+end 2026-09-23 08:42:07 JST
