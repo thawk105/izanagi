@@ -290,8 +290,9 @@ protocol p・段 s・錨 X ごとに、次を比較対象とする。identity �
 | TPC-C の設計上の性質 | 1 倉庫の初期行数、Delivery による未配送注文の減少、home 割当て (§2.2) | コードの静的確認で、測定ではない |
 
 **検索の射程:** git 管理下の `output/`・`docs/`・`orchestrator/`・`tools/` を、起草時点の local main で検索した。TPC-C の実行時引数の名前が現れる file は
-[T-2854] の構造検査の記録 8 file だけで、倉庫数は全て 1、thread 数は全て 2、extime は全て 1 s だった。binary 名 (`tpcc_silo`、`tpcc_mocc`) の出現は
-build の log と TPC-C の設計・実装の記録で、性能測定ではなかった。検索式・件数・hit した path は起草記録の insight にある。未追跡の file、別の worktree・
+[T-2854] の構造検査の記録 8 file だけで、倉庫数は全て 1、thread 数は全て 2、extime は全て 1 s だった。binary 名 (`tpcc_silo`、`tpcc_mocc`) が
+現れる `output/` の 116 file は、build の log (compile 行)、source path の参照、レビュー・設計の文、[T-2854] の構造検査の記録で、親が開いた範囲に
+TPC-C の性能測定は無かった。検索式・件数・hit した path は起草記録の insight にある。未追跡の file、別の worktree・
 job dir・campaign の作業領域、repo 外は見ていない。
 
 ## 8. 費用の形 (仮定付き)
