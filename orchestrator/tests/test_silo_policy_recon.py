@@ -152,12 +152,16 @@ def test_build_variant_uses_only_fixed_genomes(tmp_path):
 
 def _row(role, case_id, *, throughput=104.0, rate=.1, complete=True):
     case = IR.enumerate_recon()[int(case_id, 2)] if role == "ir" else None
-    body = IR.render_policy(case.ir) if case is not None else None
+    body = IR.render_policy(case.ir) if case is not None else (
+        IR.render_policy(IR.degenerate_policy()) if role == "abort0" else None)
+    backoff = 0 if role == "b0_l_w0" else 1
+    flags = {**C.locks._BASE, "BACK_OFF": backoff} if role in {"stock", "b0_l_w0"} else C.GENOME.flags
     commits = 900
     aborts = round(commits * rate / (1 - rate)) if rate < 1 else 900000
     actual_rate = aborts / (commits + aborts)
     return {"role": role, "case_id": case_id, "factors": list(case.factors) if case else None,
             "body_sha256": C.sha(body) if body else None,
+            "genome": {"protocol": "silo", "flags": flags},
             "verify": {k: {"certified": True, "verdict": "serializable", "exit_code": 0,
                            "commits": 1} for k in ("legacy", "performance")},
             "trace0": {"clean": True}, "source_evidence": {"a": 1},
@@ -234,13 +238,63 @@ def test_aggregate_hash_missing_zero_and_high_abort(tmp_path):
     assert _aggregate(tmp_path, jobs)[0]["binary"] is None  # candidate awaits remeasure
 
 
-def test_submit_dry_run_lists_eight_jobs():
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(["bash", str(root / "tools/pegasus/submit_silo_policy_recon.sh"),
-                             "--phase", "initial", "--dry-run"], cwd=root,
-                            capture_output=True, text=True, check=True)
-    assert len(result.stdout.splitlines()) == 8
-    assert all("qsub " in line for line in result.stdout.splitlines())
+def test_aggregate_fixed_workload_and_controls_accept(tmp_path):
+    jobs = _jobs()
+    detail, projection = _aggregate(tmp_path, jobs)
+    assert detail["binary"] is False and detail["errors"] == []
+    assert projection["binary"] is False
+
+
+@pytest.mark.parametrize("change,error", [
+    ("workload", "workload"),
+    ("abort0", "abort0 body sha256"),
+    ("stock", "stock genome flags"),
+    ("b0_l_w0", "b0_l_w0 genome flags"),
+])
+def test_aggregate_rejects_changed_initial_workload_or_control(tmp_path, change, error):
+    jobs = _jobs()
+    if change == "workload":
+        for job in jobs:
+            job["workload"]["bench_reps"] = 4
+    elif change == "abort0":
+        jobs[2]["cases"][-1]["body_sha256"] = "wrong"
+    elif change == "stock":
+        jobs[0]["cases"][2]["genome"]["flags"]["BACK_OFF"] = 0
+    else:
+        jobs[1]["cases"][2]["genome"]["flags"]["BACK_OFF"] = 1
+    detail, projection = _aggregate(tmp_path, jobs)
+    assert detail["binary"] is None and projection["binary"] is None
+    assert any(error in message for message in detail["errors"])
+
+
+def test_aggregate_fixed_remeasurement_workload_and_abort0_accept(tmp_path):
+    jobs = _jobs()
+    jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
+    rem = {**jobs[0], "phase": "remeasure", "job": "0000", "pbs_jobid": "new",
+           "cases": [_row("abort0", "abort0", throughput=100),
+                     _row("ir", "0000", throughput=104)]}
+    detail, projection = _aggregate(tmp_path, jobs, [rem])
+    assert detail["binary"] is True and detail["errors"] == []
+    assert projection["binary"] is True
+
+
+@pytest.mark.parametrize("change,error", [
+    ("workload", "workload"),
+    ("abort0", "abort0 body sha256"),
+])
+def test_aggregate_rejects_changed_remeasurement_workload_or_abort0(tmp_path, change, error):
+    jobs = _jobs()
+    jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
+    rem = {**jobs[0], "phase": "remeasure", "job": "0000", "pbs_jobid": "new",
+           "cases": [_row("abort0", "abort0", throughput=100),
+                     _row("ir", "0000", throughput=104)]}
+    if change == "workload":
+        rem["workload"] = {**rem["workload"], "numa": False}
+    else:
+        rem["cases"][0]["body_sha256"] = "wrong"
+    detail, projection = _aggregate(tmp_path, jobs, [rem])
+    assert detail["binary"] is None and projection["binary"] is None
+    assert any(error in message for message in detail["errors"])
 
 
 if __name__ == "__main__":

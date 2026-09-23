@@ -214,6 +214,24 @@ def aggregate(args: argparse.Namespace) -> int:
                   for p in initials + rem]
         if len({json.dumps(x, sort_keys=True) for x in common}) != 1 or common[0][0] != SCHEMA:
             raise ValueError("schema/PIN/toolchain/workload mismatch")
+        expected_workload = {"legacy": C.LEGACY, "performance": FLAGS,
+                             "bench_reps": 5, "numa": True}
+        if any(json.dumps(p.get("workload"), sort_keys=True) !=
+               json.dumps(expected_workload, sort_keys=True) for p in initials + rem):
+            raise ValueError("workload differs from fixed run configuration")
+        abort0_sha = C.sha(IR.render_policy(IR.degenerate_policy()))
+        control_flags = {"stock": {**C.locks._BASE, "BACK_OFF": 1},
+                         "b0_l_w0": {**C.locks._BASE, "BACK_OFF": 0}}
+
+        def check_control(row):
+            role = row["role"]
+            if role == "abort0" and row.get("body_sha256") != abort0_sha:
+                raise ValueError("abort0 body sha256 mismatch")
+            genome = row.get("genome")
+            if role in control_flags and (not isinstance(genome, dict) or
+                    genome.get("flags") != control_flags[role]):
+                raise ValueError(role + " genome flags mismatch")
+
         seen = {}
         for p in initials:
             job = p["job"]
@@ -224,6 +242,7 @@ def aggregate(args: argparse.Namespace) -> int:
             if [r.get("role") for r in rows] != [x[0] for x in expected]:
                 raise ValueError("initial case roles mismatch")
             for row in rows:
+                check_control(row)
                 if row["role"] == "ir":
                     if row["case_id"] in seen:
                         raise ValueError("duplicate IR point")
@@ -269,6 +288,7 @@ def aggregate(args: argparse.Namespace) -> int:
                 raise ValueError("remeasure sequence mismatch")
             if rows[1].get("body_sha256") != seen[cid][0]["body_sha256"]:
                 raise ValueError("remeasure body sha256 mismatch")
+            check_control(rows[0])
             rem_by_id[cid] = p
             rem_ids.add(p["pbs_jobid"])
         reproduced = False
