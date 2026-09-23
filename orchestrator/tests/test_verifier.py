@@ -27,6 +27,7 @@ from orchestrator.verifier.dsg import DSG                                  # noq
 from orchestrator.verifier.model import (                              # noqa: E402
     CycleEdge, EdgeReason, Integrity, ProofSurfaceAssessment, RW,
     VerifyResult, WR, WW, assess_protocol_proof_surfaces,
+    compiled_protocol_source_texts,
 )
 from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
@@ -84,7 +85,7 @@ def test_g4_has_rw_edge_but_no_cycle():
 
 
 def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
-    """現行 pin の実 compiled source と実 verifier を通す X/P 正負対。"""
+    """名前は mocc に X/P 計装が無かった T-2304 期に由来し、C 以後の拒否側被験は tictoc。"""
     from orchestrator.campaign.pin import CURRENT_PIN
 
     trace_dir = os.path.join(FIX, "g1_serial")
@@ -103,6 +104,9 @@ def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     mocc = _verify_trace_dir(
         trace_dir, protocol="mocc", ccbench_root=REAL_CCBENCH_ROOT,
     )
+    tictoc = _verify_trace_dir(
+        trace_dir, protocol="tictoc", ccbench_root=REAL_CCBENCH_ROOT,
+    )
     assert silo.integrity.proof_surfaces.as_record() == {
         "protocol": "silo",
         "X": "evidence-present",
@@ -113,13 +117,25 @@ def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     assert silo.certified
     assert mocc.integrity.proof_surfaces.as_record() == {
         "protocol": "mocc",
-        "X": "evidence-absent",
-        "P": "evidence-absent",
+        "X": "evidence-present",
+        "P": "evidence-present",
         "I": "evidence-absent",
     }
-    assert not mocc.integrity.clean()
-    assert mocc.verdict == "indeterminate"
-    assert not mocc.certified
+    assert mocc.integrity.clean()
+    assert mocc.verdict == "serializable"
+    assert mocc.certified
+    tictoc_sources = compiled_protocol_source_texts("tictoc", REAL_CCBENCH_ROOT)
+    assert tictoc_sources is not None
+    assert all("#if TRACE" not in source for source in tictoc_sources)
+    assert tictoc.integrity.proof_surfaces.as_record() == {
+        "protocol": "tictoc",
+        "X": "unavailable",
+        "P": "unavailable",
+        "I": "unavailable",
+    }
+    assert not tictoc.integrity.clean()
+    assert tictoc.verdict == "indeterminate"
+    assert not tictoc.certified
     assert assess_protocol_proof_surfaces(
         "si", REAL_CCBENCH_ROOT,
     ).as_record() == {
