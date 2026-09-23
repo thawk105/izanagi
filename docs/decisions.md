@@ -71796,3 +71796,35 @@ D2219 項 10 の継続確認であり、決めることではない。
 - 5 手法を pool した分散の上側限界で規模を決める — 上記。
 - LLM を含む 4 対だけの族 — 本研究の問いは空間の構造によってどの探索法が効くかで、非 LLM どうしの対も含む。
 - 試走の手法間の差を見て本比較の課題を選ぶ — 課題の選択を通じて規模 (M・費用・n) に手法差が入る。
+
+## D2232. verifier は TPC-C trace v3 の存在履歴を silo の版付けに裏付けた段 1 の契約で検査し、v3 を一律に認定しなかった印を撤去する (2026-09-23)
+
+**決定:** D2224 項 4 の保留 (存在履歴を検査するまで v3 の run を認定しない) を、設計
+`output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §3.3 の検査に置き換える。実装と試験は本 wave
+(insight `output/insights/2026-09-23/t2854-v3-existence/README.md`)。
+
+1. **段 1 の存在契約:** (表, key) は、その object の最初の committed write (版 = commit の (epoch, tid) 辞書順) が I でなければ genesis から存在する。
+   一度も書かれない object の genesis 読みは存在する record の読みとする。初期ロード集合そのものを検証したとは主張しない。
+2. **違反 (いずれも認定しない):** 初期不存在の object の genesis 読み、op=D の版の読み、存在する object への I、存在しない object への U / D、
+   同じ取引・同じ版に異なる op。orphan read は既存の件数に任せて二重に数えない。version dup・genesis commit のある run は検査を省く
+   (既存の integrity で認定されない)。
+3. **出力:** `Integrity.existence_violations` と構造化した詳細 (txid・表・key・版・種別)。`clean()` は件数 0 を要求する。
+   `VerifyResult.verdict` の優先順位は変えない (cycle 併存は non-serializable のまま)。旧 `result_to_dict` (report.py) は変えず、
+   v3 の構造化出力 `result_to_dict_v3` にだけ詳細を足す。印 `Integrity.v3_existence_unverified` は撤去する。
+4. **適用範囲:** v3 の run だけ。v2 (YCSB) では検査を走らせない。契約の根拠は silo の版付けで、別の CC を認定に使うときは同じ 2 点
+   (初期ロードだけが版 (1,0) を付けること、insert が既存の key で失敗すること) を確かめる。段 2 (削除・再挿入・範囲読み) へはそのまま広げない。
+
+**理由:**
+- CCBench の silo (現 pin) で、版 (1,0) を付けるのは初期ロード専用の `Tuple::init(thid, body, p)` だけで、実行中の insert は版 (0,0) の absent record を作り、
+  実行中の commit が (1,0) 以下なら既存の genesis_commits で拒否される。したがって genesis 版の読みは初期ロードの record の読みを意味する。
+  insert は key が木にあれば失敗するので、最初の committed write が I の object は初期に無かった。規則は推定でなく、この版付けに裏付けられる。
+- 実 TPC-C trace (silo、36,156 取引) は公開 API で certified に届き、その R 行 1 本を違反に書き換えた写しは存在違反 1 件で認定されない。
+  事前登録の変異 (初期存在・D 版の読み・書きの 3 条件・入口・版順・表・出力ほか) は存在検査の試験だけで検出された。
+- cycle の優先順位を変えなくても、件数を `clean()` に入れれば認定は拒否できる。D2224 の「cycle は non-serializable として返す」を保つ。
+
+**却下した選択肢:**
+- 初期キー一覧 (設計 §4.3) の file を待つまで認定しない — 段 1 の点読みでは上の版付けで存在が決まり、一覧は段 2 の範囲読みのための材料 (単位 7)。
+  待つと印を名前だけ替えて残すことになる。
+- 存在違反を cycle より優先して indeterminate にする — 認定集合は変わらず、既存の異常分類と旧 JSON の verdict だけが変わる (段 3 相談の 2 レンズが一致)。
+- 書きの連鎖 (存在する object への I、存在しない object への U / D) を検査しない — cycle の無い、成功した操作列として成り立たない履歴を認定する。
+- v2 にも同じ検査を掛ける — YCSB の受理・判定を変え、依頼の範囲を越える。
