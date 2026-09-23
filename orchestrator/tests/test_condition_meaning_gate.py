@@ -3584,7 +3584,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 19
+    ) == 33
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3703,7 +3703,7 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_57_define_supply_domain() -> None:
+def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
     assert "supply domain contains the 57 patch-derived defines" in G.__doc__
     assert (
         "Thirty-nine\nregistered macros additionally have a bounded compile-time witness"

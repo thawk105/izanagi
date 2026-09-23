@@ -38,17 +38,16 @@ index 054a7e5f1..6790f388f 100644
    status_ = TransactionStatus::inflight;
    max_wset_.obj_ = 0;
    max_rset_.obj_ = 0;
-@@ -657,7 +679,22 @@ void TxExecutor::writePhase() {
+@@ -657,7 +679,21 @@ void TxExecutor::writePhase() {
  #endif
          memcpy((*itr).rcdptr_->body_.get_val_ptr(), (*itr).body_.get_val_ptr(),
                 (*itr).body_.get_val_size());
 +#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
 +        fired_reached.fetch_add(1, std::memory_order_relaxed);
 +        Tidword published = maxtid;
-+        // Reserved for the bounded 1s run: GlobalEpoch starts at 1 and
-+        // advances once per interval; generated commit TIDs use the maxima.
++        // 1s W4: epoch starts at 1 and advances per 40 ms (~25 steps), so ordinary C/W cannot reach UINT32_MAX; tid=2^28 leaves 2^28 increments before 29-bit wrap.
 +        published.epoch = UINT32_MAX;
-+        published.tid = (uint64_t(1) << 29) - 1;
++        published.tid = uint64_t(1) << 28;
 +        published.lock = 0;
 +        published.latest = 1;
 +        published.absent = 0;
@@ -61,7 +60,7 @@ index 054a7e5f1..6790f388f 100644
          break;
        }
        case OpType::INSERT: {
-@@ -706,6 +743,10 @@ void TxExecutor::writePhase() {
+@@ -706,6 +742,10 @@ void TxExecutor::writePhase() {
  bool TxExecutor::commit() {
    if (validationPhase()) {
      writePhase();

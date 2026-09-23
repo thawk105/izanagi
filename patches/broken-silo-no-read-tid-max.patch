@@ -2,10 +2,13 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 index 054a7e5f1..552ca763e 100644
 --- a/cc/silo/transaction.cc
 +++ b/cc/silo/transaction.cc
-@@ -2,6 +2,30 @@
+@@ -2,7 +2,31 @@
  #include <algorithm>
  #include <string>
  
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+ #include "include/transaction.hh"
 +#if IZANAGI_BREAK_NO_READ_TID_MAX
 +#include <atomic>
 +namespace {
@@ -30,9 +33,7 @@ index 054a7e5f1..552ca763e 100644
 +} fired_report;
 +}  // namespace
 +#endif
- #include "include/atomic_tool.hh"
- #include "include/log.hh"
- #include "include/transaction.hh"
+ #include "include/scan_callback.hh"
 @@ -53,6 +77,9 @@ void TxExecutor::abort() {
  }
  
