@@ -369,16 +369,20 @@ def test_compare_fixed10_define_check_rejects_missing_define(tmp_path):
         yield source, {"accepted": True}
 
     calls = []
-    def build_variant(*args, **kwargs):
+    def build_variant(source, build_dir, *, trace, **kwargs):
         calls.append("build")
-        return build / "binary", {"built": True}
+        build_dir.mkdir(parents=True, exist_ok=True)
+        (build_dir / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(source), "file": str(owner),
+            "arguments": ["c++", *defines, "-o", "CMakeFiles/ycsb_silo.exe.dir/owner.o", "-c", str(owner)]}]))
+        return build_dir / "binary", {"built": True}
     def run(*args, **kwargs):
         calls.append("run")
         return {}
     evidence = SimpleNamespace(src_token="token", as_receipt=lambda: {"source": "same"})
     for index, defines in enumerate((["-DBACK_OFF=1"],
-                                     ["-DBACK_OFF=1", "-DBACKOFF_FIXED=9"])):
-        command(defines)
+                                     ["-DBACK_OFF=1", "-DBACKOFF_FIXED=9"],
+                                     ["-DBACK_OFF=1", "-DBACKOFF_FIXED=10"])):
         calls.clear()
         with patch.object(C, "_source", source_context), \
              patch.object(C, "_build_variant", side_effect=build_variant), \
@@ -386,8 +390,17 @@ def test_compare_fixed10_define_check_rejects_missing_define(tmp_path):
              patch.object(C.source_digest, "resolve_evidence", return_value=evidence):
             row = R._one("fixed10", "fixed10", None, tmp_path / f"case-{index}",
                          {"cxx_path": "c++"}, {})
-        assert row["status"] == "backoff-fixed-not-effective" and calls == ["build"]
-        assert row["backoff_fixed_define"]["trace1"]["defines"] == defines
+        trace1 = row["backoff_fixed_define"]["trace1"]
+        assert trace1["defines"] == defines
+        assert "error" not in trace1
+        if index < 2:
+            assert row["status"] == "backoff-fixed-not-effective"
+            assert calls == ["build"]
+            assert trace1["effective"] is False
+        else:
+            assert trace1["effective"] is True
+            assert row["status"] == "verify-not-certified"
+            assert calls == ["build", "run", "run"]
 
 
 def test_compare_fixed10_define_check_rejects_duplicate_back_off(tmp_path):
