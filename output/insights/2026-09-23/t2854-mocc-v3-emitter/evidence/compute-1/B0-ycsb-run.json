@@ -1,0 +1,123 @@
+{
+  "passed": true,
+  "first_reason": null,
+  "reasons": [],
+  "commit_counts": 286026,
+  "batch_commit_counts": 0,
+  "counts": {
+    "C": 286026,
+    "E": 286026
+  },
+  "verifier": {
+    "runs": 1,
+    "certified_serializable": 1,
+    "non_serializable": 0,
+    "indeterminate": 0,
+    "results": [
+      {
+        "trace_dir": "/scr/t2854-6_91myis/run-B0-ycsb",
+        "verdict": "serializable",
+        "certified": true,
+        "serializable": true,
+        "stats": {
+          "txns": 286026,
+          "reads": 1415914,
+          "writes": 711034,
+          "keys": 200,
+          "edges": 2088838,
+          "abort_reasons": {}
+        },
+        "integrity": {
+          "clean": true,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": []
+        },
+        "anomaly_count": 0,
+        "total_cycles": 0,
+        "anomalies": []
+      }
+    ]
+  },
+  "verifier_argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-mocc-v3-emitter/orchestrator/verify.py",
+    "/scr/t2854-6_91myis/run-B0-ycsb",
+    "--expected-commits",
+    "286026",
+    "--protocol",
+    "mocc",
+    "--ccbench-root",
+    "/scr/t2854-6_91myis/src-cnd",
+    "--json"
+  ],
+  "verifier_returncode": 0,
+  "argv": [
+    "/scr/t2854-6_91myis/b1-cnd/cc/mocc/ycsb_mocc.exe",
+    "-thread_num=2",
+    "-extime=1",
+    "-ycsb_tuple_num=200",
+    "-ycsb_rratio=50",
+    "-ycsb_rmw=true",
+    "-ycsb_max_ope=5",
+    "-ycsb_zipf_skew=0",
+    "-clocks_per_us=2100"
+  ],
+  "stdout_excerpt": "#FLAGS_clocks_per_us:\t2100\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_max_ope:\t\t10\n#FLAGS_per_xx_temp\t4096\n#FLAGS_temp_threshold\t10\n#FLAGS_rmw:\t\t0\n#FLAGS_rratio:\t\t50\n#FLAGS_thread_num:\t2\n#FLAGS_tuple_num:\t1000000\n#FLAGS_ycsb:\t\t1\n#FLAGS_zipf_skew:\t0\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t1\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0\n#ShowOptParameters() : ADD_ANALYSIS 0: BACK_OFF 1: MASSTREE_USE 1: KEY_SIZE 8: KEY_SORT 0: TEMPERATURE_RESET_OPT 1: VAL_SIZE 4\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t1691\nbatch_abort_counts_:\t0\ncommit_counts_:\t286026\nbatch_commit_counts_:\t0\nmaxrss:\t42208 kB\nabort_rate:\t0.0059\nbatch_abort_rate:\t-nan\nlatency[ns]:\t6992.3713\nthroughput[tps]:\t286026\n",
+  "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0187.stdout",
+  "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0187.stderr",
+  "run_seconds": 1.0679424940608442,
+  "check_seconds": 10.203791453968734,
+  "returncode": 0,
+  "diagnostic_marker_count": 0,
+  "raw_files": [
+    {
+      "name": "trace_0.log",
+      "bytes": 39522096,
+      "sha256": "9e721bf174ebcf879b39b2c770511b1ddaf3e50896fa09a59100710a1e39ef0b"
+    },
+    {
+      "name": "trace_1.log",
+      "bytes": 41152931,
+      "sha256": "cf95d9519d95c32b2b6ac66856c86b1db01516e47a8f5be6a349f286aba994ec"
+    }
+  ],
+  "trace_bytes": 80675027,
+  "trace_bytes_per_run_second": 75542482.3421285,
+  "archives": [
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/traces-1/B0-ycsb/trace_0.log.zst",
+      "bytes": 6611634,
+      "sha256": "c82dd400a823383e5b28c7797627c7c55f92b7245f42406422b9d88afd9b8a27",
+      "raw_bytes": 39522096,
+      "raw_sha256": "9e721bf174ebcf879b39b2c770511b1ddaf3e50896fa09a59100710a1e39ef0b"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/traces-1/B0-ycsb/trace_1.log.zst",
+      "bytes": 6876873,
+      "sha256": "84e2caec33f95781432651205aa0d06626911b8804e90bd8e71fbb93e70ab7fa",
+      "raw_bytes": 41152931,
+      "raw_sha256": "cf95d9519d95c32b2b6ac66856c86b1db01516e47a8f5be6a349f286aba994ec"
+    }
+  ]
+}

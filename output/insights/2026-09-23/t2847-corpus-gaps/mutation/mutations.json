@@ -1,0 +1,58 @@
+{
+ "target_file": "orchestrator/verifier/dsg.py",
+ "mutations": [
+  {
+   "id": "M0",
+   "category": "positive",
+   "intent": "comment-only control (drift core in the 2 runner files)",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "G0/G1c 枝は **非 realizable",
+     "new": "G0/G1c 枝は **非実現可能"}
+   ]
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "intent": "F03: compact adjacency replay keeps duplicate edges",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "adjacency: Dict[int, Set[int]] = defaultdict(set)",
+     "new": "adjacency: Dict[int, List[int]] = defaultdict(list)"},
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "adjacency[source].update(outcome.run_dst[start:end])",
+     "new": "adjacency[source].extend(outcome.run_dst[start:end])"}
+   ]
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "intent": "F06: packed read loop keeps only the last read of a key within a txn",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n",
+     "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id):\n                        continue\n"}
+   ]
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "intent": "B06: classifier returns G2 for wr-only cycles",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "        if WR in all_types:\n            return \"G1c\"",
+     "new": "        if WR in all_types:\n            return \"G2\""}
+   ]
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "intent": "B06: witness reasons mislabel wr as rw (trace path only)",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "reasons.append(_edge_reason(WR, k, u_writes[k], None))",
+     "new": "reasons.append(_edge_reason(RW, k, u_writes[k], None))"}
+   ]
+  }
+ ]
+}

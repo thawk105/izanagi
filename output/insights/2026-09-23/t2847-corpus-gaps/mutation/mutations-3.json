@@ -1,0 +1,21 @@
+{
+ "target_file": "orchestrator/verifier/dsg.py",
+ "mutations": [
+  {
+   "id": "M9",
+   "category": "both-layers",
+   "intent": "F06 all builders: packed, tuple and legacy read loops drop the earlier read when the same key is read again at a different version",
+   "replacements": [
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n",
+     "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id\n                            and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                        continue\n"},
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "                key = _object_at(columns, columns.read_key_id[read_index])\n",
+     "new": "                key = _object_at(columns, columns.read_key_id[read_index])\n                if (read_index + 1 < read_end\n                        and _object_at(columns, columns.read_key_id[read_index + 1]) == key\n                        and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                    continue\n"},
+    {"file": "orchestrator/verifier/dsg.py",
+     "old": "            for r in t.reads:\n                k, rv = object_identity(r), r.ver\n",
+     "new": "            for _i, r in enumerate(t.reads):\n                k, rv = object_identity(r), r.ver\n                if (_i + 1 < len(t.reads) and object_identity(t.reads[_i + 1]) == k\n                        and t.reads[_i + 1].ver != rv):\n                    continue\n"}
+   ]
+  }
+ ]
+}

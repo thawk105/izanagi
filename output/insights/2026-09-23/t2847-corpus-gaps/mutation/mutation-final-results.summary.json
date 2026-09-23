@@ -1,0 +1,471 @@
+{
+ "_summary_of": {
+  "original_bytes": 305580,
+  "original_sha256": "681e3a61341bf894efd80da6c6537793ad0090e21e8ea8b0da225b570b156a25"
+ },
+ "baseline": {
+  "artifact": {
+   "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5f52faaf90bda3669fc001cd2a7849ba/izdw-5f52faaf90.o19057",
+   "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5f52faaf90bda3669fc001cd2a7849ba/receipt.json",
+   "runner_mode": "dispatch",
+   "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 53%]\n...............................................................          [100%]\n135 passed in 5.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+   "stdout_sha256": "2b77bed92eabc613182a4fd37db38061ec88605dc88355cc7d2759ae54a56b91"
+  },
+  "artifact_error": null,
+  "collection_sha256": "098003d1699b51175c48a83acb791608879aaacde123fa41a9294c22939493d0",
+  "duration_s": 28.879,
+  "failed_nodes": [],
+  "rc": 0,
+  "registration_sha256": "eff1212706b6c6640686d75c5dd68fb54bdea90b1008a210abd87f7eb06a2af9",
+  "repo_head": "d0ed93bab39acc17089e410261eb3585db98d56e",
+  "runner_sha256": "c78a56253e688d669908964c91ca0239634dcc9da0b4dbe12fb849dbce911691",
+  "spec_sha256": "bfaaf23e8dd098fc2da304259925bf5f4a06cd94f7d5932d4e242339ac48bc91",
+  "status": "PASSED",
+  "test_output_sha256": "2b77bed92eabc613182a4fd37db38061ec88605dc88355cc7d2759ae54a56b91",
+  "test_output_tail": [],
+  "timed_out": false,
+  "tool_sha256": "a79b2c2f506558ced24e4250a7eac80b81c8e641bdebeb9a53ea66341666e302"
+ },
+ "date": "2026-09-23T00:12:30.576845+00:00",
+ "mutations": {
+  "omitted": true,
+  "bytes": 260251,
+  "sha256": "dd095b204920e504e7228ab0a1597f1ccf54d94d93cf0da8e436905c03409dbf",
+  "items": 9
+ },
+ "nonterminal_history": [],
+ "procedure": {
+  "collection": {
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74ec04738ba2039a63601ee71212ce3c/izdw-74ec04738b.o19056",
+    "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74ec04738ba2039a63601ee71212ce3c/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout": {
+     "omitted": true,
+     "bytes": 11536,
+     "sha256": "a9243814fc749bb23db2b4fea882ad811945143db1af95a5d4ce39ff323dc2e9"
+    },
+    "stdout_sha256": "a9243814fc749bb23db2b4fea882ad811945143db1af95a5d4ce39ff323dc2e9"
+   },
+   "collected_nodes": [
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_f03_same_version_double_read",
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read",
+    "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c",
+    "orchestrator/tests/test_verifier.py::test_green_fixtures",
+    "orchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle",
+    "orchestrator/tests/test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
+    "orchestrator/tests/test_verifier.py::test_proof_surfaces_unavailable_source_fails_closed",
+    "orchestrator/tests/test_verifier.py::test_proof_surfaces_unspecified_fail_closed",
+    "orchestrator/tests/test_verifier.py::test_proof_surface_emitters_inside_if_zero_are_not_evidence",
+    "orchestrator/tests/test_verifier.py::test_write_skew_g2",
+    "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+    "orchestrator/tests/test_verifier.py::test_lost_update_g2",
+    "orchestrator/tests/test_verifier.py::test_cycle3_g2",
+    "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+    "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity",
+    "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+    "orchestrator/tests/test_verifier.py::test_orphan_read_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_commit_at_genesis_indeterminate_and_wr_edge_kept",
+    "orchestrator/tests/test_verifier.py::test_version_dup_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_empty_trace_indeterminate_not_certified",
+    "orchestrator/tests/test_verifier.py::test_phantom_skew_invisible_documented_limitation",
+    "orchestrator/tests/test_verifier.py::test_parser_groups_by_txid_across_files",
+    "orchestrator/tests/test_verifier.py::test_all_v2_fixture_files_have_clean_framing",
+    "orchestrator/tests/test_verifier.py::test_v1_c_record_is_rejected",
+    "orchestrator/tests/test_verifier.py::test_c_record_requires_exactly_seven_fields",
+    "orchestrator/tests/test_verifier.py::test_negative_txid_is_rejected_before_gap_math_can_cancel_it",
+    "orchestrator/tests/test_verifier.py::test_negative_declared_counts_are_rejected",
+    "orchestrator/tests/test_verifier.py::test_declared_read_and_write_counts_must_match",
+    "orchestrator/tests/test_verifier.py::test_missing_end_is_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_duplicate_end_is_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_end_txid_mismatch_is_parse_error",
+    "orchestrator/tests/test_verifier.py::test_end_record_requires_exactly_two_fields",
+    "orchestrator/tests/test_verifier.py::test_new_commit_before_end_records_missing_end",
+    "orchestrator/tests/test_verifier.py::test_non_immediate_duplicate_end_remains_parse_error",
+    "orchestrator/tests/test_verifier.py::test_zero_read_zero_write_frame_is_valid",
+    "orchestrator/tests/test_verifier.py::test_x_and_i_records_do_not_count_as_reads_or_writes",
+    "orchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation",
+    "orchestrator/tests/test_verifier.py::test_missing_txid_gap_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_write_version_mismatch_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_malformed_key_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_commit_below_genesis_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_dup_txid_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_lock_coverage_violation_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_lock_coverage_control_serializable",
+    "orchestrator/tests/test_verifier.py::test_lock_coverage_reasons_parsed",
+    "orchestrator/tests/test_verifier.py::test_lock_coverage_malformed_key_flagged",
+    "orchestrator/tests/test_verifier.py::test_write_intent_violation_indeterminate_and_reports_json_text",
+    "orchestrator/tests/test_verifier.py::test_write_intent_control_serializable",
+    "orchestrator/tests/test_verifier.py::test_write_intent_reasons_parsed_and_summarized",
+    "orchestrator/tests/test_verifier.py::test_write_intent_malformed_key_flagged",
+    "orchestrator/tests/test_verifier.py::test_write_intent_txid_must_match_open_txn",
+    "orchestrator/tests/test_verifier.py::test_write_intent_unknown_reason_counted_and_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_control_serializable",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_reasons_parsed",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_between_txn_blocks",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_details_follow_parse_verify_report_path",
+    "orchestrator/tests/test_verifier.py::test_permutation_violation_details_bound_large_known_sample",
+    "orchestrator/tests/test_verifier.py::test_abort_reason_tally_parsed_not_verdict",
+    "orchestrator/tests/test_verifier.py::test_abort_reason_absent_is_empty",
+    "orchestrator/tests/test_verifier.py::test_unknown_tag_still_parse_error_after_a",
+    "orchestrator/tests/test_verifier.py::test_known_tag_prefixes_are_not_accepted_as_record_tags",
+    "orchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_false_green",
+    "orchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness",
+    "orchestrator/tests/test_verifier.py::test_characterization_txn_tail_loss_is_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_commit_count_witness_detects_removed_trace_file",
+    "orchestrator/tests/test_verifier.py::test_commit_count_witness_accepts_complete_trace",
+    "orchestrator/tests/test_verifier.py::test_commit_count_witness_result_is_structured",
+    "orchestrator/tests/test_verifier.py::test_commit_witness_partial_state_is_unclean_without_report_schema_change",
+    "orchestrator/tests/test_verifier.py::test_result_to_dict_commit_witness_changes_notes_without_new_keys",
+    "orchestrator/tests/test_verifier.py::test_result_to_dict_without_commit_witness_matches_frozen_json_bytes",
+    "orchestrator/tests/test_verifier.py::test_matching_commit_witness_does_not_mask_existing_integrity_failure",
+    "orchestrator/tests/test_verifier.py::test_cli_expected_commits_accepts_single_trace_dir",
+    "orchestrator/tests/test_verifier.py::test_cli_expected_commits_mismatch_is_indeterminate_json",
+    "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_multiple_trace_dirs",
+    "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_negative_integer",
+    "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_non_integer",
+    "orchestrator/tests/test_verifier.py::test_nonascii_wrapped_as_parse_error",
+    "orchestrator/tests/test_verifier.py::test_classify_branches",
+    "orchestrator/tests/test_verifier.py::test_structured_report_has_edge_detail",
+    "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic",
+    "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+    "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+    "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+    "orchestrator/tests/test_verifier.py::test_new_real_fixture_bytes_are_exact",
+    "orchestrator/tests/test_verifier.py::test_real_silo_fixture_bytes_are_exact",
+    "orchestrator/tests/test_verifier.py::test_epoch_version_order_g2",
+    "orchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2",
+    "orchestrator/tests/test_verifier.py::test_real_silo_edge_type_combinations_are_exact",
+    "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+    "orchestrator/tests/test_verifier.py::test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure",
+    "orchestrator/tests/test_verifier.py::test_parallel_production_path_matches_certified_result_and_runs_workers",
+    "orchestrator/tests/test_verifier.py::test_default_worker_cap_is_16_but_explicit_workers_remain_available",
+    "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+    "orchestrator/tests/test_verifier.py::test_file_failures_keep_sorted_path_priority_over_later_io_error",
+    "orchestrator/tests/test_verifier.py::test_worker_parse_error_survives_file_disappearing_before_parent_reread",
+    "orchestrator/tests/test_verifier.py::test_daemon_process_falls_back_to_sequential_verification",
+    "orchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files",
+    "orchestrator/tests/test_verifier.py::test_parallel_parse_issues_keep_sorted_path_order",
+    "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal",
+    "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+    "orchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types",
+    "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge",
+    "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+    "orchestrator/tests/test_verifier.py::test_parallel_parse_error_is_raised_by_parent_scanner_with_cause",
+    "orchestrator/tests/test_verifier.py::test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle",
+    "orchestrator/tests/test_verifier.py::test_parallel_cross_file_duplicate_txid_is_parent_replayed",
+    "orchestrator/tests/test_verifier.py::test_sparse_huge_txid_returns_bounded_indeterminate_result",
+    "orchestrator/tests/test_verifier.py::test_parallel_capability_remains_bound_to_parent_pid",
+    "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+    "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+    "orchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays",
+    "orchestrator/tests/test_verifier.py::test_capacity_workers_1_and_16_match",
+    "orchestrator/tests/test_verifier.py::test_capacity_broken_pool_terminates_workers_and_falls_back",
+    "orchestrator/tests/test_verifier.py::test_capacity_parse_broken_pool_terminates_workers",
+    "orchestrator/tests/test_verifier.py::test_capacity_partial_outcomes_are_released_before_full_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+    "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+    "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+    "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+    "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+    "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+    "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+    "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file",
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files",
+    "orchestrator/tests/test_verifier.py::test_v3_schema_failure_precedes_cross_file_mixture",
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type",
+    "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes",
+    "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate",
+    "orchestrator/tests/test_verifier.py::test_v3_existence_unverified_and_v2_control",
+    "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+    "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+    "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection"
+   ],
+   "duration_s": 22.078,
+   "rc": 0,
+   "repo_head": "d0ed93bab39acc17089e410261eb3585db98d56e",
+   "runner_sha256": "c78a56253e688d669908964c91ca0239634dcc9da0b4dbe12fb849dbce911691",
+   "spec_sha256": "bfaaf23e8dd098fc2da304259925bf5f4a06cd94f7d5932d4e242339ac48bc91",
+   "status": "PASSED",
+   "tool_sha256": "a79b2c2f506558ced24e4250a7eac80b81c8e641bdebeb9a53ea66341666e302"
+  },
+  "hang_timeout_seconds": 3000.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "M0": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [],
+    "expected_status": "SURVIVED",
+    "injection_diff_sha256": "bc17b84d206529d1a09b2fab6d430f55bc176266de4cb846120e916da4e4b9ba",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "G0/G1c 枝は **非実現可能",
+      "old": "G0/G1c 枝は **非 realizable"
+     }
+    ]
+   },
+   "M1": {
+    "anchor_counts": {
+     "0": 1,
+     "1": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+     "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+     "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+     "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f03_same_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a246e6a457dd6a30298ff8091756c5508cef9aa27395e3a150a850ec0f3ce91f",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "adjacency: Dict[int, List[int]] = defaultdict(list)",
+      "old": "adjacency: Dict[int, Set[int]] = defaultdict(set)"
+     },
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "adjacency[source].extend(outcome.run_dst[start:end])",
+      "old": "adjacency[source].update(outcome.run_dst[start:end])"
+     }
+    ]
+   },
+   "M2": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "67e5b3b8ccc465f980b61c7df9d49663f5f3eed9fb0bfb4fbc608c286b9827c5",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id):\n                        continue\n",
+      "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n"
+     }
+    ]
+   },
+   "M3": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_classify_branches",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "53f52b78cddc7b6403384c455449b8a602c6085920d56a0cabe316788b2c03ce",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "        if WR in all_types:\n            return \"G2\"",
+      "old": "        if WR in all_types:\n            return \"G1c\""
+     }
+    ]
+   },
+   "M4": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+     "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+     "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+     "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+     "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+     "orchestrator/tests/test_verifier.py::test_real_silo_edge_type_combinations_are_exact",
+     "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+     "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+     "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "9a2926a8c1afdff6bcc3ef89e8b0e9246fc60fe1d78854858e0ba9219e96062c",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "reasons.append(_edge_reason(RW, k, u_writes[k], None))",
+      "old": "reasons.append(_edge_reason(WR, k, u_writes[k], None))"
+     }
+    ]
+   },
+   "M5": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_b06_wr_only_cycle_is_g1c"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "a3103847c9a45537da7e2552fcae81e87854d9e4949852a271f749a822ee8d82",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "        if WR in all_types and WW in all_types:\n            return \"G1c\"",
+      "old": "        if WR in all_types:\n            return \"G1c\""
+     }
+    ]
+   },
+   "M6": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "8c8ff3c824253f25781158a1ecbef72a2d57bec6cf29a77c0989852be27e1667",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id\n                            and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                        continue\n",
+      "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n"
+     }
+    ]
+   },
+   "M8": {
+    "anchor_counts": {
+     "0": 1,
+     "1": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+     "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+     "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+     "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+     "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f03_same_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "3f486e1c9e046aa76d2a763c4000b51b19a0f4169685f58c8e555bef0a265242",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "adjacency: Dict[int, List[int]] = defaultdict(list)",
+      "old": "adjacency: Dict[int, Set[int]] = defaultdict(set)"
+     },
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "_before = set(adjacency[source]); adjacency[source].extend(d for d in outcome.run_dst[start:end] if d not in _before)",
+      "old": "adjacency[source].update(outcome.run_dst[start:end])"
+     }
+    ]
+   },
+   "M9": {
+    "anchor_counts": {
+     "0": 1,
+     "1": 1,
+     "2": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+     "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+     "orchestrator/tests/test_verifier_corpus_gaps.py::test_f06_different_version_double_read"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "0ed8713246d82d5aee0f90cda14a8e4d510a0a88eda1ca17f92883e32f925125",
+    "replacements": [
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n                    if (read_index + 1 < columns.txn_read_offsets[row + 1]\n                            and token_to_key[columns.read_key_id[read_index + 1]] == key_id\n                            and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                        continue\n",
+      "old": "                    key_id = token_to_key[columns.read_key_id[read_index]]\n"
+     },
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "                key = _object_at(columns, columns.read_key_id[read_index])\n                if (read_index + 1 < read_end\n                        and _object_at(columns, columns.read_key_id[read_index + 1]) == key\n                        and (columns.read_ver_epoch[read_index + 1], columns.read_ver_tid[read_index + 1]) != (columns.read_ver_epoch[read_index], columns.read_ver_tid[read_index])):\n                    continue\n",
+      "old": "                key = _object_at(columns, columns.read_key_id[read_index])\n"
+     },
+     {
+      "file": "orchestrator/verifier/dsg.py",
+      "new": "            for _i, r in enumerate(t.reads):\n                k, rv = object_identity(r), r.ver\n                if (_i + 1 < len(t.reads) and object_identity(t.reads[_i + 1]) == k\n                        and t.reads[_i + 1].ver != rv):\n                    continue\n",
+      "old": "            for r in t.reads:\n                k, rv = object_identity(r), r.ver\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "eff1212706b6c6640686d75c5dd68fb54bdea90b1008a210abd87f7eb06a2af9",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_verifier_corpus_gaps.py",
+   "orchestrator/tests/test_verifier.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 10800.0
+ },
+ "repo_head": "d0ed93bab39acc17089e410261eb3585db98d56e",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_verifier_corpus_gaps.py",
+   "orchestrator/tests/test_verifier.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "05443555f91f4cd0a1e15a3bffcb29f134b4286c",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "c78a56253e688d669908964c91ca0239634dcc9da0b4dbe12fb849dbce911691",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "bfaaf23e8dd098fc2da304259925bf5f4a06cd94f7d5932d4e242339ac48bc91",
+ "summary": {
+  "KILLED": 8,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 9,
+  "matching": 9,
+  "recorded": 9,
+  "registered": 9
+ },
+ "tool_identity": {
+  "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+  "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-corpus-gaps/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+ },
+ "tool_sha256": "a79b2c2f506558ced24e4250a7eac80b81c8e641bdebeb9a53ea66341666e302",
+ "updated_at": "2026-09-23T00:20:44.205806+00:00"
+}

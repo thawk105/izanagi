@@ -1,0 +1,144 @@
+{
+  "passed": false,
+  "first_reason": "content-table",
+  "reasons": [
+    "content-table"
+  ],
+  "details": [
+    {
+      "reason": "content-table",
+      "detail": "txid=6: NewOrder tables/keys"
+    }
+  ],
+  "counts": {
+    "C": 35457,
+    "R": 488235,
+    "W": 523872,
+    "E": 35457
+  },
+  "files": [
+    {
+      "name": "trace_0.log",
+      "bytes": 17900038,
+      "sha256": "02dc72b486b06d0a9f1d87947b3d2d34752c780aeea52db512b6415877f1a334",
+      "counts": {
+        "C": 17558,
+        "R": 241672,
+        "W": 259333,
+        "E": 17558
+      }
+    },
+    {
+      "name": "trace_1.log",
+      "bytes": 18274309,
+      "sha256": "4c1ced93553cf6d618a77cbd6098e61eb3fa3e670a4e583adf769104917e3127",
+      "counts": {
+        "C": 17899,
+        "R": 246563,
+        "W": 264539,
+        "E": 17899
+      }
+    }
+  ],
+  "commit_counts": 35457,
+  "batch_commit_counts": 0,
+  "tx_types": {
+    "2": 16210,
+    "1": 19247
+  },
+  "orderline_min": 0,
+  "orderline_samples": [
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 1
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 2
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 0
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 4
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 3
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 5
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 6
+    },
+    {
+      "txid": 6,
+      "w": 1,
+      "d": 5,
+      "o": 3003,
+      "line": 7
+    }
+  ],
+  "orderline_orders": 19247,
+  "orderline_zero_min_fraction": 1.0,
+  "seconds": 8.123216201900505,
+  "result_name": "fail",
+  "argv": [
+    "/scr/t2854-6_91myis/b1-mut/cc/mocc/tpcc_mocc.exe",
+    "-thread_num=2",
+    "-extime=1",
+    "-tpcc_num_wh=1",
+    "-tpcc_perc_payment=43",
+    "-tpcc_perc_order_status=0",
+    "-tpcc_perc_delivery=0",
+    "-tpcc_perc_stock_level=0",
+    "-clocks_per_us=2100"
+  ],
+  "stdout_excerpt": "t order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n[th#1]: insert order failed\n[th#0]: insert order failed\n#ShowOptParameters() : ADD_ANALYSIS 0: BACK_OFF 1: MASSTREE_USE 1: KEY_SIZE 8: KEY_SORT 0: TEMPERATURE_RESET_OPT 1: VAL_SIZE 4\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t2726\nbatch_abort_counts_:\t0\ncommit_counts_:\t35457\nbatch_commit_counts_:\t0\nmaxrss:\t622180 kB\nabort_rate:\t0.0714\nbatch_abort_rate:\t-nan\nlatency[ns]:\t56406.3514\nthroughput[tps]:\t35457\nDetails per transaction type:\n  Summary: \n  All transaction total latencies: \n",
+  "stdout_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0199.stdout",
+  "stderr_log": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/compute-1/logs/0199.stderr",
+  "run_seconds": 1.4187411320162937,
+  "check_seconds": 8.124175545061007,
+  "returncode": 0,
+  "diagnostic_marker_count": 0,
+  "raw_files": [
+    {
+      "name": "trace_1.log",
+      "bytes": 18274309,
+      "sha256": "4c1ced93553cf6d618a77cbd6098e61eb3fa3e670a4e583adf769104917e3127"
+    },
+    {
+      "name": "trace_0.log",
+      "bytes": 17900038,
+      "sha256": "02dc72b486b06d0a9f1d87947b3d2d34752c780aeea52db512b6415877f1a334"
+    }
+  ],
+  "trace_bytes": 36174347,
+  "trace_bytes_per_run_second": 25497496.46617319
+}
