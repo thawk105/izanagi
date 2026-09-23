@@ -22,6 +22,8 @@ title: [T-2864] ComSys 原稿の改訂 2 — ADRS を一次資料で判定し (�
 - 受入: 1 回目 (tested main `65fd1422f`) は終了時の検査の競合 (terminal-postcheck) で rc=70、門番が自動で戻した。2 回目 (main `620a6bb13` を post-claim merge、tip `b53a72889`) は赤 4 件で rc=70。
   赤は `test_env_contract_activation` の historical calibration 2 件 (git archive の 30 秒 timeout)、`test_codex_worker_launch::test_t2620_orphan_mixed_is_rejected` (/proc の一過性の読取失敗で residual が None)、
   `test_dev_wave_cleanup::test_remove_child_checks_initialized_submodule[dirty]` (占有走査中に他 pid の cwd が消え indeterminate)。いずれも負荷・時間依存で、本 wave の差分 (tex・pdf・md のみ、コード無変更) は到達しない。非帰属と判定した (DW-O18)。
+  3 回目 (tip `72fb444f6`、main 同じ) は赤 1 件 `test_dev_wave_cleanup::test_remove_child_main_advance_during_removal_is_partial` (phase が `admin-recheck` でなく `recheck`)。同じコードの 2 回目では通っており、
+  単独再走 (`tools/run_tests.py <nodeid>`) は 1 passed で再現しなかったので非帰属と判定し、受入を再投入した。
 - 受入 2 回目の走行中に rulings 第 34 回の収集 session から、[T-2864] の更新版が D2235 項 2・3 の 2 点 (noauthor を外した再組版と頁数確認、参考文献の採録版照合) を落としていると連絡を受けた。
   local main `620a6bb13` の現物で確かめて real と判定し、2 点を残した形に書き直した (base も取り込み後の値へ)。
 - 組版は 15 頁 (エラー 0・警告 0・Overfull 0、Underfull 2 件は改訂前と同数)。改訂段落の出現を頁ごとの文字抽出と画像で確かめた。`grep -n "^%.*．"` は 0 件。
