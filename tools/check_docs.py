@@ -365,7 +365,7 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "Codex 固有の取り込み手順を重ねない。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
-    "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。"
+    "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
