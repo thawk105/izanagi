@@ -60,7 +60,7 @@ ID をいつ検証したか」が一目で追える:
 | Darwin Gödel Machine | `2505.22954` | `思想` | 自己改善系譜の理論的源流 | 7.2 |
 | FunSearch | *Nature* 625 (2024) | `思想` | LLM×進化ループの先駆 | 7.2 |
 | ShinkaEvolve | `2509.19349` (ICLR 2026) | `反面教師`+`部品予約` | 最直接の比較対象、リーク制御の対極 | 7.2 |
-| ADRS (Barbarians at the Gate) | `2510.06189` | `引用元` | 位置づけの 1 文に最も近い近傍 (LLM が取引の scheduling 方策をコードで進化) | 7.2 |
+| ADRS (Barbarians at the Gate) | `2510.06189` | `引用元` | 位置づけの 1 文の近傍 (LLM が取引の scheduling 方策をコードで進化) | 7.2 |
 | Effective Harness Engineering (Vesper) | `2605.15221` | `外部補強` | auditor / worktree / 少数深掘り / digest 射影 | 7.2 |
 | Best-of-∞ | `2509.21091` | `部品予約` | 正しさ検証の逐次停止 / learned selector 排除 | 7.2 |
 | DISC | `2502.16706` | `思想` | 評価予算の難所配分 / 分布比較 | 7.2 |
