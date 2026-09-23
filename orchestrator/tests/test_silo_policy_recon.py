@@ -176,7 +176,8 @@ def _jobs(throughput=100.0, rate=.1):
         rows = [_row(role, cid, throughput=throughput if role == "abort0" else 100.0,
                      rate=rate) for role, cid, _ in R._cases("initial", job, None)]
         result.append({"schema_version": R.SCHEMA, "phase": "initial", "job": job,
-                       "pbs_jobid": f"j{job}", "hostname": "host", "started_at": f"s{job}",
+                       "pbs_jobid": f"j{job}", "hostname": "host",
+                       "started_at": f"2026-09-23T05:08:{job:02d}+00:00",
                        "pin": C.PIN, "toolchain": {"cxx": "g++"},
                        "workload": {"legacy": C.LEGACY, "performance": R.FLAGS,
                                     "bench_reps": 5, "numa": True},
@@ -218,6 +219,7 @@ def test_aggregate_remeasure_missing_same_job_and_reproduced(tmp_path):
     detail, _ = _aggregate(tmp_path, jobs)
     assert detail["binary"] is None and detail["remeasure_candidates"] == ["0000"]
     rem = {**jobs[0], "phase": "remeasure", "job": "0000", "pbs_jobid": "new",
+           "started_at": "2026-09-23T06:00:00+00:00",
            "cases": [_row("abort0", "abort0", throughput=100),
                      _row("ir", "0000", throughput=104)]}
     assert _aggregate(tmp_path, jobs, [rem])[0]["binary"] is True
@@ -271,11 +273,65 @@ def test_aggregate_fixed_remeasurement_workload_and_abort0_accept(tmp_path):
     jobs = _jobs()
     jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
     rem = {**jobs[0], "phase": "remeasure", "job": "0000", "pbs_jobid": "new",
+           "started_at": "2026-09-23T06:00:00+00:00",
            "cases": [_row("abort0", "abort0", throughput=100),
                      _row("ir", "0000", throughput=104)]}
     detail, projection = _aggregate(tmp_path, jobs, [rem])
     assert detail["binary"] is True and detail["errors"] == []
     assert projection["binary"] is True
+
+
+def test_aggregate_null_pbs_jobids_distinct_job_keys_determine_binary(tmp_path):
+    jobs = _jobs()
+    for job in jobs:
+        job["pbs_jobid"] = None
+    jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
+    rem = {**jobs[0], "phase": "remeasure", "job": "0000",
+           "started_at": "2026-09-23T06:00:00+00:00",
+           "cases": [_row("abort0", "abort0", throughput=100),
+                     _row("ir", "0000", throughput=104)]}
+    detail, projection = _aggregate(tmp_path, jobs, [rem])
+    assert detail["binary"] is True and detail["errors"] == []
+    assert projection["binary"] is True
+
+
+def test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key(tmp_path):
+    jobs = _jobs()
+    for job in jobs:
+        job["pbs_jobid"] = None
+    jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
+    rem = {**jobs[0], "phase": "remeasure", "job": "0000",
+           "cases": [_row("abort0", "abort0", throughput=100),
+                     _row("ir", "0000", throughput=104)]}
+    detail, projection = _aggregate(tmp_path, jobs, [rem])
+    assert detail["binary"] is None and projection["binary"] is None
+    assert any("same-job remeasurement" in error for error in detail["errors"])
+
+
+def test_aggregate_rejects_duplicate_initial_job_key(tmp_path):
+    jobs = _jobs()
+    jobs[1]["hostname"] = jobs[0]["hostname"]
+    jobs[1]["started_at"] = jobs[0]["started_at"]
+    detail, projection = _aggregate(tmp_path, jobs)
+    assert detail["binary"] is None and projection["binary"] is None
+    assert any("initial hostname/started_at duplicated" in error for error in detail["errors"])
+
+
+def test_aggregate_rejects_duplicate_remeasurement_job_key(tmp_path):
+    jobs = _jobs()
+    for job in jobs:
+        job["pbs_jobid"] = None
+    candidates = [jobs[0]["cases"][0]["case_id"], jobs[1]["cases"][0]["case_id"]]
+    for job, case_id in zip(jobs[:2], candidates):
+        job["cases"][0]["bench"] = _row("ir", case_id, throughput=104)["bench"]
+    rem = [{**jobs[index], "phase": "remeasure", "job": case_id,
+            "hostname": "remeasure-host", "started_at": "2026-09-23T06:00:00+00:00",
+            "cases": [_row("abort0", "abort0", throughput=100),
+                      _row("ir", case_id, throughput=104)]}
+           for index, case_id in enumerate(candidates)]
+    detail, projection = _aggregate(tmp_path, jobs, rem)
+    assert detail["binary"] is None and projection["binary"] is None
+    assert any("same-job remeasurement" in error for error in detail["errors"])
 
 
 @pytest.mark.parametrize("change,error", [
@@ -286,6 +342,7 @@ def test_aggregate_rejects_changed_remeasurement_workload_or_abort0(tmp_path, ch
     jobs = _jobs()
     jobs[0]["cases"][0]["bench"] = _row("ir", "0000", throughput=104)["bench"]
     rem = {**jobs[0], "phase": "remeasure", "job": "0000", "pbs_jobid": "new",
+           "started_at": "2026-09-23T06:00:00+00:00",
            "cases": [_row("abort0", "abort0", throughput=100),
                      _row("ir", "0000", throughput=104)]}
     if change == "workload":

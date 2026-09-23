@@ -270,17 +270,22 @@ def aggregate(args: argparse.Namespace) -> int:
                 candidates.append(case_id)
         detail["remeasure_candidates"] = candidates
         rem_by_id = {}
-        initial_keys = {(p.get("pbs_jobid"), p.get("hostname"), p.get("started_at")) for p in initials}
-        initial_ids = {p.get("pbs_jobid") for p in initials}
-        if None in initial_ids or len(initial_ids) != 8:
-            raise ValueError("initial PBS_JOBID missing or duplicated")
+        initial_keys = {(p.get("hostname"), p.get("started_at")) for p in initials}
+        if len(initial_keys) != 8:
+            raise ValueError("initial hostname/started_at duplicated")
+        initial_ids = [p.get("pbs_jobid") for p in initials if p.get("pbs_jobid") is not None]
+        if len(initial_ids) != len(set(initial_ids)):
+            raise ValueError("initial PBS_JOBID duplicated")
+        initial_ids = set(initial_ids)
         rem_ids = set()
+        rem_keys = set()
         for p in rem:
             cid = p.get("job")
+            key = (p.get("hostname"), p.get("started_at"))
+            pbs_jobid = p.get("pbs_jobid")
             if (p.get("phase") != "remeasure" or cid not in candidates or cid in rem_by_id or
-                    not p.get("pbs_jobid") or p.get("pbs_jobid") in initial_ids or
-                    p.get("pbs_jobid") in rem_ids or
-                    (p.get("pbs_jobid"), p.get("hostname"), p.get("started_at")) in initial_keys):
+                    key in initial_keys or key in rem_keys or
+                    (pbs_jobid is not None and (pbs_jobid in initial_ids or pbs_jobid in rem_ids))):
                 raise ValueError("invalid or same-job remeasurement")
             rows = p.get("cases", [])
             if ([r.get("case_id") for r in rows] != ["abort0", cid] or
@@ -290,7 +295,9 @@ def aggregate(args: argparse.Namespace) -> int:
                 raise ValueError("remeasure body sha256 mismatch")
             check_control(rows[0])
             rem_by_id[cid] = p
-            rem_ids.add(p["pbs_jobid"])
+            rem_keys.add(key)
+            if pbs_jobid is not None:
+                rem_ids.add(pbs_jobid)
         reproduced = False
         for cid in candidates:
             if cid not in rem_by_id:
