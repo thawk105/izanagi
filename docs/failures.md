@@ -2180,6 +2180,8 @@
   実体は memory `enterworktree-fails-on-symlinked-cwd` に置いた
   (timeout を掛けない・rc を pipe へ通さない・timeout 無しの detach と `tail --pid` で待つ)。
   上限の引き上げは求めていない。
+
+- **再発: 2026-09-23** — [T-2863] wave の親が、前方 merge の commit message の事前検査 (`check_ai_provenance.py --message-file`) と `git commit -F` を**同じ応答の並列 tool call** で投げた。検査は赤 (両親と異なる実装面 `orchestrator/tests/test_ccbench_spawn_sites.py` に Codex `role=author` なし) だったが、並列 call は互いの rc を待たないので commit が走った。未 land のうちに気づいて `git reset --hard` で取り消し、3 版 (共通祖先・wave・main) を Codex author に合成させ、git の自動 merge の staged blob と sha256 一致を確かめてから、検査 rc=0 を単独 call で見て commit し直した (near miss、main 不変)。DW-O17 の「同じ shell なら `set -e`、無ければ tool call を分ける」は、並列 call を「分けた」と読む余地を残していた。恒久対応は F37 既存のとおり (検査を単独 call で走らせ rc を見てから commit)。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
