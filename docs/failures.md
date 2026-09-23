@@ -8698,6 +8698,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **supersede: 2026-08-25** — `evidence_status=invalid` の原因は web 検索と非 NFC の 2 つだけではない。内容側の条件をすべて満たしても invalid になる 3 つ目の型を F540 に記録した。invalid を見たら 3 つとも判定する。
 
 - **再発: 2026-09-23** — [T-2862] の段 6 read-only レビューで、子が `manuscript.pdf` を `pdftotext` で読み、参考文献の「Vũ」(tex 側は ASCII の `V\~{u}`) が u + U+0303 の分解列で `command_execution` の event 行に載り、`evidence_status=invalid` で不採用になった (10 model call・191 秒)。非 NFC の出所は tracked file ではなく PDF の文字抽出が作った派生出力なので、本 F の再発検知の後半 (tracked file の棚卸し) では見つからない。events.jsonl の NFC 判定で 36 行目を特定し、prompt で PDF の文字抽出を禁じた 2 回目 (別 job-id) は受理された。
+
+- **再発: 2026-09-23** — model 移行 wave (D2229) の段 5 author 1 回目が、所有 file の `orchestrator/tests/test_check_docs.py` を `cat` で全体表示し、5756 / 5779 行の非 NFC 文字を含む event 行 (約 47 万 byte) で `evidence_status=invalid`・`launcher_rc=1`・`outcome=not_accepted` になった (codex exit 0、12 call、約 3 分、差分自体は裁定どおり)。同じ unit で base から branch を切り直し、prompt に「5740〜5800 行を表示しない・全体を `cat` しない」を足した 2 回目は `accepted` (12 call)。[T-855] (非 NFC 行の正規化と機械検査) は見送り台帳にあり未実装で、同ファイルを所有・編集する wave では prompt への行範囲禁止が今も唯一の回避策である。
 ### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
 
 - 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
