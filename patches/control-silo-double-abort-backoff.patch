@@ -1,0 +1,64 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..ad6ffa805 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -1,6 +1,26 @@
+ #include <stdio.h>
+ #include <algorithm>
+ #include <string>
++#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF
++#include <atomic>
++#include <cstdint>
++namespace {
++std::atomic<std::uint64_t> t2847_reached{0}, t2847_changed{0}, t2847_committed{0};
++thread_local bool t2847_changed_tx = false;
++void t2847_mark_changed() {
++  t2847_changed.fetch_add(1, std::memory_order_relaxed);
++  t2847_changed_tx = true;
++}
++struct T2847Report {
++  ~T2847Report() {
++    fprintf(stderr, "T2847_FIRED slug=double-abort-backoff reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)t2847_reached.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_changed.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_committed.load(std::memory_order_relaxed));
++  }
++} t2847_report;
++}
++#endif
+ 
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+@@ -45,6 +65,11 @@ void TxExecutor::abort() {
+ #endif
+ 
+   Backoff::backoff(FLAGS_clocks_per_us);
++#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF
++  t2847_reached.fetch_add(1, std::memory_order_relaxed);
++  Backoff::backoff(FLAGS_clocks_per_us);
++  t2847_mark_changed();
++#endif
+ 
+ #if ADD_ANALYSIS
+   result_->local_backoff_latency_ += rdtscp() - start;
+@@ -53,6 +78,9 @@ void TxExecutor::abort() {
+ }
+ 
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF
++  t2847_changed_tx = false;
++#endif
+   status_ = TransactionStatus::inflight;
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -706,6 +734,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF
++    if (t2847_changed_tx)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;

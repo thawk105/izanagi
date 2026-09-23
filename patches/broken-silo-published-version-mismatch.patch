@@ -1,0 +1,74 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..6790f388f 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -2,6 +2,25 @@
+ #include <algorithm>
+ #include <string>
+ 
++#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
++#include <atomic>
++namespace {
++std::atomic<uint64_t> fired_reached{0}, fired_changed{0}, fired_committed{0};
++thread_local bool fired_this_tx = false;
++void fired_mark_changed() {
++  fired_changed.fetch_add(1, std::memory_order_relaxed);
++  fired_this_tx = true;
++}
++struct FiredReport {
++  ~FiredReport() {
++    fprintf(stderr, "T2847_FIRED slug=published-version-mismatch reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)fired_reached.load(std::memory_order_relaxed),
++            (unsigned long long)fired_changed.load(std::memory_order_relaxed),
++            (unsigned long long)fired_committed.load(std::memory_order_relaxed));
++  }
++} fired_report;
++}  // namespace
++#endif
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+ #include "include/transaction.hh"
+@@ -53,6 +72,9 @@ void TxExecutor::abort() {
+ }
+ 
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
++  fired_this_tx = false;
++#endif
+   status_ = TransactionStatus::inflight;
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -657,7 +679,22 @@ void TxExecutor::writePhase() {
+ #endif
+         memcpy((*itr).rcdptr_->body_.get_val_ptr(), (*itr).body_.get_val_ptr(),
+                (*itr).body_.get_val_size());
++#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
++        fired_reached.fetch_add(1, std::memory_order_relaxed);
++        Tidword published = maxtid;
++        // Reserved for the bounded 1s run: GlobalEpoch starts at 1 and
++        // advances once per interval; generated commit TIDs use the maxima.
++        published.epoch = UINT32_MAX;
++        published.tid = (uint64_t(1) << 29) - 1;
++        published.lock = 0;
++        published.latest = 1;
++        published.absent = 0;
++        if (published.epoch != maxtid.epoch || published.tid != maxtid.tid)
++          fired_mark_changed();
++        storeRelease((*itr).rcdptr_->tidword_.obj_, published.obj_);
++#else
+         storeRelease((*itr).rcdptr_->tidword_.obj_, maxtid.obj_);
++#endif
+         break;
+       }
+       case OpType::INSERT: {
+@@ -706,6 +743,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH
++    if (fired_this_tx)
++      fired_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;
