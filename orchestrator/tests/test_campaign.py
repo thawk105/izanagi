@@ -7516,11 +7516,11 @@ def test_tpcc_executor_v3_v2_existence_and_witness():
     genome, evidence, admission = commit_receipts._proof_build_binding("baseline")
     flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
              "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
-    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 district U 2 1\nE 0\n"
-    second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 district 2 1\nE 1\n"
-    existence = "C 1 0 2 2 1 0 0 0 2\nR 1 1 district 1 0\nE 1\n"
+    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa U 2 1\nE 0\n"
+    second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n"
+    existence = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 1 0\nE 1\n"
     third = "C 2 0 2 3 0 0 0 0 1\nE 2\n"
-    v2 = "C 0 0 2 1 0 1\nW 0 district U 2 1\nE 0\n"
+    v2 = "C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n"
     for case, frames, witness in (
         ("certified", (first, second), 2),
         ("v2", (v2,), 1),
@@ -7560,6 +7560,13 @@ def test_tpcc_executor_v3_v2_existence_and_witness():
         elif case == "v2":
             assert outcome.abort.reason == "trace-witness-unsupported-workload"
             assert outcome.abort.detail["trace_schema"] == "v2"
+            standalone, _ = pipeline.verify_trace_dir_with_capability(
+                trace_dir, expected_commits=witness, genome=genome,
+                source_evidence=evidence, build_admission=admission,
+                receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+                receipt_variant="baseline", receipt_operation_identity="tpcc-unit",
+                receipt_workload_tag="tpcc-stage1")
+            assert standalone.certified
         else:
             assert outcome.abort.reason == "indeterminate"
             integrity = outcome.abort.detail["verify"]["integrity"]

@@ -4137,22 +4137,26 @@ def test_v3_capability_digest_binds_anomaly_and_existence():
 def test_v3_district_lost_update_and_serial_control():
     import shutil
     lost = (
-        _v3_frame(0, [(1, "district", 1, 0)], [(1, "district", "U")],
+        _v3_frame(0, [(1, "aa", 1, 0)], [(1, "aa", "U")],
                   commit=(2, 1)),
-        _v3_frame(1, [(1, "district", 1, 0)], [(1, "district", "U")],
+        _v3_frame(1, [(1, "aa", 1, 0)], [(1, "aa", "U")],
                   commit=(2, 2), tx_type=2),
     )
     serial = (lost[0], _v3_frame(
-        1, [(1, "district", 2, 1)], [(1, "district", "U")],
+        1, [(1, "aa", 2, 1)], [(1, "aa", "U")],
         commit=(2, 2), tx_type=2))
     for frames, expected in ((lost, "non-serializable"),
                              (serial, "serializable")):
         d = _tmp_trace(*frames)
         try:
             result = verify_trace_dir(d, expected_commits=2)
+            assert result.integrity.proof_surfaces.certification_gate_satisfied()
+            assert result.integrity.malformed_keys == 0
+            assert result.integrity.framing_violations == 0
             assert result.verdict == expected
             assert result.certified == (expected == "serializable")
-            if result.anomalies:
+            if expected == "non-serializable":
+                assert result.anomalies
                 reasons = {(r.etype, r.table) for e in result.anomalies[0].edges
                            for r in e.reasons}
                 assert ("ww", 1) in reasons and ("rw", 1) in reasons

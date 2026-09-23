@@ -432,6 +432,9 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
     if existing_traces:
         raise _TraceDirNotEmpty(existing_traces)
     name = os.path.basename(binary)
+    # YCSB は既存の commit witness 対象。TPC-C 段 1 は設計 §3.5 の
+    # CCBench 側 commit 計数修正を前提に、57:43 のみ trace を許す。
+    # TPC-C の v3 schema は trace の verifier 後に要求する。
     tpcc_stage1 = (
         name.startswith("tpcc_")
         and flags.get("tpcc_perc_payment") == "43"
