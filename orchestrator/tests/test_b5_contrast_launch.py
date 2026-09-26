@@ -234,8 +234,10 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
                 futures.append(pool.submit(compute))
                 return subprocess.CompletedProcess(argv, 0, "123.server\n", "")
 
-            driver = launch.V2Launcher((stock, job), {"stock": launch.SubmitTree(ROOT, "0" * 40, ROOT),
-                                                   "llm": launch.SubmitTree(ROOT, "0" * 40, ROOT)},
+            thirdparty = root / "thirdparty"
+            thirdparty.mkdir()
+            driver = launch.V2Launcher((stock, job), {"stock": launch.SubmitTree(ROOT, "0" * 40, ROOT, thirdparty),
+                                                   "llm": launch.SubmitTree(ROOT, "0" * 40, ROOT, thirdparty)},
                 parent_config=config, state_root=root / "state", max_active_series=1,
                 submitter=submit, parent_factory=parent_factory)
             for _ in range(5000):

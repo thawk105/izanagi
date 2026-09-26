@@ -202,13 +202,14 @@ if [[ "$k2_requested" == true ]]; then
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"
     )
   fi
+  b5_original_mode=$b5_mode
   if [[ "$b5_mode" == series-step ]]; then
     b5_mode=series
   fi
   [[ ( "$b5_mode" == series && "${IZANAGI_S4_B5_ARM-}" == llm ) \
      || -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
     || refuse "K2 environment requires IZANAGI_S4_PROPOSAL_PATH"
-  b5_mode=${IZANAGI_S4_B5_MODE-}
+  b5_mode=$b5_original_mode
 fi
 
 case "${IZANAGI_S4_STOCK_CONTROL-0}" in

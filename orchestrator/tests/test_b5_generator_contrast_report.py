@@ -316,8 +316,10 @@ def test_v2_four_comparison_holm_family():
     assert len(report["comparisons"]) == 4
     assert set(report["floors"]) == set(WORKLOADS[:2])
     assert all(c["raw_p"] == Fraction(1, 4096) and
-               c["adjusted_p"] == Fraction(4, 4096) and
-               c["holm_threshold"] == Fraction(1, 80) for c in report["comparisons"])
+               c["adjusted_p"] == Fraction(4, 4096) for c in report["comparisons"])
+    ranked = sorted(report["comparisons"], key=lambda c: (c["raw_p"], c["workload"], c["baseline"]))
+    assert [c["holm_threshold"] for c in ranked] == [
+        Fraction(1, 80), Fraction(1, 60), Fraction(1, 40), Fraction(1, 20)]
     assert all(c["judgment"] == "conditional-superiority" for c in report["comparisons"])
     incomplete = [d for d in v2_registered() if not (d["header"]["workload"] == "write-heavy" and
                    d["header"]["arm"] == "random" and d["header"]["series"] == 1)]
