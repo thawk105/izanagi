@@ -17,8 +17,8 @@ title: [T-2850] 案 (b) を実装した — 性能 trace 5 本を直列に取得
 - **棄却した所見:** 相談 A2 (trace 内容の digest 束縛)、レビュー A4 (同時経路の不認証で `verify_result` が None)、焦点再レビュー 2 (失敗 rep より後と finally の経路で group 消滅確認の失敗を捨てる) は、判定・記録の値が変わらないとして refuted ({{D:concurrent-local-verify-fork-receipt}} の却下欄)。焦点再レビューは 2 巡で親が裁定して閉じた。
 - **焦点走の赤の帰属:** v1 (179 赤) は未 commit の木を走らせた contract-loader-drift で実装と無関係、v2 (6 赤) は新 test の fixture と起動箇所の登録簿、v5 (1 赤) は fix 3 の /proc 走査が終了途中の無関係な process の ESRCH で rep を reject していた (fix 4 で修正)。
 - **変異:** final は 11 / 11 が期待と完全一致 (KILLED 10、等価変異 1 が SURVIVED)。M8 は drift に覆われ、commit 注入で値の層の生存 (test の穴) が分かった (F1037 の再発)。fix 6 で test を足し、commit 注入で落ちることを確かめた。結果の全体は insight §5。
-- 焦点走の最後は `d21b870c9` で 1,439 passed。受入全走は本記録の commit の後に走らせる (land の前提)。
-- 工数: Codex 子 = plan 1、consult 2、author 1、fix 6 (うち test だけ 1)、review 2、焦点再レビュー 2、repo 外 script の author 2 (投入 glue v3・測定 script v3) の計 16 本。
+- 焦点走の最後は `d21b870c9` で 1,439 passed。記録 commit の後の受入全走 1 回目は `test_plain_runner_coverage.py` の 1 件だけ赤 (新設 test file に自走 harness が無い、自分起因) で、fix 7 で足した。焦点走の file 集合にこのメタ test を入れていなかった (DW-O26 の「新規 test file を足す走は file 集合列挙のメタテストも含める」の漏れ)。
+- 工数: Codex 子 = plan 1、consult 2、author 1、fix 8 (うち test だけ 3、報告の不受理による再投入 1)、review 2、焦点再レビュー 2、repo 外 script の author 2 (投入 glue v3・測定 script v3) の計 18 本。
 
 ## 次の一手差分
 

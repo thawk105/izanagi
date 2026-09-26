@@ -15,6 +15,7 @@ job dir (repo 外) = `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trace-concu
 | `ffab56d15` | fix 4: /proc 走査で終了途中の無関係 process の ESRCH を消滅として読み飛ばす |
 | `f180c9de8` | fix 5: 同時検査 mode の初回静定待ちの上限 60 → 120 秒 (§3) |
 | `d21b870c9` | fix 6 (test だけ): 既定 campaign identity の test を `--verify-performance` あり × 3 workload でも確かめる (§5 の M8) |
+| `d935fa8e1` | fix 7 (test だけ): 新設 test file に自走 harness (`__main__`) を足す。記録 commit の後の受入全走 1 回目 (main `7c1b53a4b` を post-claim merge) が `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件だけ赤 (27,677 passed) だった自分起因の赤。fix 7 の子の報告が 495 byte で出力検証の下限 500 byte に届かず不受理になり、fix 7b で差分を確認させて受理した |
 
 - production の差分は +358 / -42 行 (計 400 行、段 4 の上限ちょうど。`git diff --numstat 6d198ca8a d21b870c9 -- orchestrator/campaign/`)。`orchestrator/calibrator/runner.py` は変えていない (B-5 発効束の下書き
   `output/insights/2026-09-22/t2797-effect-bundle/bundle/b5-effective-bundle.draft.json` が現 bytes の sha256 を持つため、呼び出し側で上限を渡した)。
