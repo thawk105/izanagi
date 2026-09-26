@@ -105,6 +105,19 @@ def test_block_control_session_counts_and_exact_reference_argv(tmp_path):
         controls(tmp_path)
 
 
+def test_mocc_block_controls_have_stock_ratio_without_reference(tmp_path):
+    runner = Runner()
+    H.run_block_controls("balanced", 1, cohort="unit", cohort_root=tmp_path, n_eval=2,
+                         block_stock_sessions=1, prebuild_receipt=tmp_path / "receipt",
+                         repo_root=ROOT, runner=runner, protocol="mocc")
+    run(tmp_path, runner=runner, protocol="mocc", a_limit=1, b_limit=1)
+    assert len([a for a in runner.calls if "--stock-control" in a]) == 2
+    assert not (tmp_path / "balanced/controls/block-1/reference-genome.json").exists()
+    row = report(tmp_path)[0]
+    assert row["stock_ratio"] == 1
+    assert row["reference"] is None and row["reference_ratio"] is None
+
+
 def _run():
     return pytest.main([__file__, "-q"])
 

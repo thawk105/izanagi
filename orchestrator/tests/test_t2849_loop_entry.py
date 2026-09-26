@@ -152,6 +152,42 @@ def test_reference_identity_and_absent_defaults(tmp_path, monkeypatch):
     assert len({str(ident.campaign_id(call[0])) for call in calls}) == 3
 
 
+def test_mocc_exact_genomes_and_default_silo_identity():
+    assert L.default_cfg().search_config == L.default_cfg(protocol='silo').search_config
+    assert L.backoff_genome('silo', -1) == Genome('silo', {**L._BASE, 'BACK_OFF': 1,
+                                                         'BACKOFF_FIXED': -1})
+    assert L.backoff_genome('silo', 20) == Genome('silo', {**L._BASE, 'BACK_OFF': 1,
+                                                         'BACKOFF_FIXED': 20})
+    for value in (-1, 20):
+        assert L.backoff_genome('mocc', value) == Genome('mocc', {
+            'BACK_OFF': 1, 'KEY_SORT': 0, 'TEMPERATURE_RESET_OPT': 1,
+            'BACKOFF_FIXED': value})
+    assert L.default_cfg(protocol='mocc').search_config['scale'] == 'mocc'
+    assert L.default_cfg(protocol='mocc').search_config['protocol'] == 'mocc'
+
+
+def test_mocc_slot_start_sidecar_genome(tmp_path, monkeypatch):
+    _, _, _, sidecar, argv = F._b5_candidate_fixture(tmp_path, monkeypatch)
+    argv[argv.index('--b5-slot') + 1] = 't2849-harness-v1|fixture'
+    monkeypatch.setattr(L, '_require_condition_gate', lambda *a, **k: None)
+    class Boundary(Exception):
+        pass
+    def campaign(cfg, genomes, *args, **kwargs):
+        assert genomes[0] == L.backoff_genome('mocc', 20)
+        assert json.loads((sidecar / 'slot-start.json').read_text())['genome'] == genomes[0].canonical()
+        raise Boundary
+    monkeypatch.setattr(L, 'run_campaign', campaign)
+    with pytest.raises(Boundary):
+        L.main([*argv, '--protocol', 'mocc'])
+
+
+def test_mocc_reference_genome_rejected(tmp_path):
+    path, _ = reference(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        L.main([*args(), '--stock-control', '--protocol', 'mocc', '--reference-genome', str(path)])
+    assert exc.value.code == 2
+
+
 def _run():
     return pytest.main([__file__, "-q"])
 

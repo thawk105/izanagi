@@ -12,6 +12,7 @@ from orchestrator.campaign import t2849_comparison_harness as H
 from orchestrator.campaign import p3_s4_loop as L
 from orchestrator.campaign.model import WalRecord
 from orchestrator.campaign.pipeline import variant_id
+from tools import t2849_llm_round as T
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -97,7 +98,8 @@ class Runner:
         value = -1
         if "--run-iteration" in argv:
             value = json.loads(Path(argv[argv.index("--run-iteration")+1]).read_bytes())["coder"]["value"]
-        genome = H.reference_genome(fields[3]) if "--reference-genome" in argv else None
+        genome = (H.reference_genome(fields[3]) if "--reference-genome" in argv else
+                  H._genome(value, "mocc") if "--protocol" in argv else None)
         defaults = {"bench": _bench(tps=[50.]*5, median_tps=50.)} if kind == "search" else {}
         changes = self.outcomes.get((kind, n, attempt), self.outcomes.get(kind, defaults))
         _write_attempt(sidecar, key=key, value=value, genome=genome, **changes)
@@ -157,6 +159,60 @@ def test_llm_slot_argv_k0():
     initial_score = H.slot_argv(**options, proposal_origin="machine")
     assert "--machine-generated-proposal" in initial_score
     assert "--allow-coder-derived-build" not in initial_score
+
+
+def test_mocc_slot_argv_and_classification(tmp_path):
+    runner = Runner()
+    result = run(tmp_path, runner=runner, protocol="mocc", a_limit=1, b_limit=1)
+    assert result["header"]["protocol"] == "mocc"
+    assert all(argv[-2:] == ["--protocol", "mocc"] or
+               argv[argv.index("--protocol"):] == ["--protocol", "mocc", "--machine-generated-proposal"]
+               for argv in runner.calls)
+    assert result["events"][-1]["reason"] == "b-complete"
+    assert any(e["outcome"] == "certified" for e in events(result, "evaluation-result"))
+
+
+def test_mocc_stock_established_only_for_mocc_variant():
+    observation = {"outcome": "certified", "quality": "normal", "src_token": "stock",
+                   "variant": variant_id(H._genome(-1, "mocc")), "fitness_tps": 100.}
+    assert H._stock_established(observation, "mocc")
+    assert not H._stock_established(observation, "silo")
+    observation["variant"] = variant_id(H._genome(-1, "silo"))
+    assert not H._stock_established(observation, "mocc")
+
+
+def test_mocc_k0_header_request_context_proposal_and_classified_slot(tmp_path, monkeypatch):
+    original_publish = H._publish
+    contexts = []
+    def publish(path, value, **kwargs):
+        original_publish(path, value, **kwargs)
+        if not path.name.startswith("request-"):
+            return
+        assert value["protocol"] == "mocc"
+        a = value["a"]
+        materials = tmp_path / "materials"
+        (materials / "verbatim").mkdir(parents=True, exist_ok=True)
+        tool = T.RoundTool(path.parent.parent, materials)
+        assert tool.header["protocol"] == "mocc"
+        tool.cmd_inputs(a)
+        context = T.load(tool.directory(a) / "coder-input-skeleton.json")["leakproof_context"]
+        contexts.append(context)
+        assert "BACK_OFF=1、KEY_SORT=0、TEMPERATURE_RESET_OPT=1" in context
+        assert "NO_WAIT_LOCKING_IN_VALIDATION=1" not in context
+        doc = H.machine_proposal_document("llm", 12, {})
+        doc["planner"]["uncertainty"] = "observed noise"
+        T.dump(materials / "verbatim" / f"planner-{a}.json", {"proposal": doc["planner"]})
+        tool.cmd_coder(a)
+        T.dump(materials / "verbatim" / f"coder-{a}.json", {"proposal": doc["coder"]})
+        tool.cmd_proposal(a)
+    monkeypatch.setattr(H, "_publish", publish)
+    runner = Runner()
+    result = run(tmp_path, arm="llm", runner=runner, protocol="mocc", a_limit=1, b_limit=1)
+    assert contexts
+    assert result["events"][-1]["reason"] == "b-complete"
+    assert any(e["slot_kind"] == "search" and e["outcome"] == "certified"
+               for e in events(result, "evaluation-result"))
+    assert all("--protocol" in argv for argv in runner.calls)
 
 
 def test_k0_uses_latest_normal(tmp_path):

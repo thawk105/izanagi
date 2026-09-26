@@ -134,6 +134,15 @@ SOURCE_REL = "include/backoff.hh"     # EVOLVE_BLOCK_SOURCES のメンバ (段 4
 TEMPLATE_PATCH = "patches/silo-backoff-fixed.patch"  # 骨格 (hole) を敷く不変フレーム
 
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
+_MOCC_BASE = {"BACK_OFF": 1, "KEY_SORT": 0, "TEMPERATURE_RESET_OPT": 1}
+
+
+def backoff_genome(protocol: str, value: int) -> Genome:
+    if protocol == "silo":
+        return Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": value})
+    if protocol == "mocc":
+        return Genome("mocc", {**_MOCC_BASE, "BACKOFF_FIXED": value})
+    raise ValueError(f"unsupported protocol: {protocol}")
 
 
 def _site_admits_measurement(site: str) -> bool:
@@ -436,7 +445,7 @@ def _require_condition_gate(
         request = condition_meaning_gate.make_define_request(
             driver_id="orchestrator.campaign.p3_s4_loop",
             macro="BACKOFF_FIXED", requested_value=-1, default_value=-1,
-            stock_comparison=True,
+            stock_comparison=True, protocol=genome.protocol,
         )
         declaration = condition_meaning_gate.MeaningWitnessDeclaration(
             "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(
@@ -451,6 +460,7 @@ def _require_condition_gate(
         request = condition_meaning_gate.make_define_request(
             driver_id="orchestrator.campaign.p3_s4_loop",
             macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
+            protocol=genome.protocol,
         )
         bits = struct.pack(">d", float(value)).hex()
         declaration = condition_meaning_gate.MeaningWitnessDeclaration(
@@ -1763,6 +1773,7 @@ def default_cfg(
     *,
     b4_reflux_ablation: bool = False,
     _b4_launch_context=None,
+    protocol: str = "silo",
 ) -> CampaignConfig:
     """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
@@ -1771,6 +1782,11 @@ def default_cfg(
                      "records": 100_000, "threads": 4,
                      backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION_KEY:
                          backoff_hole_grammar.BACKOFF_GRAMMAR_VERSION}
+    if protocol == "mocc":
+        search_config["scale"] = "mocc"
+        search_config["protocol"] = "mocc"
+    elif protocol != "silo":
+        raise ValueError(f"unsupported protocol: {protocol}")
     if b4_reflux_ablation:
         from .p3_b4_launcher import require_b4_any_context
         require_b4_any_context(
@@ -1845,8 +1861,13 @@ def default_perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def calibrated_perf(workload_name: str) -> PerfConfig:
+def calibrated_perf(workload_name: str, protocol: str = "silo") -> PerfConfig:
     """Use the approved P2 calibration and the exact four-key workload."""
+    if protocol not in ("silo", "mocc"):
+        raise ValueError(f"unsupported protocol: {protocol}")
+    # MOCC pin C 68106660, records=1,000,000: registered calibration
+    # rr5 calibration-4b8329b42bb47c65.json, rr50 calibration-ae83d7382329999b.json,
+    # rr95 calibration-7f00a49f493e1015.json (output/env/pegasus/calibration/registered/).
     return PerfConfig(
         records=p2_2.RECORDS, threads=p2_2.THREADS,
         workload={**dict(p2_2.WORKLOADS)[workload_name],
@@ -2311,7 +2332,7 @@ def _run_stock_control_resolved(
 
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
-    genome = (Genome("silo", {**_BASE, "BACK_OFF": 1, "BACKOFF_FIXED": -1})
+    genome = (backoff_genome(cfg.search_config.get("protocol", "silo"), -1)
               if reference_genome is None else reference_genome)
     layout.ensure()
     if b5_sidecar_dir is not None:
@@ -2463,8 +2484,7 @@ def _run_one_iteration_resolved(
                 raise
             return _b5_proposal_rejected(
                 b5_sidecar_dir, cfg.search_config["b5_slot"], exc)
-    genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
-                             "BACKOFF_FIXED": int(coder.value)})
+    genome = backoff_genome(cfg.search_config.get("protocol", "silo"), int(coder.value))
     layout.ensure()
     # reject も campaign の初回 WAL write なので、repair 無しの recovery seam を先行する。
     ident.ensure_resumable_attempts(
@@ -3158,8 +3178,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         state = None
     layout.ensure()
     if b5_sidecar_dir is not None:
-        genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
-                                 "BACKOFF_FIXED": int(coder.value)})
+        genome = backoff_genome(cfg.search_config.get("protocol", "silo"), int(coder.value))
         _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
                           _b5_sidecar_payload(cfg, genome, layout))
     ident.ensure_resumable_attempts(
@@ -3449,6 +3468,7 @@ def main(
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--b5-slot")
     ap.add_argument("--reference-genome", type=Path)
+    ap.add_argument("--protocol", choices=("silo", "mocc"), default="silo")
     ap.add_argument("--machine-generated-proposal", action="store_true")
     ap.add_argument("--b5-sidecar-dir", type=Path)
     ap.add_argument("--calibrated-perf", action="store_true")
@@ -3557,6 +3577,8 @@ def main(
         if not (a.run_iteration or a.stock_control):
             ap.error("--b5-slot requires --run-iteration or --stock-control")
     reference_genome = None
+    if a.protocol == "mocc" and a.reference_genome is not None:
+        ap.error("--reference-genome is silo-only")
     if a.reference_genome is not None:
         if not (stock_only and a.b5_slot
                 and a.b5_slot.startswith("t2849-harness-v1|")):
@@ -3708,10 +3730,11 @@ def main(
             reflux=(a.reflux == "on"),
             b4_reflux_ablation=True,
             _b4_launch_context=_b4_launch_context,
+            protocol=a.protocol,
         )
     else:
-        cfg = default_cfg(reflux=(a.reflux == "on"))
-    perf = calibrated_perf(a.perf_workload) if a.calibrated_perf else default_perf()
+        cfg = default_cfg(reflux=(a.reflux == "on"), protocol=a.protocol)
+    perf = calibrated_perf(a.perf_workload, protocol=a.protocol) if a.calibrated_perf else default_perf()
     if a.calibrated_perf:
         cfg = replace(cfg, search_config={
             **cfg.search_config, "records": perf.records, "threads": perf.threads,

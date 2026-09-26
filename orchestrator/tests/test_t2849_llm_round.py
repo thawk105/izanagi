@@ -14,9 +14,12 @@ def write(path, value):
     path.write_text(json.dumps(value))
 
 
-def prepared(tmp_path, a=3, b=0):
+def prepared(tmp_path, a=3, b=0, protocol="silo"):
     root, materials = tmp_path / "ledger", tmp_path / "materials"
-    write(root / "header.json", {"workload": "balanced", "arm": "llm"})
+    header = {"workload": "balanced", "arm": "llm"}
+    if protocol == "mocc":
+        header["protocol"] = "mocc"
+    write(root / "header.json", header)
     source = {"kind": "evaluation-result", "b": 0, "slot_key": "initial-2", "campaign_root": "initial-2"}
     write(root / "events/000001-evaluation-result.json", {
         **source, "bench_payload": {"leading_indicators": {"llc_miss_rate": .1, "ipc": 2}}})
@@ -30,6 +33,8 @@ def prepared(tmp_path, a=3, b=0):
                "initial_points": [{"value": 5, "outcome": "certified", "fitness_tps": 100},
                                   {"value": 10, "outcome": "certified", "fitness_tps": 90}],
                "rejected_opportunities": [{"a": 1, "reject_class": "role-output"}]}}
+    if protocol == "mocc":
+        req["protocol"] = "mocc"
     write(root / f"handshake/request-{a}.json", req)
     write(materials / f"verbatim/planner-{a}.json", {"proposal": {
         "axis": "silo-backoff-magnitude", "direction": "increase", "magnitude": "small",
@@ -117,6 +122,20 @@ def test_context_keeps_k0_boundary(tmp_path, workload, ratio):
     for marker in ("output/docs/insights の参照", "decisions.md や phase3.md", "過去 campaign の WAL や grid fitness",
                    "1000000 records / 48 threads", f"rr{ratio}", "trace 5 回", "1 回)"):
         assert marker in text
+
+
+def test_mocc_request_context_and_proposal(tmp_path):
+    tool, req = prepared(tmp_path, protocol="mocc")
+    assert req["protocol"] == tool.header["protocol"] == "mocc"
+    coder = T.load(tool.directory(3) / "coder-input.json")
+    context = coder["leakproof_context"]
+    assert "BACK_OFF=1、KEY_SORT=0、TEMPERATURE_RESET_OPT=1" in context
+    assert "NO_WAIT_LOCKING_IN_VALIDATION=1" not in context
+    assert "Backoff 軸** = CCBench で SILO" not in context
+    assert "axis `silo-backoff-magnitude` は共通 header" in context
+    assert "1000000 records / 48 threads" in context
+    tool.cmd_proposal(3)
+    assert T.load(tool.handshake / "proposal-3.json")["coder"]["value"] == 12
 
 
 def test_changed_inheritance_not_published(tmp_path):

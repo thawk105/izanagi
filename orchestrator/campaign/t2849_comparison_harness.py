@@ -20,7 +20,7 @@ from . import t2849_generators as G
 from .b5_generator_contrast import (
     EVENT_FIELDS, EVENT_KINDS, END_REASONS, MAX_MACHINE_RETRIES,
     LLM_WAIT_S, LLM_POLL_S, MACHINE_FAILURE_ABORT_REASONS,
-    _publish, _read_json, _utc, _positive, _allocation_available, _genome,
+    _publish, _read_json, _utc, _positive, _allocation_available,
     classify_session, wal_timing, default_runner, loop_driver,
     CampaignLayout, Genome, source_digest, variant_id, wal,
     assert_closed_proposal_schema, assert_no_ability_probe_material,
@@ -33,6 +33,17 @@ SESSION_REPS = 5
 ARMS = ("random", "sweep", "bo", "evolution", "llm")
 UNRESOLVED = {"duplicate-skip", "unclassified-missing", "submitted-unresolved",
               "pre-start-failure", "machine-failure"}
+
+
+def _genome(value, protocol="silo"):
+    return loop_driver.backoff_genome(protocol, value)
+
+
+def _stock_established(observation, protocol="silo"):
+    return (observation["outcome"] == "certified" and observation["quality"] == "normal"
+            and observation["src_token"] == source_digest.STOCK
+            and observation["variant"] == variant_id(_genome(-1, protocol))
+            and _positive(observation["fitness_tps"]))
 
 
 class SeriesLedger:
@@ -219,7 +230,7 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
         argv = slot_argv(arm=arm, workload=h["workload"], key=key,
                          sidecar_dir=sidecar, prebuild_receipt=prebuild_receipt,
                          proposal_path=proposal_path, proposal_origin=proposal_origin,
-                         reference_path=reference_path)
+                         reference_path=reference_path, protocol=h.get("protocol", "silo"))
         ledger.append("slot-attempt-start", a=a, b=b, n=n, slot_kind=kind,
                       logical_slot=logical_slot, attempt=attempt, slot_key=key,
                       sidecar_dir=str(sidecar.relative_to(ledger.root)))
@@ -237,7 +248,7 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
         wall = time.monotonic() - started
         (sidecar / "stdout.txt").write_text(stdout)
         (sidecar / "stderr.txt").write_text(stderr)
-        genome = reference_genome(h["workload"]) if reference_path else _genome(value)
+        genome = reference_genome(h["workload"]) if reference_path else _genome(value, h.get("protocol", "silo"))
         classifier = classify_reference_slot if reference_path else B.classify_slot
         observation = classifier(sidecar, None, SESSION_REPS, genome)
         if timed_out:
@@ -285,8 +296,10 @@ def _handshake(ledger, a, b):
     expected = expected_inputs(ledger, b + 1)
     wait_started = time.monotonic()
     deadline = wait_started + LLM_WAIT_S
-    _publish(directory / f"request-{a}.json", {"a": a, **expected,
-             "deadline_utc": _utc(time.time() + LLM_WAIT_S)})
+    request = {"a": a, **expected, "deadline_utc": _utc(time.time() + LLM_WAIT_S)}
+    if ledger.header.get("protocol") == "mocc":
+        request["protocol"] = "mocc"
+    _publish(directory / f"request-{a}.json", request)
     proposal = directory / f"proposal-{a}.json"
     inputs = directory / f"inputs-{a}.json"
     rejected = directory / f"proposal-{a}.rejected.json"
@@ -335,7 +348,7 @@ def slot_key(cohort, arm, workload, series, kind, n, attempt):
 
 
 def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt,
-              proposal_path=None, proposal_origin=None, reference_path=None):
+              proposal_path=None, proposal_origin=None, reference_path=None, protocol="silo"):
     if arm not in (*ARMS, "stock", "reference") or workload not in B.WORKLOADS:
         raise ValueError("unknown arm/workload")
     if reference_path is not None and (arm != "reference" or proposal_path is not None):
@@ -345,6 +358,8 @@ def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt,
     argv += ["--isolate-worktree", "--fetchcontent-prebuild-receipt", str(prebuild_receipt),
              "--calibrated-perf", "--perf-workload", workload, "--verify-performance",
              "--b5-slot", key, "--b5-sidecar-dir", str(sidecar_dir)]
+    if protocol == "mocc":
+        argv += ["--protocol", "mocc"]
     if reference_path is not None:
         argv += ["--reference-genome", str(reference_path)]
     if proposal_path is not None:
@@ -432,12 +447,19 @@ def assert_inherited_inputs(ledger, planner_input, coder_input, *, next_evaluati
         loop_driver._validate_k2_critic_diagnosis(diagnosis)
 
 
-def _header(cohort, arm, workload, series, block, repo_root, a_limit, b_limit, n_eval):
+def _header(cohort, arm, workload, series, block, repo_root, a_limit, b_limit, n_eval,
+            protocol="silo"):
     header = B._header(arm, workload, series, block, repo_root)
     header.update(cohort=cohort, purpose="t2849-R0", mode="block-controls" if arm == "stock" else "series",
                   A=a_limit, B=b_limit, N_eval=n_eval, initial_values=INITIAL_VALUES,
                   k=len(INITIAL_VALUES), session_reps=SESSION_REPS, numerics=G.NUMERICS,
                   limits=["Saved inputs do not prove delivery or absence of parent advice."])
+    if protocol == "mocc":
+        header["protocol"] = "mocc"
+        perf = loop_driver.calibrated_perf(workload, protocol="mocc")
+        header["perf_config"] = {**header["perf_config"], "records": perf.records,
+                                 "threads": perf.threads, "workload": perf.workload,
+                                 "extime": perf.extime, "reps": perf.reps}
     return header
 
 
@@ -479,13 +501,13 @@ def _stop_reason(observed):
 
 
 def run_series(arm, workload, series, block, *, cohort, cohort_root, a_limit, b_limit, n_eval,
-               prebuild_receipt, repo_root, runner=default_runner):
+               prebuild_receipt, repo_root, runner=default_runner, protocol="silo"):
     slot_key(cohort, arm, workload, series, "stock-start", 1, 0)
     if any(type(v) is not int or v < 1 for v in (block, a_limit, b_limit, n_eval)):
         raise ValueError("positive budgets and block required")
     root = Path(cohort_root) / workload / arm / f"series-{series}"
     ledger = SeriesLedger.create(root, _header(cohort, arm, workload, series, block, repo_root,
-                                              a_limit, b_limit, n_eval))
+                                              a_limit, b_limit, n_eval, protocol))
     ledger.append("series-start", a=0, b=0)
     common = dict(prebuild_receipt=prebuild_receipt, repo_root=repo_root, runner=runner)
     stock, _ = _execute_slot(ledger, kind="stock-start", n=1, a=0, b=0, value=-1,
@@ -493,7 +515,7 @@ def run_series(arm, workload, series, block, *, cohort, cohort_root, a_limit, b_
     ledger.append("stock-start", **stock)
     if stock["outcome"] == "allocation-exhausted":
         return _finish(ledger, "allocation-exhausted", 0, 0, score=None)
-    if not B._stock_established(stock):
+    if not _stock_established(stock, protocol):
         return _finish(ledger, "stock-unestablished", 0, 0, score=None)
     proposals = root / "proposals"
     proposals.mkdir()
@@ -616,19 +638,23 @@ def run_series(arm, workload, series, block, *, cohort, cohort_root, a_limit, b_
 
 
 def run_block_controls(workload, block, *, cohort, cohort_root, n_eval, block_stock_sessions,
-                       prebuild_receipt, repo_root, runner=default_runner):
+                       prebuild_receipt, repo_root, runner=default_runner, protocol="silo"):
     slot_key(cohort, "stock", workload, block, "block-stock", 1, 0)
     if any(type(v) is not int or v < 1 for v in (n_eval, block_stock_sessions)):
         raise ValueError("positive session counts required")
     root = Path(cohort_root) / workload / "controls" / f"block-{block}"
-    header = _header(cohort, "stock", workload, block, block, repo_root, 0, 0, n_eval)
+    header = _header(cohort, "stock", workload, block, block, repo_root, 0, 0, n_eval, protocol)
     header["block_stock_sessions"] = block_stock_sessions
     ledger = SeriesLedger.create(root, header)
     ledger.append("series-start", a=0, b=0)
-    reference = reference_genome(workload)
-    reference_path = root / "reference-genome.json"
-    _publish(reference_path, {"protocol": reference.protocol, "flags": reference.flags})
-    for kind, count in (("block-stock", block_stock_sessions), ("block-reference", n_eval)):
+    reference_path = None
+    if protocol == "silo":
+        reference = reference_genome(workload)
+        reference_path = root / "reference-genome.json"
+        _publish(reference_path, {"protocol": reference.protocol, "flags": reference.flags})
+    controls = (("block-stock", block_stock_sessions),) if protocol == "mocc" else (
+        ("block-stock", block_stock_sessions), ("block-reference", n_eval))
+    for kind, count in controls:
         for n in range(1, count+1):
             observed, _ = _execute_slot(ledger, kind=kind, n=n, a=0, b=0,
                                         value=-1 if kind == "block-stock" else None,
@@ -646,7 +672,7 @@ def _control_median(ledger, kind, count):
               and e["kind"] in {"stock-start", "score-session"}]
     if len(events) != count or not all(G.normal(e) for e in events):
         return None
-    if kind == "block-stock" and not all(B._stock_established(e) for e in events):
+    if kind == "block-stock" and not all(_stock_established(e, ledger.header.get("protocol", "silo")) for e in events):
         return None
     return statistics.median(e["fitness_tps"] for e in events)
 
@@ -694,7 +720,8 @@ def aggregate(cohort_root, job_costs):
             continue
         control = controls.get((h["workload"], h["block"]))
         stock = _control_median(control, "block-stock", control.header["block_stock_sessions"]) if control else None
-        reference = _control_median(control, "block-reference", control.header["N_eval"]) if control else None
+        reference = (_control_median(control, "block-reference", control.header["N_eval"])
+                     if control and h.get("protocol", "silo") == "silo" else None)
         starts = [e for e in events if e["kind"] == "stock-start"]
         evaluations = [e for e in events if e["kind"] == "evaluation-result"]
         scores = [e for e in events if e["kind"] == "score-session"]
@@ -709,7 +736,7 @@ def aggregate(cohort_root, job_costs):
         search_missing = any(_stop_reason(e) for e in events
                              if e["kind"] in {"evaluation-result", "proposal-rejected"}
                              and e.get("slot_kind") in {"initial", "search"})
-        if stock is None or len(starts) != 1 or not B._stock_established(starts[0]):
+        if stock is None or len(starts) != 1 or not _stock_established(starts[0], h.get("protocol", "silo")):
             status = "stock-unestablished"
         elif search_missing or not end or not fixed:
             status = "machine-missing"
@@ -759,6 +786,7 @@ def main(argv=None):
         p.add_argument("--cohort", required=True)
         p.add_argument("--cohort-root", type=Path, required=True)
         p.add_argument("--workload", choices=B.WORKLOADS, required=True)
+        p.add_argument("--protocol", choices=("silo", "mocc"), default="silo")
         p.add_argument("--block", type=int, required=True)
         p.add_argument("--n-eval", type=int, required=True)
         p.add_argument("--fetchcontent-prebuild-receipt", type=Path, required=True)

@@ -54,6 +54,10 @@ export PYTHONDONTWRITEBYTECODE=1
 harness_mode=${IZANAGI_S4_T2849_MODE-}
 harness_env_names=(COHORT COHORT_ROOT WORKLOAD BLOCK N_EVAL ARM SERIES A_LIMIT B_LIMIT BLOCK_STOCK_SESSIONS)
 if [[ -v IZANAGI_S4_T2849_MODE ]]; then
+  case "${IZANAGI_S4_T2849_PROTOCOL-silo}" in
+    silo|mocc) ;;
+    *) refuse "invalid T-2849 protocol" ;;
+  esac
   case "$harness_mode" in
     series|block-controls) ;;
     *) refuse "invalid T-2849 mode" ;;
@@ -700,6 +704,9 @@ if [[ -n "$harness_mode" ]]; then
     --workload "$IZANAGI_S4_T2849_WORKLOAD" --block "$IZANAGI_S4_T2849_BLOCK"
     --n-eval "$IZANAGI_S4_T2849_N_EVAL"
     --fetchcontent-prebuild-receipt "$prebuild_receipt")
+  if [[ "${IZANAGI_S4_T2849_PROTOCOL-silo}" == mocc ]]; then
+    harness_argv+=(--protocol mocc)
+  fi
   if [[ "$harness_mode" == series ]]; then
     harness_argv+=(--arm "$IZANAGI_S4_T2849_ARM" --series "$IZANAGI_S4_T2849_SERIES"
       --a-limit "$IZANAGI_S4_T2849_A_LIMIT" --b-limit "$IZANAGI_S4_T2849_B_LIMIT")

@@ -33,6 +33,17 @@ _SUPPLIED = _FIXTURES / "supplied"
 _F707 = _FIXTURES / "f707-missing-supply"
 _IGNORED = _FIXTURES / "effectuation-ignored"
 _PATCH = _ROOT / "patches" / "silo-backoff-fixed.patch"
+
+
+def test_mocc_backoff_fixed_uses_mocc_owner_and_target():
+    silo = G.make_define_request(driver_id="test", macro="BACKOFF_FIXED",
+                                 requested_value=20, default_value=-1)
+    mocc = G.make_define_request(driver_id="test", macro="BACKOFF_FIXED",
+                                 requested_value=20, default_value=-1, protocol="mocc")
+    assert (silo.owner_tu, silo.target) == ("cc/silo/transaction.cc", "ycsb_silo.exe")
+    assert (mocc.owner_tu, mocc.target) == ("cc/mocc/transaction.cc", "ycsb_mocc.exe")
+    assert G._validate_define_request(silo)[0] == G.DEFINE_SPECS["BACKOFF_FIXED"]
+    assert G._validate_define_request(mocc)[0].owner_tus == G._MOCC_OWNER
 _COMPILE_TIME_BRANCH_MACROS = (
     "SILO_POLICY_VARIANT",
     "IZANAGI_SILO_POLICY_PROBE",

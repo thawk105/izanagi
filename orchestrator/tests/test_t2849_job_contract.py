@@ -38,6 +38,16 @@ def test_harness_single_driver(tmp_path, mode, driver_rc):
     assert rc == result["driver_rc"] == driver_rc
 
 
+def test_mocc_protocol_env_only_changes_mocc_driver_argv(tmp_path):
+    baseline, _, _ = _run_actual_job_body_through_driver(tmp_path / "silo", environment(tmp_path / "silo"))
+    env = environment(tmp_path / "mocc")
+    env["IZANAGI_S4_T2849_PROTOCOL"] = "mocc"
+    mocc, _, _ = _run_actual_job_body_through_driver(tmp_path / "mocc", env)
+    assert "--protocol" not in baseline[0]
+    assert mocc[0][-2:] == ["--protocol", "mocc"] or mocc[0][mocc[0].index("--protocol"):] == [
+        "--protocol", "mocc", "--arm", "llm", "--series", "4", "--a-limit", "12", "--b-limit", "6"]
+
+
 @pytest.mark.parametrize("key,value", [("IZANAGI_S4_B5_MODE", "series"),
     ("IZANAGI_S4_PROPOSAL_PATH", "/proposal.json"), ("IZANAGI_S4_FIXTURE_VALUE", "20"),
     ("IZANAGI_S4_STOCK_CONTROL", "1"), ("IZANAGI_S4_KNOWLEDGE_MANIFEST", "/knowledge.json")])

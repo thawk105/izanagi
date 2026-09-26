@@ -325,6 +325,16 @@ _DEFINE_SPECS = {
     ),
 }
 DEFINE_SPECS: Mapping[str, DefineSpec] = MappingProxyType(_DEFINE_SPECS)
+_MOCC_BACKOFF_SPEC = DefineSpec(
+    ROUTE_CMAKE_CACHE, _MOCC_OWNER, "ycsb_mocc.exe",
+    "patches/silo-backoff-fixed.patch", inert_values=("-1",),
+)
+
+
+def _request_spec(request: DefineRequest) -> DefineSpec:
+    if request.macro == "BACKOFF_FIXED" and request.owner_tu in _MOCC_OWNER:
+        return _MOCC_BACKOFF_SPEC
+    return DEFINE_SPECS[request.macro]
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
     "SILO_POLICY_VARIANT": (
@@ -1072,10 +1082,13 @@ def make_define_request(
     requested_value: int | str,
     default_value: int | str | None,
     stock_comparison: bool = False,
+    protocol: str = "silo",
 ) -> DefineRequest:
     """Construct a request from the independently declared 22-macro supply domain."""
     try:
-        spec = DEFINE_SPECS[macro]
+        if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
+            raise KeyError(protocol)
+        spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
             "request-contract-invalid", f"macro is outside the 22-macro domain: {macro!r}",
@@ -1145,7 +1158,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
             "request-contract-invalid", "driver_id must be a non-empty string",
         )
     try:
-        spec = DEFINE_SPECS[request.macro]
+        spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
             "request-contract-invalid", "macro is outside the 22-macro domain",
@@ -3923,7 +3936,8 @@ def _validate_supply_green_evidence(record: ConditionArmRecord) -> None:
             "green supply evidence schema differs: "
             f"missing={sorted(missing)!r} unexpected={sorted(unexpected)!r}",
         )
-    spec = DEFINE_SPECS[record.macro]
+    spec = _MOCC_BACKOFF_SPEC if (record.macro == "BACKOFF_FIXED"
+                                  and evidence.get("owner_tu") in _MOCC_OWNER) else DEFINE_SPECS[record.macro]
     owner_tu = evidence["owner_tu"]
     if type(owner_tu) is not str or not owner_tu or owner_tu not in spec.owner_tus:
         _invalid_record("green supply evidence does not name a declared owner TU")

@@ -16,9 +16,32 @@ from orchestrator.campaign.projection_guard import (
 )
 
 
-def render_context(workload):
+def _operating_point(workload, protocol="silo"):
+    if protocol == "silo":
+        return operating_point(workload)
+    perf = L.calibrated_perf(workload, protocol=protocol)
+    flags = perf.workload
+    return dict(workload=workload, records=perf.records, threads=perf.threads,
+                rratio=flags["ycsb_rratio"], skew=flags["ycsb_zipf_skew"],
+                rmw="false" if flags["ycsb_rmw"] in ("0", "false", False) else "true",
+                max_ope=flags["ycsb_max_ope"], extime=perf.extime, reps=perf.reps)
+
+
+def render_context(workload, protocol="silo"):
     """Keep the K0 prohibitions while replacing setup and loop descriptions."""
     source = (REPO / "src/coder-leakproof-context.md").read_text()
+    if protocol == "mocc":
+        first = source.index("## Background: CCBench と Backoff 軸")
+        intuition = source.index("## Backoff の直感的理解", first)
+        source = (source[:first] + "## Background: MOCC と Backoff 軸\n\n"
+                  "CCBench の MOCC で abort 後の共通 backoff を固定値に材料化し、"
+                  "stock の適応 backoff と比較する。\n\n---\n\n"
+                  "## T-2849 K0 の目標\n\n"
+                  "MOCC の固定 flags の下で backoff 値を評価する。\n\n---\n\n"
+                  + source[intuition:])
+        adaptive = source.index("## Cicada の適応メカニズム (参考)")
+        measurement = source.index("## Measurement Setup", adaptive)
+        source = source[:adaptive] + source[measurement:]
     start = source.index("## Measurement Setup")
     end = source.index("## Whiteboard Memory", start)
     setup = """## Measurement Setup (T-2849 K0、較正済み動作点)
@@ -34,11 +57,15 @@ Bench は上記動作点の {reps} rep。最大 3 round の静定判定後、採
 
 ---
 
-""".format(**operating_point(workload))
+""".format(**_operating_point(workload, protocol))
+    if protocol == "mocc":
+        setup = setup.replace(
+            "固定フラグは BACK_OFF=1、NO_WAIT_LOCKING_IN_VALIDATION=1、NO_WAIT_OF_TICTOC=0、WAL=0。",
+            "固定フラグは BACK_OFF=1、KEY_SORT=0、TEMPERATURE_RESET_OPT=1。")
     source = source[:start] + setup + source[end:]
     start = source.index("## 段 4 の検証サイクル")
     end = source.index("## 注記:", start)
-    return source[:start] + """## T-2849 の検証サイクル
+    source = source[:start] + """## T-2849 の検証サイクル
 
 planner → coder → 文法・検疫・Tier0 → verify → bench → critic。
 性能による早期停止・親による候補修正・再抽選はしない。A/B 予算は系列 header に従う。
@@ -50,6 +77,12 @@ whiteboard は投入済み評価だけの5項目で、iteration は評価数 b�
 ---
 
 """ + source[end:]
+    if protocol == "mocc":
+        source = source.replace(
+            "## Coder への指示 (prompt template)",
+            "## Coder への指示 (prompt template)\n\n"
+            "axis `silo-backoff-magnitude` は共通 header の hole marker 名であり、今回の protocol は MOCC。")
+    return source
 
 
 def prompt(path, role, payload):
@@ -91,7 +124,8 @@ class RoundTool:
         planner = {"current_perf": req["current_perf"], "leading_indicators": {
             "cache_miss_rate_pct": None if miss is None else miss * 100,
             "contention_level": "未判定", "IPC_overall": li.get("ipc")}, **shared}
-        coder = {"leakproof_context": render_context(self.header["workload"]),
+        protocol = req.get("protocol", self.header.get("protocol", "silo"))
+        coder = {"leakproof_context": render_context(self.header["workload"], protocol),
                  "baseline": req["baseline"], "planner_direction": None, **shared}
         assert_no_ability_probe_material(planner)
         assert_no_ability_probe_material(coder)
@@ -169,7 +203,7 @@ class RoundTool:
         digest = Path(slot["digest_path"])
         ci = {"iteration": k, "job": job, "window": window, "slot": slot,
               "digest_path": str(digest), "digest_sha256": sha(digest.read_bytes()),
-              "operating_point": operating_point(self.header["workload"]),
+              "operating_point": _operating_point(self.header["workload"], self.header.get("protocol", "silo")),
               "verification": "legacy 1 回 + 同動作点 trace 5 回、全部 serializable のときだけ certified",
               "series_ledger_view": str(self.ledger_root / "series.json")}
         d = self.materials_root / f"critic-{k}"
