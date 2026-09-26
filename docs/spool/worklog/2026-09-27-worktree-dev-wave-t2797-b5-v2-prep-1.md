@@ -17,7 +17,10 @@ title: [T-2797] B-5 v2 の投入準備 — write-heavy の却下 11 件は criti
   投入予約・scheduler 照会・自動回収は段 3 相談 B の指摘で後送した。段 6 で親が model 不一致を空出力 (A 消費) と数える欠陥を見つけ、系列を欠測で終える形に直した。429 保留の再試行間隔 20 s は 900 s にした。
 - 計算の実測: balanced の同時検査の本番順序 probe 2 job (bnode014・bnode020、Elapse 358 s・471 s、計 0.23 node 時間)。変異・焦点走の計算ノード job は除く。
 - 検査: 焦点走 f5 (commit `9e549087d`) 1,891 passed・10 skipped・赤 0。変異 final (commit `5a8c321fd`、独立 clone) 20 / 20 期待どおり (KILLED 19、等価変異 SURVIVED 1)、M-C1 は commit 済み変異で drift 層を外して単一理由の kill を確認。
-  provenance の全史監査 rc=0 (12,945 件、新規違反なし、merge `decc151e5` の後)。受入全走は本 fragment を含む tip で land 時に行う。
+  provenance の全史監査 rc=0 (12,945 件、新規違反なし、merge `decc151e5` の後)。
+- 受入 attempt 1 (tip `fcbd3f37f`、post-claim merge で main `c3c07004f` を取り込み `988ce3b78`、04:02〜04:11 JST): 赤 2 件、どちらも本 wave 起因
+  (新設 `tools/pegasus/b5_llm_parent.py` の admission registry への登録漏れ、新設 `test_b5_llm_parent.py` の自走 harness 漏れ)。registry へ `local-ok` で登録し、
+  registry を列挙する `test_hooks.py` の literal golden 3 箇所に同じ 1 項目を足すことだけを名指しの例外として直した (`d5d0227b8`)。受入は本 fragment を含む tip でやり直す。
 - 焦点走の偽赤: 未 commit の統合状態で走らせた f1 は 189 件の大半が contract-loader-drift (F283 の再発)。変異 probe の baseline が 429 結合 test の時間依存で 2 回赤になり、test 側を直した (実装は不変)。
 - エージェント工数: Codex 子 = plan 1・consult 2・author 5 (A・B・C・D・vprobe・mspec を含めて author 6)・review 2・focus 1・fix 7。Claude 子なし。
 - 並走: [T-2850] 後継 session は `p3_s4_loop.py` / `pipeline.py` を編集しないと回答 (試走は固定 checkout)。main は T-2273・paper-story・T-2850・T-2854・T-2865・持ち越し整理の着地で前進し、`decc151e5` で取り込んだ (競合なし)。

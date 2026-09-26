@@ -507,6 +507,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/b10_backoff_grid.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/b10_backoff_shape_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/b5_contrast_launch.py` | `local-ok` | `static login-side submitter classification` |
+| `tools/pegasus/b5_llm_parent.py` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
