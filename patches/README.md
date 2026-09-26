@@ -791,6 +791,28 @@ pin C (`68106660`、mocc の X/P 計装を含む) の `cc/mocc/transaction.cc` �
 - **駆動:** 既存 mocc driver (`orchestrator/campaign/s3_mocc_mutation_proof.py`) の build・verify 関数を repo 外の起動器から呼ぶ
   (既存 4 本も同じ起動器で pin C 上に単独で当てた)。実走の記録は `output/insights/2026-09-26/t2847-mocc-run/`。
 
+## instr-si-trace-v2.patch / broken-si-first-updater-wins.patch / broken-si-read-uncommitted-version.patch — si の trace v2 化と検出期待表の si 変異 ([T-2847])
+
+pin C (`68106660`) の si の emitter は v1 (C 行 5 field、E 行なし) のままで、現行 parser に拒否される
+(下の「トレース形式」)。`include/trace.hh` は共有 header で、本来の置き場 (D16 の `izanagi-trace` 枝) への移送と
+pin 前進は人間の判断なので、ここでは out-of-tree patch として置く (D16 の T-109 例外と同じく `#if TRACE` の内側だけ)。
+
+| patch | 裸マクロ | site | 変更 |
+|---|---|---|---|
+| instr-si-trace-v2 | なし (無条件の計装) | — | `cc/si/transaction.cc` の `#if TRACE` 内で C 行を v2 の 7 field (`C txid thid 1 cstamp read_count write_count`) にし、R/W の後に `E txid` を出す。件数は R/W と同じコンテナの `size()` で独立 witness ではない。`thid_` は `uint8_t` なので `std::size_t` へ変換して書く。`#if TRACE` の外は pin C とバイト一致 |
+| broken-si-first-updater-wins (V29) | `IZANAGI_BREAK_SI_FIRST_UPDATER_WINS` | 7 | `install_version()` の committed 後の first-updater-wins の abort だけを外す (inflight 分岐と CAS 再試行は残す) |
+| broken-si-read-uncommitted-version (V28) | `IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION` | 5 | `read_internal()` の版選択の status 除外だけを外し、snapshot 条件は残す。未完成の body や回収後に再利用された版を読みうる (異常終了も結果として記録する) |
+
+- **重ね方:** 壊し 2 本は pin C → `instr-si-trace-v2.patch` → 壊し patch の順に当てる (touch set はどれも `cc/si/transaction.cc` だけ)。
+  壊し patch は裸マクロ 1 個の `#if` 枝に閉じ、未定義の枝を除いた全文が v2 適用後の file とバイト一致する。
+  条件 gate への登録は `-DCMAKE_CXX_FLAGS=-D<macro>=1` 経路で build するためで、判定基準は変えない。
+- **発火診断:** 有効時だけ `T2847_FIRED slug=<slug> reached=<n> changed=<n> committed=<n>` を process 終了時に stderr へ 1 行出す。
+  verifier の判定には使わない。
+- **si の判定の上限:** si には X/P の証拠面が無いので、巡回があれば non-serializable、無ければ indeterminate で、certified にはならない
+  (使い道は巡回の検出)。update / delete が同じ key の read set 要素を消すので、同じ取引で読んで書いた key の R 行は trace に残らない。
+- **駆動:** repo 外の起動器 (driver の policy・toolchain・patch 適用・単独性検査を import し、build の target を `ycsb_si.exe`、
+  verify を `--protocol si` にした局所版)。実走の記録は `output/insights/2026-09-26/t2847-si-run/`。
+
 ---
 
 ## トレース形式 (verifier = タスク2 の入力契約)
