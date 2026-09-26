@@ -7,7 +7,7 @@ default_effect: no-state-change
 
 ## 1. 何をしたか
 
-worklog「次の一手」の active 619 項 (着手時の local main `7c1b53a4b`、entry 1869) を 1 項ずつ読み、502 項を取り下げ、117 項を残した。
+worklog「次の一手」の active 619 項 (着手時の local main `7c1b53a4b`、entry 1869) を 1 項ずつ読み、501 項を取り下げ、118 項を残した。
 
 - 取り下げ一覧 (T・区分・理由 1 行): `withdrawn.tsv`
 - 残す一覧 (T・残す理由): `kept.tsv`
@@ -15,7 +15,7 @@ worklog「次の一手」の active 619 項 (着手時の local main `7c1b53a4b`
   `c` = 本文が既に終端を言う、`d` = 研究・論文の項で上位の裁定により止まった・置き換わったもの、`old` = 旧系列
   (8b/8c 正式系列・official 床値・凍結 chain、D2212 項 5)。複数付く項はカンマで並べた。
 
-件数 (筆頭の区分): a 181・b 116・c 102・old 90・d 13 = 502。`old` がどこかに付く項は 119。
+件数 (筆頭の区分): a 181・b 116・c 102・old 89・d 13 = 501。`old` がどこかに付く項は 118。
 
 ## 2. 手順
 
@@ -73,12 +73,17 @@ T-2035 (2026-09-18〜19、archive worklog entry 1660・1689) で登録 78 leaf �
 
 ## 5. 付随して観測した事実
 
+- **land の fold 関門で T-139 を戻した。** 受入全走 (27,684 passed・74 skipped、tested main `f9206053f`) の後、land が `rc=31 fold-gate-failed`
+  (JUnit collected 2・failed 1、main は不変) で止まった。fold 関門の登録 node `test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`
+  が実台帳で T-139 を active と固定しており、T-139 の取り下げが fold 後の木で落とした。テストの変更は実装面で scope 外なので T-139 を残した
+  (`verbatim/fix-09-t139.tsv`)。取り下げた他の T を括弧付き literal で使うコードは orchestrator・tools・hooks に 0 件。
+
 - repo 外の `/work/1/SFC/tanab/scripts/spool_base_digest.py` が carry 鎖の深さで `RecursionError` を出した (T-011 で再現)。
   同型は T-2192 (`sweep_pending.py`) で既に直されている。本 wave は `sys.setrecursionlimit(200000)` と `threading.stack_size(512 MiB)` の thread 内で
   runpy 実行して回避した。T-011 と T-2861 の digest は `tools/spool_fold.py --base-digest` と一致した。
 - T-2541 (consult の受領証が本文を出し切っても not_accepted になる) は本 wave の 4 本では起きなかった (4/4 accepted)。
   現行コードに該当構造は残る (`tools/codex_worker_launch.py` :2487-2506、sonnet 子の照合) ので項は残した。
 - 着手後に main は `6c3913bc5` まで進んだ。持ち越しの差は T-2847 の完了と T-2850 の本文更新だけで、どちらも残す側の項である。
-  その後 `1f169cbbd` (entry 1873) まで進み、差は残す側の T-2273・T-2560・T-2850 の本文更新だけだった。取り下げ 502 項の base digest は `1f169cbbd` の現物から取った。
+  その後 `1f169cbbd` (entry 1873) まで進み、差は残す側の T-2273・T-2560・T-2850 の本文更新だけだった。取り下げ 501 項の base digest は `1f169cbbd` の現物から取った (その後 `c18633656` (entry 1876) まで進んでも取り下げ側の本文は不変)。
 - 取り下げた T-1851・T-2724 には worktree が残る (`.claude/worktrees/dev-wave-t1851-c3c-official-floor`、`.codex/worktrees/t2724-g1-gen`・`t2724-chain-scratch`、lock 付き)。
   最終更新は 2026-09-15・09-18 で、関係するプロセスも ListAgents の session も無いので、稼働 wave ではなく残置と判断した。

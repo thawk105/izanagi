@@ -1,5 +1,6 @@
 T	残す理由
 T-129	F41 に実害の記録 (誤った起票・baseline の再測・比較の交絡) があり、本体「測定値が checkout に依存」は未解決
+T-139	旧系列 (8b/8c の pilot gate、D749) だが、fold 関門の実台帳テスト test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed が T-139 を active として固定しており、取り下げると fold 後の木で落ちる (land rc=31 で実測)。テストの変更は実装面で本 wave の scope 外なので残す
 T-238	p3_s4_loop.py と trigger 版は Pegasus 対応済みだが、p3_s4_loop_sort.py :105-107 が ENV_TAG・CLK・NUMA を直書きのままで sort 軸が Pegasus を選べない (範囲は sort 版に縮んだ)
 T-265	別 env の COMMIT で試行を誤 skip する測定の意味の欠陥で、環境世代 activation で必ず踏むと本文が言う
 T-570	現行の論文図の生成器 (plot_a2_certification.py、ComSys 原稿の図) が admission を経ず WAL を直接読む (論文図の値に関わる、迷えば残す)
