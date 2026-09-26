@@ -14,7 +14,7 @@ default_effect: no-state-change
 1. **規則案 v2 (§4) を審査結果とする。** header の M 差分に限り、実 CMake configure の compile database の全 entry から、`-MG` を使わない依存列挙 (旧・新 × TRACE=0/1) で変更 header を読む entry (consumer) を選び、選定 configure 集合 (stock と、変更 header を読む production target の protocol の genome 空間) の各 configure で、全 consumer entry の TRACE=0 完全展開 (`-E -P -dD`) と include 活性 (入退場 file 列) を GCC 11.4 / 12.3 の別 configure で旧新比較する。保証名は「選定 configure 集合の compile database に載る変更 header consumer entry における、TRACE=0 完全展開と include 活性の同一性」。
 2. **D780 は維持する。** compile database は選定 source 比較の文脈入力であって、admission build・build receipt との対応を証明しない。link object・trace symbol / data・receipt を結ぶ D780 項 2 の別防壁ではなく、この比較を trace 完全除去の防壁とは呼ばない (D780 項 1 の「必要条件の一つ」を継承)。D774 の限界は据え置く。規律 1・2 は緩めない。
 3. **敵対相談で 2 つの must-fix が成立し、v2 に反映した:** (A1) `-MG` は build 時生成 header の先で依存探索を止め、間接 consumer を落として緑にしうる → 生成物を用意し `-MG` なしで全 entry の依存列挙を成功させる。(A2 / B1) genome configure の「その protocol の entry だけ」を比べると、同じ configure で実際に変わった他 protocol の argv を捨てる (実測: `CCBENCH_KEY_SORT` が mocc 以外に d2pl・ermia・si・ss2pl の define も変える) → 選定 configure の全 consumer entry を比べ、保証名に「選定 configure 集合」を明記する。
-4. **前提の実測 (login、stock configure 1 構成):** compile database は C・C2' とも 135 entry (source root 配下 117)、root 正規化で両側一致。変更 header (include/tpcc.hh・include/trace.hh) を TRACE=0/1 のどちらかで読む entry は両側とも 21 entry / 12 file で、単位 11 の直接 include 列挙と一致した (この構成では間接だけの consumer は 0。一般の閉包証明ではない)。全 TU の前処理は masstree の `config.h` (build 時生成) を要し、login では行えない。
+4. **前提の実測 (login、stock configure 1 構成):** compile database は C・C2' とも 135 entry (source root 配下 117)、root 正規化で両側一致。変更 header (include/tpcc.hh・include/trace.hh) を TRACE=0/1 のどちらかで読む entry は両側とも 21 entry / 12 file で、単位 11 の直接 include 列挙と一致した (この構成では間接だけの consumer は 0。一般の閉包証明ではない)。login で試した consumer entry の前処理 (`-E`) は masstree の `config.h` (build 時生成) が無く失敗した。規則の実行では選定 entry の前処理に要る生成物を用意する段が要り、login では行えない (build は hook が拒否)。
 5. **検査器の実装・pin 前進・branch push・計算投入はしていない。** pin は C のまま、C2' `40a7f4ac` は D297 の合格も TPC-C の certified も名乗らない (D2244 項 4)。GCC 12.3 と genome 文脈での C → C2' の正例は未実測。
 6. **裁定へ出す形 (§7):** 問い 1 (今) = 規則 v2 の承認と実装の委任 (規則だけ承認し実装を留保する答えも可)。問い 2 (実装後) = 改訂後の検査器で C → C2' が GCC 2 版とも pass した結果・実費・pin 波及を示して、C2' の pin 前進を承認するか。
 
@@ -39,7 +39,7 @@ C (`68106660686232781bca3be792a750d3e19d7a8a`) と C2' (`40a7f4acb174ca43cb590f4
 | compile database の entry 数 | 両側 135 (78 file)。source root 配下は 117。root を正規化すると両側の全 entry が一致 | job dir `evidence/compile_commands-C.json`・`-C2p.json` |
 | 依存列挙 (実 argv + `-M -MG -DTRACE={0,1}`、全 135 entry) | error 0。変更 header を読む entry は両側とも 21 entry / 12 file (9 protocol の `tpcc_<p>.cc` と silo・si・mocc の `transaction.cc` × target)。直接 include の正規表現 (単位 11 probe) の 21 entry と完全一致 | `verbatim/evidence/consumers-c.txt`・`consumers-c2p.txt` |
 | TRACE による依存の差 | mocc の `transaction.cc` は TRACE=1 でだけ trace.hh を読む。C2' では `tpcc_<p>.cc` 9 本が TRACE=1 で trace.hh も読む (C では読まない) | 同上 |
-| 全 TU の前処理 (`-E`) | login では rc=1。masstree の `config.h` は build 時に `masstree_build` target (bootstrap + configure + make + ar) が作る (`cmake/ThirdParty.cmake`)。login の `cmake --build` は hook が拒否する | job dir `tmp` の実行記録、`external/ccbench/cmake/ThirdParty.cmake` |
+| consumer entry の前処理 (`-E`、login で試した分) | rc=1 (`config.h` 不在)。masstree の `config.h` は build 時に `masstree_build` target (bootstrap + configure + make + ar) が作る (`cmake/ThirdParty.cmake`)。login の `cmake --build` は hook が拒否する | job dir `tmp` の実行記録、`external/ccbench/cmake/ThirdParty.cmake` |
 | genome を変えた configure (C2'、silo genome の 1 点と、他 protocol の option を全部 1 + TRACE=1 の 2 通り) | source root 配下の (file, target) 集合は 3 通りとも同じ 117。変わるのは `-D` だけ。silo genome では silo の 12 entry の `WAL` だけ。`CCBENCH_KEY_SORT` は d2pl・ermia・mocc・si・ss2pl の 60 entry に効く | `verbatim/evidence/genome-configure-measure.md` |
 
 - production の build 経路 (`orchestrator/campaign/buildcache.py` の `_v2_commands`) は Release・sanitizer OFF・`genome.cmake_defines()`・`-DCCBENCH_TRACE=<0|1>` を configure に渡し、target は `ycsb_<protocol>.exe` だけ。genome 空間は silo 8・mocc 8・tictoc 24・cicada 24 (`orchestrator/campaign/genome.py`)。
@@ -110,8 +110,8 @@ C (`68106660686232781bca3be792a750d3e19d7a8a`) と C2' (`40a7f4acb174ca43cb590f4
 - **段 1:** brief (`verbatim/s1-brief.md`、provisional P1〜P8)。前提の実測は §2。段 2 の後に genome 別 configure の実測を足し、段 3 の必読に加えた (plan は読んでいない)。
 - **段 2・3:** 受理集合を変える設計で正しさ防壁に触るので残した (DW-C00)。plan 1 本 → 敵対相談 2 本 (A = 正しさ境界・既裁定との境界、B = 実効性と過剰・削除)。依頼文 = `verbatim/s2-plan-prompt.md`・`s3-consult-A-prompt.md`・`s3-consult-B-prompt.md`。
 - **段 4:** 実装しない裁定 (4 → 7 → 8 → 9)。実装面の差分ゼロなので変異 matrix は免除、受入全走は行う (DW-S04)。
-- **段 7:** 一次資料から事実を再抽出した docs-only なので、記録の独立 read-only レビューを 1 本行う (DW-C00)。
-- Codex 子 (段 2・3) は計 3 本、全子 read-only・reasoning medium。受領証の `actuals` の合計は model call 39、wall 695.5 秒 (plan 13 call・356.2 秒、相談 A 13 call・166.7 秒、相談 B 13 call・172.6 秒)。段 7 のレビューは worklog fragment に書く。
+- **段 7:** 一次資料から事実を再抽出した docs-only なので、記録の独立 read-only レビューを 1 本行った (DW-C00、`verbatim/s7-review-R-1.md`、依頼文 `verbatim/s7-review-R-prompt.md`)。GO、should 1 件 (「全 TU の前処理に `config.h` が要る」は言い過ぎで、確定したのは login で試した前処理の失敗と、選定 entry に要る生成物を用意すること) を直した。数値 (135 / 117 entry、21 / 12、17 configure、Codex 実績) と裁定・名乗りの境界は検算で一致。
+- Codex 子は計 4 本 (段 2 plan・段 3 相談 2・段 7 記録レビュー 1)、全子 read-only。受領証の `actuals` の合計は model call 55、wall 849.0 秒 (plan 13 call・356.2 秒、相談 A 13 call・166.7 秒、相談 B 13 call・172.6 秒、記録レビュー 16 call・153.6 秒)。
 - local main の前進 (6c3913bc5 → 1f169cbbd) は別 session の通知を契機に自分で読み直して確かめた (T-2273 の insight・fold だけで本審査に影響なし)。
 
 ## 9. 主張しないこと
