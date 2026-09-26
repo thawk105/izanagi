@@ -5710,6 +5710,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `_dispatch_environment()` が素通しする → dispatch の env allowlist に実在する →
   `request.json` に載る) を実コードで確認して**挙動側は成立**と裁定した。
   連鎖を pin するテストの新設は本 wave の scope 外として後続タスクへ送った。
+
+- **再発: 2026-09-26** — [T-2854] 単位 11 の計算 probe (job dir、repo 外) で、変異 H-line の判定器が TPC-C consumer を target 名 (`tpcc_` で始まる) で選んでいた。実際の 21 compile entry では該当が 12 件 (`tpcc_<p>.cc` 9 件 + silo・si・mocc の `transaction.cc` の tpcc target 3 件) で、正しく検出しても必ず「理由違い」になる形だった。selftest の合成 row が実構成 (source と target の組) を写しておらず、自己試験は緑、段 6 の敵対レビュー 2 本も見逃した。計算投入の前に親が前例の実測 JSON (単位 3 の `C1-preprocess.json`) と照合して見つけ、fix で TPC-C consumer を source で選び、selftest の row を実測の 21 組にし、旧 filter が正例を拒否する陰性 case を足した。near miss (計算前に是正、成果物の値は不変)。対応は実測の 21 組を selftest へ転記して代表性を改めたもので、実 artifact を直接入力する対策 (本エントリの恒久対応の形) は未実施 (probe は job dir の使い捨てで repo の gate ではないため)。記録は `output/insights/2026-09-26/t2854-unit11-combined/README.md` §6。
 ### F110. 単独性の合格条件を「非自 process の CPU 時間ゼロ」にしたため、計算ノードでは決して満たせなかった [恒真ゲート] [計測汚染]
 
 - 事象: [T-419] の probe 因果実験を Pegasus 計算ノード bnode138 で走らせたところ、最初の arm (A0) で
@@ -21184,6 +21186,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   是正 = 4 block を観測に格下げし、走行前に事前登録して configure を pilot と一致させた主解析 (Q2) をやり直した (insight §4)。
   教訓 = 実装子が helper を流用した場合、smoke の bindings に出る実 define を本走前に条件表と照合する (F707 の恒久対応「要求した
   define が実際に効いたことを build 側の実体で確かめる」を、親の投入前手順として適用する)。
+
+- **再発: 2026-09-26** — [T-2850] の費用比較で、検証の同時化を測る使い捨て script が「固定 8 µs の候補」を `-DCCBENCH_BACKOFF_FIXED=8` だけで指定し、stock と同じ build の trace を測った (取引数と検査時間が stock と一致したことで親が気づいた)。候補の値は hole code の `now_backoff` 代入か template patch で入り、define だけでは効かない。測った 1 job (458 s) は stock の再現として扱い、同じ定義の rh の job は投入前に止め、flag だけで実現できる B0-L-W0 を代理にした。記録は `output/insights/2026-09-26/t2850-trial-pause-cost-options/README.md` §3.2。
 ### F708. 新規 worktree に無い ignored directory を前提にする検査が決定的に赤になる [テスト代表性]
 
 - 事象: `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`
@@ -24853,6 +24857,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入全走を投入する直前に handoff の「dev-wave 改善候補」節を見て、未裁定なら
   段 8 を先に閉じる。段 7 commit の message に段 8 の状態を書くと投入前に目に入る。
 
+
+- **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 7 の記録 commit の直後に、段 8 を閉じないまま受入全走の門番 script を投入した。handoff の「dev-wave 改善候補」節に未裁定の候補 (下の F1031 の再発) が残っていた。門番が 1 周目の待機中 (受入の子は未起動) に、land が wave HEAD と tested tip の一致を要求することを記憶で確かめて気づき、門番を止めて段 8 の fragment を足してから受入を投入し直した。計算の浪費は無い。既存の再発検知 (投入直前に handoff の改善候補節を見る) を投入の手順に入れていなかった。
 ### F890. 対象 file を絞った login 自走 probe は「正当な入力を全部拒否する」型の変異の期待 node を確定できない [手順漏れ] [テスト代表性]
 
 - 事象: 変異本走 attempt 2 で、照合の向きを反転する変異 (正当な受領証を拒否する向き) だけが
@@ -28225,6 +28231,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21** — [T-2797] の段 6 で fix 用 branch の base を、統合 commit の短縮 SHA から 40 桁を推測で補完して指定し、`fatal: reference is not a tree` で失敗した (branch は作られず実害なし)。`git rev-parse` の出力を写して再実行した。
 
 - **再発: 2026-09-21 (near miss、[T-2844] wave)** — 変異用の独立 clone を作る script に、候補 JSON の commit の 40 hex SHA を `git rev-parse` の出力から写さず、頭 9 桁 (`6fa89b563`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、clone の途中で止まったので実害は無い。`rev-parse` の値で作り直した。同日 2 度目の再発で、既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
+
+- **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 5 の unit worktree を作る script の起点に、`git rev-parse` の出力を写さず短縮 SHA の後ろを推測で埋めた値を渡した。`git worktree add` が `Not a valid object name` (rc=255) で止まり、branch も worktree も作られなかった。`rev-parse` の 40 hex を写して作り直した。既存の再発検知 (object 名の失敗で推測 SHA を疑う) が効いた。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。

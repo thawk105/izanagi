@@ -8472,6 +8472,12 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-mocc-hot-update-unlock.patch": frozenset({
             "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
         }),
+        "patches/broken-mocc-skip-canonical-restore.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE",
+        }),
+        "patches/control-mocc-negated-temperature-predicate.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE",
+        }),
         "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
     }
     literal_only_tokens = {

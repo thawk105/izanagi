@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    # None means that meaning was not examined.  An empty tuple means that it\n",
+          "new": "    # None means that the meaning was not examined.  An empty tuple means that it\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE\": DefineSpec(\n        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, \"ycsb_mocc.exe\",\n        \"patches/broken-mocc-skip-canonical-restore.patch\",\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE\": (\n        \"cc/mocc/transaction.cc\", \"#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE\",\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE\": DefineSpec(\n",
+          "new": "    \"IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATX\": DefineSpec(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE\": 5,\n",
+          "new": "    \"IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE\": 6,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

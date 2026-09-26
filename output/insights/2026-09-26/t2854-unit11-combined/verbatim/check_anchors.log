@@ -1,0 +1,8 @@
+blob include/tpcc.hh: 24e7d13288cf7df1e86a87aac0bd44ab9112eb9c expected=24e7d13288cf7df1e86a87aac0bd44ab9112eb9c OK
+blob cc/silo/transaction.cc: 4434447d2fa3fe31c21f014f30d2c4695e0b3422 expected=4434447d2fa3fe31c21f014f30d2c4695e0b3422 OK
+blob cc/mocc/transaction.cc: 30bea5c21911182cde7c1f428f3185c7124fb47f expected=30bea5c21911182cde7c1f428f3185c7124fb47f OK
+H-set: file=include/tpcc.hh occurrences=1 changes_bytes=True target=['tpcc_silo.exe', 'tpcc_mocc.exe'] expected=schema
+H-line: file=include/tpcc.hh occurrences=1 changes_bytes=True target=None expected=trace0-preprocess
+S-table: file=cc/silo/transaction.cc occurrences=1 changes_bytes=True target=tpcc_silo.exe expected=content-table
+M-type: file=cc/mocc/transaction.cc occurrences=1 changes_bytes=True target=tpcc_mocc.exe expected=content-txtype
+RESULT: OK

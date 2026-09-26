@@ -1,0 +1,44 @@
+{
+  "low": {
+    "wh_s": 50910,
+    "rh_s": 82190,
+    "total_s": 133100,
+    "longest_job_s": 15618,
+    "rh_llm_series_s": 15618,
+    "rh_series_s": 13368,
+    "wh_llm_series_s": 11208,
+    "wh_series_s": 8958,
+    "rh_block_s": 13100,
+    "wh_block_s": 3870,
+    "trial_node_hours": 110.9,
+    "llm_serial_hours": 3.8
+  },
+  "mid": {
+    "wh_s": 57090,
+    "rh_s": 162440,
+    "total_s": 219530,
+    "longest_job_s": 35771,
+    "rh_llm_series_s": 35771,
+    "rh_series_s": 27971,
+    "wh_llm_series_s": 16877,
+    "wh_series_s": 9077,
+    "rh_block_s": 14785,
+    "wh_block_s": 3905,
+    "trial_node_hours": 182.9,
+    "llm_serial_hours": 13.0
+  },
+  "high": {
+    "wh_s": 72690,
+    "rh_s": 229890,
+    "total_s": 302580,
+    "longest_job_s": 61741,
+    "rh_llm_series_s": 61741,
+    "rh_series_s": 38341,
+    "wh_llm_series_s": 32477,
+    "wh_series_s": 9077,
+    "rh_block_s": 14785,
+    "wh_block_s": 3905,
+    "trial_node_hours": 252.2,
+    "llm_serial_hours": 39.0
+  }
+}

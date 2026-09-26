@@ -1,0 +1,123 @@
+{
+  "schema": "t2850-trial-effect-bundle/v1",
+  "status": "effective",
+  "status_note": "事前登録 v1 §10 の発効束。ユーザーの計算確認 (2026-09-23、write-heavy だけの試走を選択) に基づく。発効の決定は同じ wave の decisions fragment (fold で D 番号が付く)。本 file は自身の hash を持たない。",
+  "preregistration": {
+    "path": "docs/search-repetition-trial-preregistration.md",
+    "version": "v1",
+    "raw_sha256": "7501bd1f7f893801010dba2f93ceb45966badd11ed3e9e4a0aafa39f99d88206",
+    "bytes": 42885,
+    "addendum": {
+      "path": "docs/search-repetition-trial-preregistration-addendum-1.md",
+      "raw_sha256": "5badbac61f62bf48d6448b6c473601a47dca15964cfa91d43a71d5cb99da7759",
+      "content": "seed preimage を実装どおりに登録 (系列番号は整数 R、試走 R = b)、smoke の R = 9、試走の課題を S1-wh だけにする"
+    }
+  },
+  "computation_confirmation": {
+    "date": "2026-09-23",
+    "user_answer_verbatim": "write-heavy だけで試走 (推奨)",
+    "preceding_user_answer_verbatim": "こんなに必要なの？５秒を 五回実行するとか、一つのグラフのプロット点は八個くらいだとして、200時間って何よ？絶対におかしい",
+    "approved_scope": "S1-wh × 5 手法 × 3 系列 + block job 3 = 18 job",
+    "estimate_node_hours": {"low": 42.4, "mid": 47.6, "high": 60.6},
+    "estimate_llm_serial_hours": {"low": 1.9, "mid": 6.5, "high": 19.5},
+    "cost_cap_node_hours": 200,
+    "stop_rule": "job Elapse の総和が見積りの上側 (60.6 node 時間) を超えそうになったら新しい投入を止めてユーザーに再確認する。系列の定義 (B・A・N_eval)・正しさの条件は下げない",
+    "pre_trial_compute_node_hours": 2.44,
+    "pre_trial_compute_note": "smoke 3 回 (1 回目 10 s × 2 は job body の拒否、2 回目 2,057 s + 2,649 s、LLM 経路の再 smoke 4,032 s) と glue の自走テスト 3 回 (各 8 s)。試走の標本に数えない"
+  },
+  "implementation": {
+    "commit": "7ea9aa09dad0012aebd5464c70a9e468c409dd92",
+    "commit_note": "[T-2849] の着地 (wave 先端、直後の fold は b14d8b01c)。以後の main の変更で動かさない (依頼)。7ea9aa09d..65fd1422f の実装差分は silo-policy 系 7 file だけで比較基盤の経路は不変",
+    "units": {
+      "series_control_and_endpoint": "orchestrator/campaign/t2849_comparison_harness.py",
+      "generators": "orchestrator/campaign/t2849_generators.py",
+      "k0_llm_round_tool": "tools/t2849_llm_round.py",
+      "reference_entry": "orchestrator/campaign/p3_s4_loop.py (--reference-genome)",
+      "job_body": "tools/pegasus/p3_s4_loop_pegasus.sh (IZANAGI_S4_T2849_* 分岐)",
+      "cost_fields": "t2849_comparison_harness.py aggregate --job-costs"
+    },
+    "files_sha256_file": "files-sha256-at-7ea9aa09d.txt",
+    "submit_tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/submit-tree (7ea9aa09d を detached で取り出し locked、repo 外)",
+    "ccbench_pin_used_by_child": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "ccbench_gitlink_at_commit": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "third_party": "tools/pegasus/fetch_third_party.py hydrate の source_root (submit-tree 内 output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src、cache /work/1/SFC/tanab/izanagi-thirdparty-cache)"
+  },
+  "unspecified_constants": {
+    "bo": {
+      "x": "ln(v)",
+      "y": "ln(tps)、学習 y の平均を差し引く",
+      "kernel": "Matern-5/2",
+      "length_scales": [0.25, 0.5, 1, 2],
+      "signal_variances": [0.25, 1, 4],
+      "noise": 0.000873722789954732,
+      "jitter": 1e-10,
+      "hyperparameter_tie_break": "長さ尺度・信号分散の昇順",
+      "acquisition": "EI (潜在関数の予測分散)、1..1000 を全列挙、同点は小さい v",
+      "failure_set": ["rejected-tier0", "build-failed", "anomaly", "anomalies を持つ結果"],
+      "failure_set_excludes": ["rejected-preprocess", "bench-aborted", "aborted", "品質欠測", "機械故障"],
+      "failure_set_reason": "基盤設計 §3.2 の列挙 (Tier0 不通過・build 失敗・anomaly) と「品質欠測と機械故障の上限超えは外さない」に一致。bench-aborted の一部 (bench-no-throughput・bench-cv-undefined・bench-unsettled) は品質欠測に当たる。除外集合に無い値を再提案したときは重複として A・B を消費し fresh に測る (基盤設計 §5.2)。試走の結果でこの集合を変えない",
+      "fallback": "学習点 0 のとき random と同じ規則で arm 名 bo-fallback、失敗集合を除く"
+    },
+    "evolution": {"lambda": 1.3862943611198906, "rounding": "floor(exp(ln v_親 + δ) + 0.5)、1..1000 に切り詰め、親と同じなら δ の符号の向きへ ±1", "replace_parent": "真に大きいときだけ", "fallback": "親が無いとき arm 名 evolution-fallback"},
+    "initial_values": [5, 10],
+    "session_reps": 5,
+    "random": "B-5 の重み表 (log-uniform、b5_generator_contrast.weights_table)、棄却抽出",
+    "sweep": "EXTENDED_SWEEP_US の 1..1000 の 28 点から 5・10 を除く 26 点を SHA-256 昇順",
+    "calibrated": false
+  },
+  "llm": {
+    "model_exact_id": "claude-opus-5",
+    "resolution": "親 session を claude -p --model claude-opus-5 --settings output/insights/2026-09-22/t2797-effect-bundle/bundle/b5-parent-settings.json で起動 (settings は ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5 と effortLevel xhigh だけ。API キーでも課金経路の切替でもない)。役割 planner-v4・coder-v4-autonomous・critic は model: opus / effort: high のまま、Agent 起動時に model 引数を渡さない。CLAUDE_CODE_SUBAGENT_MODEL・CLAUDE_CODE_EFFORT_LEVEL・API キー系 env があれば起動器が拒否。役割呼び出しごとに record-models で exact ID を記録し、不一致なら proposal も reject も公開しない (D2222)",
+    "parent_operation": "repo 外の起動器 parent_driver.py が request-<a> の公開ごとに同じ session を起こす (最初は --session-id、以後は --resume)。親は 1 機会分だけ処理して応答を終え、待たない。期限 (deadline_utc) を過ぎた request では起こさない",
+    "parent_operation_reason": "smoke で、背景の待ち手を使った親は応答の終わりで session が終了した (claude -p)。前景の sleep は Bash の防壁が拒否する (並走の B-5 本走 wave の実測)",
+    "billing": "サブスクのログイン (oauthAccount.billingType = stripe_subscription、ANTHROPIC 系 env 0 件を確認)",
+    "smoke_observation": "t2850-smoke-v2 で 5 回の役割呼び出し (planner 2・coder 2・critic 1) がすべて claude-opus-5 に解決 (matches_expected true)"
+  },
+  "prompts": {
+    "parent_template": {"path": "t2850-llm-parent-template.md", "sha256": "95c9ce16f06510fb3030163d510ad493125f57cd361eb7f38a2ff6c6bc012d2c"},
+    "parent_header": {"path": "t2850-parent-header.md", "sha256": "a684007078f83e8263dd5bc059127fe496682f067c4bdc584b7e281fedd09a4a"},
+    "parent_resume": {"path": "t2850-parent-resume.md", "sha256": "7fd4e7e07bc9443efac49363eac3a39c36fe6bc22e585d7747735a01737cc790"},
+    "role_definitions_and_role_prompts": "planner・coder・critic の prompt は固定 commit の tools/t2849_llm_round.py が request と役割定義 (.claude/agents/planner-v4.md・coder-v4-autonomous.md・critic.md) から組む。sha256 は files-sha256-at-7ea9aa09d.txt。実際に渡した prompt は系列ごとの materials root に round-<a>/*-prompt.md と critic-<k>/critic-prompt.md として残る"
+  },
+  "environment_and_arguments": {
+    "toolchain_observed_in_smoke": {"cc": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0", "cxx": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0", "cmake": "cmake version 3.22.1", "python": "/usr/bin/python3.10 sha256 d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49"},
+    "toolchain_rule": "試走の job ごとに prebuild receipt の toolchain_manifest と compute-result.json の python sha256 を記録し、上と異なる job はその系列 (または block job) を集計時に欠測扱いにする (D2222 項 6 と同じ手順。機械 gate ではない)",
+    "environment_contract": "orchestrator/campaign/env_contract.py の lookup('pegasus') (clocks_per_us・numactl を job 内で解決)。sha256 は files-sha256-at-7ea9aa09d.txt",
+    "perf_config": {"records": 1000000, "threads": 48, "extime": 3, "reps": 5, "workload": {"ycsb_rratio": "5", "ycsb_zipf_skew": "0.9", "ycsb_rmw": "0", "ycsb_max_ope": "10"}},
+    "verify_mode": "legacy+performance (legacy 1 回 + 動作点の trace 5 回、どれか 1 回でも anomaly なら即 reject)",
+    "bench": {"max_rounds": 3, "session_reps": 5},
+    "tier0": {"contract_id": "b5-tier0/v1", "applies_to": ["search", "score"], "smoke_flags": ["--thread_num=4", "--ycsb_tuple_num=200", "--extime=1", "--ycsb_rratio=50", "--ycsb_zipf_skew=0.9", "--ycsb_rmw=true", "--ycsb_max_ope=5"], "timeout_s": 32},
+    "slot_invocation_example": ["/usr/bin/python3.10", "-B", "-m", "orchestrator.campaign.p3_s4_loop", "--stock-control", "--isolate-worktree", "--fetchcontent-prebuild-receipt", "<evidence root>/masstree-prebuild-receipt.json", "--calibrated-perf", "--perf-workload", "write-heavy", "--verify-performance", "--b5-slot", "t2849-harness-v1|<cohort>|<arm>|write-heavy|<R>|<kind>|<n>|attempt-<k>", "--b5-sidecar-dir", "<ledger root>/slots/<kind>-<n>-attempt-<k>"],
+    "job_environment": "IZANAGI_S4_REPO_ROOT (submit-tree)・IZANAGI_S4_EXPECTED_HEAD (7ea9aa09d)・IZANAGI_S4_EVIDENCE_ROOT (job ごと)・IZANAGI_S4_THIRDPARTY_SOURCE_ROOT (hydrate の source_root)・IZANAGI_S4_T2849_{MODE,COHORT,COHORT_ROOT,WORKLOAD,BLOCK,N_EVAL} と mode 別の {ARM,SERIES,A_LIMIT,B_LIMIT} か BLOCK_STOCK_SESSIONS。B-5・K2 の env は入れない",
+    "single_tenancy": "評価入口 p3_s4_loop が各評価の開始時に割当てノード上で _assert_single_tenant を行う"
+  },
+  "schedule": {
+    "file": "trial-schedule-wh.json",
+    "cohort": "t2850-trial-v1",
+    "cohort_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/cohort-trial (18 job で共有、B-5・smoke とは別)",
+    "blocks": {
+      "1": ["S1-wh|bo|s1", "S1-wh|block|s1", "S1-wh|llm|s1", "S1-wh|random|s1", "S1-wh|sweep|s1", "S1-wh|evolution|s1"],
+      "2": ["S1-wh|llm|s2", "S1-wh|random|s2", "S1-wh|bo|s2", "S1-wh|sweep|s2", "S1-wh|evolution|s2", "S1-wh|block|s2"],
+      "3": ["S1-wh|llm|s3", "S1-wh|bo|s3", "S1-wh|random|s3", "S1-wh|block|s3", "S1-wh|evolution|s3", "S1-wh|sweep|s3"]
+    },
+    "order_rule": "block b の 6 識別子の辞書順の列に、鍵 t2850-trial-order-v1|<b> の Fisher–Yates (事前登録 §4、追補 1 §4.2)。段 6 レビューと親がそれぞれ独立に再計算して一致",
+    "block_separation": "前 block の最終測定から次 block の初回測定まで少なくとも 1 時間",
+    "budget": {"B": 10, "A": 30, "k": 2, "N_eval": 5, "block_stock_sessions": 5, "reference_sessions": 5},
+    "seed_preimage": "追補 1 §2 (系列番号 R = b)"
+  },
+  "walltime": {"series": "24:00:00 (86,400 s、gen_S の 1 request の上限と同じ)", "block_job": "08:53:30 (32,010 s)"},
+  "docs_reachability": {
+    "planner-v4": "読めない (役割定義に tool が無い)",
+    "coder-v4-autonomous": "読めない (同上)",
+    "critic": "読めた (Read・Grep・Glob・Bash を持つ。prompt は本系列の digest・WAL・系列台帳だけを読むよう指示)",
+    "llm_parent": "読めた (Read を持ち filesystem を読める。指示文 §5 で他系列・B-5・留保条件の入力への還流を禁止)",
+    "random_sweep_bo_evolution": "repo の docs を読まない (入力は固定 commit の生成器の定数・重み表と自系列の評価結果だけ)"
+  },
+  "separation": "B-5 (b5-registered-v1 ほか) と標本・block stock・参照点・台帳を共有しない (事前登録 §12、D2220)。未知条件への転移の事前登録の留保条件を生成・選択に使わない (D2223)",
+  "glue": {"sha256_file": "glue-sha256.txt", "location": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/ (repo 外、Codex author が書き段 6 で 2 本の敵対レビューと 3 巡の fix、計算ノードで 12 passed)"},
+  "not_closed_by_this_bundle": [
+    "試走の結果 (系列の score・曲線・費用) と本比較の規模 (事前登録 §8、試走の後の追補)",
+    "read-heavy の候補の 1 session の所要 (smoke では stock 741 s と参照点 1,873 s 以上だけを実測)",
+    "job Elapse の集計 (job_costs.py の出力と予定 18 識別子の突き合わせは集計時の手順)"
+  ]
+}

@@ -1,0 +1,152 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+index e393efbfd..dfdeb6e2d 100644
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -2,6 +2,11 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <thread>
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++#include <atomic>
++#include <cstdint>
++#include <cstdio>
++#endif
+ 
+ #include "../../include/atomic_wrapper.hh"
+ #include "../../include/backoff.hh"
+@@ -17,6 +22,39 @@
+ #line 17
+ 
+ using namespace std;
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++namespace {
++static std::atomic<uint64_t> t2847_reached{0};
++static std::atomic<uint64_t> t2847_changed{0};
++static std::atomic<uint64_t> t2847_committed{0};
++static std::atomic<uint64_t> t2847_site297{0};
++static std::atomic<uint64_t> t2847_site460{0};
++static std::atomic<uint64_t> t2847_site567{0};
++static std::atomic<uint64_t> t2847_site971{0};
++static std::atomic<uint64_t> t2847_boundary297{0};
++static std::atomic<uint64_t> t2847_boundary460{0};
++static std::atomic<uint64_t> t2847_boundary567{0};
++static std::atomic<uint64_t> t2847_boundary971{0};
++static thread_local bool t2847_transaction_touched = false;
++struct T2847Report {
++  ~T2847Report() {
++    std::fprintf(stderr, "T2847_FIRED slug=mocc-negated-temperature-predicate reached=%llu changed=%llu committed=%llu site297=%llu site460=%llu site567=%llu site971=%llu boundary297=%llu boundary460=%llu boundary567=%llu boundary971=%llu\n",
++        static_cast<unsigned long long>(t2847_reached.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_changed.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_committed.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_site297.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_site460.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_site567.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_site971.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_boundary297.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_boundary460.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_boundary567.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_boundary971.load(std::memory_order_relaxed)));
++  }
++};
++static T2847Report t2847_report;
++} // namespace
++#endif
+ 
+ extern void moccLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -122,6 +160,18 @@ void izanagi_mocc_g2_emit_post_store(std::size_t thid,
+  * @param Key [in] the key of key-value
+  * @return Corresponding element of local set
+  */
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++namespace {
++void t2847_record_temperature(std::atomic<uint64_t>& site,
++                              std::atomic<uint64_t>& boundary,
++                              bool at_boundary) {
++  t2847_reached.fetch_add(1, std::memory_order_relaxed);
++  site.fetch_add(1, std::memory_order_relaxed);
++  if (at_boundary) boundary.fetch_add(1, std::memory_order_relaxed);
++  t2847_transaction_touched = true;
++}
++} // namespace
++#endif
+ ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {
+   for (auto& re : read_set_) {
+     if (re.storage_ != s) continue;
+@@ -188,6 +238,9 @@ void TxExecutor::removeFromCLL(Tuple* key) {
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++  t2847_transaction_touched = false;
++#endif
+   /**
+    * Init by TransactionStatus::inflight status.
+    */
+@@ -294,7 +347,13 @@ Status TxExecutor::read_internal(Storage s, std::string_view key,
+        * Because it could acquire lock.
+        */
+     }
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++  } else if ((t2847_record_temperature(t2847_site297, t2847_boundary297,
++                                       loadepot.temp == FLAGS_temp_threshold),
++              !(loadepot.temp < FLAGS_temp_threshold))) {
++#else
+   } else if (loadepot.temp >= FLAGS_temp_threshold) {
++#endif
+     /**
+      * This transaction is not after abort, 
+      * however, it accesses high temperature record.
+@@ -457,7 +516,13 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+   /**
+    * If this record has high temperature, use lock.
+    */
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++  t2847_record_temperature(t2847_site460, t2847_boundary460,
++                           loadepot.temp == FLAGS_temp_threshold);
++  if (!(loadepot.temp < FLAGS_temp_threshold)) lock(tuple, true);
++#else
+   if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);
++#endif
+   /**
+    * If it failed locking, it aborts.
+    */
+@@ -564,7 +629,13 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+   /**
+    * If this record has high temperature, use lock.
+    */
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++  t2847_record_temperature(t2847_site567, t2847_boundary567,
++                           loadepot.temp == FLAGS_temp_threshold);
++  if (!(loadepot.temp < FLAGS_temp_threshold)) lock(tuple, true);
++#else
+   if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);
++#endif
+   /**
+    * If it failed locking, it aborts.
+    */
+@@ -968,7 +1039,13 @@ void TxExecutor::construct_RLL() {
+     //  || r failed verification
+     Epotemp loadepot;
+     loadepot.obj_ = loadAcquire((*itr).rcdptr_->epotemp_.obj_);
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++    t2847_record_temperature(t2847_site971, t2847_boundary971,
++                             loadepot.temp == FLAGS_temp_threshold);
++    if ((!(loadepot.temp < FLAGS_temp_threshold) || (*itr).failed_verification_)) {
++#else
+     if (loadepot.temp >= FLAGS_temp_threshold || (*itr).failed_verification_) {
++#endif
+ #ifdef RWLOCK
+       RLL_.emplace_back((*itr).rcdptr_, &((*itr).rcdptr_->rwlock_), false);
+ #endif // RWLOCK
+@@ -1279,6 +1356,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validation()) {
+     writePhase();
++#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE
++    if (t2847_transaction_touched)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;
