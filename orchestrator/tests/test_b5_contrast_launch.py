@@ -151,6 +151,11 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
     def exercise(label, outages):
         root = tmp_path / label
         root.mkdir()
+        def publish_json(path, value):
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_text(json.dumps(value))
+            temporary.replace(path)
+
         stock = launch.RegisteredJob("stock", 0, "block-stock", "stock", "write-heavy", 1, 1,
                                      root / "stock", root / "stock-evidence")
         stock_ledger = core.SeriesLedger.create(stock.ledger_root, {"cohort": core.COHORT_REGISTERED_V2})
@@ -204,8 +209,8 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
                                                                "details": "fixture"}},
                             "prior_critic_reverse": True}
                 def publish():
-                    (handshake / "inputs-1.json").write_text(json.dumps(inputs))
-                    (handshake / "proposal-1.json").write_text(json.dumps(proposal))
+                    publish_json(handshake / "inputs-1.json", inputs)
+                    publish_json(handshake / "proposal-1.json", proposal)
                 answer = {"is_error": False}
             kwargs["stdout"].write(json.dumps(answer).encode())
             return Child(publish)
@@ -230,7 +235,7 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
                         rc = 1
                         raise
                     finally:
-                        (evidence / "compute-result.json").write_text(json.dumps({"driver_rc": rc}))
+                        publish_json(evidence / "compute-result.json", {"driver_rc": rc})
                 futures.append(pool.submit(compute))
                 return subprocess.CompletedProcess(argv, 0, "123.server\n", "")
 
