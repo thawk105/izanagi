@@ -1,0 +1,1 @@
+T-139	keep	-	旧系列 (8b/8c の pilot gate、D749) だが、fold 関門の実台帳テスト test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed が T-139 を active として固定しており、取り下げると fold 後の木で落ちる (land rc=31 で実測)。テストの変更は実装面で本 wave の scope 外なので残す

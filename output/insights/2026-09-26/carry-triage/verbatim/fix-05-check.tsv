@@ -1,0 +1,30 @@
+T-129	keep	-	F41 に実害の記録 (誤った起票・baseline の再測・比較の交絡) があり、本体「測定値が checkout に依存」は未解決
+T-139	drop	old	D749/D291 の pilot gate は 8b/8c official 系列 (rf_partial_recovery pilot)。旧系列を再開するとき再起票
+T-144	drop	old	従属先の T-139 は旧系列で、T-338 は D597 で T-139 の系列へ一本化され持ち越しに無い。旧系列を再開するとき再起票
+T-238	keep	-	p3_s4_loop.py と trigger 版は Pegasus 対応済みだが、p3_s4_loop_sort.py :105-107 が ENV_TAG・CLK・NUMA を直書きのままで sort 軸が Pegasus を選べない (範囲は sort 版に縮んだ)
+T-295	drop	old	対象は docs/phase3-8c-preregistration.md (8c)。旧系列を再開するとき再起票
+T-469	keep	-	性能値の差し替えを防ぐ消費台帳 (D893、規律 2 の中核) は D1241 時点でも未実装で、8b/8c に限らない一般機構として開いたまま (迷えば残す)
+T-470	keep	-	certified 選択の入口が終了コードでなく受領証 bytes を消費する配線 (D860) の実装が確認できない (規律 2 の現行経路、迷えば残す)
+T-551	drop	old	代替 X の ablation は T-139 の RF study 系列 (旧系列の pilot 調査) の由来。旧系列を再開するとき再起票
+T-562	drop	c	docs/pegasus-runbook.md :796-804 が receipt 照合と job dir の正規化を区別して書き、calibrator/cli.py :297 も整合しており食い違いは解消済み
+T-570	keep	-	現行の論文図の生成器 (plot_a2_certification.py、ComSys 原稿の図) が admission を経ず WAL を直接読む (論文図の値に関わる、迷えば残す)
+T-733	drop	a	certified 経路の source closure の収載拡大と非 import 委譲の束縛 (T-2344 と同じ取り組み)。束縛の追加で、記録・判定を誤らせた実害の実測が無い
+T-776	drop	c	tools/mutation_harness.py に allow_incomplete_dispatch が入り、hang した変異で matrix 全体が abort する件は解消済み (専用テストあり)
+T-823	keep	-	計算ノード job を 2 本空費した実害。PBS_JOBID のコロンは runbook に記載済みだが、exploration output root の非 git base の要件は未記載
+T-842	keep	-	coder_effect_gate.py :24 と autonomous_trial_completeness.py :2478 が常に空の forbidden_identifiers を扱い続ける (空を安全の証拠として読む恒真な保証、D890 未実装、迷えば残す)
+T-1047	drop	c	外側の理由文字列の文字集合制限は orchestrator/critic/digest.py :246-251 に実装済み
+T-1068	keep	-	build_admission.py の docstring が R4・R5・R7 (block と epilogue を逐語一致させたまま gate を無効化できる経路) を残る限界と自己申告。現行の trigger-gating 軸に直結 (規律 2)
+T-1069	keep	-	同 docstring が R6 (epilogue 直後の dangling else) も残ると明記。受理時構文検査は未実装 (規律 2)
+T-1071	keep	-	build_admission.py に except FileNotFoundError: return (source 不在で無条件受理) が現存 (規律 2、見つからない = 制約なし)
+T-1072	drop	c	材料の逐語経路の文字集合制限は orchestrator/critic/digest.py :246-251 に実装済み
+T-1210	drop	c	reflux_ir.py の emit_predicate が tagged exact-key alternatives として実装済み (golden sha256 束縛あり)
+T-1295	keep	-	外部強制終了の原因を実行記録と結合する実装が無く、自分の回帰と誤帰属した実害が本文に記録されている
+T-1418	keep	-	F424 自身が恒久対応は未実施と明記。変異 harness が contract loader 閉包を変異できない壁は解消していない (実測した壁)
+T-1524	keep	-	sort_swo_oracle.py の候補実行が今も stderr=DEVNULL。SIGABRT の原因特定を遅らせ誤った仮説を配った実害 (規律 3)
+T-1703	drop	c	guided.py の旧経路は layer3 が fail-closed で必ず拒否し production の import 0 件。退役方向は確定済みで実害が無い
+T-1794	keep	-	D989 の _overlap_check の拒否昇格は plot_ss2pl_lock_study.py だけで、現行の論文図の生成器 plot_backoff.py (過去に誤 label の実績) は警告のまま (説明と実装の食い違い)
+T-1832	keep	-	D1086 の範囲拡大が未達で、tools/check_codex_hooks.py :423 ほかが .splitlines() のまま (外部入力の行分割の誤り、F540/F609 に実害の記録、規律 6)
+T-1834	keep	-	D1087 の拒否分岐が未実装で、codex_roles/events.py の parse が CR 単独行を拒否しない (T-1832 と同じ面、規律 6)
+T-1944	drop	d	D1109 項 5 が同じ study の懸念を「固定した量と観測量を分けて報告」で解決し、直列化の代替も却下済み
+T-1950	keep	-	source_digest.py :915-919 の無条件 RuntimeError が pin 前進と本番 resolve の両方を止めている (D1217)
+T-1995	drop	c	s8b_oracle_driver.py の evaluate_fn gate (commit 0218acc61、D1198) が build 0 回の callable に証拠一致を要求し、D1199 の seam は塞がれている

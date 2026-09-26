@@ -1,0 +1,39 @@
+T-1882	keep	-	軸 4 (否定的結果の定量化) の文献調査。D1760 が止めたのは軸 1 の登録済み取得で、VLDB EA&B で否定的結果を主要成果として扱う論文に効く (段 3 lens A)
+T-1703	keep	-	guided.py の旧経路の退役 (暫定裁定)。退役は未実施で、4 区分のどれにも当たらない整理 (段 3 lens A)
+T-1944	keep	-	同時実行数を制御した再現率の測定。D1109 項 5 は報告の分け方を決めたが barrier 測定そのものを止めていない (段 3 lens A)
+T-2084	keep	-	廃止済み批准台帳の撤去 (相乗り、D1329)。台帳の追加ではなく撤去で、4 区分に当たらない (段 3 lens A)
+T-2205	keep	-	読み手の無い不適格 marker 4 件の削除 (D1544)。防壁の追加ではなく恒真な保証の撤去で、4 区分に当たらない (段 3 lens A)
+T-2207	keep	-	動的入力の設定式を unresolved へ倒す件で、本文が現状 18 セルが落ちていると実際の判定への影響を書く (段 3 lens A)
+T-2218	keep	-	現行 B-4 の floor_pair_driver.py :3113-3126・:1197-1235 が spec の path と期待 hash の両方を CLI で受け取って照合しており、D1531 が受理集合を狭めないと裁定した束縛が稼働中の測定手順に残る (段 3 lens A・B)
+T-2250	keep	-	受入所要台帳の live node の更新 (shard 割当の hint)。所要の改善で 4 区分に当たらない (段 3 lens A)
+T-2387	keep	-	受入所要台帳の旧 nodeid 7・欠落 17 を実受入から再生成。台帳は conftest.py :1707・:1822 で collection の並べ替えに使われ割付の根拠が食い違う (段 3 lens B)
+T-2404	keep	-	受入所要台帳の未登録 202 node の登録。T-2250・T-2387 と同じ所要の改善の面で 4 区分に当たらない
+T-2461	keep	-	受入所要台帳への 5 node の登録。T-2250・T-2387 と同じ面
+T-2538	keep	-	受入所要台帳への 15 node の登録。T-2250・T-2387 と同じ面
+T-2451	keep	-	issuer が summary の loaded_head を検証せず成果物へ転記する欠陥 (D1906、規律 6 の恒真な保証)。1 比較の局所修正で現行の発行器に残る (段 3 lens A)
+T-2453	keep	-	Genome.canonical() が区切り文字を検査せず flag 名を連結し (model.py :141-144)、その値を現行 pipeline が identity に使う (pipeline.py :145)。別割当の同一視 (D1907、規律 2) (段 3 lens A・B)
+T-2459	keep	-	A-2 の materializer が再導出 report と dict == で比較し (paper_story_a2_certification.py :4692・:4803)、True == 1 で型だけ違う report が certified 成果物として通る (D1904、論文材料) (段 3 lens A・B)
+T-2463	keep	-	受入 5 分上限の測定面 (shard 別 wall の field)。JUnit の time は 2.8〜7.1 秒ずれ代替にならない (D1901、受入要件) (段 3 lens A)
+T-2648	keep	-	B-4 床値の retry 消費側が query の除外する別 round を受理する具体例を敵対相談が現物で示した (現行 B-4 の判定差) (段 3 lens A)
+T-2739	keep	-	deadlock evidence が node・edge 双方の request_mode 欠落を None == None で通す受理集合の穴。ss2pl lock study は現行研究 (段 3 lens A)
+T-841	keep	-	coder_effect_gate.py :20-26 が host-effect gate の結果を cache・WAL・COMMIT に束縛しない限界を T-841 の残件と明記し、現行段 4 driver (p3_s4_loop.py :801-805) がその gate を使う (規律 2 の現行経路) (段 3 lens B)
+T-1072	keep	-	文字集合検査は diff-quarantine の文字列用だけで、trace 由来の key と integrity notes は critic digest に逐語表示され (digest.py :1290-1306・:1427-1432)、現行段 4 の critic 入力に入る (規律 6) (段 3 lens B)
+T-2322	keep	-	D1605 の「24 反復」が確定した実規模 18 / campaign 全体 22 と食い違う未訂正の数値を含む記録 (記録を実際に誤らせている) (段 3 lens B)
+T-2415	keep	-	D1818 が認めた probe の申告 status と生の returncode 等の再導出の不一致を、現行 floor_pair_driver.py :2419-2452 が検査しない (競合下の測定を床値として通す B-4 の穴) (段 3 lens B)
+T-2840	keep	-	到達不能 13 object の pending 記帳と rescue gate rc 2 の再検査が未了 (T-2829 と同じ面) (段 3 lens B)
+T-469	drop	a	性能値の差し替えを防ぐ消費台帳 (D893) の追加。現行 checkout に certified 選択の consumer が無く (layer3_report.py :1004-1008)、接続するときに再起票する (段 3 lens B)
+T-470	drop	a	certified 選択の入口で受領証 bytes を消費する配線 (D860)。現行 checkout にその consumer が無く (layer3_report.py :1004-1008)、接続するときに再起票する (段 3 lens B)
+T-842	drop	old	常に空の forbidden_identifiers の削除 (D890)。対象は 8c autonomous trial の preview と completeness で、現行段 4 の certified 判定へ届く経路は示されていない。旧系列を再開するとき再起票 (段 3 lens B)
+T-473	drop	b	layer3_report の claim boundary の欠落 (trigger 文法凍結 README の must-fix B-6)。report へ限界の境界を書き足す記録作業
+T-860	drop	b	guided の certified 記録の語の変更。guided の旧経路は layer3 が fail-closed で拒否し production の import は 0 件で、記録の語を変える作業だけが残る
+T-1638	drop	a	stage5 replayer の意味的 disposition と独立 oracle 台帳の新設 (D767)。台帳と判定の追加で、実害の実測が無い
+T-1893	drop	b	非権威と分かる名前への変更だけ。consumer gate は D1073 で今は置かない
+T-2439	drop	b	OpenAlex の取得時刻を検査しないことの契約への明記だけ (D1783)
+T-1969	drop	d	軸 1 文献検索の残件。今回の依頼が停止例として名指しした。軸 1 は D1760 で止めた後 D2095 で再開し、T-2035 で登録 78 leaf すべてに裁定が付き (取得証拠あり 77・未走 1) 凍結記録へ反映して区切った
+T-1970	drop	d	軸 1 AX1-Q6@dblp の宣言的除外。今回の依頼が停止例として名指しした。軸 1 は D2095 で再開後 T-2035 で区切った
+T-2031	drop	d	軸 1 OpenAlex の期待 echo の supersede。軸 1 は D2095 で再開後 T-2035 で 登録 78 leaf すべてに裁定が付き区切った
+T-2092	drop	d	軸 1 の索引の件数不一致 (D1331) の調査。軸 1 は D2095 で再開後 T-2035 で区切った
+T-2323	drop	d	関連研究の軸の axis_complete の供給経路の調査 (D2120 項 17)。軸 1 は T-2035 で登録 78 leaf (取得証拠あり 77・未走 1) を凍結記録へ反映し 2 本目の論文の参考材料として区切った
+T-1883	drop	d	2026-07-10 の arXiv 掃引の RW2 化。D1760 は論文が世界の不在を主張しないと決め (7.7.3)、成熟度を上げても使える表現は増えない
+T-2393	drop	old	not-consumed の試行を outer receipt へ運ぶ (D1701)。単位は D1269 の (prereg_generation, holdout, arm, replicate_slot) で 8b の holdout 試行。旧系列を再開するとき再起票
+T-2238	drop	b	D669 の除外の失効の記録。除外は既に消えており、当該 file を含む受入全走が通る限り D669 の復活条件は立たない。残るのは失効の記録だけ

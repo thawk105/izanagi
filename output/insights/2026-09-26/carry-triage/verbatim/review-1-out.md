@@ -1,0 +1,25 @@
+R1 | must-fix | [README:53](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/output/insights/2026-09-26/carry-triage/README.md:53)、worklog:15・588・963、decisions:59 | 「取得済み 78 leaf」は誤り。一次資料の[実行記録:1](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/related-work/claim-survey/2026-09-19-axis1-search-execution.md:1)は「登録 78、取得証拠あり 77、未走 1」と明記する | 該当箇所を「登録 78 leaf すべてに裁定、うち未走 1」に訂正する。
+
+R2 | must-fix | [worklog:963](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:963)・T-2323 | 取得の区切りを理由に落としているが、[着手時本文:1817](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:1817)は調査を「取得とは独立に進めてよい」とし、[D2120 項17:66096](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:66096)も供給経路の調査を決めている | 取り下げを撤回し、残す側へ移す。
+
+R3 | must-fix | [worklog:1497](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:1497)・T-2754 | 「実害の実測が無い追加」としたが、[着手時本文:2857](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:2857)は既存の lock 喪失後の穴の局所修正。[D2120 項19:66115](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:66115)はこの穴を real と分類し、観測待ちにする案を退けている | 取り下げを撤回し、局所修正の手番として残す。
+
+R4 | must-fix | [worklog:1500](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:1500)・T-2755 | 区分 (a) の「実害未観測」と矛盾する。[着手時本文:2862](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:2862)は F300 の再発 5 例と予算不足の実測を挙げ、[D730:28560](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:28560)の独立 3 例以上という収容条件を満たす | 取り下げを撤回し、残す側へ移す。
+
+R5 | must-fix | [worklog:552](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:552)・T-1883 | 区分 (d) の根拠にした D1760 は軸 1 OpenAlex の継続取得を止める裁定であり、[着手時本文:1007](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:1007)の 2026-07-10 arXiv 掃引の作り直しを止めていない（[D1760:53438](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:53438)） | 適用する上位裁定を示せないなら残す側へ移す。
+
+R6 | should | [worklog:1071](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:1071)・T-2402 | 「今は入れない」だけを終端と読んでいる。[着手時本文:2012](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:2012)と[D2104 項26:65098](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:65098)には閉包への帰属確認、その結果に応じた実装・再諮問が残る | 調査手番を残すか、取り下げるなら区分 (c) 以外の根拠を明記する。
+
+R7 | should | [worklog:663](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:663)・T-2092 | T-2035 の leaf 裁定だけでは、[着手時本文:1227](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:1227)と[D1331:42602](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/decisions.md:42602)が求める「835 行・distinct 834」の欠落 ID・集合安定性・snapshot drift 調査を済ませた根拠にならない | 調査済みの証拠、または調査を不要にした後続裁定を理由に示す。示せなければ残す。
+
+R8 | should | [worklog:462](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:462)・T-1768 | [着手時本文:832](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:832)は事前登録 §10 の誤解を招く記述の訂正を求める。B-4 の主張を記述統計へ限定したことだけでは、文書訂正が上位裁定で停止したとは言えない | 取り下げるなら文書作業の区分 (b) として理由を直す。
+
+R9 | should | [worklog:1155](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/worklog/2026-09-26-dev-wave-carry-triage-20260926-1.md:1155)・T-2466 | [着手時本文:2197](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/carry-7c1b53a4b.json:2197)は 8c 予算 consumer の項だが、旧系列項に指定された「旧系列を再開するとき再起票」が無い | 旧系列タグと再起票文を加え、件数を再計算する。
+
+R10 | should | [decisions:35](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-carry-triage-20260926/docs/spool/decisions/2026-09-26-dev-wave-carry-triage-20260926-2.md:35) | 「消したのは未実装の追加予定だけ」は過大。取り下げには記録だけの 115 項、終端済みの 103 項、研究項なども含む（[all.tsv:1](/work/1/SFC/tanab/dev-wave-jobs/carry-triage-20260926/all.tsv:1)） | 「消したのは持ち越しの走査対象 513 項で、コードや既存防壁は変更していない」と射程を直す。
+
+## 総括
+
+**NO-GO。must-fix 5 件。** 619 項の ID 対応、513/106、筆頭区分 188/115/103/90/17、旧系列タグ 118、40 所見（重複 3）、残す側へ戻した 23、相談 4 本の call 数・所要、513 項の形式と指定された保護対象の不混入は照合できた。`git show` の変更は文書と一覧のみで、コード・既存防壁・見送り台帳を変えていないという主張とも整合する。
+
+理由の本文照合は**抽出**。区分 (d) 20 項を重点確認し、区分 (c) 105 項・旧系列タグ 118 項・区分 (a) 188 項には語句と参照先による走査を行った。区分 (a) では実測・欠陥・成果物などを含む 55 項の本文抜粋を重点確認した。513 項すべての理由を個別に精読した結論ではない。
