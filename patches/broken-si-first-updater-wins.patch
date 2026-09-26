@@ -1,0 +1,105 @@
+diff --git a/cc/si/transaction.cc b/cc/si/transaction.cc
+--- a/cc/si/transaction.cc
++++ b/cc/si/transaction.cc
+@@ -1,6 +1,9 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <bitset>
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++#include <cstdio>
++#endif
+ #include <set>
+ 
+ #include "../../include/atomic_wrapper.hh"
+@@ -16,6 +19,23 @@
+                        const uint64_t threshold);
+ 
+ using namespace std;
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++namespace {
++static std::atomic<uint64_t> t2847_reached{0};
++static std::atomic<uint64_t> t2847_changed{0};
++static std::atomic<uint64_t> t2847_committed{0};
++static thread_local bool t2847_transaction_touched = false;
++struct T2847Report {
++  ~T2847Report() {
++    std::fprintf(stderr, "T2847_FIRED slug=si-first-updater-wins reached=%llu changed=%llu committed=%llu\n",
++        static_cast<unsigned long long>(t2847_reached.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_changed.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_committed.load(std::memory_order_relaxed)));
++  }
++};
++static T2847Report t2847_report;
++} // namespace
++#endif
+ 
+ /**
+  * @brief Initialize function of transaction.
+@@ -23,6 +43,9 @@
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++  t2847_transaction_touched = false;
++#endif
+   TransactionTable *newElement, *tmt;
+ 
+   tmt = loadAcquire(TMT[thid_]);
+@@ -171,6 +194,9 @@
+   Version* vertmp;
+   Version* expected = tuple->latest_.load(memory_order_acquire);
+   for (;;) {
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++    bool t2847_conflict_seen = false;
++#endif
+     // w-w conflict
+     // first updater wins rule
+     if (expected->status_.load(memory_order_acquire) ==
+@@ -195,6 +221,12 @@
+       vertmp = vertmp->prev_;
+ 
+     // vertmp is latest committed version.
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++    if (txid_ < vertmp->cstamp_.load(memory_order_acquire)) {
++      t2847_reached.fetch_add(1, std::memory_order_relaxed);
++      t2847_conflict_seen = true;
++    }
++#else
+     if (txid_ < vertmp->cstamp_.load(memory_order_acquire)) {
+       //  write - write conflict, first-updater-wins rule.
+       // Writers must abort if they would overwirte a version created after
+@@ -205,11 +237,23 @@
+       gcobject_.reuse_version_from_gc_.emplace_back(desired);
+       return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
+     }
++#endif
+ 
+     desired->prev_ = expected;
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++    if (tuple->latest_.compare_exchange_strong(
++            expected, desired, memory_order_acq_rel, memory_order_acquire)) {
++      if (t2847_conflict_seen) {
++        t2847_changed.fetch_add(1, std::memory_order_relaxed);
++        t2847_transaction_touched = true;
++      }
++      break;
++    }
++#else
+     if (tuple->latest_.compare_exchange_strong(
+             expected, desired, memory_order_acq_rel, memory_order_acquire))
+       break;
++#endif
+   }
+ 
+   return Status::OK;
+@@ -667,6 +711,10 @@
+    * Maintenance phase
+    */
+   mainte();
++#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS
++  if (t2847_transaction_touched)
++    t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+   return true;
+ }
+ 

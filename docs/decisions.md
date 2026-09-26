@@ -72448,3 +72448,90 @@ CCBench の別名 branch の push は項 2 のとおりで、本項の対象外�
 - 5 rep の完全分離 (最小 > fixed10 最大) を主判定に入れる — 論文の記述より強い条件になる。補助指標として記述した (3 点とも成立)。
 
 **限定:** 各点 1 回の再測で、統計的な優位・16 点の選択全体を補正した有意性・別 workload への転移・fixed10 以外の静的値との比較については何も言わない。対象点の job 内位置は元と同じなので、位置や job 内の交絡から独立した再現ではない。CCBench は元 `e9e477ca`、再測 `68106660` (確認した差分は `cc/mocc/transaction.cc` だけ)。点 ID・比は段階 E / F の coder・planner の入力へ流さない (手順書 §3-D)。診断 build は NON_ADMISSIBLE。
+
+## D2251. 性能 pass の trace 5 本を直列に取得してから fork した子で同時に検査し、子は受領証を返して親が rep 順に取り込む opt-in を比較 harness の write-heavy に入れ、その初回静定待ちの上限を本番順序の実測から 120 秒にする (2026-09-26)
+
+**決定:** 探索の独立反復の試走の費用を削る案 (b) (親の委任による codex 相談の決定、2026-09-26) を次の形で実装した
+(記録 `output/insights/2026-09-26/t2850-trace-concurrent-verify/README.md`、追補 2 `docs/search-repetition-trial-preregistration-addendum-2.md`)。
+
+1. **検査の方式:** `pipeline._run_local_concurrent_pass` が性能 pass の trace を rep 0 から直列に全部取得した後、rep ごとに `os.fork` した子で
+   直列経路と同じ引数の `verify_trace_dir_with_capability` を呼ぶ。子は certified なら `serialize_remote_verification_receipt` で受領証にし、
+   HMAC (fork 前に親が rep ごとに作る 32 byte の secret) 付きの結果を create-only file で返して `os._exit` する。親は既存の
+   `_admit_verify_fanout_result` → `admit_remote_verification_receipt` (受理規則は変えない) で自 PID の一回限りの capability に変える。
+   子は WAL・trace 保全・一時 dir に触れない。子で build admission を再導出しないので generator id を問わない (remote fan-out の
+   `BACKOFF_REPRO` 限定 (D1810 項 6) は remote だけのまま)。適用は opt-in ∧ performance tag ∧ campaign WAL sink ∧ fullscale 分岐 (bench_lock と
+   競合 probe の下) で、reps が 1 なら直列、remote fan-out の host 指定・qualification sink との併用は拒否する。
+2. **失敗の意味論:** 最小の失敗 rep (取得失敗・不認証・子の故障) が確定したら、それより後の子を process group ごと SIGKILL して回収し、
+   それより前は完了を待って、rep 0 からその rep までを `_project_repetition_outcome` で 1 回ずつ投影する。子は fork 直後に自分の process group を作り
+   (verifier の pool worker も同じ group に入る)、親は leader を回収する前に /proc で group の非 zombie member が無いことを確かめる (5 秒、
+   終了途中の無関係な process の ESRCH は読み飛ばす)。確かめられなければその rep を `verify-local-unavailable` (capability を発行しない) にし、
+   trace の保全・削除までは進む。各 rep の結果が直列と同じなら、WAL の段の並びと abort reason は直列と一致する。
+3. **opt-in の配線:** `p3_s4_loop --verify-performance-concurrent` (`--verify-performance` と `--perf-workload write-heavy` が要る) → 有効時だけ
+   search_config に `verify_performance_concurrent: true` (campaign identity に入る。無指定の identity は不変) → `loop.run_campaign` → `evaluate`。
+   比較 harness は write-heavy の slot argv に常に付け、台帳 header に `verify_performance_method: local-concurrent` を記録する。
+   Pegasus の job body と B-5 の経路は変えていない。
+4. **静定待ち:** 同時検査 mode の `_run_bench` の初回 `settle` だけ上限を 120 秒にする (`_CONCURRENT_VERIFY_SETTLE_TIMEOUT_S`)。閾値 4.0、
+   `settled=true` による品質の分類、測り直し round の settle (20 秒)、`calibrator/runner.py` の bytes は変えない。
+
+**理由:**
+- `VerificationCapability` は発行した PID に束縛されるので、子の capability を親へ直接は渡せない。別 process を新しく起動する方式は子で
+  build admission を generator ごとに再導出する必要があり、比較 harness の全 slot は `BACKOFF_SWEEP` (相談 A の must-fix) なので既存の remote 経路は
+  使えない。fork の子は親の記憶上の認可をそのまま使え、受領証の経路で親の一回限りの capability へ変わるので、受理規則を緩めずに済む。
+- 60 秒 (当初の親の裁定) は「直列検査 → 90 秒の減衰 → 同時検査」の順の実測 (3〜39 秒) から決めた値で、本番の「5 本の連続取得の直後に同時検査」とは
+  状況が違った。計算ノードの smoke で stock が 60 秒を使い切って品質欠測になり、本番順序で測り直すと 67 秒 (stock)・77 秒 (候補の代理) だった。
+  120 秒の上限で再 smoke の 5 session はすべて settled=true・品質 normal。
+- 1 session は stock 245〜273 → 166 秒、重い候補 474〜520 → 260 秒 (smoke の実測)、試走全体の見積りは 40.8〜58.2 → 22.2〜40.5 node 時間。
+
+**却下した選択肢:**
+- remote fan-out (D1810) の worker に「取得済み trace を検査するだけ」の分岐を足す — worker が trace 取得・`/scr` 複製・`BACKOFF_REPRO` の再導出を
+  所有し、分岐を重ねると回帰面が増える (相談 B)。
+- trace の内容 digest を task に束縛する (相談 A2) — 直列経路も trace_dir の path と commit 数だけで束縛し、同時化で増えるのは同じ user の tmp dir での
+  滞留時間だけ (新しい信頼境界が無い)。
+- 検査 process の timeout を新設する — 直列経路にも検査の timeout は無く、job の walltime が上限。
+- 失敗 rep より後と `finally` の経路で group の消滅確認の失敗を reject に写す (焦点再レビュー 2) — それらの rep は投影されず、group 全体へ SIGKILL を
+  送った後の process は利用者コードを実行できないので、判定・記録の値が変わらない。
+- 不認証の rep の `EvalResult.verify_result` を子から親へ運ぶ (レビュー A4) — 比較 harness の経路は `result_evidence_context` を渡さず、構造化診断は
+  WAL の abort detail に残る (remote fan-out も同じ)。
+- 静定の閾値を上げる・settled=false を許す — 正しさではないが測定の品質条件を緩めることになる。
+
+## D2252. si の trace は pin を動かさず `#if TRACE` 内だけを変える out-of-tree patch で v2 にし、検出期待表の si 3 行は無改変 si の write skew と分離できる 1 操作の cell で実走する (2026-09-26)
+
+**決定:**
+1. si の correctness trace の v2 化 (C 行に読み書きの件数、E 行) は、`cc/si/transaction.cc` の `#if TRACE` ブロックの内側だけを変える無条件の out-of-tree patch `patches/instr-si-trace-v2.patch` に置き、pin C (`68106660`) を動かさない。共有 header (`include/trace.hh`・`include/tpcc.hh`) は変えず、v1 helper `emit_commit` は残す (silo の v2 化と同じ形)。C 行の thread 番号は `std::size_t` へ変換して書く (si の `thid_` は `uint8_t`)。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は人間の判断に残す。
+2. 壊し patch V29 (`broken-si-first-updater-wins.patch`) と V28 (`broken-si-read-uncommitted-version.patch`) は pin C → v2 patch → 壊し patch の順に重ねて当て、条件 gate の許可ドメインへ mocc と同形で登録する (si の owner `cc/si/transaction.cc`、target `ycsb_si.exe`)。判定基準・受理述語・供給経路は変えない。
+3. V28 は「未完成の値や回収後に再利用された版を読みうる」ことを理由に外さず実走する。異常終了・停止も分類に含める (D2239・D2246 と V07 の先例)。
+4. 変異の cell には、無改変の si が write skew で non-serializable を出す条件 (読む key と書く key が分かれる 2 操作以上の取引) を使わない。V29 は 1 取引 1 key の RMW、V28 は 1 操作の読みと blind write の混在で測り、V36 (無改変の si) だけを write skew の条件で測る。各 job に同 cell の対照 (無改変 si + v2) を置く。
+5. si は X/P の証拠面が無いので S (certified) は出ない。D2239 の分類を si へ写し、V36 は「無改変 si の巡回検出 / 巡回未観測」、変異は「期待した層で検出 / 別の層で検出 / 盲点 / 未発生」を verdict でなく巡回・integrity の counter と発火診断で分け、盲点も「certified として通った」とは書かない。
+
+**理由:**
+- 依頼が patch か local branch を指定し、共有 header の変更は D297 の header 受理の審査待ち (TPC-C の v3 frame の作業) に掛かる。`#if TRACE` の内側だけの変更は規律 1 に触れない。
+- 生死確認の実測 (2026-09-26): pin C + v2 patch の si trace は現行 parser に受理され framing violation 0 で verdict が出た。1 回目は `thid_` の型のため C 行が壊れ parse error だった。
+- write skew の条件では無改変の si も N を出す (生死確認で巡回 2,443、本走で 2,236) ので、変異の N を変異の検出に帰属できない (段 3 相談 A-04)。
+- 実測 (2026-09-26、`output/insights/2026-09-26/t2847-si-run/README.md`): V36 = 巡回 2,236 で無改変 si の巡回検出、V29 = 元コードなら abort した上書きが 17,732 回 commit したが巡回 0・integrity 0 で盲点 (同じ key の読みは update で trace から消える)、V28 = orphan read 45 で期待した層で検出 (未確定の版の読み 2,931 回)、対照 2 cell は正常。
+
+**却下した選択肢:**
+- `include/trace.hh` の `emit_commit` を v2 化する — 共有 header で、silo・mocc・tpcc の emitter と D297 の審査に掛かる。
+- V28 を「安全に作れない」として実走しない (段 2 plan の案) — 依頼の縮小。YCSB は insert / delete を生成せず、版は free でなく pool 再利用なので実走自体はでき、危険は結果の限界として書けばよい。
+- 変異も write skew の条件 (K) で走らせ、対照との巡回数の差で効果を言う — 1 回の走の差は帰属できない。
+- 条件 gate を通さず起動器から直 CMake で macro を渡す — 先例 (mocc・silo) と違う経路になり、gate の admission 済みと書けない。
+
+## D2253. 受入 shard-0 の候補 (a) (局所の写しを collection 中に作る) は対照診断で事前登録の基準を満たしたので実装 wave へ進め、land は実受入の隣接対で判定する (2026-09-26)
+
+**決定:**
+
+1. D2243 項 2 の対照診断 (repo に入れない replica probe、計算ノードで同一 job 内に A = 現行 と P = 写しを collection 中に作る形 を隣接、逐次 3 job、順序 A,P / P,A / A,P) で、有効 3 対の shard-0 W_0 の対差は +64.368 / +81.276 / +45.693 秒、対率中央値 18.0 %。事前登録の基準 (3 対すべて正 ∧ 対率中央値 ≥ 10 %) を満たした。次の一手は (a) の実装 wave とする。
+2. 実装の形は診断の P に揃える: 既存の早期 memo prewarm と同じ controller の `pytest_configure_node` で背景 thread を起こし、実関数 `_copy_git_visible_output` を session で 1 回だけ実 repo に呼んで session 所有の局所の写しを作り、共有 base の builder はその完成を待って写しから局所複製する。複製される集合・object store・index と全件性の検査 2 か所は変えない (D2068 の却下 3 案に触れない)。
+3. land は、実装 wave が段 4 で事前登録する実受入の隣接対の条件で判定する (D357、D2242 と同じ型)。5 分上限の達成は replica の値からは主張せず、その実受入で別判定する。
+4. (b) (発行 subprocess) は (a) の後の次の律速として名指しするが、(a) と同じ wave では実装しない。診断での発行 child の内訳は finalize_receipt 26.5 秒・draft_receipt 20.4 秒・validate_draft 19.8 秒・gate_check 13.2 秒・verify_receipt 6.6 秒 (計約 87 秒、CPU 支配)。
+
+**理由:**
+
+- D1936 項 35「prewarm 等は効果を先に測り、未確認のまま実装しない」の効果の測定が、実受入に近い条件 (温めた木で A の pre 65.2〜65.7 秒、A の W_0 357.7〜368.6 秒) の隣接 3 対で肯定側に出た。
+- 前回 (D2242) の実装が効かなかったのは、最初の builder が Lustre から写しを作り他の builder がそれを待つ形で、複製が依存 builder の構築時間に残ったことと整合する。今回の P は写しを collection と重ねたので、残った待ちは写しが collection を越えた分 (5.6〜27.1 秒) だけで、効果の大小もその待ちと逆順に並んだ。実装の形を P に揃える理由である。
+- (a) と (b) を同じ wave で入れると、実受入の隣接対で効果を分けられない。
+
+**却下した選択肢:**
+
+- replica の P の W_0 (287.3〜313.2 秒) を根拠に 5 分達成を言う — 実受入の外側 dispatch・shard-1 / 2・login collection を再現していない (段 4 裁定 B3)。
+- 実受入の隣接対を省いて land する — 前回は第 4 回診断の −123.9 秒が実受入で再現しなかった。
+- 最初の builder が写しを作る D2242 の形を流用する — 今回の診断が効果を示したのは collection と重ねる形だけである。
