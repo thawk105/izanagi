@@ -24,6 +24,7 @@ T-1794	D989 の _overlap_check の拒否昇格は plot_ss2pl_lock_study.py だ�
 T-1832	D1086 の範囲拡大が未達で、tools/check_codex_hooks.py :423 ほかが .splitlines() のまま (外部入力の行分割の誤り、F540/F609 に実害の記録、規律 6)
 T-1834	D1087 の拒否分岐が未実装で、codex_roles/events.py の parse が CR 単独行を拒否しない (T-1832 と同じ面、規律 6)
 T-1882	軸 4 (否定的結果の定量化) の文献調査。D1760 が止めたのは軸 1 の登録済み取得で、VLDB EA&B で否定的結果を主要成果として扱う論文に効く (段 3 lens A)
+T-1883	2026-07-10 の arXiv 掃引の RW2 化。D1760 は軸 1 OpenAlex の取得を止めた裁定で、この掃引を止めた上位裁定を示せない (段 3 lens A・段 6 R5)
 T-1944	同時実行数を制御した再現率の測定。D1109 項 5 は報告の分け方を決めたが barrier 測定そのものを止めていない (段 3 lens A)
 T-1950	source_digest.py :915-919 の無条件 RuntimeError が pin 前進と本番 resolve の両方を止めている (D1217)
 T-1983	B-4 事前登録の予定開始時刻の記入義務を撤廃する改訂 (D1649)。B-4 は D1936 項 8・D2201 で継続中の現行系列で、裁定済みの要件の緩和は 4 区分に当たらない
@@ -31,6 +32,7 @@ T-2000	第 36 回 /rulings 収載維持
 T-2005	B-4 事前登録の model snapshot 欄 (同文書 :166) が未記入のまま。B-4 は D2201・D2213 で継続中の現行系列 (旧系列ではない)
 T-2052	B-4 事前登録 §5 の primary outcome 欄への analysis source closure receipt の記入 (D1143)。B-4 本走の前提の記入
 T-2084	廃止済み批准台帳の撤去 (相乗り、D1329)。台帳の追加ではなく撤去で、4 区分に当たらない (段 3 lens A)
+T-2092	宣言 835・distinct 834 の不一致の調査 (D1331)。T-2035 の leaf 裁定だけでは欠落 ID・集合安定性・snapshot drift の調査を済ませた根拠にならない (段 6 R7)
 T-2100	受入 shard 数 K の測定設計 (所要の改善の測定で、4 区分に当たらない)
 T-2104	flock が実行区間しか覆わず実行中の arm を終了済みと誤判定して不可逆な missing 記録を生む欠陥 (D1346) が、現行 B-4 producer (p3_b4_raw_record_producer.py :68 の自己申告) に残る
 T-2172	受入の worker 内部の分解 (所要の改善の診断で、4 区分に当たらない)
@@ -49,6 +51,7 @@ T-2288	現行の論文経路の指定項 (floor pair w2 と finalize)
 T-2300	重い test の中身の妥当性検査 (所要の改善で、4 区分に当たらない)
 T-2318	p3_s4_loop_sort.py :105 が ENV_TAG=linux-baremetal を直書きのまま。sort 軸は ComSys 原稿の評価軸で、新規投入の要否を確定できない
 T-2322	D1605 の「24 反復」が確定した実規模 18 / campaign 全体 22 と食い違う未訂正の数値を含む記録 (記録を実際に誤らせている) (段 3 lens B)
+T-2323	関連研究の軸の axis_complete の供給経路の調査 (D2120 項 17)。本文が取得とは独立に進めてよいと言い、止めた後続の裁定を示せない (段 3 lens A・段 6 R2)
 T-2351	直列性検査の SCC/隣接の容量削減 (read-heavy 10 s 級で 100 GiB 超)。検証費用が現行の研究を律速する (T-2850 と同じ面)
 T-2378	t080 base の collection 中 prewarm。稼働中の T-2273 wave (shard-0 診断) の (a) と同じ面
 T-2387	受入所要台帳の旧 nodeid 7・欠落 17 を実受入から再生成。台帳は conftest.py :1707・:1822 で collection の並べ替えに使われ割付の根拠が食い違う (段 3 lens B)
@@ -76,9 +79,13 @@ T-2648	B-4 床値の retry 消費側が query の除外する別 round を受理
 T-2685	論文 README の erratum 節への fig7 の追記 (論文経路、稼働中の paper-story 同期と同じ面)
 T-2699	非 sort 単独 campaign の prebuild。現行 campaign (T-2865・T-2849) で条件が成立しているかを確証できず、推測で落とさない
 T-2725	certify_calibration.sh・mocc_trace_pilot.sh・t141_region_profile.sh に orchestrator import が残る (F88 の実害と同型)。mocc_trace_pilot.sh は現行 MOCC の trace 検証に使う
+T-2726	DW-O09 の pin 閉包へのメタテスト逆引き手順。本文が F370 の再発 3 回を実測として持つ (段 6 R4 と同型)
+T-2727	DW-S05-A への consumer 列挙の採り直し手順。本文が F1014 の実害を引く (段 6 R4 と同型)
 T-2739	deadlock evidence が node・edge 双方の request_mode 欠落を None == None で通す受理集合の穴。ss2pl lock study は現行研究 (段 3 lens A)
 T-2740	ss2pl lock study は 2026-09-18 の T-2737 まで研究対象で、計器の event 欠落が残る
 T-2741	ss2pl_lock_study.sh :201 の dependency_policy 段の付け替えが未実装 (T-548 の取りこぼし consumer)
+T-2754	real-repo lock の昇格失敗後に外側 reader が SH を失ったまま read を信じる既存の穴の局所修正 (D2120 項 19 (a))。決定が実在の穴と分類し観測待ちを退けた (段 6 R3)
+T-2755	DW-M05 への 1 文の収容。F300 の再発 5 例と予算不足の実測があり、D730 の独立 3 例以上の条件を満たす (段 6 R4)
 T-2759	TicToc の trace-hook と対照 (研究の前進、mocc 第 2 例の後)
 T-2767	受入の割付粒度の試作 (所要の改善案で、4 区分に当たらない)
 T-2787	準備操作の cold/warm 同条件比較 (所要の改善の測定で、4 区分に当たらない)
