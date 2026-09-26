@@ -1,0 +1,179 @@
+{
+ "image": "docs/paper-story/figures/fig1b_phase2_negative.png",
+ "shape": [
+  864,
+  2304
+ ],
+ "spine_x": [
+  172,
+  883,
+  1595
+ ],
+ "panels": [
+  {
+   "x0": 172,
+   "ticks_px": [
+    179.5,
+    255.5,
+    330.5,
+    406.5,
+    482.5,
+    558.5,
+    633.5,
+    709.5
+   ],
+   "oracle_line": [
+    1.502
+   ],
+   "random_line": [
+    1.806
+   ],
+   "guided_median_bar": [
+    1.0
+   ],
+   "greedy_square_center": 1.724,
+   "greedy_whisker_top": 1.997,
+   "greedy_whisker_bottom": 0.993,
+   "guided_point_blobs": [
+    [
+     0.95,
+     45
+    ],
+    [
+     0.95,
+     61
+    ],
+    [
+     1.05,
+     45
+    ],
+    [
+     1.05,
+     61
+    ],
+    [
+     2.99,
+     84
+    ],
+    [
+     2.99,
+     121
+    ]
+   ]
+  },
+  {
+   "x0": 883,
+   "ticks_px": [
+    179.5,
+    255.5,
+    330.5,
+    406.5,
+    482.5,
+    558.5,
+    633.5,
+    709.5
+   ],
+   "oracle_line": [
+    1.872
+   ],
+   "random_line": [
+    4.5
+   ],
+   "guided_median_bar": [
+    3.998
+   ],
+   "greedy_square_center": 4.209,
+   "greedy_whisker_top": 5.999,
+   "greedy_whisker_bottom": 1.997,
+   "guided_point_blobs": [
+    [
+     0.99,
+     121
+    ],
+    [
+     2.99,
+     84
+    ],
+    [
+     2.99,
+     121
+    ],
+    [
+     3.95,
+     36
+    ],
+    [
+     3.95,
+     45
+    ],
+    [
+     4.04,
+     36
+    ],
+    [
+     4.04,
+     45
+    ],
+    [
+     5.0,
+     84
+    ],
+    [
+     5.0,
+     121
+    ]
+   ]
+  },
+  {
+   "x0": 1595,
+   "ticks_px": [
+    179.5,
+    255.5,
+    330.5,
+    406.5,
+    482.5,
+    558.5,
+    633.5,
+    709.5
+   ],
+   "oracle_line": [
+    1.872
+   ],
+   "random_line": [
+    4.5
+   ],
+   "guided_median_bar": [
+    8.0
+   ],
+   "greedy_square_center": 4.33,
+   "greedy_whisker_top": 5.999,
+   "greedy_whisker_bottom": 1.997,
+   "guided_point_blobs": [
+    [
+     0.99,
+     121
+    ],
+    [
+     2.99,
+     121
+    ],
+    [
+     3.99,
+     84
+    ],
+    [
+     3.99,
+     121
+    ],
+    [
+     7.95,
+     54
+    ],
+    [
+     8.05,
+     54
+    ]
+   ]
+  }
+ ]
+}
