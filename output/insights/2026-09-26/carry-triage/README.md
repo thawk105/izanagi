@@ -30,6 +30,7 @@ worklog「次の一手」の active 619 項 (着手時の local main `7c1b53a4b`
 5. 段 4 裁定 (`verbatim/fix-06-stage4.tsv`): 所見 40 件 (重複 3)。
 6. 段 6 の read-only レビュー 1 本 (`verbatim/review-1-out.md`、受領証 accepted、32 call・400 秒): NO-GO、must-fix 5・should 5。裁定は `verbatim/fix-07-review.tsv` (§3.1)。
 7. 焦点再レビュー 1 本 (`verbatim/review-2-out.md`): R1〜R10 のうち 9 件 closed・R6 partial、新規 must-fix 1 (N1)。裁定は `verbatim/fix-08-closure.tsv` (§3.2)。
+8. 焦点再レビュー 2 巡目 (`verbatim/review-3-out.md`): R6・N1 とも closed、GO (must-fix 0)。nit 1 件 (worklog 本文に 2026-08-16 第 3 回の裁定の名指しが抜けていた) を直した。
 
 ## 3. 段 4 の裁定
 
