@@ -1,0 +1,81 @@
+{
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "baseline": "PASSED",
+  "baseline_duration_s": 134.706,
+  "repo_head": "82fbb8256b754614ac792edf5caf28e95a24cce9",
+  "spec_sha256": "7dba10154156153deb68ee8a4d9b0961f90453b2cf34317e7921de105a9b528b",
+  "mutations": [
+    {
+      "id": "M0",
+      "status": "SURVIVED",
+      "matches_expectation": true,
+      "duration_s": 155.011,
+      "nodes": []
+    },
+    {
+      "id": "M1",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "duration_s": 134.954,
+      "nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+      ]
+    },
+    {
+      "id": "M2",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "duration_s": 134.697,
+      "nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+      ]
+    },
+    {
+      "id": "M3",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "duration_s": 134.995,
+      "nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+      ]
+    },
+    {
+      "id": "M4",
+      "status": "KILLED",
+      "matches_expectation": true,
+      "duration_s": 131.642,
+      "nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]"
+      ]
+    }
+  ]
+}

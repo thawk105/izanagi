@@ -1,0 +1,27 @@
+diff --git a/cc/si/transaction.cc b/cc/si/transaction.cc
+--- a/cc/si/transaction.cc
++++ b/cc/si/transaction.cc
+@@ -526,7 +526,15 @@ void TxExecutor::si_commit() {
+   // intact (cleared just below).
+   {
+     const std::uint64_t txid = izanagi_trace::next_txid();
+-    izanagi_trace::emit_commit(thid_, txid, 1, this->cstamp_);
++    // SI trace v2: C <txid> <thid> <epoch> <tid> <read_count> <write_count>,
++    // followed by the existing R/W records and E <txid>. emit_commit remains
++    // the v1 helper in trace.hh. Counts come from the same R/W containers,
++    // so they are not an independent witness.
++    izanagi_trace::stream(thid_) << "C " << txid << ' '
++                                 << static_cast<std::size_t>(thid_) << ' '
++                                 << 1 << ' ' << this->cstamp_ << ' '
++                                 << read_set_.size() << ' ' << write_set_.size()
++                                 << '\n';
+     for (auto& re : read_set_) {
+       const std::uint32_t vc = re.ver_->cstamp_.load(std::memory_order_acquire);
+       izanagi_trace::emit_read(thid_, txid, izanagi_trace::key_to_hex(re.key_),
+@@ -545,5 +553,6 @@ void TxExecutor::si_commit() {
+       izanagi_trace::emit_write(thid_, txid, izanagi_trace::key_to_hex(we.key_),
+                                 op, 1, this->cstamp_);
+     }
++    izanagi_trace::stream(thid_) << "E " << txid << '\n';
+   }
+ #endif
