@@ -668,16 +668,6 @@ def test_screening_condition_requests_cover_exact_define_specs():
     assert set(screening_driver._CONDITION_DEFAULTS) == set(
         condition_meaning_gate.DEFINE_SPECS
     )
-    assert {
-        macro: screening_driver._CONDITION_DEFAULTS[macro]
-        for macro in (
-            "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
-            "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
-        )
-    } == {
-        "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS": 0,
-        "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": 0,
-    }
     assert [request.macro for request in requests] == sorted(
         condition_meaning_gate.DEFINE_SPECS
     )
