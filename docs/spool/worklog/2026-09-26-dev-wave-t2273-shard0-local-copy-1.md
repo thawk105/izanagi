@@ -14,6 +14,7 @@ title: [T-2273] [T-2560] 共有 base の可視 output 複製元を session 局�
 - ユーザー裁定: 2026-09-23 に計算量の見積り約 2.2 node 時間 (対を取り直すごとに +0.5) を示し「3 対で投入」の回答を得た。実績は受入系列 29 shard job の Elapse 合計 8,333 秒 (2.31 node 時間、失敗走を含む) と焦点走 303 秒、変異・温めは外側所要の上限でそれぞれ 4,557 秒・13 分 (queue 待ちを含む)。
 - 異常: 系列の 1 走目 (2026-09-23 23:51) が infra で止まり、会話が 2026-09-26 まで止まっていた (ユーザーの「続けて」で再開)。投入 10 走のうち infra 由来の失敗 3 走 (A 2: queue 待ち超過・早期 memo 待ち超過、B 1: 早期 memo 待ち超過)。早期 memo 待ちの超過 (`real_repo_receipt_memo` の 120 秒上限) は 2026-09-22 以降の受入 66 session のうち本 wave の 2 走だけで、条件によらず 2026-09-26 午前に集中した。orphan hold は runbook §7.6 の手順 (qstat で不在または終端を確認 → HEAD・clean 確認 → hold 削除、qdel なし) で 2 回解除した。
 - 段 3 / 段 6 の棄却: 段 4 で A1 (session snapshot で拒否経路が消えうる) を「受理集合の変化としては refuted、意味の差は docstring で明記」、B3 (新規 test の直接複製との mtime 照合は重複) を refuted とした。段 6 の A1 / B1 (新規 node 1 件で collection 完全一致が全対を無効にする) は real で、事前登録を erratum E1 で訂正してから系列を投入した。
+- 記録の受入 1 回目 (tip `97af2ed92`、2026-09-26 13:10 投入) の赤 1 件 `orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]` は非帰属と判定した。本文は期待 `log-limit` に対し `spawn-failed` (子起動の失敗)。記録 tip は main + docs / insight だけで、dev-wave supervisor の子起動経路に届かない。DW-O18 の単独再走 (同一 tip、29371.nqsv) は 1 passed in 5.20s で非再現。受入を投げ直した。
 - 工数: Codex 子 9 本 (plan 1、consult 2、author 2、review 2、fix 1、focus 1、うち計測 probe 系は author 1 と fix 1)、Claude 調査子 1 本。
 
 ## 次の一手差分
