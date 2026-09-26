@@ -8034,6 +8034,13 @@ def test_materializer_registry_covers_all_python_build_launches():
         # but never names or executes a CCBench binary.
         "orchestrator/campaign/pipeline.py:"
         "_require_canonical_build_source_state._git": 1,
+        # Fixed pgrep -af tpcc_.*\.exe argv, no shell, 10-second timeout;
+        # this isolation probe only observes processes, not CCBench or builds.
+        "orchestrator/campaign/t2851_transfer_runner.py:_probe": 1,
+        # run_once builds the numactl/binary/gflags argv without shell or perf
+        # and sets the default 120-second timeout; the seam captures CCBench
+        # stdout for TPC-C counts, never launching a materializer build.
+        "orchestrator/campaign/t2851_transfer_runner.py:run_job.once.capture": 1,
     })
     observed_non_materializer_process_sites: Counter[str] = Counter()
     non_materializer_process_calls: dict[str, ast.Call] = {}

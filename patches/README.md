@@ -536,7 +536,7 @@ mocc (`cc/mocc/transaction.cc`) に Silo と同じ 2 種の `#if TRACE` 検査�
 (`ReaderWriterLock` の counter、`-1` = writer 保持) と CLL (`CLL_` の `LockElement`)** であり、Silo の
 Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は submodule
 **`e9e477ca1b55348ab4530de0b1cf663ce4555290`** (branch `izanagi-t1943-mocc-g2-readfrom-witness`、mocc trace v2 hook
-入り) で、現 pin 511c9538 には当たらない (`git apply --check` が拒否する。test で固定)。
+入り) で、旧 pin 511c9538 には当たらない (`git apply --check` が拒否する。test で固定)。
 
 - **X (lock 被覆) 3 検査点** — writePhase 内、非 INSERT の write のみ:
   (1) **入口** = C/R/W emit 直後: `CLL_` に `key_ == rcdptr_` ∧ writer `mode_` ∧ `lock_ == &rcdptr_->rwlock_` の要素があり、かつ
@@ -590,6 +590,8 @@ P の動的負例は size 違反までで、同サイズ pointer 置換・多重
 候補の実走証拠は `s3_mocc_xp_pin_candidate.json` に別途保存し、旧実測を候補へ引き継がない。
 TRACE=0 の正本は D297、driver の nm / strings / 正規化逆アセンブル一致は補助である。
 `.text` bytes 一致、hot 経路の再立証、I 被覆は主張しない。候補 mode の build も NON_ADMISSIBLE の診断である。
+2026-09-23 [T-2858] で C を現行 pin に採用した (D2227 項 1、値の正本は `orchestrator/campaign/pin.py` の `CURRENT_PIN`)。
+本 patch と旧計装 patch の preimage は引き続き e9e477ca であり、C の checkout に重ねない (C は同じ計装を既に含む)。
 
 ---
 
@@ -731,6 +733,44 @@ condition gate は 1 回に macro 1 個。診断 build は NON_ADMISSIBLE で、
 early-unlock 保持欠落のみ、hook 解除 3 件と要因誤記録は宣言した赤集合と完全一致、再読込削除で retry 後の取得成功 0、
 clamp 削除と prefix unlock 2 出口は trace-timeout、上限削除は certified、flag 境界 4 種は `#error`、TRACE=0 は不混入)。
 smoke は 5 case・30 check すべて真 (stock と 4 方策が legacy / 性能構成 verify とも serializable、honest identity)。
+
+---
+
+## broken-silo-{read-lock-check,…} 11 本 / control-silo-{double-abort-backoff,reverse-write-order,conservative-abort} 3 本 — 検出期待表の新規 silo 変異 ([T-2847])
+
+verifier が何を検出し何を判定しないかを実測で示すための変異 14 本。設計 (期待の層と発生条件) は
+`output/insights/2026-09-22/t2847-verifier-detection-design/README.md` §4、V 番号はその表のもの。
+**broken-silo** 11 本は正しさ (または宣言範囲外の規則) を変える変異、**control-silo** 3 本は正しさを保つ
+対照 (誤検出を測る側)。いずれも pin `e9e477ca` の `cc/silo/transaction.cc` に**単独で**当てる
+(同時適用しない。特に V18 と V35 は同じ代入を逆方向に変える)。
+
+| V | patch | 裸マクロ | 変更 |
+|---|---|---|---|
+| V17 | broken-silo-read-lock-check | `IZANAGI_BREAK_READ_LOCK_CHECK` | 他者が lock 中の読み key での abort を外す (版一致検査は残す) |
+| V18 | broken-silo-no-write-tid-max | `IZANAGI_BREAK_NO_WRITE_TID_MAX` | commit TID の元から書く key の現版を外す |
+| V19 | broken-silo-fixed-commit-version | `IZANAGI_BREAK_FIXED_COMMIT_VERSION` | commit 版を非 genesis の固定値 (1,1) にする |
+| V20 | broken-silo-published-version-mismatch | `IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH` | UPDATE で tuple に公開する版だけを C/W 行と違う値にする |
+| V21 | broken-silo-tail-commit-omission | `IZANAGI_BREAK_TAIL_COMMIT_OMISSION` | 終了 flag が立った後の取引で writePhase を呼ばず成功を返す |
+| V22 | broken-silo-stale-read-payload | `IZANAGI_BREAK_STALE_READ_PAYLOAD` | read の再確認で 2 度目の TID を採り payload を取り直さない |
+| V23 | broken-silo-corrupt-write-payload | `IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD` | 公開する payload の先頭 byte を反転 (版・lock は正常) |
+| V24 | broken-silo-skip-node-validation | `IZANAGI_BREAK_SKIP_NODE_VALIDATION` | node map の検証 (phantom 防止) を外す |
+| V26 | broken-silo-stale-read-own-write | `IZANAGI_BREAK_STALE_READ_OWN_WRITE` | 自分の書いた key の read で旧 tuple の payload を返す |
+| V27 | broken-silo-repeat-update-buffer | `IZANAGI_BREAK_REPEAT_UPDATE_BUFFER` | 同じ key への 2 度目の update で write buffer を誤って書く |
+| V35 | broken-silo-no-read-tid-max | `IZANAGI_BREAK_NO_READ_TID_MAX` | commit TID の元から読んだ版を外す (Silo の TID 規則を破る) |
+| V31 | control-silo-double-abort-backoff | `IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF` | abort 後の backoff を 2 回呼ぶ |
+| V32 | control-silo-reverse-write-order | `IZANAGI_BREAK_REVERSE_WRITE_ORDER` | write set を全 worker 共通の逆順で並べる |
+| V33 | control-silo-conservative-abort | `IZANAGI_BREAK_CONSERVATIVE_ABORT` | 要素数が偶数の非空 write set の取引を lock 前に abort する |
+
+- **既定 OFF inert:** 各 patch は `CCBENCH_` 外の裸マクロ 1 個の `#if` 枝に閉じ、未定義で pin と一致する。
+  pipeline の genome からは定義できない (broken-silo と同じ隔離規約、絶対規律 2)。
+  条件 gate (`orchestrator/campaign/condition_meaning_gate.py`) の許可ドメインへの登録は、既存の壊し patch と同じく
+  driver の `-DCMAKE_CXX_FLAGS=-D<macro>=1` 経路で build するためのもので、判定基準は変えない。
+- **発火診断:** マクロ有効時だけ、変異が枝に入った回数 (reached)・元コードと違う挙動を実際に生んだ回数 (changed)・
+  changed を含む取引が commit した回数 (committed) を relaxed atomic で数え、process 終了時に stderr へ
+  `T2847_FIRED slug=<slug> reached=<n> changed=<n> committed=<n>` の 1 行を出す (V18・V21・V35 は追加の数も出す)。
+  「盲点として certified」と「未発生」を分けるための記録であり、verifier の判定には使わない。
+- **駆動:** 既存の `orchestrator/campaign/s2_verify_calibration._broken_build_and_verify` (patch 適用・condition gate・
+  commit 証人つき verifier) を repo 外の起動器から呼ぶ。実走の記録は `output/insights/2026-09-23/t2847-mutation-run/`。
 
 ---
 

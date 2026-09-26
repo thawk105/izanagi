@@ -1,0 +1,41 @@
+{
+  "m-fx-flag": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_genome_and_build_args"
+  ],
+  "m-fx-patch": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_source_backoff_fixed_patch_materializes_markers"
+  ],
+  "m-fx-define": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_missing_define"
+  ],
+  "m-cmp-max": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_uses_best_reference"
+  ],
+  "m-cmp-null": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_null_when_reference_ineligible"
+  ],
+  "m-cmp-order": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_wrong_order"
+  ],
+  "m-cmp-fxflags": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_fixed10_flag_mismatch"
+  ],
+  "m-rotation": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job"
+  ],
+  "m-cmp-floor": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_floor_boundary"
+  ],
+  "m-rotation-mod": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job"
+  ],
+  "m-backoff-dup": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off"
+  ],
+  "m-fx-argv": [
+    "orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure"
+  ],
+  "m-case-order": [
+    "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch"
+  ]
+}

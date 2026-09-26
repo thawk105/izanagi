@@ -575,6 +575,35 @@ def test_build_requires_gate_before_configure_and_keeps_build_macros():
             assert build.call_count == int(admitted)
 
 
+def test_build_variant_passes_backoff_fixed_to_configure(tmp_path):
+    configure_argv = []
+
+    def configure(argv):
+        configure_argv.append(argv)
+
+    def build(argv, **kwargs):
+        binary = Path(argv[2]) / "cc/silo/ycsb_silo.exe"
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b"fixture")
+
+    with patch.object(coverage.site_policy, "current_site", return_value="test"), \
+         patch.object(coverage.site_policy, "refuses_heavy_work", return_value=False), \
+         patch.object(coverage.compute, "_common_configure_args", return_value=[]), \
+         patch.object(coverage, "_condition_gates", return_value=[]), \
+         patch.object(coverage.compute, "_run_checked", side_effect=configure), \
+         patch.object(coverage.locks, "_run_cmake_build", side_effect=build):
+        coverage._build_variant(tmp_path, tmp_path / "fixed10", trace=1,
+                                toolchain={"cxx_path": "c++"}, dependencies={},
+                                stock=True, stock_backoff=1, stock_backoff_fixed=10)
+        coverage._build_variant(tmp_path, tmp_path / "stock", trace=1,
+                                toolchain={"cxx_path": "c++"}, dependencies={},
+                                stock=True, stock_backoff=1)
+    assert len(configure_argv) == 2
+    assert configure_argv[0].count("-DCCBENCH_BACKOFF_FIXED=10") == 1
+    assert configure_argv[0].count("-DCCBENCH_BACK_OFF=1") == 1
+    assert not any(arg.startswith("-DCCBENCH_BACKOFF_FIXED=") for arg in configure_argv[1])
+
+
 def test_command_arguments_accepts_both_compile_command_forms():
     argv = ["c++", "-DNAME=two words", "-c", "source file.cc"]
     for row in ({"arguments": argv}, {"command": "c++ '-DNAME=two words' -c 'source file.cc'"}):

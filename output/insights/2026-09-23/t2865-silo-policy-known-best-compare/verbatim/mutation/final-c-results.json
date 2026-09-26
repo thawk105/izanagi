@@ -1,0 +1,426 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/584f06c54f8973d3e2553407e95dca29/izdw-584f06c54f.o29208",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/584f06c54f8973d3e2553407e95dca29/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................................         [100%]\n64 passed in 5.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d1de92ae8025256c69c337106c5cf509ae0cd38e9a5afec80128330dcc62c787"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f13b807f5c536cbef7c28596e1c2724c53cb150ebd6c19ba6ab97b5ad1da7433",
+    "duration_s": 27.568,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "435c39d596ed5d2f1423f8c3c1ca0bd0f214140a473d836e5acbd7698a521155",
+    "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+    "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+    "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+    "status": "PASSED",
+    "test_output_sha256": "d1de92ae8025256c69c337106c5cf509ae0cd38e9a5afec80128330dcc62c787",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+  },
+  "date": "2026-09-26T01:12:56.940983+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/3ec174d490813825ad8c6a7e3c01a786/izdw-3ec174d490.o29211",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/3ec174d490813825ad8c6a7e3c01a786/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................F..........         [100%]\n=================================== FAILURES ===================================\n_______________________ test_compare_cases_rotate_by_job _______________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compare_cases_rotate_by_job():\n        expected = [\n            [\"0000\", \"1111\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\"],\n            [\"1110\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0001\"],\n            [\"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0010\", \"1101\"],\n            [\"stock\", \"B0-L-W0\", \"fixed10\", \"0011\", \"1100\", \"abort0\"],\n            [\"B0-L-W0\", \"fixed10\", \"0100\", \"1011\", \"abort0\", \"stock\"],\n            [\"fixed10\", \"0101\", \"1010\", \"abort0\", \"stock\", \"B0-L-W0\"],\n            [\"0110\", \"1001\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\"],\n            [\"1000\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0111\"],\n        ]\n        seen = []\n        for job in range(8):\n            actual = R._cases(\"compare\", job, None)\n>           assert [cid for _, cid, _ in actual] == expected[job]\nE           AssertionError: assert ['0111', '100...0', 'fixed10'] == ['1000', 'abo...ed10', '0111']\nE             \nE             At index 0 diff: '0111' != '1000'\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_policy_recon.py:247: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job\n1 failed, 63 passed in 5.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=1121 retained_bytes=1121 omitted_bytes=0 rendered_excerpt_bytes=1168 sha256=a5f39738d945e7ad0e3e2701aadbda0e7979e8d91c701f035f7a1de8574bd1c3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compare_cases_rotate_by_job():\n>         expected = [\n>             [\"0000\", \"1111\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\"],\n>             [\"1110\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0001\"],\n>             [\"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0010\", \"1101\"],\n>             [\"stock\", \"B0-L-W0\", \"fixed10\", \"0011\", \"1100\", \"abort0\"],\n>             [\"B0-L-W0\", \"fixed10\", \"0100\", \"1011\", \"abort0\", \"stock\"],\n>             [\"fixed10\", \"0101\", \"1010\", \"abort0\", \"stock\", \"B0-L-W0\"],\n>             [\"0110\", \"1001\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\"],\n>             [\"1000\", \"abort0\", \"stock\", \"B0-L-W0\", \"fixed10\", \"0111\"],\n>         ]\n>         seen = []\n>         for job in range(8):\n>             actual = R._cases(\"compare\", job, None)\n> >           assert [cid for _, cid, _ in actual] == expected[job]\n> E           AssertionError: assert ['0111', '100...0', 'fixed10'] == ['1000', 'abo...ed10', '0111']\n> E             \n> E             At index 0 diff: '0111' != '1000'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_policy_recon.py:247: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1121 retained_bytes=1121 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1873 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e434e35fe8afdd36c316cacf8d5d2e7b6d3dd94d1bd2f045e8ba1c93d3bf3557"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13b807f5c536cbef7c28596e1c2724c53cb150ebd6c19ba6ab97b5ad1da7433",
+      "duration_s": 32.577,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job"
+      ],
+      "hang_risk": false,
+      "id": "m-rotation-mod",
+      "injection_diff_sha256": "ffc68a5d21279712b52f1a1c275d69b369e2ad023927233deb907ddd1660d101",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1d0a835e65f92677d77b3628e13686cba0f9f474ad354c2c055a231c27cd2531",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "new": "offset = job",
+          "old": "offset = job % 6"
+        }
+      ],
+      "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+      "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+      "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+      "status": "KILLED",
+      "test_output_sha256": "e434e35fe8afdd36c316cacf8d5d2e7b6d3dd94d1bd2f045e8ba1c93d3bf3557",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/cac6ca0d0cb41d230376e4d502d617f3/izdw-cac6ca0d0c.o29215",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/cac6ca0d0cb41d230376e4d502d617f3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................F..........         [100%]\n=================================== FAILURES ===================================\n_________ test_compare_fixed10_define_check_rejects_duplicate_back_off _________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compare_fixed10_define_ch0')\n\n    def test_compare_fixed10_define_check_rejects_duplicate_back_off(tmp_path):\n        source = tmp_path / \"source\"\n        owner = source / C.axis.SOURCE_REL\n        owner.parent.mkdir(parents=True)\n        owner.write_text(\"// owner\\n\")\n        build = tmp_path / \"build\"\n        build.mkdir()\n        defines = [\"-DBACK_OFF=1\", \"-DBACK_OFF=0\", \"-DBACKOFF_FIXED=10\"]\n        (build / \"compile_commands.json\").write_text(json.dumps([{\n            \"directory\": str(source), \"file\": str(owner),\n            \"arguments\": [\"c++\", *defines, \"-o\", \"CMakeFiles/ycsb_silo.exe.dir/owner.o\",\n                          \"-c\", str(owner)]}]))\n        receipt = R._backoff_fixed_define(build, source)\n        assert receipt[\"defines\"] == defines\n>       assert receipt[\"effective\"] is False\nE       assert True is False\n\norchestrator/tests/test_silo_policy_recon.py:420: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off\n1 failed, 63 passed in 5.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1019 retained_bytes=1019 omitted_bytes=0 rendered_excerpt_bytes=1067 sha256=772e7d92e5a82b02f0675c722580630f66aad4d8fb47933aab28e869239807e3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compare_fixed10_define_ch0')\n> \n>     def test_compare_fixed10_define_check_rejects_duplicate_back_off(tmp_path):\n>         source = tmp_path / \"source\"\n>         owner = source / C.axis.SOURCE_REL\n>         owner.parent.mkdir(parents=True)\n>         owner.write_text(\"// owner\\x5cn\")\n>         build = tmp_path / \"build\"\n>         build.mkdir()\n>         defines = [\"-DBACK_OFF=1\", \"-DBACK_OFF=0\", \"-DBACKOFF_FIXED=10\"]\n>         (build / \"compile_commands.json\").write_text(json.dumps([{\n>             \"directory\": str(source), \"file\": str(owner),\n>             \"arguments\": [\"c++\", *defines, \"-o\", \"CMakeFiles/ycsb_silo.exe.dir/owner.o\",\n>                           \"-c\", str(owner)]}]))\n>         receipt = R._backoff_fixed_define(build, source)\n>         assert receipt[\"defines\"] == defines\n> >       assert receipt[\"effective\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_silo_policy_recon.py:420: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1019 retained_bytes=1019 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1801 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f1152ce5c33fabfabc861c394251eb61a34d4e79e74e9ab315187f16c910ce0b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13b807f5c536cbef7c28596e1c2724c53cb150ebd6c19ba6ab97b5ad1da7433",
+      "duration_s": 27.597,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off"
+      ],
+      "hang_risk": false,
+      "id": "m-backoff-dup",
+      "injection_diff_sha256": "e85b86500fdb23638398eac04ffe1c9c62f389a5c9035260a865c3f23479f074",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8ce64d083024919eccec3f7eab64c21a913509d46c57d29ee6363f1e0b127cf2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "new": "return (\"-DBACK_OFF=1\" in found",
+          "old": "return ([arg for arg in found if arg.startswith(\"-DBACK_OFF=\")] == [\"-DBACK_OFF=1\"]"
+        }
+      ],
+      "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+      "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+      "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+      "status": "KILLED",
+      "test_output_sha256": "f1152ce5c33fabfabc861c394251eb61a34d4e79e74e9ab315187f16c910ce0b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/7ab66b62e819596d5b246c91f1b024e1/izdw-7ab66b62e8.o29222",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/7ab66b62e819596d5b246c91f1b024e1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................................F.........         [100%]\n=================================== FAILURES ===================================\n_____________ test_build_variant_passes_backoff_fixed_to_configure _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0')\n\n    def test_build_variant_passes_backoff_fixed_to_configure(tmp_path):\n        configure_argv = []\n    \n        def configure(argv):\n            configure_argv.append(argv)\n    \n        def build(argv, **kwargs):\n            binary = Path(argv[2]) / \"cc/silo/ycsb_silo.exe\"\n            binary.parent.mkdir(parents=True)\n            binary.write_bytes(b\"fixture\")\n    \n        with patch.object(coverage.site_policy, \"current_site\", return_value=\"test\"), \\\n             patch.object(coverage.site_policy, \"refuses_heavy_work\", return_value=False), \\\n             patch.object(coverage.compute, \"_common_configure_args\", return_value=[]), \\\n             patch.object(coverage, \"_condition_gates\", return_value=[]), \\\n             patch.object(coverage.compute, \"_run_checked\", side_effect=configure), \\\n             patch.object(coverage.locks, \"_run_cmake_build\", side_effect=build):\n            coverage._build_variant(tmp_path, tmp_path / \"fixed10\", trace=1,\n                                    toolchain={\"cxx_path\": \"c++\"}, dependencies={},\n                                    stock=True, stock_backoff=1, stock_backoff_fixed=10)\n            coverage._build_variant(tmp_path, tmp_path / \"stock\", trace=1,\n                                    toolchain={\"cxx_path\": \"c++\"}, dependencies={},\n                                    stock=True, stock_backoff=1)\n        assert len(configure_argv) == 2\n>       assert configure_argv[0].count(\"-DCCBENCH_BACKOFF_FIXED=10\") == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <built-in method count of list object at 0x153454480840>('-DCCBENCH_BACKOFF_FIXED=10')\nE        +    where <built-in method count of list object at 0x153454480840> = ['cmake', '-S', '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0', '-B', '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0/fixed10', '-DCMAKE_CXX_COMPILER=c++', ...].count\n\norchestrator/tests/test_silo_policy_coverage.py:602: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure\n1 failed, 63 passed in 5.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2129 retained_bytes=2129 omitted_bytes=0 rendered_excerpt_bytes=2213 sha256=7a372cd4a6a879d7ab94015ff2d7ff8ba2a5fc59d89fa00531248bed39cbd792\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0')\n> \n>     def test_build_variant_passes_backoff_fixed_to_configure(tmp_path):\n>         configure_argv = []\n>     \n>         def configure(argv):\n>             configure_argv.append(argv)\n>     \n>         def build(argv, **kwargs):\n>             binary = Path(argv[2]) / \"cc/silo/ycsb_silo.exe\"\n>             binary.parent.mkdir(parents=True)\n>             binary.write_bytes(b\"fixture\")\n>     \n>         with patch.object(coverage.site_policy, \"current_site\", return_value=\"test\"), \\x5c\n>              patch.object(coverage.site_policy, \"refuses_heavy_work\", return_value=False), \\x5c\n>              patch.object(coverage.compute, \"_common_configure_args\", return_value=[]), \\x5c\n>              patch.object(coverage, \"_condition_gates\", return_value=[]), \\x5c\n>              patch.object(coverage.compute, \"_run_checked\", side_effect=configure), \\x5c\n>              patch.object(coverage.locks, \"_run_cmake_build\", side_effect=build):\n>             coverage._build_variant(tmp_path, tmp_path / \"fixed10\", trace=1,\n>                                     toolchain={\"cxx_path\": \"c++\"}, dependencies={},\n>                                     stock=True, stock_backoff=1, stock_backoff_fixed=10)\n>             coverage._build_variant(tmp_path, tmp_path / \"stock\", trace=1,\n>                                     toolchain={\"cxx_path\": \"c++\"}, dependencies={},\n>                                     stock=True, stock_backoff=1)\n>         assert len(configure_argv) == 2\n> >       assert configure_argv[0].count(\"-DCCBENCH_BACKOFF_FIXED=10\") == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <built-in method count of list object at 0x153454480840>('-DCCBENCH_BACKOFF_FIXED=10')\n> E        +    where <built-in method count of list object at 0x153454480840> = ['cmake', '-S', '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0', '-B', '/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_build_variant_passes_back0/fixed10', '-DCMAKE_CXX_COMPILER=c++', ...].count\n> \n> orchestrator/tests/test_silo_policy_coverage.py:602: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2129 retained_bytes=2129 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2942 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "048f3a2a076a0df4e38f42d9b9663a2c65578e3c70713eb5aa78594abc7dcbfc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13b807f5c536cbef7c28596e1c2724c53cb150ebd6c19ba6ab97b5ad1da7433",
+      "duration_s": 27.412,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure"
+      ],
+      "hang_risk": false,
+      "id": "m-fx-argv",
+      "injection_diff_sha256": "07d02ec0e93fbde526ed1a53b59985f65977c1ee25d66d66424a565063941143",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "96e7f8b86d7ca35beea18522187ae405cd1f803c424db7fe99f7726ba3a8d557",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "new": "pass  # mutation m-fx-argv",
+          "old": "stock_flags[\"BACKOFF_FIXED\"] = stock_backoff_fixed"
+        }
+      ],
+      "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+      "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+      "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+      "status": "KILLED",
+      "test_output_sha256": "048f3a2a076a0df4e38f42d9b9663a2c65578e3c70713eb5aa78594abc7dcbfc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/5e2e6b1a823f5fcbf1aa27c1c61e261b/izdw-5e2e6b1a82.o29225",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/5e2e6b1a823f5fcbf1aa27c1c61e261b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................F..........         [100%]\n=================================== FAILURES ===================================\n______________ test_compare_aggregate_rejects_case_order_mismatch ______________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compare_aggregate_rejects_case_order_mismatch():\n        jobs = _compare_jobs()\n        jobs[0][\"case_order\"][0], jobs[0][\"case_order\"][1] = (\n            jobs[0][\"case_order\"][1], jobs[0][\"case_order\"][0])\n        result = R._compare_detail(jobs)\n>       assert result[\"summary\"] is None and any(\"sequence\" in e for e in result[\"errors\"])\nE       AssertionError: assert ({'eligible_points': 16, 'null_count': 0, 'null_reasons': {}, 'exceeds_count': 0, ...} is None)\n\norchestrator/tests/test_silo_policy_recon.py:286: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch\n1 failed, 63 passed in 5.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 rendered_excerpt_bytes=615 sha256=b5f7db006e15c6d3d07e012fb78125f5bf6e95706cefa0b44a0ee312f53e0531\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compare_aggregate_rejects_case_order_mismatch():\n>         jobs = _compare_jobs()\n>         jobs[0][\"case_order\"][0], jobs[0][\"case_order\"][1] = (\n>             jobs[0][\"case_order\"][1], jobs[0][\"case_order\"][0])\n>         result = R._compare_detail(jobs)\n> >       assert result[\"summary\"] is None and any(\"sequence\" in e for e in result[\"errors\"])\n> E       AssertionError: assert ({'eligible_points': 16, 'null_count': 0, 'null_reasons': {}, 'exceeds_count': 0, ...} is None)\n> \n> orchestrator/tests/test_silo_policy_recon.py:286: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1333 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0daa943005ddd9440bd2868ba93645ea39c34811c28b115c14c1735e6f9c48ac"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f13b807f5c536cbef7c28596e1c2724c53cb150ebd6c19ba6ab97b5ad1da7433",
+      "duration_s": 27.725,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch"
+      ],
+      "hang_risk": false,
+      "id": "m-case-order",
+      "injection_diff_sha256": "1225370828ba5a40f93681b42e0ced260773b6d77d51cfc8a2c6eb1d4152bccb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d900b442bd8a5268877c498a8ca7a8c4980e0fb3e92a2c01d3cae07fb5b5db53",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "new": "):",
+          "old": "or p.get(\"case_order\") != expected_ids):"
+        }
+      ],
+      "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+      "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+      "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+      "status": "KILLED",
+      "test_output_sha256": "0daa943005ddd9440bd2868ba93645ea39c34811c28b115c14c1735e6f9c48ac",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/75484d10d4aab8dbf752ebfcc3baedf6/izdw-75484d10d4.o29204",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/output/pegasus-dispatch/75484d10d4aab8dbf752ebfcc3baedf6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_policy_recon.py::test_body_entry_real_four_gates_before_build\norchestrator/tests/test_silo_policy_recon.py::test_schedule_and_flags\norchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps\norchestrator/tests/test_silo_policy_recon.py::test_build_variant_uses_only_fixed_genomes\norchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_uses_best_reference\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_null_when_reference_ineligible\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_wrong_order\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_fixed10_flag_mismatch\norchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_floor_boundary\norchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_genome_and_build_args\norchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_missing_define\norchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off\norchestrator/tests/test_silo_policy_recon.py::test_source_backoff_fixed_patch_materializes_markers\norchestrator/tests/test_silo_policy_recon.py::test_build_variant_backoff_fixed_rejects_non_stock\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[workload-workload]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[stock-stock genome flags]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[b0_l_w0-b0_l_w0 genome flags]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_remeasurement_workload_and_abort0_accept\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobids_distinct_job_keys_determine_binary\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_initial_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_remeasurement_job_key\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[workload-workload]\norchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]\norchestrator/tests/test_silo_policy_coverage.py::test_judge_rejects_missing_or_empty_checks\norchestrator/tests/test_silo_policy_coverage.py::test_smoke_judge_requires_every_policy_and_real_success\norchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one\norchestrator/tests/test_silo_policy_coverage.py::test_characterization_and_mechanism_predicates\norchestrator/tests/test_silo_policy_coverage.py::test_coverage_reuses_controls_and_separates_prefix_exits\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_matching_retry_probe_reach\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_exit_case_configuration\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach\norchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_requires_prefix_held_exit_keys\norchestrator/tests/test_silo_policy_coverage.py::test_prefix_unlock_patches_remove_only_the_target_exit\norchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation\norchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_extra_commit_mismatch\norchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_missing_abort_mismatch\norchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_rejects_incomplete_duplicate_unknown_negative_records\norchestrator/tests/test_silo_policy_coverage.py::test_strict_patch_stacks_and_one_site_mutations\norchestrator/tests/test_silo_policy_coverage.py::test_probe_sites_independently_stamp_all_seven_reasons\norchestrator/tests/test_silo_policy_coverage.py::test_focus_accepted_by_real_unit_b_interface\norchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gates_isolate_each_macro_and_keep_axis_cache\norchestrator/tests/test_silo_policy_coverage.py::test_build_requires_gate_before_configure_and_keeps_build_macros\norchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure\norchestrator/tests/test_silo_policy_coverage.py::test_command_arguments_accepts_both_compile_command_forms\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_rejection_preserves_arm_reasons_in_result_json\norchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_failure_keeps_complete_receipts_and_stops_build\norchestrator/tests/test_silo_policy_coverage.py::test_main_prepares_dependencies_once_before_gates_in_either_case_order\norchestrator/tests/test_silo_policy_coverage.py::test_owner_command_selects_ycsb_from_four_targets_and_rejects_ambiguity\norchestrator/tests/test_silo_policy_coverage.py::test_preprocess_strips_output_and_dependency_forms_and_replaces_defines\norchestrator/tests/test_silo_policy_coverage.py::test_lockskip_evidence_ignores_preprocessor_indentation_but_requires_target\norchestrator/tests/test_silo_policy_coverage.py::test_trace_timeout_preserves_partial_output_and_exact_reason\norchestrator/tests/test_silo_policy_coverage.py::test_verifier_timeout_keeps_run_witnesses_without_becoming_trace_timeout\norchestrator/tests/test_silo_policy_coverage.py::test_verify_cli_and_projection_match_verifier_result\norchestrator/tests/test_silo_policy_coverage.py::test_run_cli_trace_location_counters_probe_and_bench_projection\n\n64 tests collected in 2.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "56874086b9c23f101c98cceac72296b28c8d9ba37198c4fa84f5ab5304b26aec"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_body_entry_real_four_gates_before_build",
+        "orchestrator/tests/test_silo_policy_recon.py::test_schedule_and_flags",
+        "orchestrator/tests/test_silo_policy_recon.py::test_driver_verify_trace0_and_five_reps",
+        "orchestrator/tests/test_silo_policy_recon.py::test_build_variant_uses_only_fixed_genomes",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_uses_best_reference",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_null_when_reference_ineligible",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_wrong_order",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_fixed10_flag_mismatch",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_floor_boundary",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_genome_and_build_args",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_missing_define",
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off",
+        "orchestrator/tests/test_silo_policy_recon.py::test_source_backoff_fixed_patch_materializes_markers",
+        "orchestrator/tests/test_silo_policy_recon.py::test_build_variant_backoff_fixed_rejects_non_stock",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_exact_floor_and_no_candidate",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_remeasure_missing_same_job_and_reproduced",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_hash_missing_zero_and_high_abort",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_workload_and_controls_accept",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[workload-workload]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[abort0-abort0 body sha256]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[stock-stock genome flags]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_initial_workload_or_control[b0_l_w0-b0_l_w0 genome flags]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_fixed_remeasurement_workload_and_abort0_accept",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobids_distinct_job_keys_determine_binary",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_null_pbs_jobid_rejects_remeasurement_same_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_initial_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_duplicate_remeasurement_job_key",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[workload-workload]",
+        "orchestrator/tests/test_silo_policy_recon.py::test_aggregate_rejects_changed_remeasurement_workload_or_abort0[abort0-abort0 body sha256]",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_judge_rejects_missing_or_empty_checks",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_smoke_judge_requires_every_policy_and_real_success",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_norw_judgement_requires_exit_code_one",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_characterization_and_mechanism_predicates",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_coverage_reuses_controls_and_separates_prefix_exits",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_matching_retry_probe_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_exit_case_configuration",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_limit_requires_prefix_held_limit_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_conflict_requires_prefix_held_action_reach",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_requires_prefix_held_exit_keys",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prefix_unlock_patches_remove_only_the_target_exit",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_requires_post_commit_state_observation",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_extra_commit_mismatch",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_no_lock_hook_rejects_missing_abort_mismatch",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_parser_rejects_incomplete_duplicate_unknown_negative_records",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_strict_patch_stacks_and_one_site_mutations",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_probe_sites_independently_stamp_all_seven_reasons",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_focus_accepted_by_real_unit_b_interface",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_prepare_policy_real_four_stages_and_body_binding",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gates_isolate_each_macro_and_keep_axis_cache",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_build_requires_gate_before_configure_and_keeps_build_macros",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_command_arguments_accepts_both_compile_command_forms",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_rejection_preserves_arm_reasons_in_result_json",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_condition_gate_failure_keeps_complete_receipts_and_stops_build",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_main_prepares_dependencies_once_before_gates_in_either_case_order",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_owner_command_selects_ycsb_from_four_targets_and_rejects_ambiguity",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_preprocess_strips_output_and_dependency_forms_and_replaces_defines",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_lockskip_evidence_ignores_preprocessor_indentation_but_requires_target",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_trace_timeout_preserves_partial_output_and_exact_reason",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_verifier_timeout_keeps_run_witnesses_without_becoming_trace_timeout",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_verify_cli_and_projection_match_verifier_result",
+        "orchestrator/tests/test_silo_policy_coverage.py::test_run_cli_trace_location_counters_probe_and_bench_projection"
+      ],
+      "duration_s": 27.058,
+      "rc": 0,
+      "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+      "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+      "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+      "status": "PASSED",
+      "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m-backoff-dup": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_duplicate_back_off"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e85b86500fdb23638398eac04ffe1c9c62f389a5c9035260a865c3f23479f074",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_recon.py",
+            "new": "return (\"-DBACK_OFF=1\" in found",
+            "old": "return ([arg for arg in found if arg.startswith(\"-DBACK_OFF=\")] == [\"-DBACK_OFF=1\"]"
+          }
+        ]
+      },
+      "m-case-order": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_rejects_case_order_mismatch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1225370828ba5a40f93681b42e0ced260773b6d77d51cfc8a2c6eb1d4152bccb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_recon.py",
+            "new": "):",
+            "old": "or p.get(\"case_order\") != expected_ids):"
+          }
+        ]
+      },
+      "m-fx-argv": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_coverage.py::test_build_variant_passes_backoff_fixed_to_configure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "07d02ec0e93fbde526ed1a53b59985f65977c1ee25d66d66424a565063941143",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_coverage.py",
+            "new": "pass  # mutation m-fx-argv",
+            "old": "stock_flags[\"BACKOFF_FIXED\"] = stock_backoff_fixed"
+          }
+        ]
+      },
+      "m-rotation-mod": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_recon.py::test_compare_cases_rotate_by_job"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ffc68a5d21279712b52f1a1c275d69b369e2ad023927233deb907ddd1660d101",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_recon.py",
+            "new": "offset = job",
+            "old": "offset = job % 6"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "435c39d596ed5d2f1423f8c3c1ca0bd0f214140a473d836e5acbd7698a521155",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_recon.py",
+      "orchestrator/tests/test_silo_policy_coverage.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "c80514b74f8aef168dd54bf118d6c77d6b8d9f70",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_policy_recon.py",
+      "orchestrator/tests/test_silo_policy_coverage.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e0141d70757ac8c4538ee45e6fdb373b846b78e1",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "cc19ba2a3e5861efeacf7d330cbf1fb4b4d1e1bd911798e5f28631ef9cc1d3d2",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4686384f652f22d50b539596d1524642af6a6057953a63b9e87853fb7af3d3f2",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2865-recon-2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "3b5b93f7c79508e9de8db109f9830dc1190657d7dd589757fb1bc3b68beee996",
+  "updated_at": "2026-09-26T01:16:46.051006+00:00"
+}

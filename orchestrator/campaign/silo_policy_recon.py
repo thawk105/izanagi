@@ -34,6 +34,14 @@ def _now() -> str:
 
 def _cases(phase: str, job: int | None, candidate: str | None) -> list[tuple[str, str, object | None]]:
     cases = IR.enumerate_recon()
+    if phase == "compare":
+        if job not in range(8):
+            raise ValueError("compare job must be 0..7")
+        result = [("ir", c.case_id, c) for c in cases if IR.job_of(c.case_id) == job]
+        result += [("abort0", "abort0", None), ("stock", "stock", None),
+                   ("b0_l_w0", "B0-L-W0", None), ("fixed10", "fixed10", None)]
+        offset = job % 6
+        return result[offset:] + result[:offset]
     if phase == "initial":
         if job not in range(8):
             raise ValueError("initial job must be 0..7")
@@ -59,12 +67,31 @@ def _trace0(build: Path, source: Path) -> dict:
             "owner_tu_only": True}
 
 
+def _backoff_fixed_define(build: Path, source: Path) -> dict:
+    try:
+        command = C._owner_command(build, source)
+        args = C._command_arguments(command)
+    except (OSError, ValueError, KeyError, RuntimeError, TypeError) as exc:
+        return {"effective": False, "defines": [], "command": None,
+                "error": type(exc).__name__ + ": " + str(exc)}
+    found = [arg for arg in args if arg.startswith(("-DBACKOFF_FIXED=", "-DBACK_OFF="))]
+    return {"effective": _backoff_fixed_defines_effective(found),
+            "defines": found, "command": command}
+
+
+def _backoff_fixed_defines_effective(found: list[str]) -> bool:
+    return ([arg for arg in found if arg.startswith("-DBACK_OFF=")] == ["-DBACK_OFF=1"]
+            and [arg for arg in found if arg.startswith("-DBACKOFF_FIXED=")]
+            == ["-DBACKOFF_FIXED=10"])
+
+
 def _one(role: str, case_id: str, case: object | None, work: Path,
          toolchain: dict, dependencies: dict) -> dict:
-    stock = role in {"stock", "b0_l_w0"}
+    stock = role in {"stock", "b0_l_w0", "fixed10"}
     ir = IR.degenerate_policy() if role == "abort0" else case.ir if role == "ir" else None
     body = IR.render_policy(ir) if ir is not None else None
-    genome = (Genome("silo", {**C.locks._BASE, "BACK_OFF": 0 if role == "b0_l_w0" else 1})
+    genome = (Genome("silo", {**C.locks._BASE, "BACK_OFF": 0 if role == "b0_l_w0" else 1,
+                              **({"BACKOFF_FIXED": 10} if role == "fixed10" else {})})
               if stock else C.GENOME)
     row = {"role": role, "case_id": case_id,
            "factors": list(case.factors) if case is not None else None,
@@ -74,8 +101,11 @@ def _one(role: str, case_id: str, case: object | None, work: Path,
            "status": "incomplete", "bench": [], "builds": {}}
     work.mkdir()
     try:
+        source_options = {"backoff_fixed_patch": True} if role == "fixed10" else {}
+        build_options = {"stock_backoff_fixed": 10} if role == "fixed10" else {}
         with C._source("stock" if stock else case_id, body=body,
-                       compiler=toolchain["cxx_path"], scratch=work) as (source, contract):
+                       compiler=toolchain["cxx_path"], scratch=work,
+                       **source_options) as (source, contract):
             row["contract"] = contract
             evidence = source_digest.resolve_evidence(genome, C.PIN, ccbench_dir=str(source),
                                                       cxx=toolchain["cxx_path"])
@@ -83,8 +113,13 @@ def _one(role: str, case_id: str, case: object | None, work: Path,
             row["source_evidence"] = evidence.as_receipt()
             trace, receipt = C._build_variant(source, work / "trace", trace=1,
                 toolchain=toolchain, dependencies=dependencies, stock=stock,
-                stock_backoff=0 if role == "b0_l_w0" else 1)
+                stock_backoff=0 if role == "b0_l_w0" else 1, **build_options)
             row["builds"]["trace1"] = receipt
+            if role == "fixed10":
+                row["backoff_fixed_define"] = {"trace1": _backoff_fixed_define(work / "trace", source)}
+                if not row["backoff_fixed_define"]["trace1"]["effective"]:
+                    row["status"] = "backoff-fixed-not-effective"
+                    return row
             row["verify"] = {
                 "legacy": C._run(trace, C.LEGACY, source=source, trace=True),
                 "performance": C._run(trace, FLAGS, source=source, trace=True, numa=True),
@@ -94,8 +129,13 @@ def _one(role: str, case_id: str, case: object | None, work: Path,
             else:
                 binary, receipt = C._build_variant(source, work / "perf", trace=0,
                     toolchain=toolchain, dependencies=dependencies, stock=stock,
-                    stock_backoff=0 if role == "b0_l_w0" else 1)
+                    stock_backoff=0 if role == "b0_l_w0" else 1, **build_options)
                 row["builds"]["trace0"] = receipt
+                if role == "fixed10":
+                    row["backoff_fixed_define"]["trace0"] = _backoff_fixed_define(work / "perf", source)
+                    if not row["backoff_fixed_define"]["trace0"]["effective"]:
+                        row["status"] = "backoff-fixed-not-effective"
+                        return row
                 row["trace0"] = _trace0(work / "perf", source)
                 if not row["trace0"]["clean"]:
                     row["status"] = "trace0-not-clean"
@@ -172,7 +212,7 @@ def run(args: argparse.Namespace) -> int:
     policy = C.compute._load_policy(C.ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
     toolchain = C.compute._resolve_toolchain(policy)
     result = {"schema_version": SCHEMA, "phase": args.phase,
-              "job": args.job if args.phase == "initial" else args.candidate,
+              "job": args.job if args.phase in {"initial", "compare"} else args.candidate,
               "pbs_jobid": os.environ.get("PBS_JOBID"), "hostname": socket.gethostname(),
               "started_at": _now(), "repo_commit": C.compute._run_checked(
                   ["git", "rev-parse", "HEAD"], cwd=C.ROOT).stdout.strip(),
@@ -190,7 +230,7 @@ def run(args: argparse.Namespace) -> int:
             for role, case_id, case in sequence:
                 row = _one(role, case_id, case, scratch / case_id, toolchain, dependencies)
                 row["same_job_controls"] = [cid for kind, cid, _ in sequence
-                                            if kind in {"abort0", "stock", "b0_l_w0"}]
+                                            if kind in {"abort0", "stock", "b0_l_w0", "fixed10"}]
                 result["cases"].append(row)
     except Exception as exc:
         result["error"] = type(exc).__name__ + ": " + str(exc)
@@ -324,11 +364,142 @@ def aggregate(args: argparse.Namespace) -> int:
     return 0 if not detail["errors"] else 1
 
 
+def _compare_detail(jobs: list[dict]) -> dict:
+    detail = {"schema_version": SCHEMA, "comparisons": [], "references": [],
+              "summary": None, "errors": []}
+    try:
+        if len(jobs) != 8 or sorted(p.get("job") for p in jobs) != list(range(8)):
+            raise ValueError("exactly eight distinct compare jobs required")
+        common = [(p.get("schema_version"), p.get("pin"), p.get("toolchain"), p.get("workload"))
+                  for p in jobs]
+        if len({json.dumps(x, sort_keys=True) for x in common}) != 1 or common[0][0] != SCHEMA or common[0][1] != C.PIN:
+            raise ValueError("schema/PIN/toolchain/workload mismatch")
+        expected_workload = {"legacy": C.LEGACY, "performance": FLAGS,
+                             "bench_reps": 5, "numa": True}
+        if common[0][3] != expected_workload:
+            raise ValueError("workload differs from fixed run configuration")
+        if len({(p.get("hostname"), p.get("started_at")) for p in jobs}) != 8:
+            raise ValueError("compare hostname/started_at duplicated")
+        controls = {"stock": {**C.locks._BASE, "BACK_OFF": 1},
+                    "b0_l_w0": {**C.locks._BASE, "BACK_OFF": 0},
+                    "fixed10": {**C.locks._BASE, "BACK_OFF": 1, "BACKOFF_FIXED": 10}}
+        abort0_sha = C.sha(IR.render_policy(IR.degenerate_policy()))
+        by_job = {}
+        for p in jobs:
+            job = p["job"]
+            expected = _cases("compare", job, None)
+            rows = p.get("cases", [])
+            expected_ids = [x[1] for x in expected]
+            if (p.get("phase") != "compare" or [r.get("case_id") for r in rows] != expected_ids
+                    or p.get("case_order") != expected_ids):
+                raise ValueError("compare case sequence mismatch")
+            if [r.get("role") for r in rows] != [x[0] for x in expected]:
+                raise ValueError("compare case roles mismatch")
+            by_job[job] = {r["case_id"]: r for r in rows}
+            for row in rows:
+                role = row["role"]
+                if role == "ir":
+                    case = IR.enumerate_recon()[int(row["case_id"], 2)]
+                    if row.get("body_sha256") != C.sha(IR.render_policy(case.ir)):
+                        raise ValueError("IR body sha256 mismatch")
+                    if row.get("factors") != list(case.factors):
+                        raise ValueError("IR factor mismatch")
+                elif role == "abort0":
+                    if row.get("body_sha256") != abort0_sha:
+                        raise ValueError("abort0 body sha256 mismatch")
+                elif row.get("genome", {}).get("flags") != controls[role]:
+                    raise ValueError(role + " genome flags mismatch")
+                if role == "fixed10" and row.get("status") == "complete":
+                    receipt = row.get("backoff_fixed_define", {})
+                    if not all(receipt.get(trace, {}).get("effective") is True and
+                               _backoff_fixed_defines_effective(receipt[trace].get("defines", []))
+                               for trace in ("trace1", "trace0")):
+                        raise ValueError("fixed10 backoff fixed define mismatch")
+        def usable(row):
+            before = row.get("source_evidence")
+            return bool(before) and before == row.get("source_evidence_after") and _eligible(row)
+
+        def reason(row):
+            status = row.get("status")
+            if status in {"verify-not-certified", "trace0-not-clean", "backoff-fixed-not-effective"}:
+                return status
+            return "incomplete"
+
+        counts = {}
+        best = None
+        eligible_count = exceeds_count = 0
+        for job in range(8):
+            rows = by_job[job]
+            refs = {role: rows[cid] for role, cid in (("abort0", "abort0"), ("stock", "stock"),
+                                                      ("b0_l_w0", "B0-L-W0"), ("fixed10", "fixed10"))}
+            detail["references"].append({"job": job, **{role: {
+                "median_throughput": _reps(row)[0] if _reps(row) else None,
+                "median_abort_rate": _reps(row)[1] if _reps(row) else None,
+                "status": row.get("status")}
+                for role, row in refs.items()}})
+            for role, cid, _ in _cases("compare", job, None):
+                if role != "ir":
+                    continue
+                row = rows[cid]
+                ratio_vs = {ref: (_reps(row)[0] / _reps(refs[ref])[0]
+                                  if usable(row) and usable(refs[ref]) else None)
+                            for ref in ("stock", "b0_l_w0", "fixed10")}
+                if not usable(row):
+                    why = reason(row)
+                elif not usable(refs["abort0"]):
+                    why = "reference-ineligible"
+                elif refs["fixed10"].get("status") == "backoff-fixed-not-effective":
+                    why = "backoff-fixed-not-effective"
+                elif not all(usable(refs[ref]) for ref in ("stock", "b0_l_w0", "fixed10")):
+                    why = "reference-ineligible"
+                elif _reps(row)[1] > 2 * _reps(refs["abort0"])[1]:
+                    why = "high-abort"
+                else:
+                    why = None
+                ratio = (None if why else _reps(row)[0] /
+                         max(_reps(refs[ref])[0] for ref in ("stock", "b0_l_w0", "fixed10")))
+                exceeds = None if ratio is None else ratio > 1.03
+                detail["comparisons"].append({"case_id": cid, "job": job,
+                    "ratio_vs": ratio_vs, "best_ref_ratio": ratio,
+                    "reason": why, "exceeds": exceeds})
+                if why:
+                    counts[why] = counts.get(why, 0) + 1
+                else:
+                    eligible_count += 1
+                    exceeds_count += int(exceeds)
+                    if best is None or ratio > best[1]:
+                        best = (cid, ratio)
+        detail["comparisons"].sort(key=lambda r: r["case_id"])
+        detail["summary"] = {"eligible_points": eligible_count, "null_count": sum(counts.values()),
+                             "null_reasons": counts, "exceeds_count": exceeds_count,
+                             "max_best_ref_ratio": best[1] if best else None,
+                             "max_case_id": best[0] if best else None}
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        detail["errors"].append(type(exc).__name__ + ": " + str(exc))
+        detail["comparisons"] = []
+        detail["references"] = []
+        detail["summary"] = None
+    return detail
+
+
+def compare_aggregate(args: argparse.Namespace) -> int:
+    try:
+        jobs = [json.loads(path.read_text(), parse_constant=lambda x: (_ for _ in ()).throw(ValueError(x)))
+                for path in args.compare]
+        detail = _compare_detail(jobs)
+    except (OSError, ValueError, TypeError) as exc:
+        detail = {"schema_version": SCHEMA, "comparisons": [], "references": [],
+                  "summary": None, "errors": [type(exc).__name__ + ": " + str(exc)]}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(detail, ensure_ascii=False, indent=2) + "\n")
+    return 0 if not detail["errors"] else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--phase", choices=("initial", "remeasure"), required=True)
+    r.add_argument("--phase", choices=("initial", "remeasure", "compare"), required=True)
     r.add_argument("--job", type=int)
     r.add_argument("--candidate")
     r.add_argument("--third-party-cache", type=Path, required=True)
@@ -338,8 +509,12 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--remeasure", type=Path, nargs="*", default=[])
     a.add_argument("--out", type=Path, required=True)
     a.add_argument("--projection-out", type=Path, required=True)
+    c = sub.add_parser("compare-aggregate")
+    c.add_argument("--compare", type=Path, nargs=8, required=True)
+    c.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
-    return run(args) if args.command == "run" else aggregate(args)
+    return run(args) if args.command == "run" else (aggregate(args) if args.command == "aggregate"
+                                                   else compare_aggregate(args))
 
 
 if __name__ == "__main__":

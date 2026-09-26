@@ -1,0 +1,88 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-fx-flag",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "**({\"BACKOFF_FIXED\": 10} if role == \"fixed10\" else {})",
+          "new": "**({\"BACKOFF_FIXED\": 9} if role == \"fixed10\" else {})"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_genome_and_build_args"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-fx-patch",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "old": "if backoff_fixed_patch else nullcontext() if stock else",
+          "new": "if False else nullcontext() if stock else"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_source_backoff_fixed_patch_materializes_markers"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-fx-define",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if not row[\"backoff_fixed_define\"][\"trace1\"][\"effective\"]:",
+          "new": "if False:  # mutation m-fx-define"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_fixed10_define_check_rejects_missing_define"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-cmp-max",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "max(_reps(refs[ref])[0] for ref in (\"stock\", \"b0_l_w0\", \"fixed10\"))",
+          "new": "min(_reps(refs[ref])[0] for ref in (\"stock\", \"b0_l_w0\", \"fixed10\"))"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_uses_best_reference"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "m-cmp-null",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "elif not all(usable(refs[ref]) for ref in (\"stock\", \"b0_l_w0\", \"fixed10\")):",
+          "new": "elif False:  # mutation m-cmp-null"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_recon.py::test_compare_aggregate_null_when_reference_ineligible"
+      ],
+      "hang_risk": false
+    }
+  ]
+}

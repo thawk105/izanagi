@@ -68,6 +68,10 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     # Fixed argv, no shell expansion, sanitized env, read-only Git tree query.
     ("campaign/s8b_floor_campaign.py", "<module>._floor_protocol_paths_at_commit"): 1,
+    # Delegates the run_once-built numactl/binary/gflags argv (no perf or
+    # shell, default 120-second timeout) to the injected runner; this CCBench
+    # measurement seam only retains stdout for TPC-C transaction counts.
+    ("campaign/t2851_transfer_runner.py", "<module>.run_job.once.capture"): 1,
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
@@ -145,6 +149,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/floor_pair_driver.py", "<module>._git_is_ancestor"): 1,
     ("campaign/floor_pair_driver.py", "<module>._git_show_head"): 1,
     ("campaign/floor_pair_driver.py", "<module>._run_probe"): 1,
+    # TPC-C isolation probe uses fixed pgrep -af tpcc_.*\.exe argv, no shell,
+    # and a 10-second timeout; it observes processes but never starts CCBench.
+    ("campaign/t2851_transfer_runner.py", "<module>._probe"): 1,
     # Resolves manifest-declared Git objects only; it never launches a CCBench
     # measurement process.
     ("campaign/knowledge_manifest.py", "<module>._git"): 1,
@@ -2934,7 +2941,7 @@ def test_production_build_sinks_include_certify_calibration_script():
     }
     assert _BuildSink(
         "orchestrator/campaign/silo_policy_coverage.py",
-        "<module>._build_variant", 386, "direct-cmake-target",
+        "<module>._build_variant", 392, "direct-cmake-target",
     ) in sinks
 
 
@@ -3563,10 +3570,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 39,
+        "proven-unreachable": 53,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 43})
+    assert classifications[s8b_sink] == Counter({"covered": 57})
     assert failures == []
 
 
@@ -3590,7 +3597,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 29})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 43})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3599,7 +3606,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 29,
+        "failure-reachable": 14, "proven-unreachable": 43,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

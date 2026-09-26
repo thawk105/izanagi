@@ -1,0 +1,943 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2152bc06844cb72a18b81790d90ab3bf/izdw-2152bc0684.o21257",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2152bc06844cb72a18b81790d90ab3bf/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 97%]\n...                                                                      [100%]\n147 passed in 7.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1e00c3d2e6df4376ffd9e35a8d68a8b3947a6bc75166c2dbb958f4b21b6350b3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+    "duration_s": 32.995,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c5c7089b913abe8b939d44b6468e7a5e0e470582fcd1c851a4f503ba9a5e4890",
+    "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+    "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+    "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+    "status": "PASSED",
+    "test_output_sha256": "1e00c3d2e6df4376ffd9e35a8d68a8b3947a6bc75166c2dbb958f4b21b6350b3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+  },
+  "date": "2026-09-23T12:40:45.055433+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/26fdb5e726cb767c06a7637c1f5c233b/izdw-26fdb5e726.o21260",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/26fdb5e726cb767c06a7637c1f5c233b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 97%]\n...                                                                      [100%]\n147 passed in 7.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "a7fe03ed25dd1c9a7fb5e44336df91fc86e3305ac27ddcdee2505ea9a3c15e7f"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.412,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-equivalent-basename-str",
+      "injection_diff_sha256": "7658cf9f67c792a68d3ba844eccd23400ef749757483b8744abd794d496ba5eb",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "ed77764edd2a8d965cf269a3641161554c0987d59d44863aac71f8001ce3b504",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    name = os.path.basename(str(binary))\n",
+          "old": "    name = os.path.basename(binary)\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "SURVIVED",
+      "test_output_sha256": "a7fe03ed25dd1c9a7fb5e44336df91fc86e3305ac27ddcdee2505ea9a3c15e7f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4060151abedd4418536f00cb9dfaf61f/izdw-4060151abe.o21262",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4060151abedd4418536f00cb9dfaf61f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n.......................................F................................ [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_v3_cli_json_wiring_and_v2_bytes _____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v3_cli_json_wiring_and_v2_bytes():\n        import contextlib\n        import io\n        import shutil\n        from orchestrator.verifier import cli\n        from orchestrator.verifier.core import result_to_dict_v3\n    \n        cases = (\n            (_v3_cycle_files(), 1),\n            ((_v3_frame(0, writes=[(5, \"aa\", \"I\")]),\n              _v3_frame(1, [(5, \"aa\", 1, 0)], tx_type=2)), 3),\n            ((\"C 0 0 2 1 0 1\\nW 0 aa U 2 1\\nE 0\\n\",), 0),\n        )\n        for files, expected_rc in cases:\n            d = _tmp_trace(*files)\n            try:\n                result = verify_trace_dir(d)\n                output = io.StringIO()\n                with contextlib.redirect_stdout(output):\n                    rc = cli.main([d, \"--json\", \"--protocol\", \"silo\",\n                                   \"--ccbench-root\", CCBENCH_ROOT])\n                assert rc == expected_rc\n                payload = json.loads(output.getvalue())[\"results\"][0]\n>               assert payload == result_to_dict_v3(result)\nE               AssertionError: assert {'trace_dir':...': False, ...} == {'trace_dir':...': False, ...}\nE                 \nE                 Omitting 7 identical items, use -vv to show\nE                 Differing items:\nE                 {'anomalies': [{'phenomenon': 'G2', 'length': 2, 'cycle': [0, 1], 'edges': [{'from': 0, 'to': 1, 'types': ['rw'], 'reasons': [{...}]}, {'from': 1, 'to': 0, 'types': ['rw'], 'reasons': [{...}]}]}]} != {'anomalies': [{'phenomenon': 'G2', 'length': 2, 'cycle': [0, 1], 'edges': [{'from': 0, 'to': 1, 'types': ['rw'], 'reasons': [{...}]}, {'from': 1, 'to': 0, 'types': ['rw'], 'reasons': [{...}]}], ...}]}\nE                 {'integrity': {'clean': True, 'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, ...}} != {'integrity': {'clean':...\nE                 \nE                 ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_verifier.py:4063: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes\n1 failed, 146 passed in 7.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=1992 retained_bytes=1992 omitted_bytes=0 rendered_excerpt_bytes=2074 sha256=6dea02dca45bbf82294e378a605709c67aedb0ac249b99a6034887b21589f78d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v3_cli_json_wiring_and_v2_bytes():\n>         import contextlib\n>         import io\n>         import shutil\n>         from orchestrator.verifier import cli\n>         from orchestrator.verifier.core import result_to_dict_v3\n>     \n>         cases = (\n>             (_v3_cycle_files(), 1),\n>             ((_v3_frame(0, writes=[(5, \"aa\", \"I\")]),\n>               _v3_frame(1, [(5, \"aa\", 1, 0)], tx_type=2)), 3),\n>             ((\"C 0 0 2 1 0 1\\x5cnW 0 aa U 2 1\\x5cnE 0\\x5cn\",), 0),\n>         )\n>         for files, expected_rc in cases:\n>             d = _tmp_trace(*files)\n>             try:\n>                 result = verify_trace_dir(d)\n>                 output = io.StringIO()\n>                 with contextlib.redirect_stdout(output):\n>                     rc = cli.main([d, \"--json\", \"--protocol\", \"silo\",\n>                                    \"--ccbench-root\", CCBENCH_ROOT])\n>                 assert rc == expected_rc\n>                 payload = json.loads(output.getvalue())[\"results\"][0]\n> >               assert payload == result_to_dict_v3(result)\n> E               AssertionError: assert {'trace_dir':...': False, ...} == {'trace_dir':...': False, ...}\n> E                 \n> E                 Omitting 7 identical items, use -vv to show\n> E                 Differing items:\n> E                 {'anomalies': [{'phenomenon': 'G2', 'length': 2, 'cycle': [0, 1], 'edges': [{'from': 0, 'to': 1, 'types': ['rw'], 'reasons': [{...}]}, {'from': 1, 'to': 0, 'types': ['rw'], 'reasons': [{...}]}]}]} != {'anomalies': [{'phenomenon': 'G2', 'length': 2, 'cycle': [0, 1], 'edges': [{'from': 0, 'to': 1, 'types': ['rw'], 'reasons': [{...}]}, {'from': 1, 'to': 0, 'types': ['rw'], 'reasons': [{...}]}], ...}]}\n> E                 {'integrity': {'clean': True, 'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, ...}} != {'integrity': {'clean':...\n> E                 \n> E                 ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_verifier.py:4063: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1992 retained_bytes=1992 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2774 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "936b95a918dd052fb844dd77d6cc7b92374fced6f4a75e8bff0dda3f334edf09"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 33.164,
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes"
+      ],
+      "hang_risk": false,
+      "id": "M1-cli-legacy-projection",
+      "injection_diff_sha256": "487458654739733bcd429114b2bd0c20bd10be51a1b70214db6c8021961fb11e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "510efa7dd19cf29694fd5256474b7624d568551cc24cbfec6588e5caf7132024",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/cli.py",
+          "new": "            \"results\": [result_to_dict_v3.__globals__[\"result_to_dict\"](r) for r in results],\n",
+          "old": "            \"results\": [result_to_dict_v3(r) for r in results],\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "936b95a918dd052fb844dd77d6cc7b92374fced6f4a75e8bff0dda3f334edf09",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1a3cbb6aec576a4acbce1c3f72548166/izdw-1a3cbb6aec.o21266",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1a3cbb6aec576a4acbce1c3f72548166/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n...................................................................F.... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n________________ test_tpcc_executor_v3_v2_existence_and_witness ________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_executor_v3_v2_existence_and_witness():\n        genome, evidence, admission = commit_receipts._proof_build_binding(\"baseline\")\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        first = \"C 0 0 2 1 0 1 0 0 1\\nW 0 1 aa I 2 1\\nE 0\\n\"\n        second = \"C 1 0 2 2 1 0 0 0 2\\nR 1 1 aa 2 1\\nE 1\\n\"\n        existence = \"C 1 0 2 2 1 0 0 0 2\\nR 1 1 aa 1 0\\nE 1\\n\"\n        third = \"C 2 0 2 3 0 0 0 0 1\\nE 2\\n\"\n        v2 = \"C 0 0 2 1 0 1\\nW 0 aa U 2 1\\nE 0\\n\"\n        for case, frames, witness in (\n            (\"certified\", (first, second), 2),\n            (\"v2\", (v2,), 1),\n            (\"existence\", (first, existence), 2),\n            # 元の (first + second + third) の完全な末尾 frame を除去。\n            (\"tail-loss\", ((first + second + third).removesuffix(third),), 3),\n            # 最大 txid の全 frame を除去。残存 file はそれぞれ正常。\n            (\"max-txid-loss\", (first, second), 3),\n            # 元の thread file 群 (first + second, third) の後者を除去。\n            (\"thread-file-loss\", (first + second,), 3),\n        ):\n            trace_dir = _tmpdir(\"izanagi_tpcc_executor_\")\n    \n            def trace_runner(binary, path, run_flags, clocks, **kwargs):\n                assert binary.endswith(\"tpcc_fake\") and run_flags == flags\n                for index, frame in enumerate(frames):\n                    with open(os.path.join(path, f\"trace_{index}.log\"), \"w\") as stream:\n                        stream.write(frame)\n                return pipeline._TraceRunResult(\n                    trace_c_lines=sum(frame.count(\"\\nC \") + frame.startswith(\"C \")\n                                      for frame in frames),\n                    returncode=0, abort_counts=0,\n                    commit_count_witness=witness, batch_commit_count_witness=0)\n    \n            outcome = pipeline._execute_verification_repetition(\n                binary=\"/tmp/tpcc_fake\", trace_dir=trace_dir, flags=flags,\n                clocks_per_us=1800, timeout_s=10, numactl=None,\n                genome=genome, source_evidence=evidence, build_admission=admission,\n                receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n                receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n                receipt_workload_tag=\"tpcc-stage1\", build_attempt_id=\"unit\",\n                trace_binary_sha256=\"0\" * 64,\n                include_qualification_evidence=False, trace_runner=trace_runner)\n            if case == \"certified\":\n                assert outcome.abort is None and outcome.verify_result.certified\n                assert outcome.verification_capability._certified\n            elif case == \"v2\":\n                assert outcome.abort.reason == \"trace-witness-unsupported-workload\"\n                assert outcome.abort.detail[\"trace_schema\"] == \"v2\"\n                standalone, _ = pipeline.verify_trace_dir_with_capability(\n                    trace_dir, expected_commits=witness, genome=genome,\n                    source_evidence=evidence, build_admission=admission,\n                    receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n                    receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n                    receipt_workload_tag=\"tpcc-stage1\")\n                assert standalone.certified\n            else:\n                assert outcome.abort.reason == \"indeterminate\"\n                integrity = outcome.abort.detail[\"verify\"][\"integrity\"]\n                if case == \"existence\":\n>                   assert integrity[\"existence_violations\"] == 1\nE                   KeyError: 'existence_violations'\n\norchestrator/tests/test_campaign.py:7575: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness\n1 failed, 146 passed in 7.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=3843 retained_bytes=3800 omitted_bytes=43 rendered_excerpt_bytes=4096 sha256=6470b579141c8079cf5035f3c1fae93f388b9c2545667c616e5bef27abf4a1ca\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> .10\n> \n>     def test_tpcc_executor_v3_v2_existence_and_witness():\n>         genome, evidence, admission = commit_receipts._proof_build_binding(\"baseline\")\n>         flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n>                  \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n>         first = \"C 0 0 2 1 0 1 0 0 1\\x5cnW 0 1 aa I 2 1\\x5cnE 0\\x5cn\"\n>         second = \"C 1 0 2 2 1 0 0 0 2\\x5cnR 1 1 aa 2 1\\x5cnE 1\\x5cn\"\n>         existence = \"C 1 0 2 2 1 0 0 0 2\\x5cnR 1 1 aa 1 0\\x5cnE 1\\x5cn\"\n>         third = \"C 2 0 2 3 0 0 0 0 1\\x5cnE 2\\x5cn\"\n>         v2 = \"C 0 0 2 1 0 1\\x5cnW 0 aa U 2 1\\x5cnE 0\\x5cn\"\n>         for case, frames, witness in (\n>             (\"certified\", (first, second), 2),\n>             (\"v2\", (v2,), 1),\n>             (\"existence\", (first, existence), 2),\n>             # \\u5143\\u306e (first + second + third) \\u306e\\u5b8c\\u5168\\u306a\\u672b\\u5c3e frame \\u3092\\u9664\\u53bb\\u3002\n>             (\"tail-loss\", ((first + second + third).removesuffix(third),), 3),\n>             # \\u6700\\u5927 txid \\u306e\\u5168 frame \\u3092\\u9664\\u53bb\\u3002\\u6b8b\\u5b58 file \\u306f\\u305d\\u308c\\u305e\\u308c\\u6b63\\u5e38\\u3002\n>             (\"max-txid-loss\", (first, second), 3),\n>             # \\u5143\\u306e thread file \\u7fa4 (first + second, third) \\u306e\\u5f8c\\u8005\\u3092\\u9664\\u53bb\\u3002\n>             (\"thread-file-loss\", (first + second,), 3),\n>         ):\n>             trace_dir = _tmpdir(\"izanagi_tpcc_executor_\")\n>     \n>             def trace_runner(binary, path, run_flags, clocks, **kwargs):\n>                 assert binary.endswith(\"tpcc_fake\") and run_flags == flags\n>                 for index, frame in enumerate(frames):\n>                     with open(os.path.join(path, f\"trace_{index}.log\"), \"w\") as stream:\n>                         stream.write(frame)\n>                 return pipeline._TraceRunResult(\n>                     trace_c_lines=sum(frame.count(\"\\x5cnC \") + frame.startswith(\"C \")\n>                                       for frame in frames),\n>                     returncode=0, abort_counts=0,\n>                     commit_count_witness=witness, batch_commit_count_witness=0)\n>     \n>             outcome = pipeline._execute_verification_repetition(\n>                 binary=\"/tmp/tpcc_fake\", trace_dir=trace_dir, flags=flags,\n>                 clocks_per_us=1800, timeout_s=10, numactl=None,\n>                 genome=genome, source_evidence=evidence, build_admission=admission,\n>                 receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n>                 receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n>                 receipt_workload_tag=\"tpcc-stage1\", build_attempt_id=\"unit\",\n>                 trace_binary_sha256=\"0\" * 64,\n>                 include_qualification_evidence=False, trace_runner=trace_runner)\n>             if case == \"certified\":\n>                 assert outcome.abort is None and outcome.verify_result.certified\n>                 assert outcome.verification_capability._certified\n>             elif case == \"v2\":\n>                 assert outcome.abort.reason == \"trace-witness-unsupported-workload\"\n>                 assert outcome.abort.detail[\"trace_schema\"] == \"v2\"\n>                 standalone, _ = pipeline.verify_trace_dir_with_capability(\n>                     trace_dir, expected_commits=witness, genome=genome,\n>                     source_evidence=evidence, build_admission=admission,\n>                     receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n>                     receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n>                     receipt_workload_tag=\"tpcc-stage1\")\n>                 assert standalone.certified\n>             else:\n>                 assert outcome.abort.reason == \"indeterminate\"\n>                 integrity = outcome.abort.detail[\"verify\"][\"integrity\"]\n>                 if case == \"existence\":\n> >                   assert integrity[\"existence_violations\"] == 1\n> E                   KeyError: 'existence_violations'\n> \n> orchestrator/tests/test_campaign.py:7575: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3843 retained_bytes=3800 omitted_bytes=43 budget_bytes=49152 rendered_bytes=4808 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f4d3c6e17440f8bdc30ccaa2bc0431317216393da0d5c3e006ef3b2667c8bad3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.643,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+      ],
+      "hang_risk": false,
+      "id": "M2-pipeline-diagnostic-legacy",
+      "injection_diff_sha256": "485126f0f4423b9655ca7c9e3869d8786370332cbdc2af4002cbaedaabdc1da9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8fa9de17dfc850201fa87c771dead8bd15b2d2c88e022a5df16c8a7188bb3884",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "        diagnostic = result_to_dict_v3.__globals__[\"result_to_dict\"](verify_result)\n",
+          "old": "        diagnostic = result_to_dict_v3(verify_result)\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "f4d3c6e17440f8bdc30ccaa2bc0431317216393da0d5c3e006ef3b2667c8bad3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fea6f1ad13c06f10f5753afabc5e1a05/izdw-fea6f1ad13.o21269",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fea6f1ad13c06f10f5753afabc5e1a05/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n................................F....................................... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_v3_capability_digest_binds_anomaly_and_existence _____________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v3_capability_digest_binds_anomaly_and_existence():\n        import shutil\n        import commit_receipt_support as support\n        from orchestrator.verifier.commit_receipt import _domain_digest\n        from orchestrator.verifier.core import (result_to_dict_v3,\n                                                verify_trace_dir_with_capability)\n    \n        genome, evidence, admission = support._proof_build_binding(\"baseline\")\n        cases = (\n            _v3_cycle_files() + (_v3_frame(2, writes=[(5, \"bb\", \"I\")]),\n                                 _v3_frame(3, [(5, \"bb\", 1, 0)], tx_type=2)),\n            (\"C 0 0 2 1 0 1\\nW 0 aa U 2 1\\nE 0\\n\",),\n        )\n        for files in cases:\n            d = _tmp_trace(*files)\n            try:\n                result, capability = verify_trace_dir_with_capability(\n                    d, expected_commits=len(files), workers=1, genome=genome,\n                    source_evidence=evidence, build_admission=admission,\n                    receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n                    receipt_variant=\"baseline\", receipt_operation_identity=\"v3-digest\",\n                    receipt_workload_tag=\"unit\")\n                projection = result_to_dict_v3(result)\n                projection.pop(\"trace_dir\", None)\n                projection[\"integrity\"].pop(\"framing_violation_details\", None)\n                projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n                digest = lambda p: _domain_digest(b\"izanagi-verifier-result-v1\", p)\n>               assert capability._result_sha256 == digest(projection)\nE               AssertionError: assert '7d1e860b4eee...c435c74e54c6b' == '6fe3c7a2d6a4...6c669a1d855fb'\nE                 \nE                 - 6fe3c7a2d6a46236c2c51788b08fd0b9e65bd16c965f74d4de56c669a1d855fb\nE                 + 7d1e860b4eee36fee29c92e8a36b21121d47dbe5cb942a48b38c435c74e54c6b\n\norchestrator/tests/test_verifier.py:4111: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence\n1 failed, 146 passed in 7.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=2015 retained_bytes=2015 omitted_bytes=0 rendered_excerpt_bytes=2097 sha256=75f31a198512ff13d7111fad374f4b8c330b0d66cd835a87e3f9a234f6b182f9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v3_capability_digest_binds_anomaly_and_existence():\n>         import shutil\n>         import commit_receipt_support as support\n>         from orchestrator.verifier.commit_receipt import _domain_digest\n>         from orchestrator.verifier.core import (result_to_dict_v3,\n>                                                 verify_trace_dir_with_capability)\n>     \n>         genome, evidence, admission = support._proof_build_binding(\"baseline\")\n>         cases = (\n>             _v3_cycle_files() + (_v3_frame(2, writes=[(5, \"bb\", \"I\")]),\n>                                  _v3_frame(3, [(5, \"bb\", 1, 0)], tx_type=2)),\n>             (\"C 0 0 2 1 0 1\\x5cnW 0 aa U 2 1\\x5cnE 0\\x5cn\",),\n>         )\n>         for files in cases:\n>             d = _tmp_trace(*files)\n>             try:\n>                 result, capability = verify_trace_dir_with_capability(\n>                     d, expected_commits=len(files), workers=1, genome=genome,\n>                     source_evidence=evidence, build_admission=admission,\n>                     receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n>                     receipt_variant=\"baseline\", receipt_operation_identity=\"v3-digest\",\n>                     receipt_workload_tag=\"unit\")\n>                 projection = result_to_dict_v3(result)\n>                 projection.pop(\"trace_dir\", None)\n>                 projection[\"integrity\"].pop(\"framing_violation_details\", None)\n>                 projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n>                 digest = lambda p: _domain_digest(b\"izanagi-verifier-result-v1\", p)\n> >               assert capability._result_sha256 == digest(projection)\n> E               AssertionError: assert '7d1e860b4eee...c435c74e54c6b' == '6fe3c7a2d6a4...6c669a1d855fb'\n> E                 \n> E                 - 6fe3c7a2d6a46236c2c51788b08fd0b9e65bd16c965f74d4de56c669a1d855fb\n> E                 + 7d1e860b4eee36fee29c92e8a36b21121d47dbe5cb942a48b38c435c74e54c6b\n> \n> orchestrator/tests/test_verifier.py:4111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2015 retained_bytes=2015 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2814 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6b56058a7b3a85eea0983edba375dc912b558c929f77df977e2f3c064faf3f39"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.38,
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+      ],
+      "hang_risk": false,
+      "id": "M3-capability-legacy-projection",
+      "injection_diff_sha256": "5289399f1854bd42a1f0ebe034140a5fd1e91dbe4c66b6005967e3725ea1ee04",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6745aee9bee6eb4d4b4ba74bd86f292438477f39d2f6a4396cd28f7049e5a9e6",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/core.py",
+          "new": "            projection = result_to_dict(result)\n",
+          "old": "            projection = result_to_dict_v3(result)\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "6b56058a7b3a85eea0983edba375dc912b558c929f77df977e2f3c064faf3f39",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d4b4347059a624c6f5cb6ee76e14383e/izdw-d4b4347059.o21275",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d4b4347059a624c6f5cb6ee76e14383e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n............................................F........................... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n____________ test_v3_capability_digest_binds_anomaly_and_existence _____________\n[gw25] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v3_capability_digest_binds_anomaly_and_existence():\n        import shutil\n        import commit_receipt_support as support\n        from orchestrator.verifier.commit_receipt import _domain_digest\n        from orchestrator.verifier.core import (result_to_dict_v3,\n                                                verify_trace_dir_with_capability)\n    \n        genome, evidence, admission = support._proof_build_binding(\"baseline\")\n        cases = (\n            _v3_cycle_files() + (_v3_frame(2, writes=[(5, \"bb\", \"I\")]),\n                                 _v3_frame(3, [(5, \"bb\", 1, 0)], tx_type=2)),\n            (\"C 0 0 2 1 0 1\\nW 0 aa U 2 1\\nE 0\\n\",),\n        )\n        for files in cases:\n            d = _tmp_trace(*files)\n            try:\n                result, capability = verify_trace_dir_with_capability(\n                    d, expected_commits=len(files), workers=1, genome=genome,\n                    source_evidence=evidence, build_admission=admission,\n                    receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n                    receipt_variant=\"baseline\", receipt_operation_identity=\"v3-digest\",\n                    receipt_workload_tag=\"unit\")\n                projection = result_to_dict_v3(result)\n                projection.pop(\"trace_dir\", None)\n                projection[\"integrity\"].pop(\"framing_violation_details\", None)\n                projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n                digest = lambda p: _domain_digest(b\"izanagi-verifier-result-v1\", p)\n>               assert capability._result_sha256 == digest(projection)\nE               AssertionError: assert '2324adc82dc9...c78b5598d1638' == '6fe3c7a2d6a4...6c669a1d855fb'\nE                 \nE                 - 6fe3c7a2d6a46236c2c51788b08fd0b9e65bd16c965f74d4de56c669a1d855fb\nE                 + 2324adc82dc93bbddc9285ee22d55c023483cdf16a080d7db0fc78b5598d1638\n\norchestrator/tests/test_verifier.py:4111: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence\n1 failed, 146 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=2016 retained_bytes=2016 omitted_bytes=0 rendered_excerpt_bytes=2098 sha256=7a8fabaef2b6c343142e1e613677af2875e0db6883666cd3aa424a3495a782e7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw25] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v3_capability_digest_binds_anomaly_and_existence():\n>         import shutil\n>         import commit_receipt_support as support\n>         from orchestrator.verifier.commit_receipt import _domain_digest\n>         from orchestrator.verifier.core import (result_to_dict_v3,\n>                                                 verify_trace_dir_with_capability)\n>     \n>         genome, evidence, admission = support._proof_build_binding(\"baseline\")\n>         cases = (\n>             _v3_cycle_files() + (_v3_frame(2, writes=[(5, \"bb\", \"I\")]),\n>                                  _v3_frame(3, [(5, \"bb\", 1, 0)], tx_type=2)),\n>             (\"C 0 0 2 1 0 1\\x5cnW 0 aa U 2 1\\x5cnE 0\\x5cn\",),\n>         )\n>         for files in cases:\n>             d = _tmp_trace(*files)\n>             try:\n>                 result, capability = verify_trace_dir_with_capability(\n>                     d, expected_commits=len(files), workers=1, genome=genome,\n>                     source_evidence=evidence, build_admission=admission,\n>                     receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n>                     receipt_variant=\"baseline\", receipt_operation_identity=\"v3-digest\",\n>                     receipt_workload_tag=\"unit\")\n>                 projection = result_to_dict_v3(result)\n>                 projection.pop(\"trace_dir\", None)\n>                 projection[\"integrity\"].pop(\"framing_violation_details\", None)\n>                 projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n>                 digest = lambda p: _domain_digest(b\"izanagi-verifier-result-v1\", p)\n> >               assert capability._result_sha256 == digest(projection)\n> E               AssertionError: assert '2324adc82dc9...c78b5598d1638' == '6fe3c7a2d6a4...6c669a1d855fb'\n> E                 \n> E                 - 6fe3c7a2d6a46236c2c51788b08fd0b9e65bd16c965f74d4de56c669a1d855fb\n> E                 + 2324adc82dc93bbddc9285ee22d55c023483cdf16a080d7db0fc78b5598d1638\n> \n> orchestrator/tests/test_verifier.py:4111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2016 retained_bytes=2016 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2815 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cb79b6f7576394dde327729ec0db57d9d0c75c19a95c1f6984d854222cbd7f38"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.844,
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+      ],
+      "hang_risk": false,
+      "id": "M4-capability-pops-existence",
+      "injection_diff_sha256": "48c82e5d22831c0507722d1a079a66e5f8ea29b876ab223f45410560f81713e7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e67f03360542d706e94fd886785e6430710e5e52d9a1ee3ff8a0cc14d0bb2f6c",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/core.py",
+          "new": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n            projection[\"integrity\"].pop(\"existence_violation_details\", None)\n",
+          "old": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "cb79b6f7576394dde327729ec0db57d9d0c75c19a95c1f6984d854222cbd7f38",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ce47c634763ed34c5016705023a39262/izdw-ce47c63476.o21278",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ce47c634763ed34c5016705023a39262/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n...............................................................F........ [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_tpcc_stage1_run_trace_allowlist _____________________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_stage1_run_trace_allowlist():\n        root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n        for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n            path = os.path.join(root, name)\n            with open(path, \"w\", encoding=\"utf-8\") as stream:\n                stream.write(\"#!/bin/sh\\nprintf 'abort_counts_:\\\\t0\\\\n\"\n                             \"commit_counts_:\\\\t0\\\\n\"\n                             \"batch_commit_counts_:\\\\t0\\\\n'\\n\")\n            os.chmod(path, 0o755)\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        for name, values, accepted in (\n            (\"tpcc_fake\", flags, True),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n            (\"tpcc_fake\", {k: v for k, v in flags.items()\n                           if k != \"tpcc_perc_delivery\"}, False),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n            (\"ycsb_fake\", {}, True),\n            (\"other_fake\", flags, False),\n        ):\n            binary = os.path.join(root, name)\n            trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n            if accepted:\n                result = pipeline._run_trace(binary, trace_dir, values, 1800)\n                assert result.returncode == 0\n                assert result.commit_count_witness == 0\n            else:\n                try:\n                    pipeline._run_trace(binary, trace_dir, values, 1800)\n>                   assert False, (name, values)\nE                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '44', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'})\nE                   assert False\n\norchestrator/tests/test_campaign.py:7511: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\n1 failed, 146 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=1850 retained_bytes=1850 omitted_bytes=0 rendered_excerpt_bytes=1965 sha256=2ddc2669160388a5b67fafe9ec0d5a9110d7ae676d8ba18aaf1d0f2c8db13e48\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tpcc_stage1_run_trace_allowlist():\n>         root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n>         for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n>             path = os.path.join(root, name)\n>             with open(path, \"w\", encoding=\"utf-8\") as stream:\n>                 stream.write(\"#!/bin/sh\\x5cnprintf 'abort_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"batch_commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn'\\x5cn\")\n>             os.chmod(path, 0o755)\n>         flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n>                  \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n>         for name, values, accepted in (\n>             (\"tpcc_fake\", flags, True),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n>             (\"tpcc_fake\", {k: v for k, v in flags.items()\n>                            if k != \"tpcc_perc_delivery\"}, False),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n>             (\"ycsb_fake\", {}, True),\n>             (\"other_fake\", flags, False),\n>         ):\n>             binary = os.path.join(root, name)\n>             trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n>             if accepted:\n>                 result = pipeline._run_trace(binary, trace_dir, values, 1800)\n>                 assert result.returncode == 0\n>                 assert result.commit_count_witness == 0\n>             else:\n>                 try:\n>                     pipeline._run_trace(binary, trace_dir, values, 1800)\n> >                   assert False, (name, values)\n> E                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '44', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'})\n> E                   assert False\n> \n> orchestrator/tests/test_campaign.py:7511: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1850 retained_bytes=1850 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2665 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "db67e1b00ec5f6870abb30dbf6213ac6810dad7b67d542dddb0005d94b05d92d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 33.034,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M5-payment-unchecked",
+      "injection_diff_sha256": "acbc11082b667b1e19c06efa0fe2d1b43a94c04fa7da5a713ca1dec1ed3e7b5e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d1f602bcc4a1ef9a681751318e9dd3b3f64a5855fbfea963179cdbb348538a37",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "        and True\n",
+          "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "db67e1b00ec5f6870abb30dbf6213ac6810dad7b67d542dddb0005d94b05d92d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8e6d166cf8424a56b299b9642bbc868f/izdw-8e6d166cf8.o21279",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8e6d166cf8424a56b299b9642bbc868f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n..............................................................F......... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_tpcc_stage1_run_trace_allowlist _____________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_stage1_run_trace_allowlist():\n        root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n        for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n            path = os.path.join(root, name)\n            with open(path, \"w\", encoding=\"utf-8\") as stream:\n                stream.write(\"#!/bin/sh\\nprintf 'abort_counts_:\\\\t0\\\\n\"\n                             \"commit_counts_:\\\\t0\\\\n\"\n                             \"batch_commit_counts_:\\\\t0\\\\n'\\n\")\n            os.chmod(path, 0o755)\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        for name, values, accepted in (\n            (\"tpcc_fake\", flags, True),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n            (\"tpcc_fake\", {k: v for k, v in flags.items()\n                           if k != \"tpcc_perc_delivery\"}, False),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n            (\"ycsb_fake\", {}, True),\n            (\"other_fake\", flags, False),\n        ):\n            binary = os.path.join(root, name)\n            trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n            if accepted:\n                result = pipeline._run_trace(binary, trace_dir, values, 1800)\n                assert result.returncode == 0\n                assert result.commit_count_witness == 0\n            else:\n                try:\n                    pipeline._run_trace(binary, trace_dir, values, 1800)\n>                   assert False, (name, values)\nE                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '43', 'tpcc_perc_order_status': '0', 'tpcc_perc_stock_level': '0'})\nE                   assert False\n\norchestrator/tests/test_campaign.py:7511: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\n1 failed, 146 passed in 7.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=1823 retained_bytes=1823 omitted_bytes=0 rendered_excerpt_bytes=1938 sha256=651ec4dc2c7317192479f7da69874ebc64ad74a02c50fcb6fc42a9803ee02906\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tpcc_stage1_run_trace_allowlist():\n>         root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n>         for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n>             path = os.path.join(root, name)\n>             with open(path, \"w\", encoding=\"utf-8\") as stream:\n>                 stream.write(\"#!/bin/sh\\x5cnprintf 'abort_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"batch_commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn'\\x5cn\")\n>             os.chmod(path, 0o755)\n>         flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n>                  \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n>         for name, values, accepted in (\n>             (\"tpcc_fake\", flags, True),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n>             (\"tpcc_fake\", {k: v for k, v in flags.items()\n>                            if k != \"tpcc_perc_delivery\"}, False),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n>             (\"ycsb_fake\", {}, True),\n>             (\"other_fake\", flags, False),\n>         ):\n>             binary = os.path.join(root, name)\n>             trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n>             if accepted:\n>                 result = pipeline._run_trace(binary, trace_dir, values, 1800)\n>                 assert result.returncode == 0\n>                 assert result.commit_count_witness == 0\n>             else:\n>                 try:\n>                     pipeline._run_trace(binary, trace_dir, values, 1800)\n> >                   assert False, (name, values)\n> E                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '43', 'tpcc_perc_order_status': '0', 'tpcc_perc_stock_level': '0'})\n> E                   assert False\n> \n> orchestrator/tests/test_campaign.py:7511: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1823 retained_bytes=1823 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2638 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4d5bda0e5a9c8aa8a127009f33cc4f06f1e9d53ac41b4bcc9e35cfc72de9da9a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.791,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M6-delivery-absent-allowed",
+      "injection_diff_sha256": "3687f5497dc58fe73f4ae4c4a282418a2e9d43d02c8fb495e43d3ebae8cf2c4e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2765d1b74b651ce70398ef813923e52fbb117c81a44125116beb36d192bad48b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "        and flags.get(\"tpcc_perc_delivery\", \"0\") == \"0\"\n",
+          "old": "        and flags.get(\"tpcc_perc_delivery\") == \"0\"\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "4d5bda0e5a9c8aa8a127009f33cc4f06f1e9d53ac41b4bcc9e35cfc72de9da9a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c49b49dcbeb8af2b66de8c0320c68ac/izdw-2c49b49dcb.o21283",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c49b49dcbeb8af2b66de8c0320c68ac/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n.....................................................................F.. [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_tpcc_stage1_run_trace_allowlist _____________________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_stage1_run_trace_allowlist():\n        root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n        for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n            path = os.path.join(root, name)\n            with open(path, \"w\", encoding=\"utf-8\") as stream:\n                stream.write(\"#!/bin/sh\\nprintf 'abort_counts_:\\\\t0\\\\n\"\n                             \"commit_counts_:\\\\t0\\\\n\"\n                             \"batch_commit_counts_:\\\\t0\\\\n'\\n\")\n            os.chmod(path, 0o755)\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        for name, values, accepted in (\n            (\"tpcc_fake\", flags, True),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n            (\"tpcc_fake\", {k: v for k, v in flags.items()\n                           if k != \"tpcc_perc_delivery\"}, False),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n            (\"ycsb_fake\", {}, True),\n            (\"other_fake\", flags, False),\n        ):\n            binary = os.path.join(root, name)\n            trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n            if accepted:\n                result = pipeline._run_trace(binary, trace_dir, values, 1800)\n                assert result.returncode == 0\n                assert result.commit_count_witness == 0\n            else:\n                try:\n                    pipeline._run_trace(binary, trace_dir, values, 1800)\n>                   assert False, (name, values)\nE                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '043', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'})\nE                   assert False\n\norchestrator/tests/test_campaign.py:7511: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\n1 failed, 146 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=1851 retained_bytes=1851 omitted_bytes=0 rendered_excerpt_bytes=1966 sha256=162e8fbe586f241d9e103d9d42ecc77922105a980cfaf3a337d26d910f358044\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tpcc_stage1_run_trace_allowlist():\n>         root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n>         for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n>             path = os.path.join(root, name)\n>             with open(path, \"w\", encoding=\"utf-8\") as stream:\n>                 stream.write(\"#!/bin/sh\\x5cnprintf 'abort_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn\"\n>                              \"batch_commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn'\\x5cn\")\n>             os.chmod(path, 0o755)\n>         flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n>                  \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n>         for name, values, accepted in (\n>             (\"tpcc_fake\", flags, True),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n>             (\"tpcc_fake\", {k: v for k, v in flags.items()\n>                            if k != \"tpcc_perc_delivery\"}, False),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n>             (\"ycsb_fake\", {}, True),\n>             (\"other_fake\", flags, False),\n>         ):\n>             binary = os.path.join(root, name)\n>             trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n>             if accepted:\n>                 result = pipeline._run_trace(binary, trace_dir, values, 1800)\n>                 assert result.returncode == 0\n>                 assert result.commit_count_witness == 0\n>             else:\n>                 try:\n>                     pipeline._run_trace(binary, trace_dir, values, 1800)\n> >                   assert False, (name, values)\n> E                   AssertionError: ('tpcc_fake', {'tpcc_perc_payment': '043', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'})\n> E                   assert False\n> \n> orchestrator/tests/test_campaign.py:7511: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1851 retained_bytes=1851 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2666 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "905e287376ad6116191fa5f0842680bbe140324d348666f1e3ce235fd76cbbc3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 27.909,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M7-payment-numeric-compare",
+      "injection_diff_sha256": "73e8b32006b90608c922772cca0909a9510daf2273c63dc6fb2e0c133ad3d848",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e1fe77872af5580d1869e504a21685646849887d833ac80f4f9d78c9988a3b66",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "        and int(flags.get(\"tpcc_perc_payment\", \"-1\")) == 43\n",
+          "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "905e287376ad6116191fa5f0842680bbe140324d348666f1e3ce235fd76cbbc3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3652e343da419c44938a5c3e77295ae7/izdw-3652e343da.o21285",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3652e343da419c44938a5c3e77295ae7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n.........................................................F.............. [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n________________ test_tpcc_executor_v3_v2_existence_and_witness ________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_executor_v3_v2_existence_and_witness():\n        genome, evidence, admission = commit_receipts._proof_build_binding(\"baseline\")\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        first = \"C 0 0 2 1 0 1 0 0 1\\nW 0 1 aa I 2 1\\nE 0\\n\"\n        second = \"C 1 0 2 2 1 0 0 0 2\\nR 1 1 aa 2 1\\nE 1\\n\"\n        existence = \"C 1 0 2 2 1 0 0 0 2\\nR 1 1 aa 1 0\\nE 1\\n\"\n        third = \"C 2 0 2 3 0 0 0 0 1\\nE 2\\n\"\n        v2 = \"C 0 0 2 1 0 1\\nW 0 aa U 2 1\\nE 0\\n\"\n        for case, frames, witness in (\n            (\"certified\", (first, second), 2),\n            (\"v2\", (v2,), 1),\n            (\"existence\", (first, existence), 2),\n            # 元の (first + second + third) の完全な末尾 frame を除去。\n            (\"tail-loss\", ((first + second + third).removesuffix(third),), 3),\n            # 最大 txid の全 frame を除去。残存 file はそれぞれ正常。\n            (\"max-txid-loss\", (first, second), 3),\n            # 元の thread file 群 (first + second, third) の後者を除去。\n            (\"thread-file-loss\", (first + second,), 3),\n        ):\n            trace_dir = _tmpdir(\"izanagi_tpcc_executor_\")\n    \n            def trace_runner(binary, path, run_flags, clocks, **kwargs):\n                assert binary.endswith(\"tpcc_fake\") and run_flags == flags\n                for index, frame in enumerate(frames):\n                    with open(os.path.join(path, f\"trace_{index}.log\"), \"w\") as stream:\n                        stream.write(frame)\n                return pipeline._TraceRunResult(\n                    trace_c_lines=sum(frame.count(\"\\nC \") + frame.startswith(\"C \")\n                                      for frame in frames),\n                    returncode=0, abort_counts=0,\n                    commit_count_witness=witness, batch_commit_count_witness=0)\n    \n            outcome = pipeline._execute_verification_repetition(\n                binary=\"/tmp/tpcc_fake\", trace_dir=trace_dir, flags=flags,\n                clocks_per_us=1800, timeout_s=10, numactl=None,\n                genome=genome, source_evidence=evidence, build_admission=admission,\n                receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n                receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n                receipt_workload_tag=\"tpcc-stage1\", build_attempt_id=\"unit\",\n                trace_binary_sha256=\"0\" * 64,\n                include_qualification_evidence=False, trace_runner=trace_runner)\n            if case == \"certified\":\n                assert outcome.abort is None and outcome.verify_result.certified\n                assert outcome.verification_capability._certified\n            elif case == \"v2\":\n>               assert outcome.abort.reason == \"trace-witness-unsupported-workload\"\nE               AttributeError: 'NoneType' object has no attribute 'reason'\n\norchestrator/tests/test_campaign.py:7562: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness\n1 failed, 146 passed in 7.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=3052 retained_bytes=3052 omitted_bytes=0 rendered_excerpt_bytes=3322 sha256=897789a1558f6cc6889c014b5aca84972a535410eff3f88254744910dd4a23c6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_tpcc_executor_v3_v2_existence_and_witness():\n>         genome, evidence, admission = commit_receipts._proof_build_binding(\"baseline\")\n>         flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n>                  \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n>         first = \"C 0 0 2 1 0 1 0 0 1\\x5cnW 0 1 aa I 2 1\\x5cnE 0\\x5cn\"\n>         second = \"C 1 0 2 2 1 0 0 0 2\\x5cnR 1 1 aa 2 1\\x5cnE 1\\x5cn\"\n>         existence = \"C 1 0 2 2 1 0 0 0 2\\x5cnR 1 1 aa 1 0\\x5cnE 1\\x5cn\"\n>         third = \"C 2 0 2 3 0 0 0 0 1\\x5cnE 2\\x5cn\"\n>         v2 = \"C 0 0 2 1 0 1\\x5cnW 0 aa U 2 1\\x5cnE 0\\x5cn\"\n>         for case, frames, witness in (\n>             (\"certified\", (first, second), 2),\n>             (\"v2\", (v2,), 1),\n>             (\"existence\", (first, existence), 2),\n>             # \\u5143\\u306e (first + second + third) \\u306e\\u5b8c\\u5168\\u306a\\u672b\\u5c3e frame \\u3092\\u9664\\u53bb\\u3002\n>             (\"tail-loss\", ((first + second + third).removesuffix(third),), 3),\n>             # \\u6700\\u5927 txid \\u306e\\u5168 frame \\u3092\\u9664\\u53bb\\u3002\\u6b8b\\u5b58 file \\u306f\\u305d\\u308c\\u305e\\u308c\\u6b63\\u5e38\\u3002\n>             (\"max-txid-loss\", (first, second), 3),\n>             # \\u5143\\u306e thread file \\u7fa4 (first + second, third) \\u306e\\u5f8c\\u8005\\u3092\\u9664\\u53bb\\u3002\n>             (\"thread-file-loss\", (first + second,), 3),\n>         ):\n>             trace_dir = _tmpdir(\"izanagi_tpcc_executor_\")\n>     \n>             def trace_runner(binary, path, run_flags, clocks, **kwargs):\n>                 assert binary.endswith(\"tpcc_fake\") and run_flags == flags\n>                 for index, frame in enumerate(frames):\n>                     with open(os.path.join(path, f\"trace_{index}.log\"), \"w\") as stream:\n>                         stream.write(frame)\n>                 return pipeline._TraceRunResult(\n>                     trace_c_lines=sum(frame.count(\"\\x5cnC \") + frame.startswith(\"C \")\n>                                       for frame in frames),\n>                     returncode=0, abort_counts=0,\n>                     commit_count_witness=witness, batch_commit_count_witness=0)\n>     \n>             outcome = pipeline._execute_verification_repetition(\n>                 binary=\"/tmp/tpcc_fake\", trace_dir=trace_dir, flags=flags,\n>                 clocks_per_us=1800, timeout_s=10, numactl=None,\n>                 genome=genome, source_evidence=evidence, build_admission=admission,\n>                 receipt_sink_kind=\"test\", receipt_lock_identity_sha256=\"0\" * 64,\n>                 receipt_variant=\"baseline\", receipt_operation_identity=\"tpcc-unit\",\n>                 receipt_workload_tag=\"tpcc-stage1\", build_attempt_id=\"unit\",\n>                 trace_binary_sha256=\"0\" * 64,\n>                 include_qualification_evidence=False, trace_runner=trace_runner)\n>             if case == \"certified\":\n>                 assert outcome.abort is None and outcome.verify_result.certified\n>                 assert outcome.verification_capability._certified\n>             elif case == \"v2\":\n> >               assert outcome.abort.reason == \"trace-witness-unsupported-workload\"\n> E               AttributeError: 'NoneType' object has no attribute 'reason'\n> \n> orchestrator/tests/test_campaign.py:7562: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3052 retained_bytes=3052 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4032 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "16c53ede510fa50ded40422d6d89d13dd1a408ac20234c3db710ab9a271f34b6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.317,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+      ],
+      "hang_risk": false,
+      "id": "M8-tpcc-v3-requirement-removed",
+      "injection_diff_sha256": "185e44986fb1a44270b083f3be9acca049ffc534a37a1236dd1777b55a80eaf0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "738c868b839de42360a9f7f0e9f8d4d195fbc40668c009adb6d9d28c9f1c7a2a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "            and False):\n",
+          "old": "            and verify_result.integrity.existence_violation_details is None):\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "16c53ede510fa50ded40422d6d89d13dd1a408ac20234c3db710ab9a271f34b6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/54e89bd7123a5b562821ecf2f75a1e7a/izdw-54e89bd712.o21287",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/54e89bd7123a5b562821ecf2f75a1e7a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n.............................................................F....F..... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_run_trace_parses_commit_witness_from_stdout _______________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_run_trace_parses_commit_witness_from_stdout():\n        \"\"\"回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して\n        型付き結果の属性で返し、commit/batch witness も同じ stdout から束ねる。\n        _parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の\n        テストだけでは、この結線を消しても (旧配線 = stdout を捨てる) 全緑のまま\n        (2026-07-03 敵対検証 medium: テスト正直さ)。\"\"\"\n        sdir = _tmpdir(\"izanagi_runtrace_bin_\")\n        fake = os.path.join(sdir, \"ycsb_fake_ccbench.sh\")\n        with open(fake, \"w\", encoding=\"utf-8\") as f:\n            f.write(\n                \"#!/bin/sh\\nprintf 'abort_counts_:\\\\t42\\\\n\"\n                \"commit_counts_:\\\\t9\\\\nbatch_commit_counts_:\\\\t0\\\\n'\\n\"\n            )\n        os.chmod(fake, 0o755)\n>       result = pipeline._run_trace(\n            fake, _tmpdir(\"izanagi_runtrace_t1_\"), {\"w\": \"1\"}, 1800,\n        )\n\norchestrator/tests/test_campaign.py:7607: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nbinary = '/tmp/izanagi_runtrace_bin_zuwlsgxs/ycsb_fake_ccbench.sh'\ntrace_dir = '/tmp/izanagi_runtrace_t1_hbmwgvgo', flags = {'w': '1'}\nclocks_per_us = 1800, timeout_s = 120.0, numactl = None\n\n    def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n                   clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n                   numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n        \"\"\"trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。\n    \n        返り値は `_TraceRunResult`。**呼び手は returncode を必ず検査する** —\n        異常終了した run の部分トレースを certified にしないため (規律2)。aborts は stdout の\n        `abort_counts_:` 集計 (完了条件「verify 中に合成枝 = abort-path が実行された証拠」の\n        材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を\n        落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を\n        bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。\"\"\"\n        _require_measurement_site(\"campaign trace 実行\")\n        if not os.path.exists(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"missing\")\n        if not os.path.isdir(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n        try:\n            existing_traces = sorted(\n                fn for fn in os.listdir(trace_dir)\n                if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n            )\n        except OSError as e:\n            raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n        if existing_traces:\n            raise _TraceDirNotEmpty(existing_traces)\n        name = os.path.basename(binary)\n        # YCSB は既存の commit witness 対象。TPC-C 段 1 は設計 §3.5 の\n        # CCBench 側 commit 計数修正を前提に、57:43 のみ trace を許す。\n        # TPC-C の v3 schema は trace の verifier 後に要求する。\n        tpcc_stage1 = (\n            name.startswith(\"tpcc_\")\n            and flags.get(\"tpcc_perc_payment\") == \"43\"\n            and flags.get(\"tpcc_perc_order_status\") == \"0\"\n            and flags.get(\"tpcc_perc_delivery\") == \"0\"\n            and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n        )\n        if not tpcc_stage1:\n>           raise _TraceWitnessUnsupportedWorkload(binary)\nE           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness 未対応 workload: ycsb_fake_ccbench.sh\n\norchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n_____________________ test_tpcc_stage1_run_trace_allowlist _____________________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_stage1_run_trace_allowlist():\n        root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n        for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n            path = os.path.join(root, name)\n            with open(path, \"w\", encoding=\"utf-8\") as stream:\n                stream.write(\"#!/bin/sh\\nprintf 'abort_counts_:\\\\t0\\\\n\"\n                             \"commit_counts_:\\\\t0\\\\n\"\n                             \"batch_commit_counts_:\\\\t0\\\\n'\\n\")\n            os.chmod(path, 0o755)\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        for name, values, accepted in (\n            (\"tpcc_fake\", flags, True),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n            (\"tpcc_fake\", {k: v for k, v in flags.items()\n                           if k != \"tpcc_perc_delivery\"}, False),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n            (\"ycsb_fake\", {}, True),\n            (\"other_fake\", flags, False),\n        ):\n            binary = os.path.join(root, name)\n            trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n            if accepted:\n>               result = pipeline._run_trace(binary, trace_dir, values, 1800)\n\norchestrator/tests/test_campaign.py:7505: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nbinary = '/tmp/izanagi_tpcc_allowlist_80d2vrry/ycsb_fake'\ntrace_dir = '/tmp/izanagi_tpcc_trace_ml85tnxg', flags = {}, clocks_per_us = 1800\ntimeout_s = 120.0, numactl = None\n\n    def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n                   clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n                   numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n        \"\"\"trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。\n    \n        返り値は `_TraceRunResult`。**呼び手は returncode を必ず検査する** —\n        異常終了した run の部分トレースを certified にしないため (規律2)。aborts は stdout の\n        `abort_counts_:` 集計 (完了条件「verify 中に合成枝 = abort-path が実行された証拠」の\n        材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を\n        落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を\n        bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。\"\"\"\n        _require_measurement_site(\"campaign trace 実行\")\n        if not os.path.exists(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"missing\")\n        if not os.path.isdir(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n        try:\n            existing_traces = sorted(\n                fn for fn in os.listdir(trace_dir)\n                if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n            )\n        except OSError as e:\n            raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n        if existing_traces:\n            raise _TraceDirNotEmpty(existing_traces)\n        name = os.path.basename(binary)\n        # YCSB は既存の commit witness 対象。TPC-C 段 1 は設計 §3.5 の\n        # CCBench 側 commit 計数修正を前提に、57:43 のみ trace を許す。\n        # TPC-C の v3 schema は trace の verifier 後に要求する。\n        tpcc_stage1 = (\n            name.startswith(\"tpcc_\")\n            and flags.get(\"tpcc_perc_payment\") == \"43\"\n            and flags.get(\"tpcc_perc_order_status\") == \"0\"\n            and flags.get(\"tpcc_perc_delivery\") == \"0\"\n            and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n        )\n        if not tpcc_stage1:\n>           raise _TraceWitnessUnsupportedWorkload(binary)\nE           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness 未対応 workload: ycsb_fake\n\norchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\n2 failed, 145 passed in 7.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=4133 retained_bytes=3380 omitted_bytes=753 rendered_excerpt_bytes=4096 sha256=c50e4745b01442e0d1010e6ab355b60e6cf1960edf5b72ffa011ccc83013ac98\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> flags, True),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n>             (\"tpcc_fake\", {k: v for k, v in flags.items()\n>                            if k != \"tpcc_perc_delivery\"}, False),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n>             (\"ycsb_fake\", {}, True),\n>             (\"other_fake\", flags, False),\n>         ):\n>             binary = os.path.join(root, name)\n>             trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n>             if accepted:\n> >               result = pipeline._run_trace(binary, trace_dir, values, 1800)\n> \n> orchestrator/tests/test_campaign.py:7505: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> binary = '/tmp/izanagi_tpcc_allowlist_80d2vrry/ycsb_fake'\n> trace_dir = '/tmp/izanagi_tpcc_trace_ml85tnxg', flags = {}, clocks_per_us = 1800\n> timeout_s = 120.0, numactl = None\n> \n>     def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n>                    clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n>                    numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n>         \"\"\"trace-enabled binary \\u3092\\u56de\\u3057 IZANAGI_TRACE_DIR \\u306b trace \\u3092\\u5410\\u304f\\u3002\n>     \n>         \\u8fd4\\u308a\\u5024\\u306f `_TraceRunResult`\\u3002**\\u547c\\u3073\\u624b\\u306f returncode \\u3092\\u5fc5\\u305a\\u691c\\u67fb\\u3059\\u308b** \\u2014\n>         \\u7570\\u5e38\\u7d42\\u4e86\\u3057\\u305f run \\u306e\\u90e8\\u5206\\u30c8\\u30ec\\u30fc\\u30b9\\u3092 certified \\u306b\\u3057\\u306a\\u3044\\u305f\\u3081 (\\u898f\\u5f8b2)\\u3002aborts \\u306f stdout \\u306e\n>         `abort_counts_:` \\u96c6\\u8a08 (\\u5b8c\\u4e86\\u6761\\u4ef6\\u300cverify \\u4e2d\\u306b\\u5408\\u6210\\u679d = abort-path \\u304c\\u5b9f\\u884c\\u3055\\u308c\\u305f\\u8a3c\\u62e0\\u300d\\u306e\n>         \\u6750\\u6599, phase3.md)\\u3002\\u30d1\\u30fc\\u30b9\\u4e0d\\u80fd\\u306a\\u3089 None \\u2014 \\u547c\\u3073\\u624b\\u304c reject \\u3059\\u308b (\\u7a7a\\u632f\\u308a\\u8a8d\\u8a3c\\u306e\\u691c\\u67fb\\u53ef\\u80fd\\u6027\\u3092\n>         \\u843d\\u3068\\u3057\\u305f\\u307e\\u307e\\u7dd1\\u3092\\u51fa\\u3055\\u306a\\u3044)\\u3002numactl (D36 \\u6c7a\\u5b9a4-4): S2 \\u76f8\\u5f53\\u306e\\u5168\\u898f\\u6a21 run \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u3092\n>         bench \\u3068\\u63c3\\u3048\\u308b (\\u65e2\\u5b9a legacy \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u306b\\u920d\\u611f\\u306a\\u5c0f\\u898f\\u6a21\\u3086\\u3048 None \\u306e\\u307e\\u307e)\\u3002\"\"\"\n>         _require_measurement_site(\"campaign trace \\u5b9f\\u884c\")\n>         if not os.path.exists(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"missing\")\n>         if not os.path.isdir(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n>         try:\n>             existing_traces = sorted(\n>                 fn for fn in os.listdir(trace_dir)\n>                 if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n>             )\n>         except OSError as e:\n>             raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n>         if existing_traces:\n>             raise _TraceDirNotEmpty(existing_traces)\n>         name = os.path.basename(binary)\n>         # YCSB \\u306f\\u65e2\\u5b58\\u306e commit witness \\u5bfe\\u8c61\\u3002TPC-C \\u6bb5 1 \\u306f\\u8a2d\\u8a08 \\xa73.5 \\u306e\n>         # CCBench \\u5074 commit \\u8a08\\u6570\\u4fee\\u6b63\\u3092\\u524d\\u63d0\\u306b\\u300157:43 \\u306e\\u307f trace \\u3092\\u8a31\\u3059\\u3002\n>         # TPC-C \\u306e v3 schema \\u306f trace \\u306e verifier \\u5f8c\\u306b\\u8981\\u6c42\\u3059\\u308b\\u3002\n>         tpcc_stage1 = (\n>             name.startswith(\"tpcc_\")\n>             and flags.get(\"tpcc_perc_payment\") == \"43\"\n>             and flags.get(\"tpcc_perc_order_status\") == \"0\"\n>             and flags.get(\"tpcc_perc_delivery\") == \"0\"\n>             and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n>         )\n>         if not tpcc_stage1:\n> >           raise _TraceWitnessUnsupportedWorkload(binary)\n> E           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness \\u672a\\u5bfe\\u5fdc workload: ycsb_fake\n> \n> orchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=3880 retained_bytes=3322 omitted_bytes=558 rendered_excerpt_bytes=4092 sha256=3384eaad7eaf905916206cabe7bc135fc97a85def48bbf63fbf3b878dda590d7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> \\u6b63\\u76f4\\u3055)\\u3002\"\"\"\n>         sdir = _tmpdir(\"izanagi_runtrace_bin_\")\n>         fake = os.path.join(sdir, \"ycsb_fake_ccbench.sh\")\n>         with open(fake, \"w\", encoding=\"utf-8\") as f:\n>             f.write(\n>                 \"#!/bin/sh\\x5cnprintf 'abort_counts_:\\x5c\\x5ct42\\x5c\\x5cn\"\n>                 \"commit_counts_:\\x5c\\x5ct9\\x5c\\x5cnbatch_commit_counts_:\\x5c\\x5ct0\\x5c\\x5cn'\\x5cn\"\n>             )\n>         os.chmod(fake, 0o755)\n> >       result = pipeline._run_trace(\n>             fake, _tmpdir(\"izanagi_runtrace_t1_\"), {\"w\": \"1\"}, 1800,\n>         )\n> \n> orchestrator/tests/test_campaign.py:7607: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> binary = '/tmp/izanagi_runtrace_bin_zuwlsgxs/ycsb_fake_ccbench.sh'\n> trace_dir = '/tmp/izanagi_runtrace_t1_hbmwgvgo', flags = {'w': '1'}\n> clocks_per_us = 1800, timeout_s = 120.0, numactl = None\n> \n>     def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n>                    clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n>                    numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n>         \"\"\"trace-enabled binary \\u3092\\u56de\\u3057 IZANAGI_TRACE_DIR \\u306b trace \\u3092\\u5410\\u304f\\u3002\n>     \n>         \\u8fd4\\u308a\\u5024\\u306f `_TraceRunResult`\\u3002**\\u547c\\u3073\\u624b\\u306f returncode \\u3092\\u5fc5\\u305a\\u691c\\u67fb\\u3059\\u308b** \\u2014\n>         \\u7570\\u5e38\\u7d42\\u4e86\\u3057\\u305f run \\u306e\\u90e8\\u5206\\u30c8\\u30ec\\u30fc\\u30b9\\u3092 certified \\u306b\\u3057\\u306a\\u3044\\u305f\\u3081 (\\u898f\\u5f8b2)\\u3002aborts \\u306f stdout \\u306e\n>         `abort_counts_:` \\u96c6\\u8a08 (\\u5b8c\\u4e86\\u6761\\u4ef6\\u300cverify \\u4e2d\\u306b\\u5408\\u6210\\u679d = abort-path \\u304c\\u5b9f\\u884c\\u3055\\u308c\\u305f\\u8a3c\\u62e0\\u300d\\u306e\n>         \\u6750\\u6599, phase3.md)\\u3002\\u30d1\\u30fc\\u30b9\\u4e0d\\u80fd\\u306a\\u3089 None \\u2014 \\u547c\\u3073\\u624b\\u304c reject \\u3059\\u308b (\\u7a7a\\u632f\\u308a\\u8a8d\\u8a3c\\u306e\\u691c\\u67fb\\u53ef\\u80fd\\u6027\\u3092\n>         \\u843d\\u3068\\u3057\\u305f\\u307e\\u307e\\u7dd1\\u3092\\u51fa\\u3055\\u306a\\u3044)\\u3002numactl (D36 \\u6c7a\\u5b9a4-4): S2 \\u76f8\\u5f53\\u306e\\u5168\\u898f\\u6a21 run \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u3092\n>         bench \\u3068\\u63c3\\u3048\\u308b (\\u65e2\\u5b9a legacy \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u306b\\u920d\\u611f\\u306a\\u5c0f\\u898f\\u6a21\\u3086\\u3048 None \\u306e\\u307e\\u307e)\\u3002\"\"\"\n>         _require_measurement_site(\"campaign trace \\u5b9f\\u884c\")\n>         if not os.path.exists(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"missing\")\n>         if not os.path.isdir(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n>         try:\n>             existing_traces = sorted(\n>                 fn for fn in os.listdir(trace_dir)\n>                 if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n>             )\n>         except OSError as e:\n>             raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n>         if existing_traces:\n>             raise _TraceDirNotEmpty(existing_traces)\n>         name = os.path.basename(binary)\n>         # YCSB \\u306f\\u65e2\\u5b58\\u306e commit witness \\u5bfe\\u8c61\\u3002TPC-C \\u6bb5 1 \\u306f\\u8a2d\\u8a08 \\xa73.5 \\u306e\n>         # CCBench \\u5074 commit \\u8a08\\u6570\\u4fee\\u6b63\\u3092\\u524d\\u63d0\\u306b\\u300157:43 \\u306e\\u307f trace \\u3092\\u8a31\\u3059\\u3002\n>         # TPC-C \\u306e v3 schema \\u306f trace \\u306e verifier \\u5f8c\\u306b\\u8981\\u6c42\\u3059\\u308b\\u3002\n>         tpcc_stage1 = (\n>             name.startswith(\"tpcc_\")\n>             and flags.get(\"tpcc_perc_payment\") == \"43\"\n>             and flags.get(\"tpcc_perc_order_status\") == \"0\"\n>             and flags.get(\"tpcc_perc_delivery\") == \"0\"\n>             and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n>         )\n>         if not tpcc_stage1:\n> >           raise _TraceWitnessUnsupportedWorkload(binary)\n> E           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness \\u672a\\u5bfe\\u5fdc workload: ycsb_fake_ccbench.sh\n> \n> orchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=8013 retained_bytes=6702 omitted_bytes=1311 budget_bytes=49152 rendered_bytes=9320 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "46c325a904a4856228b19b06634c4df251c43e9500129e9731826af397b44da5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 32.555,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M9-ycsb-acceptance-removed",
+      "injection_diff_sha256": "5530af4ec882a708ee2c6762fb0202905472547231b6939e01a6a87bd29330a0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "72f8325e76c5ead1b8e5e727c6b1a39a77afbd9293efef237dba2af13a9b1e2e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    if not tpcc_stage1:\n",
+          "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "46c325a904a4856228b19b06634c4df251c43e9500129e9731826af397b44da5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da83ad9e083f06db2c5b78c7f87d3015/izdw-da83ad9e08.o21288",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da83ad9e083f06db2c5b78c7f87d3015/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n...................................................................F.... [ 97%]\n...                                                                      [100%]\n=================================== FAILURES ===================================\n_____________________ test_tpcc_stage1_run_trace_allowlist _____________________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_tpcc_stage1_run_trace_allowlist():\n        root = _tmpdir(\"izanagi_tpcc_allowlist_\")\n        for name in (\"tpcc_fake\", \"ycsb_fake\", \"other_fake\"):\n            path = os.path.join(root, name)\n            with open(path, \"w\", encoding=\"utf-8\") as stream:\n                stream.write(\"#!/bin/sh\\nprintf 'abort_counts_:\\\\t0\\\\n\"\n                             \"commit_counts_:\\\\t0\\\\n\"\n                             \"batch_commit_counts_:\\\\t0\\\\n'\\n\")\n            os.chmod(path, 0o755)\n        flags = {\"tpcc_perc_payment\": \"43\", \"tpcc_perc_order_status\": \"0\",\n                 \"tpcc_perc_delivery\": \"0\", \"tpcc_perc_stock_level\": \"0\"}\n        for name, values, accepted in (\n            (\"tpcc_fake\", flags, True),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"44\"}, False),\n            (\"tpcc_fake\", {k: v for k, v in flags.items()\n                           if k != \"tpcc_perc_delivery\"}, False),\n            (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n            (\"ycsb_fake\", {}, True),\n            (\"other_fake\", flags, False),\n        ):\n            binary = os.path.join(root, name)\n            trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n            if accepted:\n>               result = pipeline._run_trace(binary, trace_dir, values, 1800)\n\norchestrator/tests/test_campaign.py:7505: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nbinary = '/tmp/izanagi_tpcc_allowlist_9nfo_qog/tpcc_fake'\ntrace_dir = '/tmp/izanagi_tpcc_trace_hoh7su0m'\nflags = {'tpcc_perc_payment': '43', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'}\nclocks_per_us = 1800, timeout_s = 120.0, numactl = None\n\n    def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n                   clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n                   numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n        \"\"\"trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。\n    \n        返り値は `_TraceRunResult`。**呼び手は returncode を必ず検査する** —\n        異常終了した run の部分トレースを certified にしないため (規律2)。aborts は stdout の\n        `abort_counts_:` 集計 (完了条件「verify 中に合成枝 = abort-path が実行された証拠」の\n        材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を\n        落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を\n        bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。\"\"\"\n        _require_measurement_site(\"campaign trace 実行\")\n        if not os.path.exists(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"missing\")\n        if not os.path.isdir(trace_dir):\n            raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n        try:\n            existing_traces = sorted(\n                fn for fn in os.listdir(trace_dir)\n                if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n            )\n        except OSError as e:\n            raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n        if existing_traces:\n            raise _TraceDirNotEmpty(existing_traces)\n        name = os.path.basename(binary)\n        # YCSB は既存の commit witness 対象。TPC-C 段 1 は設計 §3.5 の\n        # CCBench 側 commit 計数修正を前提に、57:43 のみ trace を許す。\n        # TPC-C の v3 schema は trace の verifier 後に要求する。\n        tpcc_stage1 = (\n            name.startswith(\"tpcc_\")\n            and flags.get(\"tpcc_perc_payment\") == \"43\"\n            and flags.get(\"tpcc_perc_order_status\") == \"0\"\n            and flags.get(\"tpcc_perc_delivery\") == \"0\"\n            and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n        )\n        if not name.startswith(\"ycsb_\"):\n>           raise _TraceWitnessUnsupportedWorkload(binary)\nE           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness 未対応 workload: tpcc_fake\n\norchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\n1 failed, 146 passed in 7.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=4258 retained_bytes=3382 omitted_bytes=876 rendered_excerpt_bytes=4096 sha256=5303fae25d90a7dc7c4cea7495317d947a28e894431126a7ed2621373d3d4122\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> , v in flags.items()\n>                            if k != \"tpcc_perc_delivery\"}, False),\n>             (\"tpcc_fake\", {**flags, \"tpcc_perc_payment\": \"043\"}, False),\n>             (\"ycsb_fake\", {}, True),\n>             (\"other_fake\", flags, False),\n>         ):\n>             binary = os.path.join(root, name)\n>             trace_dir = _tmpdir(\"izanagi_tpcc_trace_\")\n>             if accepted:\n> >               result = pipeline._run_trace(binary, trace_dir, values, 1800)\n> \n> orchestrator/tests/test_campaign.py:7505: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> binary = '/tmp/izanagi_tpcc_allowlist_9nfo_qog/tpcc_fake'\n> trace_dir = '/tmp/izanagi_tpcc_trace_hoh7su0m'\n> flags = {'tpcc_perc_payment': '43', 'tpcc_perc_order_status': '0', 'tpcc_perc_delivery': '0', 'tpcc_perc_stock_level': '0'}\n> clocks_per_us = 1800, timeout_s = 120.0, numactl = None\n> \n>     def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],\n>                    clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,\n>                    numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:\n>         \"\"\"trace-enabled binary \\u3092\\u56de\\u3057 IZANAGI_TRACE_DIR \\u306b trace \\u3092\\u5410\\u304f\\u3002\n>     \n>         \\u8fd4\\u308a\\u5024\\u306f `_TraceRunResult`\\u3002**\\u547c\\u3073\\u624b\\u306f returncode \\u3092\\u5fc5\\u305a\\u691c\\u67fb\\u3059\\u308b** \\u2014\n>         \\u7570\\u5e38\\u7d42\\u4e86\\u3057\\u305f run \\u306e\\u90e8\\u5206\\u30c8\\u30ec\\u30fc\\u30b9\\u3092 certified \\u306b\\u3057\\u306a\\u3044\\u305f\\u3081 (\\u898f\\u5f8b2)\\u3002aborts \\u306f stdout \\u306e\n>         `abort_counts_:` \\u96c6\\u8a08 (\\u5b8c\\u4e86\\u6761\\u4ef6\\u300cverify \\u4e2d\\u306b\\u5408\\u6210\\u679d = abort-path \\u304c\\u5b9f\\u884c\\u3055\\u308c\\u305f\\u8a3c\\u62e0\\u300d\\u306e\n>         \\u6750\\u6599, phase3.md)\\u3002\\u30d1\\u30fc\\u30b9\\u4e0d\\u80fd\\u306a\\u3089 None \\u2014 \\u547c\\u3073\\u624b\\u304c reject \\u3059\\u308b (\\u7a7a\\u632f\\u308a\\u8a8d\\u8a3c\\u306e\\u691c\\u67fb\\u53ef\\u80fd\\u6027\\u3092\n>         \\u843d\\u3068\\u3057\\u305f\\u307e\\u307e\\u7dd1\\u3092\\u51fa\\u3055\\u306a\\u3044)\\u3002numactl (D36 \\u6c7a\\u5b9a4-4): S2 \\u76f8\\u5f53\\u306e\\u5168\\u898f\\u6a21 run \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u3092\n>         bench \\u3068\\u63c3\\u3048\\u308b (\\u65e2\\u5b9a legacy \\u306f\\u30e1\\u30e2\\u30ea\\u914d\\u7f6e\\u306b\\u920d\\u611f\\u306a\\u5c0f\\u898f\\u6a21\\u3086\\u3048 None \\u306e\\u307e\\u307e)\\u3002\"\"\"\n>         _require_measurement_site(\"campaign trace \\u5b9f\\u884c\")\n>         if not os.path.exists(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"missing\")\n>         if not os.path.isdir(trace_dir):\n>             raise _TraceDirUnavailable(trace_dir, \"not-directory\")\n>         try:\n>             existing_traces = sorted(\n>                 fn for fn in os.listdir(trace_dir)\n>                 if fn.startswith(\"trace_\") and fn.endswith(\".log\")\n>             )\n>         except OSError as e:\n>             raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e\n>         if existing_traces:\n>             raise _TraceDirNotEmpty(existing_traces)\n>         name = os.path.basename(binary)\n>         # YCSB \\u306f\\u65e2\\u5b58\\u306e commit witness \\u5bfe\\u8c61\\u3002TPC-C \\u6bb5 1 \\u306f\\u8a2d\\u8a08 \\xa73.5 \\u306e\n>         # CCBench \\u5074 commit \\u8a08\\u6570\\u4fee\\u6b63\\u3092\\u524d\\u63d0\\u306b\\u300157:43 \\u306e\\u307f trace \\u3092\\u8a31\\u3059\\u3002\n>         # TPC-C \\u306e v3 schema \\u306f trace \\u306e verifier \\u5f8c\\u306b\\u8981\\u6c42\\u3059\\u308b\\u3002\n>         tpcc_stage1 = (\n>             name.startswith(\"tpcc_\")\n>             and flags.get(\"tpcc_perc_payment\") == \"43\"\n>             and flags.get(\"tpcc_perc_order_status\") == \"0\"\n>             and flags.get(\"tpcc_perc_delivery\") == \"0\"\n>             and flags.get(\"tpcc_perc_stock_level\") == \"0\"\n>         )\n>         if not name.startswith(\"ycsb_\"):\n> >           raise _TraceWitnessUnsupportedWorkload(binary)\n> E           orchestrator.campaign.pipeline._TraceWitnessUnsupportedWorkload: commit witness \\u672a\\u5bfe\\u5fdc workload: tpcc_fake\n> \n> orchestrator/campaign/pipeline.py:446: _TraceWitnessUnsupportedWorkload\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4258 retained_bytes=3382 omitted_bytes=876 budget_bytes=49152 rendered_bytes=4800 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cc7a58332570e8d064befed5cc2edb6d9e9292088a7d53ff2667fd9cc539fd37"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "baaca718a97808f3269a61fe678f53adb4166de977564329bf46a76a2afde5a6",
+      "duration_s": 36.091,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M10-tpcc-acceptance-removed",
+      "injection_diff_sha256": "a1303955d6a636b4e972ff672b7f3c6301c8a1b449e29166625cd4577e479733",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b36a309da17e742913a272f66e29f3f02e52083796a7e948a1234db0791c2507",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    if not name.startswith(\"ycsb_\"):\n",
+          "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n"
+        }
+      ],
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "KILLED",
+      "test_output_sha256": "cc7a58332570e8d064befed5cc2edb6d9e9292088a7d53ff2667fd9cc539fd37",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ae009b5c262c1a3fdb84a182b6f77456/izdw-ae009b5c26.o21255",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ae009b5c262c1a3fdb84a182b6f77456/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_verifier.py::test_green_fixtures\norchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle\norchestrator/tests/test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace\norchestrator/tests/test_verifier.py::test_proof_surfaces_unavailable_source_fails_closed\norchestrator/tests/test_verifier.py::test_proof_surfaces_unspecified_fail_closed\norchestrator/tests/test_verifier.py::test_proof_surface_emitters_inside_if_zero_are_not_evidence\norchestrator/tests/test_verifier.py::test_write_skew_g2\norchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap\norchestrator/tests/test_verifier.py::test_lost_update_g2\norchestrator/tests/test_verifier.py::test_cycle3_g2\norchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types\norchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity\norchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2\norchestrator/tests/test_verifier.py::test_orphan_read_indeterminate\norchestrator/tests/test_verifier.py::test_commit_at_genesis_indeterminate_and_wr_edge_kept\norchestrator/tests/test_verifier.py::test_version_dup_indeterminate\norchestrator/tests/test_verifier.py::test_empty_trace_indeterminate_not_certified\norchestrator/tests/test_verifier.py::test_phantom_skew_invisible_documented_limitation\norchestrator/tests/test_verifier.py::test_parser_groups_by_txid_across_files\norchestrator/tests/test_verifier.py::test_all_v2_fixture_files_have_clean_framing\norchestrator/tests/test_verifier.py::test_v1_c_record_is_rejected\norchestrator/tests/test_verifier.py::test_c_record_requires_exactly_seven_fields\norchestrator/tests/test_verifier.py::test_negative_txid_is_rejected_before_gap_math_can_cancel_it\norchestrator/tests/test_verifier.py::test_negative_declared_counts_are_rejected\norchestrator/tests/test_verifier.py::test_declared_read_and_write_counts_must_match\norchestrator/tests/test_verifier.py::test_missing_end_is_indeterminate\norchestrator/tests/test_verifier.py::test_duplicate_end_is_indeterminate\norchestrator/tests/test_verifier.py::test_end_txid_mismatch_is_parse_error\norchestrator/tests/test_verifier.py::test_end_record_requires_exactly_two_fields\norchestrator/tests/test_verifier.py::test_new_commit_before_end_records_missing_end\norchestrator/tests/test_verifier.py::test_non_immediate_duplicate_end_remains_parse_error\norchestrator/tests/test_verifier.py::test_zero_read_zero_write_frame_is_valid\norchestrator/tests/test_verifier.py::test_x_and_i_records_do_not_count_as_reads_or_writes\norchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation\norchestrator/tests/test_verifier.py::test_missing_txid_gap_indeterminate\norchestrator/tests/test_verifier.py::test_write_version_mismatch_indeterminate\norchestrator/tests/test_verifier.py::test_malformed_key_indeterminate\norchestrator/tests/test_verifier.py::test_commit_below_genesis_indeterminate\norchestrator/tests/test_verifier.py::test_dup_txid_indeterminate\norchestrator/tests/test_verifier.py::test_lock_coverage_violation_indeterminate\norchestrator/tests/test_verifier.py::test_lock_coverage_control_serializable\norchestrator/tests/test_verifier.py::test_lock_coverage_reasons_parsed\norchestrator/tests/test_verifier.py::test_lock_coverage_malformed_key_flagged\norchestrator/tests/test_verifier.py::test_write_intent_violation_indeterminate_and_reports_json_text\norchestrator/tests/test_verifier.py::test_write_intent_control_serializable\norchestrator/tests/test_verifier.py::test_write_intent_reasons_parsed_and_summarized\norchestrator/tests/test_verifier.py::test_write_intent_malformed_key_flagged\norchestrator/tests/test_verifier.py::test_write_intent_txid_must_match_open_txn\norchestrator/tests/test_verifier.py::test_write_intent_unknown_reason_counted_and_indeterminate\norchestrator/tests/test_verifier.py::test_permutation_violation_indeterminate\norchestrator/tests/test_verifier.py::test_permutation_violation_control_serializable\norchestrator/tests/test_verifier.py::test_permutation_violation_reasons_parsed\norchestrator/tests/test_verifier.py::test_permutation_violation_between_txn_blocks\norchestrator/tests/test_verifier.py::test_permutation_violation_details_follow_parse_verify_report_path\norchestrator/tests/test_verifier.py::test_permutation_violation_details_bound_large_known_sample\norchestrator/tests/test_verifier.py::test_abort_reason_tally_parsed_not_verdict\norchestrator/tests/test_verifier.py::test_abort_reason_absent_is_empty\norchestrator/tests/test_verifier.py::test_unknown_tag_still_parse_error_after_a\norchestrator/tests/test_verifier.py::test_known_tag_prefixes_are_not_accepted_as_record_tags\norchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_false_green\norchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness\norchestrator/tests/test_verifier.py::test_characterization_txn_tail_loss_is_indeterminate\norchestrator/tests/test_verifier.py::test_commit_count_witness_detects_removed_trace_file\norchestrator/tests/test_verifier.py::test_commit_count_witness_accepts_complete_trace\norchestrator/tests/test_verifier.py::test_commit_count_witness_result_is_structured\norchestrator/tests/test_verifier.py::test_commit_witness_partial_state_is_unclean_without_report_schema_change\norchestrator/tests/test_verifier.py::test_result_to_dict_commit_witness_changes_notes_without_new_keys\norchestrator/tests/test_verifier.py::test_result_to_dict_without_commit_witness_matches_frozen_json_bytes\norchestrator/tests/test_verifier.py::test_matching_commit_witness_does_not_mask_existing_integrity_failure\norchestrator/tests/test_verifier.py::test_cli_expected_commits_accepts_single_trace_dir\norchestrator/tests/test_verifier.py::test_cli_expected_commits_mismatch_is_indeterminate_json\norchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_multiple_trace_dirs\norchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_negative_integer\norchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_non_integer\norchestrator/tests/test_verifier.py::test_nonascii_wrapped_as_parse_error\norchestrator/tests/test_verifier.py::test_classify_branches\norchestrator/tests/test_verifier.py::test_structured_report_has_edge_detail\norchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic\norchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract\norchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract\norchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact\norchestrator/tests/test_verifier.py::test_new_real_fixture_bytes_are_exact\norchestrator/tests/test_verifier.py::test_real_silo_fixture_bytes_are_exact\norchestrator/tests/test_verifier.py::test_epoch_version_order_g2\norchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2\norchestrator/tests/test_verifier.py::test_real_silo_edge_type_combinations_are_exact\norchestrator/tests/test_verifier.py::test_real_silo_serializable\norchestrator/tests/test_verifier.py::test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure\norchestrator/tests/test_verifier.py::test_parallel_production_path_matches_certified_result_and_runs_workers\norchestrator/tests/test_verifier.py::test_default_worker_cap_is_16_but_explicit_workers_remain_available\norchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated\norchestrator/tests/test_verifier.py::test_file_failures_keep_sorted_path_priority_over_later_io_error\norchestrator/tests/test_verifier.py::test_worker_parse_error_survives_file_disappearing_before_parent_reread\norchestrator/tests/test_verifier.py::test_daemon_process_falls_back_to_sequential_verification\norchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files\norchestrator/tests/test_verifier.py::test_parallel_parse_issues_keep_sorted_path_order\norchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal\norchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order\norchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types\norchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge\norchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all\norchestrator/tests/test_verifier.py::test_parallel_parse_error_is_raised_by_parent_scanner_with_cause\norchestrator/tests/test_verifier.py::test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle\norchestrator/tests/test_verifier.py::test_parallel_cross_file_duplicate_txid_is_parent_replayed\norchestrator/tests/test_verifier.py::test_sparse_huge_txid_returns_bounded_indeterminate_result\norchestrator/tests/test_verifier.py::test_parallel_capability_remains_bound_to_parent_pid\norchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline\norchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes\norchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads\norchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays\norchestrator/tests/test_verifier.py::test_capacity_workers_1_and_16_match\norchestrator/tests/test_verifier.py::test_capacity_broken_pool_terminates_workers_and_falls_back\norchestrator/tests/test_verifier.py::test_capacity_parse_broken_pool_terminates_workers\norchestrator/tests/test_verifier.py::test_capacity_partial_outcomes_are_released_before_full_fallback\norchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges\norchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops\norchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types\norchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity\norchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds\norchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes\norchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata\norchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle\norchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file\norchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files\norchestrator/tests/test_verifier.py::test_v3_schema_failure_precedes_cross_file_mixture\norchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type\norchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes\norchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate\norchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control\norchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files\norchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback\norchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection\norchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs\norchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads\norchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation\norchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates\norchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners\norchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle\norchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes\norchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence\norchestrator/tests/test_verifier.py::test_v3_district_lost_update_and_serial_control\norchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist\norchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness\norchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout\norchestrator/tests/test_campaign.py::test_pipeline_unsupported_workload_rejects_with_structured_wal\norchestrator/tests/test_campaign.py::test_pipeline_tail_loss_witness_reaches_verifier\norchestrator/tests/test_campaign.py::test_pipeline_matching_commit_witness_commits_and_records_verify_payload\n\n147 tests collected in 2.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "581f9f031dc3fe9762d5fc901543ca75f031750cc8dc256a511ab7c353f76bf4"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_green_fixtures",
+        "orchestrator/tests/test_verifier.py::test_g4_has_rw_edge_but_no_cycle",
+        "orchestrator/tests/test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unavailable_source_fails_closed",
+        "orchestrator/tests/test_verifier.py::test_proof_surfaces_unspecified_fail_closed",
+        "orchestrator/tests/test_verifier.py::test_proof_surface_emitters_inside_if_zero_are_not_evidence",
+        "orchestrator/tests/test_verifier.py::test_write_skew_g2",
+        "orchestrator/tests/test_verifier.py::test_total_cycles_survives_witness_cap",
+        "orchestrator/tests/test_verifier.py::test_lost_update_g2",
+        "orchestrator/tests/test_verifier.py::test_cycle3_g2",
+        "orchestrator/tests/test_verifier.py::test_mixed_cycle_g2_all_three_edge_types",
+        "orchestrator/tests/test_verifier.py::test_nonlatest_read_caught_via_ww_transitivity",
+        "orchestrator/tests/test_verifier.py::test_dense_cycle4_clean_g2",
+        "orchestrator/tests/test_verifier.py::test_orphan_read_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_commit_at_genesis_indeterminate_and_wr_edge_kept",
+        "orchestrator/tests/test_verifier.py::test_version_dup_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_empty_trace_indeterminate_not_certified",
+        "orchestrator/tests/test_verifier.py::test_phantom_skew_invisible_documented_limitation",
+        "orchestrator/tests/test_verifier.py::test_parser_groups_by_txid_across_files",
+        "orchestrator/tests/test_verifier.py::test_all_v2_fixture_files_have_clean_framing",
+        "orchestrator/tests/test_verifier.py::test_v1_c_record_is_rejected",
+        "orchestrator/tests/test_verifier.py::test_c_record_requires_exactly_seven_fields",
+        "orchestrator/tests/test_verifier.py::test_negative_txid_is_rejected_before_gap_math_can_cancel_it",
+        "orchestrator/tests/test_verifier.py::test_negative_declared_counts_are_rejected",
+        "orchestrator/tests/test_verifier.py::test_declared_read_and_write_counts_must_match",
+        "orchestrator/tests/test_verifier.py::test_missing_end_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_duplicate_end_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_end_txid_mismatch_is_parse_error",
+        "orchestrator/tests/test_verifier.py::test_end_record_requires_exactly_two_fields",
+        "orchestrator/tests/test_verifier.py::test_new_commit_before_end_records_missing_end",
+        "orchestrator/tests/test_verifier.py::test_non_immediate_duplicate_end_remains_parse_error",
+        "orchestrator/tests/test_verifier.py::test_zero_read_zero_write_frame_is_valid",
+        "orchestrator/tests/test_verifier.py::test_x_and_i_records_do_not_count_as_reads_or_writes",
+        "orchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation",
+        "orchestrator/tests/test_verifier.py::test_missing_txid_gap_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_write_version_mismatch_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_malformed_key_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_commit_below_genesis_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_dup_txid_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_lock_coverage_violation_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_lock_coverage_control_serializable",
+        "orchestrator/tests/test_verifier.py::test_lock_coverage_reasons_parsed",
+        "orchestrator/tests/test_verifier.py::test_lock_coverage_malformed_key_flagged",
+        "orchestrator/tests/test_verifier.py::test_write_intent_violation_indeterminate_and_reports_json_text",
+        "orchestrator/tests/test_verifier.py::test_write_intent_control_serializable",
+        "orchestrator/tests/test_verifier.py::test_write_intent_reasons_parsed_and_summarized",
+        "orchestrator/tests/test_verifier.py::test_write_intent_malformed_key_flagged",
+        "orchestrator/tests/test_verifier.py::test_write_intent_txid_must_match_open_txn",
+        "orchestrator/tests/test_verifier.py::test_write_intent_unknown_reason_counted_and_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_control_serializable",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_reasons_parsed",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_between_txn_blocks",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_details_follow_parse_verify_report_path",
+        "orchestrator/tests/test_verifier.py::test_permutation_violation_details_bound_large_known_sample",
+        "orchestrator/tests/test_verifier.py::test_abort_reason_tally_parsed_not_verdict",
+        "orchestrator/tests/test_verifier.py::test_abort_reason_absent_is_empty",
+        "orchestrator/tests/test_verifier.py::test_unknown_tag_still_parse_error_after_a",
+        "orchestrator/tests/test_verifier.py::test_known_tag_prefixes_are_not_accepted_as_record_tags",
+        "orchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_false_green",
+        "orchestrator/tests/test_verifier.py::test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness",
+        "orchestrator/tests/test_verifier.py::test_characterization_txn_tail_loss_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_commit_count_witness_detects_removed_trace_file",
+        "orchestrator/tests/test_verifier.py::test_commit_count_witness_accepts_complete_trace",
+        "orchestrator/tests/test_verifier.py::test_commit_count_witness_result_is_structured",
+        "orchestrator/tests/test_verifier.py::test_commit_witness_partial_state_is_unclean_without_report_schema_change",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_commit_witness_changes_notes_without_new_keys",
+        "orchestrator/tests/test_verifier.py::test_result_to_dict_without_commit_witness_matches_frozen_json_bytes",
+        "orchestrator/tests/test_verifier.py::test_matching_commit_witness_does_not_mask_existing_integrity_failure",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_accepts_single_trace_dir",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_mismatch_is_indeterminate_json",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_multiple_trace_dirs",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_negative_integer",
+        "orchestrator/tests/test_verifier.py::test_cli_expected_commits_rejects_non_integer",
+        "orchestrator/tests/test_verifier.py::test_nonascii_wrapped_as_parse_error",
+        "orchestrator/tests/test_verifier.py::test_classify_branches",
+        "orchestrator/tests/test_verifier.py::test_structured_report_has_edge_detail",
+        "orchestrator/tests/test_verifier.py::test_multi_ww_reason_report_is_hash_seed_deterministic",
+        "orchestrator/tests/test_verifier.py::test_silo_serial_1thread_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_fixture_contract",
+        "orchestrator/tests/test_verifier.py::test_broken_silo_norw_structured_report_is_exact",
+        "orchestrator/tests/test_verifier.py::test_new_real_fixture_bytes_are_exact",
+        "orchestrator/tests/test_verifier.py::test_real_silo_fixture_bytes_are_exact",
+        "orchestrator/tests/test_verifier.py::test_epoch_version_order_g2",
+        "orchestrator/tests/test_verifier.py::test_epoch_rw_successor_order_g2",
+        "orchestrator/tests/test_verifier.py::test_real_silo_edge_type_combinations_are_exact",
+        "orchestrator/tests/test_verifier.py::test_real_silo_serializable",
+        "orchestrator/tests/test_verifier.py::test_real_silo_node_behaviorally_calls_verifier_and_propagates_failure",
+        "orchestrator/tests/test_verifier.py::test_parallel_production_path_matches_certified_result_and_runs_workers",
+        "orchestrator/tests/test_verifier.py::test_default_worker_cap_is_16_but_explicit_workers_remain_available",
+        "orchestrator/tests/test_verifier.py::test_concurrent_verifications_keep_edge_worker_inputs_isolated",
+        "orchestrator/tests/test_verifier.py::test_file_failures_keep_sorted_path_priority_over_later_io_error",
+        "orchestrator/tests/test_verifier.py::test_worker_parse_error_survives_file_disappearing_before_parent_reread",
+        "orchestrator/tests/test_verifier.py::test_daemon_process_falls_back_to_sequential_verification",
+        "orchestrator/tests/test_verifier.py::test_parallel_worker_exit_discards_partial_results_and_rereads_all_files",
+        "orchestrator/tests/test_verifier.py::test_parallel_parse_issues_keep_sorted_path_order",
+        "orchestrator/tests/test_verifier.py::test_parallel_edge_replay_uses_global_logical_ordinal",
+        "orchestrator/tests/test_verifier.py::test_serial_parent_optimizations_match_workers_and_pin_witness_order",
+        "orchestrator/tests/test_verifier.py::test_scc_dense_arrays_keep_root_emission_order_for_both_adjacency_types",
+        "orchestrator/tests/test_verifier.py::test_version_dup_keeps_first_writer_note_and_edge",
+        "orchestrator/tests/test_verifier.py::test_edge_worker_failure_discards_partial_tasks_and_recomputes_all",
+        "orchestrator/tests/test_verifier.py::test_parallel_parse_error_is_raised_by_parent_scanner_with_cause",
+        "orchestrator/tests/test_verifier.py::test_compact_dsg_keeps_rw_edge_and_detects_g2_cycle",
+        "orchestrator/tests/test_verifier.py::test_parallel_cross_file_duplicate_txid_is_parent_replayed",
+        "orchestrator/tests/test_verifier.py::test_sparse_huge_txid_returns_bounded_indeterminate_result",
+        "orchestrator/tests/test_verifier.py::test_parallel_capability_remains_bound_to_parent_pid",
+        "orchestrator/tests/test_verifier.py::test_capacity_all_fixture_results_match_frozen_baseline",
+        "orchestrator/tests/test_verifier.py::test_capacity_packed_versions_preserve_bounds_duplicates_and_notes",
+        "orchestrator/tests/test_verifier.py::test_capacity_last_wins_drops_old_writer_edges_and_orphans_reads",
+        "orchestrator/tests/test_verifier.py::test_capacity_edge_worker_reads_only_arrays",
+        "orchestrator/tests/test_verifier.py::test_capacity_workers_1_and_16_match",
+        "orchestrator/tests/test_verifier.py::test_capacity_broken_pool_terminates_workers_and_falls_back",
+        "orchestrator/tests/test_verifier.py::test_capacity_parse_broken_pool_terminates_workers",
+        "orchestrator/tests/test_verifier.py::test_capacity_partial_outcomes_are_released_before_full_fallback",
+        "orchestrator/tests/test_verifier.py::test_v3_table_identity_separates_edges",
+        "orchestrator/tests/test_verifier.py::test_v3_serial_tables_types_and_ops",
+        "orchestrator/tests/test_verifier.py::test_v3_cycle_reports_tables_and_tx_types",
+        "orchestrator/tests/test_verifier.py::test_v3_reasons_preserve_ww_wr_rw_identity",
+        "orchestrator/tests/test_verifier.py::test_v3_packed_mapping_and_read_bounds",
+        "orchestrator/tests/test_verifier.py::test_v3_same_version_table_duplicates_and_notes",
+        "orchestrator/tests/test_verifier.py::test_v3_tuple_and_legacy_fallback_preserve_metadata",
+        "orchestrator/tests/test_verifier.py::test_v3_last_winner_tx_type_in_cycle",
+        "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_in_one_file",
+        "orchestrator/tests/test_verifier.py::test_v3_rejects_mixed_schema_across_files",
+        "orchestrator/tests/test_verifier.py::test_v3_schema_failure_precedes_cross_file_mixture",
+        "orchestrator/tests/test_verifier.py::test_v3_rejects_invalid_table_and_tx_type",
+        "orchestrator/tests/test_verifier.py::test_v3_rejects_scan_counts_tags_ops_and_record_shapes",
+        "orchestrator/tests/test_verifier.py::test_v3_x_i_keep_table_and_make_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_violations_and_v2_control",
+        "orchestrator/tests/test_verifier.py::test_v3_framing_and_neutral_files",
+        "orchestrator/tests/test_verifier.py::test_v3_parallel_processes_and_pool_failure_fallback",
+        "orchestrator/tests/test_verifier.py::test_v3_output_validation_and_v2_projection",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_negative_pairs",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_valid_histories_and_self_reads",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_version_order_and_table_isolation",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_write_duplicates",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_integrity_overlap_and_winners",
+        "orchestrator/tests/test_verifier.py::test_v3_existence_output_samples_and_cycle",
+        "orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes",
+        "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence",
+        "orchestrator/tests/test_verifier.py::test_v3_district_lost_update_and_serial_control",
+        "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist",
+        "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness",
+        "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+        "orchestrator/tests/test_campaign.py::test_pipeline_unsupported_workload_rejects_with_structured_wal",
+        "orchestrator/tests/test_campaign.py::test_pipeline_tail_loss_witness_reaches_verifier",
+        "orchestrator/tests/test_campaign.py::test_pipeline_matching_commit_witness_commits_and_records_verify_payload"
+      ],
+      "duration_s": 27.298,
+      "rc": 0,
+      "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+      "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+      "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+      "status": "PASSED",
+      "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-equivalent-basename-str": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "7658cf9f67c792a68d3ba844eccd23400ef749757483b8744abd794d496ba5eb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "    name = os.path.basename(str(binary))\n",
+            "old": "    name = os.path.basename(binary)\n"
+          }
+        ]
+      },
+      "M1-cli-legacy-projection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_verifier.py::test_v3_cli_json_wiring_and_v2_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "487458654739733bcd429114b2bd0c20bd10be51a1b70214db6c8021961fb11e",
+        "replacements": [
+          {
+            "file": "orchestrator/verifier/cli.py",
+            "new": "            \"results\": [result_to_dict_v3.__globals__[\"result_to_dict\"](r) for r in results],\n",
+            "old": "            \"results\": [result_to_dict_v3(r) for r in results],\n"
+          }
+        ]
+      },
+      "M10-tpcc-acceptance-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a1303955d6a636b4e972ff672b7f3c6301c8a1b449e29166625cd4577e479733",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "    if not name.startswith(\"ycsb_\"):\n",
+            "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n"
+          }
+        ]
+      },
+      "M2-pipeline-diagnostic-legacy": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "485126f0f4423b9655ca7c9e3869d8786370332cbdc2af4002cbaedaabdc1da9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "        diagnostic = result_to_dict_v3.__globals__[\"result_to_dict\"](verify_result)\n",
+            "old": "        diagnostic = result_to_dict_v3(verify_result)\n"
+          }
+        ]
+      },
+      "M3-capability-legacy-projection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5289399f1854bd42a1f0ebe034140a5fd1e91dbe4c66b6005967e3725ea1ee04",
+        "replacements": [
+          {
+            "file": "orchestrator/verifier/core.py",
+            "new": "            projection = result_to_dict(result)\n",
+            "old": "            projection = result_to_dict_v3(result)\n"
+          }
+        ]
+      },
+      "M4-capability-pops-existence": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_verifier.py::test_v3_capability_digest_binds_anomaly_and_existence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "48c82e5d22831c0507722d1a079a66e5f8ea29b876ab223f45410560f81713e7",
+        "replacements": [
+          {
+            "file": "orchestrator/verifier/core.py",
+            "new": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n            projection[\"integrity\"].pop(\"existence_violation_details\", None)\n",
+            "old": "            projection[\"integrity\"].pop(\"permutation_violation_details\", None)\n"
+          }
+        ]
+      },
+      "M5-payment-unchecked": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "acbc11082b667b1e19c06efa0fe2d1b43a94c04fa7da5a713ca1dec1ed3e7b5e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "        and True\n",
+            "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n"
+          }
+        ]
+      },
+      "M6-delivery-absent-allowed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3687f5497dc58fe73f4ae4c4a282418a2e9d43d02c8fb495e43d3ebae8cf2c4e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "        and flags.get(\"tpcc_perc_delivery\", \"0\") == \"0\"\n",
+            "old": "        and flags.get(\"tpcc_perc_delivery\") == \"0\"\n"
+          }
+        ]
+      },
+      "M7-payment-numeric-compare": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "73e8b32006b90608c922772cca0909a9510daf2273c63dc6fb2e0c133ad3d848",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "        and int(flags.get(\"tpcc_perc_payment\", \"-1\")) == 43\n",
+            "old": "        and flags.get(\"tpcc_perc_payment\") == \"43\"\n"
+          }
+        ]
+      },
+      "M8-tpcc-v3-requirement-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "185e44986fb1a44270b083f3be9acca049ffc534a37a1236dd1777b55a80eaf0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "            and False):\n",
+            "old": "            and verify_result.integrity.existence_violation_details is None):\n"
+          }
+        ]
+      },
+      "M9-ycsb-acceptance-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+          "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5530af4ec882a708ee2c6762fb0202905472547231b6939e01a6a87bd29330a0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/pipeline.py",
+            "new": "    if not tpcc_stage1:\n",
+            "old": "    if not (name.startswith(\"ycsb_\") or tpcc_stage1):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c5c7089b913abe8b939d44b6468e7a5e0e470582fcd1c851a4f503ba9a5e4890",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_verifier.py",
+      "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist",
+      "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness",
+      "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+      "orchestrator/tests/test_campaign.py::test_pipeline_unsupported_workload_rejects_with_structured_wal",
+      "orchestrator/tests/test_campaign.py::test_pipeline_tail_loss_witness_reaches_verifier",
+      "orchestrator/tests/test_campaign.py::test_pipeline_matching_commit_witness_commits_and_records_verify_payload",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "2a35f260d738ecaea7afa006a9766e3df7d69877",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_verifier.py",
+      "orchestrator/tests/test_campaign.py::test_tpcc_stage1_run_trace_allowlist",
+      "orchestrator/tests/test_campaign.py::test_tpcc_executor_v3_v2_existence_and_witness",
+      "orchestrator/tests/test_campaign.py::test_run_trace_parses_commit_witness_from_stdout",
+      "orchestrator/tests/test_campaign.py::test_pipeline_unsupported_workload_rejects_with_structured_wal",
+      "orchestrator/tests/test_campaign.py::test_pipeline_tail_loss_witness_reaches_verifier",
+      "orchestrator/tests/test_campaign.py::test_pipeline_matching_commit_witness_commits_and_records_verify_payload",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "edb95cec89405cc6e0cdc0eac41acbee3d63e773",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0f5385d1a4d74d4be52b103dfae6181b03cb8d650f3c2d1dae215d87e54d9d52",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "224b5b815e5e90ba609ac166b4d6ef4222e0b32e3669f141aeb0ed622422c829",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit5-v3-wiring/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "9f723d294aea83383bf55dbe1c7591412feb49b02e46edcac2a963d8cde765d7",
+  "updated_at": "2026-09-23T12:50:25.370036+00:00"
+}

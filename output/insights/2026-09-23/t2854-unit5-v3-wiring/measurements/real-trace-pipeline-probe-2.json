@@ -1,0 +1,79 @@
+{
+ "commit_witness": 36156,
+ "batch_witness": 0,
+ "real": {
+  "seconds": 7.6,
+  "note": null,
+  "abort": null,
+  "verdict": "serializable",
+  "certified": true,
+  "n_txns": 36156,
+  "n_edges": 268209,
+  "existence_violations": 0,
+  "capability_certified": true,
+  "verify_payload": {
+   "build_attempt_id": "probe",
+   "verdict": "serializable",
+   "certified": true,
+   "commits": 36156,
+   "aborts": 3224,
+   "commit_witness": {
+    "commit_counts": 36156,
+    "batch_commit_counts": 0
+   },
+   "anomalies": 0,
+   "workload": {
+    "tag": "tpcc-stage1"
+   },
+   "proof_surfaces": {
+    "protocol": "silo",
+    "X": "evidence-present",
+    "P": "evidence-present",
+    "I": "evidence-absent"
+   }
+  }
+ },
+ "inject": {
+  "seconds": 7.3,
+  "note": {
+   "file": "trace_0.log",
+   "replaced": {
+    "line_index": 1,
+    "before": "R 1 0 0000000000000001 1 0",
+    "after": "R 1 8 00010800000bba00 1 0"
+   }
+  },
+  "abort": "indeterminate",
+  "message": "正しさゲート不通過 (indeterminate, tpcc-stage1) → reject",
+  "existence_violations": 1,
+  "existence_detail_0": {
+   "txid": 1,
+   "table": 8,
+   "key": "00010800000bba00",
+   "version": [
+    1,
+    0
+   ],
+   "kind": "read-unborn-genesis",
+   "ops": []
+  },
+  "notes": [
+   "1 v3 existence violation(s) [read-unborn-genesis×1]: txn1 table=8 key=00010800000bba00 ver=(1, 0) kind=read-unborn-genesis"
+  ]
+ },
+ "tail": {
+  "seconds": 7.4,
+  "note": {
+   "file": "trace_1.log",
+   "lines_removed": 57
+  },
+  "abort": "indeterminate",
+  "message": "正しさゲート不通過 (indeterminate, tpcc-stage1) → reject",
+  "existence_violations": 0,
+  "existence_detail_0": null,
+  "notes": [
+   "commit witness mismatch: expected=36156 observed=36155 delta=-1",
+   "1 txid gap(s) — trace-hook guarantees dense txids, gaps mean whole txns are missing (e.g. 36133)"
+  ]
+ }
+}

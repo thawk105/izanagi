@@ -71874,3 +71874,235 @@ D2219 項 10 の継続確認であり、決めることではない。
 - high-abort 除外の基準を別の値に変える — 結果を見る前の裁定事項であり、abort0 比 2 倍 (D46・trigger 偵察の規則の流用) のまま限定を記す (基準率 ≥ 0.5 では構造的に不発)。
 
 **限定:** 基準 abort0 は write-heavy で abort 率 0.78 の thrashing 点で、待機を入れる方策ならほぼ何でも 3% 線を越える。本決定の二値は「IR 空間に既知最良 (調整済みの静的・適応 backoff) を超える地形があるか」には答えていない。床 3% は Pegasus・新骨格で較正していない暫定値である。
+
+## D2235. 全 7 項の裁定 — 公開済みの TPC-C の ccbench branch は残して乗せ直し版は別名で出し、関数方策の軸は既知最良との小比較を 1 回走らせてから段階 E を決める (2026-09-23)
+
+**決定 (ユーザー裁定):** 索引 7 項 (ユーザー裁定待ち 3 + 人間手番 2 + 据え置き 1 + 収載維持 1) の説明と推奨に対し、ユーザーは「推奨通りで」と回答した
+(2026-09-23 19:5x JST)。下の番号は会話の索引番号と一致する。本決定は裁定記録であり、実装・記帳・commit・送信が完了したことを意味しない。
+各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 窓は entry 1831〜1846 (第 32 回 D2227 が見た末尾 1830 の次)。収集は main `fb12a492b` (entry 1844) で始め、収集中に [T-2849] (entry 1845、D2233) と
+[T-2863] (entry 1846、D2234) が着地したので `65fd1422f` (entry 1846) まで広げて提示した。受領時点の main も `65fd1422f`。次の一手 619 項を carry 鎖の実体まで解決し
+(未解決 0)、1830 以後に消えた ID は 3 ([T-2860] 完了、[T-2862] 完了して残りを [T-2864] へ移設、[T-2863] 完了)、増えた ID は 2 ([T-2864]・[T-2865])。窓内の D2228〜D2234、
+failures (窓内の新 F なし)、窓内 insight の決定要求、repo 内外の handoff・rulings-inbox (新着は項 1 の控え 1 本)、稼働 session・job dir、未 merge branch の spool fragment、
+`docs/phase3.md` 現行チェックポイント、見送り台帳 (所有 file 3 源 × 窓内の変更 file、当たった T-2106 / T-2382 / T-2682 / D1936 の見送り群 / T-156 はいずれも不発火)、
+Git 未 push (受領時点で 16、20 未満で送信項なし)、ccbench の公開 branch (GitHub の ls-remote) を照合した。
+
+**相談の採否:** 別系統モデル 4 本 (read-only、`--lane luna`、medium、全 rc=0 受理。初回起動は生成 dir の未作成で argv 段落ちし、dir を作って再起動した)。
+A (項 1〜3 の推奨の当否) は項 1 に同意、項 2・3 に反対し、原稿が `noauthor` 版で差し込み後に再組版と頁数確認が要ること、採録版書誌の照合 (原稿 README §3.4) が残ることを
+指摘した。一次資料で確かめて採用し、ADRS の判定と著者の差し込みを束ねない形へ改めた。B (索引漏れ) は [T-2863] 段階 D 後の人間判断を挙げ、偵察の着地で [T-2865] として
+索引へ入った。C (項 7 の推奨の当否) は起草の「小比較は足さない」に反対した — D2214 の段階 E / F の比較は IR 内の探索法比較と LLM×C++ の空間拡張だけで既知最良との比較を
+含まず、起草が根拠にした [T-2849] の参照 genome R1・R2 は backoff 値空間の参照で本軸の代わりにならない。一次資料で確かめて採用し、推奨を択 (b) へ反転した。
+D (entry 1845・1846 の索引漏れ) は Git 未 push の事実誤り (0 ではなく 16) を挙げ、採用した。
+
+### 項 1 — T-2854: 公開済みの ccbench branch `izanagi-tpcc-v3-trace` は残し、乗せ直した候補は別名の branch で出す
+
+対象: T-2854。資料: repo 外控え `rulings-inbox/2026-09-23-t2854-tpcc-branch-pushed-vs-full32-item7.md`、D2227 項 7、D2225、D2230、D16。
+
+**決定:** 択 (a)。2026-09-23 08:4x JST に人間が GitHub `thawk105/ccbench` へ push した `izanagi-tpcc-v3-trace` (C2 `a6f2c7410d58ad140a62b11cc1beab29bfcd191b`、
+親 C1 `56b5cb709628c9cac98e4e18ff676defc77a9117`、基点 = 現 pin e9e477ca、force なし) はそのまま残す。この branch は pin 候補ではない。単位 11 で C の上へ 1 系列に並べた候補
+(C1' / C2 相当 / C3) は別名の branch で人間の push 判断へ渡し、同名への non-fast-forward (force push) はしない。pin・gitlink・`CCBENCH_FULL_SHA` は変わっていない。
+D2227 項 7 の「今は push しない」は push の実行で事実と食い違ったので、本項で現況へ改める (項 7 の趣旨 = 乗せ直した候補を人間の push 判断へ渡す、は不変)。
+
+**理由:** 公開された C1 / C2 は job dir の自己完結 bundle に保全済みの同じ commit で、pin を変えていない。削除は取り消しにくい外向きの操作で、取得済みの複製には効かない。
+別名で出せば force push が要らない。
+
+**却下した選択肢:** (b) ユーザーが remote branch を削除して未公開へ戻す — 旧基点の branch による混乱は減るが、人間の操作が 1 つ増え、実益が小さい。
+
+### 項 2 — T-2864: ComSys 原稿の著者・所属はユーザー手番のまま
+
+**決定:** 記入内容は未受領でユーザー手番に残る (AI は推定しない)。受領後、`\documentclass` の `noauthor` 指定を外して差し込み、再組版と頁数確認を行う。16 頁以上に
+なれば D2227 項 4 (15 頁のまま) の前提が変わるので再提示する。ADRS の判定 wave (D2227 項 5) とは束ねない。
+
+### 項 3 — ComSys 2026 の発表申込 (10/16) と原稿送信 (10/30) は人間手番
+
+**決定:** D2227 項 6 のまま (収載は送信の承認ではない)。AI 側の残りは ADRS の判定、4.7 節の「4 巡目の還流は未了」の更新 ([T-2860] は entry 1832 で着地済み)、
+著者の差し込みと再組版、採録版書誌の照合 (原稿 README §3.4)。10/16 に著者情報が要るかは募集要項で確かめていない。
+
+### 項 4 — T-2791: 上流報告の送信は人間手番 (継続)
+
+### 項 5 — T-2605: 著作権者表示は据え置き
+
+### 項 6 — 収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708) は変更なし
+
+### 項 7 — T-2865: 段階 E の前に既知最良との小比較を 1 回走らせ、結果を見て段階 E を決める
+
+対象: T-2865。資料: D2234 (決定 3・6 と限定)、D2214 (段の順序 C → D → 人間判断 → E → F、段階 E / F の比較の定め、`.claude/agents/` の変更はユーザー明示承認)、
+D2212 項 3、insight `output/insights/2026-09-23/t2863-silo-policy-stage-d/README.md` §4、手順書 `docs/axis-onboarding.md` §3-D。
+
+**決定:** 択 (b)。段階 D と同じ 8 job 構成で、既知最良の参照 (調整済み静的 backoff・`B0-L-W0`・stock) を同じ job に置いた小比較を 1 回走らせ、その結果を添えて段階 E へ
+進むかを改めて判断する。計算は投入前に job Elapse の実測単価で見積もり、2 node 時間以上ならユーザー確認 (D2212 項 4)。比較の点 ID・因子・比・順位は段階 E / F の
+coder・planner の入力へ渡さず (手順書 §3-D の firewall)、読んだ事実は campaign provenance に記録する。段階 E で `.claude/agents/` を変える具体差分は別途ユーザー明示承認 (D2214)。
+
+**理由:** 段階 D の二値は abort 率 0.78 の退化点 abort0 に対する易しい問いで、既知最良を超える地形の有無に答えていない (D2234 限定)。D2214 の段階 E / F は既知最良との比較を
+定めていないので、E の前に安く確かめる。未調整の 16 点が負けても軸の否定にはならないが、E の探索範囲や参照点を見直す材料になり、勝てば固定部分空間に既知最良を超える点が
+あると分かる。
+
+**却下した選択肢:** (a) 小比較なしで段階 E へ — 既知最良を超えるかが E を作り終えるまで分からない (起草推奨、相談 C の反対で反転)。(c) 軸の見直し — D2212 項 3 の方針を
+後退させる根拠が資料に無い。
+
+### 索引外
+
+- T-2858: 本文の「提示済み → ユーザー裁定待ち」は D2227 項 1 より古い。「裁定済み (D2227 項 1) → pin 更新 wave (AI)」へ改める。
+- T-2797: D2227 項 2 で認可済み、未着手 (AI)。発効 commit は T-2797 wave の land commit を親に作る (D2233 が束縛 file 4 本を変えたため、承認範囲は不変)。
+- `docs/phase3.md` 現行チェックポイントの [T-2862] 行「著者・所属・頁数・ADRS はユーザー手番のまま」は記入時点の記録として残す (現況は T-2864 の本文)。
+- 提示側の手順漏れ (next-tasks が D2227 項 7 を控え箱で照合せず push をユーザー手番として提示した) は F937 の再発として failures に記録する。
+- 投入前確認の予告 (今は諮らない): T-2850 試走 (試算 128.7〜145.4 node 時間、上限 200)、T-2849 残り (3)、T-2851 測定の発効、T-2847 残り (2)、T-2853 残り (5)、T-2858 の更新 wave。
+
+## D2236. ccbench pin を C へ進める更新では、温度述語の軸の `PIN` は現行 pin への追随のまま据え置き、現行 pin で mocc が X/P 証拠を持つことを正の事実として test に固定し、証拠の無い経路の負例は旧 pin の明示 checkout に任せる (2026-09-23)
+
+**決定:**
+1. D2227 項 1 の更新 (範囲は D2150 項 1 と同じ ①④⑦) で、`orchestrator/campaign/axis_mocc_temperature.py` は変更しない。`PIN = pin.CURRENT_PIN` の consumer は `s3_mocc_template_proof.py` の wrong-oid 負例 1 箇所だけで、C の 7 桁でも `PROOF_PIN` (e9e477ca の 40 桁) と一致しないまま負例として働く。`PROOF_PIN`・template・proof は e9e477ca に束縛したまま保持する (温度述語は D2134 項 9 で proof-only)。
+2. 現行 pin の実 compiled source を読む verifier の正負対は、C で mocc の X / P が evidence-present になった事実へ追随する。同じ trace を mocc として検証すると clean・serializable・certified になる。拒否側の被験は X/P 計装を持たない tictoc へ移す (proof surface は対象外 protocol として unavailable)。test の nodeid は real-repo 系の登録簿に載るので変えない。
+3. 「対応 protocol の実 source に X/P 計装が無い → evidence-absent → 非認定」の経路は、対応 protocol の silo・mocc がどちらも C で計装を持つので現行 checkout では到達不能になった。この経路は旧 pin (e9e477ca) を明示 checkout する mocc proof surface の test が被覆し続けるので、新しい負例・gate は足さない。
+4. D2150 項 1 (iv) (較正 record の扱い)・clang 比較の未完了・旧証拠の保持・計算確認の線 (D2212 項 4) は変えない。policy epoch の移動による旧 binary / lock の live 消費不能は D2150 項 1 の射程限定 (T-2304 で記録) と同型で、この更新で新たに壊れるものは段 6 レビューで見つからなかった。
+
+**理由:**
+- D2227 項 1 の資料 §3.2 項 4 は、`PIN` を e9e477ca の値に固定するか C 系列の proof を作り直すかの判断を求めていた。consumer を実読すると `PIN` は負例にしか使われず、どちらの手当ても挙動を変えない。変更しないのが最小である。
+- C は mocc に X/P 計装を足す commit なので、「現行 pin の mocc に証拠が無い」は旧 pin の事実であって現行の事実ではない。前例 T-2304 の between-run floor の source-facts と同じく、新 pin の事実へ追随し、負例は証拠を持たない protocol に移して意味を保つ。
+- 同じ負例を現行 pin で作るには verifier の対象 protocol 集合や source の人工改変が要り、要求外の仮想リスクに対する追加になる。
+
+**却下した選択肢:**
+- `axis_mocc_temperature.PIN` を e9e477ca の値に固定する — 挙動が同じで、alias 追随の設計 (pin.py の方針) から外れる。
+- C 系列の温度述語 proof を作り直す — D2227 項 1 の範囲 ①④⑦ の外。温度述語 hole の採用は別判断 (D2134 項 9)。
+- verifier の test の拒否側を mocc のまま残し期待値だけ反転させない — 現行 pin で事実と異なる主張になり赤のまま。
+- test を改名する — nodeid が real-repo 系の登録簿と所要台帳に載っており、改名の波及が意味の改善に見合わない。
+
+## D2237. 全 5 項の裁定 — 新しい裁定待ちは無く、人間手番 3 (著者・所属の記入、ComSys の申込と送信、上流報告の送信) と据え置き・収載維持を推奨どおり継続する (2026-09-23)
+
+**決定 (ユーザー裁定):** 索引 5 項 (ユーザー裁定待ち 0 + 人間手番 3 + 据え置き 1 + 収載維持 1) の説明と推奨に対し、ユーザーは「推奨通りで」と回答した
+(2026-09-23 21:0x JST)。下の番号は会話の索引番号と一致する。本決定は裁定記録であり、実装・記帳・commit・送信が完了したことを意味しない。
+各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 窓は entry 1847 だけ (第 33 回 D2235 が見た末尾 1846 の次)。収集・提示・受領とも main `620a6bb13` (entry 1847)。次の一手 619 項を carry 鎖の実体まで
+解決し (未解決 0)、1846 時点から消えた ID・増えた ID は 0、本文が変わった ID は 5 ([T-2605] [T-2854] [T-2858] [T-2864] [T-2865]、いずれも D2235 の反映で退行なし)。
+窓内の台帳追記は D2235 と F937 の再発記録だけ、窓内の変更 file は docs の台帳 6 本だけで、見送り台帳の相乗り・数値条件は非発火。repo 外の rulings-inbox の新着は
+第 33 回の控えだけ。第 33 回の裁定直後に起動した稼働 wave 13 本の job dir・brief・段 4 裁定・未 merge branch の spool fragment を走査し、今ユーザーへ提示中の判断は 0。
+Git は origin/main の最後の取得値 `fb12a492b` に対し local main が 18 commit 先 (20 未満で送信項なし。GitHub の現況は SSH の鍵と非公開 repo のため手元から取得できず)。
+
+**相談の採否:** 別系統モデル (read-only、`--lane luna`、medium)。A (全 5 項の推奨の当否) は全項に同意し、索引外の数値に誤りなし、[T-2865] の小比較は測定 job の約 1.6 に
+加えて焦点走・開発検査を含む上限換算 約 2.11 node 時間 (段階 D の insight) を数えるべきと補足した — D2219 項 1 どおりの扱いなので新しい裁定にせず、稼働中の
+[T-2865] wave へ通知した。B (索引漏れ) は初回が 500 byte 未満で出力検査に不受理 (本文は「漏れなし」)、確かめた資料の列挙を必須にした再走が受理され、資料 15 件を挙げて
+所見 0・漏れなし。
+
+### 項 1 — T-2864: ComSys 原稿の著者・所属の記入はユーザー手番のまま
+
+**決定:** 記入内容は未受領 (本回答にも含まれない) でユーザー手番に残る。受領後の処置は D2235 項 2 のとおり (`noauthor` を外して差し込み、再組版と頁数確認、16 頁以上なら
+D2227 項 4 を再提示、AI は推定しない)。ADRS の判定と 4.7 節の反映は稼働中の原稿改訂 wave (branch `worktree-t2864-comsys-manuscript-revise`、未 land) が済ませた。
+同 wave の未 land fragment は起点が D2235 の記録より前で、D2235 項 2・3 が足した「`noauthor` を外して再組版・頁数確認」と「採録版書誌の照合 (原稿 README §3.4)」を
+[T-2864] の更新から落としていたので同 session へ通知し、同 session は main を取り込んで 2 点を残した形に書き直すと返答した。[T-2864] の台帳項は同 wave が更新するので本記録では触らない。
+
+### 項 2 — ComSys 2026 の発表申込 (10/16) と原稿送信 (10/30) は人間手番
+
+**決定:** D2227 項 6・D2235 項 3 のまま (収載は送信の承認ではない)。AI 側の残りは著者の差し込みと再組版、採録版書誌の照合、原稿 7 節 (a)(c) の古い記述の更新
+(改訂 wave の README §10.4)。10/16 に著者情報が要るかは募集要項で確かめていない。
+
+### 項 3 — T-2791: 上流報告の送信は人間手番 (継続)
+
+### 項 4 — T-2605: 著作権者表示は据え置き
+
+### 項 5 — 収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708) は変更なし
+
+### 索引外
+
+- 投入前確認の予告 (今は諮らない、各 wave が投入前に実測単価で見積もる): [T-2850] 本試走 (試算 128.7〜145.4 node 時間、上限 200。2 node 時間未満の smoke の後に確認)、
+  [T-2865] 小比較 (検査費用込みで 2 node 時間を超えうる)、[T-2853] 主要図の再実行 (fig10 は 3.40 node 時間、投げる単位を決めた時点)、[T-2273] は land 条件が不成立なら結果をユーザーへ返す。
+- [T-2865] の段階 E で `.claude/agents/` を変える具体差分は別途ユーザー明示承認 (D2214)。
+
+## D2238. pipeline は TPC-C 段 1 (57:43) の v3 trace を受理し、CLI・reject 診断・受領証 digest は v3 の構造化出力を使う (2026-09-23)
+
+**決定:** TPC-C 段 1 の認定経路の単位 5 (設計 `output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §7.1) として、次を定める。
+実装と試験は本 wave (insight `output/insights/2026-09-23/t2854-unit5-v3-wiring/README.md`)。
+
+1. **配線:** CLI の `--json`、campaign pipeline の reject 診断、verification capability の digest 射影は `core.result_to_dict_v3` を使う。capability は
+   trace_dir・framing / permutation の詳細を従来どおり除き、存在違反の件数・詳細と anomaly の表・取引種別は digest に入れる。v2 は dict・JSON bytes・digest が変わらない。
+   domain `izanagi-verifier-result-v1` は据え置く。既発行の v3 capability の digest は新しい射影では再現しない (互換を主張しない)。
+2. **受理:** `_run_trace` は `ycsb_` に加え、binary 名が `tpcc_` で flags の `tpcc_perc_payment`・`tpcc_perc_order_status`・`tpcc_perc_delivery`・`tpcc_perc_stock_level` が
+   文字列で `43`・`0`・`0`・`0` のときだけ trace を走らせる。欠落 (CCBench の既定 4% に落ちる)・別表記 (`043`)・他の値は従来の unsupported-workload で拒否する。
+3. **v3 の要求:** TPC-C の run は verifier の結果が v3 (`Integrity.existence_violation_details` が list) であることを verifier 直後に要求し、v2 は既存の
+   `trace-witness-unsupported-workload` で reject する (新しい reason は足さない)。witness (stdout の commit 計数 = C 行数) は YCSB と同じ経路をそのまま使う。
+
+**理由:**
+- 実 TPC-C trace (単位 1・2 の silo B0、36,156 取引) と実 stdout を pipeline の executor に通すと certified になり、存在違反 1 行の写しと末尾 frame 欠落の写しは reject される (insight §4)。
+  配線しないと、TPC-C の候補は pipeline の正しさゲートに乗らず、reject の診断と受領証に表・取引種別・存在詳細が残らない (規律 3)。
+- 57:43 は CCBench の既存 flag で OrderStatus / Delivery / StockLevel を 0% にした比で、45 : 43 の正規化は整数 % で表せない (設計 §3.5)。取引の選択は合成の編集面
+  (EVOLVE-BLOCK は silo の transaction.cc) の外にあるので、候補 binary は flag どおりに取引を選ぶ。
+- 現 pin の tpcc binary は v2 を出し計数修正も無い。v3 の要求がそれを reject する。reason は「commit 後の計数契約を証明済みでない workload」という既存の意味に当たる。
+
+**却下した選択肢:**
+- trace の取引種別・op=D を pipeline で検査する — flag を無視する手製 binary だけを想定した依頼外の gate。限界として insight §6 に書く。
+- binary 名に `.exe` 接尾辞を要求する — v3 emitter・計数修正の証拠にならず、YCSB の条件と非対称になるだけ。
+- v2 の TPC-C 用に新しい abort reason を作る — critic の digest と s8b の reason 契約の登録が増えるが、既存 reason の意味で足りる。
+- capability の射影から存在詳細を除く — 依頼は受領証 digest への存在詳細の配線を求めている。framing / permutation の詳細を除く理由 (既存受領証の hash の安定) は v3 に既発行の束縛が無いので当たらない。
+- 実 CC (broken-silo-norw-validation.patch を TPC-C の v3 build で) の lost update を完了条件にする — patch の v3 source への適用・計算ノードの build・異常 schedule の帰属確認が要り、
+  合成 v3 fixture で表 1 の ww・rw の cycle と直列対照を示せる。
+
+## D2239. 検出期待表の新規変異は silo の 14 本を patch にして実走し、「盲点」と「未発生」を発火診断で分ける (2026-09-23)
+
+**決定:**
+1. 設計書 (`output/insights/2026-09-22/t2847-verifier-detection-design/README.md` §4) の新規 18 変異のうち、現 pin `e9e477ca` の上で期待を検証できる silo の 14 本 (変異 11・正しさを保つ対照 3) を D16 の out-of-tree patch (`patches/broken-silo-*.patch`・`patches/control-silo-*.patch`、`CCBENCH_` 外の裸マクロ 1 個の `#if` 枝) にして実走する。mocc の 2 本は X/P の emitter が pin C の計装の内容なので、si の 2 本は現行 parser が si の旧形式 trace を拒否して変異の有無に関わらず parse error になるので、走らせない。
+2. 新 macro は既存の壊し patch と同じく条件 gate の許可ドメインに登録し、既存 driver の `s2_verify_calibration._broken_build_and_verify` (patch 適用・condition gate・commit 証人つき verifier) で build・実走する。判定基準・供給経路の処理は変えない。
+3. 各 patch の有効枝に発火診断 (変異枝に入った回数・元コードと違う挙動を生んだ回数・その取引が commit した回数) を置き、process 終了時に stderr へ 1 行出す。verdict が serializable の行は、変異が挙動を変えその取引が commit したときだけ「盲点として certified」、そうでなければ「未発生」とする。診断は verifier の判定に使わない。
+4. 期待・workload・job 分割・分類の規則は投入前に事前登録し、期待と違う結果が出ても patch・workload を事後に期待へ寄せない。直すのは patch が意図した機構以外を変えていることを source で示せる実装の誤りだけで、初回の結果も記録に残す。
+5. trigger-misattr の既存 driver (`s8a_trigger_coverage.main()`) は misattr の build を admission (source digest) に通し、現行の source digest が裸マクロを未知マクロとして fail-closed で拒否するため走らない。source digest の防壁は緩めず、misattr の build だけを他の壊し patch と同じ直 CMake 経路 (condition gate は通す、admission は通さない) にした repo 外の起動器の手順で走らせる。run と checks は driver の関数と式のままにする。
+
+**理由:**
+- 検出表は「verifier が捕まえなかった」と「変異がそもそも起きなかった」を分けないと、盲点を過大にも過小にも数える。trace にも verifier にも現れない変更 (値・取引内の読み・TID 規則) は、変異側で数えるしかない。
+- 壊し build が buildcache・admission を通らない規約は `_broken_build_and_verify` の docstring が既に定める。s8a の misattr build だけがそれに外れていた。
+- 事前登録と事後修正の分離は、実走で V20 の実装の誤り (公開版の番号付けが持ち込んだ版順の逆転) を見つけたときに、初回の結果を消さずに直す根拠になった。
+
+**却下した選択肢:**
+- source digest の `CONTEXT_MACROS` に misattr の裸マクロを登録する — 壊し macro を identity の文脈に加えることになり、壊し build を admission に通さない規約と逆向き。
+- 発火を verdict だけから推す — 盲点の行はどれも S なので、発火の有無を区別できない。
+- si の 2 本を E のまま走らせる — 無改変の si と同じ parse error になり、検出表に情報を足さない。
+
+## D2240. silo-function-policy 軸の既知最良との小比較を、同 job に置いた参照 3 本 (静的 10 µs を元の適用方法で・B0-L-W0・stock) との比で 1 回とる — 既知最良は静的 10 µs で、固定 16 点のうち 3 点が 6〜7% 上回った (2026-09-26)
+
+**決定:** D2235 項 7 (択 (b)) の小比較を、段階 D (D2234) と同じ固定 16 点・8 job・計測構成で実装・実測した。記録の正本は `output/insights/2026-09-23/t2865-silo-policy-known-best-compare/README.md`、段 4・段 6 の裁定の逐語は同 dir の `verbatim/`。
+
+1. **参照:** 各 job に stock (`BACK_OFF=1`)・`B0-L-W0` (`BACK_OFF=0`)・fixed10 を置く。fixed10 は「元の適用方法」= CCBench の stock 木に `patches/silo-backoff-fixed.patch` を当て、`BACK_OFF=1, BACKOFF_FIXED=10` + `locks._BASE` で build する (関数方策の骨格は当てない、D2160 と同じ形)。10 µs は write-heavy の既存最良 (known_axes_freeze・A-2 正式認証・D2160・未知条件転移の R2、いずれも旧 pin) で、本走が現 pin での再評価になる。patch 未適用で flag だけ渡すと無言で適応 backoff に落ちうるので、trace1・trace0 の両 build の owner TU の compile command で `-DBACKOFF_FIXED=10` と `-DBACK_OFF=1` がちょうど 1 個ずつあることを検査し、不成立なら verify・bench へ進まない。
+2. **比:** IR 点ごとに、点・同 job の abort0・参照 3 本がすべて適格 (両 verify certified・trace0 clean・5 rep 有効・前後の source evidence が非空で一致) で high-abort でないときだけ、5 rep 中央値 ÷ 参照 3 本の中央値の最大 (最良参照比) を出す。どれか欠ければ null (負けに数えない)。参照ごとの比も別掲する。3% 超は未較正の探索的な目印。
+3. **順序と再測:** job 内の 6 方策は job 番号 mod 6 で巡回する。再測はしない (D2235 の「1 回」、ユーザーの計算承認も再測なし)。
+4. **firewall:** 比較の出力 (点 ID・比・順位) は insight と `compare-aggregate.json` だけに置き、投影 JSON を作らない。後段へ渡すものは D2234 の `projection.json` のまま。
+5. **結果:** 既知最良は全 8 job で fixed10 (同 job 中央値 3,944〜4,011 千 txn/s、`B0-L-W0` 2,374〜2,533、stock 1,343〜1,378)。IR 16 点はすべて適格で、最良参照比は 0.836〜1.069。3% 線を越えたのは 3 点 (1.062〜1.069) で、いずれも 5 rep の最小が同 job の fixed10 の最大を上回った。3 点とも lock 競合への応答を「試行 4 回まで再試行」にする水準を持つ。同じ 3 点は段階 D (別 job、abort0 比) でも上位 3 点で、throughput は 1% 以内で一致した。計算は計測 8 job の Elapse 合計 6,180 秒 (ユーザー承認の上限 4.6 node 時間の内側)。
+
+**理由:**
+- 1: D2234 の限定 (abort0 比の 3% 線は易しい問い) に答えるには、既知最良を同 job に置いた比が要る。段階 D の参照は stock と `B0-L-W0` が 1 job ずつで、静的 backoff は無かった。
+- 2: 参照が欠けた job で残りの参照だけの最大を取ると比が過大になる (段 3 相談 A)。3% は段階 D と同じ暫定床で、比の大小を確証とは扱わない (相談 B)。
+- 3: job 7 が基本列に戻る巡回漏れは段 6 レビューで見つけて直した。
+- 4: 手順書 §3-D の firewall。
+
+**却下した選択肢:**
+- 段階 D の結果 JSON の参照値を流用する — 参照が 2 job にしか無く、fixed10 が無い。
+- 超過点の別 job 再測を同じ wave で行う — D2235 の「1 回」とユーザーの計算承認の範囲外。段階 E の判断と併せてユーザーへ返す。
+- 新しい投入 script・job body — 投入許可台帳に未登録 (D2234 と同じ理由)。
+
+**限定:** 固定テンプレートの部分空間 16 点・未調整・1 回の結果で、統計的な優位 (多重選択の補正なし)・全 IR や LLM×C++ の空間・別 workload への転移・fixed10 以外の静的値 (現 pin で掃いていない) との比較については何も言わない。診断 build は NON_ADMISSIBLE で certified 候補とは称さない (D2226 項 5)。
+
+## D2241. 未知条件への転移の実行器と解析器 — 事前登録 v1 §11 と TPC-C 版 §5 を新しい 2 module に置き、選定と発効は入力として受け、留保 cell は発効の記録なしに走らせない (2026-09-26)
+
+**決定:** `orchestrator/campaign/t2851_transfer_runner.py` (実行) と `t2851_transfer_analysis.py` (解析) を次の契約で置く。
+`orchestrator/campaign/pipeline.py`・`orchestrator/calibrator/runner.py`・verifier は呼ぶだけで変えない。事前登録 2 本 (D2223・D2228) の本文は変えない。
+
+1. **選定をしない。** 対象探索群、全 (課題, 手法, 独立探索) → identity の対応、選択規則、参照 (YCSB silo の R0〜R2、MOCC と TPC-C の 3 択と参照)、到達可能性、
+   各 identity の binary (性能用と検証用の path・sha256、検証用を compile した CCBench source root) と環境値 (env_tag・clocks_per_us・numactl) を凍結入力として受け取る。
+   実行器は網羅・排他・学習 cell ⊆ 登録錨・binary 対応だけを検査し、正規化 JSON と sha256、測る identity 集合、比較の一覧、族ごとの M を出す。
+2. **M** は族ごとに、cell 内で重複除去した (候補 identity, 強い参照 identity) の数 (同 identity の組を除く)。欠測・失格・未確定で減らさない。
+   R0 比・参照どうし・silo の bal-rmw1 は記述。TPC-C は段ごとに別族で、R* を (a) で固定した protocol だけが主要族を持つ。
+3. **留保 cell** の実行と検証は、発効の記録 (decision_id と凍結記録の sha256、TPC-C は段と認定経路) を受けたときだけ許し、欠ければ測定前に拒否する。
+   発効束の他の項目は審査しない。実行前に凍結記録を入力から再生成し、派生 field を含めて完全一致を要求する。binary の内容 sha256 を実行時に照合する。
+4. **検証**は性能と別の trace-enabled binary で、verifier の判定条件を変えずに certified / disqualified / indeterminate へ写す。
+   YCSB は `pipeline._run_trace` と `verifier.core.verify_trace_dir(..., ccbench_root=<凍結した source root>)`。TPC-C は認定経路を実行器へ接続するまで indeterminate を記録する。
+5. 登録文に明記の無い選択: block 番号は 1..32。
+
+**理由:**
+- 測定の発効 (D2223 項 2) と選定は別の決定である。実行器が選定を含むと、発効前に選定が既成事実になる。
+- 段 6 の review と焦点再レビューの所見 (契約の不一致、M の系列重複、凍結の派生 field の改変、cohort 1 の一部省略による別日判定の迂回、環境値の暗黙依存) を、
+  主要表の値・分類・受理集合への影響で裁定した結果である。
+- 計算ノードの生死確認で、`ccbench_root` を渡さないと証明面が unavailable になり YCSB の検証が certified に到達しないことを実測した (fixture test では検出できなかった)。
+
+**却下した選択肢:**
+- **発効束の全項目を実行器が審査する gate** — ユーザー指示の scope 外 (仮想リスク向けの gate)。留保 cell の解禁に要る最小の接続だけを置いた。
+- **binary 内容 sha256 の実行時照合をやめる** — 両 cohort で同じ identity の build を使う規則 (v1 §5) の束縛が失われる。
+- **TPC-C の認定経路への接続を本単位で行う** — 裁定時点で経路が未着地で、発火条件を満たす成果物を名指しできなかった (DW-G04)。別単位にした。
+- **build を実行器に含める** — buildcache は YCSB target 固定で、TPC-C と Pegasus の依存準備を抱えると scope を超える。binary は凍結入力で受ける。
