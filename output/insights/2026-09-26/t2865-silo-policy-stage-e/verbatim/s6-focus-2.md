@@ -1,0 +1,19 @@
+## 対応表
+
+| 対象 | 判定 | 根拠 |
+|---|---|---|
+| G1・前回 must-fix（F2） | **partial** | `reason` は固定 code または `other` に正規化され、実在する固定 reason と例外接頭辞を扱う（[driver:48](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:48)、[driver:219](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:219)）。ただし anomaly の `edges[].reasons[].key` に未検証の trace 文字列が残る。 |
+| G2 | **partial** | anomaly の表示は決定的に並べた最大 8 件（[driver:248](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:248)）。`anomaly_count` は報告済み件数で、全 cycle 数ではない。 |
+| G3 | **closed** | preview と同じ coder 専用入力・gate を使用し、通過候補は WAL 書込み前に拒否する。拒否時は既存の `L.record_diff_reject` を呼び、iteration と停止判定を進める（[driver:373](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:373)、[driver:398](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:398)、[loop:982](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop.py:982)）。build admission policy の生成も run と同じ。 |
+| G4・前回 should | **closed** | runbook §1(c) は preview 拒否後に `--record-reject` を実行する手順と CLI に一致する（[runbook:52](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/docs/phase3-silo-policy-runbook.md:52)、[driver:419](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:419)）。 |
+| F1・F3〜F9、gate 順・auditor 上限・firewall・既存軸 | **回帰なし（静的確認）** | gate は検疫→構文・compile→auditor の順で、上限 26 を維持（[driver:169](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:169)）。projection は 2 field のみ、履歴から justification を除外（[driver:272](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:272)）。対象差分は本 driver・test・runbook の 3 file に限られる。 |
+
+## 新しい所見 (重大度・根拠・影響 1 行・代案)
+
+1. **must-fix — G1: anomaly の辺に自由文字列が残る。** parser は不正な key を計数しても read/write に保持し（[parse:282](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/verifier/parse.py:282)、[parse:411](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/verifier/parse.py:411)）、anomaly はその key を `edges[].reasons[]` に出力し（[report:17](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/verifier/report.py:17)）、driver がそのまま coder 入力へ写す（[driver:248](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:248)）。**影響:** 不正 trace の任意の非空白文字列が firewall を越えうる。**代案:** 辺の key を厳格に検証してから射影し、不正値は固定 code に置き換える。
+
+2. **must-fix — G2: `anomaly_count` が全件数でない。** verifier は既定で最大 20 witness のみ返し、全 cycle 数を別の `total_cycles` に保持する（[core:30](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/verifier/core.py:30)、[core:174](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/verifier/core.py:174)）。driver は返された配列の長さを数える（[driver:250](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-policy-stage-e/orchestrator/campaign/p3_s4_loop_policy.py:250)）。**影響:** 39,124 cycle でも `anomaly_count` は最大 20 となり、失敗規模を誤って伝える。**代案:** `anomaly_count` に `total_cycles` を使い、表示 8 件は witness の抜粋と明示する。
+
+## 総括
+
+**NO-GO。** 残る must-fix は、anomaly 辺の自由文字列を coder 入力から除くことと、`anomaly_count` を全 cycle 数に直すことの 2 件。G3・G4 と前回の runbook 所見は closed。build・pytest は実施していない。

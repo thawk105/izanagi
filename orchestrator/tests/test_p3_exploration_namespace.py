@@ -32,6 +32,7 @@ from orchestrator.campaign import patchharness                                  
 from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS     # noqa: E402
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
+from orchestrator.campaign import p3_s4_loop_policy as POLICY                    # noqa: E402
 from orchestrator.campaign import sort_swo_oracle as SWO                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
 from orchestrator.campaign import paper_story_a1_paired as PAPER_STORY           # noqa: E402
@@ -253,6 +254,17 @@ def _isolated_coder_argv(_tmp_path: Path) -> tuple[str, ...]:
     return (_ALLOW_CODER_BUILD, "--no-isolate-worktree")
 
 
+def _policy_argv(tmp_path: Path) -> tuple[str, ...]:
+    proposal = tmp_path / 'policy-proposal.json'
+    proposal.write_text('{"coder":{"axis":"silo-function-policy","implementation":"return 0u;"},"auditor":{"verdict":"pass","diff_digest":"' + 'a' * 64 + '"}}')
+    return ('--form', 'cpp', '--run-iteration', str(proposal),
+            _ALLOW_CODER_BUILD, '--no-isolate-worktree')
+
+
+def _policy_without_opt_in_argv(tmp_path: Path) -> tuple[str, ...]:
+    return _policy_argv(tmp_path)[:-2]
+
+
 def _autonomous_without_opt_in_argv(_tmp_path: Path) -> tuple[str, ...]:
     return ("--trial-id", "fixture", "--provider", "claude-headless")
 
@@ -440,6 +452,18 @@ _DRIVER_CONTRACTS = {
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,
     ),
+    "p3_s4_loop_policy": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop_policy.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_policy_without_opt_in_argv,
+        build_spy_argv_factory=_policy_argv,
+        routing_argv_factory=_policy_argv,
+        ast_layout_calls=2,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=1,
+        derive_expected_campaign_ids=_single_expected_campaign_id,
+    ),
     "p3_s4_loop_trigger_gating": DriverContract(
         cli_authority_mode="coder-opt-in",
         coder_entrypoint_site=(
@@ -517,6 +541,7 @@ def test_campaign_driver_discovery_names_are_pinned():
         "p3_autonomous_workload_trial",
         "p3_kickoff",
         "p3_s4_loop",
+        "p3_s4_loop_policy",
         "p3_s4_loop_sort",
         "p3_s4_loop_trigger_gating",
         "p3_s4_red",
@@ -1186,7 +1211,7 @@ def test_driver_build_spy_receives_exact_run_context(
     )
 
     argv = list(contract.build_spy_argv_factory(tmp_path))
-    if module in {LOOP, SORT, TRIGGER}:
+    if module in {LOOP, SORT, TRIGGER, POLICY}:
         monkeypatch.setattr(module, "run_campaign", capture)
         monkeypatch.setattr(
             module, "exploration_campaign_layout",
@@ -1198,6 +1223,10 @@ def test_driver_build_spy_receives_exact_run_context(
             LOOP, "quarantine",
             lambda *_a, **_k: (passed, "", "", "fixture"),
         )
+        if module is POLICY:
+            monkeypatch.setattr(module, 'find_compiler', lambda: 'fixture-cxx')
+            monkeypatch.setattr(module, 'policy_gate',
+                                lambda *_a, **_k: (passed, 'fixture'))
         if module is TRIGGER:
             runtime_contract = dataclasses.replace(
                 env_contract.GENERATIONS["linux-baremetal"][0].contract,
@@ -1338,6 +1367,12 @@ class Backoff {
             implementation="double now_backoff = 20.0;",
         )
         cfg, perf = module.default_cfg(), module.default_perf()
+    elif module is POLICY:
+        template = '// EVOLVE-BLOCK-BEGIN silo-function-policy\n// fixture\n// EVOLVE-BLOCK-END silo-function-policy\n'
+        coder = module.Proposal((Path(__file__).resolve().parents[1] / 'campaign/silo_function_policy_hand/abort0.cpp').read_text(), None, '')
+        cfg, perf = module.default_cfg(form='cpp'), module.default_perf()
+        monkeypatch.setattr(module, 'policy_gate',
+                            lambda *_a, **_k: (SimpleNamespace(passed=True), 'fixture'))
     else:
         if module is SORT:
             template = SORT_VARIANT_SOURCE
@@ -1377,6 +1412,12 @@ class Backoff {
     if module is LOOP:
         module.run_one_iteration(
             cfg, perf, planner, coder, state, str(sub), True,
+            build_context=_CODER_CONTEXT, log=lambda *_: None)
+    elif module is POLICY:
+        module.run_one_iteration(
+            cfg, perf, coder, None, str(sub), True,
+            layout=module.exploration_campaign_layout(str(ident.campaign_id(cfg))),
+            compiler='fixture-cxx', scratch_dir=str(tmp_path),
             build_context=_CODER_CONTEXT, log=lambda *_: None)
     else:
         implementation = (

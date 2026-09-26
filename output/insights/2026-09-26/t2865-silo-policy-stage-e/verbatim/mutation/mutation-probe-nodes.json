@@ -1,0 +1,54 @@
+{
+ "m-e2-tu-accept": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject"
+ ],
+ "m-e3-veto-off": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+ ],
+ "m-e4-policy-21": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+ ],
+ "m-e5-default-26": [],
+ "m-e6-ir-unknown-key": [
+  "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types"
+ ],
+ "m-e7-ir-bool-two-layer": [
+  "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types",
+  "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]"
+ ],
+ "m-e8-dup-key": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections"
+ ],
+ "m-e9-excluded-leak": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+ ],
+ "m-e10-justification-leak": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+ ],
+ "m-e11-verify-s2": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+ ],
+ "m-e12-perf-identity-off": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout"
+ ],
+ "m-e13-outcome-flat": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes"
+ ],
+ "m-e14-preview-needs-auditor": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in"
+ ],
+ "m-e15-reason-free-text": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input"
+ ],
+ "m-e16-anomaly-uncapped": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count"
+ ],
+ "m-e17-record-passing": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure"
+ ]
+}

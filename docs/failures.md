@@ -1596,6 +1596,8 @@
 - **再発: 2026-09-19** — [T-2724] 凍結 v2 g1 の chain + G を main へ取り込む wave の段 1 で、pin 閉包を持ち込む成果物の **file 名** (`holdout_freeze.v2.g1`、`s8b-freeze-budget-inputs/g1`、run dir 名) の `git grep` だけで作り、**directory 名 `"output/s8b-freeze"` を丸ごと列挙して bytes digest を固定する pin** (`orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate` と `tools/pegasus/b10_backoff_grid.sh` の `EXPECTED_FREEZE_TREES_SHA256`、B-10 の起動契約) を数え落とした。焦点走 8 file (前回 wave の集合の流用) にもこの test file は無く、受入全走 (30 分) で初めて赤 1 node (1 failed / 25311 passed) が出て、chain を land できずに終端した。`DW-O09` の「path 検索は path key の pin しか出さない。role 名や xdist group 名など key 側でも検索し、hit 0 件を pin なしとしない」を、**directory 名と算法名 (`rglob`、`freeze_digest`、`EXPECTED_*SHA256`、`FROZEN_MANIFEST`) の key 側検索**として適用していなかった。追加だけで凍結 gate が赤になる型は memory `grid-constants-and-new-artifact-names-hit-freeze-gates` (2026-08-26) が既に記録していた。一次資料 `output/insights/2026-09-19/t2724-chain-land-2/README.md` §5。
 
 - **再発: 2026-09-19** — near miss (実害なし)。dead-code 棚卸し wave (`worktree-dw-dead-code-inventory`) の段 1 で、削除候補 3 file の参照を tracked text へ `grep -F` で走査したが、**走査対象を拡張子 allowlist (`.md .sh .py .json …`) で絞った**ため `output/insights/2026-09-16/t2638-codex-worktree-retirement/data/reach2.tsv` (到達性台帳、`.tsv`) の参照 6 件を落とし、hit 0 を「無参照 (A)」と結論して削除を brief に載せた。段 5 の author 子に「削除前に自分でも grep して 0 件を確かめよ」と書いていたため子が参照を見つけて削除を保留し、実害はない。恒久対応は `DW-O09` から変更なし (「hit 0 件を pin なしとしない」の適用先に**走査対象の絞り込み**を加える: 参照走査は binary 以外の全 tracked file を対象にし、allowlist で絞った走査の 0 件を根拠にしない。同 wave の段 6 review は import graph 側でも親 package `__init__.py` への暗黙辺の欠落を見つけた — 「静的走査の 0 件」は削除の十分条件ではなく、削除 prompt の自己検査を常に併用する)。原本 `output/insights/2026-09-19/dw-dead-code-inventory/README.md` §1。
+
+- **再発: 2026-09-26** — [T-2865] 段階 E の wave で、承認済みの `.claude/agents/auditor.md` 改訂を統合する前に、その path の pin 閉包 (DW-O09 の `git grep -n`) を段 1 で引かなかった。`orchestrator/tests/test_mocc_template_proof.py` の consumer が MOCC template proof JSON に記録された auditor.md の whole-file sha256 と現行の一致を要求しており、統合後の焦点走で初めて 2 件の赤として現れた。land 前に検出し、束縛を記録済みの MOCC 用 auditor 項目と現行項目の一致へ置き換えた (D2256 決定 8、proof は取り直さない)。同じ見落としの 2 件目は最終受入で現れた: `orchestrator/tests/test_reflux_originless_compatibility.py` の wave 前の基準が role file の sha256 を多重集合で持ち、auditor.md の sha 変更で 1 件赤になった。過去の role 改訂 wave と同じ型の追随関数を足して閉じた。受入 1 回分の費用で、実害なし。恒久対応は既存どおり (DW-O09: 変える file の path と内容 hash で pin する test・台帳を着手前に全列挙する。role 定義の `.md` も対象で、sha256 の値でも検索する — F370)。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -2569,6 +2571,8 @@
 - **再発: 2026-09-21** — [T-2797] で新設した `orchestrator/tests/test_b5_tier0.py` が自走入口 (`__main__`) を持たず、焦点走 f1 の `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` が赤になった。段 4 で「新規 test file」と決めたのに、段 5 の author prompt へ自走入口の定型を入れなかった (親の落ち度)。焦点走に同 meta-test を入れていたので受入は空振りしていない。段 6 fix1 で自走入口を足した。
 
 - **再発: 2026-09-23** — [T-2849] で U-A の実装子が足した新規 test 2 本 (`orchestrator/tests/test_t2849_loop_entry.py`・`test_t2853_trace_preservation.py`) に自走 harness も allowlist 記載も無く、最終の受入全走 1 回目が `orchestrator/tests/test_plain_runner_coverage.py` の 1 件だけで赤になった (同じ wave の他の新規 5 本は自走 harness を持っていた)。子の sandbox は試験を実走できず、親は焦点走の file 集合に DW-O26 の「新規 test file を足す走は file 集合列挙のメタテストも含める」を適用しなかった。U-A の fix 子が 2 本へ同形の自走 harness を足して受入を取り直した。
+
+- **再発: 2026-09-26** — [T-2865] 段階 E の wave で、新設した `orchestrator/tests/test_p3_s4_loop_policy.py` (pytest の fixture に依存) を pytest 専用 allowlist に載せず、親の焦点走 4 回の file 集合にも `test_plain_runner_coverage.py` を入れていなかった。最終受入の赤 1 件として現れ、allowlist に 1 行足して閉じた (受入 1 回分の費用、実害なし)。恒久対応は既存どおり (新設 test file がある wave では焦点走の集合に `test_plain_runner_coverage.py` を必ず入れる、DW-O26)。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -25856,6 +25860,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: job が `failure.json` に `stage=source_identity` を書く。
   無駄になった割当ては scheduler の Elapse (今回 7 秒) と `failure.json` の対で識別できる。
 
+
+- **再発: 2026-09-26** — [T-2865] 段階 E の wave で、焦点走 (`tools/run_tests.py --force-dispatch`) の job が待ち行列にいる間に、親が runbook を未 commit で編集した。job は走行開始時点の作業ツリーを見るため、`orchestrator/tests/test_p3_b4_wiring_probe.py` の「作業ツリーの変更は source と test だけ」検査が docs の未 commit 変更で赤になった (非帰属の赤 1 件)。runbook を commit してから次の焦点走で緑を確かめた。実害なし。恒久対応は既存どおり (memory `dirty-tree-during-pending-job`: 投入中の job がある worktree では書かない)。
 ### F937. 凍結物の「人間裁定待ち」を decisions.md で照合せず、未裁定を前提に段 1 brief を書いた [ドリフト]
 
 - 事象: 軸 3 の凍結契約 `2026-09-01-axis3-search-amendment.md` §6 と凍結実行記録
@@ -28239,6 +28245,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21 (near miss、[T-2844] wave)** — 変異用の独立 clone を作る script に、候補 JSON の commit の 40 hex SHA を `git rev-parse` の出力から写さず、頭 9 桁 (`6fa89b563`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、clone の途中で止まったので実害は無い。`rev-parse` の値で作り直した。同日 2 度目の再発で、既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
 
 - **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 5 の unit worktree を作る script の起点に、`git rev-parse` の出力を写さず短縮 SHA の後ろを推測で埋めた値を渡した。`git worktree add` が `Not a valid object name` (rc=255) で止まり、branch も worktree も作られなかった。`rev-parse` の 40 hex を写して作り直した。既存の再発検知 (object 名の失敗で推測 SHA を疑う) が効いた。
+
+- **再発: 2026-09-26 (near miss、[T-2865] wave)** — 段 6 の fix 用 branch を切る script に、wave commit の SHA を `git rev-parse` の出力から写さず短縮形 (`41b8019a9`) に 1 文字足して渡し、`git checkout -b` が `is not a commit` で拒否した。何も作られずに止まったので実害は無い。`rev-parse` の値で作り直した。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。

@@ -166,6 +166,12 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             "registered sort exploration CLI coder-authority issuer",
             CODER_ENTRYPOINT,
         ),
+    "orchestrator.campaign.p3_s4_loop_policy.main":
+        MaterializerRegistration(
+            ADMITTED_GATEWAY,
+            "registered Silo policy exploration CLI coder-authority issuer",
+            CODER_ENTRYPOINT,
+        ),
     "orchestrator.campaign.p3_s4_loop_trigger_gating.main":
         MaterializerRegistration(
             ADMITTED_GATEWAY,

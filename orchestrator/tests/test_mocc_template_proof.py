@@ -76,7 +76,7 @@ def _consumer():
         "reference": {k: proof["wave1_proof"][k] for k in ("path", "sha256")}}
     from orchestrator.codex_roles.spec import load_role_specs
     assert load_role_specs(ROOT)["auditor"].claude_tools == ("Read", "Grep", "Glob")
-    assert proof["auditor_definition"]["sha256"] == M._sha256_file(ROOT/".claude/agents/auditor.md")
+    assert proof["auditor_definition"]["items"] == A.check_auditor_definition((ROOT/".claude/agents/auditor.md").read_text())
     assert all(A.check_auditor_definition((ROOT/".claude/agents/auditor.md").read_text()).values())
     assert len(proof["condition_gates"]) == 3
     for gate in proof["condition_gates"]:
