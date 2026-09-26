@@ -8378,6 +8378,43 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
     assert commit.payload.get("verify_configs") == ["legacy", "s2"]
 
 
+def test_concurrent_verify_extends_only_initial_settle():
+    for concurrent in (False, True):
+        calls = []
+        with _mock_pipeline() as _fixture:
+            original_remeasure = pipeline.remeasure_until_stable
+
+            def settle(**kwargs):
+                calls.append(("settle", kwargs))
+                return {"settled": True}
+
+            def remeasure(measure_fn, *, settle_fn=None, **kwargs):
+                if settle_fn is not None:
+                    settle_fn()
+                return original_remeasure(
+                    measure_fn, settle_fn=settle_fn, **kwargs,
+                )
+
+            with unittest_mock.patch.object(pipeline, "settle", settle), \
+                    unittest_mock.patch.object(
+                        pipeline, "remeasure_until_stable", remeasure):
+                result = pipeline.evaluate(
+                    Genome("silo", {"BACK_OFF": 1}), _tmp_layout(),
+                    _AUTH_CONTRACT.env_tag, "deadbeef",
+                    PerfConfig(records=1000, threads=2),
+                    clocks_per_us=1800, numactl=list(_AUTH_CONTRACT.numactl),
+                    authorization_contract=_AUTHORIZATION,
+                    build_context=_BUILD_CONTEXT,
+                    verify_performance_concurrent=concurrent,
+                    log=lambda *_: None,
+                )
+        assert result.certified and not result.aborted
+        assert calls == [
+            ("settle", {"timeout_s": 120.0} if concurrent else {}),
+            ("settle", {}),
+        ]
+
+
 def test_pipeline_extra_correctness_second_pass_red_aborts_with_workload_tag():
     """legacy は緑、S2 (2 パス目) が赤 → 即 abort。abort payload に workload タグ
     (D36 決定4-3) が載り、次手生成がどの構成で壊れたか帰属できる。legacy・S2 両方の

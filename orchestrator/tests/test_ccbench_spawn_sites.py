@@ -94,6 +94,9 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # Forked children run only the correctness verifier on collected traces;
+    # they never launch a CCBench binary or a measurement.
+    ("campaign/pipeline.py", "<module>._prepare_evaluation_core._run_local_concurrent_pass"): 1,
     # Opt-in trace archive compression; fixed zstd argv, no shell or CCBench.
     ("campaign/pipeline.py", "<module>._compress_trace_archive"): 1,
     # Opt-in archive Git reads use fixed HEAD/diff argv and cannot run CCBench.

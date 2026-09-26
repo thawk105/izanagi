@@ -17,6 +17,7 @@ import hmac
 import math
 import json
 import os
+import signal
 from pathlib import Path
 import re
 import secrets
@@ -47,6 +48,7 @@ from ..verifier.core import result_to_dict_v3                 # noqa: E402
 from ..verifier.commit_receipt import (                          # noqa: E402
     admit_remote_verification_receipt,
     campaign_lock_sha256_or_absent,
+    serialize_remote_verification_receipt,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
 from ..verifier.model import (                                   # noqa: E402
@@ -357,6 +359,22 @@ def _parse_commit_witness(stdout: str) -> Tuple[Optional[int], Optional[int]]:
 # (s2_verify_calibration.py)。abort payload (trace-timeout) にも記録する — 「どの上限で
 # 打ち切られたか」が無いと liveness-red の次手入力が空になる (規律3)。
 TRACE_TIMEOUT_S = 120.0
+_LOCAL_GROUP_GONE_TIMEOUT_S = 5.0
+
+def _local_group_has_live_members(pgid: int) -> bool:
+    with os.scandir("/proc") as entries:
+        for entry in entries:
+            if not entry.name.isdecimal():
+                continue
+            try:
+                stat = Path(f"/proc/{entry.name}/stat").read_text(encoding="utf-8")
+            except (FileNotFoundError, ProcessLookupError):  # Process exited during the scan.
+                continue
+            if len(parts := stat.rpartition(") ")[2].split()) < 3:
+                raise ValueError(f"unparseable proc stat for pid {entry.name}")
+            if int(parts[2]) == pgid and parts[0] != "Z":
+                return True
+    return False
 
 
 class _TraceRunResult(NamedTuple):
@@ -493,6 +511,118 @@ class _RepetitionExecutionOutcome:
     commit_count_witness: Optional[int] = None
 
 
+def _collect_verification_trace(
+        binary: str, trace_dir: str, flags: Mapping[str, str],
+        clocks_per_us: int, *, timeout_s: float,
+        numactl: Optional[Sequence[str]], receipt_workload_tag: str,
+        trace_runner: Callable[..., _TraceRunResult],
+) -> tuple[Optional[_TraceRunResult], Optional[_RepetitionExecutionOutcome]]:
+    """Collect and validate a trace before any concurrent verifier starts."""
+    run_trace = trace_runner
+    archive_witness = None
+
+    def abort(reason: str, message: str,
+              detail: Optional[Dict[str, Any]] = None) -> _RepetitionExecutionOutcome:
+        return _RepetitionExecutionOutcome(abort=_RepetitionAbortOutcome(
+            reason, message, dict(detail or {}), receipt_workload_tag,
+        ), commit_count_witness=archive_witness)
+
+    try:
+        trace_result = run_trace(
+            binary, trace_dir, dict(flags), clocks_per_us,
+            timeout_s=timeout_s, numactl=numactl,
+        )
+    except subprocess.TimeoutExpired:
+        return None, abort(
+            "trace-timeout",
+            f"trace 取得タイムアウト ({receipt_workload_tag}) → reject",
+            {"timeout_s": timeout_s},
+        )
+    except _TraceDirNotEmpty as exc:
+        return None, abort(
+            "trace-no-commit-witness",
+            f"trace_dir に既存 trace がある ({receipt_workload_tag}) → "
+            "witness を帰属できず reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "preexisting_trace_files": list(exc.paths),
+            },
+        )
+    except _TraceDirUnavailable as exc:
+        return None, abort(
+            "trace-no-commit-witness",
+            f"trace_dir を検査できない ({exc.reason}, {receipt_workload_tag}) → "
+            "witness を帰属できず reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "trace_dir": exc.path,
+                "trace_dir_error": exc.reason,
+            },
+        )
+    except _TraceWitnessUnsupportedWorkload as exc:
+        return None, abort(
+            "trace-witness-unsupported-workload",
+            f"commit witness 未対応 workload ({exc.workload}, "
+            f"{receipt_workload_tag}) → reject",
+            {
+                "commit_witness": {
+                    "commit_counts": None,
+                    "batch_commit_counts": None,
+                },
+                "binary_workload": exc.workload,
+            },
+        )
+
+    ncommit = trace_result.trace_c_lines
+    rc = trace_result.returncode
+    aborts = trace_result.abort_counts
+    commit_witness = {
+        "commit_counts": trace_result.commit_count_witness,
+        "batch_commit_counts": trace_result.batch_commit_count_witness,
+    }
+    if rc != 0:
+        return None, abort(
+            "trace-run-nonzero-exit",
+            f"trace バイナリ異常終了 ({receipt_workload_tag}) rc={rc} → reject",
+            {"rc": rc, "commits": ncommit},
+        )
+    if ncommit == 0:
+        return None, abort(
+            "trace-empty",
+            f"空トレース ({receipt_workload_tag}, commit 0) → 検証不能 reject",
+            {"commits": 0, "aborts": aborts},
+        )
+    if aborts is None:
+        return None, abort(
+            "trace-no-abort-counts",
+            f"ccbench stdout に abort_counts_ 集計が無い "
+            f"({receipt_workload_tag}) → 空振り認証を検査できず reject",
+            {"commits": ncommit},
+        )
+    if (trace_result.commit_count_witness is None
+            or trace_result.batch_commit_count_witness is None):
+        return None, abort(
+            "trace-no-commit-witness",
+            f"ccbench stdout の commit witness が欠落または不正 "
+            f"({receipt_workload_tag}) → reject",
+            {"commits": ncommit, "commit_witness": commit_witness},
+        )
+    if trace_result.batch_commit_count_witness != 0:
+        return None, abort(
+            "trace-batch-commits-unattributed",
+            f"batch commit を trace C 行へ帰属できない "
+            f"({receipt_workload_tag}) → reject",
+            {"commits": ncommit, "commit_witness": commit_witness},
+        )
+    return trace_result, None
+
+
 def _execute_verification_repetition(
         binary: str, trace_dir: str, flags: Mapping[str, str],
         clocks_per_us: int, *, timeout_s: float,
@@ -505,6 +635,7 @@ def _execute_verification_repetition(
         payload_binary: Optional[str] = None,
         trace_runner: Optional[Callable[..., _TraceRunResult]] = None,
         verifier_runner: Optional[Callable[..., tuple[object, object]]] = None,
+        collected_trace_result: Optional[_TraceRunResult] = None,
 ) -> _RepetitionExecutionOutcome:
     """Run the existing trace witness and verifier gates without WAL access.
 
@@ -530,99 +661,23 @@ def _execute_verification_repetition(
             workload_tag=receipt_workload_tag,
         ), commit_count_witness=archive_witness)
 
-    try:
-        trace_result = run_trace(
-            binary, trace_dir, dict(flags), clocks_per_us,
-            timeout_s=timeout_s, numactl=numactl,
+    if collected_trace_result is None:
+        trace_result, trace_abort = _collect_verification_trace(
+            binary, trace_dir, flags, clocks_per_us, timeout_s=timeout_s,
+            numactl=numactl, receipt_workload_tag=receipt_workload_tag,
+            trace_runner=run_trace,
         )
-    except subprocess.TimeoutExpired:
-        return abort(
-            "trace-timeout",
-            f"trace 取得タイムアウト ({receipt_workload_tag}) → reject",
-            {"timeout_s": timeout_s},
-        )
-    except _TraceDirNotEmpty as exc:
-        return abort(
-            "trace-no-commit-witness",
-            f"trace_dir に既存 trace がある ({receipt_workload_tag}) → "
-            "witness を帰属できず reject",
-            {
-                "commit_witness": {
-                    "commit_counts": None,
-                    "batch_commit_counts": None,
-                },
-                "preexisting_trace_files": list(exc.paths),
-            },
-        )
-    except _TraceDirUnavailable as exc:
-        return abort(
-            "trace-no-commit-witness",
-            f"trace_dir を検査できない ({exc.reason}, {receipt_workload_tag}) → "
-            "witness を帰属できず reject",
-            {
-                "commit_witness": {
-                    "commit_counts": None,
-                    "batch_commit_counts": None,
-                },
-                "trace_dir": exc.path,
-                "trace_dir_error": exc.reason,
-            },
-        )
-    except _TraceWitnessUnsupportedWorkload as exc:
-        return abort(
-            "trace-witness-unsupported-workload",
-            f"commit witness 未対応 workload ({exc.workload}, "
-            f"{receipt_workload_tag}) → reject",
-            {
-                "commit_witness": {
-                    "commit_counts": None,
-                    "batch_commit_counts": None,
-                },
-                "binary_workload": exc.workload,
-            },
-        )
-
+        if trace_abort is not None:
+            return trace_abort
+    else:
+        trace_result = collected_trace_result
+    assert trace_result is not None
     ncommit = trace_result.trace_c_lines
-    rc = trace_result.returncode
     aborts = trace_result.abort_counts
     commit_witness = {
         "commit_counts": trace_result.commit_count_witness,
         "batch_commit_counts": trace_result.batch_commit_count_witness,
     }
-    if rc != 0:
-        return abort(
-            "trace-run-nonzero-exit",
-            f"trace バイナリ異常終了 ({receipt_workload_tag}) rc={rc} → reject",
-            {"rc": rc, "commits": ncommit},
-        )
-    if ncommit == 0:
-        return abort(
-            "trace-empty",
-            f"空トレース ({receipt_workload_tag}, commit 0) → 検証不能 reject",
-            {"commits": 0, "aborts": aborts},
-        )
-    if aborts is None:
-        return abort(
-            "trace-no-abort-counts",
-            f"ccbench stdout に abort_counts_ 集計が無い "
-            f"({receipt_workload_tag}) → 空振り認証を検査できず reject",
-            {"commits": ncommit},
-        )
-    if (trace_result.commit_count_witness is None
-            or trace_result.batch_commit_count_witness is None):
-        return abort(
-            "trace-no-commit-witness",
-            f"ccbench stdout の commit witness が欠落または不正 "
-            f"({receipt_workload_tag}) → reject",
-            {"commits": ncommit, "commit_witness": commit_witness},
-        )
-    if trace_result.batch_commit_count_witness != 0:
-        return abort(
-            "trace-batch-commits-unattributed",
-            f"batch commit を trace C 行へ帰属できない "
-            f"({receipt_workload_tag}) → reject",
-            {"commits": ncommit, "commit_witness": commit_witness},
-        )
     archive_witness = trace_result.commit_count_witness
     try:
         verify_result, verification_capability = run_verifier(
@@ -1230,6 +1285,7 @@ class _PreparedEvaluation:
     screening_disabled_payload: Optional[Dict]
     bench: Optional[_BenchResult] = None
     record_rep_integer_counters: bool = False
+    verify_performance_concurrent: bool = False
 
 
 def derive_balanced_schedule(
@@ -1280,6 +1336,8 @@ _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
     "perf_observation", "screening", "rep_returncodes", "reps",
 })
 _BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
+# 本番順序の実測 67・77 秒の最大値に約 1.5 倍の余裕を持たせる。
+_CONCURRENT_VERIFY_SETTLE_TIMEOUT_S = 120.0
 _BENCH_DONE_PAYLOAD_KEYS = (
     _BENCH_DONE_REQUIRED_PAYLOAD_KEYS
     | _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
@@ -1341,6 +1399,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                *,
                build_attempt_id: str,
                record_rep_integer_counters: bool = False,
+               verify_performance_concurrent: bool = False,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     if type(build_attempt_id) is not str or not build_attempt_id:
@@ -1428,7 +1487,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                 return abort("bench-competing-tenant",
                              "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
                              {"competing": comp, "bench_wall_s": bench_wall_s}), None
-            settled = settle() if do_settle else None
+            settled = (settle(timeout_s=_CONCURRENT_VERIFY_SETTLE_TIMEOUT_S)
+                       if verify_performance_concurrent else settle()) if do_settle else None
             bench_started = time.monotonic()
             try:
                 rem = remeasure_until_stable(_measure,
@@ -1616,6 +1676,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              a1_source_context=None,
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
+             verify_performance_concurrent: bool = False,
              ) -> EvalResult | _PreparedEvaluation:
     """Build and verify one genome, preserving state for later bench/commit.
 
@@ -1700,6 +1761,12 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     if (verify_fanout_launcher is not None
             and not callable(verify_fanout_launcher)):
         raise TypeError("verify_fanout_launcher は callable または None が必要")
+    if type(verify_performance_concurrent) is not bool:
+        raise TypeError("verify_performance_concurrent は exact bool が必要")
+    if verify_performance_concurrent and verify_fanout_hosts:
+        raise ValueError("local concurrent verify と remote fan-out は併用できない")
+    if verify_performance_concurrent and qualification_policy is not None:
+        raise ValueError("local concurrent verify は campaign WAL に限る")
     if type(use_perf) is not bool:
         raise TypeError("use_perf は bool でなければならない")
     if (isinstance(bench_max_rounds, bool) or not isinstance(bench_max_rounds, int)
@@ -2230,6 +2297,227 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 return aborted
         return None
 
+    def _run_local_concurrent_pass(
+            tag: str, workload: CorrectnessWorkload,
+            pass_numactl: Optional[Sequence[str]],
+    ) -> Optional[EvalResult]:
+        """Collect in order, verify in forked children, and project in rep order."""
+        if type(workload.reps) is not int or workload.reps <= 0:
+            raise ValueError("correctness workload reps must be a positive exact integer")
+        if workload.reps == 1:
+            return _run_one_pass(tag, workload, pass_numactl)
+        collected: list[tuple[str, Optional[_TraceRunResult],
+                              Optional[_RepetitionExecutionOutcome]]] = []
+        children: dict[int, int] = {}  # Only direct children not yet reaped.
+        tasks: dict[int, tuple[dict[str, Any], str, bytes]] = {}
+        finished: dict[int, _RepetitionExecutionOutcome] = {}
+        acquisition_failure: Optional[int] = None
+        workdir = tempfile.mkdtemp(prefix="izanagi_verify_local_")
+
+        def unavailable(rep: int, detail: str) -> _RepetitionExecutionOutcome:
+            return _RepetitionExecutionOutcome(abort=_RepetitionAbortOutcome(
+                "verify-local-unavailable",
+                f"local verify result を確定できない (rep={rep}) → reject",
+                {"local": {"rep": rep, "error": detail[-2000:]}}, tag,
+            ))
+
+        def child(rep: int, trace_dir: str, trace: _TraceRunResult,
+                  task: dict[str, Any], result_path: str, secret: bytes) -> None:
+            try:
+                # The verifier forks pool workers.  Give this repetition a
+                # separate group before any of those workers can start.
+                os.setpgid(0, 0)
+                outcome = _execute_verification_repetition(
+                    tr.binary, trace_dir, workload.flags, clocks_per_us,
+                    timeout_s=TRACE_TIMEOUT_S, numactl=pass_numactl,
+                    genome=genome, source_evidence=evidence,
+                    build_admission=admission, receipt_sink_kind=receipt_sink_kind,
+                    receipt_lock_identity_sha256=receipt_lock_identity,
+                    receipt_variant=v, receipt_operation_identity=build_attempt_id,
+                    receipt_workload_tag=tag, build_attempt_id=build_attempt_id,
+                    trace_binary_sha256=tr.bin_sha256,
+                    include_qualification_evidence=False,
+                    payload_binary=tr.binary, collected_trace_result=trace,
+                )
+                if outcome.abort is None:
+                    payload = outcome.verify_payload
+                    receipt = serialize_remote_verification_receipt(
+                        outcome.verification_capability,
+                        task_sha256=task["task_sha256"],
+                        verify_payload_sha256=_json_sha256(payload),
+                    )
+                    wire = {"kind": "success", "verify_payload": payload,
+                            "remote_verification_receipt": receipt}
+                else:
+                    rejected = outcome.abort
+                    wire = {
+                        "kind": "abort", "reason": rejected.reason,
+                        "message": rejected.message, "detail": rejected.detail,
+                        "workload_tag": tag, "verify_payload": outcome.verify_payload,
+                    }
+                result = {
+                    "schema": _VERIFY_FANOUT_RESULT_SCHEMA,
+                    "task_sha256": task["task_sha256"],
+                    "build_attempt_id": build_attempt_id, "tag": tag,
+                    "rep": rep, "trace_bin_sha256": tr.bin_sha256,
+                    "outcome": wire,
+                }
+                result["result_mac"] = hmac.new(
+                    secret, _canonical_json_bytes(result), hashlib.sha256,
+                ).hexdigest()
+                _write_create_only_json(result_path, result)
+                os._exit(0)
+            except BaseException:
+                os._exit(1)
+
+        def kill_group(pid: int) -> None:
+            # Call while the direct child is still owned (possibly a zombie),
+            # so its PID cannot have been reused for an unrelated group.
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        def wait_group_gone(pid: int) -> Optional[str]:
+            deadline = time.monotonic() + _LOCAL_GROUP_GONE_TIMEOUT_S
+            while True:
+                try:
+                    if not _local_group_has_live_members(pid):
+                        return None
+                except (OSError, ValueError) as exc:
+                    return f"local verifier process group {pid} cannot be checked: {_exc_summary(exc)}"
+                if time.monotonic() >= deadline:
+                    return f"local verifier process group {pid} survived SIGKILL"
+                time.sleep(0.01)
+
+        try:
+            for rep in range(workload.reps):
+                trace_dir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
+                collected.append((trace_dir, None, None))
+                trace, failure = _collect_verification_trace(
+                    tr.binary, trace_dir, workload.flags, clocks_per_us,
+                    timeout_s=TRACE_TIMEOUT_S, numactl=pass_numactl,
+                    receipt_workload_tag=tag, trace_runner=_run_trace,
+                )
+                collected[rep] = (trace_dir, trace, failure)
+                if failure is not None:
+                    acquisition_failure = rep
+                    break
+            for rep, (trace_dir, trace, _failure) in enumerate(collected):
+                if trace is None:
+                    break
+                body = {
+                    "schema": "verify-local-task/v1",
+                    "campaign_lock_sha256": receipt_lock_identity,
+                    "variant": v, "build_attempt_id": build_attempt_id,
+                    "tag": tag, "rep": rep,
+                    "trace_bin_sha256": tr.bin_sha256,
+                    "trace_dir": trace_dir,
+                    "expected_commits": trace.commit_count_witness,
+                }
+                task = {**body, "task_sha256": _json_sha256(body),
+                        "receipt_sink_kind": receipt_sink_kind}
+                secret = secrets.token_bytes(32)
+                result_path = os.path.join(workdir, f"result-{rep}.json")
+                try:
+                    pid = os.fork()
+                except OSError as exc:
+                    acquisition_failure = rep
+                    finished[rep] = unavailable(rep, _exc_summary(exc))
+                    break
+                if pid == 0:
+                    child(rep, trace_dir, trace, task, result_path, secret)
+                    os._exit(1)
+                children[rep] = pid
+                try:
+                    os.setpgid(pid, pid)
+                except (ProcessLookupError, PermissionError):
+                    # The child either already exited or won the setpgid race.
+                    pass
+                tasks[rep] = task, result_path, secret
+
+            failure_rep = acquisition_failure
+            admitted: set[str] = set()
+            statuses: dict[int, tuple[int, Optional[str]]] = {}
+            next_rep = 0
+            while children:
+                progress = False
+                for rep, pid in list(children.items()):
+                    observed = os.waitid(
+                        os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
+                    )
+                    if observed is None:
+                        continue
+                    progress = True
+                    kill_group(pid)
+                    group_error = wait_group_gone(pid)
+                    _, status = os.waitpid(pid, 0)
+                    del children[rep]
+                    statuses[rep] = os.waitstatus_to_exitcode(status), group_error
+                while next_rep in statuses and (
+                        failure_rep is None or next_rep < failure_rep):
+                    rep = next_rep
+                    task, result_path, secret = tasks[rep]
+                    rc, group_error = statuses.pop(rep)
+                    outcome = (unavailable(rep, group_error) if group_error else
+                               _admit_verify_fanout_result(
+                                   task, host="local", result_path=result_path,
+                                   launch_result=subprocess.CompletedProcess([], rc, "", ""),
+                                   result_secret=secret, admitted_task_sha256s=admitted,
+                               ))
+                    if (outcome.abort is not None
+                            and outcome.abort.reason == "verify-remote-unavailable"):
+                        outcome = unavailable(rep, repr(outcome.abort.detail))
+                    finished[rep] = outcome
+                    if outcome.abort is not None:
+                        failure_rep = rep if failure_rep is None else min(failure_rep, rep)
+                    next_rep += 1
+                if failure_rep is not None:
+                    for rep, pid in list(children.items()):
+                        if rep > failure_rep:
+                            kill_group(pid)
+                            wait_group_gone(pid)
+                            os.waitpid(pid, 0)
+                            del children[rep]
+                if not progress and children:
+                    time.sleep(0.01)
+            limit = failure_rep if failure_rep is not None else len(collected) - 1
+            for rep in range(limit + 1):
+                outcome = collected[rep][2] or finished[rep]
+                aborted = _project_repetition_outcome(tag, outcome)
+                if aborted is not None:
+                    return aborted
+            return None
+        finally:
+            for rep, pid in list(children.items()):
+                kill_group(pid)
+                wait_group_gone(pid)
+                os.waitpid(pid, 0)
+                del children[rep]
+            for trace_dir, trace, failure in collected:
+                preserved = True
+                archive_root = os.environ.get("IZANAGI_TRACE_ARCHIVE_ROOT")
+                if archive_root is not None:
+                    try:
+                        _preserve_trace_directory(
+                            trace_dir, archive_root,
+                            campaign_id=os.path.basename(os.path.normpath(layout.root)),
+                            variant=v, build_attempt_id=build_attempt_id, tag=tag,
+                            workload_flags=workload.flags, genome=genome,
+                            trace_binary_sha256=tr.bin_sha256,
+                            commit_count_witness=(
+                                failure.commit_count_witness if failure is not None
+                                else trace.commit_count_witness if trace is not None else None
+                            ), evidence=evidence,
+                        )
+                    except Exception as exc:
+                        preserved = False
+                        print(f"trace preservation failed; original retained at {trace_dir}: {exc}",
+                              file=sys.stderr)
+                if preserved:
+                    shutil.rmtree(trace_dir, ignore_errors=True)
+            shutil.rmtree(workdir, ignore_errors=True)
+
     def _run_fanout_pass(
             tag: str, workload: CorrectnessWorkload,
             pass_numactl: Optional[Sequence[str]],
@@ -2399,7 +2687,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         record_rep_integer_counters=record_rep_integer_counters,
             holdout_observation_admission=holdout_observation_admission,
             use_perf=use_perf,
-            perf_preflight_receipt=perf_preflight_receipt)
+            perf_preflight_receipt=perf_preflight_receipt,
+            **({"verify_performance_concurrent": True}
+               if verify_performance_concurrent else {}))
         if aborted_result is not None:
             return aborted_result
         assert bench is not None
@@ -2461,7 +2751,13 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                             "計測のまま採用せず reject (規律4)",
                             {"competing": comp}, workload_tag=tag)
                     else:
-                        if (verify_fanout_hosts
+                        if (verify_performance_concurrent
+                                and tag == PERFORMANCE_TAG
+                                and receipt_sink_kind == CAMPAIGN_WAL_SINK):
+                            aborted_result = _run_local_concurrent_pass(
+                                tag, workload, numactl,
+                            )
+                        elif (verify_fanout_hosts
                                 and tag == PERFORMANCE_TAG
                                 and receipt_sink_kind == CAMPAIGN_WAL_SINK
                                 and build_context.generator_id
@@ -2522,6 +2818,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         active_screening=active_screening,
         screening_disabled_payload=screening_disabled_payload,
         bench=bench,
+        verify_performance_concurrent=verify_performance_concurrent,
     )
 
 
@@ -2554,6 +2851,8 @@ def _bench_prepared(
         holdout_observation_admission=prepared.holdout_observation_admission,
         use_perf=prepared.use_perf,
         perf_preflight_receipt=prepared.perf_preflight_receipt,
+        **({"verify_performance_concurrent": True}
+           if prepared.verify_performance_concurrent else {}),
     )
     if aborted is not None:
         return aborted
@@ -2793,6 +3092,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              a1_source_context=None,
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
+             verify_performance_concurrent: bool = False,
              ) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
     if a1_source_context is not None and canonical_build_pin is None:
@@ -2870,6 +3170,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         a1_source_context=a1_source_context,
         verify_fanout_hosts=verify_fanout_hosts,
         verify_fanout_launcher=verify_fanout_launcher,
+        **({"verify_performance_concurrent": True}
+           if verify_performance_concurrent else {}),
         **fetchcontent_options,
     )
     passes = (outcome,)

@@ -358,6 +358,8 @@ def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt,
     argv += ["--isolate-worktree", "--fetchcontent-prebuild-receipt", str(prebuild_receipt),
              "--calibrated-perf", "--perf-workload", workload, "--verify-performance",
              "--b5-slot", key, "--b5-sidecar-dir", str(sidecar_dir)]
+    if workload == "write-heavy":
+        argv.append("--verify-performance-concurrent")
     if protocol == "mocc":
         argv += ["--protocol", "mocc"]
     if reference_path is not None:
@@ -456,6 +458,8 @@ def _header(cohort, arm, workload, series, block, repo_root, a_limit, b_limit, n
                   limits=["Saved inputs do not prove delivery or absence of parent advice."])
     if protocol == "mocc":
         header["protocol"] = "mocc"
+    if workload == "write-heavy":
+        header["verify_performance_method"] = "local-concurrent"
     return header
 
 
