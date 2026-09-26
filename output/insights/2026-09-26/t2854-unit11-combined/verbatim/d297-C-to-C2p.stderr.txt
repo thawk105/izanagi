@@ -1,0 +1,1 @@
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: header の変更は consumer TU での解析が必要であり、この checker の保証範囲外なので fail-closed で拒否する: 'include/tpcc.hh'
