@@ -21186,6 +21186,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   是正 = 4 block を観測に格下げし、走行前に事前登録して configure を pilot と一致させた主解析 (Q2) をやり直した (insight §4)。
   教訓 = 実装子が helper を流用した場合、smoke の bindings に出る実 define を本走前に条件表と照合する (F707 の恒久対応「要求した
   define が実際に効いたことを build 側の実体で確かめる」を、親の投入前手順として適用する)。
+
+- **再発: 2026-09-26** — [T-2850] の費用比較で、検証の同時化を測る使い捨て script が「固定 8 µs の候補」を `-DCCBENCH_BACKOFF_FIXED=8` だけで指定し、stock と同じ build の trace を測った (取引数と検査時間が stock と一致したことで親が気づいた)。候補の値は hole code の `now_backoff` 代入か template patch で入り、define だけでは効かない。測った 1 job (458 s) は stock の再現として扱い、同じ定義の rh の job は投入前に止め、flag だけで実現できる B0-L-W0 を代理にした。記録は `output/insights/2026-09-26/t2850-trial-pause-cost-options/README.md` §3.2。
 ### F708. 新規 worktree に無い ignored directory を前提にする検査が決定的に赤になる [テスト代表性]
 
 - 事象: `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`
