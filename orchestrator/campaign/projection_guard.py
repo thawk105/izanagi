@@ -34,11 +34,16 @@ _CODER_OPTIONAL = frozenset({"value", "justification", "confidence"})
 CODER_CONTRACT_IMPLEMENTATION = "implementation"
 CODER_CONTRACT_TRIGGER_WIRE = "trigger-wire"
 CODER_CONTRACT_K2 = "k2-role-output"
+CODER_CONTRACT_POLICY_CPP = "policy-cpp"
+CODER_CONTRACT_POLICY_IR = "policy-ir"
 _CODER_CONTRACTS = frozenset({
     CODER_CONTRACT_IMPLEMENTATION,
     CODER_CONTRACT_TRIGGER_WIRE,
     CODER_CONTRACT_K2,
+    CODER_CONTRACT_POLICY_CPP,
+    CODER_CONTRACT_POLICY_IR,
 })
+_POLICY_CODER_OPTIONAL = frozenset({"justification", "confidence"})
 _TRIGGER_CODER_REQUIRED = frozenset({"axis", "wire"})
 _TRIGGER_CODER_OPTIONAL = frozenset({"justification", "confidence"})
 _K2_CODER_REQUIRED = frozenset({
@@ -298,6 +303,18 @@ def assert_closed_proposal_schema(
     """3 proposal loader 共通の required/optional closed key set gate。"""
     if type(coder_contract) is not str or coder_contract not in _CODER_CONTRACTS:
         raise ValueError("未知の coder contract mode")
+    if coder_contract in {CODER_CONTRACT_POLICY_CPP, CODER_CONTRACT_POLICY_IR}:
+        if require_coder_value or not require_auditor:
+            raise ValueError('policy proposal requires auditor and no value')
+        _assert_key_set(document, field='$', required=frozenset({'coder', 'auditor'}))
+        _assert_key_set(
+            document['coder'], field='$.coder',
+            required=frozenset({'axis', 'implementation' if coder_contract == CODER_CONTRACT_POLICY_CPP else 'ir'}),
+            optional=_POLICY_CODER_OPTIONAL,
+        )
+        _assert_key_set(document['auditor'], field='$.auditor',
+                        required=_AUDITOR_REQUIRED, optional=_AUDITOR_OPTIONAL)
+        return
     if (
         coder_contract == CODER_CONTRACT_TRIGGER_WIRE
         and require_coder_value

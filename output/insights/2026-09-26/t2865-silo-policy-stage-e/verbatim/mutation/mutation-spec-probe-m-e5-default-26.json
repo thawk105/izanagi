@@ -1,0 +1,42 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-e5-default-26",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/auditor_gate.py",
+     "old": "    *, max_violation_type: int = 21,\n",
+     "new": "    *, max_violation_type: int = 26,  # mutation M-E5\n"
+    },
+    {
+     "file": "orchestrator/campaign/auditor_gate.py",
+     "old": "    max_violation_type: InitVar[int] = 21\n",
+     "new": "    max_violation_type: InitVar[int] = 26  # mutation M-E5\n"
+    },
+    {
+     "file": "orchestrator/campaign/auditor_gate.py",
+     "old": "    template_diff_id: str,\n    max_violation_type: int = 21,\n) -> DiffQuarantineResult:\n",
+     "new": "    template_diff_id: str,\n    max_violation_type: int = 26,  # mutation M-E5\n) -> DiffQuarantineResult:\n"
+    },
+    {
+     "file": "orchestrator/campaign/auditor_gate.py",
+     "old": "                          max_violation_type: int = 21) -> DiffQuarantineResult:\n",
+     "new": "                          max_violation_type: int = 26) -> DiffQuarantineResult:  # mutation M-E5\n"
+    },
+    {
+     "file": "orchestrator/campaign/auditor_gate.py",
+     "old": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 21) -> AuditorVerdict:\n",
+     "new": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 26) -> AuditorVerdict:  # mutation M-E5\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

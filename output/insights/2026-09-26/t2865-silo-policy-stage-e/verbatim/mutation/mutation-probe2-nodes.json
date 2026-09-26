@@ -1,0 +1,6 @@
+{
+ "m-e5-default-26": [
+  "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22",
+  "orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21"
+ ]
+}

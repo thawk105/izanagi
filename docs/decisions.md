@@ -72514,3 +72514,112 @@ CCBench の別名 branch の push は項 2 のとおりで、本項の対象外�
 - V28 を「安全に作れない」として実走しない (段 2 plan の案) — 依頼の縮小。YCSB は insert / delete を生成せず、版は free でなく pool 再利用なので実走自体はでき、危険は結果の限界として書けばよい。
 - 変異も write skew の条件 (K) で走らせ、対照との巡回数の差で効果を言う — 1 回の走の差は帰属できない。
 - 条件 gate を通さず起動器から直 CMake で macro を渡す — 先例 (mocc・silo) と違う経路になり、gate の admission 済みと書けない。
+
+## D2253. 受入 shard-0 の候補 (a) (局所の写しを collection 中に作る) は対照診断で事前登録の基準を満たしたので実装 wave へ進め、land は実受入の隣接対で判定する (2026-09-26)
+
+**決定:**
+
+1. D2243 項 2 の対照診断 (repo に入れない replica probe、計算ノードで同一 job 内に A = 現行 と P = 写しを collection 中に作る形 を隣接、逐次 3 job、順序 A,P / P,A / A,P) で、有効 3 対の shard-0 W_0 の対差は +64.368 / +81.276 / +45.693 秒、対率中央値 18.0 %。事前登録の基準 (3 対すべて正 ∧ 対率中央値 ≥ 10 %) を満たした。次の一手は (a) の実装 wave とする。
+2. 実装の形は診断の P に揃える: 既存の早期 memo prewarm と同じ controller の `pytest_configure_node` で背景 thread を起こし、実関数 `_copy_git_visible_output` を session で 1 回だけ実 repo に呼んで session 所有の局所の写しを作り、共有 base の builder はその完成を待って写しから局所複製する。複製される集合・object store・index と全件性の検査 2 か所は変えない (D2068 の却下 3 案に触れない)。
+3. land は、実装 wave が段 4 で事前登録する実受入の隣接対の条件で判定する (D357、D2242 と同じ型)。5 分上限の達成は replica の値からは主張せず、その実受入で別判定する。
+4. (b) (発行 subprocess) は (a) の後の次の律速として名指しするが、(a) と同じ wave では実装しない。診断での発行 child の内訳は finalize_receipt 26.5 秒・draft_receipt 20.4 秒・validate_draft 19.8 秒・gate_check 13.2 秒・verify_receipt 6.6 秒 (計約 87 秒、CPU 支配)。
+
+**理由:**
+
+- D1936 項 35「prewarm 等は効果を先に測り、未確認のまま実装しない」の効果の測定が、実受入に近い条件 (温めた木で A の pre 65.2〜65.7 秒、A の W_0 357.7〜368.6 秒) の隣接 3 対で肯定側に出た。
+- 前回 (D2242) の実装が効かなかったのは、最初の builder が Lustre から写しを作り他の builder がそれを待つ形で、複製が依存 builder の構築時間に残ったことと整合する。今回の P は写しを collection と重ねたので、残った待ちは写しが collection を越えた分 (5.6〜27.1 秒) だけで、効果の大小もその待ちと逆順に並んだ。実装の形を P に揃える理由である。
+- (a) と (b) を同じ wave で入れると、実受入の隣接対で効果を分けられない。
+
+**却下した選択肢:**
+
+- replica の P の W_0 (287.3〜313.2 秒) を根拠に 5 分達成を言う — 実受入の外側 dispatch・shard-1 / 2・login collection を再現していない (段 4 裁定 B3)。
+- 実受入の隣接対を省いて land する — 前回は第 4 回診断の −123.9 秒が実受入で再現しなかった。
+- 最初の builder が写しを作る D2242 の形を流用する — 今回の診断が効果を示したのは collection と重ねる形だけである。
+
+## D2254. 探索の独立反復の試走を、同時検査の実装に固定した cohort t2850-trial-v2 の 3 block・18 job として発効させる (2026-09-26)
+
+**決定:** 事前登録 v1 (`docs/search-repetition-trial-preregistration.md`、raw SHA-256 `7501bd1f7f893801010dba2f93ceb45966badd11ed3e9e4a0aafa39f99d88206`) の試走を、
+追補 1 (`5badbac61f62bf48d6448b6c473601a47dca15964cfa91d43a71d5cb99da7759`) と追補 2 (`docs/search-repetition-trial-preregistration-addendum-2.md`、
+`62d3eade18feb6e8fd896b832cad77b02213f25696003311d48e98f6d37e43ab`) のとおり、次の値で発効させる (本登録 §10)。D2245 の発効 (cohort `t2850-trial-v1`) の
+block 1 は追補 2 §5 のとおり予備走とし、以後その cohort に投入しない。
+
+1. **計算確認 (D2212 項 4):** 2026-09-26、本決定の wave の最終報告で「試走 3 block (18 job) を見積り 22.2〜40.5 node 時間 (LLM の待ち 1.9〜19.5 時間) で投入してよいか」を
+   問い、ユーザーは「いいよ」と答えた。費用上限は本登録 §9.2 の 200 node 時間のまま、job Elapse の総和が見積りの上側を超えそうなら新しい投入を止めて再確認する。
+2. **実装の commit:** `299aa022ef08fca35ee4625e847cc25b49397ee6` (同時検査の実装 D2251 を取り込んだ main の fold commit。
+   受入の tested tip `5fd096999` からの差は docs だけ)。job ごとに 1 本の repo 外の detached checkout で走らせ、以後の main の変更で動かさない。CCBench は campaign の pin `511c9538…`。
+3. **配置:** cohort `t2850-trial-v2`、S1-wh × 5 手法 (random・sweep・bo・evolution・llm) × 系列 b = 1, 2, 3 + block job 3 = 18 job。系列番号 R = b (追補 1 §3)。
+   A = 30、B = 10、N_eval = 5、block stock 5 session。walltime は系列 24:00:00、block job 08:53:30 (本登録 §4)。block 内の投入順は block 1 と同じ規則の順序
+   (block 1 の spec の順序番号をそのまま使う)。時間帯の区切りを置かず (追補 2 §4、D2249)、18 job を block の順にまとめて投入する。
+4. **LLM (K0) の親:** exact ID `claude-opus-5`、D2222 の起動契約と D2245 項 5 の再開型の起動器 (repo 外の `parent_driver.py`、sha256 `b1eba1bf…`) のまま。
+   指示文 template は D2245 の写しの固定 commit を 2. に差し替えただけのもの (sha256 `ada47925…`)。1 系列 1 親、同時の親は 3 本 (D2216 の上限 4 以下)。
+5. **投入の glue:** repo 外の v3 (期待 commit を引数で受ける、`submit.py` sha256 `0f1de5ee…`)。spec は `specs-trial-v2.json` (sha256 `ea83ce7b…`)。
+6. **変えない値:** 手法の定数・BO の失敗集合・生成器・評価の exact 引数 (correctness は同時検査に変わった以外同じ)・較正 record は D2245 の発効束
+   (`output/insights/2026-09-23/t2850-trial-effect-bundle/bundle/t2850-trial-effect-bundle.json`) のまま。
+7. 記録と repo 外の成果物の所在は `output/insights/2026-09-26/t2850-trace-concurrent-verify/README.md` §6。
+
+**理由:**
+- 同時検査の実装の smoke で 5 session すべて certified・settled・品質正常を確かめ、見積りが 40.8〜58.2 → 22.2〜40.5 node 時間に下がった。ユーザーはこれで投入を認めた。
+- job ごとに checkout を分けるのは、同じ checkout の build 領域を同時に使う job が build の claim で衝突しうるため (block 1 は 6 job で 1 本を共有した)。
+- 固定 commit を受入済みの実装を含む最小の main の commit にし、後から main に入った別 wave の変更 (条件の意味検査など) を試走に混ぜない。
+
+**却下した選択肢:**
+- 旧 cohort `t2850-trial-v1` の block 2・3 として続ける — block 1 と実行方法 (所要) が違い、同じ cohort の系列を混ぜることになる (本登録 §3.1)。
+- block の間に 1 時間を置く — D2249 の追加項で外した。
+
+## D2255. D297 の header 差分の受理規則は、実 compile database の依存列挙で選んだ変更 header の consumer entry を、選定 configure 集合の各 configure で TRACE=0 完全展開と include 活性で比べる形 (規則 v2) を審査結果とし、規則の承認と実装の委任を 1 問、C2' の pin 前進を実装後の別の問いとして裁定へ出す (2026-09-27)
+
+対象: T-2854。資料: D2249 項 2、D297、D780、D774、D2150、D2207、D2225 決定 6、D2244、insight `output/insights/2026-09-26/t2854-d297-header-review/README.md` (§2 前提の実測、§4 規則 v2、§5 残る穴、§7 承認事項)。
+
+**決定 (設計審査の結果。規則の承認・実装の委任・pin 前進の承認はユーザー裁定を待つ):**
+
+1. **規則 v2:** header 拡張子の M・mode 不変の差分にだけ新分岐を足す。旧・新を worktree で取り出して tree を照合し、実 CMake configure の compile database の全 entry を母集合として、build 時生成 header (masstree の `config.h`) を用意した後に `-MG` を使わない依存列挙を旧・新 × TRACE=0/1 で全件成功させ、変更 header を読む entry の和集合を consumer とする。選定 configure 集合 = stock configure と、変更 header の consumer を含む production target (現行は `ycsb_<protocol>.exe`) の protocol が持つ genome 空間の全 configure とし、各 configure の**全 consumer entry**の TRACE=0 完全展開 (`-E -P -dD`) と include 活性 (入退場 file 列) を、GCC 11.4 / 12.3 のそれぞれ別の configure で旧新比較する。比較の予定集合を先に固定して実行済み集合と厳密一致させ、変更 header ごとの consumer 0 件・依存列挙の失敗・TRACE の実効値を前処理の macro 状態で確認できない entry・不透明な argv・旧新 database の不一致は拒否する。A/D/R/C・mode 変更・非 C/C++ の拒否と .cc の単体比較 (mocc の trace.hh 1 行例外を含む、D2207) は変えず、header と .cc が同居すれば両方の合格を要する。
+2. **保証名:** 「選定 configure 集合の compile database に載る変更 header consumer entry における、TRACE=0 完全展開と include 活性の同一性」。D780 項 1 の文言 (D297 の保証の証明であり、計測ビルドからの trace 完全除去には必要条件の一つ) を継承し、line marker 全体・診断位置の同一性は名乗らない。compile database は選定 source 比較の文脈入力であって admission build・build receipt との対応を証明しない。これは D780 項 2 の別防壁 (実 compile command・全 TU・link object・trace symbol / data・build receipt の結合) ではなく、D774 の限界も据え置く。
+3. **残る穴として明記するもの:** 選定外の genome 空間・build type・opt-in target・将来の production option、compile database に載らない TU、GCC 以外の compiler、admission build との未結合。
+4. **裁定への出し方:** 今は「規則 v2 を承認し、実装を Codex author の wave に委任するか」を 1 問で出す (規則だけ承認し実装を留保する答えも受ける)。C2' `40a7f4ac` の pin 前進は、改訂後の検査器で C → C2' が GCC 2 版とも pass した結果・実費・pin 波及 (D2150 / D2184 の先例) を示してから別に問う。条件つき事前承認は推さない。それまで pin は C のまま、C2' は D297 の合格も TPC-C の certified も名乗らず (D2244 項 4)、「pass」は改訂後の検査器の新しい結果にだけ使う。
+5. **費用の扱い:** 未実測なので上限を書かない。実装 wave は最初に計算ノードで 1 configure・生成物・前処理の生死確認を取り、選定 configure 数 (C → C2' では stock + silo 8 + mocc 8 = 17) × 2 compiler × 旧新の見積りを実測単価で出し、1 タスクの job 合計が 2 node 時間以上ならユーザー確認後に投入する (D2212 項 4)。
+
+**理由:**
+- 前提の実測 (login、stock configure、build なし): compile database は C・C2' とも 135 entry で root 正規化後に一致し、変更 header を TRACE=0/1 のどちらかで読む entry は両側とも 21 entry / 12 file で直接 include の列挙と一致した。ただしこれは 1 構成の事実で、間接 include だけの consumer が一般に無いことは示さない。依存列挙は compiler の依存出力で閉じる必要がある。
+- 敵対相談 A が「`-MG` は未生成 header の先で依存探索を止めるので、その先でだけ変更 header を読む entry を落として緑にしうる」を示した。生成物を用意して `-MG` なしで全件成功を要求すれば、この落とし方は拒否に変わる。
+- genome を変えた configure の実測で、1 つの CMake option が複数 protocol の define を同時に変えた (`CCBENCH_KEY_SORT` が mocc 以外に d2pl・ermia・si・ss2pl の 60 entry に効く)。「その protocol の entry だけ」を比べると、実際に変わった他 protocol の argv を捨てたまま production 文脈と名乗ることになる (相談 A・B が独立に指摘)。各 configure の全 consumer entry を比べ、保証名に選定集合を書けば、名乗りと比較対象が一致する。
+- 64 genome を一律に比べるのは研究前進 (TPC-C 段 1 の silo・mocc) に対して過大で、production target の consumer から選定集合を決めれば C → C2' では 17 configure で足りる (相談 B)。tpcc target が campaign 配線で production に入れば、同じ規則で silo・mocc の tpcc entry も genome 文脈に入る。
+- login で試した consumer entry の前処理は build 時生成の `config.h` が無く失敗した。選定 entry の前処理に要る生成物を用意する段が要り、login の build は hook が拒否するので、検査の実行場所は計算ノードになる。
+- 実 compile database を文脈入力に使うことは、D780 項 2 の別防壁を単独で設計したことにはならない (相談 A で不成立)。その防壁は link object・symbol・receipt の結合を要し、本規則はそれらを結ばない。
+
+**却下した選択肢:**
+- consumer を直接 include の正規表現で選ぶ (単位 11 の probe の方式) — 間接 include を拾わない。stock 構成で一致したのは偶然の一致であって閉包の証明ではない。
+- compile database の全 entry を完全比較する — 変更 header に依存しない entry の比較は保証を増やさず、第三者 TU や環境差による失敗と費用を増やす (相談 B で不成立)。全 entry は依存列挙の母集合としてだけ走査する。
+- genome configure ごとに「その protocol の entry だけ」を比べる — 実 configure の効果を捨てたまま production 文脈と名乗る。
+- 登録済みの全 genome 空間 (silo 8・mocc 8・tictoc 24・cicada 24) を一律に比べる — 研究前進に対し過大。
+- 単位 11 の probe をそのまま検査器にする — consumer 列挙と固定 21 件が規則と合わず、repo の検査器としての test・変異の固定を失う。部品と計算 job の手順は流用できる。
+- GCC 12.3 を既存 database の argv[0] 差し替えで比べる — compiler 固有の flag・system include・CMake の検出結果を取り落とす。
+- 規則の承認・実装の委任・pin 前進を 3 問同時に出す — まだ無い pass と波及確認を要する問いを並べ、決める時点を見えにくくする。
+- C2' の pin 前進を条件つきで事前承認する — 未実測の GCC 12.3・genome 文脈の正例と pin 波及を合格前に引き受ける。
+
+## D2256. silo-function-policy 軸の段階 E — planner なしの兄弟 driver を置き、方策の検査は driver 側で共有検疫の後に掛け、coder の入力は driver の 1 関数が偵察の二値と射程文と自系列の履歴だけから組む。計算ノードでの実走と投入用の job body は段階 F の前提へ送る (2026-09-27)
+
+**決定:** D2214 決定 7・8 と D2243 項 1 に従い、軸 `silo-function-policy` の段階 E を次の形で実装する。設計の正本は D2214 と設計 insight、実装の記録は `output/insights/2026-09-26/t2865-silo-policy-stage-e/README.md`。
+
+1. **driver は兄弟 module `orchestrator/campaign/p3_s4_loop_policy.py`。** C++ 形と IR 形を CLI の形で選び、形・性能動作点・verify 構成 (legacy + 性能構成) を campaign identity に焼く。形ごとに別 campaign になる。
+2. **方策の検査は共有の `p3_s4_loop.quarantine()` を変えずに driver 側で掛ける。** 順は、共有検疫 (構造 + effect、書き込まない) → 型付き構文検査 → 単独 TU compile → auditor の digest 照合と deny-only veto → 書込 → 書いた本文から digest を再照合 → pipeline。preview・拒否の記録・実走が同じ gate 関数を通る。IR 形は `parse_policy_ir` (閉じた tagged object) → `render_policy` の後の本文に同じ gate を掛ける。
+3. **planner を外したので、停止は予算 (iteration・walltime) だけ。** proposal は `{coder, auditor}` の 2 key に閉じ、`planner`・`value`・`prior_critic_reverse` を拒否する。逆方向の推奨は E では接続しない。`LoopState` に field を足さない。
+4. **firewall の機械化 = coder 入力を組む関数を 1 つにする。** 段階 D の `projection.json` は固定 path から key 集合と型を検査して `binary`・`scope` だけを出す。自系列の履歴は当該 campaign の履歴 file だけから読み、justification を落とす。失敗の理由は実コードに実在する固定 reason の閉じた code 集合 (集合外は固定 code) に正規化し、verifier の witness は決定的な順で先頭 8 件と件数・全 cycle 数だけを渡す。critic 診断は既存 K2 と同じ 6 文字列 field の閉じた形だけを受ける。自由文 `scope` の内容保証は主張しない。
+5. **auditor の違反型の上限は呼出し側の引数にする。** 既定 21 は不変で、本 driver だけ 26 (型 22〜26 を足した auditor 改訂に対応) を渡す。既存 3 軸の受理集合は変えない。
+6. **preview で拒否された候補は `--record-reject` で WAL と履歴に記録し、iteration を 1 消費する。** gate を通る候補は記録しない。LLM の失敗の多くが構文検査・単独 TU の拒否になる見込みで、記録しないと次の coder が自分の拒否理由を受け取れない (規律 3)。
+7. **coder role 2 本 (`coder-v4-autonomous-policy`・`coder-v4-autonomous-policy-ir`) と auditor 改訂は、2026-09-26 にユーザーが具体差分を明示承認した。** auditor の型 17〜21 の免除は sort IR と本軸の機械生成 IR 候補に限り、本軸の LLM 候補は監査する。型 25・26 は設計 §3.4 に合わせ、候補ごとの sanitizer と hook 計数を要求しない形にした。role 登録簿は 16 件。
+8. **MOCC template proof の test は、auditor.md の whole-file sha256 の一致ではなく、proof に記録した auditor 項目と現行 auditor.md の項目の一致で束縛する。** 承認済みの auditor 改訂で whole-file sha が変わり、test が赤になった。項目の全真検査は残し、proof JSON は取り直さない。production の consumer (`require_proof_binding`) は auditor の sha を見ていない。
+9. **計算ノードでの実走 (build・verify・bench) と、本 driver 用の Pegasus job body は E の完了条件から外し、段階 F の前提とする。** 既存の `tools/pegasus/p3_s4_loop_pegasus.sh` は `p3_s4_loop` 固定である。
+
+**理由:**
+- 共有 `quarantine()` に分岐を足す案 (段 2 plan、設計 §4) は、段階 C/D の診断経路 (`prepare_policy` は共有検疫の後に同じ検査を呼ぶ) の引数契約を壊すか二重 compile にする、と段 3 の 3 レンズが揃って指摘した。driver 側に置けば既存 3 軸と C/D の経路の受理集合が変わらない。
+- `prior_critic_reverse` を proposal に置くと、coder 側の値で停止時点が変わる (段 3 レンズ A・B)。
+- 失敗理由の自由文 (例外経路の `eval-exception: …`) と witness の全件は、coder 入力に探索と無関係な文や際限の無い量を持ち込む (焦点再レビュー 1、親の点検。段階 C の負例では cycle が 39,124 件出た)。
+- auditor の上限を全域で 26 に広げると sort 軸の proposal の受理集合が変わる (段 3 レンズ C)。
+- MOCC proof の置換は規律 7 (現行 bytes との差だけを理由に記録を無効にしない) に従う。束縛の意味 (MOCC 用の auditor 項目がそろっていること) は保たれている。
+- 実走を E に入れると、新 driver 用 job body と契約 test の新設が要り、E の完了が計算投入の承認待ちに依存する。手順書 §3 F が実 LLM の 1 iteration を E2E の出口としている (段 3 レンズ C)。
+
+**却下した選択肢:**
+- 共有 `quarantine()` に本軸の分岐を足す — 上記。
+- 形を 1 つの campaign に混ぜる — critic digest と履歴が他の形の結果を coder に見せる (段 3 レンズ A)。
+- anomaly の辺の key を coder 入力の前に検証する (焦点再レビュー 2) — trace は固定骨格の計装が出し、候補は受理契約で文字列・pointer・外部名を持てないので注入経路が無い。不正 key は verifier の integrity に既に数えられる。仮想リスク向けの検査は足さない。
+- MOCC template proof を取り直す — 1 job で済むが legacy 記録の上書きになり、束縛の意味を保つ test の置換で足りる。

@@ -19,14 +19,13 @@ security credit なし**である。
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Dict, List
 
 from .diff_quarantine import DiffQuarantineResult
 from ..critic.digest import DIFF_QUARANTINE_REASON
 
 _AUDITOR_VERDICTS = {"pass", "reject", "uncertain"}
-_AUDITOR_VIOLATION_TYPES = frozenset(range(1, 22))
 _VIOLATION_FIELDS = frozenset({
     "type", "location", "correctness_impact", "verifier_blind_spot",
     # Legacy fixtures used these two fixed fields before the closed projection.
@@ -53,7 +52,10 @@ def _reject_schema(field: str) -> None:
 
 def _validate_auditor_entries(
     violations: object, nits: object, proposed_tests: object,
+    *, max_violation_type: int = 21,
 ) -> None:
+    if type(max_violation_type) is not int or max_violation_type < 1:
+        _reject_schema('max_violation_type')
     if type(violations) is not list:
         _reject_schema("violations")
     for entry in violations:
@@ -62,7 +64,7 @@ def _validate_auditor_entries(
             or "type" not in entry
             or not set(entry) <= _VIOLATION_FIELDS
             or type(entry["type"]) is not int
-            or entry["type"] not in _AUDITOR_VIOLATION_TYPES
+            or not 1 <= entry["type"] <= max_violation_type
             or any(type(value) is not str for key, value in entry.items()
                    if key != "type")
         ):
@@ -145,13 +147,15 @@ class AuditorVerdict:
     nits: List[Dict] = field(default_factory=list)
     proposed_tests: List[Dict] = field(default_factory=list)
     uncertainty: str = ""
+    max_violation_type: InitVar[int] = 21
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, max_violation_type: int) -> None:
         _validate_auditor_scalars(
             self.verdict, self.diff_digest, self.uncertainty,
         )
         _validate_auditor_entries(
             self.violations, self.nits, self.proposed_tests,
+            max_violation_type=max_violation_type,
         )
 
 
@@ -194,6 +198,7 @@ def apply_mandatory_deny_only_veto(
     *,
     diff_region: str,
     template_diff_id: str,
+    max_violation_type: int = 21,
 ) -> DiffQuarantineResult:
     """Apply a mandatory deny-only veto; affirmative security credit なし.
 
@@ -210,6 +215,7 @@ def apply_mandatory_deny_only_veto(
     )
     _validate_auditor_entries(
         auditor.violations, auditor.nits, auditor.proposed_tests,
+        max_violation_type=max_violation_type,
     )
     assert_digest_matches(auditor, working_diff)
     _validate_auditor_consistency(
@@ -228,11 +234,13 @@ def apply_mandatory_deny_only_veto(
         auditor,
         diff_region=diff_region,
         template_diff_id=template_diff_id,
+        max_violation_type=max_violation_type,
     )
 
 
 def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
-                          diff_region: str, template_diff_id: str) -> DiffQuarantineResult:
+                          diff_region: str, template_diff_id: str,
+                          max_violation_type: int = 21) -> DiffQuarantineResult:
     """auditor gate reject を diff-quarantine 経路 (`record_diff_reject` /
     `load_diff_rejections` / `render_rejections`) に相乗りさせる合成結果。
 
@@ -249,6 +257,7 @@ def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
     )
     _validate_auditor_entries(
         auditor.violations, auditor.nits, auditor.proposed_tests,
+        max_violation_type=max_violation_type,
     )
     evidence_parts = []
     if auditor.violations:
@@ -267,7 +276,7 @@ def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
                 "evidence": "; ".join(evidence_parts) or "(詳細なし)"})
 
 
-def parse_auditor_dict(a: Dict) -> AuditorVerdict:
+def parse_auditor_dict(a: Dict, *, max_violation_type: int = 21) -> AuditorVerdict:
     """proposal JSON の `auditor` オブジェクトを fails-closed に検証して読む。
 
     verdict が未知の値・diff_digest が空/非文字列・list[dict] / string の型契約違反・
@@ -288,6 +297,7 @@ def parse_auditor_dict(a: Dict) -> AuditorVerdict:
     _validate_auditor_entries(
         typed_lists["violations"], typed_lists["nits"],
         typed_lists["proposed_tests"],
+        max_violation_type=max_violation_type,
     )
 
     violations = typed_lists["violations"]
@@ -296,4 +306,5 @@ def parse_auditor_dict(a: Dict) -> AuditorVerdict:
     return AuditorVerdict(
         verdict=verdict, diff_digest=digest,
         violations=violations, nits=typed_lists["nits"],
-        proposed_tests=typed_lists["proposed_tests"], uncertainty=uncertainty)
+        proposed_tests=typed_lists["proposed_tests"], uncertainty=uncertainty,
+        max_violation_type=max_violation_type)

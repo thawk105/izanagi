@@ -1,0 +1,10 @@
+start 2026-09-26T20:20:34+0900
+HEAD 265cce13c5656a94f8fe5d6796bb07f65a03237f
+status_lines_before 0
+pyc_before 24
+rc 0
+wall_s 51.888426169
+HEAD_after 265cce13c5656a94f8fe5d6796bb07f65a03237f
+status_lines_after 0
+pyc_after 817
+end 2026-09-26T20:21:43+0900

@@ -47,6 +47,8 @@ class DiffRejectSubtype(Enum):
     HOST_EFFECT = "host-effect"          # structural pass 後の有限 lexical 効果 gate
     BACKOFF_GRAMMAR = "backoff-grammar"  # backoff marker 専用 Tier 1 grammar
     SORT_SWO_ORACLE = "sort-swo-oracle"  # 実型 relation matrix の独立 SWO oracle
+    POLICY_GRAMMAR = "policy-grammar"
+    POLICY_COMPILE = "policy-compile"
 
 
 # hole 内で禁止する「行頭前処理指令」の検出。行頭 (先行空白許容) が `#`、または

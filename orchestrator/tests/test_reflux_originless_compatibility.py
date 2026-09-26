@@ -760,6 +760,28 @@ def _extend_t2773_role_source_baseline(baseline):
 _extend_t2773_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
+def _extend_t2865_role_source_baseline(baseline):
+    """Follow the reviewed T-2865 auditor source pin in live originless output."""
+    old = "dc63a3118393503f7eed4952478f0aa34690b344ee1ca98915e455e210165f34"
+    new = "1780945a475cdd036a1fccf52d179f69500c18d0b45d2cf8c5b8969aad54495b"
+    rows = baseline["journals/*/*/provenance/role_file_sha256"]
+    replaced = 0
+    for row in rows:
+        if row[0] == old:
+            row[0] = new
+            replaced += 1
+    assert replaced == 6
+    rows = baseline[
+        "reports/*/cells/*/generations/*/roles/auditor/"
+        "provenance/role_file_sha256"
+    ]
+    assert rows == [[old, 6]]
+    rows[0][0] = new
+
+
+_extend_t2865_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
+
+
 def _assert_same_structure(left: object, right: object, path=()) -> None:
     if type(left) is dict or type(right) is dict:
         assert type(left) is type(right) is dict, path

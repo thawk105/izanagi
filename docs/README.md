@@ -22,6 +22,8 @@
   (凍結成果物が sha256 を記録するため、D1789 の erratum 系列と同じ別 file 訂正形)
 - `phase3-8b-restart-runbook.md` — 8b 再開 (床値実測 → freeze v2 再凍結 → oracle 実走) の手順・
   毎回の preflight・偽の赤の見分け・未実装段の正本。状態は持たない (状態は worklog 末尾)
+- `phase3-silo-policy-runbook.md` — 軸 silo-function-policy (D2214) の planner なし自律ループの実走手順
+  (実走前ゲート・1 iteration・リーク制御・停止・既知の限界)。状態は持たない
 - `phase3-8c-preregistration.md` — 段 8c 正式系列 (H1/H2 × on/off/swapped) の事前登録。
   発効条件・発効の判定手続き (条件充足の機械確認で自動発効、条件契約は hash 世代台帳で凍結)・
   全件報告の機械強制が現在どこまで効くかの正本 (D116、[T-327])

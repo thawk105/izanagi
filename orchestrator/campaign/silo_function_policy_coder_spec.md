@@ -1,0 +1,15 @@
+# Silo function policy connection
+
+The supplied C++ is the body of `namespace izanagi_silo_policy` inside the single `EVOLVE-BLOCK`. Define exactly one `struct PolicyState` and exactly one of each hook:
+
+```cpp
+uint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept;
+izanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept;
+void policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept;
+```
+
+The fixed API has `PolicyAction {retry, abort}`, `AbortReason {unset, lock_conflict, update_absent, read_tid, read_locked, node_validation, insert_node, scan_node}`, `AbortContext {reason, rand}`, `LockContext {attempt, rand}`, `LockResponse {action, wait_us}`, and an empty `CommitContext`. The skeleton owns one `thread_local PolicyState` per worker, does not reset it, and notifies the commit hook on success. The policy observes only abort reason, lock attempt number for the same tuple, and skeleton supplied random values. It does not receive time, set sizes, conflict position, keys, pointers, transaction IDs, epochs, flags, or counters. The skeleton caps abort waiting at 1000 µs, lock waiting at 50 µs per call, and lock attempts at 32 per tuple including failed CAS attempts.
+
+The accepted language is policy-C++ v1 (D2214 and the synthesis-space design §2.7). `PolicyState` has at most 16 fields of `uint32_t`, `uint64_t`, or `bool`, each with a literal initializer. Namespace scope may contain immutable `constexpr` constants and helper functions. Helpers and hooks are `noexcept`; helper calls refer only to earlier definitions and cannot recurse. Allowed function returns are `uint32_t`, `uint64_t`, `bool`, `LockResponse`, and `void`; arguments are these scalar types or the fixed PolicyState and Context references. Local declarations require initializers and cannot refer to the variable being declared. Non-void functions end with `return`. Assignments stand alone as statements. `if`, `switch`, blocks, and returns are allowed; loops, pointers, arrays, mutable static or thread storage, exceptions, templates, macros, casts other than `static_cast`, increment/decrement, and comma expressions are not. Identifiers must resolve to local declarations, fixed API names, allowed scalar types, or `std::min`/`std::max`.
+
+Arithmetic, bitwise, shift, division, and remainder operands are unsigned 32- or 64-bit values. `bool` is limited to logical, comparison, conditional, and explicit cast operations. Integer literals need `u` or `ul` suffix and must fit `uint64_t`. Division and remainder require a nonzero literal right operand. Shifts require a literal count smaller than the left operand width. Mixed unsigned widths follow C++17 arithmetic conversion; `bool`, enum, and `LockResponse` assignments require matching types. Alternative operator spellings, digraphs, identifiers containing `__`, comments, preprocessor directives, strings, and character literals are rejected. The fixed compiler gate builds a standalone translation unit with the API header under C++17, `-Wall -Wextra -Werror -fsyntax-only`.

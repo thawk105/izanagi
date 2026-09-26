@@ -3,6 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 import sys
 import tempfile
+from dataclasses import fields, is_dataclass
 
 import pytest
 
@@ -18,6 +19,61 @@ from orchestrator.campaign.silo_policy_compile import (
 CASES = [(c.case_id, c.ir) for c in ir.enumerate_recon()] + [('abort0', ir.degenerate_policy())]
 ZERO = ir.Const('u32', 0)
 HAND = ROOT / 'orchestrator/campaign/silo_function_policy_hand'
+
+
+def _tagged(value):
+    if is_dataclass(value):
+        return {'kind': type(value).__name__, **{
+            field.name: _tagged(getattr(value, field.name)) for field in fields(value)}}
+    if type(value) is tuple:
+        return [_tagged(item) for item in value]
+    return value
+
+
+def test_parse_policy_ir_all_node_kinds_and_closed_types():
+    zero = {'kind': 'Const', 'type': 'u32', 'value': 0}
+    one = {'kind': 'Const', 'type': 'u32', 'value': 1}
+    field = {'kind': 'StateField', 'type': 'u32', 'initial_literal': zero}
+    ref = {'kind': 'StateRef', 'index': 0}
+    expressions = [
+        {'kind': 'Min', 'left': ref, 'right': one},
+        {'kind': 'Max', 'left': ref, 'right': one},
+        {'kind': 'SatAdd', 'left': ref, 'right': one},
+        {'kind': 'SatSub', 'left': ref, 'right': one},
+        {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 1},
+        {'kind': 'Select', 'condition': {'kind': 'Compare', 'op': '==',
+                                      'left': {'kind': 'Reason'},
+                                      'right': {'kind': 'Const', 'type': 'reason', 'value': 'unset'}},
+         'yes': ref, 'no': one},
+    ]
+    root = _tagged(ir.degenerate_policy())
+    root['fields'] = [field]
+    root['on_lock_conflict']['wait'] = {'kind': 'Attempt'}
+    root['on_commit']['next_state'] = [ref]
+    for expression in expressions:
+        root['after_abort']['wait'] = expression
+        parsed = ir.parse_policy_ir(root)
+        assert ir.render_policy(parsed)
+    for bad in (
+        {'kind': 'Unknown'},
+        dict(one, extra=1),
+        {'kind': 'Const', 'type': 'u32'},
+        {'kind': 'Const', 'type': 'u32', 'value': True},
+        {'kind': 'Const', 'type': 'u32', 'value': 2**32},
+        {'kind': 'StateRef', 'index': True},
+        {'kind': 'StateRef', 'index': 2},
+        {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': True},
+        {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 32},
+    ):
+        invalid = _tagged(ir.degenerate_policy())
+        invalid['fields'] = [field]
+        invalid['after_abort']['wait'] = bad
+        with pytest.raises(ValueError):
+            ir.parse_policy_ir(invalid)
+    missing = _tagged(ir.degenerate_policy())
+    del missing['after_abort']['next_state']
+    with pytest.raises(ValueError):
+        ir.parse_policy_ir(missing)
 
 
 def _compiler():
