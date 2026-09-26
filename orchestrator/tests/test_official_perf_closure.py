@@ -58,6 +58,8 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/campaign/loop.py",
     # Invokes the certified campaign pipeline (candidate and stock control), which may launch perf after preflight; the "perf" names it branches on are the calibrated PerfConfig CLI opt-ins (--calibrated-perf / --perf-workload), not the profiler.
     "orchestrator/campaign/p3_s4_loop.py",
+    # Invokes the certified campaign pipeline, which may launch perf after preflight; its "perf" names the calibrated PerfConfig operating point, not the profiler.
+    "orchestrator/campaign/p3_s4_loop_policy.py",
     # Parses producer-recorded perf-wrapped argv as exploratory trace evidence.
     "orchestrator/campaign/paper_story_a1_paired.py",
     # Parses producer-recorded perf-wrapped argv as evidence; it never launches perf.
