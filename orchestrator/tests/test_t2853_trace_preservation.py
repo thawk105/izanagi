@@ -116,7 +116,8 @@ def test_inventory_records_r1_inputs(tmp_path, monkeypatch, archive):
     assert data['verifier_invocation'] == 'in-process'
     assert data['verifier_argv'] == expected_argv
     assert data['repo_head'] == git(repo_root, 'rev-parse', 'HEAD').decode().strip()
-    assert data['ccbench_pin'] == git(source, 'rev-parse', 'HEAD').decode().strip()
+    head = git(source, 'rev-parse', 'HEAD').decode().strip()
+    assert (data['ccbench_pin'], data['ccbench_pin_declared']) == (head, head)
     recovered = subprocess.check_output(
         ['zstd', '-d', '-c', str(path.parent / data['patch_path'])])
     assert (recovered, data['patch_sha256'], data['patch_bytes'], data['patch_path']) == (
@@ -145,9 +146,22 @@ def test_r1_argv_null_without_witness(tmp_path, monkeypatch, archive):
     assert data['verifier_argv'] is None
     assert (data['repo_head'] is not None and data['ccbench_pin'] ==
             source_git(source, 'rev-parse', 'HEAD').decode().strip()
+            and data['ccbench_pin_declared'] == data['ccbench_pin']
             and data['patch_path'] == 'patch/ccbench.diff.zst'
             and data['tracked_diff_sha256'] is not None
             and data['verifier_module_sha256'])
+
+
+def test_r1_short_pin_records_full_head(tmp_path, monkeypatch, archive):
+    source = git_source(tmp_path / 'source')
+    head = source_git(source, 'rev-parse', 'HEAD').decode().strip()
+    evaluate(tmp_path, monkeypatch, source_root=source,
+             evidence_changes={'ccbench_commit': head[:7]},
+             trace_content=serial_trace(), ncommit=2)
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    assert (data['status'], data['ccbench_pin'], data['ccbench_pin_declared'],
+            len(data['ccbench_pin'])) == ('complete', head, head[:7], 40)
 
 
 def test_r1_input_failure_retains_original(tmp_path, monkeypatch, archive, capsys):

@@ -2665,7 +2665,7 @@ def _preserve_trace_directory(
         "workload_flags": dict(workload_flags), "genome": genome.canonical(),
         "trace_binary_sha256": trace_binary_sha256, "files": [],
         "verifier_invocation": "in-process", "verifier_argv": None,
-        "repo_head": None, "ccbench_pin": None,
+        "repo_head": None, "ccbench_pin": None, "ccbench_pin_declared": None,
         "patch_sha256": None, "patch_path": None, "patch_bytes": None,
         "tracked_diff_sha256": None, "verifier_module_sha256": None,
     }
@@ -2713,7 +2713,7 @@ def _preserve_trace_directory(
             for path in sorted(verifier_root.glob("*.py"))
         }
         if evidence is not None:
-            inventory["ccbench_pin"] = evidence.ccbench_commit
+            inventory["ccbench_pin_declared"] = evidence.ccbench_commit
             inventory["tracked_diff_sha256"] = evidence.tracked_diff_sha256
             if commit_count_witness is not None:
                 inventory["verifier_argv"] = [
@@ -2722,6 +2722,7 @@ def _preserve_trace_directory(
                     "--protocol", genome.protocol, "--ccbench-root", evidence.source_root,
                 ]
             source_head = _archive_git(evidence.source_root, "head").decode().strip()
+            inventory["ccbench_pin"] = source_head
             patch = _archive_git(evidence.source_root, "diff")
             inventory["patch_sha256"] = hashlib.sha256(patch).hexdigest()
             inventory["patch_bytes"] = len(patch)
@@ -2734,7 +2735,7 @@ def _preserve_trace_directory(
                 with open(patch_archive + ".partial", "xb") as compressed:
                     _compress_trace_archive(patch_stream, compressed)
             os.replace(patch_archive + ".partial", patch_archive)
-            if source_head != evidence.ccbench_commit:
+            if not evidence.ccbench_commit or not source_head.startswith(evidence.ccbench_commit):
                 raise ValueError("archive source HEAD differs from source evidence")
             if inventory["patch_sha256"] != evidence.tracked_diff_sha256:
                 raise ValueError("archive source patch differs from source evidence")
