@@ -1223,6 +1223,7 @@ def _run_actual_job_body_through_driver(
     relative_evidence: bool = False,
     driver_rcs: tuple[int, int] = (0, 0),
     source_override: str | None = None,
+    ccbench_head: str | None = None,
 ) -> tuple[list[list[str]], int, dict]:
     # Scheduler/build/driver work is simulated; shell path conversion and the
     # Python driver's environment/path observation and file write are real.
@@ -1249,7 +1250,11 @@ def _run_actual_job_body_through_driver(
     expected_head = "e" * 40
     gflags_head = "b" * 40
     glog_head = "c" * 40
-    ccbench_head = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+    if ccbench_head is None:
+        ccbench_head = ("68106660686232781bca3be792a750d3e19d7a8a"
+                        if k2_environment.get("IZANAGI_S4_T2849_MODE")
+                        and k2_environment.get("IZANAGI_S4_T2849_PROTOCOL") == "mocc"
+                        else "511c9538e4e8efa54b45cda62e72389ed3b706ec")
     (repo_root / "tools/pegasus/policy.json").write_text("{}\n", encoding="utf-8")
 
     _write_executable(
@@ -1314,6 +1319,8 @@ def _run_actual_job_body_through_driver(
         "    code = args[-1]\n"
         "    if 'print(os.path.realpath(sys.executable))' in code:\n"
         "        print(Path(__file__).resolve())\n"
+        "    elif 'campaign_pin_for_protocol' in code:\n"
+        "        print('68106660686232781bca3be792a750d3e19d7a8a')\n"
         "    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\n"
         "        print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\n"
         "elif args[:3] == ['-I', '-B', '-']:\n"

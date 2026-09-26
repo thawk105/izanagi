@@ -166,6 +166,14 @@ def test_mocc_exact_genomes_and_default_silo_identity():
     assert L.default_cfg(protocol='mocc').search_config['protocol'] == 'mocc'
 
 
+def test_campaign_pin_tracks_protocol_without_changing_silo():
+    assert L.PIN == '511c9538e4e8efa54b45cda62e72389ed3b706ec'
+    assert L.default_cfg().ccbench_commit == L.PIN
+    assert L.default_cfg(protocol='silo').ccbench_commit == L.PIN
+    assert L.default_cfg(protocol='mocc').ccbench_commit == (
+        '68106660686232781bca3be792a750d3e19d7a8a')
+
+
 def test_condition_gate_requests_follow_genome_protocol(monkeypatch):
     class StopAfterRequest(Exception):
         pass

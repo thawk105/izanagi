@@ -351,7 +351,11 @@ if [[ ! -d "$ccbench_dir" || -L "$ccbench_dir" ]]; then
   refuse "CCBench source root is unavailable"
 fi
 campaign_pin=$(
-  "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'
+  if [[ -n "$harness_mode" && "${IZANAGI_S4_T2849_PROTOCOL-silo}" == mocc ]]; then
+    "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import campaign_pin_for_protocol; print(campaign_pin_for_protocol("mocc"))'
+  else
+    "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'
+  fi
 )
 if [[ ! "$campaign_pin" =~ ^[0-9a-f]{40}$ ]]; then
   refuse "P3 S4 campaign pin must be a full lowercase commit"

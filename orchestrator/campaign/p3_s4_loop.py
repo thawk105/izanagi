@@ -116,6 +116,14 @@ from ..critic.identity_projection import IdentityProjection          # noqa: E40
 # ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
 # D1936: 新規試行は承認済みの完全40桁 pin に固定する。
 PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+
+
+def campaign_pin_for_protocol(protocol: str = "silo") -> str:
+    if protocol == "silo":
+        return PIN
+    if protocol == "mocc":
+        return "68106660686232781bca3be792a750d3e19d7a8a"
+    raise ValueError(f"unsupported protocol: {protocol}")
 DECLARED_USE_CLASS = "exploration"
 ENV_TAG = "linux-baremetal"           # 計測層タグ (規律: 計測層以外の数値を混ぜない)
 CLK = 1800
@@ -1802,7 +1810,7 @@ def default_cfg(
                       "coder が勝ち筋値を見ずに backoff 値を合成、diff 検疫 (4a) を通した "
                       "hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に "
                       "還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない"),
-        ccbench_commit=PIN,
+        ccbench_commit=campaign_pin_for_protocol(protocol),
         search_config=search_config,
         trial="p3-s4-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -2341,7 +2349,8 @@ def _run_stock_control_resolved(
         cfg, layout, admission_policy=build_context.policy,
     )
     backoff_grammar_version = _require_backoff_grammar_version(cfg)
-    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH),
+                 campaign_pin_for_protocol(cfg.search_config.get("protocol", "silo")), sub):
         configure_args = ()
         if fetchcontent_dependency_receipt is not None:
             configure_args = _condition_gate_offline_configure_args(
@@ -2510,7 +2519,8 @@ def _run_one_iteration_resolved(
     if not do_build:
         # dry-run: 骨格を一時適用せず、骨格入りソースを合成して検疫だけ試す経路は
         # 実 working-tree を汚さない (test 用)。ここでは applied を通す本経路を使う。
-        with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+        with applied(os.path.join(_repo_root(), TEMPLATE_PATCH),
+                     campaign_pin_for_protocol(cfg.search_config.get("protocol", "silo")), sub):
             res, _b, _e, _d = quarantine(sub, coder.implementation, write=False)
         if not res.passed:
             v = record_diff_reject(
@@ -2522,7 +2532,8 @@ def _run_one_iteration_resolved(
             return {"outcome": "rejected", "variant": v, "digest": res.digest}
         return {"outcome": "dry-pass", "variant": None}
 
-    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH), PIN, sub):
+    with applied(os.path.join(_repo_root(), TEMPLATE_PATCH),
+                 campaign_pin_for_protocol(cfg.search_config.get("protocol", "silo")), sub):
         res, _b, _e, _d = quarantine(sub, coder.implementation, write=True)
         if not res.passed:
             v = record_diff_reject(
@@ -3438,7 +3449,8 @@ def _run_stock_cli_step(cfg, perf, fixed_sub, cache_root, stock_context,
     from . import patchharness
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     print(f"=== 段 4 stock control (stock_root={fixed_sub}, isolate_worktree=True) ===")
-    with patchharness.checkout(PIN, base_dir=fixed_sub) as sub:
+    with patchharness.checkout(campaign_pin_for_protocol(
+            cfg.search_config.get("protocol", "silo")), base_dir=fixed_sub) as sub:
         out = _run_stock_control_resolved(
             cfg, perf, sub, layout, contract, resolved_site,
             stock_root=fixed_sub, cache_root=cache_root,
@@ -3815,7 +3827,7 @@ def main(
     from .p2_2 import _assert_single_tenant
     if not a.no_build:
         _assert_single_tenant()
-    patchharness.assert_pinned_clean(fixed_sub, PIN)
+    patchharness.assert_pinned_clean(fixed_sub, campaign_pin_for_protocol(a.protocol))
 
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg, _knowledge_layout, knowledge_input = _prepare_knowledge_campaign(
@@ -3906,7 +3918,7 @@ def main(
                 print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
                       f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
                       f"isolate_worktree={a.isolate_worktree}) ===")
-                wt_cm = (patchharness.checkout(PIN, base_dir=fixed_sub)
+                wt_cm = (patchharness.checkout(campaign_pin_for_protocol(a.protocol), base_dir=fixed_sub)
                          if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
                 with wt_cm as sub:
                     out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
@@ -3963,7 +3975,7 @@ def main(
         if stock_error is not None:
             raise stock_error.with_traceback(stock_error.__traceback__)
         return stock_rc
-    wt_cm = (patchharness.checkout(PIN, base_dir=fixed_sub)
+    wt_cm = (patchharness.checkout(campaign_pin_for_protocol(a.protocol), base_dir=fixed_sub)
              if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
     state = LoopState(start_ts=time.monotonic())
     state.iteration = 1

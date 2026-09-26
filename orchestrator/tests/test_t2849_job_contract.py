@@ -48,6 +48,20 @@ def test_mocc_protocol_env_only_changes_mocc_driver_argv(tmp_path):
         "--protocol", "mocc", "--arm", "llm", "--series", "4", "--a-limit", "12", "--b-limit", "6"]
 
 
+def test_harness_job_checks_protocol_campaign_pin(tmp_path):
+    silo_root = tmp_path / "silo-pin"
+    silo, silo_rc, _ = _run_actual_job_body_through_driver(
+        silo_root, environment(silo_root))
+    mocc_root = tmp_path / "mocc-pin"
+    mocc_env = environment(mocc_root)
+    mocc_env["IZANAGI_S4_T2849_PROTOCOL"] = "mocc"
+    mocc, mocc_rc, _ = _run_actual_job_body_through_driver(
+        mocc_root, mocc_env,
+        ccbench_head="68106660686232781bca3be792a750d3e19d7a8a")
+    assert silo_rc == mocc_rc == 0
+    assert len(silo) == len(mocc) == 1
+
+
 @pytest.mark.parametrize("key,value", [("IZANAGI_S4_B5_MODE", "series"),
     ("IZANAGI_S4_PROPOSAL_PATH", "/proposal.json"), ("IZANAGI_S4_FIXTURE_VALUE", "20"),
     ("IZANAGI_S4_STOCK_CONTROL", "1"), ("IZANAGI_S4_KNOWLEDGE_MANIFEST", "/knowledge.json")])
