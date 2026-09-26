@@ -1,0 +1,73 @@
+# B-5 本走の node 時間の換算 ([T-2797] cost-options、2026-09-26)
+# 入力: data/b1s1-jobs.tsv・data/b1s1-sessions.tsv (本走 block 1 stage 1 の実測)。同時検査の達成率は [T-2850] の vprobe 実測。
+
+######## 案 (2) の session 別換算 — 楽観 (達成率 5 本同時 0.83 / 2 本同時 0.95、並列化しない部分 3.4 s/本、冷却 60 s/session)
+write-heavy: 系列の計算 6,868 → 3,524 s (比 0.513)、同時本数 [5]、stock session 259 → 183 s (比 0.706)
+balanced: 系列の計算 28,686 → 12,514 s (比 0.436)、同時本数 [5]、stock session 306 → 191 s (比 0.622)
+read-heavy: 系列の計算 52,970 → 31,985 s (比 0.604)、同時本数 [2, 3, 4, 5]、stock session 719 → 283 s (比 0.393)
+RATIO 0.5131 0.4362 0.6038
+STOCK 0.7063 0.6223 0.3932
+
+######## 案 (2) の session 別換算 — 保守 (達成率 0.77 / 0.90、並列化しない部分 12 s/本、冷却 60 s/session)
+write-heavy: 系列の計算 6,868 → 4,140 s (比 0.603)、同時本数 [5]、stock session 259 → 218 s (比 0.842)
+balanced: 系列の計算 28,686 → 14,513 s (比 0.506)、同時本数 [5]、stock session 306 → 227 s (比 0.740)
+read-heavy: 系列の計算 52,970 → 34,234 s (比 0.646)、同時本数 [2, 3, 4, 5]、stock session 719 → 327 s (比 0.455)
+RATIO 0.6028 0.5059 0.6463
+STOCK 0.8423 0.7403 0.4546
+
+######## 全体の換算 — 楽観側の比を使用
+## 1. workload 別の実測 (非 LLM の完走系列、16 session)
+write-heavy: 系列 n=1 Elapse 平均 6,902 s (範囲 6,902〜6,902)、内訳 stock 251 + 評価 10 回 4,069 + score 5 回 2,548、検証割合 0.891、stock session 平均 259 s (n=4)
+balanced: 系列 n=3 Elapse 平均 9,597 s (範囲 9,149〜10,076)、内訳 stock 305 + 評価 10 回 5,536 + score 5 回 3,721、検証割合 0.923、stock session 平均 306 s (n=4)
+read-heavy: 系列 n=2 Elapse 平均 26,518 s (範囲 26,191〜26,846)、内訳 stock 721 + 評価 10 回 14,607 + score 5 回 11,157、検証割合 0.973、stock session 平均 719 s (n=4)
+
+## 2. LLM 1 機会の待ち (実測、採用 + 却下、429 の時間切れを除く)
+write-heavy: n=13 平均 466 s 範囲 255〜796
+balanced: n=5 平均 910 s 範囲 631〜1,021
+read-heavy: n=4 平均 642 s 範囲 406〜856
+全体: n=22 平均 599 s 中央 473 s
+
+## 3. 図 1 枚 (B-5 全体) あたりの node 時間 [h]
+| 案 | 合計 | workload 別 | 出所・仮定 |
+|---|---:|---|---|
+| 現行 (LLM 機会 10) | 503 | write-heavy 86 / balanced 128 / read-heavy 290 | 換算 + LLM 機会数の試算 |
+| 現行 (LLM 機会 30) | 637 | write-heavy 117 / balanced 188 / read-heavy 332 | 換算 + LLM 機会数の試算 |
+| (1) LLM 待ちを node 外へ | 439 | write-heavy 71 / balanced 98 / read-heavy 269 | 換算。job 分割の余剰を含む |
+| (1) 同、全 arm を job 分割 | 446 | write-heavy 74 / balanced 101 / read-heavy 272 | 換算 |
+| (1)+(3c) B=6 | 341 | write-heavy 55 / balanced 76 / read-heavy 210 | 事前登録の改訂 |
+| (2) 同時検査 (session 別換算、LLM 機会 10) | 307 | write-heavy 52 / balanced 73 / read-heavy 183 | 換算 (model2) |
+| (2) 同時検査 (session 別換算、LLM 機会 30) | 442 | write-heavy 83 / balanced 134 / read-heavy 226 | 換算 (model2) |
+| (1 全 arm)+(2) | 251 | write-heavy 40 / balanced 46 / read-heavy 165 | 換算 (model2) |
+| (1 全 arm)+(2)+(3a) n=9 | 189 | write-heavy 30 / balanced 35 / read-heavy 124 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3b) read-heavy を外す | 86 | write-heavy 40 / balanced 46 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3c) B=6 | 193 | write-heavy 30 / balanced 35 / read-heavy 128 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3a)+(3b) | 65 | write-heavy 30 / balanced 35 | 事前登録の改訂 |
+| (1)+(3a) n=9 | 331 | write-heavy 54 / balanced 74 / read-heavy 203 | 事前登録の改訂 |
+| (1)+(3b) read-heavy を外す | 170 | write-heavy 71 / balanced 98 | 事前登録の改訂 |
+
+## 4. n と最小 p (片側 exact 符号反転、Holm 初段 0.05/6 = 0.00833)
+n=12: 12/12 正 → p=0.0002 (初段通過)、11/12 正 → p=0.0032 (初段通過)、10/12 正 → p=0.0193
+n=9: 9/9 正 → p=0.0020 (初段通過)、8/9 正 → p=0.0195、7/9 正 → p=0.0898
+n=8: 8/8 正 → p=0.0039 (初段通過)、7/8 正 → p=0.0352、6/8 正 → p=0.1445
+n=6: 6/6 正 → p=0.0156、5/6 正 → p=0.1094、4/6 正 → p=0.3438
+
+######## 全体の換算 — 保守側の比を使用 (§1・§2・§4 は上と同じ)
+## 3. 図 1 枚 (B-5 全体) あたりの node 時間 [h]
+| 案 | 合計 | workload 別 | 出所・仮定 |
+|---|---:|---|---|
+| 現行 (LLM 機会 10) | 503 | write-heavy 86 / balanced 128 / read-heavy 290 | 換算 + LLM 機会数の試算 |
+| 現行 (LLM 機会 30) | 637 | write-heavy 117 / balanced 188 / read-heavy 332 | 換算 + LLM 機会数の試算 |
+| (1) LLM 待ちを node 外へ | 439 | write-heavy 71 / balanced 98 / read-heavy 269 | 換算。job 分割の余剰を含む |
+| (1) 同、全 arm を job 分割 | 446 | write-heavy 74 / balanced 101 / read-heavy 272 | 換算 |
+| (1)+(3c) B=6 | 341 | write-heavy 55 / balanced 76 / read-heavy 210 | 事前登録の改訂 |
+| (2) 同時検査 (session 別換算、LLM 機会 10) | 332 | write-heavy 58 / balanced 80 / read-heavy 194 | 換算 (model2) |
+| (2) 同時検査 (session 別換算、LLM 機会 30) | 467 | write-heavy 89 / balanced 141 / read-heavy 237 | 換算 (model2) |
+| (1 全 arm)+(2) | 275 | write-heavy 46 / balanced 53 / read-heavy 176 | 換算 (model2) |
+| (1 全 arm)+(2)+(3a) n=9 | 207 | write-heavy 35 / balanced 40 / read-heavy 133 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3b) read-heavy を外す | 99 | write-heavy 46 / balanced 53 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3c) B=6 | 212 | write-heavy 35 / balanced 40 / read-heavy 137 | 事前登録の改訂 |
+| (1 全 arm)+(2)+(3a)+(3b) | 75 | write-heavy 35 / balanced 40 | 事前登録の改訂 |
+| (1)+(3a) n=9 | 331 | write-heavy 54 / balanced 74 / read-heavy 203 | 事前登録の改訂 |
+| (1)+(3b) read-heavy を外す | 170 | write-heavy 71 / balanced 98 | 事前登録の改訂 |
+
+## 4. n と最小 p (片側 exact 符号反転、Holm 初段 0.05/6 = 0.00833)

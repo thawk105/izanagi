@@ -1,0 +1,13 @@
+workload	arm	series	job_elapse_s	end_reason	a	b	n_sessions	sum_subprocess_s	sum_verify_s	sum_proposal_wait_s	n_quality_missing
+balanced	llm	r01	9776	proposal-wait-timeout	6	5	6	2489	2211	4550	0
+balanced	random	r02	9565	b-complete	10	10	16	9531	8791	0	1
+balanced	sweep-matched	r03	10076	b-complete	10	10	16	10041	9316	0	0
+balanced	sweep-matched	r04	9149	b-complete	10	10	16	9114	8358	0	0
+read-heavy	llm	r01	8898	proposal-wait-timeout	3	2	3	4901	4769	1261	0
+read-heavy	llm	r02	9007	proposal-wait-timeout	3	2	3	4966	4833	1306	0
+read-heavy	sweep-matched	r03	26191	b-complete	10	10	16	26158	25438	0	0
+read-heavy	random	r04	26846	b-complete	10	10	16	26812	26094	0	0
+write-heavy	llm	r01	9426	proposal-wait-timeout	14	1	2	638	539	6051	0
+write-heavy	random	r02	294	stock-unestablished	0	0	1	263	203	0	1
+write-heavy	random	r03	296	stock-unestablished	0	0	1	265	205	0	1
+write-heavy	sweep-matched	r04	6902	b-complete	10	10	16	6868	6120	0	2
