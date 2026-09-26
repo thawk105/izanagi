@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-rotation-mod",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "offset = job % 6",
+          "new": "offset = job"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-backoff-dup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "return ([arg for arg in found if arg.startswith(\"-DBACK_OFF=\")] == [\"-DBACK_OFF=1\"]",
+          "new": "return (\"-DBACK_OFF=1\" in found"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-fx-argv",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_coverage.py",
+          "old": "stock_flags[\"BACKOFF_FIXED\"] = stock_backoff_fixed",
+          "new": "pass  # mutation m-fx-argv"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-case-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "or p.get(\"case_order\") != expected_ids):",
+          "new": "):"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "m-cmp-order",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "if (p.get(\"phase\") != \"compare\" or [r.get(\"case_id\") for r in rows] != expected_ids",
+          "new": "if (p.get(\"phase\") != \"compare\""
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-cmp-fxflags",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "elif row.get(\"genome\", {}).get(\"flags\") != controls[role]:",
+          "new": "elif role != \"fixed10\" and row.get(\"genome\", {}).get(\"flags\") != controls[role]:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-rotation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "offset = job % 6",
+          "new": "offset = 0"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "m-cmp-floor",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_recon.py",
+          "old": "exceeds = None if ratio is None else ratio > 1.03",
+          "new": "exceeds = None if ratio is None else ratio > 1.0"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}

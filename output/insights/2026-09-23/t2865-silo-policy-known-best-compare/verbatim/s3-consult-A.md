@@ -1,0 +1,31 @@
+## 所見
+
+1. **must-fix — fixed10 の build を実効値で確認する。** [モデル](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/model.py:84) は未登録の `BACKOFF_FIXED` を `CCBENCH_BACKOFF_FIXED` に写す。[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/patches/silo-backoff-fixed.patch:19) はそれを `BACKOFF_FIXED` として供給し、値 10 は 999 以下の直値として静的枝に入る。同 patch のない stock 木では CMake 引数が使われず、元の適応枝のままでも build が成功しうる。現行 [_source](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_coverage.py:550) は stock に patch を当てず、[_build_variant](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_coverage.py:362) も固定値を受け取らない。**影響:** fixed10 の値が適応 stock の値にすり替わり、全 IR 点の分母が変わる。**代案:** fixed10 専用に patch 適用と `BACK_OFF=1, BACKOFF_FIXED=10` を指定し、trace1・trace0 の両 build で owner TU の compile command に両 define が正確にあることを**検査して失敗時は停止**する。marker 確認と command の単なる記録では足りない。なお `_build_variant` の共通引数除去は stock genome の define を後から追加する構造なので、正しく追加した値を消さない。
+
+2. **must-fix — 参照の欠測を勝敗へ変換しない。** 現行 [_one](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_recon.py:88) は両 verify の certified 後にだけ TRACE=0 build・bench へ進み、[_eligible](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_recon.py:139) は trace0 clean と有効な 5 rep も要求する。一方、新集計で例えば fixed10 が verify 失敗した job の残り 2 参照だけの最大値を採れば、「3 本の最良参照超え」という問いが変わる。**影響:** 比が過大になり、超えた点の数と受理集合が増える。**代案:** 同 job の参照 3 本すべてと IR 点が適格な場合に限り比を算出する。どれか不適格ならその点の比較を null とし、false やゼロ勝に算入しない。high-abort 判定に使う abort0 も適格必須とする。
+
+3. **must-fix — 新集計で fixed10 の同一性を照合する。** 既存 [aggregate](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_recon.py:222) の対照 flags 照合は stock と B0-L-W0 だけを対象とし、[_eligible](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_recon.py:139) の source evidence 条件は欠落した両欄でも `None == None` になる。これをそのまま比較集計へ写すと、誤った fixed10 行を照合済みとして扱える。**影響:** 別 genome や出所不明の値が「最良参照」になり、比較比が変わる。**代案:** 8 job の各行について role、期待 genome、非空の前後 source evidence の一致、build receipt の実効 define を照合する。IR の本文・因子、固定 workload、別 job 識別という段階 D の照合も維持する。
+
+4. **should — 再測 1 点の結論を限定する。** brief [P3](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-small-compare/brief.md:20) は初走の最大比 1 点だけを再測する。最大点が再測で負けても、ほかの初走勝ち点が再現しないとは言えない。**影響:** insight で「既知最良を超える点なし」と書けば、未再測の勝ち点を誤って否定する。**代案:** 「初走で超えた点数」と「最大比 1 点の別 job 再測結果」を別々に報告し、未再測点の再現性は null とする。
+
+5. **should — 出力先を比較専用に固定する。** 現行 [run と aggregate](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/silo_policy_recon.py:198) は指定された出力 path へ書き、aggregate は投影も書く。brief の「新しい投影を作らない」方針は妥当だが、新 subcommand に既存の段階 D 出力 path を渡せば上書きできる。**影響:** 段階 D の記録や `projection.json` が比較結果で置換され、後段の入力が変わる。**代案:** 比較結果は別名の詳細 JSON と insight に限定し、実際の投入引数で `initial-*`・`remeasure-*`・`aggregate.json`・`projection.json` と重ならない path を確定する。比較集計は投影を書かない。[D2234](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-small-compare/verbatim/D2234.md:9) の firewall に従い、点 ID・比・順位を段階 E の入力へ渡さない。
+
+## brief の前提の判定
+
+- **P1 — 要修正。** 同 job の参照中央値の最大を分母にする定義は問いに合う。3 本のどれかが欠測なら null とする規則を集計の実効条件にし、報告では適格点数・null 件数を勝ち点数と分ける必要がある。3% は [段階 D の限定](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/output/insights/2026-09-23/t2863-silo-policy-stage-d/README.md:109) どおり未較正の暫定床。
+- **P2 — real。** 6 方策の巡回は固定位置による順序交絡を減らす合理的な割付。ただし順序を結果行に保存し、集計で各 job の予定順と照合する。
+- **P3 — 要修正。** 1 点再測という計算量上の選択は可能だが、16 点全体の再現有無とは解釈できない。所見 4 の限定が必要。
+- **P4 — real（概算）。** [段階 D の Elapse](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/output/insights/2026-09-23/t2863-silo-policy-stage-d/README.md:86) からの外挿として妥当。合計が 2 node 時間以上なので、[依頼](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-small-compare/request.md:6) どおり投入前のユーザー確認対象である。
+- **10 µs の出所と旧 pin — real。** [凍結参照](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/output/s1-freeze/known_axes_freeze.json:339) は write-heavy の fixed10 を示す。旧 pin の throughput や src_token を現 pin の期待値として使わず、今回の再評価として記録する解釈が正しい。
+- **「元の適用方法」— real、ただし同一 bytes の主張は要修正。** [設計 §5](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/output/insights/2026-09-21/silo-function-synthesis-space/README.md:411) は元 flags の参照を再評価すると定める。stock 木に backoff patch を適用し、関数方策の骨格を入れない経路はそれに合う。[D2160](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/docs/decisions.md:68040) も旧 patch 世代と src_token の差を明記しており、旧 binary と同一だとは言えない。
+- **patch dry-run と build 経路 — 要修正。** brief の dry-run 成功は現 pin のその時点の適用可能性を示すだけで、今回の適用木や binary は証明しない。patch の marker は材料化の確認、owner TU の実効 define 検査は build の確認として必要。[source_digest.resolve_evidence](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/orchestrator/campaign/source_digest.py:2413) は patch 適用済み木と fixed10 genome から矛盾なく別 src_token を導ける。前後一致検査も source 変化の検知として有効で、無 patch の stock・B0-L-W0 の従来 identity を変える必要はない。
+
+## 再発しうる失敗の型
+
+- **[恒真ゲート]** — marker の存在や compile command の保存を「値 10 を検査した」と扱う型。[F9](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/docs/failures.md:472)、[F14](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/docs/failures.md:530) と同型。
+- **[誤前提] [ドリフト]** — patch 未適用でも CMake が引数を受け、無言で適応 backoff になる型。旧 pin の identity や値を現 pin に流用する場合も該当する。
+- **[テスト代表性] [計測汚染]** — mocked build 引数だけで実 owner TU を確認したことにする、または欠測参照を除いて最大を取り比較値を汚す型。[F29](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-silo-small-compare/docs/failures.md:1323) が前者の近例。
+
+## 総括
+
+**adopt_with_conditions**。実装前の must-fix は、① fixed10 の patch 適用と trace1・trace0 の実効 define 検査、② 参照 3 本または IR・abort0 が不適格な比較を null にすること、③集計で fixed10 の genome・source evidence・build receipt を照合すること。静的検査のみ実施し、build・pytest・計測は行っていない。

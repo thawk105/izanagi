@@ -25,6 +25,7 @@ if __package__ in {None, ""}:
     __package__ = "orchestrator.campaign"
 
 from . import axis_silo_function_policy as axis
+from .backoff_extended_sweep import _assert_backoff_fixed_materialized
 from . import condition_meaning_gate as condition
 from . import site_policy, source_digest
 from . import s2_verify_calibration as calibration
@@ -361,9 +362,11 @@ def _condition_gates(source: Path, macros: tuple[str, ...], args: list[str],
 
 def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
                    dependencies: dict, macros: tuple[str, ...] = (), stock: bool = False,
-                   stock_backoff: int = 1) -> tuple[Path, dict]:
+                   stock_backoff: int = 1, stock_backoff_fixed: int | None = None) -> tuple[Path, dict]:
     if stock_backoff not in (0, 1) or (not stock and stock_backoff != 1):
         raise ValueError("stock_backoff is only available for stock builds")
+    if stock_backoff_fixed is not None and (not stock or stock_backoff != 1):
+        raise ValueError("stock_backoff_fixed requires stock with BACK_OFF=1")
     admission = non_admissible_materializer(MATERIALIZER)
     site = site_policy.current_site(require_evidence=True)
     if site_policy.refuses_heavy_work(site):
@@ -372,7 +375,10 @@ def _build_variant(source: Path, build: Path, *, trace: int, toolchain: dict,
     args = [a for a in compute._common_configure_args(
         trace=trace, toolchain=toolchain, dependencies=dependencies)
         if a not in compute.STOCK_G.cmake_defines()]
-    stock_genome = Genome("silo", {**locks._BASE, "BACK_OFF": stock_backoff})
+    stock_flags = {**locks._BASE, "BACK_OFF": stock_backoff}
+    if stock_backoff_fixed is not None:
+        stock_flags["BACKOFF_FIXED"] = stock_backoff_fixed
+    stock_genome = Genome("silo", stock_flags)
     args += (stock_genome if stock else GENOME).cmake_defines()
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     gates = _condition_gates(source, macros, args, toolchain["cxx_path"], stock=stock)
@@ -548,15 +554,23 @@ def _run(binary: Path, flags: dict, *, source: Path, trace: bool, probe: bool = 
 
 @contextmanager
 def _source(policy: str, *, probe_patch: bool = False, patch: str | None = None,
-            compiler: str, scratch: Path, body: str | None = None):
+            compiler: str, scratch: Path, body: str | None = None,
+            backoff_fixed_patch: bool = False):
     if body is not None and policy == "stock":
         raise ValueError("stock and body cannot be specified together")
+    if backoff_fixed_patch and policy != "stock":
+        raise ValueError("backoff_fixed_patch requires stock")
     with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as value:
         source = Path(value)
         stock = policy == "stock"
-        ctx = nullcontext() if stock else applied(str(ROOT / "patches" / axis.TEMPLATE_PATCH), PIN, value)
+        ctx = (applied(str(ROOT / "patches/silo-backoff-fixed.patch"), PIN, value)
+               if backoff_fixed_patch else nullcontext() if stock else
+               applied(str(ROOT / "patches" / axis.TEMPLATE_PATCH), PIN, value))
         with ctx:
             contract = {"accepted": True, "stock": True}
+            if backoff_fixed_patch:
+                _assert_backoff_fixed_materialized(value)
+                contract["backoff_fixed_patch"] = True
             if not stock:
                 if probe_patch:
                     apply_patch(str(ROOT / "patches" / PROBE_PATCH), value)

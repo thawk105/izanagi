@@ -1,0 +1,392 @@
+{
+  "schema_version": "silo-function-policy-recon/v1",
+  "comparisons": [
+    {
+      "case_id": "0000",
+      "job": 0,
+      "ratio_vs": {
+        "stock": 2.8349805526529663,
+        "b0_l_w0": 1.5567329738121176,
+        "fixed10": 0.9834364178298967
+      },
+      "best_ref_ratio": 0.9834364178298967,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0001",
+      "job": 1,
+      "ratio_vs": {
+        "stock": 2.888776425320676,
+        "b0_l_w0": 1.6213394976278215,
+        "fixed10": 0.9840345902422762
+      },
+      "best_ref_ratio": 0.9840345902422762,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0010",
+      "job": 2,
+      "ratio_vs": {
+        "stock": 2.808827088966139,
+        "b0_l_w0": 1.5071440583557099,
+        "fixed10": 0.9517049073342163
+      },
+      "best_ref_ratio": 0.9517049073342163,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0011",
+      "job": 3,
+      "ratio_vs": {
+        "stock": 2.9704686847037545,
+        "b0_l_w0": 1.621062551508855,
+        "fixed10": 1.005485067747547
+      },
+      "best_ref_ratio": 1.005485067747547,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0100",
+      "job": 4,
+      "ratio_vs": {
+        "stock": 2.6376067045106417,
+        "b0_l_w0": 1.5265631185721145,
+        "fixed10": 0.9156543538712755
+      },
+      "best_ref_ratio": 0.9156543538712755,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0101",
+      "job": 5,
+      "ratio_vs": {
+        "stock": 2.4413167925039234,
+        "b0_l_w0": 1.3393746098650088,
+        "fixed10": 0.836422590416885
+      },
+      "best_ref_ratio": 0.836422590416885,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0110",
+      "job": 6,
+      "ratio_vs": {
+        "stock": 2.883422926409398,
+        "b0_l_w0": 1.628774020890467,
+        "fixed10": 0.9941271003738099
+      },
+      "best_ref_ratio": 0.9941271003738099,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "0111",
+      "job": 7,
+      "ratio_vs": {
+        "stock": 2.7972234311722226,
+        "b0_l_w0": 1.5787324094362567,
+        "fixed10": 0.9537278510413918
+      },
+      "best_ref_ratio": 0.9537278510413918,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1000",
+      "job": 7,
+      "ratio_vs": {
+        "stock": 2.9266754202842957,
+        "b0_l_w0": 1.6517941636028073,
+        "fixed10": 0.9978651787975634
+      },
+      "best_ref_ratio": 0.9978651787975634,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1001",
+      "job": 6,
+      "ratio_vs": {
+        "stock": 3.080169175806811,
+        "b0_l_w0": 1.7399110923173051,
+        "fixed10": 1.0619599446754378
+      },
+      "best_ref_ratio": 1.0619599446754378,
+      "reason": null,
+      "exceeds": true
+    },
+    {
+      "case_id": "1010",
+      "job": 5,
+      "ratio_vs": {
+        "stock": 2.546495240701971,
+        "b0_l_w0": 1.3970784455384533,
+        "fixed10": 0.872457909703576
+      },
+      "best_ref_ratio": 0.872457909703576,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1011",
+      "job": 4,
+      "ratio_vs": {
+        "stock": 2.890952010530919,
+        "b0_l_w0": 1.6731913477817741,
+        "fixed10": 1.0036040592210564
+      },
+      "best_ref_ratio": 1.0036040592210564,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1100",
+      "job": 3,
+      "ratio_vs": {
+        "stock": 2.9462454589743343,
+        "b0_l_w0": 1.607843302873475,
+        "fixed10": 0.9972856573686294
+      },
+      "best_ref_ratio": 0.9972856573686294,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1101",
+      "job": 2,
+      "ratio_vs": {
+        "stock": 2.698912247788262,
+        "b0_l_w0": 1.4481665938983574,
+        "fixed10": 0.9144628520475914
+      },
+      "best_ref_ratio": 0.9144628520475914,
+      "reason": null,
+      "exceeds": false
+    },
+    {
+      "case_id": "1110",
+      "job": 1,
+      "ratio_vs": {
+        "stock": 3.137624893480049,
+        "b0_l_w0": 1.7610068830351855,
+        "fixed10": 1.0688024865222534
+      },
+      "best_ref_ratio": 1.0688024865222534,
+      "reason": null,
+      "exceeds": true
+    },
+    {
+      "case_id": "1111",
+      "job": 0,
+      "ratio_vs": {
+        "stock": 3.0790316962730757,
+        "b0_l_w0": 1.6907453437433506,
+        "fixed10": 1.068096181095098
+      },
+      "best_ref_ratio": 1.068096181095098,
+      "reason": null,
+      "exceeds": true
+    }
+  ],
+  "references": [
+    {
+      "job": 0,
+      "abort0": {
+        "median_throughput": 2464163.0,
+        "median_abort_rate": 0.7851343000545761,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1378080.0,
+        "median_abort_rate": 0.1262255961304228,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2509634.0,
+        "median_abort_rate": 0.7799986672421836,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 3972631.0,
+        "median_abort_rate": 0.3837290083735105,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 1,
+      "abort0": {
+        "median_throughput": 2429690.0,
+        "median_abort_rate": 0.7842735620823528,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1343645.0,
+        "median_abort_rate": 0.11744206082630716,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2394002.0,
+        "median_abort_rate": 0.7874212995865388,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 3944465.0,
+        "median_abort_rate": 0.3851817013395736,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 2,
+      "abort0": {
+        "median_throughput": 2495445.0,
+        "median_abort_rate": 0.7772394773528293,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1359225.0,
+        "median_abort_rate": 0.12389546329684184,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2533154.0,
+        "median_abort_rate": 0.7821606339092755,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 4011567.0,
+        "median_abort_rate": 0.3806666034709672,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 3,
+      "abort0": {
+        "median_throughput": 2540311.0,
+        "median_abort_rate": 0.777024839263781,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1356797.0,
+        "median_abort_rate": 0.12027093910137955,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2486223.0,
+        "median_abort_rate": 0.7841476245624295,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 4008337.0,
+        "median_abort_rate": 0.3814864709237466,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 4,
+      "abort0": {
+        "median_throughput": 2389866.0,
+        "median_abort_rate": 0.7830140221650964,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1374239.0,
+        "median_abort_rate": 0.12551560565035788,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2374420.0,
+        "median_abort_rate": 0.7870324032855254,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 3958592.0,
+        "median_abort_rate": 0.385206824824899,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 5,
+      "abort0": {
+        "median_throughput": 2522563.0,
+        "median_abort_rate": 0.7763998552212678,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1373732.0,
+        "median_abort_rate": 0.12476037085939172,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2503941.0,
+        "median_abort_rate": 0.777536208720441,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 4009594.0,
+        "median_abort_rate": 0.38120137077517857,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 6,
+      "abort0": {
+        "median_throughput": 2417972.0,
+        "median_abort_rate": 0.7834334824817938,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1373246.0,
+        "median_abort_rate": 0.12660663189407184,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2431061.0,
+        "median_abort_rate": 0.7874309714484375,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 3983041.0,
+        "median_abort_rate": 0.38282571800585496,
+        "status": "complete"
+      }
+    },
+    {
+      "job": 7,
+      "abort0": {
+        "median_throughput": 2435245.0,
+        "median_abort_rate": 0.7842022886014594,
+        "status": "complete"
+      },
+      "stock": {
+        "median_throughput": 1355630.0,
+        "median_abort_rate": 0.11922753315437318,
+        "status": "complete"
+      },
+      "b0_l_w0": {
+        "median_throughput": 2401927.0,
+        "median_abort_rate": 0.7846903833272159,
+        "status": "complete"
+      },
+      "fixed10": {
+        "median_throughput": 3975977.0,
+        "median_abort_rate": 0.3836495911443676,
+        "status": "complete"
+      }
+    }
+  ],
+  "summary": {
+    "eligible_points": 16,
+    "null_count": 0,
+    "null_reasons": {},
+    "exceeds_count": 3,
+    "max_best_ref_ratio": 1.0688024865222534,
+    "max_case_id": "1110"
+  },
+  "errors": []
+}
