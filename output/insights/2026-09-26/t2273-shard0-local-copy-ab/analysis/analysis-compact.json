@@ -1,0 +1,307 @@
+{
+ "pairs": [
+  {
+   "pair_slot": 1,
+   "attempt": 1,
+   "runs": [
+    "01-A"
+   ],
+   "valid": false,
+   "skipped_match": false,
+   "e1_reasons": [],
+   "B_added_node_shards": [],
+   "reason": "incomplete/nonadjacent pair, wrong slot/order, or half reuse"
+  },
+  {
+   "pair_slot": 1,
+   "attempt": 2,
+   "runs": [
+    "02-A"
+   ],
+   "valid": false,
+   "skipped_match": false,
+   "e1_reasons": [],
+   "B_added_node_shards": [],
+   "reason": "incomplete/nonadjacent pair, wrong slot/order, or half reuse"
+  },
+  {
+   "pair_slot": 1,
+   "attempt": 3,
+   "runs": [
+    "03-A",
+    "04-B"
+   ],
+   "valid": false,
+   "skipped_match": false,
+   "e1_reasons": [],
+   "B_added_node_shards": [],
+   "reason": "invalid run in adjacent pair"
+  },
+  {
+   "pair_slot": 1,
+   "attempt": 4,
+   "runs": [
+    "05-A",
+    "06-B"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    0
+   ],
+   "W_0_A": 367.498,
+   "W_0_B": 348.387,
+   "delta_W_0": 19.11099999999999,
+   "r": 0.05200300409798146,
+   "W_max_A": 367.498,
+   "W_max_B": 348.387
+  },
+  {
+   "pair_slot": 2,
+   "attempt": 1,
+   "runs": [
+    "07-B",
+    "08-A"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    0
+   ],
+   "W_0_A": 344.833,
+   "W_0_B": 325.154,
+   "delta_W_0": 19.67900000000003,
+   "r": 0.05706820402919682,
+   "W_max_A": 344.833,
+   "W_max_B": 325.154
+  },
+  {
+   "pair_slot": 3,
+   "attempt": 1,
+   "runs": [
+    "09-A",
+    "10-B"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    0
+   ],
+   "W_0_A": 353.559,
+   "W_0_B": 357.9,
+   "delta_W_0": -4.340999999999951,
+   "r": -0.012278007348136947,
+   "W_max_A": 353.559,
+   "W_max_B": 357.9
+  }
+ ],
+ "total_runs": 10,
+ "valid_pairs": 3,
+ "series_invalid": [],
+ "W_0": {
+  "median_delta_s": 19.11099999999999,
+  "median_pair_rate": 0.05200300409798146
+ },
+ "land_condition": "not-met",
+ "land_reasons": [
+  "not all three pair deltas are positive",
+  "median pair rate below 10%"
+ ],
+ "five_minute_goal": {
+  "status": "not-met",
+  "median_B_W_max_s": 348.387,
+  "threshold_s": 300
+ },
+ "submission_limitations": "投入台帳は launcher が追記専用で扱う通常ファイル。台帳自身の改竄・削除（RUN と同時の削除を含む）や外部の同時変更は防げない。追記後の異常終了は自動修復せず拒否する。",
+ "condition_summaries": {
+  "A": {
+   "runs": [
+    "05-A",
+    "08-A",
+    "09-A"
+   ],
+   "run_numbers": [
+    "05",
+    "08",
+    "09"
+   ],
+   "valid_runs": 3,
+   "shards": [
+    {
+     "shard": 0,
+     "W": 353.559,
+     "O": 278.626823174,
+     "L": 261.753,
+     "F": 74.51675994199996,
+     "pre": 64.42958521842957,
+     "post": 10.06153392791748
+    },
+    {
+     "shard": 1,
+     "W": 225.331,
+     "O": 157.03160064,
+     "L": 145.61,
+     "F": 68.52449174699998,
+     "pre": 64.7122859954834,
+     "post": 3.7046186923980713
+    },
+    {
+     "shard": 2,
+     "W": 219.137,
+     "O": 151.117688044,
+     "L": 151.117,
+     "F": 68.095085466,
+     "pre": 64.6039731502533,
+     "post": 3.4388303756713867
+    }
+   ]
+  },
+  "B": {
+   "runs": [
+    "06-B",
+    "07-B",
+    "10-B"
+   ],
+   "run_numbers": [
+    "06",
+    "07",
+    "10"
+   ],
+   "valid_runs": 3,
+   "shards": [
+    {
+     "shard": 0,
+     "W": 348.387,
+     "O": 272.250455005,
+     "L": 251.443,
+     "F": 74.45492870999999,
+     "pre": 64.40209293365479,
+     "post": 10.063231229782104
+    },
+    {
+     "shard": 1,
+     "W": 226.731,
+     "O": 157.479322048,
+     "L": 149.393,
+     "F": 69.251677952,
+     "pre": 65.39315366744995,
+     "post": 3.706181287765503
+    },
+    {
+     "shard": 2,
+     "W": 218.398,
+     "O": 149.536931012,
+     "L": 149.537,
+     "F": 68.861068988,
+     "pre": 65.15917015075684,
+     "post": 3.419745445251465
+    }
+   ]
+  }
+ },
+ "runs": [
+  {
+   "tag": "01-A",
+   "valid": false,
+   "errors": [
+    "rc/copy_ok"
+   ],
+   "classification": {
+    "class": "infra",
+    "reason": "shard-2 の job 21564.nqsv が gen_S の queue で待ち上限を超えた (dispatcher.log: 'Pegasus dispatch infrastructure failure: queue-wait-timeout'、IZANAGI_DISPATCH_OUTCOME_V1 kind=infra reason=queue-wait-timeout、child_started=false)。test は 1 件も起動していない。shard-0 (21562) と shard-1 (21563) は junit を出して完了したが、fan-out の hold で merge されず acceptance は 'dispatch-infrastructure' で rc=16。A 走 (620a6bb13 = 実装を含まない main) で起きており、実装差分から到達しない。2026-09-26 に qstat で 3 job とも不在を確認し、runbook §7.6 の手順で A 木の orphan hold を解除した (release-orphan-holds-01A.log)。事前登録 §3 / erratum E1 のとおりこの対 (slot 1、順序 A,B) を同順序で取り直す。",
+    "failed_nodes": [],
+    "dispatch": {
+     "shard-0": "21562.nqsv completed (junit present)",
+     "shard-1": "21563.nqsv completed (junit present)",
+     "shard-2": "21564.nqsv queue-wait-timeout, child not started"
+    },
+    "classified_at": "2026-09-26T10:11:33+09:00",
+    "classified_by": "parent (claude, manager)"
+   }
+  },
+  {
+   "tag": "02-A",
+   "valid": false,
+   "errors": [
+    "rc/copy_ok"
+   ],
+   "classification": {
+    "class": "infra",
+    "reason": "shard-0 (29217.nqsv) の xdist worker が orchestrator/tests/real_repo_receipt_memo.py の早期待ち (_EARLY_WAIT_TIMEOUT_S = 120 秒) を超えて 'memo publication timeout' (TimeoutError ETIMEDOUT) の INTERNALERROR になり、no tests ran in 191.49s。dispatch は shard-0 と shard-2 (29218) を 'signal 15' (signal-abort、kind=infra) で終えた。A 走 (620a6bb13 = 実装を含まない main の code、real_repo_receipt_memo.py は本 wave で未変更) で起きており、実装差分から到達しない。同型は既知 (decisions の D2206 項 10 の渡し先の記録に memo publication timeout 1 例、hold 退避と再投入で対処)。qstat で 29217/29218/29219 の不在を確認、A 木に hold は残っていない。事前登録 §3 のとおり対 1 (順序 A,B) を同順序で取り直す。失敗走は捨てず、insight に条件別の失敗件数として残す。",
+    "failed_nodes": [],
+    "dispatch": {
+     "shard-0": "29217.nqsv signal-abort after worker INTERNALERROR (memo publication timeout)",
+     "shard-1": "29219.nqsv finished",
+     "shard-2": "29218.nqsv signal-abort"
+    },
+    "classified_at": "2026-09-26T10:21:09+09:00",
+    "classified_by": "parent (claude, manager)"
+   }
+  },
+  {
+   "tag": "03-A",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "04-B",
+   "valid": false,
+   "errors": [
+    "rc/copy_ok"
+   ],
+   "classification": {
+    "class": "infra",
+    "reason": "shard-2 (29239.nqsv) が collection 完了時の早期 memo 待ち (conftest.py pytest_collection_finish → _wait_early_memo_job → real_repo_receipt_memo.get → _locked) で 120 秒上限を超え 'memo publication timeout' の INTERNALERROR、no tests ran in 188.16s。dispatch は shard-0 (29240) と shard-1 (29241) を signal-abort (kind=infra) で打ち切ったが、両 job は scheduler 上に残った (29240 Pre-running、29241 Running)。test が 1 件も走る前の collection 段で起きており、本 wave の変更 (orchestrator/tests/test_s8b_oracle_driver.py の共有 base builder の複製元、test 実行時にだけ走る) からは到達しない。同型は A 走 02-A でも起きている (条件によらない)。事前登録 §3 のとおり対 1 (順序 A,B) を対全体で取り直す (03-A は対から外れ、走として記録だけ残す)。",
+    "failed_nodes": [],
+    "dispatch": {
+     "shard-0": "29240.nqsv signal-abort (job remained Pre-running)",
+     "shard-1": "29241.nqsv signal-abort (job remained Running)",
+     "shard-2": "29239.nqsv finished with INTERNALERROR (memo publication timeout)"
+    },
+    "classified_at": "2026-09-26T10:46:07+09:00",
+    "classified_by": "parent (claude, manager)"
+   }
+  },
+  {
+   "tag": "05-A",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "06-B",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "07-B",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "08-A",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "09-A",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  },
+  {
+   "tag": "10-B",
+   "valid": true,
+   "errors": [],
+   "classification": null
+  }
+ ],
+ "note": "analysis.json (48MB、node 一覧を含む) の要約。全文は repo 外の job dir /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/analysis/analysis.json。走ごとの W/O/L は analysis.md。"
+}

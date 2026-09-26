@@ -1,0 +1,12 @@
+{
+  "class": "infra",
+  "reason": "shard-2 (29239.nqsv) が collection 完了時の早期 memo 待ち (conftest.py pytest_collection_finish → _wait_early_memo_job → real_repo_receipt_memo.get → _locked) で 120 秒上限を超え 'memo publication timeout' の INTERNALERROR、no tests ran in 188.16s。dispatch は shard-0 (29240) と shard-1 (29241) を signal-abort (kind=infra) で打ち切ったが、両 job は scheduler 上に残った (29240 Pre-running、29241 Running)。test が 1 件も走る前の collection 段で起きており、本 wave の変更 (orchestrator/tests/test_s8b_oracle_driver.py の共有 base builder の複製元、test 実行時にだけ走る) からは到達しない。同型は A 走 02-A でも起きている (条件によらない)。事前登録 §3 のとおり対 1 (順序 A,B) を対全体で取り直す (03-A は対から外れ、走として記録だけ残す)。",
+  "failed_nodes": [],
+  "dispatch": {
+    "shard-0": "29240.nqsv signal-abort (job remained Pre-running)",
+    "shard-1": "29241.nqsv signal-abort (job remained Running)",
+    "shard-2": "29239.nqsv finished with INTERNALERROR (memo publication timeout)"
+  },
+  "classified_at": "2026-09-26T10:46:07+09:00",
+  "classified_by": "parent (claude, manager)"
+}
