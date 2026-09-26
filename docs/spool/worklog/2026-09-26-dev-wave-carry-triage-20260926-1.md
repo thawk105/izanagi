@@ -4,18 +4,18 @@ ledger: worklog
 authored: 2026-09-26
 wave: dev-wave-carry-triage-20260926
 seq: 1
-title: 持ち越し 619 項を 1 項ずつ読み、506 項を取り下げて 113 項を残す (docs のみ、branch dev-wave-carry-triage-20260926)
+title: 持ち越し 619 項を 1 項ずつ読み、502 項を取り下げて 117 項を残す (docs のみ、branch dev-wave-carry-triage-20260926)
 ---
 
 ## 本文
 
-- ユーザー依頼 (2026-09-26、逐語):「防壁・受領証・束縛・台帳の追加は本当の過剰なんだよね？codexと相談しながら消しちゃうdev-wave文考えてくれ。記録・注記だけのやつも。研究・論文のやつも。だってそいつら毎度スキャンされてコストかかるだろ？」。取り下げの記録は {{D:carry-triage-withdrawal}}、一覧 (T・区分・理由) は `output/insights/2026-09-26/carry-triage/withdrawn.tsv`、残す 113 項は同 `kept.tsv`、経緯は同 `README.md`。
-- 母集合は着手時の local main `7c1b53a4b` (entry 1869) の active 619 項 (`worklog_carry_resolve.py --json`、未解決 0)。親が全項の本文を読んで一次判定し、確認の要る 59 項は sonnet 子 2 本が現物 (実装・決定・worktree) と照合した。その後 codex read-only の相談 4 本 (lens A = 過剰判定と研究を止める取り下げ、lens B = 規律 2・6 と実害の見落とし、各 前半 344 項 / 後半 275 項) が全項を攻撃し、所見 40 件 (重複 3) を段 4 で裁定した。段 6 の read-only レビュー 1 本 (NO-GO、must-fix 5・should 5) を受けてさらに 7 項を残す側へ戻した。取り下げ 506 項の区分 (筆頭) は (a) 185・(b) 116・(c) 102・旧系列 90・(d) 13。
-- 段 4 で brief の前提 P1 (「実害の実測」を本文の誤記録・誤判定の記述だけで判定する) を改めた。相談 4 本がそろって、現物で具体的に示された現行経路の欠陥 (A-2 materializer が `True == 1` を通す、Genome の正準形の区切り文字、B-4 床値 driver の probe status の再導出の欠落など) まで「仮想リスクへの防壁の追加」に吸収していると指摘した。改めた基準は「現行経路で現物に示された欠陥の局所修正は残し、実例の無い防壁・束縛・gate・台帳の追加だけを落とす」。段 4 ではこの改訂と、4 区分に当たらない整理・所要改善の指摘により 23 項を残す側へ戻した (うち受入所要台帳の 3 項は同型の整合で親が足した)。閉包の拡張 (source closure の段階実装)・全 certified sink への gate・認可 gate の要否調査などは、依頼が名指す束縛・gate の追加として退けた。
+- ユーザー依頼 (2026-09-26、逐語):「防壁・受領証・束縛・台帳の追加は本当の過剰なんだよね？codexと相談しながら消しちゃうdev-wave文考えてくれ。記録・注記だけのやつも。研究・論文のやつも。だってそいつら毎度スキャンされてコストかかるだろ？」。取り下げの記録は {{D:carry-triage-withdrawal}}、一覧 (T・区分・理由) は `output/insights/2026-09-26/carry-triage/withdrawn.tsv`、残す 117 項は同 `kept.tsv`、経緯は同 `README.md`。
+- 母集合は着手時の local main `7c1b53a4b` (entry 1869) の active 619 項 (`worklog_carry_resolve.py --json`、未解決 0)。親が全項の本文を読んで一次判定し、確認の要る 59 項は sonnet 子 2 本が現物 (実装・決定・worktree) と照合した。その後 codex read-only の相談 4 本 (lens A = 過剰判定と研究を止める取り下げ、lens B = 規律 2・6 と実害の見落とし、各 前半 344 項 / 後半 275 項) が全項を攻撃し、所見 40 件 (重複 3) を段 4 で裁定した。段 6 の read-only レビュー 1 本 (NO-GO、must-fix 5・should 5) を受けて 7 項、焦点再レビュー (NO-GO、must-fix 1) を受けて 4 項を残す側へ戻した。取り下げ 502 項の区分 (筆頭) は (a) 181・(b) 116・(c) 102・旧系列 90・(d) 13。
+- 段 4 で brief の前提 P1 (「実害の実測」を本文の誤記録・誤判定の記述だけで判定する) を改めた。相談 4 本がそろって、現物で具体的に示された現行経路の欠陥 (A-2 materializer が `True == 1` を通す、Genome の正準形の区切り文字、B-4 床値 driver の probe status の再導出の欠落など) まで「仮想リスクへの防壁の追加」に吸収していると指摘した。改めた基準は「現行経路で現物に示された欠陥の局所修正は残し、実例の無い防壁・束縛・gate・台帳の追加だけを落とす」。段 4 ではこの改訂と、4 区分に当たらない整理・所要改善の指摘により 23 項を残す側へ戻した (うち受入所要台帳の 3 項は同型の整合で親が足した)。認可 gate の要否調査などは、依頼が名指す束縛・gate の追加として退けた。source closure の推移閉包への段階実装 (T-733・T-2344・T-2402) と全 certified sink への source gate (T-734) は、段 4 でいったん退けたが、焦点再レビューの指摘で残す側へ戻した — ユーザー裁定 D1075・2026-08-16 第 3 回の継続で、正しさ防壁自身を束縛する取り組み (D1884 は実害 0 件を据え置きの根拠にしないと明記) であり、依頼文がこれらの裁定を名指していないため親は覆さない。止めるかどうかはユーザーが D1075 を名指して決める判断として残る。
 - 段 6 のレビューで直したもの: 軸 1 の取得を「取得済み 78 leaf」と書いた誤り (一次資料は登録 78・取得証拠あり 77・未走 1)、止めた上位裁定を示せない研究・調査の項 (関連研究の供給経路の調査、arXiv 掃引の作り直し、索引の件数不一致の調査) の取り下げ、実害の実測 (F300 の再発 5 例、F370 の再発 3 回) や決定が実在と分類した穴を本文に持つ項の取り下げ、決定の「消したのは未実装の追加予定だけ」という過大な射程。
 - 途中で判明した誤認 2 件: (1) B-4 は D1936 項 8・D2201 項 2 で継続中の現行系列で、旧系列ではない。親は「床値」「B-4」を旧系列・停止扱いにしていたため、B-4 事前登録 §5 の記入 (D1483・D1143) や床値 D の exact 有理数化 (D1819、閾値が候補に甘い向き) を取り下げかけていた。sonnet 子の照合で気づき、B-4 系の項を洗い直して残した。official 床値は旧系列のまま。(2) 依頼が停止例に挙げた軸 1 の文献検索は、D1760 の停止の後に D2095 (2026-09-17、ユーザー直接指示) で再開され、T-2035 で登録 78 leaf すべてに裁定が付いて区切られていた。T-1969・T-1970 の取り下げは依頼の名指しどおりだが、理由は D2095・T-2035 の経緯で書いた。
-- 実測事実: repo 外の `/work/1/SFC/tanab/scripts/spool_base_digest.py` が carry 鎖の深さで `RecursionError` を出した (T-011 で再現、sweep_pending.py で直した型と同じ)。本 wave は再帰上限と thread の stack を上げて runpy で呼び、506 項すべての digest を得た。2 項は `tools/spool_fold.py --base-digest` と一致を確かめた。
-- 相談の受領証 4 本とレビューの受領証 1 本はすべて accepted / completed だった (相談は各 21〜33 call、206〜318 秒、約 10〜15 万 token)。
+- 実測事実: repo 外の `/work/1/SFC/tanab/scripts/spool_base_digest.py` が carry 鎖の深さで `RecursionError` を出した (T-011 で再現、sweep_pending.py で直した型と同じ)。本 wave は再帰上限と thread の stack を上げて runpy で呼び、502 項すべての digest を得た。2 項は `tools/spool_fold.py --base-digest` と一致を確かめた。
+- 相談の受領証 4 本とレビューの受領証 2 本はすべて accepted / completed だった (相談は各 21〜33 call、206〜318 秒、約 10〜15 万 token。レビュー 1 本目は 32 call・400 秒)。
 - コード・既存の検査と防壁・見送り台帳・既存の決定は変えていない (規律 2 は不変)。
 
 ## 次の一手差分
@@ -178,12 +178,6 @@ title: 持ち越し 619 項を 1 項ずつ読み、506 項を取り下げて 113
 - [T-623] 取り下げ (a)・(旧系列): s8b 床値契約の test を単一理由へ強める。旧系列を再開するとき再起票。{{D:carry-triage-withdrawal}}
   remaining: none
   base: 084725fef645fb3e79697a1996cbf38836616312ebaecd7e09f5ac70a59aef23
-- [T-733] 取り下げ (a): certified 経路の source closure の収載拡大と非 import 委譲の束縛 (T-2344 と同じ取り組み)。束縛の追加で、記録・判定を誤らせた実害の実測が無い。{{D:carry-triage-withdrawal}}
-  remaining: none
-  base: 4831b10252b4c39d85a89054db6ae71e42681edce566ecd1b405b53a9431a82c
-- [T-734] 取り下げ (a): 全 certified sink への source gate の追加。実害の実測が無い。{{D:carry-triage-withdrawal}}
-  remaining: none
-  base: 6b9dc9061e17871aabc857b3c6a6a8cafaf2652d2e817e9525046f3488413b60
 - [T-750] 取り下げ (旧系列): 8b W-4/W-5 (D2212 項 5 で必須経路外)。旧系列を再開するとき再起票。{{D:carry-triage-withdrawal}}
   remaining: none
   base: 90c3b3d2dbc865aee0abc5f2a9a941378c20d5e2f3e78ee08979643b636ba9fa
@@ -982,9 +976,6 @@ title: 持ち越し 619 項を 1 項ずつ読み、506 項を取り下げて 113
 - [T-2343] 取り下げ (b): 非保証の明記だけ。{{D:carry-triage-withdrawal}}
   remaining: none
   base: 052ac95fed35651282d5508e13bd62f7691c359a2966605d00375079737313fe
-- [T-2344] 取り下げ (a): closure emitters の 2 段目 23 本と exact-85 の再走査 (閉包の拡張)。実害の実測が無い。{{D:carry-triage-withdrawal}}
-  remaining: none
-  base: c0603714498f760c26d413245133072d90f01c665aab19c7338824d0d6a23f59
 - [T-2348] 取り下げ (a): 完了側からの legacy study 既定の撤去。実害の実測が無い。{{D:carry-triage-withdrawal}}
   remaining: none
   base: 06eb271bca828e2dfb9402c5e383cee567ce562a4c0c67437f129b59555a831c
@@ -1060,9 +1051,6 @@ title: 持ち越し 619 項を 1 項ずつ読み、506 項を取り下げて 113
 - [T-2400] 取り下げ (b): 検査の主張範囲の文言修正だけ。{{D:carry-triage-withdrawal}}
   remaining: none
   base: f8a0f66e6a0e9fc024e430fe05d8ddb7542c6999cb1e1de2e9e47c488ba4e528
-- [T-2402] 取り下げ (a): gate report が D1884 の推移閉包に含まれるかの確認と段階実装。source closure の段階拡張 (T-733・T-2344 と同じ取り組み) の一部で、束縛の追加。実害の実測が無い (段 6 R6)。{{D:carry-triage-withdrawal}}
-  remaining: none
-  base: e35bdd26c0735172bc66f27aa1a116c585b115eeb12bbedb1f9870f28189ae4f
 - [T-2403] 取り下げ (a): hold 解除時の赤の 1 回観測。実害の実測が無い。{{D:carry-triage-withdrawal}}
   remaining: none
   base: 9a49f3794bce3abc041b9ea46d79ff2ccccac3db36c28f7eaf62207433613f44

@@ -4,6 +4,8 @@ T-238	p3_s4_loop.py と trigger 版は Pegasus 対応済みだが、p3_s4_loop_s
 T-265	別 env の COMMIT で試行を誤 skip する測定の意味の欠陥で、環境世代 activation で必ず踏むと本文が言う
 T-570	現行の論文図の生成器 (plot_a2_certification.py、ComSys 原稿の図) が admission を経ず WAL を直接読む (論文図の値に関わる、迷えば残す)
 T-580	第 36 回 /rulings 収載維持
+T-733	enforcement source closure の収載拡大 (exact 96 まで進行)。D1884 はユーザー裁定 D1075 (推移閉包へ広げる) の継続で、正しさ防壁自身を束縛する取り組みであり実害 0 件を据え置きの根拠にしないと明記する。依頼文は D1075 を名指さないので親は覆さない (段 3 lens A・段 6 N1)
+T-734	全 certified sink への source gate (2026-08-16 第 3 回のユーザー裁定「課す」、規律 2 の面)。T-580 とまとめる認証閉包の取り組みで、依頼文は当該裁定を名指さないので親は覆さない (段 3 lens A)
 T-793	第 36 回 /rulings 収載維持
 T-823	計算ノード job を 2 本空費した実害。PBS_JOBID のコロンは runbook に記載済みだが、exploration output root の非 git base の要件は未記載
 T-841	coder_effect_gate.py :20-26 が host-effect gate の結果を cache・WAL・COMMIT に束縛しない限界を T-841 の残件と明記し、現行段 4 driver (p3_s4_loop.py :801-805) がその gate を使う (規律 2 の現行経路) (段 3 lens B)
@@ -52,9 +54,11 @@ T-2300	重い test の中身の妥当性検査 (所要の改善で、4 区分に
 T-2318	p3_s4_loop_sort.py :105 が ENV_TAG=linux-baremetal を直書きのまま。sort 軸は ComSys 原稿の評価軸で、新規投入の要否を確定できない
 T-2322	D1605 の「24 反復」が確定した実規模 18 / campaign 全体 22 と食い違う未訂正の数値を含む記録 (記録を実際に誤らせている) (段 3 lens B)
 T-2323	関連研究の軸の axis_complete の供給経路の調査 (D2120 項 17)。本文が取得とは独立に進めてよいと言い、止めた後続の裁定を示せない (段 3 lens A・段 6 R2)
+T-2344	closure emitters の 2 段目 23 本と exact-85 の再走査 (D1884・D2193・D2204)。T-733 と同じ D1075 の取り組み (段 3 lens A・段 6 N1)
 T-2351	直列性検査の SCC/隣接の容量削減 (read-heavy 10 s 級で 100 GiB 超)。検証費用が現行の研究を律速する (T-2850 と同じ面)
 T-2378	t080 base の collection 中 prewarm。稼働中の T-2273 wave (shard-0 診断) の (a) と同じ面
 T-2387	受入所要台帳の旧 nodeid 7・欠落 17 を実受入から再生成。台帳は conftest.py :1707・:1822 で collection の並べ替えに使われ割付の根拠が食い違う (段 3 lens B)
+T-2402	gate report が D1884 の推移閉包に含まれるかの確認と段階実装 (D2104 項 26)。T-733 と同じ D1075 の取り組み (段 6 R6・N1)
 T-2404	受入所要台帳の未登録 202 node の登録。T-2250・T-2387 と同じ所要の改善の面で 4 区分に当たらない
 T-2415	D1818 が認めた probe の申告 status と生の returncode 等の再導出の不一致を、現行 floor_pair_driver.py :2419-2452 が検査しない (競合下の測定を床値として通す B-4 の穴) (段 3 lens B)
 T-2422	D2044 項 35 の対象 docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md が現存し、相談の子が実際に誤読した実害がある

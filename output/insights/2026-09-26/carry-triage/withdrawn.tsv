@@ -51,8 +51,6 @@ T-571	a	wal.replay の read-only 化 (書込みを resume seam へ移す整理)�
 T-581	a	変異 harness 入場 gate への ignored file 検査追加。実害の実測が無い
 T-584	a,old	submit_certify の repo-root 分離の仮想リスク。certify 経路は旧系列
 T-623	a,old	s8b 床値契約の test を単一理由へ強める。旧系列を再開するとき再起票
-T-733	a	certified 経路の source closure の収載拡大と非 import 委譲の束縛 (T-2344 と同じ取り組み)。束縛の追加で、記録・判定を誤らせた実害の実測が無い
-T-734	a	全 certified sink への source gate の追加。実害の実測が無い
 T-750	old	8b W-4/W-5 (D2212 項 5 で必須経路外)。旧系列を再開するとき再起票
 T-776	c	tools/mutation_harness.py に allow_incomplete_dispatch が入り、hang した変異で matrix 全体が abort する件は解消済み (専用テストあり)
 T-818	b	coverage 系 driver の材料値が witness 未装備という限界の明記だけ
@@ -319,7 +317,6 @@ T-2335	a	run_formal の統合 test の追加 (nit)。本文自身が成果物の
 T-2336	a	job-result への trial report path の追加と runbook 明記。実害の実測が無い
 T-2342	d	動的上限が発火する regime での検証。本文自身が D1505 の後はその regime が候補にならないと言う
 T-2343	b	非保証の明記だけ
-T-2344	a	closure emitters の 2 段目 23 本と exact-85 の再走査 (閉包の拡張)。実害の実測が無い
 T-2348	a	完了側からの legacy study 既定の撤去。実害の実測が無い
 T-2352	a	直列性検査の単体テストと PID marker の追加 (should)。実害の実測が無い
 T-2355	b	header bytes を束縛しない限界の明記だけ
@@ -345,7 +342,6 @@ T-2393	old	not-consumed の試行を outer receipt へ運ぶ (D1701)。単位は
 T-2394	b	単一 repository 前提の限界の明記だけ
 T-2395	old	8c 設計の承認 artifact の読み方。旧系列を再開するとき再起票
 T-2400	b	検査の主張範囲の文言修正だけ
-T-2402	a	gate report が D1884 の推移閉包に含まれるかの確認と段階実装。source closure の段階拡張 (T-733・T-2344 と同じ取り組み) の一部で、束縛の追加。実害の実測が無い (段 6 R6)
 T-2403	a	hold 解除時の赤の 1 回観測。実害の実測が無い
 T-2405	c	本文自身が「終端」と言う
 T-2412	c	本文自身が「残件なし」と言う
