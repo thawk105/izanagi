@@ -1,0 +1,4 @@
+| FAILED orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted
+| 1 failed, 1010 passed, 4 skipped in 127.16s (0:02:07)
+|   Elapse:               133S
+rc=1

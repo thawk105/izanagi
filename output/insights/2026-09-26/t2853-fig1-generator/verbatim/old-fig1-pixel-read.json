@@ -1,0 +1,147 @@
+{
+ "image": "docs/paper-story/figures/fig1_phase2_negative.png",
+ "shape": [
+  709,
+  1828
+ ],
+ "spine_x": [
+  113,
+  672,
+  1232
+ ],
+ "panels": [
+  {
+   "x0": 113,
+   "ticks_px": [
+    171.5,
+    232.5,
+    292.5,
+    353.5,
+    414.5,
+    474.5,
+    535.5,
+    595.5
+   ],
+   "oracle_line": [
+    1.501
+   ],
+   "random_line": [
+    1.798
+   ],
+   "guided_median_bar": [
+    1.006
+   ],
+   "greedy_square_center": 1.714,
+   "greedy_whisker_top": 1.987,
+   "greedy_whisker_bottom": 0.997,
+   "guided_point_blobs": [
+    [
+     2.99,
+     111
+    ],
+    [
+     2.99,
+     118
+    ]
+   ]
+  },
+  {
+   "x0": 672,
+   "ticks_px": [
+    171.5,
+    232.5,
+    292.5,
+    353.5,
+    414.5,
+    474.5,
+    535.5,
+    595.5
+   ],
+   "oracle_line": [
+    1.88
+   ],
+   "random_line": [
+    4.504
+   ],
+   "guided_median_bar": [
+    3.993
+   ],
+   "greedy_square_center": 4.207,
+   "greedy_whisker_top": 5.998,
+   "greedy_whisker_bottom": 1.987,
+   "guided_point_blobs": [
+    [
+     1.0,
+     121
+    ],
+    [
+     2.99,
+     104
+    ],
+    [
+     2.99,
+     113
+    ],
+    [
+     3.91,
+     22
+    ],
+    [
+     4.99,
+     95
+    ],
+    [
+     4.99,
+     106
+    ]
+   ]
+  },
+  {
+   "x0": 1232,
+   "ticks_px": [
+    171.5,
+    232.5,
+    292.5,
+    353.5,
+    414.5,
+    474.5,
+    535.5,
+    595.5
+   ],
+   "oracle_line": [
+    1.88
+   ],
+   "random_line": [
+    4.504
+   ],
+   "guided_median_bar": [
+    8.003
+   ],
+   "greedy_square_center": 4.31,
+   "greedy_whisker_top": 5.998,
+   "greedy_whisker_bottom": 1.987,
+   "guided_point_blobs": [
+    [
+     1.0,
+     121
+    ],
+    [
+     2.99,
+     121
+    ],
+    [
+     3.98,
+     73
+    ],
+    [
+     3.98,
+     88
+    ],
+    [
+     7.92,
+     23
+    ]
+   ]
+  }
+ ]
+}
