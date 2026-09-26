@@ -68,6 +68,10 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     # Fixed argv, no shell expansion, sanitized env, read-only Git tree query.
     ("campaign/s8b_floor_campaign.py", "<module>._floor_protocol_paths_at_commit"): 1,
+    # Delegates the run_once-built numactl/binary/gflags argv (no perf or
+    # shell, default 120-second timeout) to the injected runner; this CCBench
+    # measurement seam only retains stdout for TPC-C transaction counts.
+    ("campaign/t2851_transfer_runner.py", "<module>.run_job.once.capture"): 1,
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
@@ -145,6 +149,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/floor_pair_driver.py", "<module>._git_is_ancestor"): 1,
     ("campaign/floor_pair_driver.py", "<module>._git_show_head"): 1,
     ("campaign/floor_pair_driver.py", "<module>._run_probe"): 1,
+    # TPC-C isolation probe uses fixed pgrep -af tpcc_.*\.exe argv, no shell,
+    # and a 10-second timeout; it observes processes but never starts CCBench.
+    ("campaign/t2851_transfer_runner.py", "<module>._probe"): 1,
     # Resolves manifest-declared Git objects only; it never launches a CCBench
     # measurement process.
     ("campaign/knowledge_manifest.py", "<module>._git"): 1,
