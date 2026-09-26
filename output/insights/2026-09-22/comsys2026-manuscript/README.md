@@ -287,3 +287,5 @@ prompt と出力は job dir の `review-prompt.md`・`review.md` (read-only、`d
   - nit (採用): 出所コメントで改訂 2 までの参照と新しい参照が並び現況と誤読しやすい。旧い参照に「改訂 2 までの状態」と明記した (PDF には出ない)。
 - 不成立の攻撃: 7 節が TPC-C での合成候補の評価・認定や認定経路の完成を主張している、本走を「発効した」「実施中」と書いた、Polyjuice・SysInsight の書誌の不一致、照合範囲 (P4)・記録・コメント事故・内部 ID の露出。
   36,156 = 19,751 + 16,405 と固定版未取り込み・配線の残りは一次資料と一致した。
+- 焦点再レビュー (`c5fc367c4` 対象、rc=0・出力検査 rc=0、`focus-prompt.md`・`focus.md`): **GO**。must-fix 2・should 1・nit は closed、不採用の should 2 は partial (誤読の余地は残るが、不採用の理由は成り立ち事実誤りではない)。
+  本文の certified の全出現は定義 (YCSB) を越えず、「直列化可能と判定され」「受理されない」は一次資料 (公開 API で certified、違反写しは indeterminate) の範囲内と確認された。新規所見なし。
