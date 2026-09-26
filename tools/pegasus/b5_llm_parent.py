@@ -14,6 +14,7 @@ FORBIDDEN = ('CLAUDE_CODE_SUBAGENT_MODEL', 'CLAUDE_CODE_EFFORT_LEVEL',
              'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
              'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX')
 FIELDS = ('job_id', 'workload', 'series', 'block', 'ledger_root', 'materials_root', 'session_id')
+OUTAGE_RETRY_S = 900
 
 
 def read_config(path: Path) -> dict:
@@ -138,7 +139,7 @@ class Parent:
                 _save(handshake / f"outage-{a}.json", {"a": a, "attempt": run["attempt"],
                                                      "api_error_status": 429,
                                                      "reported_reset": reset.group(1) if reset else None})
-                state["next_retry"] = self.now() + 20
+                state["next_retry"] = self.now() + OUTAGE_RETRY_S
             elif status == "failure":
                 state["failures"] += 1
             _save(state_path, state)

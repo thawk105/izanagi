@@ -170,6 +170,7 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
                               "materials_root": str(root), "session_id": "fixed-session"}]}
         runner = FakeRunner()
         launches = []
+        launch_a = []
         clock = [real_time()]
         monkeypatch.setattr(launch.time, "time", lambda: clock[0])
 
@@ -185,6 +186,8 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
         def spawn(argv, **kwargs):
             index = len(launches)
             launches.append(argv)
+            launch_a.append(int(kwargs["stdin"].read().decode().splitlines()[0].split()[1]))
+            kwargs["stdin"].seek(0)
             publish = None
             if index < outages:
                 answer = {"is_error": True, "api_error_status": 429}
@@ -242,7 +245,7 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
                 submitter=submit, parent_factory=parent_factory)
             for _ in range(5000):
                 status = driver.tick()
-                clock[0] += 21 if status.get("llm") == "outage" else 0.01
+                clock[0] += 901 if status.get("llm") == "outage" else 0.01
                 if (job.ledger_root / "header.json").exists():
                     events = core.SeriesLedger(job.ledger_root).events
                     if any(e["kind"] == "evaluation-result" for e in events):
@@ -260,10 +263,10 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
         assert ledger.header["cohort"] == core.COHORT_REGISTERED_V2
         assert ledger.header["prereg_version"] == core.PREREG_VERSION_V2
         state = json.loads((root / "state/parents/llm/state.json").read_text())
-        return ledger, runner, launches, state
+        return ledger, runner, launches, launch_a, state
 
-    baseline, baseline_runner, baseline_launches, baseline_state = exercise("baseline", 0)
-    resumed, resumed_runner, resumed_launches, resumed_state = exercise("resumed", 3)
+    baseline, baseline_runner, baseline_launches, baseline_a, baseline_state = exercise("baseline", 0)
+    resumed, resumed_runner, resumed_launches, resumed_a, resumed_state = exercise("resumed", 3)
     count = lambda ledger, kind: sum(e["kind"] == kind for e in ledger.events)
     assert [count(resumed, kind) for kind in ("proposal-opportunity", "evaluation-result",
                                               "series-end")] == [1, 1, 0]
@@ -273,7 +276,10 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
     assert count(resumed, "stock-start") == 4 and count(baseline, "stock-start") == 1
     assert len({e["campaign_root"] for e in resumed.events if e["kind"] == "stock-start"}) == 4
     assert [call["kind"] for call in resumed_runner.calls] == ["stock-start"] * 4 + ["search"]
-    assert len(resumed_launches) == len(baseline_launches) + 3 == 4
+    assert len(resumed_launches) == len(baseline_launches) + 3
+    assert baseline_a == [1, 2]
+    assert resumed_a == [1, 1, 1, 1, 2]
+    assert "--session-id" in baseline_launches[0] and "--resume" in baseline_launches[1]
     assert resumed_state["failures"] == baseline_state["failures"] == 0
     assert resumed_state["success_a"] == baseline_state["success_a"] == 1
     assert [e["quality"] for e in resumed.events if e["kind"] == "evaluation-result"] == ["normal"]

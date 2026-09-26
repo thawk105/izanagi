@@ -40,7 +40,10 @@ def test_429_three_times_keeps_same_a_session_and_failure_budget(tmp_path, monke
         assert parent.tick(item, 2, request, handshake) == "outage"
         assert json.loads((handshake / "outage-2.json").read_text())["a"] == 2
         assert json.loads((tmp_path / "state/state.json").read_text())["failures"] == 0
-        now[0] += 21
+        now[0] += 899
+        assert parent.tick(item, 2, request, handshake) == "outage"
+        assert len(calls) == k + 1
+        now[0] += 2
     assert parent.tick(item, 2, request, handshake) == "running"
     assert parent.tick(item, 2, request, handshake) == "success"
     assert len(calls) == 4
