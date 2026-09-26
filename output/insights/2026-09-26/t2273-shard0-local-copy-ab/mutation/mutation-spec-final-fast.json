@@ -1,0 +1,86 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "P0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "        \"\"\"Session で 1 回の snapshot を複製する。\n",
+          "new": "        \"\"\"Session で 1 回の snapshot を複製する (P0)。\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "        shutil.copytree(snapshot / \"output\", destination)\n",
+          "new": "        shutil.copytree(source_root / \"output\", destination)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.replace(marker)\n",
+          "new": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.unlink()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "        shutil.copytree(snapshot / \"output\", destination)\n",
+          "new": "        shutil.copytree(snapshot / \"output\", destination, copy_function=shutil.copy)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                _copy_git_visible_output(source_root, snapshot / \"output\")\n",
+          "new": "                shutil.copytree(source_root / \"output\", snapshot / \"output\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

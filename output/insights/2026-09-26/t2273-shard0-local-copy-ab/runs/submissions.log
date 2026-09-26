@@ -1,0 +1,10 @@
+{"condition": "A", "pair_slot": 1, "run": "01", "tag": "01-A"}
+{"condition": "A", "pair_slot": 1, "run": "02", "tag": "02-A"}
+{"condition": "A", "pair_slot": 1, "run": "03", "tag": "03-A"}
+{"condition": "B", "pair_slot": 1, "run": "04", "tag": "04-B"}
+{"condition": "A", "pair_slot": 1, "run": "05", "tag": "05-A"}
+{"condition": "B", "pair_slot": 1, "run": "06", "tag": "06-B"}
+{"condition": "B", "pair_slot": 2, "run": "07", "tag": "07-B"}
+{"condition": "A", "pair_slot": 2, "run": "08", "tag": "08-A"}
+{"condition": "A", "pair_slot": 3, "run": "09", "tag": "09-A"}
+{"condition": "B", "pair_slot": 3, "run": "10", "tag": "10-B"}

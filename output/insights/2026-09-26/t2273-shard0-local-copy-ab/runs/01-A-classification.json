@@ -1,0 +1,12 @@
+{
+  "class": "infra",
+  "reason": "shard-2 の job 21564.nqsv が gen_S の queue で待ち上限を超えた (dispatcher.log: 'Pegasus dispatch infrastructure failure: queue-wait-timeout'、IZANAGI_DISPATCH_OUTCOME_V1 kind=infra reason=queue-wait-timeout、child_started=false)。test は 1 件も起動していない。shard-0 (21562) と shard-1 (21563) は junit を出して完了したが、fan-out の hold で merge されず acceptance は 'dispatch-infrastructure' で rc=16。A 走 (620a6bb13 = 実装を含まない main) で起きており、実装差分から到達しない。2026-09-26 に qstat で 3 job とも不在を確認し、runbook §7.6 の手順で A 木の orphan hold を解除した (release-orphan-holds-01A.log)。事前登録 §3 / erratum E1 のとおりこの対 (slot 1、順序 A,B) を同順序で取り直す。",
+  "failed_nodes": [],
+  "dispatch": {
+    "shard-0": "21562.nqsv completed (junit present)",
+    "shard-1": "21563.nqsv completed (junit present)",
+    "shard-2": "21564.nqsv queue-wait-timeout, child not started"
+  },
+  "classified_at": "2026-09-26T10:11:33+09:00",
+  "classified_by": "parent (claude, manager)"
+}
