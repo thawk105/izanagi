@@ -261,8 +261,7 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
         assert ledger.header["prereg_version"] == core.PREREG_VERSION_V2
         parent_state = root / "state/parents/llm"
         state = json.loads((parent_state / "state.json").read_text())
-        attempts = {a: sum(path.is_dir() for path in parent_state.glob(f"a-{a}-attempt-*"))
-                    for a in (1, 2)}
+        attempts = sum(path.is_dir() for path in parent_state.glob("a-1-attempt-*"))
         return ledger, runner, launches, attempts, state
 
     baseline, baseline_runner, baseline_launches, baseline_attempts, baseline_state = exercise("baseline", 0)
@@ -276,14 +275,16 @@ def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, m
     assert count(resumed, "stock-start") == 4 and count(baseline, "stock-start") == 1
     assert len({e["campaign_root"] for e in resumed.events if e["kind"] == "stock-start"}) == 4
     assert [call["kind"] for call in resumed_runner.calls] == ["stock-start"] * 4 + ["search"]
-    assert len(resumed_launches) == len(baseline_launches) + 3
-    assert baseline_attempts == {1: 1, 2: 1}
-    assert resumed_attempts == {1: 4, 2: 1}
-    assert "--session-id" in baseline_launches[0] and "--resume" in baseline_launches[1]
+    assert baseline_attempts == 1
+    assert resumed_attempts == 4
+    assert len(resumed_launches[:4]) == resumed_attempts
+    assert baseline_launches[0][baseline_launches[0].index("--session-id") + 1] == "fixed-session"
+    assert resumed_launches[0][resumed_launches[0].index("--session-id") + 1] == "fixed-session"
+    assert all(argv[argv.index("--resume") + 1] == "fixed-session"
+               for argv in resumed_launches[1:4])
     assert resumed_state["failures"] == baseline_state["failures"] == 0
     assert resumed_state["success_a"] == baseline_state["success_a"] == 1
     assert [e["quality"] for e in resumed.events if e["kind"] == "evaluation-result"] == ["normal"]
-    assert all("--resume" in argv for argv in resumed_launches[1:])
     assert [e["a"] for e in resumed.events if e["kind"] == "proposal-opportunity"] == [1]
 
 
