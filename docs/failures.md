@@ -24857,6 +24857,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入全走を投入する直前に handoff の「dev-wave 改善候補」節を見て、未裁定なら
   段 8 を先に閉じる。段 7 commit の message に段 8 の状態を書くと投入前に目に入る。
 
+
+- **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 7 の記録 commit の直後に、段 8 を閉じないまま受入全走の門番 script を投入した。handoff の「dev-wave 改善候補」節に未裁定の候補 (下の F1031 の再発) が残っていた。門番が 1 周目の待機中 (受入の子は未起動) に、land が wave HEAD と tested tip の一致を要求することを記憶で確かめて気づき、門番を止めて段 8 の fragment を足してから受入を投入し直した。計算の浪費は無い。既存の再発検知 (投入直前に handoff の改善候補節を見る) を投入の手順に入れていなかった。
 ### F890. 対象 file を絞った login 自走 probe は「正当な入力を全部拒否する」型の変異の期待 node を確定できない [手順漏れ] [テスト代表性]
 
 - 事象: 変異本走 attempt 2 で、照合の向きを反転する変異 (正当な受領証を拒否する向き) だけが
@@ -28229,6 +28231,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21** — [T-2797] の段 6 で fix 用 branch の base を、統合 commit の短縮 SHA から 40 桁を推測で補完して指定し、`fatal: reference is not a tree` で失敗した (branch は作られず実害なし)。`git rev-parse` の出力を写して再実行した。
 
 - **再発: 2026-09-21 (near miss、[T-2844] wave)** — 変異用の独立 clone を作る script に、候補 JSON の commit の 40 hex SHA を `git rev-parse` の出力から写さず、頭 9 桁 (`6fa89b563`) から後半を推測で補完して渡した。`git update-ref` が nonexistent object で拒否し、clone の途中で止まったので実害は無い。`rev-parse` の値で作り直した。同日 2 度目の再発で、既存の再発検知 (`nonexistent object` で推測 SHA を疑う) が効いた。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
+
+- **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 5 の unit worktree を作る script の起点に、`git rev-parse` の出力を写さず短縮 SHA の後ろを推測で埋めた値を渡した。`git worktree add` が `Not a valid object name` (rc=255) で止まり、branch も worktree も作られなかった。`rev-parse` の 40 hex を写して作り直した。既存の再発検知 (object 名の失敗で推測 SHA を疑う) が効いた。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
