@@ -19,7 +19,7 @@ from orchestrator.campaign.projection_guard import (
 def _operating_point(workload, protocol="silo"):
     if protocol == "silo":
         return operating_point(workload)
-    perf = L.calibrated_perf(workload, protocol=protocol)
+    perf = L.calibrated_perf(workload)
     flags = perf.workload
     return dict(workload=workload, records=perf.records, threads=perf.threads,
                 rratio=flags["ycsb_rratio"], skew=flags["ycsb_zipf_skew"],

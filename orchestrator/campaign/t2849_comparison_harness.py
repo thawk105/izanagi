@@ -456,10 +456,6 @@ def _header(cohort, arm, workload, series, block, repo_root, a_limit, b_limit, n
                   limits=["Saved inputs do not prove delivery or absence of parent advice."])
     if protocol == "mocc":
         header["protocol"] = "mocc"
-        perf = loop_driver.calibrated_perf(workload, protocol="mocc")
-        header["perf_config"] = {**header["perf_config"], "records": perf.records,
-                                 "threads": perf.threads, "workload": perf.workload,
-                                 "extime": perf.extime, "reps": perf.reps}
     return header
 
 

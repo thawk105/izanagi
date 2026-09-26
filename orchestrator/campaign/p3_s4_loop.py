@@ -438,6 +438,7 @@ def _require_condition_gate(
     if value == -1 and stock_root is None:
         raise ValueError("stock condition gate requires stock_root")
     _cc, cxx = buildcache.compilers_for_current_site()
+    protocol_kwargs = {"protocol": "mocc"} if getattr(genome, "protocol", "silo") == "mocc" else {}
     if value == -1:
         captured = condition_meaning_gate.capture_define_inputs(
             source_root, stock_root=stock_root, configure_args=configure_args,
@@ -445,7 +446,7 @@ def _require_condition_gate(
         request = condition_meaning_gate.make_define_request(
             driver_id="orchestrator.campaign.p3_s4_loop",
             macro="BACKOFF_FIXED", requested_value=-1, default_value=-1,
-            stock_comparison=True, protocol=genome.protocol,
+            stock_comparison=True, **protocol_kwargs,
         )
         declaration = condition_meaning_gate.MeaningWitnessDeclaration(
             "BACKOFF_FIXED", (condition_meaning_gate.MeaningCase(
@@ -460,7 +461,7 @@ def _require_condition_gate(
         request = condition_meaning_gate.make_define_request(
             driver_id="orchestrator.campaign.p3_s4_loop",
             macro="BACKOFF_FIXED", requested_value=value, default_value=-1,
-            protocol=genome.protocol,
+            **protocol_kwargs,
         )
         bits = struct.pack(">d", float(value)).hex()
         declaration = condition_meaning_gate.MeaningWitnessDeclaration(
@@ -1861,10 +1862,8 @@ def default_perf() -> PerfConfig:
                                 "ycsb_rmw": "false"}, extime=1, reps=2)
 
 
-def calibrated_perf(workload_name: str, protocol: str = "silo") -> PerfConfig:
+def calibrated_perf(workload_name: str) -> PerfConfig:
     """Use the approved P2 calibration and the exact four-key workload."""
-    if protocol not in ("silo", "mocc"):
-        raise ValueError(f"unsupported protocol: {protocol}")
     # MOCC pin C 68106660, records=1,000,000: registered calibration
     # rr5 calibration-4b8329b42bb47c65.json, rr50 calibration-ae83d7382329999b.json,
     # rr95 calibration-7f00a49f493e1015.json (output/env/pegasus/calibration/registered/).
@@ -3730,11 +3729,12 @@ def main(
             reflux=(a.reflux == "on"),
             b4_reflux_ablation=True,
             _b4_launch_context=_b4_launch_context,
-            protocol=a.protocol,
+            **({"protocol": "mocc"} if a.protocol == "mocc" else {}),
         )
     else:
-        cfg = default_cfg(reflux=(a.reflux == "on"), protocol=a.protocol)
-    perf = calibrated_perf(a.perf_workload, protocol=a.protocol) if a.calibrated_perf else default_perf()
+        cfg = default_cfg(reflux=(a.reflux == "on"),
+                          **({"protocol": "mocc"} if a.protocol == "mocc" else {}))
+    perf = calibrated_perf(a.perf_workload) if a.calibrated_perf else default_perf()
     if a.calibrated_perf:
         cfg = replace(cfg, search_config={
             **cfg.search_config, "records": perf.records, "threads": perf.threads,

@@ -166,6 +166,32 @@ def test_mocc_exact_genomes_and_default_silo_identity():
     assert L.default_cfg(protocol='mocc').search_config['protocol'] == 'mocc'
 
 
+def test_condition_gate_requests_follow_genome_protocol(monkeypatch):
+    class StopAfterRequest(Exception):
+        pass
+
+    observed = []
+    monkeypatch.setattr(L.buildcache, 'compilers_for_current_site', lambda: ('cc', 'cxx'))
+    monkeypatch.setattr(L.condition_meaning_gate, 'capture_define_inputs',
+                        lambda *args, **kwargs: object())
+
+    def observe_supply(captured, *, request, **kwargs):
+        observed.append((request.owner_tu, request.target))
+        raise StopAfterRequest
+
+    monkeypatch.setattr(L.condition_meaning_gate,
+                        'evaluate_define_supply_effectuation', observe_supply)
+    for protocol, value, expected in (
+        ('mocc', -1, ('cc/mocc/transaction.cc', 'ycsb_mocc.exe')),
+        ('mocc', 5, ('cc/mocc/transaction.cc', 'ycsb_mocc.exe')),
+        ('silo', 5, ('cc/silo/transaction.cc', 'ycsb_silo.exe')),
+    ):
+        with pytest.raises(StopAfterRequest):
+            L._require_condition_gate('/source', L.backoff_genome(protocol, value),
+                                      stock_root='/stock' if value == -1 else None)
+        assert observed[-1] == expected
+
+
 def test_mocc_slot_start_sidecar_genome(tmp_path, monkeypatch):
     _, _, _, sidecar, argv = F._b5_candidate_fixture(tmp_path, monkeypatch)
     argv[argv.index('--b5-slot') + 1] = 't2849-harness-v1|fixture'
