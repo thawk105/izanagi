@@ -5,12 +5,16 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
+from dataclasses import replace
 
 import pytest
 
 from orchestrator.campaign import pipeline as P
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.tests import test_campaign as F
+
+_REAL_MKDTEMP = P.tempfile.mkdtemp
 
 
 @pytest.fixture(autouse=True)
@@ -26,8 +30,17 @@ def archive(tmp_path, monkeypatch):
 
 
 def evaluate(tmp_path, monkeypatch, **kwargs):
+    source_root = kwargs.pop('source_root', None)
+    if source_root is None:
+        source_root = git_source(tmp_path / 'ccbench')
+    evidence_changes = kwargs.pop('evidence_changes', {})
+    if (Path(source_root) / '.git').is_dir():
+        evidence_changes = {
+            **(kwargs.pop('source_metadata', None) or source_metadata(source_root)),
+            **evidence_changes,
+        }
     directories = []
-    real = P.tempfile.mkdtemp
+    real = _REAL_MKDTEMP
 
     def mkdir(*a, **kw):
         if kw.get('prefix', '').startswith('izanagi_eval_trace_'):
@@ -39,12 +52,169 @@ def evaluate(tmp_path, monkeypatch, **kwargs):
 
     monkeypatch.setattr(P.tempfile, 'mkdtemp', mkdir)
     layout = CampaignLayout(str(tmp_path / 'campaign'))
-    result, calls = F._eval(layout, **kwargs)
+    original_evidence = F._source_evidence
+    with monkeypatch.context() as patch:
+        patch.setattr(F, '_source_evidence', lambda *a, **kw: replace(
+            original_evidence(*a, **kw), source_root=str(source_root),
+            **evidence_changes))
+        result, calls = F._eval(layout, **kwargs)
     return result, calls, directories
+
+
+def git_source(root):
+    root.mkdir()
+    env = P._sanitized_git_env()
+    subprocess.run(['git', '-C', str(root), 'init', '-q'], check=True, env=env)
+    tracked = root / 'tracked.txt'
+    tracked.write_text('before\n')
+    F._install_complete_silo_proof_source(str(root))
+    subprocess.run(['git', '-C', str(root), 'add', 'tracked.txt', 'cc/silo'],
+                   check=True, env=env)
+    subprocess.run(['git', '-C', str(root), '-c', 'user.name=Test',
+                    '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'base'],
+                   check=True, env=env)
+    tracked.write_text('after\n')
+    return root
+
+
+def source_git(root, *args):
+    return subprocess.check_output(
+        ['git', '-C', str(root), *args], env=P._sanitized_git_env())
+
+
+def source_metadata(root):
+    return {
+        'ccbench_commit': source_git(root, 'rev-parse', 'HEAD').decode().strip(),
+        'tracked_diff_sha256': hashlib.sha256(
+            source_git(root, 'diff', '--binary', 'HEAD', '--')).hexdigest(),
+        'tracked_clean': False,
+        'tracked_paths': ('tracked.txt',),
+    }
 
 
 def serial_trace():
     return Path(F._HERE, 'fixtures/g1_serial/trace_0.log').read_text()
+
+
+def test_inventory_records_r1_inputs(tmp_path, monkeypatch, archive):
+    source = git_source(tmp_path / 'source')
+    result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source,
+                                   trace_content=serial_trace(), ncommit=2)
+    assert result.certified and calls
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    repo_root = Path(P.__file__).resolve().parents[2]
+    git_env = P._sanitized_git_env()
+    git = lambda root, *args: subprocess.check_output(
+        ['git', '-C', str(root), *args], env=git_env)
+    patch = git(source, 'diff', '--binary', 'HEAD', '--')
+    assert git(source, 'rev-parse', 'HEAD') != git(repo_root, 'rev-parse', 'HEAD')
+    expected_argv = [os.path.realpath(sys.executable), '-B', '-m',
+                     'orchestrator.verifier', str(dirs[0]), '--json',
+                     '--expected-commits', '2', '--protocol', 'silo',
+                     '--ccbench-root', str(source)]
+    assert data['verifier_invocation'] == 'in-process'
+    assert data['verifier_argv'] == expected_argv
+    assert data['repo_head'] == git(repo_root, 'rev-parse', 'HEAD').decode().strip()
+    head = git(source, 'rev-parse', 'HEAD').decode().strip()
+    assert (data['ccbench_pin'], data['ccbench_pin_declared']) == (head, head)
+    recovered = subprocess.check_output(
+        ['zstd', '-d', '-c', str(path.parent / data['patch_path'])])
+    assert (recovered, data['patch_sha256'], data['patch_bytes'], data['patch_path']) == (
+        patch, hashlib.sha256(patch).hexdigest(), len(patch), 'patch/ccbench.diff.zst')
+    assert data['tracked_diff_sha256'] == hashlib.sha256(patch).hexdigest()
+    assert data['tracked_diff_sha256'] == data['patch_sha256']
+    clone = tmp_path / 'reconstructed'
+    subprocess.run(['git', 'clone', '-q', str(source), str(clone)],
+                   check=True, env=git_env)
+    subprocess.run(['git', '-C', str(clone), 'checkout', '-q', data['ccbench_pin']],
+                   check=True, env=git_env)
+    subprocess.run(['git', '-C', str(clone), 'apply', '-'], input=recovered,
+                   check=True, env=git_env)
+    assert (clone / 'tracked.txt').read_bytes() == (source / 'tracked.txt').read_bytes()
+    assert data['verifier_module_sha256'] == {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted((repo_root / 'orchestrator/verifier').glob('*.py'))}
+
+
+def test_r1_argv_null_without_witness(tmp_path, monkeypatch, archive):
+    source = git_source(tmp_path / 'source')
+    result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source,
+                                   trace_content='', ncommit=0)
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    assert data['verifier_argv'] is None
+    assert (data['repo_head'] is not None and data['ccbench_pin'] ==
+            source_git(source, 'rev-parse', 'HEAD').decode().strip()
+            and data['ccbench_pin_declared'] == data['ccbench_pin']
+            and data['patch_path'] == 'patch/ccbench.diff.zst'
+            and data['tracked_diff_sha256'] is not None
+            and data['verifier_module_sha256'])
+
+
+def test_r1_short_pin_records_full_head(tmp_path, monkeypatch, archive):
+    source = git_source(tmp_path / 'source')
+    head = source_git(source, 'rev-parse', 'HEAD').decode().strip()
+    evaluate(tmp_path, monkeypatch, source_root=source,
+             evidence_changes={'ccbench_commit': head[:7]},
+             trace_content=serial_trace(), ncommit=2)
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    assert (data['status'], data['ccbench_pin'], data['ccbench_pin_declared'],
+            len(data['ccbench_pin'])) == ('complete', head, head[:7], 40)
+
+
+def test_r1_input_failure_retains_original(tmp_path, monkeypatch, archive, capsys):
+    source = tmp_path / 'not-a-git-repo'
+    source.mkdir()
+    F._install_complete_silo_proof_source(str(source))
+    (tmp_path / 'baseline').mkdir()
+    (tmp_path / 'archived').mkdir()
+    monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT')
+    baseline, _, _ = evaluate(tmp_path / 'baseline', monkeypatch,
+                              source_root=source, trace_content=serial_trace(), ncommit=2)
+    monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', str(archive))
+    try:
+        result, calls, dirs = evaluate(tmp_path / 'archived', monkeypatch,
+                                       source_root=source, trace_content=serial_trace(), ncommit=2)
+    except Exception:
+        result, calls, dirs = None, [], []
+    assert result is not None and (result.certified, result.verdict) == (
+        baseline.certified, baseline.verdict)
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    assert data['status'] == 'failed'
+    assert dirs and (dirs[0] / 'trace_0.log').exists()
+
+
+def _assert_r1_drift_failed(tmp_path, monkeypatch, archive, field):
+    source = git_source(tmp_path / 'source')
+    (tmp_path / 'baseline').mkdir()
+    (tmp_path / 'archived').mkdir()
+    monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT')
+    baseline, _, _ = evaluate(tmp_path / 'baseline', monkeypatch,
+                              source_root=source, trace_content=serial_trace(), ncommit=2)
+    monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', str(archive))
+    actual = (hashlib.sha256(source_git(source, 'diff', '--binary', 'HEAD', '--')).hexdigest()
+              if field == 'tracked_diff_sha256'
+              else source_git(source, 'rev-parse', 'HEAD').decode().strip())
+    wrong = ('0' if actual[0] != '0' else '1') + actual[1:]
+    result, calls, dirs = evaluate(
+        tmp_path / 'archived', monkeypatch, source_root=source,
+        evidence_changes={field: wrong}, trace_content=serial_trace(), ncommit=2)
+    path, = archive.rglob('inventory.json')
+    data = json.loads(path.read_text())
+    assert (data['status'], bool(dirs and (dirs[0] / 'trace_0.log').exists()),
+            result.certified, result.verdict) == (
+                'failed', True, baseline.certified, baseline.verdict)
+
+
+def test_r1_source_drift_marks_failed(tmp_path, monkeypatch, archive):
+    _assert_r1_drift_failed(tmp_path, monkeypatch, archive, 'tracked_diff_sha256')
+
+
+def test_r1_pin_drift_marks_failed(tmp_path, monkeypatch, archive):
+    _assert_r1_drift_failed(tmp_path, monkeypatch, archive, 'ccbench_commit')
 
 
 def test_archive_before_cleanup(tmp_path, monkeypatch, archive):
@@ -135,9 +305,13 @@ def test_preservation_error_does_not_replace_exception(tmp_path, monkeypatch, ar
 
 def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT', raising=False)
+    source = git_source(tmp_path / 'source')
+    metadata = source_metadata(source)
     subprocess_calls = []
+    r1_reads = []
     writes = []
     real_open, real_makedirs = builtins.open, os.makedirs
+    real_run, real_read_bytes = subprocess.run, Path.read_bytes
     def run(*a, **kw):
         subprocess_calls.append(a)
         raise AssertionError('unexpected subprocess')
@@ -148,12 +322,24 @@ def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
     def makedirs(path, *a, **kw):
         writes.append(os.fspath(path))
         return real_makedirs(path, *a, **kw)
+    def tracked_run(args, *a, **kw):
+        if args and args[0] == 'git':
+            subprocess_calls.append(args)
+        return real_run(args, *a, **kw)
+    def tracked_read_bytes(path):
+        if path.parent.name == 'verifier' and path.suffix == '.py':
+            r1_reads.append(str(path))
+        return real_read_bytes(path)
     monkeypatch.setattr(P, '_compress_trace_archive', run)
+    monkeypatch.setattr(subprocess, 'run', tracked_run)
+    monkeypatch.setattr(Path, 'read_bytes', tracked_read_bytes)
     monkeypatch.setattr(builtins, 'open', opened)
     monkeypatch.setattr(os, 'makedirs', makedirs)
-    result, calls, dirs = evaluate(tmp_path, monkeypatch)
+    result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source,
+                                   source_metadata=metadata)
     assert result.certified and calls and dirs
     assert not subprocess_calls
+    assert not r1_reads
     assert all(not d.exists() for d in dirs)
     assert not any('archive' in p or 'inventory.json' in p or '.zst' in p for p in writes)
     assert 'preservation' not in capsys.readouterr().err

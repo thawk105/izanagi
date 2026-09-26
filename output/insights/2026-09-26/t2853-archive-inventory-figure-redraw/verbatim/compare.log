@@ -1,0 +1,443 @@
+## fig10_b7_fixed5_three_workload_regression.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-19T23:12:29.374792+00:00"
+    redraw: "2026-09-26T05:01:30.764078+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig10_b7_fixed5_three_workload_regression.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig10_b7_fixed5_three_workload_regression.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig10_b7_fixed5_three_workload_regression.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig10_b7_fixed5_three_workload_regression.pdf"
+  $.outputs[1].sha256
+    landed: "d2011717817a94da32cbbfdd9120043d34df23fab77ea32f7228c6355ceaaa46"
+    redraw: "4496781fb3605bd83a29a95dd359298e2a240dab81bbc79049365e42a8517ff4"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2610-fig10"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig10_b7_fixed5_three_workload_regression"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig10_b7_fixed5_three_workload_regression"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_b7_fixed5_regression.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2610-fig10 --measurement-root /work/1/...
+    redraw: "python3 tools/plotting/plot_b7_fixed5_regression.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw --measurem...
+## fig11_a6_certification_reject.provenance.json: 6 leaf differences
+  $.generated_utc
+    landed: "2026-09-20T05:28:06.326457+00:00"
+    redraw: "2026-09-26T05:01:34.230015+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig11_a6_certification_reject.png"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig11_a6_certification_reject.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig11_a6_certification_reject.pdf"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig11_a6_certification_reject.pdf"
+  $.outputs[1].sha256
+    landed: "dcaf1b26d5153c650ea12f8b49773239a12a8a4cbc6d967d1e7399af4701df26"
+    redraw: "4a62f8c62d763cc36da84a58968da05a95a4a26c62657d4f5824d61cf3b91415"
+  $.reproduction.argv[8]
+    landed: "docs/paper-story/figures/fig11_a6_certification_reject"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig11_a6_certification_reject"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b...
+    redraw: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b...
+## fig12_k2_manual_loop_dataflow.provenance.json: 7 leaf differences
+  $.argv[2]
+    landed: "docs/paper-story/figures/fig12_k2_manual_loop_dataflow"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig12_k2_manual_loop_dataflow"
+  $.generated_utc
+    landed: "2026-09-20T06:02:37.817732+00:00"
+    redraw: "2026-09-26T05:01:38.189237+00:00"
+  $.inputs[2].sha256
+    landed: "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027"
+    redraw: "a2e01d52bb4d6399c40a5e1ae280ec9e7c64201e79a4a365f00734d006d3eb55"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig12_k2_manual_loop_dataflow.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig12_k2_manual_loop_dataflow.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig12_k2_manual_loop_dataflow.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig12_k2_manual_loop_dataflow.pdf"
+  $.outputs[1].sha256
+    landed: "c280037fe72fb60c4420864f1de1df1b28bbf5a7b5ed1c104d13244f2493cfcf"
+    redraw: "7e711a5b80aaa7b9c85c5f5f8ed3452d1ac56eba0a25e798f9270fe5b77cf22e"
+  $.roles[0].sha256
+    landed: "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027"
+    redraw: "a2e01d52bb4d6399c40a5e1ae280ec9e7c64201e79a4a365f00734d006d3eb55"
+## fig13_b10_waiting_grid_forest.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-20T11:07:19.923454+00:00"
+    redraw: "2026-09-26T05:01:40.355809+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig13_b10_waiting_grid_forest.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig13_b10_waiting_grid_forest.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig13_b10_waiting_grid_forest.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig13_b10_waiting_grid_forest.pdf"
+  $.outputs[1].sha256
+    landed: "8105d3dc918b85c62fa20c3d6374db8987de69d6c2e7c09f32ec7d8ff04675d5"
+    redraw: "ebc7c1caeff873cb9bd5c1ffc7af2d982eae097034e5a42aafec711e01cfe022"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fig13-b10-waiting-grid"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig13_b10_waiting_grid_forest"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig13_b10_waiting_grid_forest"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_b10_waiting_grid_forest.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-fig13-b10-waiting-grid --evidence-ro...
+    redraw: "python3 tools/plotting/plot_b10_waiting_grid_forest.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw --evide...
+## fig14_a1_balanced5_sized_attempt2.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-21T12:37:50.766621+00:00"
+    redraw: "2026-09-26T05:01:42.166826+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig14_a1_balanced5_sized_attempt2.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig14_a1_balanced5_sized_attempt2.pdf"
+  $.outputs[1].sha256
+    landed: "626fa1b71d192ecfac5a880cb2a592acec1f4237e991a9f82109a9165b59efa8"
+    redraw: "4a9bcd84754c46ec94770f18bd237ac48e8c0cac9425fd05ae38184a677cc8a1"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig14_a1_balanced5_sized_attempt2"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig14_a1_balanced5_sized_attempt2"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a1_sized_paired.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --attempt attempt-0002...
+    redraw: "python3 tools/plotting/plot_a1_sized_paired.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw --attempt attem...
+## fig15_mocc_witlight_four_arm.provenance.json: 8 leaf differences
+  $.generated_utc
+    landed: "2026-09-21T12:38:06.982614+00:00"
+    redraw: "2026-09-26T05:01:43.908031+00:00"
+  $.generator.sha256
+    landed: "fba1c0afb3e72d9796fd6237c0d31dcb7d72febdd3e06366c9c99803fd3aac5a"
+    redraw: "5e46ef9ab403ddc17a05579a68ab0af417dd2f2cf87ee324185e83a7db9db942"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig15_mocc_witlight_four_arm.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig15_mocc_witlight_four_arm.pdf"
+  $.outputs[1].sha256
+    landed: "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018"
+    redraw: "22b24b81f895a269f7ef0d9d280f23aa8f8d747c4596a363868feda2756741a3"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig15_mocc_witlight_four_arm"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --evidence-root...
+    redraw: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw --eviden...
+## fig2b_backoff_sweep_3workload.provenance.json: 14 leaf differences
+  $.generated_utc
+    landed: "2026-08-25T19:14:23.462984Z"
+    redraw: "2026-09-26T05:01:03.251553Z"
+  $.generator_source.sha256
+    landed: "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e"
+    redraw: "aa1684986accec98348139c724337e899eafb3493a5e75ee9b112a5a3dbde5be"
+  $.inputs[0].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[0].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[0].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.inputs[1].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[1].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[1].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.inputs[2].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[2].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[2].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig2b_backoff_sweep_3workload.png"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2b_backoff_sweep_3workload.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig2b_backoff_sweep_3workload.pdf"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2b_backoff_sweep_3workload.pdf"
+  $.outputs[1].sha256
+    landed: "353d403dc8746b432d04f28ac9b0dafc6da53fc367d7ff8074e3a3a0ed64e735"
+    redraw: "a658125b19ea46546523b51f024943b08761cd4aa40244b54dfb4f02a7522651"
+## fig2c_b10_extended_backoff.provenance.json: 8 leaf differences
+  $.data[0].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.data[1].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.data[2].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.dependencies[0].sha256
+    landed: "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e"
+    redraw: "aa1684986accec98348139c724337e899eafb3493a5e75ee9b112a5a3dbde5be"
+  $.generated_utc
+    landed: "2026-08-27T17:46:57.358174+00:00"
+    redraw: "2026-09-26T05:02:08.207013+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig2c_b10_extended_backoff.png"
+    redraw: "redraw-tmp/fig2c_b10_extended_backoff.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig2c_b10_extended_backoff.pdf"
+    redraw: "redraw-tmp/fig2c_b10_extended_backoff.pdf"
+  $.outputs[1].sha256
+    landed: "70d4b5e295a6a0c7a52313370806146f62efbc4cf4e0732e09ad3199b8195794"
+    redraw: "c4ddc56767ee18a1b5870a26ec5ea057a46acac98fbf3f5bafb379ab8b6dd6aa"
+## fig3b_arc_status_2026-09-20.provenance.json: 7 leaf differences
+  $.argv[len]
+    landed: 3
+    redraw: 5
+  $.argv[2]
+    landed: "docs/paper-story/figures/fig3b_arc_status_2026-09-20"
+    redraw: "--states"
+  $.generated_utc
+    landed: "2026-09-19T23:25:08.582648+00:00"
+    redraw: "2026-09-26T05:00:12.958014+00:00"
+  $.generator.sha256
+    landed: "cfcb64f055d57191a3f27dabbc1ed30c1f62d275e4a5fcd007e07f4e19b68aef"
+    redraw: "076ad3828cae8cc1cd1d9ff97f418f128984a5b7914fe3f9096da594d1b51548"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig3b_arc_status_2026-09-20.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3b_arc_status_2026-09-20.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig3b_arc_status_2026-09-20.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3b_arc_status_2026-09-20.pdf"
+  $.outputs[1].sha256
+    landed: "87018e0879a319a59b0eba426087b332950cc282e08bf12bb400ddf65f4269bd"
+    redraw: "b1e41f5bbded480cad517c737fe1af8f83ba7f81f91e12b6d7bbc32f7dc7b996"
+## fig3c_arc_status_2026-09-21.provenance.json: 5 leaf differences
+  $.argv[4]
+    landed: "docs/paper-story/figures/fig3c_arc_status_2026-09-21"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3c_arc_status_2026-09-21"
+  $.generated_utc
+    landed: "2026-09-21T07:25:58.274746+00:00"
+    redraw: "2026-09-26T05:01:11.665930+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig3c_arc_status_2026-09-21.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3c_arc_status_2026-09-21.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig3c_arc_status_2026-09-21.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3c_arc_status_2026-09-21.pdf"
+  $.outputs[1].sha256
+    landed: "3ba27096c11f70a7a402d3565c3a37ecf117339137aaa9f72a0d941f9e9b4213"
+    redraw: "3a376e59fa2250b05e5ecb1704ede8f1e9588741edb458e10e1be557570a000f"
+## fig4_s1a_9pair_direct_comparison.provenance.json: 23 leaf differences
+  $.generated_utc
+    landed: "2026-08-26T16:54:23.355492Z"
+    redraw: "2026-09-26T05:02:13.034422Z"
+  $.generator_source.sha256
+    landed: "4a76d59c854cf8021a711cb27ebeb7aad599c4dda448dd9ee6f15c80ab7d772c"
+    redraw: "61559d90b62d752870a542e0317012b5da42c0ac7ab64d87ddc621d48131b767"
+  $.inputs[2].admission_decision.validator.sha256
+    landed: "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
+    redraw: "b3d7474c33e69a6897f68b122f03acf4390c71bc7e5ff3ff94f6e8ca719f7c4f"
+  $.inputs[2].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[2].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[2].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.inputs[3].admission_decision.validator.sha256
+    landed: "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
+    redraw: "b3d7474c33e69a6897f68b122f03acf4390c71bc7e5ff3ff94f6e8ca719f7c4f"
+  $.inputs[3].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[3].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[3].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.inputs[4].admission_decision.validator.sha256
+    landed: "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
+    redraw: "b3d7474c33e69a6897f68b122f03acf4390c71bc7e5ff3ff94f6e8ca719f7c4f"
+  $.inputs[4].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[4].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[4].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.inputs[5].admission_decision.validator.sha256
+    landed: "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
+    redraw: "b3d7474c33e69a6897f68b122f03acf4390c71bc7e5ff3ff94f6e8ca719f7c4f"
+  $.inputs[5].campaign_verifier_epoch.excluded_scope
+    landed: "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+    redraw: "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成...
+  $.inputs[5].campaign_verifier_epoch.identity_scope
+    landed: "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)"
+    redraw: "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source...
+  $.inputs[5].campaign_verifier_epoch.verifier_assessment_basis
+    landed: "<absent>"
+    redraw: "recorded-at-original-verifier-epoch"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison.png"
+    redraw: "redraw-tmp/fig4_s1a_9pair_direct_comparison.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison.pdf"
+    redraw: "redraw-tmp/fig4_s1a_9pair_direct_comparison.pdf"
+  $.outputs[1].sha256
+    landed: "669ad045fe34dbd73e4a157168656c15bc2d2ef3fe214f441edb79ce33db70fa"
+    redraw: "882763edf6668a501b08fde33ef948a8f652b5ef8f081c2a8bca1d4d23f4359f"
+  $.reproduction.argv[2]
+    landed: "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison"
+    redraw: "redraw-tmp/fig4_s1a_9pair_direct_comparison"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_s1_9pair.py docs/paper-story/figures/fig4_s1a_9pair_direct_comparison output/reports/s1_direct_comparison/report.json --develop ...
+    redraw: "python3 tools/plotting/plot_s1_9pair.py redraw-tmp/fig4_s1a_9pair_direct_comparison output/reports/s1_direct_comparison/report.json --develop output/campaig...
+## fig5_a2_certification_reject.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-04T13:40:28.737016+00:00"
+    redraw: "2026-09-26T05:01:17.116442+00:00"
+  $.generator.sha256
+    landed: "55ec25b0174bef7b493a11716ca289fada78b7538b9f2493cf6e87263eb15709"
+    redraw: "aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig5_a2_certification_reject.png"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig5_a2_certification_reject.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig5_a2_certification_reject.pdf"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig5_a2_certification_reject.pdf"
+  $.outputs[1].sha256
+    landed: "775275a3e3bab2d9cfdf35f3ea0b7f91160bdfc7cfdf2533fba8e866834db3f8"
+    redraw: "b97b40a7f8fb8ccd15ca7e3dc62a3f02294e9edca998af79b2bcab137774f00a"
+  $.reproduction.argv[8]
+    landed: "docs/paper-story/figures/fig5_a2_certification_reject"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig5_a2_certification_reject"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-202608...
+    redraw: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-202608...
+## fig6_a2_certification_observed_positive.provenance.json: 8 leaf differences
+  $.generated_utc
+    landed: "2026-09-07T13:26:46.088840+00:00"
+    redraw: "2026-09-26T05:01:21.163488+00:00"
+  $.generator.sha256
+    landed: "1ca3ef79e405a6867eae7c93726d67ec4def2332e4abc6a2aa1c8abddc3348d8"
+    redraw: "aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig6_a2_certification_observed_positive.png"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig6_a2_certification_observed_positive.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig6_a2_certification_observed_positive.pdf"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig6_a2_certification_observed_positive.pdf"
+  $.outputs[1].sha256
+    landed: "20b043328e33300ff113d5d0740cf933e330831248e51a3ec1a35f26b72fe9f0"
+    redraw: "56396e291883a9f85700a336e348b83ffeab8d066410c8f377e9bdb14a9db2e0"
+  $.reproduction.argv[8]
+    landed: "docs/paper-story/figures/fig6_a2_certification_observed_positive"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig6_a2_certification_observed_positive"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-202609...
+    redraw: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-202609...
+  $.study
+    landed: "<absent>"
+    redraw: "paper-story-a2-certification"
+## fig7_a2_builtin_backoff_onoff_reject.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-16T03:08:51.665206+00:00"
+    redraw: "2026-09-26T05:01:22.722443+00:00"
+  $.generator.sha256
+    landed: "08e701a70845e144ef177cf7ddd48b8dab73fe37d08dbc559a3b92861679b514"
+    redraw: "aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject.png"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig7_a2_builtin_backoff_onoff_reject.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject.pdf"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig7_a2_builtin_backoff_onoff_reject.pdf"
+  $.outputs[1].sha256
+    landed: "52625ff15f484a84d665a8c683766bd8ce1f441010ac604af5314280e53a1954"
+    redraw: "1cd6d30fe1ef4d6dc50de68f996c4faacff0b2bc308c8cba7c668f21307adf0c"
+  $.reproduction.argv[8]
+    landed: "docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject"
+    redraw: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig7_a2_builtin_backoff_onoff_reject"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-202608...
+    redraw: "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-202608...
+## fig8_b10_static_tail_not_observed.provenance.json: 7 leaf differences
+  $.generated_utc
+    landed: "2026-09-16T22:56:31.998873+00:00"
+    redraw: "2026-09-26T05:01:24.626652+00:00"
+  $.generator.sha256
+    landed: "c0f841f15128ff60650510d6b5521a306f5ba20dbc9d6a8421f80f191b452dd1"
+    redraw: "96f8f5de59e43eacedde47f58e8c8269f1162144f919349a4e809b805c6c2810"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig8_b10_static_tail_not_observed.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8_b10_static_tail_not_observed.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig8_b10_static_tail_not_observed.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8_b10_static_tail_not_observed.pdf"
+  $.outputs[1].sha256
+    landed: "11071b72995c43da39b7309c94e6935fac498e36979e3d4f912e7194634948ff"
+    redraw: "e6523e9774d0b6e460f93154277a079f7444816e9b1b3fe47eec0fcc41c0c12a"
+  $.reproduction.argv[4]
+    landed: "docs/paper-story/figures/fig8_b10_static_tail_not_observed"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8_b10_static_tail_not_observed"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal docs/paper-story/figures/fig8_b10_s...
+    redraw: "python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal ../../../../dev-wave-jobs/dev-wave-...
+## fig8b_b10_static_tail_cohort2.provenance.json: 6 leaf differences
+  $.generated_utc
+    landed: "2026-09-19T23:00:16.676100+00:00"
+    redraw: "2026-09-26T05:01:27.321743+00:00"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig8b_b10_static_tail_cohort2.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8b_b10_static_tail_cohort2.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig8b_b10_static_tail_cohort2.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8b_b10_static_tail_cohort2.pdf"
+  $.outputs[1].sha256
+    landed: "c545445442819563038ed56dba8181c26c1dec902962fa9e4939a06bdb5a8cd5"
+    redraw: "78ad5b326ec66f515679f2807e82947766ea653db10fe72d90501c26995bf1fb"
+  $.reproduction.argv[4]
+    landed: "docs/paper-story/figures/fig8b_b10_static_tail_cohort2"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8b_b10_static_tail_cohort2"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal docs/paper-story/figures/fig8b_b10_...
+    redraw: "python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal ../../../../dev-wave-jobs/dev-wave-...
+## fig9_a1_balanced5_sized_attempt1.provenance.json: 8 leaf differences
+  $.generated_utc
+    landed: "2026-09-18T12:29:43.769436+00:00"
+    redraw: "2026-09-26T05:01:28.875320+00:00"
+  $.generator.sha256
+    landed: "b2750799c43e2437e9f30c3da8aeccd8cf938916685c399e038692d124517c0c"
+    redraw: "994e2f5142f0e6beceec9ad0613b7dba0ff68386de8961dbb9dcd8df8047d31c"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig9_a1_balanced5_sized_attempt1.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig9_a1_balanced5_sized_attempt1.pdf"
+  $.outputs[1].sha256
+    landed: "a2db2577f1db830c8fd252dccde496e004738e779fcb8fbf5f8ddb8965a7ade7"
+    redraw: "fa4d3833275d46a61762294bf69f6f836316715120cb218531ca641bf2f8c323"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2775-a1-sized-results-recovery"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw"
+  $.reproduction.argv[4]
+    landed: "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig9_a1_balanced5_sized_attempt1"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_a1_sized_paired.py --repo-root /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2775-a1-sized-results-recovery docs/paper-st...
+    redraw: "python3 tools/plotting/plot_a1_sized_paired.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw ../../../../dev...

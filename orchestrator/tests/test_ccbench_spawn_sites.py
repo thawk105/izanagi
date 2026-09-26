@@ -96,6 +96,8 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Opt-in trace archive compression; fixed zstd argv, no shell or CCBench.
     ("campaign/pipeline.py", "<module>._compress_trace_archive"): 1,
+    # Opt-in archive Git reads use fixed HEAD/diff argv and cannot run CCBench.
+    ("campaign/pipeline.py", "<module>._archive_git"): 1,
     # Standalone policy TU compiler and UBSan harness; no CCBench binary.
     ("campaign/silo_policy_compile.py", "<module>._run"): 1,
     # CMake installs gflags/glog only; the helper verifies/hydrates sources.

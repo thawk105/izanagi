@@ -17,6 +17,7 @@ import hmac
 import math
 import json
 import os
+from pathlib import Path
 import re
 import secrets
 import shlex
@@ -85,6 +86,7 @@ from .reflux_ir import TriggerGateIR, emit_predicate             # noqa: E402
 from .trigger_gate_binding import SourceBinding, TriggerGateBinding
 from .source_digest import (                                     # noqa: E402
     SourceEvidence,
+    _sanitized_git_env,
     serialize_compiled_protocol_source_snapshot,
 )
 
@@ -488,6 +490,7 @@ class _RepetitionExecutionOutcome:
     verification_capability: Optional[object] = None
     abort: Optional[_RepetitionAbortOutcome] = None
     verify_result: Optional[VerifyResult] = None
+    commit_count_witness: Optional[int] = None
 
 
 def _execute_verification_repetition(
@@ -515,6 +518,7 @@ def _execute_verification_repetition(
         verify_trace_dir_with_capability
         if verifier_runner is None else verifier_runner
     )
+    archive_witness = None
 
     def abort(
             reason: str, message: str, detail: Optional[Dict[str, Any]] = None,
@@ -524,7 +528,7 @@ def _execute_verification_repetition(
             message=message,
             detail=dict(detail or {}),
             workload_tag=receipt_workload_tag,
-        ))
+        ), commit_count_witness=archive_witness)
 
     try:
         trace_result = run_trace(
@@ -619,6 +623,7 @@ def _execute_verification_repetition(
             f"({receipt_workload_tag}) → reject",
             {"commits": ncommit, "commit_witness": commit_witness},
         )
+    archive_witness = trace_result.commit_count_witness
     try:
         verify_result, verification_capability = run_verifier(
             trace_dir,
@@ -686,6 +691,7 @@ def _execute_verification_repetition(
         verification_capability=verification_capability,
         abort=rejected,
         verify_result=verify_result,
+        commit_count_witness=archive_witness,
     )
 
 
@@ -2175,6 +2181,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         res.verdict = ""
         # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
         tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
+        outcome = None
         try:
             outcome = _execute_verification_repetition(
                 tr.binary, tdir, workload.flags, clocks_per_us,
@@ -2202,6 +2209,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                         variant=v, build_attempt_id=build_attempt_id, tag=tag,
                         workload_flags=workload.flags, genome=genome,
                         trace_binary_sha256=tr.bin_sha256,
+                        commit_count_witness=(None if outcome is None else outcome.commit_count_witness),
+                        evidence=evidence,
                     )
                 except Exception as exc:
                     preserved = False
@@ -2621,10 +2630,26 @@ def _compress_trace_archive(stream, compressed) -> None:
                    stdout=compressed, stderr=subprocess.PIPE, check=True)
 
 
+def _archive_git(root: str, subcommand: str) -> bytes:
+    """Read an archival HEAD or binary patch with an isolated Git environment."""
+    if subcommand == "head":
+        argv = ["rev-parse", "HEAD"]
+    elif subcommand == "diff":
+        argv = ["diff", "--binary", "HEAD", "--"]
+    else:
+        raise ValueError("unsupported archive git subcommand")
+    return subprocess.run(
+        ["git", "-C", root, *argv], check=True, capture_output=True,
+        env=_sanitized_git_env(),
+    ).stdout
+
+
 def _preserve_trace_directory(
         tdir: str, archive_root: str, *, campaign_id: str, variant: str,
         build_attempt_id: str, tag: str, workload_flags: Mapping,
         genome: Genome, trace_binary_sha256: str,
+        commit_count_witness: Optional[int] = None,
+        evidence: Optional[SourceEvidence] = None,
 ) -> None:
     """Archive one local repetition; failures propagate to the cleanup boundary.
 
@@ -2639,6 +2664,10 @@ def _preserve_trace_directory(
         "status": "incomplete", "original_directory": tdir,
         "workload_flags": dict(workload_flags), "genome": genome.canonical(),
         "trace_binary_sha256": trace_binary_sha256, "files": [],
+        "verifier_invocation": "in-process", "verifier_argv": None,
+        "repo_head": None, "ccbench_pin": None, "ccbench_pin_declared": None,
+        "patch_sha256": None, "patch_path": None, "patch_bytes": None,
+        "tracked_diff_sha256": None, "verifier_module_sha256": None,
     }
     os.makedirs(destination, exist_ok=False)
     inventory_path = os.path.join(destination, "inventory.json")
@@ -2676,6 +2705,40 @@ def _preserve_trace_directory(
                     _compress_trace_archive(stream, compressed)
                 os.replace(partial, archive)
                 row.update(status="complete", compressed_bytes=os.path.getsize(archive))
+        repo_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../.."))
+        inventory["repo_head"] = _archive_git(repo_root, "head").decode().strip()
+        verifier_root = Path(repo_root) / "orchestrator" / "verifier"
+        inventory["verifier_module_sha256"] = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(verifier_root.glob("*.py"))
+        }
+        if evidence is not None:
+            inventory["ccbench_pin_declared"] = evidence.ccbench_commit
+            inventory["tracked_diff_sha256"] = evidence.tracked_diff_sha256
+            if commit_count_witness is not None:
+                inventory["verifier_argv"] = [
+                    os.path.realpath(sys.executable), "-B", "-m", "orchestrator.verifier",
+                    tdir, "--json", "--expected-commits", str(commit_count_witness),
+                    "--protocol", genome.protocol, "--ccbench-root", evidence.source_root,
+                ]
+            source_head = _archive_git(evidence.source_root, "head").decode().strip()
+            inventory["ccbench_pin"] = source_head
+            patch = _archive_git(evidence.source_root, "diff")
+            inventory["patch_sha256"] = hashlib.sha256(patch).hexdigest()
+            inventory["patch_bytes"] = len(patch)
+            inventory["patch_path"] = "patch/ccbench.diff.zst"
+            patch_archive = os.path.join(destination, inventory["patch_path"])
+            os.makedirs(os.path.dirname(patch_archive), exist_ok=True)
+            with tempfile.TemporaryFile() as patch_stream:
+                patch_stream.write(patch)
+                patch_stream.seek(0)
+                with open(patch_archive + ".partial", "xb") as compressed:
+                    _compress_trace_archive(patch_stream, compressed)
+            os.replace(patch_archive + ".partial", patch_archive)
+            if not evidence.ccbench_commit or not source_head.startswith(evidence.ccbench_commit):
+                raise ValueError("archive source HEAD differs from source evidence")
+            if inventory["patch_sha256"] != evidence.tracked_diff_sha256:
+                raise ValueError("archive source patch differs from source evidence")
         inventory["status"] = "complete"
         with open(inventory_path, "x", encoding="utf-8") as stream:
             json.dump(inventory, stream, sort_keys=True)

@@ -1,0 +1,676 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-5d7c8d525b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw/output/pegasus-dispatch/orphan-holds/unknown-8c16397dc42515db882fbc19.json
+[Pegasus dispatch] request ID 29396.nqsv を受理しました
+[Pegasus dispatch] request 29396.nqsv の状態: QUE
+[Pegasus dispatch] request 29396.nqsv の状態: RUN
+[Pegasus dispatch] request 29396.nqsv の状態: END
+[Pegasus dispatch] request 29396.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw/output/pegasus-dispatch/orphan-holds/unknown-8c16397dc42515db882fbc19.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-archive-inventory-figure-redraw/output/pegasus-dispatch/5d7c8d525b79f258275cb00cce9284ae/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 29396.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| sss...F.....................................................F.F......... [  1%]
+| ..........F..............F..F................................F.....F.... [  3%]
+| ...............................................................F........ [  5%]
+| ...........................F............................................ [  7%]
+| ........................................................................ [  9%]
+| ........................................................................ [ 10%]
+| ........................................................................ [ 12%]
+| ........................................................................ [ 14%]
+| ........................................................................ [ 16%]
+| ........................................................................ [ 18%]
+| ........................................................................ [ 20%]
+| ........................................................................ [ 21%]
+| ........................................................................ [ 23%]
+| ........................................................................ [ 25%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 29%]
+| ........................................................................ [ 30%]
+| ........................................................................ [ 32%]
+| ........................................................................ [ 34%]
+| ........................................................................ [ 36%]
+| ........................................................................ [ 38%]
+| ........................................................................ [ 40%]
+| ........................................................................ [ 41%]
+| ........................................................................ [ 43%]
+| ........................................................................ [ 45%]
+| ........................................................................ [ 47%]
+| ........................................................................ [ 49%]
+| ........................................................................ [ 50%]
+| .......................................................................s [ 52%]
+| ........................................................................ [ 54%]
+| ........................................................................ [ 56%]
+| ........................................................................ [ 58%]
+| ........................................................................ [ 60%]
+| ........................................................................ [ 61%]
+| ........................................................................ [ 63%]
+| ........................................................................ [ 65%]
+| ........................................................................ [ 67%]
+| ........................................................................ [ 69%]
+| ........................................................................ [ 70%]
+| ........................................................................ [ 72%]
+| ........................................................................ [ 74%]
+| ........................................................................ [ 76%]
+| ........................................................................ [ 78%]
+| ........................................................................ [ 80%]
+| ......................................................................s. [ 81%]
+| ....s................................................................... [ 83%]
+| ........................................................................ [ 85%]
+| ........................................................................ [ 87%]
+| ........................................................................ [ 89%]
+| ........................................................................ [ 90%]
+| ........................................................................ [ 92%]
+| .........s.............................................................. [ 94%]
+| ........................................................................ [ 96%]
+| ........................................................................ [ 98%]
+| ................................s.....s.s...s.s...s.s................    [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":5,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| =================================== FAILURES ===================================
+| _________ test_reviewed_ccbench_measurement_launches_use_bounded_sites _________
+| [gw47] linux -- Python 3.10.12 /bin/python3.10
+|
+|     def test_reviewed_ccbench_measurement_launches_use_bounded_sites():
+|         observed = (
+|             _process_launch_sites()
+|             - _EXPLICIT_NON_CCBENCH_PROCESS_SITES
+|             - _DIRECT_CCBENCH_DIAGNOSTIC_SITES
+|         )
+| >       assert observed == _GATEWAY + _DIRECT_SAFE_ALLOWLIST
+| E       AssertionError: assert Counter({('ca...capture'): 1}) == Counter({('ca...capture'): 1})
+| E
+| E         Omitting 12 identical items, use -vv to show
+| E         Left contains 1 more item:
+| E         {('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2}
+| E         Use -v to get more diff
+|
+| orchestrator/tests/test_ccbench_spawn_sites.py:4154: AssertionError
+| _______________________ test_inventory_records_r1_inputs _______________________
+| [gw43] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_inventory_records_r1_inpu0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ca446d960>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_inventory_records_r1_inpu0/archive')
+|
+|     def test_inventory_records_r1_inputs(tmp_path, monkeypatch, archive):
+|         source = git_source(tmp_path / 'source')
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source,
+|                                        trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:79: AssertionError
+| _______________ test_preservation_error_does_not_replace_result ________________
+| [gw43] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_preservation_error_does_n0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ca429d000>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_preservation_error_does_n0/archive')
+|
+|     def test_preservation_error_does_not_replace_result(tmp_path, monkeypatch, archive):
+|         def fail(*a, **kw):
+|             raise OSError('zstd spawn failed')
+|         monkeypatch.setattr(P, '_compress_trace_archive', fail)
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls and all(d.exists() for d in dirs)
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:199: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| trace preservation failed; original retained at /tmp/pytest-of-tanab/pytest-0/popen-gw43/test_preservation_error_does_n0/izanagi_eval_trace_legacy_9paqk_br: zstd spawn failed
+| _________________________ test_archive_before_cleanup __________________________
+| [gw45] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_archive_before_cleanup0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15160b3f8700>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_archive_before_cleanup0/archive')
+|
+|     def test_archive_before_cleanup(tmp_path, monkeypatch, archive):
+|         trace = serial_trace()
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=trace, ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:142: AssertionError
+| ___________________________ test_unset_env_unchanged ___________________________
+| [gw32] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_unset_env_unchanged0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1487e881beb0>
+| capsys = <_pytest.capture.CaptureFixture object at 0x1487e88183d0>
+|
+|     def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
+|         monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT', raising=False)
+|         source = git_source(tmp_path / 'source')
+|         subprocess_calls = []
+|         r1_reads = []
+|         writes = []
+|         real_open, real_makedirs = builtins.open, os.makedirs
+|         real_run, real_read_bytes = subprocess.run, Path.read_bytes
+|         def run(*a, **kw):
+|             subprocess_calls.append(a)
+|             raise AssertionError('unexpected subprocess')
+|         def opened(path, mode='r', *a, **kw):
+|             if any(m in mode for m in 'wax'):
+|                 writes.append(os.fspath(path))
+|             return real_open(path, mode, *a, **kw)
+|         def makedirs(path, *a, **kw):
+|             writes.append(os.fspath(path))
+|             return real_makedirs(path, *a, **kw)
+|         def tracked_run(args, *a, **kw):
+|             if args and args[0] == 'git':
+|                 subprocess_calls.append(args)
+|             return real_run(args, *a, **kw)
+|         def tracked_read_bytes(path):
+|             if path.parent.name == 'verifier' and path.suffix == '.py':
+|                 r1_reads.append(str(path))
+|             return real_read_bytes(path)
+|         monkeypatch.setattr(P, '_compress_trace_archive', run)
+|         monkeypatch.setattr(subprocess, 'run', tracked_run)
+|         monkeypatch.setattr(Path, 'read_bytes', tracked_read_bytes)
+|         monkeypatch.setattr(builtins, 'open', opened)
+|         monkeypatch.setattr(os, 'makedirs', makedirs)
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source)
+| >       assert result.certified and calls and dirs
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:257: AssertionError
+| _____________________ test_failure_retains_original[spawn] _____________________
+| [gw38] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_failure_retains_original_0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154a69da29b0>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_failure_retains_original_0/archive')
+| capsys = <_pytest.capture.CaptureFixture object at 0x154a69da3640>
+| failure = 'spawn'
+|
+|     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+|     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+|         if failure in ('spawn', 'nonzero'):
+|             def fail(*a, **kw):
+|                 if failure == 'spawn':
+|                     raise FileNotFoundError('zstd missing')
+|                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+|             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+|         elif failure == 'inventory':
+|             real = builtins.open
+|             def fail(path, *a, **kw):
+|                 if os.fspath(path).endswith('inventory.json'):
+|                     raise OSError('inventory unwritable')
+|                 return real(path, *a, **kw)
+|             monkeypatch.setattr(builtins, 'open', fail)
+|         else:
+|             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| trace preservation failed; original retained at /tmp/pytest-of-tanab/pytest-0/popen-gw38/test_failure_retains_original_0/izanagi_eval_trace_legacy_d39t0pu0: zstd missing
+| ___________________ test_failure_retains_original[relative] ____________________
+| [gw42] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_failure_retains_original_0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b77bc0ae60>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_failure_retains_original_0/archive')
+| capsys = <_pytest.capture.CaptureFixture object at 0x14b7789051e0>
+| failure = 'relative'
+|
+|     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+|     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+|         if failure in ('spawn', 'nonzero'):
+|             def fail(*a, **kw):
+|                 if failure == 'spawn':
+|                     raise FileNotFoundError('zstd missing')
+|                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+|             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+|         elif failure == 'inventory':
+|             real = builtins.open
+|             def fail(path, *a, **kw):
+|                 if os.fspath(path).endswith('inventory.json'):
+|                     raise OSError('inventory unwritable')
+|                 return real(path, *a, **kw)
+|             monkeypatch.setattr(builtins, 'open', fail)
+|         else:
+|             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| trace preservation failed; original retained at /tmp/pytest-of-tanab/pytest-0/popen-gw42/test_failure_retains_original_0/izanagi_eval_trace_legacy_jqqnpl8q: IZANAGI_TRACE_ARCHIVE_ROOT must be absolute
+| ________ test_reviewed_process_launch_inventory_is_recursive_and_exact _________
+| [gw35] linux -- Python 3.10.12 /bin/python3.10
+|
+|     def test_reviewed_process_launch_inventory_is_recursive_and_exact():
+|         expected = (
+|             _GATEWAY
+|             + _DIRECT_SAFE_ALLOWLIST
+|             + _DIRECT_CCBENCH_DIAGNOSTIC_SITES
+|             + _EXPLICIT_NON_CCBENCH_PROCESS_SITES
+|         )
+| >       assert _process_launch_sites() == expected
+| E       AssertionError: assert Counter({('ca...po_head'): 1}) == Counter({('ca...po_head'): 1})
+| E
+| E         Omitting 145 identical items, use -vv to show
+| E         Left contains 1 more item:
+| E         {('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2}
+| E         Use -v to get more diff
+|
+| orchestrator/tests/test_ccbench_spawn_sites.py:2874: AssertionError
+| ___________________ test_failure_retains_original[inventory] ___________________
+| [gw37] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_failure_retains_original_0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489632433d0>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_failure_retains_original_0/archive')
+| capsys = <_pytest.capture.CaptureFixture object at 0x148963243d30>
+| failure = 'inventory'
+|
+|     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+|     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+|         if failure in ('spawn', 'nonzero'):
+|             def fail(*a, **kw):
+|                 if failure == 'spawn':
+|                     raise FileNotFoundError('zstd missing')
+|                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+|             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+|         elif failure == 'inventory':
+|             real = builtins.open
+|             def fail(path, *a, **kw):
+|                 if os.fspath(path).endswith('inventory.json'):
+|                     raise OSError('inventory unwritable')
+|                 return real(path, *a, **kw)
+|             monkeypatch.setattr(builtins, 'open', fail)
+|         else:
+|             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| trace preservation failed; original retained at /tmp/pytest-of-tanab/pytest-0/popen-gw37/test_failure_retains_original_0/izanagi_eval_trace_legacy_egyr9agi: inventory unwritable
+| ____________________ test_failure_retains_original[nonzero] ____________________
+| [gw36] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_failure_retains_original_0')
+| monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b496a9c970>
+| archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_failure_retains_original_0/archive')
+| capsys = <_pytest.capture.CaptureFixture object at 0x14b496a9dc00>
+| failure = 'nonzero'
+|
+|     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+|     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+|         if failure in ('spawn', 'nonzero'):
+|             def fail(*a, **kw):
+|                 if failure == 'spawn':
+|                     raise FileNotFoundError('zstd missing')
+|                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+|             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+|         elif failure == 'inventory':
+|             real = builtins.open
+|             def fail(path, *a, **kw):
+|                 if os.fspath(path).endswith('inventory.json'):
+|                     raise OSError('inventory unwritable')
+|                 return real(path, *a, **kw)
+|             monkeypatch.setattr(builtins, 'open', fail)
+|         else:
+|             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+|         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| >       assert result.certified and calls
+| E       AssertionError: assert (False)
+| E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+|
+| orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| trace preservation failed; original retained at /tmp/pytest-of-tanab/pytest-0/popen-gw36/test_failure_retains_original_0/izanagi_eval_trace_legacy_56st2kxn: Command '['zstd', '-T0', '-3']' returned non-zero exit status 1.
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_inventory_records_r1_inputs
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_archive_before_cleanup
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_unset_env_unchanged
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[relative]
+| FAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[inventory]
+| FAILED orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]
+| 10 failed, 3933 passed, 14 skipped in 345.77s (0:05:45)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_unset_env_unchanged" nodeid_bytes=77 nodeid_omitted_bytes=0 source_bytes=2299 retained_bytes=2299 omitted_bytes=0 rendered_excerpt_bytes=2386 sha256=5a9f7de50faad1a6ad2f6243f7e9e4a8a2240482fc14aae160abe3978df076a2
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw32] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_unset_env_unchanged0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1487e881beb0>
+| > capsys = <_pytest.capture.CaptureFixture object at 0x1487e88183d0>
+| >
+| >     def test_unset_env_unchanged(tmp_path, monkeypatch, capsys):
+| >         monkeypatch.delenv('IZANAGI_TRACE_ARCHIVE_ROOT', raising=False)
+| >         source = git_source(tmp_path / 'source')
+| >         subprocess_calls = []
+| >         r1_reads = []
+| >         writes = []
+| >         real_open, real_makedirs = builtins.open, os.makedirs
+| >         real_run, real_read_bytes = subprocess.run, Path.read_bytes
+| >         def run(*a, **kw):
+| >             subprocess_calls.append(a)
+| >             raise AssertionError('unexpected subprocess')
+| >         def opened(path, mode='r', *a, **kw):
+| >             if any(m in mode for m in 'wax'):
+| >                 writes.append(os.fspath(path))
+| >             return real_open(path, mode, *a, **kw)
+| >         def makedirs(path, *a, **kw):
+| >             writes.append(os.fspath(path))
+| >             return real_makedirs(path, *a, **kw)
+| >         def tracked_run(args, *a, **kw):
+| >             if args and args[0] == 'git':
+| >                 subprocess_calls.append(args)
+| >             return real_run(args, *a, **kw)
+| >         def tracked_read_bytes(path):
+| >             if path.parent.name == 'verifier' and path.suffix == '.py':
+| >                 r1_reads.append(str(path))
+| >             return real_read_bytes(path)
+| >         monkeypatch.setattr(P, '_compress_trace_archive', run)
+| >         monkeypatch.setattr(subprocess, 'run', tracked_run)
+| >         monkeypatch.setattr(Path, 'read_bytes', tracked_read_bytes)
+| >         monkeypatch.setattr(builtins, 'open', opened)
+| >         monkeypatch.setattr(os, 'makedirs', makedirs)
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source)
+| > >       assert result.certified and calls and dirs
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:257: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=738 retained_bytes=738 omitted_bytes=0 rendered_excerpt_bytes=775 sha256=80de2b1db60479834e04b52d5efacb959e71be51c58f8061d80279f1f4e1be9a
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > [gw35] linux -- Python 3.10.12 /bin/python3.10
+| >
+| >     def test_reviewed_process_launch_inventory_is_recursive_and_exact():
+| >         expected = (
+| >             _GATEWAY
+| >             + _DIRECT_SAFE_ALLOWLIST
+| >             + _DIRECT_CCBENCH_DIAGNOSTIC_SITES
+| >             + _EXPLICIT_NON_CCBENCH_PROCESS_SITES
+| >         )
+| > >       assert _process_launch_sites() == expected
+| > E       AssertionError: assert Counter({('ca...po_head'): 1}) == Counter({('ca...po_head'): 1})
+| > E
+| > E         Omitting 145 identical items, use -vv to show
+| > E         Left contains 1 more item:
+| > E         {('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2}
+| > E         Use -v to get more diff
+| >
+| > orchestrator/tests/test_ccbench_spawn_sites.py:2874: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[inventory]" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1857 retained_bytes=1857 omitted_bytes=0 rendered_excerpt_bytes=1920 sha256=b54a26af7c72c8f8adecbdb74cf7796b1be4af7d6072248e17a6d9bf13806554
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > [gw37] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_failure_retains_original_0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489632433d0>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_failure_retains_original_0/archive')
+| > capsys = <_pytest.capture.CaptureFixture object at 0x148963243d30>
+| > failure = 'inventory'
+| >
+| >     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+| >     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+| >         if failure in ('spawn', 'nonzero'):
+| >             def fail(*a, **kw):
+| >                 if failure == 'spawn':
+| >                     raise FileNotFoundError('zstd missing')
+| >                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+| >             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+| >         elif failure == 'inventory':
+| >             real = builtins.open
+| >             def fail(path, *a, **kw):
+| >                 if os.fspath(path).endswith('inventory.json'):
+| >                     raise OSError('inventory unwritable')
+| >                 return real(path, *a, **kw)
+| >             monkeypatch.setattr(builtins, 'open', fail)
+| >         else:
+| >             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[relative]" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1856 retained_bytes=1856 omitted_bytes=0 rendered_excerpt_bytes=1919 sha256=edbfe284e526855785f5ced2bc69b62237b2e3e7c88da69fb14c2f4fb93e9375
+| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+| > [gw42] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_failure_retains_original_0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b77bc0ae60>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_failure_retains_original_0/archive')
+| > capsys = <_pytest.capture.CaptureFixture object at 0x14b7789051e0>
+| > failure = 'relative'
+| >
+| >     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+| >     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+| >         if failure in ('spawn', 'nonzero'):
+| >             def fail(*a, **kw):
+| >                 if failure == 'spawn':
+| >                     raise FileNotFoundError('zstd missing')
+| >                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+| >             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+| >         elif failure == 'inventory':
+| >             real = builtins.open
+| >             def fail(path, *a, **kw):
+| >                 if os.fspath(path).endswith('inventory.json'):
+| >                     raise OSError('inventory unwritable')
+| >                 return real(path, *a, **kw)
+| >             monkeypatch.setattr(builtins, 'open', fail)
+| >         else:
+| >             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=4 END ---
+| IZANAGI_FAILURE rank=5 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[nonzero]" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1855 retained_bytes=1855 omitted_bytes=0 rendered_excerpt_bytes=1918 sha256=1283782984bb7b28157b8f82f4f5872166b98eb0ba55a0e93867866226e5e066
+| --- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---
+| > [gw36] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_failure_retains_original_0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b496a9c970>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_failure_retains_original_0/archive')
+| > capsys = <_pytest.capture.CaptureFixture object at 0x14b496a9dc00>
+| > failure = 'nonzero'
+| >
+| >     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+| >     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+| >         if failure in ('spawn', 'nonzero'):
+| >             def fail(*a, **kw):
+| >                 if failure == 'spawn':
+| >                     raise FileNotFoundError('zstd missing')
+| >                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+| >             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+| >         elif failure == 'inventory':
+| >             real = builtins.open
+| >             def fail(path, *a, **kw):
+| >                 if os.fspath(path).endswith('inventory.json'):
+| >                     raise OSError('inventory unwritable')
+| >                 return real(path, *a, **kw)
+| >             monkeypatch.setattr(builtins, 'open', fail)
+| >         else:
+| >             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=5 END ---
+| IZANAGI_FAILURE rank=6 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_failure_retains_original[spawn]" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1853 retained_bytes=1853 omitted_bytes=0 rendered_excerpt_bytes=1916 sha256=c33d01cbaa124e684158f3d80a823180b9d35eae0dfd05cf87f8ea3c6415bb6b
+| --- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---
+| > [gw38] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_failure_retains_original_0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154a69da29b0>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_failure_retains_original_0/archive')
+| > capsys = <_pytest.capture.CaptureFixture object at 0x154a69da3640>
+| > failure = 'spawn'
+| >
+| >     @pytest.mark.parametrize('failure', ['spawn', 'nonzero', 'inventory', 'relative'])
+| >     def test_failure_retains_original(tmp_path, monkeypatch, archive, capsys, failure):
+| >         if failure in ('spawn', 'nonzero'):
+| >             def fail(*a, **kw):
+| >                 if failure == 'spawn':
+| >                     raise FileNotFoundError('zstd missing')
+| >                 raise subprocess.CalledProcessError(1, ['zstd', '-T0', '-3'])
+| >             monkeypatch.setattr(P, '_compress_trace_archive', fail)
+| >         elif failure == 'inventory':
+| >             real = builtins.open
+| >             def fail(path, *a, **kw):
+| >                 if os.fspath(path).endswith('inventory.json'):
+| >                     raise OSError('inventory unwritable')
+| >                 return real(path, *a, **kw)
+| >             monkeypatch.setattr(builtins, 'open', fail)
+| >         else:
+| >             monkeypatch.setenv('IZANAGI_TRACE_ARCHIVE_ROOT', 'relative')
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:186: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=6 END ---
+| IZANAGI_FAILURE rank=7 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_preservation_error_does_not_replace_result" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1118 retained_bytes=1118 omitted_bytes=0 rendered_excerpt_bytes=1151 sha256=8722f37ba07d8b8478bb19a224fd64bd7eed10aa6935faad19be7cd08ed42a4b
+| --- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---
+| > [gw43] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_preservation_error_does_n0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ca429d000>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_preservation_error_does_n0/archive')
+| >
+| >     def test_preservation_error_does_not_replace_result(tmp_path, monkeypatch, archive):
+| >         def fail(*a, **kw):
+| >             raise OSError('zstd spawn failed')
+| >         monkeypatch.setattr(P, '_compress_trace_archive', fail)
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls and all(d.exists() for d in dirs)
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:199: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=7 END ---
+| IZANAGI_FAILURE rank=8 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_inventory_records_r1_inputs" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1037 retained_bytes=1037 omitted_bytes=0 rendered_excerpt_bytes=1068 sha256=45b2bc3ee58bb98c565cc05816b7d99daf558fbea252fca236aa8d40027a4559
+| --- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---
+| > [gw43] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_inventory_records_r1_inpu0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ca446d960>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_inventory_records_r1_inpu0/archive')
+| >
+| >     def test_inventory_records_r1_inputs(tmp_path, monkeypatch, archive):
+| >         source = git_source(tmp_path / 'source')
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, source_root=source,
+| >                                        trace_content=serial_trace(), ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:79: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=8 END ---
+| IZANAGI_FAILURE rank=9 category=failed when=call nodeid="orchestrator/tests/test_t2853_trace_preservation.py::test_archive_before_cleanup" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=941 retained_bytes=941 omitted_bytes=0 rendered_excerpt_bytes=970 sha256=f673545de133457fc1e2973fa24b5c52b6af04f8560feb2a91f47f0acc9d2ce2
+| --- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---
+| > [gw45] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_archive_before_cleanup0')
+| > monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15160b3f8700>
+| > archive = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_archive_before_cleanup0/archive')
+| >
+| >     def test_archive_before_cleanup(tmp_path, monkeypatch, archive):
+| >         trace = serial_trace()
+| >         result, calls, dirs = evaluate(tmp_path, monkeypatch, trace_content=trace, ncommit=2)
+| > >       assert result.certified and calls
+| > E       AssertionError: assert (False)
+| > E        +  where False = EvalResult(genome=Genome(protocol='silo', flags={'BACK_OFF': 1}), variant='5ada9374d1c8', certified=False, aborted=Tru...tence_violation_details=None), n_txns=2, n_reads=1, n_writes=1, n_keys=1, n_edges=1, abort_reasons={}, total_cycles=0)).certified
+| >
+| > orchestrator/tests/test_t2853_trace_preservation.py:142: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=9 END ---
+| IZANAGI_FAILURE rank=10 category=failed when=call nodeid="orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=724 retained_bytes=724 omitted_bytes=0 rendered_excerpt_bytes=759 sha256=65922969ef8676ba56d6cc0250af4c748838c40d766e5eb7958b7a701ecfdf95
+| --- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---
+| > [gw47] linux -- Python 3.10.12 /bin/python3.10
+| >
+| >     def test_reviewed_ccbench_measurement_launches_use_bounded_sites():
+| >         observed = (
+| >             _process_launch_sites()
+| >             - _EXPLICIT_NON_CCBENCH_PROCESS_SITES
+| >             - _DIRECT_CCBENCH_DIAGNOSTIC_SITES
+| >         )
+| > >       assert observed == _GATEWAY + _DIRECT_SAFE_ALLOWLIST
+| > E       AssertionError: assert Counter({('ca...capture'): 1}) == Counter({('ca...capture'): 1})
+| > E
+| > E         Omitting 12 identical items, use -vv to show
+| > E         Left contains 1 more item:
+| > E         {('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2}
+| > E         Use -v to get more diff
+| >
+| > orchestrator/tests/test_ccbench_spawn_sites.py:4154: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=10 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=10 failed=10 errors=0 selected=10 omitted_failures=0 source_bytes=14278 retained_bytes=14278 omitted_bytes=0 budget_bytes=49152 rendered_bytes=19396 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 29396.nqsv child stdout end
+[Pegasus dispatch] request 29396.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 547795, "time_ns": 1790400097626030241}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 547816, "event": "direct-child-wait-start", "pid": 547802, "time_ns": 1790400097655412985}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_MEMO_PREWARM_V1 {"barrier_s":45.41881808300968,"hook":"xdist_node_collection_finished","oracle_environment_memo_s":null,"receipt_memo_s":45.41841857798863}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 547816, "event": "direct-child-wait-complete", "pid": 547802, "time_ns": 1790400444226029643}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 547802, "rc": 0, "time_ns": 1790400444226124991}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 547795, "rc": 0, "time_ns": 1790400444230808104}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 547795}, {"comm": "bash", "pid": 547776}, {"comm": "nqs_shpd", "pid": 547775}, {"comm": "nqs_shpd", "pid": 547568}, {"comm": "nqs_shpd", "pid": 2429}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 547795, "sid": 547775, "time_ns": 1790400444231300675}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 280.4016750305891, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 547795, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790400444511739332, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 547795, "time_ns": 1790400444514834787}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 547795, "time_ns": 1790400444521889203}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 547795, "time_ns": 1790400444522795151}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 547795, "time_ns": 1790400444522805604}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 547795, "time_ns": 1790400444523869149}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 547795, "time_ns": 1790400444523876821}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 547795, "rc": 1, "time_ns": 1790400444523885765}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 547795, "rc": 1, "time_ns": 1790400444523904231}
+|
+| ============================================================
+| Request ID:             29396.nqsv
+| Request Name:           izdw-5d7c8d525b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sat Sep 26 14:21:28 2026
+| Started Request Time:   Sat Sep 26 14:21:36 2026
+| Ended Request Time:     Sat Sep 26 14:27:24 2026
+| Resources Information:
+|   Elapse:               353S
+|   Remaining Elapse:     3247S
+| ============================================================
+[Pegasus dispatch] request 29396.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=1
