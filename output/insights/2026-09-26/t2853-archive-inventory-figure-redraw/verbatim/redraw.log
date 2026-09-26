@@ -1,0 +1,70 @@
+=== fig2b 2026-09-26 14:00:51 JST
+argv: python3 tools/plotting/plot_backoff.py --baselines no-backoff /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2b_backoff_sweep_3workload output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7 output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2b_backoff_sweep_3workload.png / .pdf / .provenance.json
+  write-heavy: historical best 2.61M @ 10µs (epoch=E0; none=1.89M adapt=1.05M n=5)
+  balanced: historical best 3.09M @ 5µs (epoch=E0; none=2.78M adapt=0.92M n=5)
+  read-heavy: historical best 7.88M @ 2µs (epoch=E0; none=8.46M adapt=1.91M n=5)
+rc[fig2b]=0
+=== fig2c 2026-09-26 14:01:03 JST
+argv: python3 tools/plotting/plot_b10_extended_backoff.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2c_b10_extended_backoff /work/1/SFC/tanab/b10-backoff-grid-runs5
+[error] repo artifact path leaves repository: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig2c_b10_extended_backoff.png
+rc[fig2c]=2
+=== fig3c 2026-09-26 14:01:09 JST
+argv: python3 tools/plotting/plot_arc_status.py --states docs/paper-story/figures/arc_status_story_2026-09-21c.json /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3c_arc_status_2026-09-21
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig3c_arc_status_2026-09-21.png / .pdf / .provenance.json
+rc[fig3c]=0
+=== fig4 2026-09-26 14:01:11 JST
+argv: python3 tools/plotting/plot_s1_9pair.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig4_s1a_9pair_direct_comparison output/reports/s1_direct_comparison/report.json --develop output/campaigns/s1-direct-develop-direct-comparison-d0f495bf --floor output/campaigns/s1-direct-floor-direct-comparison-b82b9229 --block1 output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2 --block2 output/campaigns/s1-direct-block2-direct-comparison-9645b16a
+[error] FigureDataError: path leaves repository: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig4_s1a_9pair_direct_comparison
+rc[fig4]=1
+=== fig5 2026-09-26 14:01:15 JST
+argv: env IZANAGI_A2_CERTIFICATION_MEASUREMENT_ROOT=/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c python3 tools/plotting/plot_a2_certification.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig5_a2_certification_reject
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig5_a2_certification_reject.png / .pdf / .provenance.json
+rc[fig5]=0
+=== fig6 2026-09-26 14:01:17 JST
+argv: python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b --certification output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json --raw-manifest output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig6_a2_certification_observed_positive
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig6_a2_certification_observed_positive.png / .pdf / .provenance.json
+rc[fig6]=0
+=== fig7 2026-09-26 14:01:21 JST
+argv: python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c --certification output/insights/2026-08-24_paper-story-a2-certification/certification.json --raw-manifest output/insights/2026-08-24_paper-story-a2-certification/raw-manifest.json /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig7_a2_builtin_backoff_onoff_reject
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig7_a2_builtin_backoff_onoff_reject.png / .pdf / .provenance.json
+rc[fig7]=0
+=== fig8 2026-09-26 14:01:22 JST
+argv: python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8_b10_static_tail_not_observed
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8_b10_static_tail_not_observed.png / .pdf / .provenance.json
+rc[fig8]=0
+=== fig8b 2026-09-26 14:01:24 JST
+argv: python3 tools/plotting/plot_b10_static_tail_formal.py --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8b_b10_static_tail_cohort2 --reproduction-cohort 2
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig8b_b10_static_tail_cohort2.png / .pdf / .provenance.json
+rc[fig8b]=0
+=== fig9 2026-09-26 14:01:27 JST
+argv: python3 tools/plotting/plot_a1_sized_paired.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig9_a1_balanced5_sized_attempt1
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig9_a1_balanced5_sized_attempt1.png / .pdf / .provenance.json
+rc[fig9]=0
+=== fig10 2026-09-26 14:01:29 JST
+argv: python3 tools/plotting/plot_b7_fixed5_regression.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-20260919a /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig10_b7_fixed5_three_workload_regression
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig10_b7_fixed5_three_workload_regression.png / .pdf / .provenance.json
+rc[fig10]=0
+=== fig11 2026-09-26 14:01:30 JST
+argv: python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b --certification output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json --raw-manifest output/insights/2026-09-08_t2411-paper-story-a6-certification/raw-manifest.json /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig11_a6_certification_reject
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig11_a6_certification_reject.png / .pdf / .provenance.json
+rc[fig11]=0
+=== fig12 2026-09-26 14:01:34 JST
+argv: python3 tools/plotting/plot_k2_loop_flow.py /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig12_k2_manual_loop_dataflow
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig12_k2_manual_loop_dataflow.png / .pdf / .provenance.json
+rc[fig12]=0
+=== fig13 2026-09-26 14:01:38 JST
+argv: python3 tools/plotting/plot_b10_waiting_grid_forest.py --evidence-root /work/1/SFC/tanab/izanagi-job-evidence/b10-backoff-shape /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig13_b10_waiting_grid_forest
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig13_b10_waiting_grid_forest.png / .pdf / .provenance.json
+rc[fig13]=0
+=== fig14 2026-09-26 14:01:40 JST
+argv: python3 tools/plotting/plot_a1_sized_paired.py --attempt attempt-0002 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig14_a1_balanced5_sized_attempt2
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig14_a1_balanced5_sized_attempt2.png / .pdf / .provenance.json
+rc[fig14]=0
+=== fig15 2026-09-26 14:01:42 JST
+argv: python3 tools/plotting/plot_mocc_witlight_four_arm.py --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig15_mocc_witlight_four_arm
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-archive-inventory-figure-redraw/redraw/fig15_mocc_witlight_four_arm.png / .pdf / .provenance.json
+rc[fig15]=0
+=== done 2026-09-26 14:01:44 JST
+wrote redraw-tmp/fig2c_b10_extended_backoff.png / redraw-tmp/fig2c_b10_extended_backoff.pdf / redraw-tmp/fig2c_b10_extended_backoff.provenance.json
+wrote redraw-tmp/fig4_s1a_9pair_direct_comparison.png / .pdf / .provenance.json
