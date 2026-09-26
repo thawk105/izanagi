@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/usr/bin/python3.10",
+    "-m",
+    "verifier",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-sort-nonswo/runs/sn-1/scratch/izanagi_t2847_trace_8cn82bmu",
+    "--json",
+    "--quiet",
+    "--protocol",
+    "silo",
+    "--ccbench-root",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/external/ccbench"
+  ],
+  "rc": 0,
+  "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-sort-nonswo/runs/sn-1/scratch/izanagi_t2847_trace_8cn82bmu\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 50228,\n        \"reads\": 774073,\n        \"writes\": 774073,\n        \"keys\": 200,\n        \"edges\": 601332,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": []\n    }\n  ]\n}\n",
+  "stderr": ""
+}

@@ -1,0 +1,22 @@
+# WAL の ts 先頭〜末尾の差 (秒)。2026-09-23 20:18 JST、login node、読み取りのみ。
+# script: job dir の walspan.py (repo 外、sha256 c6e0785707c0febb2ad57bf782a34ee2a5f7a07af3c9d353b7bbd8c6a0c24461)
+# 列: path / ts を持つ行数 / max(ts) - min(ts)
+output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/runs/wal.jsonl 40 605.6
+output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/runs/wal.jsonl 40 314.8
+output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/runs/wal.jsonl 40 293.6
+output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/runs/wal.jsonl 40 369.9
+output/campaigns/p2-2-silo-balanced-enumerate-f1588056/runs/wal.jsonl 40 345.8
+output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/runs/wal.jsonl 40 301.0
+/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/runs/wal.jsonl 155 1276.3
+/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/runs/wal.jsonl 155 1276.2
+/work/1/SFC/tanab/b10-backoff-grid-runs5/b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/runs/wal.jsonl 155 1279.3
+# fig6 (A-2 取り直し attempt t2364-20260907b) の NQSV 会計行 (repo 外 job.stderr の逐語抜粋)
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/scheduler/job.stderr:10:Started Request Time:   Mon Sep  7 21:12:07 2026
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/scheduler/job.stderr:11:Ended Request Time:     Mon Sep  7 22:02:23 2026
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/scheduler/job.stderr:13:  Elapse:               3020S
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/scheduler/job.stderr:10:Started Request Time:   Mon Sep  7 21:12:07 2026
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/scheduler/job.stderr:11:Ended Request Time:     Mon Sep  7 22:02:40 2026
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/scheduler/job.stderr:13:  Elapse:               3037S
+# policy の scheduler.nodes が 5 になった commit (git log -S'"nodes": 5')
+# eda92f107 2026-09-19T07:47:57+09:00 T-2489: A-2を5ノードへ揃え、局所lock候補の実測と不採用理由を記録
+# 2a9ba783f 2026-09-08T09:10:55+09:00 [T-2429] 認証 campaign の正しさ検査を兄弟ノードへ fan-out する経路を足す

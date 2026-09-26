@@ -69,7 +69,7 @@ NOT_CERTIFIED = (
 DIAGNOSTIC_NOT_CERTIFIED = (
     "trace-enabled diagnostic runs only; no serializability check was run"
 )
-PIN_FULL = "e9e477ca1b55348ab4530de0b1cf663ce4555290"
+PIN_FULL = "68106660686232781bca3be792a750d3e19d7a8a"
 PATCH_A_REL = "patches/cicada-adaptive-params.patch"
 PATCH_B_REL = "patches/cicada-adaptive-dynamic.patch"
 PATCH_C_REL = "patches/cicada-adaptive-counterfactual.patch"

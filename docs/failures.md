@@ -1016,6 +1016,8 @@
 - 再発検知: `python3 tools/check_ai_provenance.py` (機械)。積み直し時は台帳・worklog の SHA 参照の
   更新漏れも併せて見る
 
+
+- **再発: 2026-09-23 (near-miss、論文ストーリー 2026-09-23 版の wave)** — 親が段 6 の fix commit を `git commit -m <件名> -m <AI-Agent 行> -m <Co-Authored-By 行>` の 3 分割で作り、AI-Agent 行と Co-Authored-By 行が別段落になって AI-Agent が trailer と認識されず、全史 provenance 監査が新規違反 1 件 (rc=1) を出した。`--message-file` の事前検査を `-m` 分割の commit では通していなかった。未共有のうちに soft reset で記録 commit と 1 つにまとめて作り直した (内容は同じ)。以後の commit は Write で作った message file を `--message-file` で検査してから `commit -F` にした (DW-O17 の既存手順どおり)。
 ### F26. worktree 掃除での submodule 起因の二重の罠 — remove 無条件拒否と deinit の設定共有 [手順漏れ]
 - 事象: 2026-07-20 のブランチ・worktree 掃除で、(1) submodule (external/ccbench) の gitlink を
   index に含む worktree は `git worktree remove` が無条件拒否 (`--force` でも submodule を空にした
@@ -11533,6 +11535,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 負例が緑なのに、期待する detail code が production の総括 `except` の値と
   同じであること。fixture が参照する名前が test module で束縛されているかの確認。
 
+
+- **再発: 2026-09-23** — [T-2854] 単位 5 の段 5 で Codex author が足した v3 の試験 2 本が、key に 16 進でない `district` を使い、verifier の malformed key で integrity が汚れていた。lost update 試験の「lost 側が non-serializable」の assertion は malformed のまま偶然成り立ち、executor 試験の存在違反 case は key を直すと「最初の write が U の key の genesis 読み」で存在の契約上違反でなく certified になった (fixture が狙った存在検査に届いていなかった)。子は pytest を走らせられず未実走と報告し、親の自走と焦点走 2 回で赤として見つかり、fix 2 巡で閉じた (最初の write を I、malformed 0・framing 0・witness 一致・存在件数 0 なら clean を assert)。成果物への影響なし (land 前)。是正: 負例は赤理由が狙った機構だけであることを assert する (本項の恒久対応どおり)。子が未実走とした試験のうち login で直接呼べるもの (trace_runner seam の executor 試験) は、統合前に親が呼ぶ (insight `output/insights/2026-09-23/t2854-unit5-v3-wiring/README.md` §2・§3)。
 ### F327. 待ち手が成果物・`.done` 不在かつ生産者生存のまま rc=0 で終了した [観測] [完了誤認]
 
 - 事象: (2026-08-16) 背景 job の待ち手 `tools/dev_wave_wait.py producer` が、
@@ -28342,6 +28346,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-23** — [T-2849] の段 4 で親は、開発の検査の見積りを「≤ 0.99 node 時間」と置いたが、変異 dispatch の job (新しい種類) の単価を実測しておらず、walltime × job 数の上限も取らないまま変異 probe 29 job を投入した (本項の恒久対応の不適用)。probe の後、`tools/mutation_worktree.py` が使い捨て作業木ごと dispatch の受領証を消していて Elapse を実測できないと分かり、同じ runner argv の 1 job を dispatch して単価 (job Elapse 13 秒) を実測してから本走を投じた。本走 28 job の実測は計 435 秒で、wave の合計は ≈ 0.31 node 時間 (線の内側、測定値・判定への影響なし)。是正: 変異のように job 数が多い新種 job は、投入前に同じ argv の 1 job を dispatch して単価を実測し、変異の台帳に Elapse が残らない点を見込んで受領証を走行中に写す (insight `output/insights/2026-09-23/t2849-comparison-harness-impl/README.md` §7)。
+
+- **再発: 2026-09-23** — [T-2854] 単位 5 の段 6 で親は、変異 dispatch の probe (13 job 予定) を、同じ runner argv の 1 job で単価を実測せず、walltime (1 時間) × job 数の上限 (約 13 node 時間) も取らずに投入した (本項の 2026-09-23 の是正の不適用)。基準の commit は試験が赤のままで、harness は「baseline が緑でない」と正しく abort し、使ったのは 2 job (開始〜終了の合計 462 秒) だけだった。その後、同 argv の 1 job (Elapse 13 秒) で単価を実測してから probe-2・本走を投じた。wave の合計は約 0.9 node 時間 (線の内側、測定値・判定への影響なし)。是正は本項のとおりで新しい手順は足さない。加えて、変異の基準にする commit で試験が緑であることを確かめてから投入する (DW-C01「変異 harness は baseline 緑必須」の不適用、insight §7)。
 ### F1042. LaTeX 原稿の文の途中に差し込んだ出所コメント行が、同じ物理行の後続の本文を PDF から消した [手順漏れ]
 
 - 事象: ComSys 2026 投稿原稿 (1 段落 = 1 物理行) の段 6 の修正で、親が文を差し替える置換に「文．\n% 出所: …」を入れた。置換した文の後ろに続いていた同じ行の本文が新しいコメント行の末尾に付き、
@@ -28395,3 +28401,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: probe は pin と候補の source を bundle の bare 保管庫から `git archive` で取り出していた。CCBench の `.gitattributes` は `oze* export-ignore` (と `.gitignore` / `.gitattributes` の export-ignore) を持つので、archive は commit の tree を忠実に再現しない。取り出し後に tree との一致を照合していなかったため、欠落は build 段まで黙って進んだ。
 - 恒久対応: 同 wave の probe (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/probe/run_probe.py` の `sources()`) は、scratch 保管庫の `info/attributes` に `* -export-ignore` / `* -export-subst` を置き、取り出した regular file の集合と各 blob id を `git ls-tree -r` と完全一致で照合し、不一致なら C0 で fail-closed に止める (2 本目で pin・候補とも 404 / 404 一致)。以後の wave 向けの作法は memory `ccbench-git-archive-drops-export-ignore-paths` (CCBench の source を取り出すときは tree 照合付きにするか worktree checkout を使う)。記録 = `output/insights/2026-09-22/t2854-tpcc-ccbench-v3/README.md` §6。
 - 再発検知: 取り出した file 集合と blob の tree 照合が fail-closed で止める。照合を持たない取り出し経路では、CMake の configure が同じ message で落ちる。
+
+### F1047. 1 論文を読んだだけの近傍判定で「最も近い」という世界順位を書いた (near miss) [過大主張]
+
+- 事象: [T-2864] の ADRS (arXiv `2510.06189`) の判定で、親が判定記録 (`docs/related-work/claim-survey/2026-09-23-adrs-adjudication.md`)・正典 7.0 の索引・原稿の 2 節末段と限界節の 5 か所に
+  「最も近い研究」「3 条件の境界に最も近い」と書いた。段 6 の Codex read-only レビューが must-fix として捕まえ、記録の land 前に 5 か所とも順位を含まない形へ直した (成果物への実害なし)。
+- 根本原因: 軸 1 は `RW1` で、判定は 1 論文を読んだだけで母集合を持たないのに、比較の語 (最も) を近さの修飾に使った。
+  世界順位の禁止は正典 7.1 (Declarative Concurrent Data Structures のエントリ) に書かれていたが、親は 7.7 (判定語彙と成熟度) だけを判定規則として読み、7.1 の規則文を引かなかった。
+- 恒久対応: 新しい検査は足さない。近傍判定の記録と原稿では、近さを順位でなく条件ごとの充足 (満たす / 一部だけ / 満たさない) で書く。
+  「広い読みでは条件をすべて満たすと読む余地がある」のように、読みの選択を明示する形にする。
+- 再発検知: 段 6 の独立レビュー (過大主張レンズ) と、`grep -n "最も近\|唯一\|初めて"` の自己走査 (否定文と破れる短縮形の例示は除く)。
+
+### F1048. 前例の等価変異を写したら contract-loader 閉包の drift 層に殺され、等価でなかった (near miss) [テスト代表性] [ドリフト]
+
+- 事象: pin 前進 wave で、前例 (2026-09-20 の pin 前進) と同じく `orchestrator/campaign/pin.py` のコメント言い換えを等価変異 (SURVIVED 期待) として段 4 に事前登録した。probe で 46 node が落ち、同じ file の値変異の 63 node のうち 46 node を同じ層が占めていた。probe を観測走と明記していたので final の前に分かり、実害はない。
+- 根本原因: pin.py は contract-loader binding の enforcement 閉包 (作業木 bytes == HEAD blob を要求) に入っており、変異 harness は変異を commit せずに作業木へ注入するので、閉包 file はどんな書換えでも `contract-loader-drift` で fail-closed する。この層は前例の後に入ったが、前例の spec を写す際に「等価」の前提を再確認しなかった。
+- 恒久対応: memory `equivalent-mutation-must-avoid-contract-loader-closure` (正例は閉包外 file に置く、閉包 file の値変異は drift 層の node を引いた差を単一理由の証拠にする)。当該 wave は erratum を残し、正例を閉包外の `s8b_approved.py` へ移し、drift 層を負例として再登録した (`output/insights/2026-09-23/t2858-mocc-xp-pin-advance/README.md` §5)。
+- 再発検知: DW-M08 の probe (全件 SURVIVED 期待の観測走) が、正例の MISMATCH として表に出す。

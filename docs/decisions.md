@@ -71948,3 +71948,110 @@ coder・planner の入力へ渡さず (手順書 §3-D の firewall)、読んだ
 - `docs/phase3.md` 現行チェックポイントの [T-2862] 行「著者・所属・頁数・ADRS はユーザー手番のまま」は記入時点の記録として残す (現況は T-2864 の本文)。
 - 提示側の手順漏れ (next-tasks が D2227 項 7 を控え箱で照合せず push をユーザー手番として提示した) は F937 の再発として failures に記録する。
 - 投入前確認の予告 (今は諮らない): T-2850 試走 (試算 128.7〜145.4 node 時間、上限 200)、T-2849 残り (3)、T-2851 測定の発効、T-2847 残り (2)、T-2853 残り (5)、T-2858 の更新 wave。
+
+## D2236. ccbench pin を C へ進める更新では、温度述語の軸の `PIN` は現行 pin への追随のまま据え置き、現行 pin で mocc が X/P 証拠を持つことを正の事実として test に固定し、証拠の無い経路の負例は旧 pin の明示 checkout に任せる (2026-09-23)
+
+**決定:**
+1. D2227 項 1 の更新 (範囲は D2150 項 1 と同じ ①④⑦) で、`orchestrator/campaign/axis_mocc_temperature.py` は変更しない。`PIN = pin.CURRENT_PIN` の consumer は `s3_mocc_template_proof.py` の wrong-oid 負例 1 箇所だけで、C の 7 桁でも `PROOF_PIN` (e9e477ca の 40 桁) と一致しないまま負例として働く。`PROOF_PIN`・template・proof は e9e477ca に束縛したまま保持する (温度述語は D2134 項 9 で proof-only)。
+2. 現行 pin の実 compiled source を読む verifier の正負対は、C で mocc の X / P が evidence-present になった事実へ追随する。同じ trace を mocc として検証すると clean・serializable・certified になる。拒否側の被験は X/P 計装を持たない tictoc へ移す (proof surface は対象外 protocol として unavailable)。test の nodeid は real-repo 系の登録簿に載るので変えない。
+3. 「対応 protocol の実 source に X/P 計装が無い → evidence-absent → 非認定」の経路は、対応 protocol の silo・mocc がどちらも C で計装を持つので現行 checkout では到達不能になった。この経路は旧 pin (e9e477ca) を明示 checkout する mocc proof surface の test が被覆し続けるので、新しい負例・gate は足さない。
+4. D2150 項 1 (iv) (較正 record の扱い)・clang 比較の未完了・旧証拠の保持・計算確認の線 (D2212 項 4) は変えない。policy epoch の移動による旧 binary / lock の live 消費不能は D2150 項 1 の射程限定 (T-2304 で記録) と同型で、この更新で新たに壊れるものは段 6 レビューで見つからなかった。
+
+**理由:**
+- D2227 項 1 の資料 §3.2 項 4 は、`PIN` を e9e477ca の値に固定するか C 系列の proof を作り直すかの判断を求めていた。consumer を実読すると `PIN` は負例にしか使われず、どちらの手当ても挙動を変えない。変更しないのが最小である。
+- C は mocc に X/P 計装を足す commit なので、「現行 pin の mocc に証拠が無い」は旧 pin の事実であって現行の事実ではない。前例 T-2304 の between-run floor の source-facts と同じく、新 pin の事実へ追随し、負例は証拠を持たない protocol に移して意味を保つ。
+- 同じ負例を現行 pin で作るには verifier の対象 protocol 集合や source の人工改変が要り、要求外の仮想リスクに対する追加になる。
+
+**却下した選択肢:**
+- `axis_mocc_temperature.PIN` を e9e477ca の値に固定する — 挙動が同じで、alias 追随の設計 (pin.py の方針) から外れる。
+- C 系列の温度述語 proof を作り直す — D2227 項 1 の範囲 ①④⑦ の外。温度述語 hole の採用は別判断 (D2134 項 9)。
+- verifier の test の拒否側を mocc のまま残し期待値だけ反転させない — 現行 pin で事実と異なる主張になり赤のまま。
+- test を改名する — nodeid が real-repo 系の登録簿と所要台帳に載っており、改名の波及が意味の改善に見合わない。
+
+## D2237. 全 5 項の裁定 — 新しい裁定待ちは無く、人間手番 3 (著者・所属の記入、ComSys の申込と送信、上流報告の送信) と据え置き・収載維持を推奨どおり継続する (2026-09-23)
+
+**決定 (ユーザー裁定):** 索引 5 項 (ユーザー裁定待ち 0 + 人間手番 3 + 据え置き 1 + 収載維持 1) の説明と推奨に対し、ユーザーは「推奨通りで」と回答した
+(2026-09-23 21:0x JST)。下の番号は会話の索引番号と一致する。本決定は裁定記録であり、実装・記帳・commit・送信が完了したことを意味しない。
+各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 窓は entry 1847 だけ (第 33 回 D2235 が見た末尾 1846 の次)。収集・提示・受領とも main `620a6bb13` (entry 1847)。次の一手 619 項を carry 鎖の実体まで
+解決し (未解決 0)、1846 時点から消えた ID・増えた ID は 0、本文が変わった ID は 5 ([T-2605] [T-2854] [T-2858] [T-2864] [T-2865]、いずれも D2235 の反映で退行なし)。
+窓内の台帳追記は D2235 と F937 の再発記録だけ、窓内の変更 file は docs の台帳 6 本だけで、見送り台帳の相乗り・数値条件は非発火。repo 外の rulings-inbox の新着は
+第 33 回の控えだけ。第 33 回の裁定直後に起動した稼働 wave 13 本の job dir・brief・段 4 裁定・未 merge branch の spool fragment を走査し、今ユーザーへ提示中の判断は 0。
+Git は origin/main の最後の取得値 `fb12a492b` に対し local main が 18 commit 先 (20 未満で送信項なし。GitHub の現況は SSH の鍵と非公開 repo のため手元から取得できず)。
+
+**相談の採否:** 別系統モデル (read-only、`--lane luna`、medium)。A (全 5 項の推奨の当否) は全項に同意し、索引外の数値に誤りなし、[T-2865] の小比較は測定 job の約 1.6 に
+加えて焦点走・開発検査を含む上限換算 約 2.11 node 時間 (段階 D の insight) を数えるべきと補足した — D2219 項 1 どおりの扱いなので新しい裁定にせず、稼働中の
+[T-2865] wave へ通知した。B (索引漏れ) は初回が 500 byte 未満で出力検査に不受理 (本文は「漏れなし」)、確かめた資料の列挙を必須にした再走が受理され、資料 15 件を挙げて
+所見 0・漏れなし。
+
+### 項 1 — T-2864: ComSys 原稿の著者・所属の記入はユーザー手番のまま
+
+**決定:** 記入内容は未受領 (本回答にも含まれない) でユーザー手番に残る。受領後の処置は D2235 項 2 のとおり (`noauthor` を外して差し込み、再組版と頁数確認、16 頁以上なら
+D2227 項 4 を再提示、AI は推定しない)。ADRS の判定と 4.7 節の反映は稼働中の原稿改訂 wave (branch `worktree-t2864-comsys-manuscript-revise`、未 land) が済ませた。
+同 wave の未 land fragment は起点が D2235 の記録より前で、D2235 項 2・3 が足した「`noauthor` を外して再組版・頁数確認」と「採録版書誌の照合 (原稿 README §3.4)」を
+[T-2864] の更新から落としていたので同 session へ通知し、同 session は main を取り込んで 2 点を残した形に書き直すと返答した。[T-2864] の台帳項は同 wave が更新するので本記録では触らない。
+
+### 項 2 — ComSys 2026 の発表申込 (10/16) と原稿送信 (10/30) は人間手番
+
+**決定:** D2227 項 6・D2235 項 3 のまま (収載は送信の承認ではない)。AI 側の残りは著者の差し込みと再組版、採録版書誌の照合、原稿 7 節 (a)(c) の古い記述の更新
+(改訂 wave の README §10.4)。10/16 に著者情報が要るかは募集要項で確かめていない。
+
+### 項 3 — T-2791: 上流報告の送信は人間手番 (継続)
+
+### 項 4 — T-2605: 著作権者表示は据え置き
+
+### 項 5 — 収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708) は変更なし
+
+### 索引外
+
+- 投入前確認の予告 (今は諮らない、各 wave が投入前に実測単価で見積もる): [T-2850] 本試走 (試算 128.7〜145.4 node 時間、上限 200。2 node 時間未満の smoke の後に確認)、
+  [T-2865] 小比較 (検査費用込みで 2 node 時間を超えうる)、[T-2853] 主要図の再実行 (fig10 は 3.40 node 時間、投げる単位を決めた時点)、[T-2273] は land 条件が不成立なら結果をユーザーへ返す。
+- [T-2865] の段階 E で `.claude/agents/` を変える具体差分は別途ユーザー明示承認 (D2214)。
+
+## D2238. pipeline は TPC-C 段 1 (57:43) の v3 trace を受理し、CLI・reject 診断・受領証 digest は v3 の構造化出力を使う (2026-09-23)
+
+**決定:** TPC-C 段 1 の認定経路の単位 5 (設計 `output/insights/2026-09-21/tpcc-trace-certification-design/README.md` §7.1) として、次を定める。
+実装と試験は本 wave (insight `output/insights/2026-09-23/t2854-unit5-v3-wiring/README.md`)。
+
+1. **配線:** CLI の `--json`、campaign pipeline の reject 診断、verification capability の digest 射影は `core.result_to_dict_v3` を使う。capability は
+   trace_dir・framing / permutation の詳細を従来どおり除き、存在違反の件数・詳細と anomaly の表・取引種別は digest に入れる。v2 は dict・JSON bytes・digest が変わらない。
+   domain `izanagi-verifier-result-v1` は据え置く。既発行の v3 capability の digest は新しい射影では再現しない (互換を主張しない)。
+2. **受理:** `_run_trace` は `ycsb_` に加え、binary 名が `tpcc_` で flags の `tpcc_perc_payment`・`tpcc_perc_order_status`・`tpcc_perc_delivery`・`tpcc_perc_stock_level` が
+   文字列で `43`・`0`・`0`・`0` のときだけ trace を走らせる。欠落 (CCBench の既定 4% に落ちる)・別表記 (`043`)・他の値は従来の unsupported-workload で拒否する。
+3. **v3 の要求:** TPC-C の run は verifier の結果が v3 (`Integrity.existence_violation_details` が list) であることを verifier 直後に要求し、v2 は既存の
+   `trace-witness-unsupported-workload` で reject する (新しい reason は足さない)。witness (stdout の commit 計数 = C 行数) は YCSB と同じ経路をそのまま使う。
+
+**理由:**
+- 実 TPC-C trace (単位 1・2 の silo B0、36,156 取引) と実 stdout を pipeline の executor に通すと certified になり、存在違反 1 行の写しと末尾 frame 欠落の写しは reject される (insight §4)。
+  配線しないと、TPC-C の候補は pipeline の正しさゲートに乗らず、reject の診断と受領証に表・取引種別・存在詳細が残らない (規律 3)。
+- 57:43 は CCBench の既存 flag で OrderStatus / Delivery / StockLevel を 0% にした比で、45 : 43 の正規化は整数 % で表せない (設計 §3.5)。取引の選択は合成の編集面
+  (EVOLVE-BLOCK は silo の transaction.cc) の外にあるので、候補 binary は flag どおりに取引を選ぶ。
+- 現 pin の tpcc binary は v2 を出し計数修正も無い。v3 の要求がそれを reject する。reason は「commit 後の計数契約を証明済みでない workload」という既存の意味に当たる。
+
+**却下した選択肢:**
+- trace の取引種別・op=D を pipeline で検査する — flag を無視する手製 binary だけを想定した依頼外の gate。限界として insight §6 に書く。
+- binary 名に `.exe` 接尾辞を要求する — v3 emitter・計数修正の証拠にならず、YCSB の条件と非対称になるだけ。
+- v2 の TPC-C 用に新しい abort reason を作る — critic の digest と s8b の reason 契約の登録が増えるが、既存 reason の意味で足りる。
+- capability の射影から存在詳細を除く — 依頼は受領証 digest への存在詳細の配線を求めている。framing / permutation の詳細を除く理由 (既存受領証の hash の安定) は v3 に既発行の束縛が無いので当たらない。
+- 実 CC (broken-silo-norw-validation.patch を TPC-C の v3 build で) の lost update を完了条件にする — patch の v3 source への適用・計算ノードの build・異常 schedule の帰属確認が要り、
+  合成 v3 fixture で表 1 の ww・rw の cycle と直列対照を示せる。
+
+## D2239. 検出期待表の新規変異は silo の 14 本を patch にして実走し、「盲点」と「未発生」を発火診断で分ける (2026-09-23)
+
+**決定:**
+1. 設計書 (`output/insights/2026-09-22/t2847-verifier-detection-design/README.md` §4) の新規 18 変異のうち、現 pin `e9e477ca` の上で期待を検証できる silo の 14 本 (変異 11・正しさを保つ対照 3) を D16 の out-of-tree patch (`patches/broken-silo-*.patch`・`patches/control-silo-*.patch`、`CCBENCH_` 外の裸マクロ 1 個の `#if` 枝) にして実走する。mocc の 2 本は X/P の emitter が pin C の計装の内容なので、si の 2 本は現行 parser が si の旧形式 trace を拒否して変異の有無に関わらず parse error になるので、走らせない。
+2. 新 macro は既存の壊し patch と同じく条件 gate の許可ドメインに登録し、既存 driver の `s2_verify_calibration._broken_build_and_verify` (patch 適用・condition gate・commit 証人つき verifier) で build・実走する。判定基準・供給経路の処理は変えない。
+3. 各 patch の有効枝に発火診断 (変異枝に入った回数・元コードと違う挙動を生んだ回数・その取引が commit した回数) を置き、process 終了時に stderr へ 1 行出す。verdict が serializable の行は、変異が挙動を変えその取引が commit したときだけ「盲点として certified」、そうでなければ「未発生」とする。診断は verifier の判定に使わない。
+4. 期待・workload・job 分割・分類の規則は投入前に事前登録し、期待と違う結果が出ても patch・workload を事後に期待へ寄せない。直すのは patch が意図した機構以外を変えていることを source で示せる実装の誤りだけで、初回の結果も記録に残す。
+5. trigger-misattr の既存 driver (`s8a_trigger_coverage.main()`) は misattr の build を admission (source digest) に通し、現行の source digest が裸マクロを未知マクロとして fail-closed で拒否するため走らない。source digest の防壁は緩めず、misattr の build だけを他の壊し patch と同じ直 CMake 経路 (condition gate は通す、admission は通さない) にした repo 外の起動器の手順で走らせる。run と checks は driver の関数と式のままにする。
+
+**理由:**
+- 検出表は「verifier が捕まえなかった」と「変異がそもそも起きなかった」を分けないと、盲点を過大にも過小にも数える。trace にも verifier にも現れない変更 (値・取引内の読み・TID 規則) は、変異側で数えるしかない。
+- 壊し build が buildcache・admission を通らない規約は `_broken_build_and_verify` の docstring が既に定める。s8a の misattr build だけがそれに外れていた。
+- 事前登録と事後修正の分離は、実走で V20 の実装の誤り (公開版の番号付けが持ち込んだ版順の逆転) を見つけたときに、初回の結果を消さずに直す根拠になった。
+
+**却下した選択肢:**
+- source digest の `CONTEXT_MACROS` に misattr の裸マクロを登録する — 壊し macro を identity の文脈に加えることになり、壊し build を admission に通さない規約と逆向き。
+- 発火を verdict だけから推す — 盲点の行はどれも S なので、発火の有無を区別できない。
+- si の 2 本を E のまま走らせる — 無改変の si と同じ parse error になり、検出表に情報を足さない。
