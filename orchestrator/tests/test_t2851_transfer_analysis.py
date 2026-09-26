@@ -2,6 +2,7 @@
 import math
 import hashlib
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -208,7 +209,8 @@ def test_runner_outputs_flow_into_analysis_without_schema_adapter(tmp_path, monk
     binary = tmp_path / "binary"
     binary.write_bytes(b"fixture")
     pair = dict(perf_path=str(binary), perf_sha256=hashlib.sha256(b"fixture").hexdigest(),
-                trace_path=str(binary), trace_sha256=hashlib.sha256(b"fixture").hexdigest())
+                trace_path=str(binary), trace_sha256=hashlib.sha256(b"fixture").hexdigest(),
+                trace_ccbench_root=str(Path(__file__).resolve().parents[2] / "external/ccbench"))
     record = dict(workload="ycsb", selection_rule="frozen",
                   environment={"env_tag": "fixture", "clocks_per_us": 1777, "numactl": []},
                   binaries={i: dict(pair)

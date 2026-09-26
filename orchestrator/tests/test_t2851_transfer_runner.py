@@ -19,7 +19,8 @@ def _record():
     refs = {a: {"R0": "R0", "R1": "R1", "R2": "R2"}
             for a in ("wh-base", "bal-base", "rh-base")}
     binaries = {k: {"perf_path": "/unused/" + k, "perf_sha256": "0" * 64,
-                    "trace_path": "/unused/" + k, "trace_sha256": "0" * 64}
+                    "trace_path": "/unused/" + k, "trace_sha256": "0" * 64,
+                    "trace_ccbench_root": str(Path(__file__).resolve().parents[2] / "external/ccbench")}
                 for k in ("R0", "R1", "R2", "K")}
     return dict(workload="ycsb", selection_rule="frozen", binaries=binaries,
                 environment={"env_tag": "fixture", "clocks_per_us": 1777,
@@ -33,6 +34,22 @@ def _record():
 
 def _freeze():
     return runner.freeze_candidates(_record())
+
+
+def test_trace_source_root_required_absolute_and_frozen():
+    record = _record()
+    source_root = record["binaries"]["K"]["trace_ccbench_root"]
+    original = runner.freeze_candidates(record)
+    for invalid in (None, "relative/ccbench"):
+        record["binaries"]["K"]["trace_ccbench_root"] = invalid
+        with pytest.raises(ValueError, match="incomplete binary pair"):
+            runner.freeze_candidates(record)
+    record["binaries"]["K"]["trace_ccbench_root"] = "/missing-ccbench"
+    changed = runner.freeze_candidates(record)
+    assert changed["sha256"] != original["sha256"]
+    changed["binaries"]["K"]["trace_ccbench_root"] = source_root
+    with pytest.raises(ValueError, match="freeze sha256 mismatch"):
+        runner._require_freeze_hash(changed)
 
 
 def test_cells_and_known_separate():
@@ -250,6 +267,36 @@ def test_verification_mapping_with_real_verifier_fixtures():
            witness_ok=True, certified=green_graph.certified) == "indeterminate"
 
 
+def test_verify_candidate_real_verifier_source_root_controls_certification(tmp_path):
+    binary = tmp_path / "trace-binary"
+    binary.write_bytes(b"fixture")
+    source_root = Path(__file__).resolve().parents[2] / "external/ccbench"
+    fixture = Path(__file__).parent / "fixtures/g1_serial/trace_0.log"
+    assert source_root.is_dir() and fixture.is_file()
+    def trace_runner(_binary, trace_dir, _flags, _clocks, **_kwargs):
+        (Path(trace_dir) / "trace_0.log").write_bytes(fixture.read_bytes())
+        return SimpleNamespace(returncode=0, trace_c_lines=2, abort_counts={},
+                               commit_count_witness=2, batch_commit_count_witness=0)
+    record = _record()
+    record["binaries"]["K"].update(trace_path=str(binary),
+        trace_sha256=hashlib.sha256(b"fixture").hexdigest())
+    outcomes = []
+    for root in (source_root, tmp_path / "missing-ccbench"):
+        record["binaries"]["K"]["trace_ccbench_root"] = str(root)
+        frozen = runner.freeze_candidates(record)
+        assert frozen["binaries"]["K"]["trace_ccbench_root"] == str(root)
+        checked = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
+                                                cell="wh-base", identity="K"),
+                                          trace_runner=trace_runner)
+        assert checked["trace_ccbench_root"] == str(root)
+        assert checked["attempt"] == 1 and checked["anomalies"] == 0
+        outcomes.append(checked)
+    assert outcomes[0]["status"] == "certified" and outcomes[0]["reason"] == "serializable"
+    assert outcomes[0]["verifier"]["certified"] is True
+    assert outcomes[1]["status"] == "indeterminate" and outcomes[1]["reason"] == "indeterminate"
+    assert outcomes[1]["verifier"]["certified"] is False
+
+
 def test_tpcc_parser_from_result_cc_shape():
     stdout = "  Transaction type: Payment\n    commits: 8\n    aborts: 2\n  Transaction type: NewOrder\n    commits: 7\n    aborts: 0\n"
     assert runner.parse_tpcc_counts(stdout) == {"Payment": {"commits": 8, "aborts": 2},
@@ -291,7 +338,9 @@ def test_verify_tpcc_anchor_is_indeterminate():
                                       independent_searches=["1"], reachability=False)],
                   references={"silo": {"mode": "a", "R0": "R0", "reference_identity": "K"}},
                   binaries={k: dict(perf_path="/unused", perf_sha256="0" * 64,
-                                    trace_path="/unused", trace_sha256="0" * 64) for k in ("R0", "K")})
+                                    trace_path="/unused", trace_sha256="0" * 64,
+                                    trace_ccbench_root=str(Path(__file__).resolve().parents[2] / "external/ccbench"))
+                           for k in ("R0", "K")})
     frozen = runner.freeze_candidates(record)
     result = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
                                           cell="s1-H-base", identity="K"))

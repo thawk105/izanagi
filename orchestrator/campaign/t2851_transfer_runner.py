@@ -5,8 +5,10 @@ block 番号の始点は登録文に明記なし、実装の選択として 1..3
 
 JSON minimum examples (field names and types):
 freeze: {"workload":"ycsb","stage":null,"environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"sha256":"hex","jobs":[{"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","identities":["R0"]}],"comparisons":[{"stage":null,"protocol":"silo","cell":"wh-base","anchor":"wh-base","factor":null,"level":null,"candidate":"K","reference":"R1","kind":"primary","comparison_type":"selected","reference_mode":"a","same_identity":false,"series":[["task","method","1"]]}],"m_by_family":{"ycsb":1}}
+Each freeze.binaries[identity] has perf_path, perf_sha256, trace_path,
+trace_sha256, and trace_ccbench_root (absolute source tree path); all are hashed.
 run-job: {"stage":null,"cohort":1,"protocol":"silo","cell":"wh-base","attempt":1,"hostname":"node","environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"start_utc":"ISO","end_utc":"ISO","isolation_start":true,"isolation_end":true,"completed_blocks":32,"within_retry_limit":true,"separate_allocation":true,"next_action":"none","blocks":[{"block":1,"order":["R0"],"runs":{"R0":{"tps":1.0,"rc":0}}}]}
-verify: {"stage":null,"protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"status":"indeterminate","reason":"trace-empty","anomalies":null,"attempt":1,"verifier":null}
+verify: {"stage":null,"protocol":"silo","cell":"wh-base","identity":"R1","hostname":"node","environment":{"env_tag":"pegasus","clocks_per_us":2100,"numactl":[]},"trace_ccbench_root":"/absolute/ccbench","status":"indeterminate","reason":"trace-empty","anomalies":null,"attempt":1,"verifier":null}
 Status vocabulary maps v1 §8 certified / 失格 / 未確定 to
 certified / disqualified / indeterminate respectively.
 """
@@ -196,7 +198,10 @@ def freeze_candidates(record: Mapping[str, object]) -> dict:
         raise ValueError("missing series")
     for identity, pair in binaries.items():
         if not identity or any(not pair.get(k) for k in
-                               ("perf_path", "perf_sha256", "trace_path", "trace_sha256")):
+                               ("perf_path", "perf_sha256", "trace_path", "trace_sha256")) or not (
+            isinstance(pair.get("trace_ccbench_root"), str) and
+            Path(pair["trace_ccbench_root"]).is_absolute()
+        ):
             raise ValueError("incomplete binary pair")
     jobs, comparisons = [], []
     primary_pairs = set()
@@ -481,6 +486,7 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
     result = dict(workload=cell.workload, stage=cell.stage, protocol=protocol,
                   cell=cell.name, identity=identity, hostname=host,
                   freeze_sha256=freeze["sha256"], status="indeterminate", reason="",
+                  trace_ccbench_root=freeze["binaries"][identity]["trace_ccbench_root"],
                   environment=freeze["environment"],
                   anomalies=None, verifier=None, attempt=None,
                   start_utc=_utc(), end_utc=None)
@@ -517,7 +523,7 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
                 result["reason"] = "trace-witness-failed"
             else:
                 vr = verifier(trace_dir, expected_commits=tr.commit_count_witness,
-                              protocol=protocol)
+                              protocol=protocol, ccbench_root=result["trace_ccbench_root"])
                 anomalies = max(len(vr.anomalies), vr.total_cycles)
                 result.update(status=verification_status(
                     completed=True, serializable=vr.serializable,
