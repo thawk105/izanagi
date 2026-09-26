@@ -43,6 +43,30 @@ DECLARED_USE_CLASS = 'exploration'
 SOURCE_REL = axis.SOURCE_REL
 BASE = {'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1,
         'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, axis.FLAG: 1}
+# Fixed WAL abort reasons in loop.py, pipeline.py, and L.record_diff_reject,
+# plus verifier verdicts.
+REASON_CODES = frozenset({
+    'identity-error', 'admission-error', 'build-source-state-error',
+    'build-error', 'bench-binary-mismatch', 'trace-timeout',
+    'trace-no-commit-witness', 'trace-witness-unsupported-workload',
+    'trace-run-nonzero-exit', 'trace-empty', 'trace-no-abort-counts',
+    'trace-batch-commits-unattributed', 'trace-parse-error',
+    'verify-remote-unavailable', 'verify-probe-error',
+    'verify-competing-tenant', 'bench-probe-error',
+    'bench-competing-tenant', 'bench-unsettled',
+    'bench-returncodes-round-unbound', 'bench-no-throughput',
+    'bench-cv-undefined', 'screen-slower-than-floor', 'stale-baseline',
+    'non-serializable', 'indeterminate', 'diff-quarantine',
+})
+
+
+def _reason_code(reason):
+    if type(reason) is str:
+        if reason in REASON_CODES:
+            return reason
+        if reason.startswith('eval-exception: '):
+            return 'eval-exception'
+    return 'other'
 
 
 @dataclass(frozen=True)
@@ -176,6 +200,10 @@ def _history_path(layout):
     return Path(layout.root) / HISTORY_NAME
 
 
+def _campaign_layout(cfg):
+    return exploration_campaign_layout(str(ident.campaign_id(cfg)))
+
+
 def _append_history(layout, iteration, proposal, out):
     digest = out.get('digest') or {}
     row = {'iteration': iteration, 'variant_id': out.get('variant'),
@@ -201,7 +229,7 @@ def _result_history(layout, result):
     if result.certified and not result.aborted:
         outcome = 'certified'
     elif type(reason) is str:
-        outcome = reason
+        outcome = _reason_code(reason)
     elif result.verdict in ('non-serializable', 'indeterminate'):
         outcome = result.verdict
     else:
@@ -209,7 +237,7 @@ def _result_history(layout, result):
     digest = {'verdict': result.verdict, 'certified': result.certified,
               'aborted': result.aborted}
     if type(reason) is str:
-        digest['reason'] = reason
+        digest['reason'] = _reason_code(reason)
     workload = terminal.get('workload')
     if type(workload) is dict and type(workload.get('tag')) is str:
         digest['workload_tag'] = workload['tag']
@@ -217,8 +245,11 @@ def _result_history(layout, result):
     if verify is not None:
         structured = result_to_dict_v3(verify)
         digest['total_cycles'] = structured['total_cycles']
-        digest['anomalies'] = [{key: item[key] for key in ('phenomenon', 'cycle', 'edges')}
-                               for item in structured['anomalies']]
+        anomalies = [{key: item[key] for key in ('phenomenon', 'cycle', 'edges')}
+                     for item in structured['anomalies']]
+        digest['anomaly_count'] = len(anomalies)
+        digest['anomalies'] = sorted(anomalies, key=lambda item: json.dumps(
+            item, sort_keys=True, ensure_ascii=False))[:8]
         integrity = structured['integrity']
         digest['integrity'] = {key: integrity[key] for key in (
             'clean', 'orphan_reads', 'version_dups', 'dup_txids',
@@ -309,7 +340,7 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
-        layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+        layout = _campaign_layout(cfg)
     layout.ensure()
     state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
     state.whiteboard.clear()
@@ -339,10 +370,53 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     return out
 
 
+def drive_record_reject(cfg, perf, proposal, sub, *, compiler, scratch_dir,
+                        build_context, layout=None):
+    """Record a failed preview without building or accepting a passing candidate."""
+    _require_perf_identity(cfg, perf)
+    if cfg.search_config.get('form') != ('ir' if proposal.ir is not None else 'cpp'):
+        raise ValueError('policy form mismatch')
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    if layout is None:
+        layout = _campaign_layout(cfg)
+    state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
+    state.whiteboard.clear()
+    state.reverse_recommendations = 0
+    stop = L.check_stop(state)
+    if stop.stop:
+        L.save_loop_state(layout, state)
+        return {'outcome': 'stopped-before', 'variant': None,
+                'stop_reason': stop.reason, 'iteration': state.iteration, 'ran': False}
+    from .patchharness import applied
+    with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
+        result, _diff = policy_gate(sub, proposal.implementation, None,
+            compiler=compiler, scratch_dir=scratch_dir, write=False)
+    return _record_rejected_gate(cfg, proposal, result, layout, state, build_context)
+
+
+def _record_rejected_gate(cfg, proposal, result, layout, state, build_context):
+    """Persist only a rejected result from the shared preview gate."""
+    if result.passed:
+        raise ValueError('record-reject requires a rejected candidate')
+    layout.ensure()
+    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+    variant = L.record_diff_reject(layout, Genome('silo', dict(BASE)),
+                                   proposal.implementation, result, env_tag=ENV_TAG)
+    state.iteration += 1
+    L.save_loop_state(layout, state)
+    out = {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
+    _append_history(layout, state.iteration, proposal, out)
+    stop = L.check_stop(state)
+    out.update({'stop_reason': stop.reason, 'iteration': state.iteration, 'ran': True})
+    return out
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Silo function-policy campaign')
     parser.add_argument('--form', choices=('cpp', 'ir'), required=True)
     parser.add_argument('--preview-diff', metavar='PROPOSAL.json')
+    parser.add_argument('--record-reject', metavar='CODER.json')
     parser.add_argument('--run-iteration', metavar='PROPOSAL.json')
     parser.add_argument('--emit-coder-input', action='store_true')
     parser.add_argument('--critic-output', metavar='CRITIC.txt')
@@ -353,7 +427,8 @@ def main(argv=None):
     add_registered_coder_build_authority_argument(
         parser, coder_entrypoint_site='orchestrator.campaign.p3_s4_loop_policy.main')
     args = parser.parse_args(argv)
-    if sum(bool(x) for x in (args.preview_diff, args.run_iteration, args.emit_coder_input)) != 1:
+    if sum(bool(x) for x in (args.preview_diff, args.record_reject,
+                             args.run_iteration, args.emit_coder_input)) != 1:
         parser.error('select one action')
     if args.critic_output and not args.emit_coder_input:
         parser.error('--critic-output requires --emit-coder-input')
@@ -372,9 +447,11 @@ def main(argv=None):
     if args.run_iteration and not args.no_build and args.coder_build_authority is None:
         raise BuildAdmissionError('明示 opt-in --allow-coder-derived-build is required')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP,
-        coder_authority=None if args.no_build or args.preview_diff else args.coder_build_authority)
-    proposal, auditor = load_proposal_file(args.preview_diff or args.run_iteration,
-                                           form=args.form, preview=bool(args.preview_diff))
+        coder_authority=None if args.no_build or args.preview_diff or args.record_reject
+        else args.coder_build_authority)
+    proposal, auditor = load_proposal_file(
+        args.preview_diff or args.record_reject or args.run_iteration,
+        form=args.form, preview=bool(args.preview_diff or args.record_reject))
     compiler = find_compiler()
     if compiler is None:
         raise RuntimeError('policy compiler unavailable')
@@ -400,6 +477,12 @@ def main(argv=None):
                 'rule_id': result.digest.get('rule_id') if result.digest else None},
                 ensure_ascii=False))
             return 0 if result.passed else 1
+        if args.record_reject:
+            out = drive_record_reject(cfg, default_perf(), proposal, sub,
+                compiler=compiler, scratch_dir=scratch, layout=layout,
+                build_context=context)
+            print(json.dumps(out, ensure_ascii=False))
+            return 0
         out = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
             not args.no_build, compiler=compiler, scratch_dir=scratch,
             layout=layout, cache_root=str(Path(fixed_sub) / 'build-variants') if isolated else '',

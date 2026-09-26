@@ -4,6 +4,7 @@ import contextlib
 from dataclasses import replace
 from pathlib import Path
 import sys
+import time
 
 import pytest
 
@@ -20,7 +21,7 @@ from orchestrator.campaign.auditor_gate import AuditorVerdict, compute_diff_dige
 from orchestrator.campaign.build_admission import BuildAdmissionError
 from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
 from orchestrator.campaign.pipeline import EvalResult
-from orchestrator.verifier.model import Integrity, VerifyResult
+from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
 
 BODY = (ROOT / 'orchestrator/campaign/silo_function_policy_hand/abort0.cpp').read_text()
 GOOD = BODY.replace('return 0u;', 'return 1u;')
@@ -242,6 +243,44 @@ def test_history_projects_wal_reason_workload_and_integrity_without_notes(tmp_pa
     assert P._result_history(layout, result)[0] == 'build-error'
 
 
+def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path))
+    result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,
+                        build_attempt_id='attempt')
+    private = 'eval-exception: ValueError: arbitrary private exception text'
+    monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [
+        WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,
+                  {'build_attempt_id': 'attempt', 'reason': private})])
+    outcome, digest = P._result_history(layout, result)
+    assert outcome == digest['reason'] == 'eval-exception'
+    assert P._reason_code('unrecognized private reason') == 'other'
+    assert P._reason_code('build-error: private suffix') == 'other'
+    P._append_history(layout, 1, P.Proposal(BODY, None, ''),
+                      {'outcome': outcome, 'verifier_digest': digest})
+    projection = tmp_path / 'projection.json'
+    projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': []}))
+    monkeypatch.setattr(P, 'PROJECTION_PATH', projection)
+    payload = P.make_policy_coder_input(layout,
+        baseline={'throughput_tps': 1, 'abort_rate_pct': 2})
+    assert private not in json.dumps(payload)
+    assert payload['self_history'][0]['outcome'] == 'eval-exception'
+
+
+def test_anomaly_digest_has_stable_first_eight_and_full_count(tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path))
+    anomalies = [Anomaly([i, i], 'G2', []) for i in range(11, 0, -1)]
+    verify = VerifyResult('', False, anomalies=anomalies)
+    result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,
+                        build_attempt_id='attempt', verify_result=verify)
+    monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [])
+    _outcome, digest = P._result_history(layout, result)
+    assert digest['anomaly_count'] == 11
+    assert len(digest['anomalies']) == 8
+    assert all(set(item) == {'phenomenon', 'cycle', 'edges'} for item in digest['anomalies'])
+    verify.anomalies.reverse()
+    assert P._result_history(layout, result)[1]['anomalies'] == digest['anomalies']
+
+
 def test_real_grammar_reject_precedes_translation_unit(tmp_path):
     compiler = find_compiler()
     if compiler is None:
@@ -312,6 +351,66 @@ def test_budget_stop_preserves_checkpoint_without_candidate_work(tmp_path):
     assert L.load_loop_state(layout).iteration == L.MAX_ITER
 
 
+def test_record_reject_records_only_real_gate_failure(tmp_path):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    source = _source(tmp_path)
+    original = source.read_bytes()
+    layout = CampaignLayout(str(tmp_path / 'campaign'))
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    cfg = P.default_cfg(form='cpp')
+    cfg = P.ident.bind_admission_policy(cfg, context.policy)
+    cfg = P.ident.bind_environment_contract(cfg, P.env_contract.lookup(P.ENV_TAG))
+    state = L.LoopState(start_wall=time.time())
+    passing, _ = P.policy_gate(str(tmp_path), GOOD, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert passing.passed
+    with pytest.raises(ValueError, match='requires a rejected candidate'):
+        P._record_rejected_gate(cfg, P.Proposal(GOOD, None, ''), passing,
+                                layout, state, context)
+    assert not Path(layout.root).exists()
+    bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')
+    rejected, _ = P.policy_gate(str(tmp_path), bad, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert not rejected.passed and rejected.digest['rule_id']
+    out = P._record_rejected_gate(cfg, P.Proposal(bad, None, ''), rejected,
+                                   layout, state, context)
+    assert out['outcome'] == 'rejected' and out['iteration'] == 1
+    assert source.read_bytes() == original
+    assert L.load_loop_state(layout).iteration == 1
+    assert 'diff-quarantine' in Path(layout.wal_file).read_text()
+    row = json.loads((Path(layout.root) / P.HISTORY_NAME).read_text())
+    assert row['outcome'] == 'rejected'
+    assert row['reject_subtype'] == rejected.digest['subtype']
+    assert row['reject_rule_id'] == rejected.digest['rule_id']
+
+
+def test_record_reject_honors_budget_before_gate(tmp_path):
+    layout = CampaignLayout(str(tmp_path / 'campaign'))
+    layout.ensure()
+    L.save_loop_state(layout, L.LoopState(iteration=L.MAX_ITER, start_wall=time.time()))
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    out = P.drive_record_reject(P.default_cfg(form='cpp'), P.default_perf(),
+        P.Proposal(BODY, None, ''), str(tmp_path / 'absent'),
+        compiler='unused', scratch_dir=str(tmp_path), build_context=context,
+        layout=layout)
+    assert out['outcome'] == 'stopped-before' and out['iteration'] == L.MAX_ITER
+    assert not Path(layout.wal_file).exists()
+    assert not (Path(layout.root) / P.HISTORY_NAME).exists()
+
+
 def test_cli_requires_coder_build_opt_in_before_candidate_read(tmp_path):
     with pytest.raises(BuildAdmissionError):
         P.main(['--form', 'cpp', '--run-iteration', str(tmp_path / 'absent.json')])
+
+
+def test_record_reject_cli_uses_coder_only_input_without_build_opt_in(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        P.main(['--form', 'cpp', '--record-reject', str(tmp_path / 'absent.json')])
+    path = _proposal(tmp_path, change=lambda d: d.pop('auditor'))
+    proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True)
+    assert proposal.implementation == BODY and auditor is None
+    path = _proposal(tmp_path)
+    with pytest.raises(ValueError, match='only coder'):
+        P.load_proposal_file(path, form='cpp', preview=True)

@@ -55,8 +55,13 @@ driver が 6 文字列 field の閉じた形 (`critic_diagnosis`) に変換し�
 python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --preview-diff <scratch>/coder.json
 ```
 出力 = `{passed, working_diff, diff_digest, subtype, rule_id}`。preview は検疫・構文検査・単独 TU compile までを
-build 無しで通す (auditor 判定はしない。auditor の deny-only veto と digest 照合は (f) の run で掛かる)。`passed=false` なら auditor を呼ばず (b) に戻る判断をする。
-拒否理由 (`subtype` / `rule_id`) は次の (a) の履歴に driver が載せるので、メインセッションが言い換えて渡さない。
+build 無しで通す (auditor 判定はしない。auditor の deny-only veto と digest 照合は (f) の run で掛かる)。`passed=false` なら auditor を呼ばず、同じ file で拒否を記録してから (a) に戻る (iteration を 1 消費する):
+```
+python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --record-reject <scratch>/coder.json
+```
+driver が同じ gate を掛け直し、拒否なら WAL と履歴 (`policy_history.jsonl`) に subtype・rule id を記録する
+(gate を通る候補は拒否して何も書かない)。メインセッションは拒否理由を言い換えて coder に渡さない —
+次の (a) の `self_history` に driver が載せる。
 
 ### (d) auditor を spawn (LLM 由来の候補すべてに必須)
 `Agent(subagent_type='auditor')`。入力は sort runbook §1(d) と同じ形 (`working_diff`・`diff_digest`・
