@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "tdir, \"--json\", \"--expected-commits\", str(commit_count_witness),",
+          "new": "tdir, \"--json\","
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "\"--protocol\", genome.protocol, \"--ccbench-root\", evidence.source_root,",
+          "new": "\"--protocol\", genome.protocol, \"--ccbench-root\", tdir,"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "if commit_count_witness is not None:",
+          "new": "if True:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "inventory[\"repo_head\"] = _archive_git(repo_root, \"head\").decode().strip()",
+          "new": "inventory[\"repo_head\"] = _archive_git(evidence.source_root, \"head\").decode().strip()"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "inventory[\"ccbench_pin\"] = source_head",
+          "new": "inventory[\"ccbench_pin\"] = None"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "patch = _archive_git(evidence.source_root, \"diff\")",
+          "new": "patch = b\"\""
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "for path in sorted(verifier_root.glob(\"*.py\"))",
+          "new": "for path in sorted(verifier_root.glob(\"*.py\"))[1:]"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")\n",
+          "new": "            archive_root = os.environ.get(\"IZANAGI_TRACE_ARCHIVE_ROOT\")\n            hashlib.sha256((Path(__file__).resolve().parents[1] / \"verifier\" / \"__init__.py\").read_bytes())\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                except Exception as exc:\n                    preserved = False\n",
+          "new": "                except OSError as exc:\n                    preserved = False\n"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "if inventory[\"patch_sha256\"] != evidence.tracked_diff_sha256:",
+          "new": "if False and inventory[\"patch_sha256\"] != evidence.tracked_diff_sha256:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "if not evidence.ccbench_commit or not source_head.startswith(evidence.ccbench_commit):",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "if not evidence.ccbench_commit or not source_head.startswith(evidence.ccbench_commit):",
+          "new": "if not evidence.ccbench_commit or source_head != evidence.ccbench_commit:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "C0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "Archive one local repetition; failures propagate to the cleanup boundary.",
+          "new": "Archive one local repetition; archival failures reach the cleanup boundary."
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}
