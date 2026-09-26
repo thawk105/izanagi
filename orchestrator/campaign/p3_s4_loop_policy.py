@@ -16,6 +16,7 @@ if __package__ in {None, ""}:
 
 from . import axis_silo_function_policy as axis
 from . import env_contract, ident, p3_s4_loop as L
+from . import wal
 from .artifact_admission import CampaignReadPurpose, require_admitted_campaign
 from .auditor_gate import (AuditorGateFailure, apply_mandatory_deny_only_veto,
                            compute_diff_digest, parse_auditor_dict)
@@ -25,11 +26,12 @@ from .build_admission import (BuildAdmissionError, GeneratorId,
 from .diff_quarantine import DiffQuarantineResult, DiffRejectSubtype
 from .layout import exploration_campaign_layout
 from .loop import run_campaign
-from .model import CampaignConfig, Genome
-from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE
+from .model import CampaignConfig, Genome, STAGE_ABORT
+from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, PerfConfig
 from .projection_guard import assert_closed_proposal_schema
 from .silo_policy_compile import check_policy_body, find_compiler
-from .silo_policy_ir import parse_policy_ir, render_policy, validate_ir
+from .silo_policy_ir import parse_policy_ir, render_policy
+from ..verifier.core import result_to_dict_v3
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECTION_PATH = ROOT / 'output/env/pegasus/calibration/silo_function_policy_recon/projection.json'
@@ -37,6 +39,8 @@ CONTEXT_PATH = ROOT / 'src/coder-leakproof-context.md'
 SPEC_PATH = Path(__file__).with_name('silo_function_policy_coder_spec.md')
 HISTORY_NAME = 'policy_history.jsonl'
 ENV_TAG = 'linux-baremetal'
+DECLARED_USE_CLASS = 'exploration'
+SOURCE_REL = axis.SOURCE_REL
 BASE = {'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1,
         'NO_WAIT_OF_TICTOC': 0, 'WAL': 0, axis.FLAG: 1}
 
@@ -57,13 +61,20 @@ def _unique_pairs(pairs):
     return result
 
 
-def load_proposal_file(path, *, form):
+def load_proposal_file(path, *, form, preview=False):
     if form not in ('cpp', 'ir'):
         raise ValueError('unknown form')
     with open(path, encoding='utf-8') as stream:
         document = json.load(stream, object_pairs_hook=_unique_pairs)
-    assert_closed_proposal_schema(document, require_auditor=True,
-        require_coder_value=False, coder_contract='policy-' + form)
+    if preview:
+        if type(document) is not dict or set(document) != {'coder'}:
+            raise ValueError('preview requires only coder')
+        coder_keys = {'axis', 'implementation' if form == 'cpp' else 'ir'}
+        if type(document['coder']) is not dict or not coder_keys <= set(document['coder']) or set(document['coder']) - coder_keys - {'justification', 'confidence'}:
+            raise ValueError('invalid preview coder')
+    else:
+        assert_closed_proposal_schema(document, require_auditor=True,
+            require_coder_value=False, coder_contract='policy-' + form)
     coder = document['coder']
     if type(coder['axis']) is not str or coder['axis'] != axis.MARKER_ID:
         raise ValueError('policy axis mismatch')
@@ -78,9 +89,8 @@ def load_proposal_file(path, *, form):
     else:
         ir = coder['ir']
         parsed = parse_policy_ir(ir)
-        validate_ir(parsed)
         implementation = render_policy(parsed)
-    auditor = parse_auditor_dict(document['auditor'], max_violation_type=26)
+    auditor = None if preview else parse_auditor_dict(document['auditor'], max_violation_type=26)
     return Proposal(implementation, ir, coder.get('justification', '')), auditor
 
 
@@ -92,6 +102,7 @@ def default_cfg(*, form, reflux=True):
         spec_content='Silo function policy; D2214.', ccbench_commit=axis.PIN,
         search_config={'scale': 'silo', 'axis': axis.MARKER_ID, 'form': form,
                        'reflux': 'on' if reflux else 'off',
+                       'perf': _perf_identity(default_perf()),
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE},
         trial='p3-silo-policy-loop')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -101,6 +112,25 @@ def default_cfg(*, form, reflux=True):
 
 def default_perf():
     return L.calibrated_perf('write-heavy')
+
+
+def _perf_identity(perf):
+    if type(perf) is not PerfConfig or type(perf.workload) is not dict:
+        raise ValueError('invalid performance configuration')
+    if any(type(getattr(perf, name)) is not int or getattr(perf, name) <= 0
+           for name in ('records', 'threads', 'extime', 'reps')):
+        raise ValueError('invalid performance scalar')
+    if any(type(key) is not str or type(value) is not str
+           for key, value in perf.workload.items()):
+        raise ValueError('invalid performance workload')
+    return {'records': perf.records, 'threads': perf.threads,
+            'workload': {key: perf.workload[key] for key in sorted(perf.workload)},
+            'extime': perf.extime, 'reps': perf.reps}
+
+
+def _require_perf_identity(cfg, perf):
+    if cfg.search_config.get('perf') != _perf_identity(perf):
+        raise ValueError('performance configuration differs from campaign identity')
 
 
 def _reject(subtype, rule_id):
@@ -158,6 +188,56 @@ def _append_history(layout, iteration, proposal, out):
         stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
 
 
+def _result_history(layout, result):
+    """Project only typed evaluation and WAL fields into the next coder turn."""
+    if result is None:
+        return 'aborted', None
+    records = [record for record in wal.read_records(layout)
+               if record.variant == result.variant
+               and record.payload.get('build_attempt_id') == result.build_attempt_id]
+    aborts = [record for record in records if record.stage == STAGE_ABORT]
+    terminal = aborts[-1].payload if aborts else {}
+    reason = terminal.get('reason')
+    if result.certified and not result.aborted:
+        outcome = 'certified'
+    elif type(reason) is str:
+        outcome = reason
+    elif result.verdict in ('non-serializable', 'indeterminate'):
+        outcome = result.verdict
+    else:
+        outcome = 'aborted'
+    digest = {'verdict': result.verdict, 'certified': result.certified,
+              'aborted': result.aborted}
+    if type(reason) is str:
+        digest['reason'] = reason
+    workload = terminal.get('workload')
+    if type(workload) is dict and type(workload.get('tag')) is str:
+        digest['workload_tag'] = workload['tag']
+    verify = result.verify_result
+    if verify is not None:
+        structured = result_to_dict_v3(verify)
+        digest['total_cycles'] = structured['total_cycles']
+        digest['anomalies'] = [{key: item[key] for key in ('phenomenon', 'cycle', 'edges')}
+                               for item in structured['anomalies']]
+        integrity = structured['integrity']
+        digest['integrity'] = {key: integrity[key] for key in (
+            'clean', 'orphan_reads', 'version_dups', 'dup_txids',
+            'genesis_commits', 'missing_txids', 'write_version_mismatch',
+            'malformed_keys', 'framing_violations', 'lock_coverage_violations',
+            'write_intent_violations', 'permutation_violations')}
+        digest['integrity_reason_codes'] = [key for key, value in digest['integrity'].items()
+                                            if key != 'clean' and value]
+        if verify.integrity.existence_violation_details is not None:
+            digest['integrity']['existence_violations'] = verify.integrity.existence_violations
+            if verify.integrity.existence_violations:
+                digest['integrity_reason_codes'].append('existence_violations')
+        if (verify.integrity.expected_commits is not None
+                and verify.integrity.observed_commits is not None
+                and verify.integrity.expected_commits != verify.integrity.observed_commits):
+            digest['integrity_reason_codes'].append('commit_witness_mismatch')
+    return outcome, digest
+
+
 def make_policy_coder_input(layout, *, baseline, critic_diagnosis=None):
     if type(baseline) is not dict or set(baseline) != {'throughput_tps', 'abort_rate_pct'} or any(type(v) not in (int, float) for v in baseline.values()):
         raise ValueError('invalid baseline')
@@ -188,18 +268,22 @@ def make_policy_coder_input(layout, *, baseline, critic_diagnosis=None):
 def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                       layout, compiler, scratch_dir, build_context,
                       cache_root='', log=print):
+    _require_perf_identity(cfg, perf)
     if cfg.search_config.get('form') != ('ir' if proposal.ir is not None else 'cpp'):
         raise ValueError('policy form mismatch')
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     genome = Genome('silo', dict(BASE))
     layout.ensure()
-    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+    if do_build:
+        ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
     from .patchharness import applied
     with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
         result, _diff = policy_gate(sub, proposal.implementation, auditor,
             compiler=compiler, scratch_dir=scratch_dir, write=do_build)
         if not result.passed:
+            if not do_build:
+                return {'outcome': 'rejected', 'variant': None, 'digest': result.digest}
             variant = L.record_diff_reject(layout, genome, proposal.implementation,
                                            result, env_tag=ENV_TAG)
             return {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
@@ -209,18 +293,19 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
             numactl=['numactl', '--interleave=all'], log=log,
             ccbench_dir=sub, cache_root=cache_root,
             authorization_contract=env_contract.authorize(ENV_TAG),
-            build_context=build_context, declared_use_class='exploration')
+            build_context=build_context, declared_use_class=DECLARED_USE_CLASS)
     result = summary.results[0] if summary.results else None
-    return {'outcome': 'certified' if result and result.certified and not result.aborted else 'aborted',
+    outcome, verifier_digest = _result_history(layout, result)
+    return {'outcome': outcome,
             'variant': result.variant if result else None,
             'verdict': result.verdict if result else None,
-            'verifier_digest': ({'verdict': result.verdict, 'certified': result.certified,
-                                 'aborted': result.aborted} if result else None)}
+            'verifier_digest': verifier_digest}
 
 
 def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                     compiler, scratch_dir, build_context, layout=None,
                     cache_root='', log=print):
+    _require_perf_identity(cfg, perf)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
@@ -241,13 +326,14 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
             cache_root=cache_root, build_context=build_context, log=log)
     finally:
         L.save_loop_state(layout, state)
-    _append_history(layout, state.iteration, proposal, out)
-    view = require_admitted_campaign(layout.root,
-        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
-    digest = L.make_critic_digest(view, tag='p3-silo-policy',
-        reflux=cfg.search_config.get('reflux') == 'on',
-        identity_projection=L.make_critic_identity_projection(view))
-    (Path(layout.root) / 'silo_policy_loop_digest.txt').write_text(digest, encoding='utf-8')
+    if do_build:
+        _append_history(layout, state.iteration, proposal, out)
+        view = require_admitted_campaign(layout.root,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
+        digest = L.make_critic_digest(view, tag='p3-silo-policy',
+            reflux=cfg.search_config.get('reflux') == 'on',
+            identity_projection=L.make_critic_identity_projection(view))
+        (Path(layout.root) / 'silo_policy_loop_digest.txt').write_text(digest, encoding='utf-8')
     stop = L.check_stop(state)
     out.update({'stop_reason': stop.reason, 'iteration': state.iteration, 'ran': True})
     return out
@@ -259,6 +345,7 @@ def main(argv=None):
     parser.add_argument('--preview-diff', metavar='PROPOSAL.json')
     parser.add_argument('--run-iteration', metavar='PROPOSAL.json')
     parser.add_argument('--emit-coder-input', action='store_true')
+    parser.add_argument('--critic-output', metavar='CRITIC.txt')
     parser.add_argument('--baseline-throughput-tps', type=float)
     parser.add_argument('--baseline-abort-rate-pct', type=float)
     parser.add_argument('--no-build', action='store_true')
@@ -268,21 +355,26 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if sum(bool(x) for x in (args.preview_diff, args.run_iteration, args.emit_coder_input)) != 1:
         parser.error('select one action')
+    if args.critic_output and not args.emit_coder_input:
+        parser.error('--critic-output requires --emit-coder-input')
     cfg = default_cfg(form=args.form)
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     if args.emit_coder_input:
         if args.baseline_throughput_tps is None or args.baseline_abort_rate_pct is None:
             parser.error('baseline scalars required')
+        diagnosis = (L.k2_critic_diagnosis_from_bytes(Path(args.critic_output).read_bytes())
+                     if args.critic_output else None)
         print(json.dumps(make_policy_coder_input(layout, baseline={
             'throughput_tps': args.baseline_throughput_tps,
-            'abort_rate_pct': args.baseline_abort_rate_pct}), ensure_ascii=False))
+            'abort_rate_pct': args.baseline_abort_rate_pct},
+            critic_diagnosis=diagnosis), ensure_ascii=False))
         return 0
     if args.run_iteration and not args.no_build and args.coder_build_authority is None:
-        raise BuildAdmissionError('--allow-coder-derived-build is required')
+        raise BuildAdmissionError('明示 opt-in --allow-coder-derived-build is required')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP,
         coder_authority=None if args.no_build or args.preview_diff else args.coder_build_authority)
     proposal, auditor = load_proposal_file(args.preview_diff or args.run_iteration,
-                                           form=args.form)
+                                           form=args.form, preview=bool(args.preview_diff))
     compiler = find_compiler()
     if compiler is None:
         raise RuntimeError('policy compiler unavailable')

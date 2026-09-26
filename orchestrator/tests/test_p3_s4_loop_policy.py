@@ -1,5 +1,7 @@
 """Policy driver schema, gate order, and coder input boundaries."""
 import json
+import contextlib
+from dataclasses import replace
 from pathlib import Path
 import sys
 
@@ -16,6 +18,9 @@ from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGA
 from orchestrator.campaign.silo_policy_compile import check_policy_body, find_compiler
 from orchestrator.campaign.auditor_gate import AuditorVerdict, compute_diff_digest
 from orchestrator.campaign.build_admission import BuildAdmissionError
+from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
+from orchestrator.campaign.pipeline import EvalResult
+from orchestrator.verifier.model import Integrity, VerifyResult
 
 BODY = (ROOT / 'orchestrator/campaign/silo_function_policy_hand/abort0.cpp').read_text()
 GOOD = BODY.replace('return 0u;', 'return 1u;')
@@ -93,6 +98,41 @@ def test_policy_loader_uses_26_ceiling(tmp_path):
         P.load_proposal_file(path, form='cpp')
 
 
+def test_preview_accepts_only_closed_coder(tmp_path):
+    for form in ('cpp', 'ir'):
+        path = _proposal(tmp_path, form=form, change=lambda d: d.pop('auditor'))
+        proposal, auditor = P.load_proposal_file(path, form=form, preview=True)
+        assert proposal.implementation and auditor is None
+        for change in (lambda d: d.update(auditor={}),
+                       lambda d: d.update(extra=1),
+                       lambda d: d['coder'].update(extra=1)):
+            path = _proposal(tmp_path, form=form, change=lambda d: (d.pop('auditor'), change(d)))
+            with pytest.raises(ValueError):
+                P.load_proposal_file(path, form=form, preview=True)
+    path.write_text('{"coder":{"axis":"x","axis":"x"}}')
+    with pytest.raises(ValueError, match='duplicate'):
+        P.load_proposal_file(path, form='cpp', preview=True)
+
+
+def test_policy_gate_veto_checks_types_22_through_26(tmp_path):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    source = _source(tmp_path)
+    original = source.read_bytes()
+    preview, diff = P.policy_gate(str(tmp_path), GOOD, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert preview.passed
+    for kind in range(22, 27):
+        verdict = AuditorVerdict('reject', compute_diff_digest(diff),
+            violations=[{'type': kind}], max_violation_type=26)
+        result, _ = P.policy_gate(str(tmp_path), GOOD, verdict,
+            compiler=compiler, scratch_dir=str(tmp_path), write=True)
+        assert not result.passed
+        assert result.digest['subtype'] == 'auditor-violation'
+        assert source.read_bytes() == original
+
+
 def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):
     for form in ('cpp', 'ir'):
         cfg = P.default_cfg(form=form)
@@ -102,6 +142,7 @@ def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):
         assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE
     perf = P.default_perf()
     assert perf == L.calibrated_perf('write-heavy')
+    assert cfg.search_config['perf'] == P._perf_identity(perf)
     layout = CampaignLayout(str(tmp_path))
     projection = tmp_path / 'projection.json'
     projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': ['private']}))
@@ -115,11 +156,90 @@ def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):
     assert set(payload) == {'leakproof_context', 'policy_spec', 'baseline', 'recon_projection', 'self_history'}
     assert payload['recon_projection'] == {'binary': False, 'scope': 'scope'}
     assert 'justification' not in payload['self_history'][0]
+    assert set(payload['self_history'][0]) == {
+        'iteration', 'implementation', 'ir', 'outcome', 'reject_subtype',
+        'reject_rule_id', 'verifier_digest'}
     for bad in ({'binary': 0, 'scope': 'scope', 'excluded': []},
                 {'binary': False, 'scope': 'scope', 'excluded': [], 'extra': 1}):
         projection.write_text(json.dumps(bad))
         with pytest.raises(ValueError):
             P.make_policy_coder_input(layout, baseline={'throughput_tps': 1, 'abort_rate_pct': 2})
+
+
+def test_perf_identity_rejects_changed_runtime_before_layout(tmp_path):
+    cfg = P.default_cfg(form='cpp')
+    perf = P.default_perf()
+    changed = replace(perf, threads=perf.threads + 1)
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    with pytest.raises(ValueError, match='performance configuration'):
+        P.drive_iteration(cfg, changed, P.Proposal(BODY, None, ''), None,
+            str(tmp_path), False, compiler='unused', scratch_dir=str(tmp_path),
+            build_context=context, layout=CampaignLayout(str(tmp_path / 'campaign')))
+    assert not (tmp_path / 'campaign').exists()
+
+
+def test_dry_pass_returns_without_history_or_admitted_view(tmp_path, monkeypatch):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    _source(tmp_path)
+    from orchestrator.campaign import patchharness
+    monkeypatch.setattr(patchharness, 'applied',
+                        lambda *_a, **_k: contextlib.nullcontext())
+    layout = CampaignLayout(str(tmp_path / 'campaign'))
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    out = P.drive_iteration(P.default_cfg(form='cpp'), P.default_perf(),
+        P.Proposal(GOOD, None, ''), None, str(tmp_path), False,
+        compiler=compiler, scratch_dir=str(tmp_path), build_context=context,
+        layout=layout)
+    assert out['outcome'] == 'dry-pass' and out['ran']
+    assert not (Path(layout.root) / P.HISTORY_NAME).exists()
+    assert not Path(layout.wal_file).exists()
+    assert not (Path(layout.root) / 'silo_policy_loop_digest.txt').exists()
+    bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')
+    rejected = P.drive_iteration(P.default_cfg(form='cpp'), P.default_perf(),
+        P.Proposal(bad, None, ''), None, str(tmp_path), False,
+        compiler=compiler, scratch_dir=str(tmp_path), build_context=context,
+        layout=layout)
+    assert rejected['outcome'] == 'rejected'
+    assert not Path(layout.wal_file).exists()
+    assert not (Path(layout.root) / P.HISTORY_NAME).exists()
+
+
+def test_critic_output_only_with_emit_and_six_field_projection(tmp_path, capsys):
+    critic = tmp_path / 'critic.txt'
+    critic.write_text('## attribution\nA\n## recommend\nB\n## avoid\nC\n## uncertainty\nD\n')
+    with pytest.raises(SystemExit) as rejected:
+        P.main(['--form', 'cpp', '--preview-diff', str(tmp_path / 'absent'),
+                '--critic-output', str(critic)])
+    assert rejected.value.code == 2
+    assert P.main(['--form', 'cpp', '--emit-coder-input',
+                   '--baseline-throughput-tps', '1', '--baseline-abort-rate-pct', '2',
+                   '--critic-output', str(critic)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload['critic_diagnosis'] == L.k2_critic_diagnosis_from_bytes(critic.read_bytes())
+
+
+def test_history_projects_wal_reason_workload_and_integrity_without_notes(tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path))
+    verify = VerifyResult('', True, integrity=Integrity(lock_coverage_violations=1),
+                          n_txns=1)
+    result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,
+                        verdict='indeterminate', notes=['untrusted free text'],
+                        build_attempt_id='attempt', verify_result=verify)
+    records = [WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,
+                         {'build_attempt_id': 'attempt', 'reason': 'indeterminate',
+                          'workload': {'tag': 'performance'}})]
+    monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)
+    outcome, digest = P._result_history(layout, result)
+    assert outcome == 'indeterminate'
+    assert digest['workload_tag'] == 'performance'
+    assert digest['integrity_reason_codes'] == ['lock_coverage_violations']
+    assert 'untrusted free text' not in json.dumps(digest)
+    records[0].payload['reason'] = 'trace-timeout'
+    assert P._result_history(layout, result)[0] == 'trace-timeout'
+    records[0].payload['reason'] = 'build-error'
+    assert P._result_history(layout, result)[0] == 'build-error'
 
 
 def test_real_grammar_reject_precedes_translation_unit(tmp_path):
