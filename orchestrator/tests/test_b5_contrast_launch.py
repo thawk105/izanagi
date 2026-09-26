@@ -57,6 +57,56 @@ def test_v2_login_429_does_not_count_a_and_empty_output_does(tmp_path, reply, ex
         assert rejected[0]["provenance"]["reason"] == "empty-output"
 
 
+@pytest.mark.parametrize("source,first", [("round", False), ("critic", False),
+                                          ("round", True)])
+def test_v2_model_mismatch_ends_without_consuming_a(tmp_path, source, first):
+    ledger = core.SeriesLedger.create(tmp_path / "ledger", {"cohort": core.COHORT_REGISTERED_V2,
+                          "arm": "llm", "workload": "write-heavy", "series": 1, "block": 1})
+    ledger.append("series-start", a=0, b=0)
+    ledger.append("stock-start", a=0, b=0, outcome="certified", quality="normal",
+                  fitness_tps=100., bench_payload={"leading_indicators": {"abort_rate": 0.1}},
+                  campaign_root="/tmp/stock")
+    if source == "critic":
+        ledger.append("proposal-opportunity", a=1, b=0)
+        ledger.append("evaluation-result", a=1, b=1, outcome="certified", quality="normal",
+                      fitness_tps=100., bench_payload={"leading_indicators": {"abort_rate": 0.1}},
+                      campaign_root="/tmp/evaluation", whiteboard_entry={
+                          "iteration": 1, "direction": "up", "magnitude": "small",
+                          "result": "certified", "delta_pct": None})
+    a = 2 if source == "critic" else 1
+    prior_a = sum(e["kind"] == "proposal-opportunity" for e in ledger.events)
+    materials = tmp_path / "materials"
+    job = launch.RegisteredJob("job", 1, "series-step", "llm", "write-heavy", 1, 1,
+                               ledger.root, tmp_path / "evidence")
+
+    class MismatchedParent:
+        def __init__(self, *_args): pass
+        def tick(self, _item, requested_a, request, _handshake):
+            k = core._read_json(request)["next_evaluation"] - 1
+            directory = materials / (f"critic-{k}" if source == "critic"
+                                     else f"round-{requested_a}")
+            directory.mkdir(parents=True)
+            (directory / "model-mismatch.md").write_text("unexpected model\n")
+            return "success"
+
+    driver = launch.V2Launcher((job,), {"job": launch.SubmitTree(tmp_path, "0" * 40, tmp_path)},
+                               parent_config={"series": [{"job_id": "job", "workload": "write-heavy",
+                                                          "series": 1, "block": 1,
+                                                          "ledger_root": str(ledger.root),
+                                                          "materials_root": str(materials)}]},
+                               state_root=tmp_path / "state", max_active_series=1,
+                               parent_factory=MismatchedParent)
+    assert driver._drive_parent(job, ledger, a, first=first) == "done"
+    assert sum(e["kind"] == "proposal-opportunity" for e in ledger.events) == prior_a
+    assert not [e for e in ledger.events if e["kind"] == "proposal-rejected"]
+    if first:
+        assert core._read_json(ledger.root / "handshake" / f"stop-{a}.json") == {
+            "reason": "unclassified-missing"}
+    else:
+        assert ledger.events[-1]["kind"] == "series-end"
+        assert ledger.events[-1]["reason"] == "unclassified-missing"
+
+
 def test_v2_three_parent_outages_leave_a_b_and_missing_unchanged(tmp_path):
     ledger = core.SeriesLedger.create(tmp_path / "ledger", {"cohort": core.COHORT_REGISTERED_V2,
                           "arm": "llm", "workload": "write-heavy", "series": 1, "block": 1})

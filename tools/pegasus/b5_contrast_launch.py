@@ -579,6 +579,22 @@ class V2Launcher:
                     core._finish(ledger, "inheritance-mismatch", a - 1, b)
                 return "done"
             if not proposal.exists() and not rejected.exists():
+                materials_root = self._parent_item(job).get("materials_root")
+                if materials_root is not None:
+                    materials = Path(materials_root)
+                    next_evaluation = core._read_json(request)["next_evaluation"]
+                    mismatch = (materials / f"round-{a}" / "model-mismatch.md").exists()
+                    if next_evaluation >= 2:
+                        mismatch |= (materials / f"critic-{next_evaluation - 1}" /
+                                     "model-mismatch.md").exists()
+                    if mismatch:
+                        b = sum(e["kind"] == "evaluation-result" for e in ledger.events)
+                        if first:
+                            core._publish(handshake / f"stop-{a}.json",
+                                          {"reason": "unclassified-missing"})
+                        else:
+                            core._finish(ledger, "unclassified-missing", a - 1, b, score=None)
+                        return "done"
                 core._publish(rejected, {"reason": "empty-output"})
             return self._drive_parent(job, ledger, a, first=first)
         if status == "exhausted":
