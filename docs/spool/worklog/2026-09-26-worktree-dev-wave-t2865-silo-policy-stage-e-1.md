@@ -17,7 +17,8 @@ title: [T-2865] silo-function-policy 軸を段階 E へ進めた — planner な
 - **既存 test の束縛の変更:** MOCC template proof の test が auditor.md の whole-file sha256 を proof (2026-09-19 記録) と照合しており、承認済みの auditor 改訂で赤になった。束縛を記録した MOCC 用 auditor 項目と現行項目の一致に置き換え、proof は取り直していない (規律 7)。
 - 焦点走 4 回 (計算ノード、Elapse 計 466 秒)。最終 (`650b9b80c`、39 file) は 4417 passed / 0 failed / 12 skipped。途中の非帰属の赤 1 件は、焦点走の待機中に親が runbook を未 commit で編集したことによる (走行時点の作業ツリーを見る既知の型)。
 - 変異 matrix: final 16 / 16 KILLED。M-E5 の最初の形は `parse_auditor_dict` 自身の既定値を外した照準漏れで probe が SURVIVED、照準し直して検出を確認した (erratum は insight §5)。runner 時間の合計 2,544 秒 (待ち行列込み)。
-- 計算: E の計算は焦点走・変異・受入だけで、図は作らない。受入は本記録の後に走らせ、値は land の受領証に残る。
+- 計算: E の計算は焦点走・変異・受入だけで、図は作らない。受入の値は land の受領証に残る。
+- **受入 1 回目 (22:18〜22:37 JST、post-claim merge で main `6c3913bc5` を取り込み) は 27,706 passed / 5 failed。** 本 wave 起因 2 件: 新 test file が pytest 専用 allowlist に無い (`test_plain_runner_coverage`、F42 の再発) と、reflux の wave 前基準が auditor.md の sha を持っていた (`test_reflux_originless_compatibility`、F30 の再発の 2 件目)。前者は allowlist に 1 行、後者は過去の role 改訂 wave と同じ型の追随関数 (Codex fix 5) で閉じた。残る 3 件 (`test_t810_coordinator` の「worktree registration が読めない」) は本 wave の差分 (tools/pegasus・git 識別に未接触) から到達しないので、単独再走で再現の有無を確かめてから受入を取り直す。
 - 実行上の事実: Codex の実装子は sandbox から qstat を呼べず、login の直接 pytest は hook が拒否するため、どの子も pytest を実走できなかった。role の子は `.codex/` への書込みも拒否され、生成した adapter の bytes を親が配置して `tools/check_codex_agents.py` で期待 bytes との一致を確かめた。親が短縮 SHA を推測で延ばして branch 作成に 1 回失敗した (rev-parse で取り直した)。
 - 工数: Codex 子 = plan 1、consult 3、author 2 (core・role)、review 2、fix 4、focus review 3、merge 合成 1 の計 16 本。
 
