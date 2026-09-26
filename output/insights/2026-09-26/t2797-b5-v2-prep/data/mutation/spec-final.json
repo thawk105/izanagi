@@ -1,0 +1,672 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 450,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-loop",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_agent_live_actual_no_build",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_slot_changes_identity_and_default_kwargs_stay_exact",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_stock_submission_precedes_campaign_exception",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_balanced_concurrent_flag_reaches_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_inputs_do_not_read_report",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[duplicate-skip]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-preprocess]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-tier0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted-unidentified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[certified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[dry-pass]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[duplicate]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[rejected]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_same_variant_use_distinct_attempts",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_cli_rc_zero_on_rejected_outcome_is_not_pair_success",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[False-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-read-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-write-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_default_cli_preserves_preimage_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_direct_drive_provenance_hash_defaults_to_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_authorized_candidate_exception_stock_reuses_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_pegasus_real_claim_and_wal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_quarantine_reject_stock_acquires_first_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_and_candidate_share_manifest_campaign_identity",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[runtime-meaning]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[supply-effectuation]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reaches_campaign_under_applied_template",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[already-evaluated]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_digest_refresh_keeps_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_resolver_refuses_non_stock_evidence",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop.py::test_write_heavy_concurrent_flag_reaches_evaluate"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "# ==== 提案・状態の型 (LLM 出力と harness 状態) =================================",
+          "new": "# ==== 提案と状態の型 (LLM 出力と harness 状態) ================================="
+        }
+      ]
+    },
+    {
+      "id": "M0-b5",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "        # CLI output is evidence of a duplicate, never evidence of certification.",
+          "new": "        # CLI output is evidence of a duplicate. never evidence of certification."
+        }
+      ]
+    },
+    {
+      "id": "M-A1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_v2_critic_diagnosis_request_and_job_disclosures"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "if self.v2 else \"\"),\n        }\n        d = f\"{self.materials_root}/critic-{k}\"",
+          "new": "if False else \"\"),\n        }\n        d = f\"{self.materials_root}/critic-{k}\""
+        }
+      ]
+    },
+    {
+      "id": "M-A2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_llm_round.py::test_v2_critic_diagnosis_request_and_job_disclosures"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/b5_llm_round.py",
+          "old": "if self.v2 else \"1 job の中で系列開始 stock → 評価 1..10 → endpoint 再計測 5 を直列に回す。\")",
+          "new": "if False else \"1 job の中で系列開始 stock → 評価 1..10 → endpoint 再計測 5 を直列に回す。\")"
+        }
+      ]
+    },
+    {
+      "id": "M-B1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate",
+        "orchestrator/tests/test_b5_llm_parent.py::test_429_three_times_keeps_same_a_session_and_failure_budget"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_llm_parent.py",
+          "old": "            elif status == \"failure\":\n                state[\"failures\"] += 1",
+          "new": "            if status in {\"failure\", \"outage\"}:\n                state[\"failures\"] += 1"
+        }
+      ]
+    },
+    {
+      "id": "M-B2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate",
+        "orchestrator/tests/test_b5_llm_parent.py::test_429_requires_structured_status_and_valid_json",
+        "orchestrator/tests/test_b5_llm_parent.py::test_429_three_times_keeps_same_a_session_and_failure_budget"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_llm_parent.py",
+          "old": "if document.get(\"is_error\") is True and document.get(\"api_error_status\") == 429:",
+          "new": "if \"429\" in str(document.get(\"result\", \"\")):"
+        }
+      ]
+    },
+    {
+      "id": "M-B3",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_llm_first_job_has_stock_and_one_evaluation",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_outage_restarts_stock_and_same_request_a"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "                status, proposal, provenance = _handshake(ledger, a + 1, 0, outage=True)",
+          "new": "                ledger.append(\"proposal-opportunity\", a=a + 1, b=0, logical_slot=f\"search-{a + 1}\")\n                status, proposal, provenance = _handshake(ledger, a + 1, 0, outage=True)"
+        }
+      ]
+    },
+    {
+      "id": "M-B4",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_login_429_does_not_count_a_and_empty_output_does[success-ready]",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_parent_outages_leave_a_b_and_missing_unchanged"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "                core._publish(rejected, {\"reason\": \"empty-output\"})",
+          "new": "                return \"running\"  # empty output is retried without charging A"
+        }
+      ]
+    },
+    {
+      "id": "M-B5",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one[random]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one[sweep-matched]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_llm_first_job_has_stock_and_one_evaluation",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_outage_restarts_stock_and_same_request_a",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_step_mismatch_refuses_before_session"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "        if arm == \"llm\":\n            while True:",
+          "new": "        return ledger.view()\n        if arm == \"llm\":\n            while True:"
+        }
+      ]
+    },
+    {
+      "id": "M-B6",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one[random]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one[sweep-matched]",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_llm_first_job_has_stock_and_one_evaluation",
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_step_mismatch_refuses_before_session"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "    observed, b = _execute_slot(ledger, kind=\"search\", n=a, a=a, b=b, value=int(value),\n                                proposal_path=proposal, provenance=provenance, **common)",
+          "new": "    observed, b = _execute_slot(ledger, kind=\"search\", n=a, a=a, b=b, value=int(value),\n                                proposal_path=proposal, provenance=provenance, **common)\n    _execute_slot(ledger, kind=\"search\", n=a, a=a, b=b, value=int(value),\n                  proposal_path=proposal, provenance=provenance, **common)"
+        }
+      ]
+    },
+    {
+      "id": "M-B7",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_step_mismatch_refuses_before_session"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "    if action != step:\n        raise ValueError(f\"requested step {step} differs from ledger next step {action}\")",
+          "new": "    if False and action != step:\n        raise ValueError(f\"requested step {step} differs from ledger next step {action}\")"
+        }
+      ]
+    },
+    {
+      "id": "M-B8",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast.py::test_v2_concurrent_verify_write_heavy_and_balanced"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast.py",
+          "old": "if cohort == COHORT_REGISTERED_V2 and workload in (\"write-heavy\", \"balanced\"):",
+          "new": "if cohort == COHORT_REGISTERED_V2 and workload == \"write-heavy\":"
+        }
+      ]
+    },
+    {
+      "id": "M-B9",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_model_mismatch_ends_without_consuming_a[critic-False]",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_model_mismatch_ends_without_consuming_a[round-False]",
+        "orchestrator/tests/test_b5_contrast_launch.py::test_v2_model_mismatch_ends_without_consuming_a[round-True]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/b5_contrast_launch.py",
+          "old": "                    if mismatch:\n                        b = sum(e[\"kind\"] == \"evaluation-result\" for e in ledger.events)",
+          "new": "                    if False and mismatch:\n                        b = sum(e[\"kind\"] == \"evaluation-result\" for e in ledger.events)"
+        }
+      ]
+    },
+    {
+      "id": "M-C1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_agent_live_actual_no_build",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_slot_changes_identity_and_default_kwargs_stay_exact",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_stock_submission_precedes_campaign_exception",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_balanced_concurrent_flag_reaches_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_inputs_do_not_read_report",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[duplicate-skip]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-preprocess]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-tier0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted-unidentified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[certified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[dry-pass]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[duplicate]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[rejected]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_same_variant_use_distinct_attempts",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_cli_rc_zero_on_rejected_outcome_is_not_pair_success",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[False-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-read-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-write-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_default_cli_preserves_preimage_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_direct_drive_provenance_hash_defaults_to_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_authorized_candidate_exception_stock_reuses_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_pegasus_real_claim_and_wal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_quarantine_reject_stock_acquires_first_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_and_candidate_share_manifest_campaign_identity",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[runtime-meaning]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[supply-effectuation]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reaches_campaign_under_applied_template",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[already-evaluated]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_digest_refresh_keeps_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_resolver_refuses_non_stock_evidence",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop.py::test_write_heavy_concurrent_flag_reaches_evaluate"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "a.perf_workload not in (\"write-heavy\", \"balanced\")",
+          "new": "a.perf_workload != \"write-heavy\""
+        }
+      ]
+    },
+    {
+      "id": "M-C2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_agent_live_actual_no_build",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[base-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[sort-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-deleted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history[trigger-zero]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[attribution-attribution]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_candidate_rejection_sidecar_rc3_m20[grammar-grammar]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_duplicate_skip_returns_failure_without_restore",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_slot_changes_identity_and_default_kwargs_stay_exact",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_stock_submission_precedes_campaign_exception",
+        "orchestrator/tests/test_p3_s4_loop.py::test_b5_string_preflight_rejection_uses_wal_and_rc0",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rejection_projections_are_disclosure_free",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_balanced_concurrent_flag_reaches_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[False-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-checkpoint]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_failure_keeps_checkpoint[True-publish]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_hash_excludes_receipt_key",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_inputs_do_not_read_report",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_precedes_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[duplicate-skip]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-preprocess]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_b5_early_returns[rejected-tier0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted-unidentified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[aborted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[certified]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[dry-pass]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[duplicate]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_records_each_outcome[rejected]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_rejects_same_variant_use_distinct_attempts",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_provenance_skips_stock_and_entry_stop[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_candidate_cli_reaches_effective_perf[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_calibrated_cli_binds_effective_perf_before_layout[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_campaign_lock_preimage_reconstructs_performance_correctness[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_cli_rc_zero_on_rejected_outcome_is_not_pair_success",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_comment_reject_wal_to_critic_digest_does_not_repeat_payload",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[False-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-balanced]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-read-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_absent_from_default_search_identity[True-write-heavy]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_concurrent_verify_cli_rejects_missing_requirements",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_digest_rejects_projector_from_different_admitted_snapshot",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_accepts_registered_ids_and_empty_values",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_maps_unknown_nonempty_id_to_fixed_sentinel",
+        "orchestrator/tests/test_p3_s4_loop.py::test_critic_identity_projection_uses_wal_first_occurrence_and_excludes_stock",
+        "orchestrator/tests/test_p3_s4_loop.py::test_default_cli_preserves_preimage_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_diff_reject_not_double_counted_in_liveness_other",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_off",
+        "orchestrator/tests/test_p3_s4_loop.py::test_digest_projection_changes_only_identity_bytes_with_reflux_on",
+        "orchestrator/tests/test_p3_s4_loop.py::test_direct_drive_provenance_hash_defaults_to_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_recovers_real_wal_start_before_entry_stop",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_stops_before_running_when_reverse_exhausted",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop.py::test_inner_run_recovers_reject_start_before_writing_retry_start",
+        "orchestrator/tests/test_p3_s4_loop.py::test_machine_no_authority_guard_and_sidecar_before_campaign",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_uses_loaded_document",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_hash_without_agent_inputs",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_provenance_noncanonical_proposal_hash_is_null",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_drops_red_section",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_is_byte_identical_to_green_only",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders",
+        "orchestrator/tests/test_p3_s4_loop.py::test_make_critic_digest_requires_identity_projection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_authorized_candidate_exception_stock_reuses_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_pegasus_real_claim_and_wal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_pair_main_quarantine_reject_stock_acquires_first_claim",
+        "orchestrator/tests/test_p3_s4_loop.py::test_record_and_load_diff_rejection_roundtrip",
+        "orchestrator/tests/test_p3_s4_loop.py::test_reflux_off_reject_keeps_wal_and_whiteboard",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_only_not_all_green",
+        "orchestrator/tests/test_p3_s4_loop.py::test_render_rejections_diff_section_has_no_perf_tokens",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_campaign_forwards_one_backoff_version_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[#define EVIL 1/ndouble now_backoff = 20;-hole-escape-None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_preserves_outer_quarantine_rejection_order[double now_backoff = 20; std::system(\"ignored\");-host-effect-host-effect.process-shell.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_records_oversized_preflight_as_rejection",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_and_candidate_share_manifest_campaign_identity",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[runtime-meaning]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_condition_gate_red_rejects_before_campaign[supply-effectuation]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_does_not_touch_loop_state[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reaches_campaign_under_applied_template",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_rejects_non_stock_certified_source[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[None]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_control_reports_skipped_without_restore[already-evaluated]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_digest_refresh_keeps_checkpoint",
+        "orchestrator/tests/test_p3_s4_loop.py::test_stock_resolver_refuses_non_stock_evidence",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[False]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_verify_opt_in_reaches_real_loop_evaluate_options[True]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_versioned_wal_writer_binds_only_build_start_and_admission_accepts_it",
+        "orchestrator/tests/test_p3_s4_loop.py::test_write_heavy_concurrent_flag_reaches_evaluate"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "a.perf_workload not in (\"write-heavy\", \"balanced\")",
+          "new": "a.perf_workload not in (\"write-heavy\", \"balanced\", \"read-heavy\")"
+        }
+      ]
+    },
+    {
+      "id": "M-D1",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_four_comparison_holm_family"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+          "old": "        multiplier = (6 - rank) * p[key] if len(comparisons) == 6 else remaining * p[key]",
+          "new": "        multiplier = (6 - rank) * p[key]"
+        }
+      ]
+    },
+    {
+      "id": "M-D2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_batch_median_is_descriptive_only",
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_secondary_can_have_empty_batch_with_eight_pairs"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+          "old": "if significant and median > delta and (v2 or all(x > 0 for x in chosen[\"block_medians\"].values())):",
+          "new": "if significant and median > delta and all(x > 0 for x in chosen[\"block_medians\"].values()):"
+        }
+      ]
+    },
+    {
+      "id": "M-D3",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_pooled_stock_cv_not_batch_maximum"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+          "old": "stock = all_cv if v2 else max(all_cv, *cvs.values())",
+          "new": "stock = max(all_cv, *cvs.values())"
+        }
+      ]
+    },
+    {
+      "id": "M-D4",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_fallback_uses_pooled_fifteen_session_median"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+          "old": "        sessions = (stocks.get(h[\"workload\"], []) if v2 else\n                    stocks.get((h[\"workload\"], h[\"block\"]), []))\n        if len(sessions) != (15 if v2 else core.BLOCK_STOCK_SESSIONS):",
+          "new": "        sessions = stocks.get((h[\"workload\"], h[\"block\"]), [])\n        if len(sessions) != core.BLOCK_STOCK_SESSIONS:"
+        }
+      ]
+    },
+    {
+      "id": "M-D5",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b5_generator_contrast_report.py::test_v2_restarted_stock_keeps_score_and_comparison"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b5_generator_contrast_report.py",
+          "old": "if not starts or (v2 and not _stock_normal(starts[-1])) or (not v2 and",
+          "new": "if not starts or (v2 and (len(starts) != 1 or not _stock_normal(starts[-1]))) or (not v2 and"
+        }
+      ]
+    }
+  ]
+}

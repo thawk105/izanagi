@@ -1,0 +1,32 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-09-27
+wave: worktree-dev-wave-t2797-b5-v2-prep
+seq: 1
+title: [T-2797] B-5 v2 の投入準備 — write-heavy の却下 11 件は critic 診断の「他 role 宛ての指示」の反復入力が原因と特定し、v1 を閉じて開示し、1 評価 1 job と 429 の保留・balanced の同時検査を実装し、v2 事前登録と発効束 (draft) を作った。図 1 枚 約 89〜111 node 時間で発効の確認をユーザーに問う (コード + test + docs、branch worktree-dev-wave-t2797-b5-v2-prep)
+---
+
+## 本文
+
+- 依頼: D2249 項 1 (択 C、2 workload・n = 12) の前提 (a)〜(d) を 1 wave で。本走 job は投げない。発効前に実測単価で図 1 枚の node 時間を示してユーザー確認 (D2212 項 4)。
+- (d) の原因は計算なしで一次記録から特定した: 14 機会 = 採用 1・coder の検疫による却下 11・planner のコードフェンス書式 1・429 の時間切れ 1 (材料 insight の「12 件すべて検疫」は誤り)。
+  11 件は評価 1 の critic 診断の recommend 項 3「採否の読み方 (次の critic 評価への指示)」を coder が指示めいた内容と申告したもので、評価 2 が起きず同じ診断が 11 回入力された ({{F:b5-critic-instruction-quarantine-loop}})。
+  直し先は critic の入力 (v2 のみ) で、検疫・`.claude/agents/`・節抽出は変えない。`.claude/agents/` の差分は要らなかったのでユーザーへの差分提示は発生していない。
+- 設計の決着 ({{D:b5-v2-execution-contract}}): 段 3 相談 A が「stock を別 job にすると D2249 追加項の同時刻対照を崩す」と指摘し、段 2 案を撤回して job 1 = 系列開始 stock + 評価 1 を維持した。
+  投入予約・scheduler 照会・自動回収は段 3 相談 B の指摘で後送した。段 6 で親が model 不一致を空出力 (A 消費) と数える欠陥を見つけ、系列を欠測で終える形に直した。429 保留の再試行間隔 20 s は 900 s にした。
+- 計算の実測: balanced の同時検査の本番順序 probe 2 job (bnode014・bnode020、Elapse 358 s・471 s、計 0.23 node 時間)。変異・焦点走の計算ノード job は除く。
+- 検査: 焦点走 f5 (commit `9e549087d`) 1,891 passed・10 skipped・赤 0。変異 final (commit `5a8c321fd`、独立 clone) 20 / 20 期待どおり (KILLED 19、等価変異 SURVIVED 1)、M-C1 は commit 済み変異で drift 層を外して単一理由の kill を確認。
+  provenance の全史監査 rc=0 (12,945 件、新規違反なし、merge `decc151e5` の後)。受入全走は本 fragment を含む tip で land 時に行う。
+- 焦点走の偽赤: 未 commit の統合状態で走らせた f1 は 189 件の大半が contract-loader-drift (F283 の再発)。変異 probe の baseline が 429 結合 test の時間依存で 2 回赤になり、test 側を直した (実装は不変)。
+- エージェント工数: Codex 子 = plan 1・consult 2・author 5 (A・B・C・D・vprobe・mspec を含めて author 6)・review 2・focus 1・fix 7。Claude 子なし。
+- 並走: [T-2850] 後継 session は `p3_s4_loop.py` / `pipeline.py` を編集しないと回答 (試走は固定 checkout)。main は T-2273・paper-story・T-2850・T-2854・T-2865・持ち越し整理の着地で前進し、`decc151e5` で取り込んだ (競合なし)。
+
+## 次の一手差分
+
+### 更新
+
+- [T-2797] **P1・ユーザー確認待ち (B-5 v2 の発効)**: v2 の実装・事前登録 (`docs/b5-generator-contrast-preregistration-v2.md`)・発効束 draft (`output/insights/2026-09-26/t2797-b5-v2-prep/`) は完了。
+  図 1 枚 (write-heavy と balanced × 3 arm × n = 12) は実測単価で約 89〜111 node 時間 (基本 798 job)。暦時間は LLM の週上限が律速で測れていない (240〜720 原提案機会、仮に 1 週 22 機会なら 11〜33 週)。
+  ユーザーが確認すれば、発効 commit・発効束の最終化 (同時に進める系列数 12、job 種別ごとの walltime、node 時間の上限) → 決定記録 → 起動器の投入へ進む (AI)。v1 cohort は閉鎖済み (v1 §15)。
+  base: df51089d0e37081a1e8fc9983ace797e623b62bf4ddfc12e4d7a859c6f1e47e7

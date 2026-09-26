@@ -114,8 +114,35 @@ T-2850 の本番順序 probe (trace 5 本を直列取得 → 直ちに 5 本同�
   (材料 §5: write-heavy で 1 機会目 2.0 M → 13 機会目 7.5 M token)。
 - v2 では 429 で系列が欠測にならない (保留) ので、暦時間が延びても比較は判定不能にならない。延びる間、計算 node は消費しない (原提案 1 の待ちの job を除く)。
 
-## 7. 経緯
+## 7. 変異台帳 (段 4・段 6 で事前登録、`data/mutation/spec-final.json`)
+
+`tools/mutation_harness.py` (`mutation_worktree.py` 経由、独立 clone、runner は計算ノード dispatch) で、commit `5a8c321fd` に対し
+probe (全件 SURVIVED 期待で観測 node を集める) → final (観測 node を期待集合に固定) の 2 段で走らせた。焦点 file は b5 系 5 file と `test_p3_s4_loop.py`。
+**final: 20 / 20 が期待どおり (KILLED 19、等価変異の SURVIVED 1、MISMATCH 0)、baseline 緑。** spec sha256 `9983f75a…ee33e07c`。
+
+| 変異 | 壊すもの | 殺した test (単一理由の根拠) |
+|---|---|---|
+| M-A1 / M-A2 | v2 の critic 入力の要請節を削る / v2 の job 構成の開示を v1 に戻す | `test_b5_llm_round.py::test_v2_critic_diagnosis_request_and_job_disclosures` (1 node) |
+| M-B1 | 429 を親の異常終了として retry に数える | `test_b5_llm_parent::test_429_three_times_keeps_same_a_session_and_failure_budget` と 429 結合 test |
+| M-B2 | 429 を文言だけで判定する | `test_429_requires_structured_status_and_valid_json` ほか |
+| M-B3 | A の計上を提案待ちの前に戻す | `test_v2_outage_restarts_stock_and_same_request_a` ほか 3 node |
+| M-B4 | 空出力で A を消費しない | `test_v2_login_429_does_not_count_a_and_empty_output_does[success-ready]` ほか |
+| M-B5 / M-B6 | job 1 で評価 1 を行わない / 評価 job が 2 回評価する | `test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one[random・sweep]` ほか |
+| M-B7 | 計算 job の step 照合を外す | `test_v2_step_mismatch_refuses_before_session` (1 node) |
+| M-B8 | balanced に同時検査 flag を付けない | `test_v2_concurrent_verify_write_heavy_and_balanced` (1 node) |
+| M-B9 | model 不一致を空出力として数える | `test_v2_model_mismatch_ends_without_consuming_a[round・critic × job 1 有無]` (3 node) |
+| M-C1 | `p3_s4_loop` の同時検査を write-heavy だけに戻す | 焦点走では drift 層 (下記) と同じ 110 node で区別できないので、**変異を使い捨て clone に commit して drift 層を外し** balanced 受理 test だけを走らせた: `test_balanced_concurrent_flag_reaches_evaluate` が赤・write-heavy 側は緑 |
+| M-C2 | read-heavy まで許す | drift 層 110 node + `test_concurrent_verify_cli_rejects_missing_requirements` (差分 1 node) |
+| M-D1〜M-D5 | 4 比較の Holm / batch 条件 / pooled CV / 15 session fallback / 測り直し stock の照合 | report の v2 test 各 1〜2 node |
+| M0-loop (等価) | `p3_s4_loop.py` のコメント 1 文字 | 110 node = contract-loader の drift 層 (HEAD blob と作業木の不一致を拒否する既存の層)。C1・C2 の差分を読む基準 |
+| M0-b5 (等価) | `b5_generator_contrast.py` のコメント 1 文字 | 生存 (b5 側に drift 層は無い) |
+
+- 途中経緯: probe の baseline が 2 回、429 結合 test の時間依存で赤になった (原提案 2 の起動の有無、fixture の非 atomic な書き込み)。どちらも test 側の誤りで、実装は変えずに直した (fix6・fix7)。
+  本番の job body は結果 file を一時 file からの rename で書く。
+
+## 8. 経緯
 
 - 段 1 brief → 段 2 plan (Codex) → 段 3 相談 2 本 (正しさ境界・過剰削除) → 段 4 裁定 (stock と評価 1 の同 job を維持、投入予約・自動回収は後送、429 は構造化 field だけで判定)。
-- 段 5 実装 4 単位 (Codex author) → 段 6 敵対レビュー 2 本 → fix 3 回 (v2 header の purpose、測り直し stock の report 照合、429 の結合 test、balanced の flag、model 不一致を空出力にしない、焦点走の赤 3 件)。
+- 段 5 実装 4 単位 (Codex author) → 段 6 敵対レビュー 2 本 → fix 7 回 (v2 header の purpose、測り直し stock の report 照合、429 の結合 test、balanced の flag、model 不一致を空出力にしない、焦点走の赤 3 件、429 保留の再試行間隔 900 s、結合 test の時間依存 2 件) → 焦点再レビュー 1 本 (全所見 closed、新所見は job 数の算術誤りなど docs で閉じた)。
 - 焦点走の偽赤: 未 commit の統合状態で走らせた f1 は 189 件の大半が contract-loader-drift (HEAD blob と作業木の不一致) で、commit 後の f2 は 3 件 (本 wave の新規部分) だった。
+- 焦点走 f5 (commit `9e549087d`、b5 系・`test_p3_s4_loop`・T-2849 harness・spawn site・inventory 4 群): 1,891 passed・10 skipped・赤 0。受入全走の結果は worklog に書く。
