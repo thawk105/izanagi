@@ -56,7 +56,7 @@ D2249 項 1 (択 C: write-heavy と balanced の 2 workload・n = 12) の前提 
 |---|---|---|
 | 1 評価 1 job | `orchestrator/campaign/b5_generator_contrast.py` | v2 cohort の `run-series-step`。job 1 = 系列開始 stock + 評価 1 (LLM の原提案 1 は同じ job で待つ)、評価 job は 1 回ずつ、score job。次の単位は台帳の events から `next_series_action` で導き、計算 job は要求された単位と一致しなければ session を始めない |
 | login 起動器 | `tools/pegasus/b5_contrast_launch.py` の v2 経路 | schedule (v1 の均衡割当を 2 workload に限定) の対を系列番号順に開き、系列ごとに「提案を待つ → 1 単位の job を qsub → 完了を待つ」。単一 process (lock file)、1 系列に active job 1 つ、qsub 失敗で停止、途中死した系列は止めて報告 |
-| LLM 親 | 新 `tools/pegasus/b5_llm_parent.py` | v1 の repo 外 driver の最小移植。429 = 出力 JSON の `is_error == true` かつ `api_error_status == 429` だけで判定し、期限なしで保留 (A・B・retry 不変)。正常終了で提案なし = 空出力 (A を消費)。model 不一致の記録があれば系列を欠測で終える。他の異常終了は同じ a で追加 2 回まで |
+| LLM 親 | 新 `tools/pegasus/b5_llm_parent.py` | v1 の repo 外 driver の最小移植。429 = 出力 JSON の `is_error == true` かつ `api_error_status == 429` だけで判定し、期限なしで保留 (A・B・retry 不変、再開の試行は 900 s おき)。正常終了で提案なし = 空出力 (A を消費)。model 不一致の記録があれば系列を欠測で終える。他の異常終了は同じ a で追加 2 回まで |
 | (d) | `tools/b5_llm_round.py` | §1.3 の要請 (v2 のみ) と、v2 の job 構成に合わせた事実開示 |
 | (c2) | `orchestrator/campaign/p3_s4_loop.py`、同 slot argv | `--verify-performance-concurrent` を balanced にも許す (read-heavy は拒否のまま)。v2 の write-heavy・balanced の slot に付ける (v1 には付けない) |
 | report | `orchestrator/campaign/b5_generator_contrast_report.py` | v2: 4 比較の Holm、batch ごとの条件を判定から外す、pooled 15 session の stock CV と fallback、測り直し stock の照合、`prereg_version` の必須化。v1 の判定は不変 |
@@ -76,7 +76,7 @@ T-2850 の本番順序 probe (trace 5 本を直列取得 → 直ちに 5 本同�
 - **判断:** 記憶量は node の利用上限 (約 115 GiB、D1553) に余裕があり、load の戻りは既存の初回静定上限 120 s に収まる (最大 79 s、上限は最大の 1.52 倍。write-heavy の 120 s は最大 77 s から決めた、D2251)。
   **balanced にも同時検査を使い、上限は 120 s のまま**とした。OOM 0。
 - 代理は v1 の balanced 候補で最も長い性能 trace の区間 (141 s) と同程度以上の重さである。候補そのもの (hole code の backoff) の trace では測っていない。
-- 本 wave の計算は 2 job で計 829 s (0.23 node 時間)。
+- 本 wave の計算は 2 job で計 829 s (0.23 node 時間)。job Elapse の一次資料は NQSV の job log (job dir `dev-wave-t2797-b5-v2-prep/vprobe/runs/vpb-bal-{stock,b0lw0}.log` の `Elapse:` 行、request 30117・30142)。
 
 ## 5. (b) v2 事前登録と発効束 (draft)
 
@@ -97,17 +97,16 @@ T-2850 の本番順序 probe (trace 5 本を直列取得 → 直ちに 5 本同�
 | 項目 | 楽観 | 保守 | 出所 |
 |---|---:|---:|---|
 | 材料 insight の択 C ((1) 全 arm + (2)、read-heavy を外す) | 86 h | 99 h | 換算 (材料 §4.0) |
-| v2 の job 構成で増える job 準備 (系列あたり +1 job × 35 s × 72 系列) | +0.7 h | +0.7 h | 換算 |
 | LLM の原提案 1 を job 1 の中で待つ (24 系列 × 1 機会の待ち、v1 実測の最小〜最大) | +3.0 h | +6.1 h | 実測の待ち × 系列数 |
 | 同時検査の後の静定待ち (換算の 60 s に対し実測 write-heavy 最大 77 s・balanced 最大 79 s) | 0 | +5.9 h | 実測 |
-| **合計 (図 1 枚)** | **約 90 h** | **約 112 h** | |
+| **合計 (図 1 枚)** | **約 89 h** | **約 111 h** | |
 
 - 含まないもの: queue 待ち、LLM の待ち (原提案 2 以降は node 外)、429 の保留による job 1 の stock 測り直し (1 回あたり stock 1 session + job 準備、約 4 分)、品質再測定と機械故障 retry。
-- 計算 job の数は最大 870 (系列 72 × 12 + workload stock 6)。論理 session は 1,182。
+- 計算 job の数は基本 798 (系列 72 × 11 + workload stock 6、429 の保留による job 1 の測り直しは別)。論理 session は 1,182。材料 insight の換算 (1) 全 arm はすでに系列あたり 11 job (1 + 評価 10 の分割) を含むので、job 準備の増分は無い。
 
 ### 6.2 暦時間 (測れていない)
 
-- 計算側だけなら、同時 12 系列で 1 系列 12 job を順に流すので、queue 待ちを除き概ね数日 (job 1 本 4〜15 分)。
+- 計算側だけなら、同時 12 系列で 1 系列 11 job を順に流すので、queue 待ちを除き概ね数日 (job 1 本 4〜15 分)。
 - **律速は LLM の週上限。** v1 は LLM 4 系列の並走で原提案 22 機会を終えた時点 (投入から約 2 時間) で週上限に達した (F1050)。その週の枠は他 session と共有で、1 週間に回せる機会数は測れていない。
   v2 の LLM 需要は 24 系列 × 10〜30 機会 = 240〜720 機会。**仮に 1 週 22 機会しか回らなければ 11〜33 週かかる**。親は機会ごとに同じ session を再開するので、読み込む文脈 (cache read) が機会ごとに増える
   (材料 §5: write-heavy で 1 機会目 2.0 M → 13 機会目 7.5 M token)。
