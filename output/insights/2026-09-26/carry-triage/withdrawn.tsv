@@ -1,0 +1,514 @@
+T	区分	理由
+T-011	b	T-088 の裁定 (安価測定を先行・新規 infra を建てない) を写した注記だけで、固有の作業を持たない
+T-059	a,b	事前登録できなかった逸脱を事後監査で補う記録作業で、記録・判定を誤らせた実害の実測が本文に無い
+T-139	old	D749/D291 の pilot gate は 8b/8c official 系列 (rf_partial_recovery pilot)。旧系列を再開するとき再起票
+T-144	old	従属先の T-139 は旧系列で、T-338 は D597 で T-139 の系列へ一本化され持ち越しに無い。旧系列を再開するとき再起票
+T-190	b	機序は確定済み。残るのは過去の failure (F285) の帰属調査だけで、現行の判定を誤らせていない
+T-203	a	受入手順に対照比較と発火回数の観測を足す追加で、実害の実測が無い
+T-235	old	8c supervisor の予算機構。旧系列を再開するとき再起票
+T-239	old	凍結済み予約式の改訂。旧系列を再開するとき再起票
+T-241	c	本文自身が T-276/T-277 へ分解済みで単体では着手しないと言う。live pilot は旧系列
+T-244	old	8c 本走の事前登録と投入 (D2212 項 5 で必須経路外)。無人自律の目標は roadmap §9 に残る。旧系列を再開するとき再起票
+T-251	a	legacy cache key が環境を束縛しない仮想リスク。別環境 hit の実測は無く、v2 identity は同じ穴を持たない
+T-266	a	偽タグ穴を admission で一括封鎖する追加。実害の実測が無い
+T-269	a	guard 拒否がレポート生成後に起きた場合の header 不一致という仮想の順序。実測が無い
+T-292	a,old	certify shell の終了状態欠落。実測が無く、certify 経路は旧系列
+T-295	old	対象は docs/phase3-8c-preregistration.md (8c)。旧系列を再開するとき再起票
+T-303	a	直接 CMake 経路への site gate 追加。実害の実測が無い
+T-306	a	非有限値で report 書込みが失敗した場合の台帳破断という仮想経路。実測が無い
+T-307	a	recipient matrix に古さの誤認を防ぐ試行数を載せる予防。実害の実測が無い
+T-320	old	8c --no-build の layout と受理境界。旧系列を再開するとき再起票
+T-327	old	8c 事前登録 12 述語の充足判定器。旧系列を再開するとき再起票
+T-331	a,old	兄弟 driver の COMPUTE 閉鎖と凍結ソース閉包の再 pin。旧系列を再開するとき再起票
+T-333	a	critic digest に env 次元が無い件。本文自身が D125 で混在は構造的に起きないと言う
+T-334	a	依存物 bytes の hash 束縛。差し替わりの実測は無い (規律 1 の仮想リスク)
+T-372	a	手順書の条文を検査集合へ足す追加。実害の実測が無い
+T-374	a	不正値の検証を成果物作成の前へ移す予防。実害の実測が無い
+T-401	old	racct 会計の恒久対応で着手条件が較正復旧 (旧系列)。旧系列を再開するとき再起票
+T-414	a	checkpoint 値域検査の追加。実害の実測が無い
+T-419	old	床値 protocol の未接続面で発火条件が official mode 解禁。旧系列を再開するとき再起票
+T-420	old	U-2 と床値 v2 の chain。旧系列を再開するとき再起票
+T-425	old	発行・発効の鎖の末尾 (A6 予算批准と official floor run 待ち)。旧系列を再開するとき再起票
+T-426	c	本文自身が条件未成立のまま新しい判断を加えないと言う待機項
+T-434	old	8c P6 の二段束縛。旧系列を再開するとき再起票
+T-435	old	8c 事前登録の条件 11 改訂。旧系列を再開するとき再起票
+T-437	old	凍結 spec 変異の残り (焦点再レビューと MISMATCH 3 件の扱い)。旧系列を再開するとき再起票
+T-443	old	T-419 の再走サイクル同梱待ち。旧系列を再開するとき再起票
+T-469	a	性能値の差し替えを防ぐ消費台帳 (D893) の追加。現行 checkout に certified 選択の consumer が無く (layer3_report.py :1004-1008)、接続するときに再起票する (段 3 lens B)
+T-470	a	certified 選択の入口で受領証 bytes を消費する配線 (D860)。現行 checkout にその consumer が無く (layer3_report.py :1004-1008)、接続するときに再起票する (段 3 lens B)
+T-473	b	layer3_report の claim boundary の欠落 (trigger 文法凍結 README の must-fix B-6)。report へ限界の境界を書き足す記録作業
+T-475	old	凍結 floor protocol の世代付き移行。旧系列を再開するとき再起票
+T-484	a,old	origin ledger の member row を実 query へ束縛する追加 (W1/P7)。実運用での水増しの実測は無い。旧系列を再開するとき再起票
+T-488	old	certify の warn 値のための PBS 遅延観測。旧系列を再開するとき再起票
+T-489	old	凍結予算式に入らない H_head の計測。旧系列を再開するとき再起票
+T-506	old	較正登録 wave への self-pass 同梱 (U-2 下流)。旧系列を再開するとき再起票
+T-551	old	代替 X の ablation は T-139 の RF study 系列 (旧系列の pilot 調査) の由来。旧系列を再開するとき再起票
+T-561	old	8b 予約式の逐次上限化。旧系列を再開するとき再起票
+T-562	c	docs/pegasus-runbook.md :796-804 が receipt 照合と job dir の正規化を区別して書き、calibrator/cli.py :297 も整合しており食い違いは解消済み
+T-566	old	8b 認可判断への復旧可視化 (D739)。旧系列を再開するとき再起票
+T-568	a	trigger proposal provenance の回復記録。crash 後自動回復の追加で実害の実測が無い
+T-571	a	wal.replay の read-only 化 (書込みを resume seam へ移す整理)。実害の実測が無い
+T-581	a	変異 harness 入場 gate への ignored file 検査追加。実害の実測が無い
+T-584	a,old	submit_certify の repo-root 分離の仮想リスク。certify 経路は旧系列
+T-623	a,old	s8b 床値契約の test を単一理由へ強める。旧系列を再開するとき再起票
+T-733	a	certified 経路の source closure の収載拡大と非 import 委譲の束縛 (T-2344 と同じ取り組み)。束縛の追加で、記録・判定を誤らせた実害の実測が無い
+T-734	a	全 certified sink への source gate の追加。実害の実測が無い
+T-750	old	8b W-4/W-5 (D2212 項 5 で必須経路外)。旧系列を再開するとき再起票
+T-776	c	tools/mutation_harness.py に allow_incomplete_dispatch が入り、hang した変異で matrix 全体が abort する件は解消済み (専用テストあり)
+T-818	b	coverage 系 driver の材料値が witness 未装備という限界の明記だけ
+T-822	old	8c 正式系列の着手条件の残り (T-1994 へ移管済み)。旧系列を再開するとき再起票
+T-842	old	常に空の forbidden_identifiers の削除 (D890)。対象は 8c autonomous trial の preview と completeness で、現行段 4 の certified 判定へ届く経路は示されていない。旧系列を再開するとき再起票 (段 3 lens B)
+T-850	a	変異が示した被覆の穴へ負例を足す追加。T-734 の後置で、実害の実測が無い
+T-859	a	WAL と stdout の共通 nonce による束縛の追加。実害の実測が無い (過去負債の再発防止)
+T-860	b	guided の certified 記録の語の変更。guided の旧経路は layer3 が fail-closed で拒否し production の import は 0 件で、記録の語を変える作業だけが残る
+T-861	b	歴史 campaign を受理判定の対象外と明記する記録作業
+T-919	b	外挿しない規定を decisions へ追補する記録作業
+T-929	old	床値 active 世代 test の cache payer 問題。旧系列を再開するとき再起票
+T-941	old	8c P6 の機械実装。旧系列を再開するとき再起票
+T-1028	b	関門新設 wave の完了条件の明文化。D431 が同型義務を既に定めると本文が言う
+T-1047	c	外側の理由文字列の文字集合制限は orchestrator/critic/digest.py :246-251 に実装済み
+T-1095	old	oracle compile closure の config.h hash。着手は次の床値 wave と同時 (旧系列)。旧系列を再開するとき再起票
+T-1096	a	全 consumer への trusted dependency root と compiler の共通注入 seam。実害の実測が無い
+T-1111	c	本文自身が unmet のまま残す方針と registry gate を新設しない方針は不変と言う
+T-1113	old	8c autonomous trial runbook の訂正。旧系列を再開するとき再起票
+T-1125	a,old	P9 の一般閉包 (8c 経路は塞いだ残り)。旧系列を再開するとき再起票
+T-1130	a	D152 の clone 経路の成立確認。本文自身が供給経路を使う前に確かめればよいと言い、その経路は使われていない
+T-1135	old	承認権限と artifact 権威供給の順序 (D1392)。旧系列を再開するとき再起票
+T-1137	a	記入欄の件数を固定するテストの追加。実害の実測が無い
+T-1151	b	D104 への注記追記 (一般化しない裁定)。記録作業だけ
+T-1181	a,old	12 セルの一回性 key 消費の journal 記録。旧系列を再開するとき再起票
+T-1182	old	s8b 凍結 IO test の fixture 名。旧系列を再開するとき再起票
+T-1187	old	8c 条件 3/8 の二段束縛の配線。旧系列を再開するとき再起票
+T-1188	a	承認参照だけを許す意味固定。実害の実測が無い
+T-1195	b	F385 の対応欄を実装に合わせて書き換えた記録。残る作業を持たない
+T-1199	a,old	8c 証拠契約の識別子実在の機械検査。旧系列を再開するとき再起票
+T-1200	b,old	8c 設計文書への承認上限の注記。旧系列を再開するとき再起票
+T-1208	a	判定器に現行 scope の exact 一致を要求する追加。本文自身が「実物が現れた瞬間」の仮想穴と言う
+T-1210	c	reflux_ir.py の emit_predicate が tagged exact-key alternatives として実装済み (golden sha256 束縛あり)
+T-1211	a	受入の世代数検査の外部 anchor を WAL にする追加。実害の実測が無い
+T-1228	a	D431 の positive control 義務の履行として実走経路を復活させる追加。実害の実測が無い
+T-1231	a	failure partial report を formal receipt に載せない予防。現行 receipt は certifying=false と本文が言う
+T-1248	a	journal event schema へ構造化 field を足す相乗り項。実害の実測が無い
+T-1251	a	同一性検査が import 済みコードを束縛する設計の検討。仮想の手順で実害の実測が無い
+T-1285	a	環境変数由来の上限を認可上限以下に限る検査。実害の実測が無い
+T-1289	a	git timeout cap の再較正。本文自身が不足は誤拒否側へ倒れると言う
+T-1296	b	F285 走 C の帰属のための計装。過去 failure の帰属調査だけ
+T-1307	old	8c 12 条件の終端 target の cross-wire。旧系列を再開するとき再起票
+T-1309	a,old	8c 条件の到達性解析の名前束縛化。旧系列を再開するとき再起票
+T-1315	old	8c E2E test の producer 経由化。旧系列を再開するとき再起票
+T-1329	old	floor_scoping.sh の perf 不在。certified consumer に未接続と本文が言う床値系
+T-1343	a	変異 harness の nonce 運搬を連鎖で固定するテストの追加。実害の実測が無い
+T-1347	old	8c 非干渉性の残件の再凍結。旧系列を再開するとき再起票
+T-1354	old	D833 の open 5 項目の領域別閉鎖 (8c)。旧系列を再開するとき再起票
+T-1367	a	既存 15 拒否点への対照の漸進整備。実害の実測が無い
+T-1374	b	runner_executed_sha256 の field の意味の明記だけ
+T-1380	old	共有批准凍結の発効を /rulings で毎回照合する義務。旧系列を再開するとき再起票
+T-1382	a,old	8c 条件評価器の弱さの族扱い。旧系列を再開するとき再起票
+T-1385	old	v2 凍結発効後の予算精算の欠陥。本文自身が現状は発火しないと言う。旧系列を再開するとき再起票
+T-1388	a	do_build の信頼元を manifest schema へ固定する追加。実害の実測が無い
+T-1389	a	campaign root の実走前 manifest 事前登録 (T-1388 と同梱)。実害の実測が無い
+T-1394	a	予約事実の report への永続束縛。実害の実測が無い
+T-1397	b	第 8 回 /rulings の裁定 7 件の fragment 化。控えは rulings-inbox に残り、記録作業だけ
+T-1401	old	8b 段階の印への完了記録 (D739)。旧系列を再開するとき再起票
+T-1402	old	floor_liveness の stage-out 見落とし。旧系列を再開するとき再起票
+T-1405	old	8c C03/C08 の machine_checkable 反転と世代発行。旧系列を再開するとき再起票
+T-1422	old	8c C03/C08 の昇格。旧系列を再開するとき再起票
+T-1423	old	8c 事前登録の現在地節の更新。旧系列を再開するとき再起票
+T-1427	old	render_accepted の production caller (8c certified)。旧系列を再開するとき再起票
+T-1470	old	床値 wave 後の FETCHCONTENT 再利用の再実測。旧系列を再開するとき再起票
+T-1473	old	registered-formal-non-certifying モードの completeness 検査 (8c)。旧系列を再開するとき再起票
+T-1475	a	records report の不整合の懸念の精査。仮想で実害の実測が無い
+T-1481	b,old	8c 第 2 世代以降の非干渉性の限界宣言。旧系列を再開するとき再起票
+T-1482	b,old	8c 条件 2 評価器の状態の記録。旧系列を再開するとき再起票
+T-1488	old	holdout 実測値の tracked 登録 (T-425 と同一裁定)。旧系列を再開するとき再起票
+T-1547	a	生成器の大規模側を閉じる合成データの追加。実害の実測が無い
+T-1555	old	凍結保留 marker の伝播。旧系列を再開するとき再起票
+T-1630	old	8b attempt registry の production 配線。旧系列を再開するとき再起票
+T-1631	old	pilot 投入 gate の必須 kill 移設。旧系列を再開するとき再起票
+T-1632	a	判定不能表現の報告 field 形式の統一。実害の実測が無い
+T-1638	a	stage5 replayer の意味的 disposition と独立 oracle 台帳の新設 (D767)。台帳と判定の追加で、実害の実測が無い
+T-1648	b	legacy correctness を未観測の限界として明記するだけ
+T-1670	old	8b slot と attempt の admission 側束縛。旧系列を再開するとき再起票
+T-1671	old	8b holdout scanner の受理集合。旧系列を再開するとき再起票
+T-1672	old	8b repetition 番号の写像凍結。旧系列を再開するとき再起票
+T-1678	a	材料レポートの昇格を止める validator の追加。実害の実測が無い
+T-1680	b	変異事前登録での数え方の規律の文書化だけ (機械化しない)
+T-1698	d	広い B-4 主張の前提。B-4 は D1936 で記述統計へ限定された
+T-1699	a	B-4 全件報告規則の機械強制 (manifest・registry・全数照合・completeness checker) の追加。実害の実測が無い
+T-1709	old	8c 事前登録の一度きりの改訂 (D911)。旧系列を再開するとき再起票
+T-1710	old	8c 事前登録 §4 の条件を open に保つ裁定の控え。旧系列を再開するとき再起票
+T-1711	old	8c 凍結事前登録本文への結果依存チャネルの反映。旧系列を再開するとき再起票
+T-1712	old	8c 除外 field の測定は完了し「書けない」と結論済み。残る観測点の設計判断は旧系列を再開するとき再起票
+T-1713	old	正式 6 cell の環境同一性の事前封印。旧系列を再開するとき再起票
+T-1722	old	enforcement-source closure の批准手順。旧系列を再開するとき再起票
+T-1738	a,old	admission marker 等の trusted writer 境界。旧系列を再開するとき再起票
+T-1739	old	truncated final row の修復形式の測定。旧系列を再開するとき再起票
+T-1741	old	旧 retry と registry の意味論衝突の段階廃止。旧系列を再開するとき再起票
+T-1762	old	official 専用観測役割の生涯上限。旧系列を再開するとき再起票
+T-1768	d	B-4 事前登録 §10 の広い主張の節。B-4 は D1936 で記述統計へ限定された
+T-1770	old	8c C03/C08 の証拠契約と評価器の食い違い。旧系列を再開するとき再起票
+T-1771	old	8c 事前登録の二段束縛の記述。旧系列を再開するとき再起票
+T-1779	a,old	pair receipt の無い critic 応答の fail-closed 拒否 (8c 前提条件 3)。旧系列を再開するとき再起票
+T-1780	a	WAL と loop_state の論理世代の束縛。crash 時に起こりうる仮想で実害の実測が無い
+T-1781	a	pinned CLI の tool 面の保存または OS sandbox の追加。実害の実測が無い
+T-1782	a	certified と test-only の混成拒否の固定。実害の実測が無い
+T-1785	a	契約 module と authority data の production 層への移設。実害の実測が無い
+T-1787	old	受入 receipt v4 と freeze 束縛。旧系列を再開するとき再起票
+T-1788	a,old	receipt の measurement_head の束縛。本文自身が誤条件は通らないと言う。旧系列を再開するとき再起票
+T-1792	a,old	trial_registry 受入経路の軽量 authority leaf。旧系列を再開するとき再起票
+T-1800	a	mimalloc と googletest の内容の build 境界への束縛。本文自身がこの wave が作った穴ではないと言い、実害の実測が無い
+T-1804	b	legacy resume の受理を認め legacy 表示を維持する裁定の控え
+T-1807	a	cross-binding 受領証本体の永続化。実害の実測が無い
+T-1816	old	8c 事前登録 §6 の陳腐化と条件契約の世代更新。旧系列を再開するとき再起票
+T-1818	a,c	非認証成果物型。本文自身が T-2006 で実装済みの可能性が高いと言う
+T-1821	a	A-1 完了の walltime への機械束縛。実害の実測が無い
+T-1822	a	bench の整定・collector・post-probe の穴。実害の実測が無い
+T-1831	a	撤回を追記で表す方式 (D1071)。実害の実測が無い
+T-1836	a	対象外宣言と実 consumer での拒否機械化 (D1090)。実害の実測が無い
+T-1842	a,old	結果先読みを塞ぐ署名済み admission token (8b holdout)。旧系列を再開するとき再起票
+T-1843	a,old	payload 送信前の model 期待値の写し固定層。旧系列を再開するとき再起票
+T-1850	c	本文自身が「終端記録のみ」と言う
+T-1851	c,old	本文自身が C3c の残件は無く次は T-2724 が持つと言う。旧系列を再開するとき再起票
+T-1855	a,old	分類受領証の certified 参照鎖への編入 (床値)。旧系列を再開するとき再起票
+T-1861	b	nproc study の field の意味の注記だけ
+T-1869	b	qsub --accept-sigterm が効かない事実の記録だけ
+T-1874	old	§5 値 gate の結線 (上流待ちで保留)。旧系列を再開するとき再起票
+T-1875	old	8b pilot の delta_min。旧系列を再開するとき再起票
+T-1876	a,old	pilot 成果を B-2 に数えない保証の機械強制。旧系列を再開するとき再起票
+T-1883	d	2026-07-10 の arXiv 掃引の RW2 化。D1760 は論文が世界の不在を主張しないと決め (7.7.3)、成熟度を上げても使える表現は増えない
+T-1893	b	非権威と分かる名前への変更だけ。consumer gate は D1073 で今は置かない
+T-1895	a	pair receipt sidecar 名・PBS 出力既定・可視性検査。実害の実測が無い
+T-1899	a	解決器の結線か撤去。実害の実測が無い
+T-1902	b,old	他 wave 所有の observation_only 5 行の再分類待ち。旧系列を再開するとき再起票
+T-1912	c	本文自身が AI の手番なし・再開条件は新裁定と言う
+T-1955	old	事前登録 binding 検証器の台帳 genesis parse。旧系列を再開するとき再起票
+T-1956	old	発効 commit の変更 path 集合検査。旧系列を再開するとき再起票
+T-1962	b	事前登録 §10 の fail-closed 文言を実装に合わせて限定する docs 1 箇所の訂正だけ (D1283)
+T-1963	a	提案パラメータからコンパイル済み述語までの鎖の再検証。本文自身が着手条件の成果物が無いと言う
+T-1966	a	走査対象へ 29 site を加える追加 (D1219)。実害の実測が無い
+T-1968	c	本文自身が実例を集めてから定数を置く待機と言う
+T-1969	d	軸 1 文献検索の残件。今回の依頼が停止例として名指しした。軸 1 は D1760 で止めた後 D2095 で再開し、T-2035 で取得済み 78 leaf すべてに裁定が付き凍結記録へ反映して区切った
+T-1970	d	軸 1 AX1-Q6@dblp の宣言的除外。今回の依頼が停止例として名指しした。軸 1 は D2095 で再開後 T-2035 で区切った
+T-1973	b,d	関連研究の逆引き索引の再棚卸し。記録作業で、D1760 の後は必須でない
+T-1980	b	到達不能の理由を台帳へ書くだけ
+T-1984	c	本文自身が production の必須化は行わず未閉鎖と明記して運用すると言う
+T-1995	c	s8b_oracle_driver.py の evaluate_fn gate (commit 0218acc61、D1198) が build 0 回の callable に証拠一致を要求し、D1199 の seam は塞がれている
+T-2002	c	D1205 の「宣言値のまま発効」は凍結済み B-4 事前登録 (docs/phase3-b4-reflux-ablation-preregistration.md) に既に記入され、D1836 が既裁定として索引から外している
+T-2004	a	停止回の取り消し記録の追加 (3 driver 族)。実害の実測が無い
+T-2012	a	flaky_test_holds の evidence_id に placeholder を許す検査。未 land fragment が正本で、実害の実測が無い
+T-2016	c	本文自身が今は実装しないと言う
+T-2024	c	本文自身が「記録のみで終端」と言う
+T-2030	b	一般規則を手順書本体へ集約する文書作業だけ
+T-2031	d	軸 1 OpenAlex の期待 echo の supersede。軸 1 は D2095 で再開後 T-2035 で 78 leaf すべてに裁定が付き区切った
+T-2032	b	保証範囲を明記して閉じる裁定の控え
+T-2036	b	一般規則の文言の拡張だけ
+T-2051	b	限界の明記と既存条件の維持だけ
+T-2053	b,old	後継 erratum への記録。旧系列を再開するとき再起票
+T-2066	a	起動 context digest を COMMIT 成果物へ残す追加。実害の実測が無い
+T-2077	c	D1288 は src/coder-spec.md :27・:29・:35・:51 に反映済み (数値 literal 1 個限定、旧記述は撤回と注記)
+T-2078	b	前提の訂正の追記と方針の追認だけ
+T-2082	c	本文自身が「不採用側で終端」と言う
+T-2083	d	本走中の要求待ち量の機序診断。D1678 が B-10 の機序の拡張を見送り、同内容の [T-1906] も見送り台帳にある
+T-2085	c	本文自身が条件未成立の待機と言う
+T-2087	a	救出 command の終端の改修。実害の実測が無い
+T-2088	b	--help と NOTE への明記だけ
+T-2092	d	軸 1 の索引の件数不一致 (D1331) の調査。軸 1 は D2095 で再開後 T-2035 で区切った
+T-2093	b	理由ラベルの不正確さ。本文自身が状態判定と受理集合に影響しないと言う
+T-2094	b,d	関連研究 README の導線。軸 3 の amendment 待ちの文書作業
+T-2095	a	未 fold failure fragment の仮受理。実害の実測が無い
+T-2096	a	候補 commit graph の調査から 3 案比較。実害の実測が無い
+T-2097	c	本文自身が実体は分解 task が持つと言う
+T-2099	b	conftest docstring の誘導の根拠が単一 process 測定だけという注記。本文自身が成果物の値・受理集合・参照を変えないと言う
+T-2101	b	continuation 側の提案が束縛対象外である限界の明記だけ (D1897)
+T-2105	c	本文自身が「着手しない」と言う
+T-2106	b	hooks README の記述などの相乗り待ち。本文自身が単独の wave は起こさないと言う
+T-2108	a	最終層が台帳の生存を再確認しない整理 (D1342)。実害の実測が無い
+T-2109	b	調査して D1192 の未達を明記して終端する記録作業
+T-2110	a	床値の masstree 根の供給が sort_best cell の同居に依存。本文自身が現時点で到達しないと言う
+T-2112	a	DW-S04 へ終端裁定の枝を足す手順追加。実害の実測が無い
+T-2114	old	凍結文書の source closure の pin 追加。旧系列を再開するとき再起票
+T-2116	b	証拠の射程の明記だけ
+T-2126	a	失効した coverage の復元と gate の細分化。実害の実測が無い
+T-2130	old	共有 admission root の旧 schema 台帳 (T-1851 の実装時)。旧系列を再開するとき再起票
+T-2133	b	2 つの決定の関係を台帳で明示する追記だけ
+T-2134	a	**kwargs の collector を受理する seam。本文自身が成果物への影響を書けないと言う
+T-2137	a	screening の floor 照合に records と threads を足す。同一条件で別動作点の floor がある場合の仮想で、実害の実測が無い
+T-2138	a	cross-binding 照合点の負の対照の追加。実害の実測が無い
+T-2139	c,d	本文自身が「見送り (再開条件つき)」と言う (B-4 と certified 選択の接続)
+T-2147	c	本文自身が前提が当面成立しないので保留と言う
+T-2148	a	署名の世代強制の採用。実害の実測が無い
+T-2149	b	再送防止の射程の記述確定だけ
+T-2150	b	関門主張の縮退の記録だけ
+T-2153	a	意味 witness の登録は済み、残る driver 配線は未起票の追加。実害の実測が無い
+T-2156	a	繰延べ台帳の安定 ID と負例の追加。本文自身が踏んだのは fail-closed 側と言う
+T-2158	a	許可リストの機械検査での拡張。実害の実測が無い
+T-2159	old	C05 の schedule 正本 (上流待ち)。旧系列を再開するとき再起票
+T-2160	a	capability から token を発行する adapter。実害の実測が無い
+T-2162	b	多重防壁であることの明記だけ
+T-2163	a	変異の当て方の修正の前の射程実測。実害の実測が無い
+T-2165	a	A-1 v3 の無効規則の実装証拠を閉じる。実害の実測が無い
+T-2167	d	軸 3 の登録型文献検索は D1931 (RW0 据え置き) で停止
+T-2170	d	比較の第 2 プロトコルは D2220 で MOCC に決まり、ComSys 原稿も TicToc は較正記録だけと書く
+T-2171	d	Cicada の移植時の注意 (D1464)。現行の範囲は Silo と MOCC (D2220) で Cicada は測定 0 件
+T-2173	a	署名経路の版非依存化。実害の実測が無い
+T-2177	b	README の未被覆記述の訂正だけ
+T-2178	a	consumer 閉包の read-only 調査。実害の実測が無い
+T-2184	a	鍵儀式後の最終採用の条件。実害の実測が無い
+T-2185	c	本文自身が「見送り」と言う
+T-2190	c	本文自身が上流送信を見送り材料として保持すると言う
+T-2192	c	sweep_pending.py の resolve() は既に反復化済み (dev-wave-jobs/rulings-tools/sweep_pending.py :41-45)
+T-2194	c	B-10 事前登録の改訂への相乗り。改訂が起きなければ現状維持と本文が言う
+T-2197	b	道具の同一性の限界の明記だけ
+T-2199	c	前提の [T-2232] (Pegasus job script) は着地済みで、段 4 loop は T-2849 系列で日常稼働している
+T-2203	old	段 8c 受理判定の権威束縛。旧系列を再開するとき再起票
+T-2204	c	本文自身が「記録のみで終端」と言う
+T-2206	b	汎用 helper を区別できない限界の明記だけ
+T-2208	c	本文自身が「繰延べ」と言う
+T-2209	a	macro 棚卸しの with 束縛。本文自身が現行 sink の分類に影響しないと言う
+T-2210	a	注入枝の返却物検査の厳密化。実害の実測が無い
+T-2212	c	本文自身が「記録のみで終端」と言う
+T-2213	b	certified receipt の限界の明記だけ
+T-2214	c	本文自身が必要になった時点で取り込むと言う
+T-2215	d	B-10 は D1678 で現行 report をもって閉じ、残りの感度・機序は査読要求時まで見送り
+T-2217	a	手書き diff の hunk header の機械検査の追加。実害の実測が無い
+T-2219	a	測定認可の機械的要求の要否を dataflow で確かめる作業 (D1532)。実害の実測が無い
+T-2220	b	成果物の不変性の防いでいない範囲の明記だけ
+T-2225	a	genome 不在 record の silo 仮定の許可リスト化。本文自身が既存の値は動かないと言う
+T-2233	old	試行 slot と C05 schedule の結線。旧系列を再開するとき再起票
+T-2235	old	schedule と予算の検証位置の前倒し。旧系列を再開するとき再起票
+T-2238	b	D669 の除外の失効の記録。除外は既に消えており、当該 file を含む受入全走が通る限り D669 の復活条件は立たない。残るのは失効の記録だけ
+T-2240	c	本文自身が「記録のみで終端」と言う
+T-2241	old	8c 条件 9 の残り 3 穴。旧系列を再開するとき再起票
+T-2251	a	policy family membership の網羅検査の追加。実害の実測が無い
+T-2255	c	本文自身が「実施しない」と言う
+T-2259	c	本文自身が今は決めないと言う (窓をまたぐ継続取得)
+T-2260	a	証拠の取得時点の束縛。実害の実測が無い
+T-2264	old	permutation witness の同値関係 (P6 の下流)。旧系列を再開するとき再起票
+T-2265	c	本文自身が費用対効果でユーザーが打ち切ったと言い、勧めた [T-2539] も持ち越しに無い
+T-2266	c	本文自身が「現状維持」と言う
+T-2267	c	本文自身が「据え置き」と言う
+T-2268	c	F825 の恒久対応 (-c protocol.file.allow=always) は tools/dev_waves/git_state.py の submodule update に実装済み
+T-2269	c	D1575 の前提 3 (Poisson 仮定) は D1932/D1933 の実測で解決済み
+T-2271	old	gate FREEZE-AX-TOPOLOGY の差分列挙の拡張。旧系列を再開するとき再起票
+T-2275	a	output snapshot の動的 git ignore 依存。本文自身が現在の寄与は 0 件と言う
+T-2278	c	本文自身が並行 producer の実経路が生じたときに昇格すると言う
+T-2283	a	compile_commands.json 差し替えの検出機構の設計メモ。実害の実測が無い
+T-2284	a	objcopy による symbol 除去を捕まえる別手段の評価。実害の実測が無い
+T-2285	b	D1597 の規則 (再利用は系列ごとの有限 digest 集合) の控え。次系列の実装時に D1597 を引けば足りる
+T-2287	b	非保証の明記だけ
+T-2289	c	本文自身が単独では建てないと言う
+T-2293	c	本文自身が Q2〜Q4 は着手しないと言う
+T-2295	b	I 面の不在の記録。本文自身が gate の妨げにならないと言う
+T-2296	a	receipt の証明面を判別できない残余。実害の実測が無い
+T-2299	b	receipt field 名と K の証拠位置の明記だけ
+T-2302	c	本文自身が「完了」と言う
+T-2303	c	D1602 の 2 file 分割は実施済みで、D2249 が T-2303 は裁定済みか条件不成立と書き、律速は T-2273 へ移った
+T-2305	c	本文自身が「実施しない」と言う
+T-2306	a	plot_backoff の layout 検査の fail-closed 化と fixture の実寸化。凍結図は変えず、実害の実測が無い
+T-2307	a	ss2pl lock study の図のテスト追加。実害の実測が無い
+T-2308	a	walk model test の fixture の実寸化。実害の実測が無い
+T-2309	a	9pair 図 provenance test の fixture 追加。実害の実測が無い
+T-2310	a	producer 実在形の回帰テストの追加。実害の実測が無い
+T-2313	d	大 backoff 域の機序の再評価。B-10 の機序は D1678 で見送り (事前登録 §9)
+T-2317	a	段 4 loop への layout 検査の移植。本文自身が production は露出しないと言う
+T-2319	a	suite 構築の重複の整理。本文自身が正しさと受理集合は変わらないと言う
+T-2323	d	関連研究の軸の axis_complete の供給経路の調査 (D2120 項 17)。軸 1 は T-2035 で取得済み 78 leaf を凍結記録へ反映し 2 本目の論文の参考材料として区切った
+T-2325	b	単一環境での認証という限界の注記だけ
+T-2326	a	ORACLE_CONTRACT_ID の閉包の拡張 (identity 変更)。実害の実測が無い
+T-2330	a	知識受領証の分類の読み出し側強制。本文自身が材料レポートは digest 差で止まると言う
+T-2331	c	本文自身が着手条件は事例 1 件の観測と言う
+T-2334	a	変異 test の try 範囲の nit。実害の実測が無い
+T-2335	a	run_formal の統合 test の追加 (nit)。本文自身が成果物の値を変えないと言う
+T-2336	a	job-result への trial report path の追加と runbook 明記。実害の実測が無い
+T-2342	d	動的上限が発火する regime での検証。本文自身が D1505 の後はその regime が候補にならないと言う
+T-2343	b	非保証の明記だけ
+T-2344	a	closure emitters の 2 段目 23 本と exact-85 の再走査 (閉包の拡張)。実害の実測が無い
+T-2348	a	完了側からの legacy study 既定の撤去。実害の実測が無い
+T-2352	a	直列性検査の単体テストと PID marker の追加 (should)。実害の実測が無い
+T-2355	b	header bytes を束縛しない限界の明記だけ
+T-2357	c	本文自身が「見送り」と言い、B-10 正式走は閉じたと言う
+T-2358	b	job 単位までであることの明記だけ
+T-2359	b	一般化しないことの明記だけ
+T-2360	a	receipt の job_id の raw 記録の整理。実害の実測が無い
+T-2362	a	他 tool の /scr 不在登録の検査。実害の実測が無い
+T-2363	a	段 6 の nit (fail-closed 検査の範囲拡大)。本文自身が land 判定の値を変えないと言う
+T-2370	c	本文自身が「見送り → 条件待ち」と言う
+T-2371	b	欠測規則の対象外であることの明記だけ
+T-2372	b	mocc DELETE 経路の保証水準の明記だけ
+T-2375	a	A-1 の qstat fixture の実機逐語化。本文自身が機能欠陥ではないと言う
+T-2376	b	producer-only invariant であることの明記だけ
+T-2377	c	本文自身が「実施しない」と言う
+T-2381	c	本文自身が「実施しない」と言う
+T-2382	c	本文自身が「実施しない」と言い、再提示条件の不成立を判定済み
+T-2388	old	8b restart runbook W-3 の記述の現況化。旧系列を再開するとき再起票
+T-2389	c	本文自身が「当面実施しない」と言う
+T-2390	a	全防護対象への cwd 追跡の一般化。実害の実測が無い
+T-2391	a	guard の perf option と cp の非対称の修正。実害の実測が無い
+T-2393	old	not-consumed の試行を outer receipt へ運ぶ (D1701)。単位は D1269 の (prereg_generation, holdout, arm, replicate_slot) で 8b の holdout 試行。旧系列を再開するとき再起票
+T-2394	b	単一 repository 前提の限界の明記だけ
+T-2395	old	8c 設計の承認 artifact の読み方。旧系列を再開するとき再起票
+T-2400	b	検査の主張範囲の文言修正だけ
+T-2402	c	本文自身が「今は入れない」と言う
+T-2403	a	hold 解除時の赤の 1 回観測。実害の実測が無い
+T-2405	c	本文自身が「終端」と言う
+T-2412	c	本文自身が「残件なし」と言う
+T-2413	c	本文自身が「採らない」と言う
+T-2416	a	両層同時変異の対の検査。本文自身が出荷コードは保護されていると言う
+T-2420	a	renameat2 公開経路の族一般化。実害の実測が無い
+T-2426	c	本文自身が再訪条件 (人手の見落とし 1 件) 待ちと言う
+T-2427	b,old	8c C04 の claim の文言修正。旧系列を再開するとき再起票
+T-2428	a,old	8c C04 の field_paths の照合修正。旧系列を再開するとき再起票
+T-2431	b	既知限界の明記だけ
+T-2432	b	現状限界の明記だけ
+T-2433	a	partial staging が残る共有 helper の欠陥。本文自身がこの wave 以前から同一と言い、実害の実測が無い
+T-2434	b	worker 契約の記述の docs 修正だけ
+T-2435	a	completion staging の freshness 検査の順序。本文自身が引き金は極めて狭いと言う
+T-2437	c	run_origin_trial の production 呼び手は T-2507 (D1875) で置かないと決まった
+T-2438	a	bool を使う負例の追加 (変異を KILLED へ移す)。実害の実測が無い
+T-2439	b	OpenAlex の取得時刻を検査しないことの契約への明記だけ (D1783)
+T-2444	b	受入 pre の構造の事実追記だけ。受入所要の現行診断は T-2273 が持つ
+T-2446	c	本文自身が「残件なし」と言う
+T-2448	c	本文自身が「保留」と言う (D1936 項 16)
+T-2452	a	queue preflight の誤判定。本文自身が誤った成果物は生まれないと言う
+T-2454	c	本文自身が「残件なし」と言う
+T-2455	c	byte 予算の残量の注記。本文自身が先回りして削らないと言う
+T-2456	b	設計 §3.4 への定義の追記だけ
+T-2458	c	台帳の count 除去の条件付き相乗り。本文自身が条件不成立なら現状維持で終端と言う
+T-2460	b	到達しないことの限界の 1 行記載だけ
+T-2462	c	本文自身が T-2463 へ統合し単独の手番なしと言う
+T-2466	c	本文自身が「残件なし」と言う
+T-2467	a	dataclass の subclass 残留。本文自身が公開経路では拒否されると言う
+T-2468	c	本文自身が DW-G04 に従い設計メモに留めると言う
+T-2469	b	保証の限界の明記だけ
+T-2471	a	standalone verifier の起点検査の欠落。正式 issuer は検査しており実害の実測が無い
+T-2472	a	standalone verifier の lifecycle 再導出の欠落。実害の実測が無い
+T-2473	a	standalone verifier の manifest_path 比較の欠落。正式 issuer は比較しており実害の実測が無い
+T-2474	b	記録していない範囲の記述だけ
+T-2475	b	起点生成の運用手順の文書化だけ
+T-2476	b	CLI から読めない範囲の明記だけ
+T-2477	old	D1903 の判定器 CLI は 8c 判定器 (s8c_preregistration.py) で、8c は D2212 項 5 で必須経路外。旧系列を再開するとき再起票
+T-2478	a	DW-O26 への checker 実行義務の追加。実害の実測が無い
+T-2479	b	記述の訂正 1 件の追記だけ
+T-2481	c	本文自身が「残件なし」と言う
+T-2485	b	保証の限界の明記だけ
+T-2488	c	本文自身が「残件なし」と言う
+T-2490	b	保証限界の明記だけ
+T-2492	c	D1881 の root 固定は [T-2545] の commit 7b0b43d04 (p3_b4_prerun_issuer.py) で実装済み
+T-2493	c	本文自身が実装着地済みと言う
+T-2494	b	提案束縛の保証境界の明記だけ
+T-2495	b	最遅 shard の床の訂正の追記だけ。受入所要の現行診断は T-2273 が持つ
+T-2499	b	説明文字列の path 数 62→63 の訂正だけ
+T-2506	b	保証しない範囲の明記だけ
+T-2507	c	本文自身が「保留 (整合待ち)」と言い、呼び手を置かないと決まった
+T-2508	a	completeness の origin 分岐。origin trial の呼び手は置かないと決まった
+T-2510	a	enforcement source closure の関門の変異方法。実害の実測が無い
+T-2516	b	docstring の行範囲の訂正だけ
+T-2517	a	issuer test の複数 workload 化。実害の実測が無い
+T-2523	b	限界の明記だけ (D1936 項 20)
+T-2524	b	限界の明記だけ (D1936 項 20)
+T-2529	c	本文自身が「見送り」と言う
+T-2530	b	契約の明文化だけ
+T-2531	old	8c runbook の記述と実装の食い違いの erratum。旧系列を再開するとき再起票
+T-2532	c	本文自身が「運用採用」で汎用除外を作らないと言う
+T-2537	b,c	見送りと保証外の明記だけ
+T-2540	c	本文自身が「追加認証見送り」と言う
+T-2542	c	本文自身が「現状維持」と言う
+T-2546	b	実装で閉じた部分の追補だけ
+T-2549	c	本文自身が「保留」と言う
+T-2550	b	runbook の過去 path の記述の訂正だけ
+T-2552	c	本文自身が「見送り」と言う
+T-2553	a	閉包への implicit constructor edge の追加。本文自身が機械可読な適用限界として明記済みと言う
+T-2554	a	runtime anomaly と静的 verdict を合成する consumer の追加。anomaly の即 reject は既存の verifier gate が担う
+T-2555	b	D22 の行番号参照の更新だけ
+T-2556	a	checker の他 protocol への拡大。実害の実測が無い
+T-2558	b	適格範囲の明記だけ
+T-2562	c	本文自身が「後回し」と言う
+T-2563	c	本文自身が「未解決で維持」と言う
+T-2564	b	依存ライブラリ commit の限定記録だけ
+T-2571	c	本文自身が「保留」と言う (D1936 項 16)
+T-2572	c	本文自身が「保留」と言う (D1936 項 16)
+T-2573	c	本文自身が「保留」と言う (D1936 項 16)
+T-2574	c	本文自身が「保留」と言う (D1936 項 16)
+T-2576	b	上流の死にコードを insight にする記録作業だけ
+T-2577	c	本文自身が「見送り」と言う (D1936 項 40)
+T-2578	c	本文自身が「見送り」と言う (D1936 項 41、不要設定の取り下げは同項 6 が持つ)
+T-2580	c	本文自身が「見送り」と言う (D1936 項 42)
+T-2584	c	本文自身が「後回し」と言う (D1936 項 36)
+T-2585	d	B-10 の機序の拡張。D1678 で見送り
+T-2587	d	用量反応の機序。D1678 が明示列挙した見送り 5 項目の 1 つ
+T-2597	b	説明コメントの行番号の訂正だけ。本文自身が受理集合も成果物の値も変えないと言う
+T-2598	a	--lane の値の改名。実害の実測が無い
+T-2602	c	本文自身が「作らない」と言う
+T-2603	a	重複 test 1 件の削除。実害の実測が無い
+T-2612	b	phase3.md のテスト名の誤記の訂正。本文自身が成果物の値・受理集合・参照は変わらないと言う
+T-2614	a	git timeout 診断文の改善。実害の実測が無い
+T-2615	b	agent-architecture の断定の照合と訂正だけ
+T-2618	c	本文自身が「現状維持」と言う
+T-2619	c	本文自身が「K=3 維持」と言う
+T-2623	c	本文自身が「上限据え置き」と言う
+T-2624	c	本文自身が「条件成立待ち」と言う
+T-2626	a	--output-parent の末尾改行の欠落。実害の実測が無い
+T-2628	b	コメントと拒否診断文の訂正だけ。本文自身が受理集合は変わらないと言う
+T-2631	b	限界の明記だけ
+T-2633	c	本文自身が「残件なし」と言う
+T-2642	a	/cleanup-branches の進入禁止の文面追加 (T-2641 の land 待ち)。実害の実測が無い
+T-2643	a	cc-diagnostics.md の LIVING_DOCS 登録。実害の実測が無い
+T-2646	b	保証しない範囲の明記だけ
+T-2649	a	B-4 床値 registry の recovery 行の TypeError の漏れ。実害の実測が無い
+T-2652	a	床値の単一 authority 経路の実 bytes 正例の追加。実害の実測が無い
+T-2653	a	write_material_report の集約 authority の正例。実害の実測が無い
+T-2657	a	pack 破損からの復帰の実 fixture。実害の実測が無い
+T-2658	a	submit 系 shell の CDPATH 弱さ。実害の実測が無い
+T-2659	b	限界の明記だけ (相乗り)
+T-2664	a	候補集約の basename 条件の穴。本文自身が安全側の穴で急がないと言う
+T-2666	a	/cleanup-branches の手順の局所的明示。本文自身が受理集合は変わらないと言う
+T-2667	c	本文自身が「実施しない側へ落とした」と言う
+T-2672	b	本文自身が D1996 が既に記録していると言う
+T-2673	a	受領証の淘汰で warm 連鎖が切れうる。本文自身が誤った受理は作らないと言う
+T-2677	b	意味と限界の runbook への明記だけ
+T-2679	b	射程注記 1 行の追記だけ
+T-2682	c	本文自身が docs 予算待ちで収容できなかったと言う
+T-2684	a	schema の由来への感度の検査。本文自身が受理集合は変わらないと言う
+T-2695	b	限界として残し sidecar として保存する明記だけ
+T-2696	b	dev-wave 文書への手順の収容だけ
+T-2707	b	ledger-check の説明の訂正だけ
+T-2708	a	fixture builder への相乗り検査。実害の実測が無い
+T-2712	old	8b の genesis slot 集合の結線。旧系列を再開するとき再起票
+T-2719	old	official 床値の退避 bundle。本文自身が仮想のうちに機構を足さないと言う。旧系列を再開するとき再起票
+T-2720	old	official 床値の退避後の扱い。旧系列を再開するとき再起票
+T-2721	a	cache_key の回帰テストの片側変化の入力追加。本文自身が成果物影響は仮想と言う
+T-2724	old	8b 凍結 v2 g1 chain の live launch 以後 (D2212 項 5 で必須経路外)。旧系列を再開するとき再起票
+T-2726	a	DW-O09 の pin 閉包へのメタテスト逆引き手順の追加。失敗は F370 に記録済み
+T-2727	a	DW-S05-A への consumer 列挙の採り直し手順の追加。失敗は F1014 に記録済み
+T-2730	a	欠陥下で hang する test の後始末の fix。実害の実測が無い
+T-2734	b	限界の明記だけ
+T-2736	a	job dir の空 .git の撤去可否の調査。本文自身が回避済みと言う
+T-2738	a	_wfg_text_hits の path 文字列の誤 hit。実害の実測が無い
+T-2742	a	(1)(2)(4) は見送り、(3) は負例確認だけ。実害の実測が無い
+T-2747	b	同値テストの射程の明記とコメントの訂正だけ
+T-2749	a	全体予算と rescue 予算の実測による確定。実害の実測が無い
+T-2751	a	台帳 tool の marker 行読み飛ばしの局所修正。実害の実測が無い
+T-2752	b	限界の明記だけ
+T-2753	b	role 文書への 1 行注記の相乗りだけ
+T-2754	a	real-repo lock の昇格失敗後の穴の局所修正。実害の実測が無い
+T-2755	a	DW-M05 への 1 文の収容と予算増。失敗は F300 に記録済み
+T-2765	a	cleanup・land tool の実行場所分類の実測。実害の実測が無い
+T-2769	a	test の while 検査の偽赤の可能性。実害の実測が無い
+T-2770	c	本文自身が受入の壁に効くと実測で分かった場合に着手すると言う
+T-2771	a	関門が例外で抜けたときの供給側観測の保持。実害の実測が無い
+T-2781	c,old	本文自身が実測で不足を示すまで設計しないと言う (8c の登録 launch)。旧系列を再開するとき再起票
+T-2784	a	保存済み report と fresh 比較 consumer の互換性の局所調査。実害の実測が無い
+T-2801	a	fixture の走査所要と実行識別を junit に残す記録の設計。実害の実測が無い
+T-2805	b	混雑時の全史監査の観測を集め再訪条件を見張るだけ
+T-2812	c,old	本文自身が (1)(4) は保留・(3) は走らせない・(2) は T-2795 へ移管と言う。旧系列を再開するとき再起票
+T-2819	b	queue-wait-timeout 経路の実走証拠を 1 件取るだけ
+T-2822	c	本文自身が「据え置き」で設計 wave は起こさないと言う
+T-2823	a	dispatch receipt へ qsub→開始の待ちの field を足す追加。記録・判定を誤らせた実害の実測が無い
+T-2828	a	fix 巡の旧 branch を manifest に記録する設計。本文自身が /cleanup-branches が回収すると言う
+T-2831	a	test harness の SKIP の数え方の局所修正。本文自身が帰結は安全側と言う
+T-2832	c	本文自身が運用中で R2 は再提示の目安待ちと言う
+T-2835	b	変更後の経路の初回実測を worklog へ 1 行写す記録だけ
+T-2837	c	本文自身が予算に入る場合だけ収容し、既に DW-O17 が許容していると言う
+T-2841	a	/cleanup-branches の改善候補 3 件の routing。実害の実測が無い
+T-2845	c	本文自身が「今は起こさない」と言う
+T-2861	b	tools/pegasus/README.md の同 job pair の記述を現行へ直す文書訂正だけ。本文自身が受理集合・argv は変えないと言う

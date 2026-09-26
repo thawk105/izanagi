@@ -1,0 +1,7 @@
+T-1983	keep	-	B-4 事前登録の予定開始時刻の記入義務を撤廃する改訂 (D1649)。B-4 は D1936 項 8・D2201 で継続中の現行系列で、裁定済みの要件の緩和は 4 区分に当たらない
+T-1699	drop	a	B-4 全件報告規則の機械強制 (manifest・registry・全数照合・completeness checker) の追加。実害の実測が無い
+T-2425	keep	-	B-4 床値 D を exact 有理数で凍結し直す (D1819)。記録 float が exact 値より小さく、等号込みの block_score で引き分けが勝ちへ変わる経路が実在する (閾値が候補に甘い向き、規律 2 の面)。床値を使う正式成果物の発行前に要る
+T-2648	drop	a	B-4 床値 retry の消費側と query の round 検査の非対称。敵対相談が示した既存差で、実害の実測が無い
+T-2649	drop	a	B-4 床値 registry の recovery 行の TypeError の漏れ。実害の実測が無い
+T-2652	drop	a	床値の単一 authority 経路の実 bytes 正例の追加。実害の実測が無い
+T-2110	drop	a	床値の masstree 根の供給が sort_best cell の同居に依存。本文自身が現時点で到達しないと言う

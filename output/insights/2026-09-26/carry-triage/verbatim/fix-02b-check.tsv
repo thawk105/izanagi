@@ -1,0 +1,29 @@
+T-2002	drop	c	D1205 の「宣言値のまま発効」は凍結済み B-4 事前登録 (docs/phase3-b4-reflux-ablation-preregistration.md) に既に記入され、D1836 が既裁定として索引から外している
+T-2005	keep	-	B-4 事前登録の model snapshot 欄 (同文書 :166) が未記入のまま。B-4 は D2201・D2213 で継続中の現行系列 (旧系列ではない)
+T-2077	drop	c	D1288 は src/coder-spec.md :27・:29・:35・:51 に反映済み (数値 literal 1 個限定、旧記述は撤回と注記)
+T-2083	drop	d	本走中の要求待ち量の機序診断。D1678 が B-10 の機序の拡張を見送り、同内容の [T-1906] も見送り台帳にある
+T-2092	drop	d	D1331 は軸 1 (OpenAlex) の索引の件数不一致。軸 1 の継続取得は D1760 で停止
+T-2104	keep	-	flock が実行区間しか覆わず実行中の arm を終了済みと誤判定して不可逆な missing 記録を生む欠陥 (D1346) が、現行 B-4 producer (p3_b4_raw_record_producer.py :68 の自己申告) に残る
+T-2167	drop	d	軸 3 の登録型文献検索は D1931 (RW0 据え置き) で停止
+T-2170	drop	d	比較の第 2 プロトコルは D2220 で MOCC に決まり、ComSys 原稿も TicToc は較正記録だけと書く
+T-2171	drop	d	Cicada の移植時の注意 (D1464)。現行の範囲は Silo と MOCC (D2220) で Cicada は測定 0 件
+T-2192	drop	c	sweep_pending.py の resolve() は既に反復化済み (dev-wave-jobs/rulings-tools/sweep_pending.py :41-45)
+T-2199	drop	c	前提の [T-2232] (Pegasus job script) は着地済みで、段 4 loop は T-2849 系列で日常稼働している
+T-2215	drop	d	B-10 は D1678 で現行 report をもって閉じ、残りの感度・機序は査読要求時まで見送り
+T-2265	drop	c	本文自身が費用対効果でユーザーが打ち切ったと言い、勧めた [T-2539] も持ち越しに無い
+T-2268	drop	c	F825 の恒久対応 (-c protocol.file.allow=always) は tools/dev_waves/git_state.py の submodule update に実装済み
+T-2269	drop	c	D1575 の前提 3 (Poisson 仮定) は D1932/D1933 の実測で解決済み
+T-2303	drop	c	D1602 の 2 file 分割は実施済みで、D2249 が T-2303 は裁定済みか条件不成立と書き、律速は T-2273 へ移った
+T-2313	drop	d	大 backoff 域の機序の再評価。B-10 の機序は D1678 で見送り (事前登録 §9)
+T-2318	keep	-	p3_s4_loop_sort.py :105 が ENV_TAG=linux-baremetal を直書きのまま。sort 軸は ComSys 原稿の評価軸で、新規投入の要否を確定できない
+T-2422	keep	-	D2044 項 35 の対象 docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md が現存し、相談の子が実際に誤読した実害がある
+T-2477	drop	old	D1903 の判定器 CLI は 8c 判定器 (s8c_preregistration.py) で、8c は D2212 項 5 で必須経路外。旧系列を再開するとき再起票
+T-2492	drop	c	D1881 の root 固定は [T-2545] の commit 7b0b43d04 (p3_b4_prerun_issuer.py) で実装済み
+T-2511	keep	-	前提の [T-2228] は 2026-09-17 に結論済みで、A-2 (論文材料) の限定の見直し判定だけが未実施
+T-2541	keep	-	tools/codex_worker_launch.py :2487-2506 が evidence 未完なら attempt 未達でも max_attempts を返す構造のままで、相談の受領証の記録を誤らせる
+T-2585	drop	d	B-10 の機序の拡張。D1678 で見送り
+T-2587	drop	d	用量反応の機序。D1678 が明示列挙した見送り 5 項目の 1 つ
+T-2699	keep	-	非 sort 単独 campaign の prebuild。現行 campaign (T-2865・T-2849) で条件が成立しているかを確証できず、推測で落とさない
+T-2725	keep	-	certify_calibration.sh・mocc_trace_pilot.sh・t141_region_profile.sh に orchestrator import が残る (F88 の実害と同型)。mocc_trace_pilot.sh は現行 MOCC の trace 検証に使う
+T-2740	keep	-	ss2pl lock study は 2026-09-18 の T-2737 まで研究対象で、計器の event 欠落が残る
+T-2741	keep	-	ss2pl_lock_study.sh :201 の dependency_policy 段の付け替えが未実装 (T-548 の取りこぼし consumer)
