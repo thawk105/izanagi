@@ -1699,6 +1699,8 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   繋がらない (D2159・D2134)。択 (a) 各 arm 120 以上・(b) 曝露量を増やす cell・(c) 観測者効果を更に軽くする設計は残す。
   再訪条件 = 上流への報告 ([T-2791]) に返答があったとき、または mocc の certified 系列が論文主張に要ると決めたとき。
 
+- [T-2797] B-5 生成器対照 (backoff の値 1 個での LLM 対 random / sweep) — 理由: ユーザー裁定で v2 を発効しない (D2259)。査読の「なぜ LLM か」には列挙できない空間での対照が効くので、関数単位の軸で取り直す。v1 cohort は閉鎖済み (v1 §15)、v2 の実装は main に残る。
+
 ### プロセス文書系
 
 - [T-040] **CLAUDE.md 作業手順 5 への provenance pointer 配線** (B-032, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — hot path への provenance pointer を承認し現行導線に無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
