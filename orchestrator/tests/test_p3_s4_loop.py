@@ -10696,6 +10696,13 @@ def test_concurrent_verify_cli_rejects_missing_requirements(capsys):
         assert "--verify-performance-concurrent requires" in capsys.readouterr().err
 
 
+def test_concurrent_verify_absent_from_default_search_identity(tmp_path, monkeypatch):
+    layout, _ = _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, False)
+    lock = json.loads(wal.read_lock(layout))
+    search = json.loads(lock["identity_preimage"])["search_config"]
+    assert "verify_performance_concurrent" not in search
+
+
 def test_write_heavy_concurrent_flag_reaches_evaluate(tmp_path, monkeypatch):
     from orchestrator.campaign import loop, pipeline
     layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)

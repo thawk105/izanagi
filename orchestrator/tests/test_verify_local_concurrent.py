@@ -3,26 +3,49 @@ from __future__ import annotations
 
 import os
 import shutil
+import time
 from pathlib import Path
 
 import pytest
 
 from orchestrator.campaign import pipeline, wal
+from orchestrator.verifier import parse
 from orchestrator.campaign.model import Genome, STAGE_COMMIT, STAGE_VERIFY_DONE
 from orchestrator.campaign.pipeline import CorrectnessWorkload, PerfConfig
 from orchestrator.tests import test_campaign as fixtures
 
 _HERE = Path(__file__).resolve().parent
+_ORIGINAL_PARSE_WORKER = parse._parse_file_worker
+_SLOW_POOL_DIRS = []
+_SLOW_POOL_LOG = None
+
+
+def _probe_parse_worker(task):
+    if _SLOW_POOL_LOG is not None and any(
+            task[1].startswith(directory + os.sep)
+            for directory in _SLOW_POOL_DIRS):
+        fd = os.open(_SLOW_POOL_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            os.write(fd, f"{os.getpid()}\n".encode())
+        finally:
+            os.close(fd)
+        time.sleep(30)
+    return _ORIGINAL_PARSE_WORKER(task)
 
 
 def _evaluate(*, concurrent: bool, red_rep: int | None = None,
               trace_failure: int | None = None, events=None,
-              fork_pids=None, verify_calls=None):
+              fork_pids=None, verify_calls=None, slow_reps=(),
+              completion_log=None, distinct_first=False,
+              slow_pool_log=None, killed_groups=None):
+    global _SLOW_POOL_DIRS, _SLOW_POOL_LOG
     fixtures._refresh_certified_writer_authority()
     layout = fixtures._tmp_layout()
     context = fixtures._BUILD_CONTEXT
     live_verifier = pipeline.verify_trace_dir_with_capability
     live_fork = os.fork
+    live_killpg = os.killpg
+    live_parse_worker = parse._parse_file_worker
     collected = []
     with fixtures._mock_pipeline_multipass([(2, 0, 1, True)] * 6):
         pipeline.verify_trace_dir_with_capability = live_verifier
@@ -30,10 +53,33 @@ def _evaluate(*, concurrent: bool, red_rep: int | None = None,
         def observed_verify(directory, *, expected_commits=None, **kwargs):
             if verify_calls is not None:
                 assert expected_commits == 2
-            return live_verifier(directory, expected_commits=expected_commits, **kwargs)
+            rep = collected.index(directory) - 1
+            result = live_verifier(directory, expected_commits=expected_commits, **kwargs)
+            if rep in slow_reps:
+                time.sleep(0.5)
+            if completion_log is not None and rep >= 0:
+                fd = os.open(completion_log, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+                try:
+                    os.write(fd, f"{rep}\n".encode())
+                finally:
+                    os.close(fd)
+            return result
 
-        if verify_calls is not None:
+        if verify_calls is not None or slow_reps or completion_log is not None:
             pipeline.verify_trace_dir_with_capability = observed_verify
+
+        if slow_pool_log is not None:
+            _SLOW_POOL_DIRS = []
+            _SLOW_POOL_LOG = slow_pool_log
+            parse._parse_file_worker = _probe_parse_worker
+
+        def observed_killpg(pgid, sig):
+            if killed_groups is not None and sig == pipeline.signal.SIGKILL:
+                killed_groups.append(pgid)
+            return live_killpg(pgid, sig)
+
+        if killed_groups is not None:
+            pipeline.os.killpg = observed_killpg
 
         def observed_fork():
             if events is not None:
@@ -53,10 +99,17 @@ def _evaluate(*, concurrent: bool, red_rep: int | None = None,
                 events.append(("trace", rep))
             if trace_failure is not None and rep == trace_failure:
                 return pipeline._TraceRunResult(2, 1, 1, 2, 0)
-            source = "r1_write_skew" if rep == red_rep else "g1_serial"
+            source = ("r1_write_skew" if rep == red_rep else
+                      "g6_silo_serial_1thread" if distinct_first and rep == 0
+                      else "g1_serial")
             shutil.copyfile(_HERE / "fixtures" / source / "trace_0.log",
                             Path(directory) / "trace_0.log")
-            return pipeline._TraceRunResult(2, 0, 1, 2, 0)
+            if slow_pool_log is not None and rep >= 3:
+                shutil.copyfile(_HERE / "fixtures" / source / "trace_0.log",
+                                Path(directory) / "trace_1.log")
+                _SLOW_POOL_DIRS.append(directory)
+            commits = 200 if distinct_first and rep == 0 else 2
+            return pipeline._TraceRunResult(commits, 0, 1, commits, 0)
 
         pipeline._run_trace = trace
         try:
@@ -77,6 +130,10 @@ def _evaluate(*, concurrent: bool, red_rep: int | None = None,
             )
         finally:
             pipeline.os.fork = live_fork
+            pipeline.os.killpg = live_killpg
+            parse._parse_file_worker = live_parse_worker
+            _SLOW_POOL_DIRS = []
+            _SLOW_POOL_LOG = None
     return result, wal.read_records(layout), collected
 
 
@@ -91,6 +148,18 @@ def test_real_fork_five_receipts_and_rep_order():
     ]
     assert all(r.payload["certified"] is True for r in verifies)
     assert len([r for r in records if r.stage == STAGE_COMMIT]) == 1
+
+
+def test_reverse_completion_projects_distinct_payloads_in_rep_order(tmp_path):
+    completion_log = tmp_path / "completed"
+    result, records, _ = _evaluate(
+        concurrent=True, distinct_first=True, slow_reps=(0,),
+        completion_log=str(completion_log),
+    )
+    assert result.certified
+    assert int(completion_log.read_text().splitlines()[0]) != 0
+    verifies = [r for r in records if r.stage == STAGE_VERIFY_DONE]
+    assert [r.payload["commits"] for r in verifies] == [2, 200, 2, 2, 2, 2]
 
 
 def test_real_anomaly_stops_projection_and_matches_serial():
@@ -136,16 +205,38 @@ def test_failed_rep_reaps_every_later_child():
                 os.waitpid(pid, os.WNOHANG)
             with pytest.raises(ProcessLookupError):
                 os.kill(pid, 0)
+            with pytest.raises(ProcessLookupError):
+                os.killpg(pid, 0)
     finally:
         for pid in pids:
             try:
-                os.kill(pid, 9)
-            except ProcessLookupError:
-                pass
-            try:
-                os.waitpid(pid, 0)
+                waited, _ = os.waitpid(pid, os.WNOHANG)
             except ChildProcessError:
-                pass
+                continue
+            if waited == 0:
+                os.killpg(pid, 9)
+                os.waitpid(pid, 0)
+
+
+def test_failed_rep_kills_later_groups_with_live_pool_workers(tmp_path):
+    pids = []
+    killed = []
+    pool_log = tmp_path / "pool-pids"
+    started = time.monotonic()
+    result, records, _ = _evaluate(
+        concurrent=True, red_rep=2, slow_reps=(2,),
+        slow_pool_log=str(pool_log), fork_pids=pids, killed_groups=killed,
+    )
+    assert time.monotonic() - started < 15  # pool workers sleep for 30 seconds
+    assert result.aborted and result.verdict == "non-serializable"
+    assert len([r for r in records if r.stage == STAGE_VERIFY_DONE]) == 4
+    assert pool_log.exists() and pool_log.read_text().strip()
+    assert set(pids[3:]).issubset(set(killed))
+    for pid in pids[3:]:
+        with pytest.raises(ChildProcessError):
+            os.waitpid(pid, os.WNOHANG)
+        with pytest.raises(ProcessLookupError):
+            os.killpg(pid, 0)
 
 
 def test_expected_commits_reaches_real_verifier_in_fork():

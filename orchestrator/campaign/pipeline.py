@@ -2290,7 +2290,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             return _run_one_pass(tag, workload, pass_numactl)
         collected: list[tuple[str, Optional[_TraceRunResult],
                               Optional[_RepetitionExecutionOutcome]]] = []
-        children: dict[int, int] = {}
+        children: dict[int, int] = {}  # Only direct children not yet reaped.
+        groups: set[int] = set()  # Groups may outlive their reaped leaders.
         tasks: dict[int, tuple[dict[str, Any], str, bytes]] = {}
         finished: dict[int, _RepetitionExecutionOutcome] = {}
         acquisition_failure: Optional[int] = None
@@ -2306,6 +2307,9 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         def child(rep: int, trace_dir: str, trace: _TraceRunResult,
                   task: dict[str, Any], result_path: str, secret: bytes) -> None:
             try:
+                # The verifier forks pool workers.  Give this repetition a
+                # separate group before any of those workers can start.
+                os.setpgid(0, 0)
                 outcome = _execute_verification_repetition(
                     tr.binary, trace_dir, workload.flags, clocks_per_us,
                     timeout_s=TRACE_TIMEOUT_S, numactl=pass_numactl,
@@ -2349,6 +2353,26 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             except BaseException:
                 os._exit(1)
 
+        def kill_group(pid: int) -> None:
+            # Call while the direct child is still owned (possibly a zombie),
+            # so its PID cannot have been reused for an unrelated group.
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        def wait_group_gone(pid: int) -> None:
+            # Forked verifier workers must be gone before preserving traces.
+            deadline = time.monotonic() + 5.0
+            while True:
+                try:
+                    os.killpg(pid, 0)
+                except ProcessLookupError:
+                    return
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"local verifier process group {pid} survived SIGKILL")
+                time.sleep(0.01)
+
         try:
             for rep in range(workload.reps):
                 trace_dir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
@@ -2388,21 +2412,32 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     child(rep, trace_dir, trace, task, result_path, secret)
                     os._exit(1)
                 children[rep] = pid
+                groups.add(pid)
+                try:
+                    os.setpgid(pid, pid)
+                except (ProcessLookupError, PermissionError):
+                    # The child either already exited or won the setpgid race.
+                    pass
                 tasks[rep] = task, result_path, secret
 
-            remaining = dict(children)
             failure_rep = acquisition_failure
             admitted: set[str] = set()
             statuses: dict[int, int] = {}
             next_rep = 0
-            while remaining:
+            while children:
                 progress = False
-                for rep, pid in list(remaining.items()):
-                    waited, status = os.waitpid(pid, os.WNOHANG)
-                    if waited == 0:
+                for rep, pid in list(children.items()):
+                    observed = os.waitid(
+                        os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
+                    )
+                    if observed is None:
                         continue
                     progress = True
-                    del remaining[rep]
+                    kill_group(pid)
+                    _, status = os.waitpid(pid, 0)
+                    del children[rep]
+                    wait_group_gone(pid)
+                    groups.discard(pid)
                     statuses[rep] = os.waitstatus_to_exitcode(status)
                 while next_rep in statuses and (
                         failure_rep is None or next_rep < failure_rep):
@@ -2422,15 +2457,14 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                         failure_rep = rep if failure_rep is None else min(failure_rep, rep)
                     next_rep += 1
                 if failure_rep is not None:
-                    for rep, pid in list(remaining.items()):
+                    for rep, pid in list(children.items()):
                         if rep > failure_rep:
-                            try:
-                                os.kill(pid, signal.SIGKILL)
-                            except ProcessLookupError:
-                                pass
+                            kill_group(pid)
                             os.waitpid(pid, 0)
-                            del remaining[rep]
-                if not progress and remaining:
+                            del children[rep]
+                            wait_group_gone(pid)
+                            groups.discard(pid)
+                if not progress and children:
                     time.sleep(0.01)
             limit = failure_rep if failure_rep is not None else len(collected) - 1
             for rep in range(limit + 1):
@@ -2440,15 +2474,13 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     return aborted
             return None
         finally:
-            for pid in children.values():
-                try:
-                    os.kill(pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                try:
-                    os.waitpid(pid, 0)
-                except ChildProcessError:
-                    pass
+            for rep, pid in list(children.items()):
+                kill_group(pid)
+                os.waitpid(pid, 0)
+                del children[rep]
+            for pid in list(groups):
+                wait_group_gone(pid)
+                groups.discard(pid)
             for trace_dir, trace, failure in collected:
                 preserved = True
                 archive_root = os.environ.get("IZANAGI_TRACE_ARCHIVE_ROOT")
