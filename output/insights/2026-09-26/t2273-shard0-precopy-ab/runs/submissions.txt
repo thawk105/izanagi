@@ -1,0 +1,34 @@
+# 計算ノード投入の記録 (run-ab.sh、tools/pegasus/dispatch_compute.py --task generic --walltime 00:50:00)
+
+## j1
+2026-09-26T20:46:44+0900 start
+2026-09-26T21:02:32+0900 end rc=0
+tip 265cce13c5656a94f8fe5d6796bb07f65a03237f
+[Pegasus dispatch] request ID 29983.nqsv を受理しました
+Started Request Time:   Sat Sep 26 20:46:53 2026
+Ended Request Time:     Sat Sep 26 21:02:19 2026
+Elapse:               931S
+Remaining Elapse:     2069S
+rc 0
+
+## j2
+2026-09-26T21:03:47+0900 start
+2026-09-26T21:17:02+0900 end rc=0
+tip 265cce13c5656a94f8fe5d6796bb07f65a03237f
+[Pegasus dispatch] request ID 30000.nqsv を受理しました
+Started Request Time:   Sat Sep 26 21:03:56 2026
+Ended Request Time:     Sat Sep 26 21:16:51 2026
+Elapse:               780S
+Remaining Elapse:     2220S
+rc 0
+
+## j3
+2026-09-26T21:17:48+0900 start
+2026-09-26T21:31:45+0900 end rc=0
+tip 265cce13c5656a94f8fe5d6796bb07f65a03237f
+[Pegasus dispatch] request ID 30021.nqsv を受理しました
+Started Request Time:   Sat Sep 26 21:18:21 2026
+Ended Request Time:     Sat Sep 26 21:31:32 2026
+Elapse:               796S
+Remaining Elapse:     2204S
+rc 0
