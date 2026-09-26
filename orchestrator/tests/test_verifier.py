@@ -27,6 +27,7 @@ from orchestrator.verifier.dsg import DSG                                  # noq
 from orchestrator.verifier.model import (                              # noqa: E402
     CycleEdge, EdgeReason, Integrity, ProofSurfaceAssessment, RW,
     VerifyResult, WR, WW, assess_protocol_proof_surfaces,
+    compiled_protocol_source_texts,
 )
 from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
@@ -84,7 +85,7 @@ def test_g4_has_rw_edge_but_no_cycle():
 
 
 def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
-    """現行 pin の実 compiled source と実 verifier を通す X/P 正負対。"""
+    """名前は mocc に X/P 計装が無かった T-2304 期に由来し、C 以後の拒否側被験は tictoc。"""
     from orchestrator.campaign.pin import CURRENT_PIN
 
     trace_dir = os.path.join(FIX, "g1_serial")
@@ -103,6 +104,9 @@ def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     mocc = _verify_trace_dir(
         trace_dir, protocol="mocc", ccbench_root=REAL_CCBENCH_ROOT,
     )
+    tictoc = _verify_trace_dir(
+        trace_dir, protocol="tictoc", ccbench_root=REAL_CCBENCH_ROOT,
+    )
     assert silo.integrity.proof_surfaces.as_record() == {
         "protocol": "silo",
         "X": "evidence-present",
@@ -113,13 +117,25 @@ def test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace():
     assert silo.certified
     assert mocc.integrity.proof_surfaces.as_record() == {
         "protocol": "mocc",
-        "X": "evidence-absent",
-        "P": "evidence-absent",
+        "X": "evidence-present",
+        "P": "evidence-present",
         "I": "evidence-absent",
     }
-    assert not mocc.integrity.clean()
-    assert mocc.verdict == "indeterminate"
-    assert not mocc.certified
+    assert mocc.integrity.clean()
+    assert mocc.verdict == "serializable"
+    assert mocc.certified
+    tictoc_sources = compiled_protocol_source_texts("tictoc", REAL_CCBENCH_ROOT)
+    assert tictoc_sources is not None
+    assert all("#if TRACE" not in source for source in tictoc_sources)
+    assert tictoc.integrity.proof_surfaces.as_record() == {
+        "protocol": "tictoc",
+        "X": "unavailable",
+        "P": "unavailable",
+        "I": "unavailable",
+    }
+    assert not tictoc.integrity.clean()
+    assert tictoc.verdict == "indeterminate"
+    assert not tictoc.certified
     assert assess_protocol_proof_surfaces(
         "si", REAL_CCBENCH_ROOT,
     ).as_record() == {
@@ -4035,6 +4051,133 @@ def test_v3_existence_output_samples_and_cycle():
             assert len(result_to_dict_v3(result)["integrity"]["existence_violation_details"]) == 1
     finally:
         shutil.rmtree(d)
+
+
+def test_v3_cli_json_wiring_and_v2_bytes():
+    import contextlib
+    import io
+    import shutil
+    from orchestrator.verifier import cli
+    from orchestrator.verifier.core import result_to_dict_v3
+
+    cases = (
+        (_v3_cycle_files(), 1),
+        ((_v3_frame(0, writes=[(5, "aa", "I")]),
+          _v3_frame(1, [(5, "aa", 1, 0)], tx_type=2)), 3),
+        (("C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n",), 0),
+    )
+    for files, expected_rc in cases:
+        d = _tmp_trace(*files)
+        try:
+            result = verify_trace_dir(d)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                rc = cli.main([d, "--json", "--protocol", "silo",
+                               "--ccbench-root", CCBENCH_ROOT])
+            assert rc == expected_rc
+            payload = json.loads(output.getvalue())["results"][0]
+            assert payload == result_to_dict_v3(result)
+            if expected_rc == 1:
+                anomaly = payload["anomalies"][0]
+                assert {n["tx_type"] for n in anomaly["cycle_nodes"]} == {1, 2}
+                assert {reason["table"] for edge in anomaly["edges"]
+                        for reason in edge["reasons"]} == {0, 9}
+            elif expected_rc == 3:
+                integrity = payload["integrity"]
+                assert integrity["existence_violations"] == 1
+                assert integrity["existence_violation_details"][0]["table"] == 5
+            else:
+                expected = {"runs": 1, "certified_serializable": 1,
+                            "non_serializable": 0, "indeterminate": 0,
+                            "results": [result_to_dict(result)]}
+                assert output.getvalue().encode() == (
+                    json.dumps(expected, indent=2, ensure_ascii=False) + "\n"
+                ).encode()
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_capability_digest_binds_anomaly_and_existence():
+    import shutil
+    import commit_receipt_support as support
+    from orchestrator.verifier.commit_receipt import _domain_digest
+    from orchestrator.verifier.core import (result_to_dict_v3,
+                                            verify_trace_dir_with_capability)
+
+    genome, evidence, admission = support._proof_build_binding("baseline")
+    cases = (
+        _v3_cycle_files() + (_v3_frame(2, writes=[(5, "bb", "I")]),
+                             _v3_frame(3, [(5, "bb", 1, 0)], tx_type=2)),
+        ("C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n",),
+    )
+    for files in cases:
+        d = _tmp_trace(*files)
+        try:
+            result, capability = verify_trace_dir_with_capability(
+                d, expected_commits=len(files), workers=1, genome=genome,
+                source_evidence=evidence, build_admission=admission,
+                receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+                receipt_variant="baseline", receipt_operation_identity="v3-digest",
+                receipt_workload_tag="unit")
+            projection = result_to_dict_v3(result)
+            projection.pop("trace_dir", None)
+            projection["integrity"].pop("framing_violation_details", None)
+            projection["integrity"].pop("permutation_violation_details", None)
+            digest = lambda p: _domain_digest(b"izanagi-verifier-result-v1", p)
+            assert capability._result_sha256 == digest(projection)
+            if result.integrity.existence_violation_details is None:
+                old = result_to_dict(result)
+                old.pop("trace_dir", None)
+                old["integrity"].pop("framing_violation_details", None)
+                old["integrity"].pop("permutation_violation_details", None)
+                assert capability._result_sha256 == digest(old)
+            else:
+                anomaly = projection["anomalies"][0]
+                assert {n["tx_type"] for n in anomaly["cycle_nodes"]} == {1, 2}
+                assert {r["table"] for e in anomaly["edges"]
+                        for r in e["reasons"]} == {0, 9}
+                assert projection["integrity"]["existence_violations"] == 1
+                changed = json.loads(json.dumps(projection))
+                changed["integrity"]["existence_violation_details"][0]["key"] = "other"
+                assert digest(changed) != capability._result_sha256
+                changed = json.loads(json.dumps(projection))
+                changed["anomalies"][0]["cycle_nodes"][0]["tx_type"] = 5
+                assert digest(changed) != capability._result_sha256
+                changed = json.loads(json.dumps(projection))
+                changed["anomalies"][0]["edges"][0]["reasons"][0]["table"] = 8
+                assert digest(changed) != capability._result_sha256
+        finally:
+            shutil.rmtree(d)
+
+
+def test_v3_district_lost_update_and_serial_control():
+    import shutil
+    lost = (
+        _v3_frame(0, [(1, "aa", 1, 0)], [(1, "aa", "U")],
+                  commit=(2, 1)),
+        _v3_frame(1, [(1, "aa", 1, 0)], [(1, "aa", "U")],
+                  commit=(2, 2), tx_type=2),
+    )
+    serial = (lost[0], _v3_frame(
+        1, [(1, "aa", 2, 1)], [(1, "aa", "U")],
+        commit=(2, 2), tx_type=2))
+    for frames, expected in ((lost, "non-serializable"),
+                             (serial, "serializable")):
+        d = _tmp_trace(*frames)
+        try:
+            result = verify_trace_dir(d, expected_commits=2)
+            assert result.integrity.proof_surfaces.certification_gate_satisfied()
+            assert result.integrity.malformed_keys == 0
+            assert result.integrity.framing_violations == 0
+            assert result.verdict == expected
+            assert result.certified == (expected == "serializable")
+            if expected == "non-serializable":
+                assert result.anomalies
+                reasons = {(r.etype, r.table) for e in result.anomalies[0].edges
+                           for r in e.reasons}
+                assert ("ww", 1) in reasons and ("rw", 1) in reasons
+        finally:
+            shutil.rmtree(d)
 
 
 # ---- 素の runner (pytest 無しでも) ----

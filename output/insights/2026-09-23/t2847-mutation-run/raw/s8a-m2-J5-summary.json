@@ -1,0 +1,60 @@
+{
+ "source": "runs/m2-J5/s8a_trigger_gating_coverage.json (job dir)",
+ "source_sha256": "e57f4153d397c49ce0d839eab8dc21062da0e5aaac67ad64ccb8ac23b1467934",
+ "source_bytes": 446774,
+ "ccbench_commit": "e9e477c",
+ "clocks_per_us": 2100,
+ "genome": "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+ "misattr_build_route": "direct-cmake (no admission, same as s2 _broken_build_and_verify)",
+ "checks": {
+  "skeleton_certified": true,
+  "skeleton_aborts_present": true,
+  "skeleton_conservation": true,
+  "skeleton_structural_zero": true,
+  "skeleton_no_early_aborts": true,
+  "skeleton_live_reasons_present": true,
+  "single_no_aborts": true,
+  "misattr_verifier_blind": true,
+  "misattr_exposed_by_structural_zero": true,
+  "misattr_lock_conflict_gone": true,
+  "misattr_conservation_still_holds": true
+ },
+ "all_pass": true,
+ "runs": {
+  "skeleton_multi": {
+   "verdict": "serializable",
+   "certified": true,
+   "total_cycles": 0,
+   "abort_counts": 7882,
+   "a_total": 7882,
+   "early_aborts": 0,
+   "abort_reasons": {
+    "lock-conflict": 4445,
+    "readvali-locked": 2682,
+    "readvali-tid": 755
+   }
+  },
+  "skeleton_single": {
+   "verdict": "serializable",
+   "certified": true,
+   "total_cycles": 0,
+   "abort_counts": 0,
+   "a_total": 0,
+   "early_aborts": 0,
+   "abort_reasons": {}
+  },
+  "misattr_multi": {
+   "verdict": "serializable",
+   "certified": true,
+   "total_cycles": 0,
+   "abort_counts": 7572,
+   "a_total": 7572,
+   "early_aborts": 0,
+   "abort_reasons": {
+    "node-vali": 4184,
+    "readvali-locked": 2640,
+    "readvali-tid": 748
+   }
+  }
+ }
+}

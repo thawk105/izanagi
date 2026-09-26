@@ -1,0 +1,68 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..31ce1ce66 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -1,6 +1,26 @@
+ #include <stdio.h>
+ #include <algorithm>
+ #include <string>
++#if IZANAGI_BREAK_REVERSE_WRITE_ORDER
++#include <atomic>
++#include <cstdint>
++namespace {
++std::atomic<std::uint64_t> t2847_reached{0}, t2847_changed{0}, t2847_committed{0};
++thread_local bool t2847_changed_tx = false;
++void t2847_mark_changed() {
++  t2847_changed.fetch_add(1, std::memory_order_relaxed);
++  t2847_changed_tx = true;
++}
++struct T2847Report {
++  ~T2847Report() {
++    fprintf(stderr, "T2847_FIRED slug=reverse-write-order reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)t2847_reached.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_changed.load(std::memory_order_relaxed),
++            (unsigned long long)t2847_committed.load(std::memory_order_relaxed));
++  }
++} t2847_report;
++}
++#endif
+ 
+ #include "include/atomic_tool.hh"
+ #include "include/log.hh"
+@@ -53,6 +73,9 @@ void TxExecutor::abort() {
+ }
+ 
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_REVERSE_WRITE_ORDER
++  t2847_changed_tx = false;
++#endif
+   status_ = TransactionStatus::inflight;
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+@@ -405,7 +428,15 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   for (auto& we : write_set_) izanagi_pre_sort_rcdptrs.insert(we.rcdptr_);
+ #endif
+ 
++#if IZANAGI_BREAK_REVERSE_WRITE_ORDER
++  t2847_reached.fetch_add(1, std::memory_order_relaxed);
++  sort(write_set_.begin(), write_set_.end(),
++       [](const auto& a, const auto& b) { return b < a; });
++  if (write_set_.size() > 1 && write_set_.back() < write_set_.front())
++    t2847_mark_changed();
++#else
+   sort(write_set_.begin(), write_set_.end());
++#endif
+ 
+ #if TRACE
+   // Permutation-preservation check, post-sort verdict (D41 決定2). Outside
+@@ -706,6 +737,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if IZANAGI_BREAK_REVERSE_WRITE_ORDER
++    if (t2847_changed_tx)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;

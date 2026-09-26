@@ -20,9 +20,9 @@ import json
 import sys
 from typing import List
 
-from .core import verify_trace_dir
+from .core import result_to_dict_v3, verify_trace_dir
 from .parse import ParseError
-from .report import render_text, result_to_dict
+from .report import render_text
 
 
 def _nonnegative_int(value: str) -> int:
@@ -87,7 +87,7 @@ def main(argv: List[str] | None = None) -> int:
             "certified_serializable": n_cert,
             "non_serializable": n_anom,
             "indeterminate": n_indet,
-            "results": [result_to_dict(r) for r in results],
+            "results": [result_to_dict_v3(r) for r in results],
         }
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:

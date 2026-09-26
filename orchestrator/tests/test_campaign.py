@@ -32,6 +32,7 @@ import threading
 import time
 import tokenize
 import types
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock as unittest_mock
 
@@ -455,6 +456,7 @@ _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-45ca7ab9"
 _T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-4347a1fd"
 _T816_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-27d737fd"
 _T2304_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-c301cc73"
+_T2858_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-42248c19"
 _T530_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-cbddc476"
 _PRE_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-4891e99f",
@@ -476,6 +478,11 @@ _T2304_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-balanced-sweep-21777a4d",
     "backoff-sweep-silo-read-heavy-sweep-611a783b",
 })
+_T2858_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-3760d50d",
+    "backoff-sweep-silo-balanced-sweep-b635c8f1",
+    "backoff-sweep-silo-read-heavy-sweep-885a87ee",
+})
 _T816_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-172b45ad",
     "backoff-sweep-silo-balanced-sweep-2899b6a7",
@@ -485,6 +492,11 @@ _T2304_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-4b8f83c9",
     "backoff-sweep-silo-balanced-sweep-080a1603",
     "backoff-sweep-silo-read-heavy-sweep-f9c15ce6",
+})
+_T2858_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-1405650e",
+    "backoff-sweep-silo-balanced-sweep-302494f3",
+    "backoff-sweep-silo-read-heavy-sweep-43b782bd",
 })
 _T530_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-d0589634",
@@ -506,6 +518,10 @@ _T816_S6_CAMPAIGN_IDS = frozenset({
 _T2304_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-c691213c",
     "p3-s6-sort-sweep-write-heavy-sweep-33edc1ec",
+})
+_T2858_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-79e7997b",
+    "p3-s6-sort-sweep-write-heavy-sweep-b774e621",
 })
 _T530_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-cc0921a0",
@@ -545,10 +561,11 @@ def test_campaign_id_binds_admission_policy():
     )
     current = str(ident.campaign_id(_cfg()))
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current == _T2304_REPRESENTATIVE_CAMPAIGN_ID
+    assert current == _T2858_REPRESENTATIVE_CAMPAIGN_ID
     assert current not in {
         historical,
         _T816_REPRESENTATIVE_CAMPAIGN_ID,
+        _T2304_REPRESENTATIVE_CAMPAIGN_ID,
         _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
     }
@@ -745,9 +762,10 @@ def test_screening_search_config_omits_none_and_binds_current_admission_policy()
     search = {**base, **ident.screening_search_config(None)}
     assert search == base and "screening" not in search
     cfg = _cfg(search_config=search)
-    assert str(ident.campaign_id(_bound(cfg))) == _T2304_REPRESENTATIVE_CAMPAIGN_ID
+    assert str(ident.campaign_id(_bound(cfg))) == _T2858_REPRESENTATIVE_CAMPAIGN_ID
     assert str(ident.campaign_id(_bound(cfg))) not in {
         _T816_REPRESENTATIVE_CAMPAIGN_ID,
+        _T2304_REPRESENTATIVE_CAMPAIGN_ID,
         _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
@@ -841,19 +859,21 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     }
     assert (
         current_policy_kickoff_backoff
-        == _T2304_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
+        == _T2858_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
     )
     assert current_policy_kickoff_backoff.isdisjoint(
         _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
         | _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
+        | _T2304_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
     )
     current_backoff = {
         str(ident.campaign_id(cfg)) for cfg in current_backoff_cfgs
     }
-    assert current_backoff == _T2304_BACKOFF_CAMPAIGN_IDS
+    assert current_backoff == _T2858_BACKOFF_CAMPAIGN_IDS
     assert current_backoff.isdisjoint(
         _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
         | _T816_BACKOFF_CAMPAIGN_IDS
+        | _T2304_BACKOFF_CAMPAIGN_IDS
     )
 
     historical_s6 = set()
@@ -883,10 +903,10 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
     # T-2304 pin 前進後の current は歴史的 T343/T530/T816 集合と分離する。
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs} == \
-        _T2304_S6_CAMPAIGN_IDS
+        _T2858_S6_CAMPAIGN_IDS
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs}.isdisjoint(
         _T343_S6_CAMPAIGN_IDS | _T530_S6_CAMPAIGN_IDS
-        | _T816_S6_CAMPAIGN_IDS
+        | _T816_S6_CAMPAIGN_IDS | _T2304_S6_CAMPAIGN_IDS
     )
 
 
@@ -7478,6 +7498,117 @@ def test_run_trace_parses_abort_from_stdout():
     assert result2.abort_counts is None      # 集計行なし → None (呼び手が fails-closed)
 
 
+def test_tpcc_stage1_run_trace_allowlist():
+    root = _tmpdir("izanagi_tpcc_allowlist_")
+    for name in ("tpcc_fake", "ycsb_fake", "other_fake"):
+        path = os.path.join(root, name)
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write("#!/bin/sh\nprintf 'abort_counts_:\\t0\\n"
+                         "commit_counts_:\\t0\\n"
+                         "batch_commit_counts_:\\t0\\n'\n")
+        os.chmod(path, 0o755)
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    for name, values, accepted in (
+        ("tpcc_fake", flags, True),
+        ("tpcc_fake", {**flags, "tpcc_perc_payment": "44"}, False),
+        ("tpcc_fake", {k: v for k, v in flags.items()
+                       if k != "tpcc_perc_delivery"}, False),
+        ("tpcc_fake", {**flags, "tpcc_perc_payment": "043"}, False),
+        ("ycsb_fake", {}, True),
+        ("other_fake", flags, False),
+    ):
+        binary = os.path.join(root, name)
+        trace_dir = _tmpdir("izanagi_tpcc_trace_")
+        if accepted:
+            result = pipeline._run_trace(binary, trace_dir, values, 1800)
+            assert result.returncode == 0
+            assert result.commit_count_witness == 0
+        else:
+            try:
+                pipeline._run_trace(binary, trace_dir, values, 1800)
+                assert False, (name, values)
+            except pipeline._TraceWitnessUnsupportedWorkload:
+                pass
+
+
+def test_tpcc_executor_v3_v2_existence_and_witness():
+    genome, evidence, admission = commit_receipts._proof_build_binding("baseline")
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa I 2 1\nE 0\n"
+    second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n"
+    existence = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 1 0\nE 1\n"
+    third = "C 2 0 2 3 0 0 0 0 1\nE 2\n"
+    v2 = "C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n"
+    for case, frames, witness in (
+        ("certified", (first, second), 2),
+        ("v2", (v2,), 1),
+        ("existence", (first, existence), 2),
+        # 元の (first + second + third) の完全な末尾 frame を除去。
+        ("tail-loss", ((first + second + third).removesuffix(third),), 3),
+        # 最大 txid の全 frame を除去。残存 file はそれぞれ正常。
+        ("max-txid-loss", (first, second), 3),
+        # 元の thread file 群 (first + second, third) の後者を除去。
+        ("thread-file-loss", (first + second,), 3),
+    ):
+        trace_dir = _tmpdir("izanagi_tpcc_executor_")
+
+        def trace_runner(binary, path, run_flags, clocks, **kwargs):
+            assert binary.endswith("tpcc_fake") and run_flags == flags
+            for index, frame in enumerate(frames):
+                with open(os.path.join(path, f"trace_{index}.log"), "w") as stream:
+                    stream.write(frame)
+            return pipeline._TraceRunResult(
+                trace_c_lines=sum(frame.count("\nC ") + frame.startswith("C ")
+                                  for frame in frames),
+                returncode=0, abort_counts=0,
+                commit_count_witness=witness, batch_commit_count_witness=0)
+
+        outcome = pipeline._execute_verification_repetition(
+            binary="/tmp/tpcc_fake", trace_dir=trace_dir, flags=flags,
+            clocks_per_us=1800, timeout_s=10, numactl=None,
+            genome=genome, source_evidence=evidence, build_admission=admission,
+            receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+            receipt_variant="baseline", receipt_operation_identity="tpcc-unit",
+            receipt_workload_tag="tpcc-stage1", build_attempt_id="unit",
+            trace_binary_sha256="0" * 64,
+            include_qualification_evidence=False, trace_runner=trace_runner)
+        if case == "certified":
+            assert outcome.abort is None and outcome.verify_result.certified
+            assert outcome.verification_capability._certified
+        elif case == "v2":
+            assert outcome.abort.reason == "trace-witness-unsupported-workload"
+            assert outcome.abort.detail["trace_schema"] == "v2"
+            standalone, _ = pipeline.verify_trace_dir_with_capability(
+                trace_dir, expected_commits=witness, genome=genome,
+                source_evidence=evidence, build_admission=admission,
+                receipt_sink_kind="test", receipt_lock_identity_sha256="0" * 64,
+                receipt_variant="baseline", receipt_operation_identity="tpcc-unit",
+                receipt_workload_tag="tpcc-stage1")
+            assert standalone.certified
+        else:
+            assert outcome.abort.reason == "indeterminate"
+            integrity = outcome.abort.detail["verify"]["integrity"]
+            if case == "existence":
+                assert integrity["existence_violations"] == 1
+                assert integrity["existence_violation_details"][0]["table"] == 1
+                assert integrity["existence_violation_details"][0]["kind"] == "read-unborn-genesis"
+                assert integrity["malformed_keys"] == 0
+                assert integrity["framing_violations"] == 0
+                assert outcome.verify_result.integrity.expected_commits == witness
+                assert outcome.verify_result.integrity.observed_commits == witness
+                assert not any("witness" in note for note in integrity["notes"])
+                assert replace(outcome.verify_result.integrity, existence_violations=0).clean()
+            else:
+                assert integrity["framing_violations"] == 0
+                assert integrity["orphan_reads"] == 0
+                assert integrity["missing_txids"] == 0
+                assert integrity["existence_violations"] == 0
+                assert integrity["notes"] == [
+                    "commit witness mismatch: expected=3 observed=2 delta=-1"]
+
+
 def test_run_trace_parses_commit_witness_from_stdout():
     """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
     型付き結果の属性で返し、commit/batch witness も同じ stdout から束ねる。
@@ -11091,6 +11222,9 @@ _T816_GOLDEN_CK0 = {
 _T2304_GOLDEN_CK0 = {
     "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_23cc2a2610_t0",
 }
+_T2858_GOLDEN_CK0 = {
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_ae75ca7647_t0",
+}
 
 
 def test_source_digest_preimage_join_has_pre_refactor_golden_digests():
@@ -11241,9 +11375,10 @@ def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():
     current = buildcache.cache_key(
         g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,
     )
-    assert current == _T2304_GOLDEN_CK0[g0.canonical()]
+    assert current == _T2858_GOLDEN_CK0[g0.canonical()]
     assert current not in {
         _T816_GOLDEN_CK0[g0.canonical()],
+        _T2304_GOLDEN_CK0[g0.canonical()],
         _PRE_T343_GOLDEN_CK0[g0.canonical()],
         _T343_GOLDEN_CK0[g0.canonical()],
     }

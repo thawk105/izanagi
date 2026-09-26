@@ -1,0 +1,105 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    # None means that meaning was not examined.  An empty tuple means that it\n",
+     "new": "    # None means that the meaning was not examined.  An empty tuple means that it\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": DefineSpec(\n        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/broken-silo-read-lock-check.patch\",\n    ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+    "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": (\n        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_READ_LOCK_CHECK\",\n    ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": DefineSpec(\n",
+     "new": "    \"IZANAGI_BREAK_READ_LOCK_CHEK\": DefineSpec(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+    "orchestrator/tests/test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": 4,\n",
+     "new": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": 5,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

@@ -1,0 +1,78 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    # None means that meaning was not examined.  An empty tuple means that it\n",
+     "new": "    # None means that the meaning was not examined.  An empty tuple means that it\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": DefineSpec(\n        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, \"ycsb_silo.exe\",\n        \"patches/broken-silo-read-lock-check.patch\",\n    ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": (\n        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_READ_LOCK_CHECK\",\n    ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": DefineSpec(\n",
+     "new": "    \"IZANAGI_BREAK_READ_LOCK_CHEK\": DefineSpec(\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": 4,\n",
+     "new": "    \"IZANAGI_BREAK_READ_LOCK_CHECK\": 5,\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

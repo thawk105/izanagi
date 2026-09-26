@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 43 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Twenty-five
+Claim boundary: the supply domain contains the 57 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Thirty-nine
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -258,6 +258,62 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-trigger-misattr.patch",
     ),
+    "IZANAGI_BREAK_READ_LOCK_CHECK": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-read-lock-check.patch",
+    ),
+    "IZANAGI_BREAK_NO_WRITE_TID_MAX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-no-write-tid-max.patch",
+    ),
+    "IZANAGI_BREAK_FIXED_COMMIT_VERSION": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-fixed-commit-version.patch",
+    ),
+    "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-published-version-mismatch.patch",
+    ),
+    "IZANAGI_BREAK_TAIL_COMMIT_OMISSION": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-tail-commit-omission.patch",
+    ),
+    "IZANAGI_BREAK_NO_READ_TID_MAX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-no-read-tid-max.patch",
+    ),
+    "IZANAGI_BREAK_STALE_READ_PAYLOAD": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-stale-read-payload.patch",
+    ),
+    "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-corrupt-write-payload.patch",
+    ),
+    "IZANAGI_BREAK_SKIP_NODE_VALIDATION": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-skip-node-validation.patch",
+    ),
+    "IZANAGI_BREAK_STALE_READ_OWN_WRITE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-stale-read-own-write.patch",
+    ),
+    "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/broken-silo-repeat-update-buffer.patch",
+    ),
+    "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/control-silo-double-abort-backoff.patch",
+    ),
+    "IZANAGI_BREAK_REVERSE_WRITE_ORDER": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/control-silo-reverse-write-order.patch",
+    ),
+    "IZANAGI_BREAK_CONSERVATIVE_ABORT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
+        "patches/control-silo-conservative-abort.patch",
+    ),
     "IZANAGI_SILO_LADDER_RUNG1": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo_ladder_rung1.patch",
@@ -338,6 +394,48 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_TRIGGER_MISATTR": (
         "cc/silo/transaction.cc", "#ifdef IZANAGI_BREAK_TRIGGER_MISATTR",
     ),
+    "IZANAGI_BREAK_READ_LOCK_CHECK": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_READ_LOCK_CHECK",
+    ),
+    "IZANAGI_BREAK_NO_WRITE_TID_MAX": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_NO_WRITE_TID_MAX",
+    ),
+    "IZANAGI_BREAK_FIXED_COMMIT_VERSION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_FIXED_COMMIT_VERSION",
+    ),
+    "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH",
+    ),
+    "IZANAGI_BREAK_TAIL_COMMIT_OMISSION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_TAIL_COMMIT_OMISSION",
+    ),
+    "IZANAGI_BREAK_NO_READ_TID_MAX": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_NO_READ_TID_MAX",
+    ),
+    "IZANAGI_BREAK_STALE_READ_PAYLOAD": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_STALE_READ_PAYLOAD",
+    ),
+    "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD",
+    ),
+    "IZANAGI_BREAK_SKIP_NODE_VALIDATION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_SKIP_NODE_VALIDATION",
+    ),
+    "IZANAGI_BREAK_STALE_READ_OWN_WRITE": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_STALE_READ_OWN_WRITE",
+    ),
+    "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_REPEAT_UPDATE_BUFFER",
+    ),
+    "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF",
+    ),
+    "IZANAGI_BREAK_REVERSE_WRITE_ORDER": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_REVERSE_WRITE_ORDER",
+    ),
+    "IZANAGI_BREAK_CONSERVATIVE_ABORT": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_CONSERVATIVE_ABORT",
+    ),
     "IZANAGI_SILO_LADDER_RUNG1": (
         "cc/silo/transaction.cc", "#if IZANAGI_SILO_LADDER_RUNG1",
     ),
@@ -354,6 +452,20 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_SILO_LADDER_RUNG1": 2,
     "BACKOFF_TRIGGER_GATING": 12,
     "BACKOFF_REQUESTED_US": 2,
+    "IZANAGI_BREAK_READ_LOCK_CHECK": 4,
+    "IZANAGI_BREAK_NO_WRITE_TID_MAX": 5,
+    "IZANAGI_BREAK_FIXED_COMMIT_VERSION": 4,
+    "IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH": 4,
+    "IZANAGI_BREAK_TAIL_COMMIT_OMISSION": 3,
+    "IZANAGI_BREAK_NO_READ_TID_MAX": 5,
+    "IZANAGI_BREAK_STALE_READ_PAYLOAD": 4,
+    "IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD": 4,
+    "IZANAGI_BREAK_SKIP_NODE_VALIDATION": 4,
+    "IZANAGI_BREAK_STALE_READ_OWN_WRITE": 4,
+    "IZANAGI_BREAK_REPEAT_UPDATE_BUFFER": 4,
+    "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": 4,
+    "IZANAGI_BREAK_REVERSE_WRITE_ORDER": 4,
+    "IZANAGI_BREAK_CONSERVATIVE_ABORT": 4,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),

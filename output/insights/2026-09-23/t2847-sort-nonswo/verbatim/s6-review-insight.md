@@ -1,0 +1,11 @@
+1. **must-fix** — R4 について「verdict が出ない」と書いているが、verifier は実際に **I（indeterminate、rc 3、`stats.txns` 0）**を返している。[README:103](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/README.md:103)、[raw/verifier/0004.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/raw/verifier/0004.json:1)。**修正案:**「空履歴に対して I が出たが、事前登録の優先順により分類には使わず、V07 の検出力にも数えない」とする。README の78・80行は既にこの説明と整合している。
+
+2. **should** — 「投入後は変えていない」は、確定時刻と投入時刻の記述だけでは裏付けられない。`s4-prereg.md` の「投入後は変えない」は方針であり、投入時の内容を束縛する hash や保存済み比較結果は本文・verbatim に見当たらない。[README:56](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/README.md:56)、[s4-prereg.md:1](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/verbatim/s4-prereg.md:1)。**修正案:** 投入前後を結ぶ記録を示す。示せなければ「段4で確定した表と保存された観測を照合した」までに弱める。
+
+3. **should** — R4 が「最初の数取引のうちに落ちた」とする推測は強すぎる。C 行 0 は未 flush の可能性があると同じ段落で認めており、R2 の度数分布と経過 0.013 秒から失敗した取引番号は求まらない。[README:101](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/README.md:101)、[raw/result.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/raw/result.json:1)。**修正案:**「どの取引で落ちたかは不明」で止める。
+
+4. **nit** — 1 行の実走記録としては、並走 wave の編集面や repo 外起動器の実装手順まで本文で列挙する必要性は薄い。[README:28](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/README.md:28)、[README:35](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2847-sort-nonswo/output/insights/2026-09-23/t2847-sort-nonswo/README.md:35)。**修正案:** 供給経路と照合結果を本文に残し、手順の詳細は `verbatim/launcher-source.md` への参照に寄せる。
+
+## 総括
+
+**NO-GO。** まず所見1の事実誤認を直す必要がある。独立に再計算した分類は R1・R2・R3 が「期待どおり」、R4 が signal 終了を優先して「別の層で検出」で、事前登録と一致した。本文の rc、経過秒、C 行数、write_count の最大・度数、verifier 値、Elapse 88秒、sha256 の先頭、compiler 版、build flag に一次資料との不一致は見つからなかった。「約半分」は R1 **53.9%**、R2 **49.9%**、R3 **54.1%**で妥当。libstdc++ 11 の分割条件も `__introsort_loop` の **要素数 > 16** と一致する。
