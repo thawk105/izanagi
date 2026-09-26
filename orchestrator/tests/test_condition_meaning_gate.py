@@ -59,6 +59,8 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
     "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE",
     "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE",
+    "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
+    "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
     "IZANAGI_BREAK_WRITE_INTENT_ERASE",
     "IZANAGI_BREAK_WRITE_INTENT_FORGE",
     "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
@@ -163,6 +165,12 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": (
         "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE", 9, 0,
+    ),
+    "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS": (
+        "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_FIRST_UPDATER_WINS", 7, 0,
+    ),
+    "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
+        "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION", 5, 0,
     ),
 }
 
@@ -3486,6 +3494,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
         "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE",
         "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE",
+        "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
+        "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
         "IZANAGI_BREAK_READ_LOCK_CHECK", "IZANAGI_BREAK_NO_WRITE_TID_MAX",
@@ -3518,11 +3528,19 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             G.ROUTE_CMAKE_CXX_FLAGS, ("cc/mocc/transaction.cc",), "ycsb_mocc.exe",
             "patches/" + patch,
         )
+    for macro, patch in (
+        ("IZANAGI_BREAK_SI_FIRST_UPDATER_WINS", "broken-si-first-updater-wins.patch"),
+        ("IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION", "broken-si-read-uncommitted-version.patch"),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, ("cc/si/transaction.cc",), "ycsb_si.exe",
+            "patches/" + patch,
+        )
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 41
-    assert len(G.MEANING_SUPPORTED_MACROS) == 42
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 43
+    assert len(G.MEANING_SUPPORTED_MACROS) == 44
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3613,7 +3631,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 35
+    ) == 37
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3732,10 +3750,10 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_59_define_supply_domain() -> None:
-    assert "supply domain contains the 59 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_61_define_supply_domain() -> None:
+    assert "supply domain contains the 61 patch-derived defines" in G.__doc__
     assert (
-        "Forty-one\nregistered macros additionally have a bounded compile-time witness"
+        "Forty-three\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

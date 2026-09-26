@@ -8478,6 +8478,12 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/control-mocc-negated-temperature-predicate.patch": frozenset({
             "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE",
         }),
+        "patches/broken-si-first-updater-wins.patch": frozenset({
+            "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
+        }),
+        "patches/broken-si-read-uncommitted-version.patch": frozenset({
+            "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
+        }),
         "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
     }
     literal_only_tokens = {
