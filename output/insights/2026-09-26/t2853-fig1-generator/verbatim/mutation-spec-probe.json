@@ -1,0 +1,218 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "('greedy', GREEDY_KEYS)",
+          "new": "('greedy', ())"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "if round(calc['A'], 4) != frozen:",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "if not math.isclose(calc['p'], frozen, rel_tol=1e-12):",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "if not all(x.certified for x in land.values()):",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "if set(land) != {g.canonical() for g in SILO_SPACE.enumerate()}:",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "sb.greedy_reach(land, tied, 500, 0)",
+          "new": "sb.greedy_reach(land, tied, 500, 1)"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "purpose=CampaignReadPurpose.HISTORICAL_RAW",
+          "new": "purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "ax.hlines(d['guided']['median']",
+          "new": "ax.hlines(d['guided']['mean']"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "refs.extend(provenance['outputs'].values())",
+          "new": "pass"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "def check_figure_layout(fig, axes):\n    fig.canvas.draw()",
+          "new": "def check_figure_layout(fig, axes):\n    return\n    fig.canvas.draw()"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "format_p(d['p'])",
+          "new": "format_p(d['A'])"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "refs = [provenance['summary']]",
+          "new": "refs = [provenance['generator'], provenance['summary']]"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "測定条件は {c['threads']} スレッド、",
+          "new": "測定条件は "
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "if any(any(c[key] != common[key] for key in keys) for c in conditions[1:]):",
+          "new": "if False:"
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    },
+    {
+      "id": "C0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_p2_5_search_cost.py",
+          "old": "Recreate Phase 2 search cost from frozen guided trials and historical P2-2 records.",
+          "new": "Recreate Phase 2 search cost figure."
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}

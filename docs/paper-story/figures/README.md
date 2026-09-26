@@ -11,7 +11,8 @@
 
 | filename | 生成器 | 状態 |
 |---|---|---|
-| `fig1_phase2_negative.png` | tracked に無い | 凍結。2026-07-10 版で収録 |
+| `fig1_phase2_negative.png` | tracked に無い | 凍結。2026-07-10 版で収録。**生成器付きの後継図 `fig1b_` がある (下記)。本図の bytes は不変** |
+| `fig1b_phase2_negative.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_p2_5_search_cost.py` | `fig1_` の**後継図**。P2-5 誘導探索の探索コスト (否定的結果) を旧図と**同じ値・同じ視覚符号**で、追跡下の `p2-5-summary.json` と P2-2 の 3 campaign から描き直した。新規計測 0。P2-2 は verifier epoch E0 の記録をそのまま使い、現行 verifier で再検証していない。旧図との値の照合は `output/insights/2026-09-26/t2853-fig1-generator/README.md` |
 | `fig2_backoff_mechanism.png` | tracked に無い | 凍結。**baseline を誤って label している** (下記) |
 | `fig3_arc_status.png` | tracked に無い | 凍結。2026-07-10 版 (Phase 3 段 5 時点) の現況図 |
 | `fig2b_backoff_sweep_3workload.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_backoff.py` | `fig2_` の**後継図**。本 README が再現手順を持つ |
@@ -2073,3 +2074,86 @@ repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verba
 
 provenance が `caption_source` として束縛する稿の SHA-256 は `77662b55f2b1f113626293ee530d5e0466249192ba2f6babefe4db4e74241d96`
 (稿は凍結物で、着地後に変わらない)。
+
+---
+
+# `fig1b_phase2_negative` — P2-5 誘導探索の否定的結果 (探索コスト、`fig1_` の後継図、生成器付き)
+
+## 何を示す図か
+
+Phase 2 の P2-5 (旧 `linux-baremetal` 機の P2-2 fitness 表の上で、LLM 誘導 critic が次に評価する構成を選ぶ**再生**) の探索コストを、旧 `fig1_phase2_negative.png` と
+**同じ値・同じ視覚符号**で描き直した図である。探索コスト = winner-tied set (最良と between-run 床値の内で区別できない構成の集合) に初めて到達するまでに評価した構成の数 (低いほど速い)。
+
+- 1 行 × 3 panel (read-heavy / balanced / write-heavy、縦軸共通 1〜8)。
+- LLM-guided: 中立 critic の試行ごとのコスト (点、横に等間隔でずらす) と中央値 (横棒)。試行数は 6 / 12 / 12。
+- greedy (no LLM): P2-2 の WAL を LLM なしで再生した貪欲法 500 seed の平均 (四角) と 25/75 分位 (ひげ)。
+- 参照線: random (無作為順の解析期待値、点線) と oracle (初手ランダムの制約下の天井、破線)。
+- 注記: balanced `A=0.58`、write-heavy `A=0.23`・`p=2.5×10⁻⁴` (厳密 permutation、片側) と `8/12 mis-converged`。read-heavy は k=4 で到達判定が情報を持たないので A を注記しない。
+
+言えるのは旧図と同じこと (balanced で誘導と貪欲に有意差なし、write-heavy で誘導が貪欲より有害、8/12 が誤収束) までである。図は判定を作らない。
+
+## 既存図との関係
+
+- `fig1_phase2_negative.png` の**後継図**。旧図は生成器が tracked に無く、値の出所が図から辿れなかった。本図は同じ値を生成器と provenance 付きで描く。**旧図の bytes は変えていない。**
+- 旧図との違いは、直接ラベル `random`・`oracle` を軸の内側に置いた (旧図は右端の余白へはみ出していた) ことと、図の寸法・余白・点の横ずらし幅だけである。題・軸名・目盛り名・色・記号・注記の文言と桁は旧図と同じ。
+- 旧図と値が一致することの照合 (要素ごとの表、旧図・新図の両方へ同じ画素読み取りをかけた結果) は `output/insights/2026-09-26/t2853-fig1-generator/README.md`。
+- 論文ストーリーの凍結版 (2026-07-10 〜 2026-09-23) は旧図を参照したまま変えない。
+
+## 入力
+
+新規計測は 0。すべて追跡下。
+
+| 入力 | 使う値 |
+|---|---|
+| `output/campaigns/p2-5-summary.json` | LLM 誘導の試行コスト・未到達数・試行数 (原試行 WAL は削除済みで、この file の凍結値が唯一の記録)、照合先の記録値 |
+| `output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/` | WAL (8 構成 × 5 反復の throughput・当時の検証記録・実行 command・環境タグ) と lock (CCBench commit) |
+| `output/campaigns/p2-2-silo-balanced-enumerate-f1588056/` | 同上 |
+| `output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/` | 同上 |
+
+- P2-2 の 3 campaign は verifier epoch E0 (撮った時点で verifier の同一性を束縛する権威がまだ無かった印) で、現行の認証読み出し (`CERTIFIED_ACCEPTANCE`、既存の
+  `search_baselines.run_workload` が使う) は拒否する。生成器は fig2b と同じく `HISTORICAL_RAW` で読み、**当時の検証記録 (8 構成すべて certified) をそのまま使い、現行 verifier で再検証していない**
+  (provenance の `verifier_assessment_basis` = `recorded-at-original-verifier-epoch`)。
+- 貪欲法 (`greedy_reach`、500 seed、seed0 = 0)・tied set・random / oracle 期待値・A・厳密 p は、既存の `orchestrator/campaign/search_baselines.py` と `replay.winner_tied_set` の関数でその場で再計算する。
+  描く値 (k・構成数・tied set・random / oracle 期待値・貪欲の平均と分位・誘導の中央値・試行数・A・p) が summary の記録値と一致しなければ 3 成果物を 1 つも出さない。
+- 測定条件は WAL の `run_cmd`・`env_tag` と lock の `ccbench_commit` から取り、1 campaign の中で割れる・欠ける、または read 比以外が 3 campaign で一致しなければ出力しない。
+
+## 再現
+
+```
+python3 tools/plotting/plot_p2_5_search_cost.py docs/paper-story/figures/fig1b_phase2_negative
+```
+
+repo root から、login node (計測機の外、FIGURE_CONVENTIONS §7) で実行する。着地版は 2026-09-26 に Pegasus の login `pegasus02` (python 3.10.12、matplotlib 3.10.9、numpy 2.2.6) で描いた。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。着地したバイト列の同一性は provenance が記録した
+入力・出力の SHA-256 と `orchestrator/tests/test_plot_p2_5_search_cost.py` の `test_landed_bundle` (`validate_repo_closure`) が守る。
+provenance の `generator.sha256` は生成時点の記録であって現行 source を縛る pin ではなく (規律 7)、closure はそれを照合しない。
+
+## 作図規約への適合
+
+- §1: 数値は WAL の再生と summary の試行コストからその場で計算し、summary の集約値は照合先としてだけ使う。誘導の試行コストは原 WAL が削除済みなので summary の凍結値を生値として使う。
+- §3: random・oracle は水平の参照線で、何かを名指す直接ラベルを付ける。
+- §5: 図中ラベルは短く、A・記号の意味は caption で 1 回だけ展開する。
+- §6: provenance に入力 (summary・3 campaign の WAL と lock) の path と SHA-256、epoch、測定条件、workload ごとの計算値 (貪欲の度数分布を含む) と照合した key、描いた artist から読み戻した値、caption、出力の SHA-256、argv、版を記録する。条件は caption にも書く。
+- §7: login で生成。§8: matplotlib + numpy + 既存 module。
+- §9: 保存前にテキストの重なり・はみ出しを検査し、違反なら 3 成果物を 1 つも出さない。
+- §10: test は実データ (実寸の 3 panel・試行 6 / 12 / 12・500 seed) の本物の Figure を検査へ通す。実データで実走して 3 成果物を確かめた。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、`test_landed_bundle` が本 README への収録を検査する。
+
+> 旧 linux-baremetal 環境の Phase 2 探索コスト。P2-2 の silo 8 構成。測定条件は 48 スレッド、1000000 レコード、3 秒、clocks_per_us=1800、Zipf skew=0.9、read-heavy: read 比 95%、balanced: read 比 50%、write-heavy: read 比 5%、rmw=0、numactl --interleave=all、perf stat、各構成 5 反復、ccbench commit 6656e93。LLM-guided は中立 critic の 30 試行（read-heavy 6、balanced 12、write-heavy 12）の凍結値を示す。原試行 WAL は削除済みである。未到達（read-heavy 0/6、balanced 0/12、write-heavy 8/12）は事前登録どおり予算上限 8 として算入した。点は誘導の各試行。横棒は誘導の中央値。四角は貪欲の平均。ひげは貪欲の 25/75 分位（search_baselines._summ の順位 n//4・3n//4 の標本値）。点線は random の解析期待値。破線は初手ランダム制約下の oracle 天井。greedy は P2-2 WAL の決定論的再生 500 seed。A = P(誘導<貪欲)+0.5·P(=)、p は厳密 permutation 検定（片側）。P2-2 campaign は verifier epoch E0 の記録をそのまま使用し、現行 verifier では再検証していない。read-heavy は k=4 で到達判定が情報を持たないため、A の注記を付けない。
+
+## proof chain
+
+- 図に描いた点・横棒・四角・ひげ・参照線・注記 → provenance の `artist_series` (描画した artist から読み戻した値と文字列)
+- 描いた値 → provenance の `workloads.<workload>` (再計算値) と `checked_keys` (summary の記録値と照合した key)
+- 再計算の入力 → P2-2 の 3 campaign の WAL・lock (provenance の `campaign.wal` / `campaign.lock` の SHA-256) と summary (`summary` の SHA-256)
+- 当時の検証記録の扱い → provenance の `campaign_verifier_epoch` (E0、`recorded-at-original-verifier-epoch`)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_p2_5_search_cost.py` (`test_real_data`: 実データの度数・A・p、`test_reconciliation`: 照合の負例、`test_end_to_end`: artist と計算値の一致、`test_landed_bundle`: 着地 bytes と caption の収録)
+- P2-5 の結論と統計の訂正 → summary の `recalibration_2026_07_02` と `correction_2026_07_03`
+- 旧図との値の照合 → `output/insights/2026-09-26/t2853-fig1-generator/README.md`
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

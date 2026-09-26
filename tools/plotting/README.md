@@ -518,3 +518,19 @@ decisive_m / k_over_m / cp95 / discriminator_counts / identification) だけで�
 G2 signal を根因の同定として書かない。出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本 (provenance schema `izanagi-mocc-witlight-four-arm-figure-provenance/v1`。
 repo 内の閉包 `validate_repo_closure` と外部原本の閉包 `validate_external_sources` を分ける)。拒否条件・図の形・caption の固定文・再現コマンド・proof chain は
 `docs/paper-story/figures/README.md` の fig15 節を正本とする。
+
+## P2-5 誘導探索の探索コスト (fig1 の後継、否定的結果) figure
+
+`plot_p2_5_search_cost.py` は、論文ストーリーの旧 `fig1_phase2_negative.png` (生成器が tracked に無かった) と同じ値・同じ視覚符号で、
+P2-5 の探索コスト (winner-tied set への初到達までの評価数) を 1 行 × 3 panel (read-heavy / balanced / write-heavy) に描く専用生成器である。新規計測はしない。
+
+```bash
+python3 tools/plotting/plot_p2_5_search_cost.py [--summary PATH] [--output-root DIR] OUT_PREFIX
+```
+
+入力は追跡下の `output/campaigns/p2-5-summary.json` (LLM 誘導の試行コスト・未到達数の凍結値。原試行 WAL は削除済み) と P2-2 の 3 campaign
+(`output/campaigns/p2-2-silo-*-enumerate-*` の WAL と lock) だけ。P2-2 campaign は verifier epoch E0 なので `HISTORICAL_RAW` で読み、当時の検証記録
+(8 構成すべて certified・空間被覆) を要求する。貪欲法 500 seed・tied set・random / oracle 期待値・A・厳密 p は既存の `orchestrator/campaign/search_baselines.py`
+と `replay.winner_tied_set` でその場で再計算し、summary の記録値 (描く値に限る) と一致しなければ 3 成果物を 1 つも出さない。測定条件は WAL の `run_cmd`・`env_tag`
+と lock の `ccbench_commit` から取り、read 比以外が 3 campaign で一致することを要求して caption に書く。出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json`
+(provenance schema `izanagi-p2-5-search-cost-figure-provenance/v1`)。図の形・caption・再現コマンド・proof chain は `docs/paper-story/figures/README.md` の fig1b 節を正本とする。
