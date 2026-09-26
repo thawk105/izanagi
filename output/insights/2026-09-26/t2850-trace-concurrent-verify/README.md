@@ -126,3 +126,22 @@ drift 層の基準として M0 (pipeline.py のコメント)・M0p (p3_s4_loop.p
   閉包 file の変異の KILLED は drift 層と値の層の和で、単一理由の証拠は probe 2 の差分表 (上) と M8 の commit 注入。final は fix 6 (test だけ) の前の
   commit で走らせた。fix 6 は production を変えず (`git diff --stat f180c9de8 d21b870c9` は test file 1 本)、M8 の値の層は commit 注入で確かめた。
   記録: job dir `mutation-final-results.json`、`mutation-probe2-results.json`。
+
+## 6. 試走 v2 の発効と投入 (2026-09-26)
+
+- ユーザーの計算確認: 最終報告の問い (試走 3 block・18 job、見積り 22.2〜40.5 node 時間、LLM の待ち 1.9〜19.5 時間) に「いいよ」。発効の決定は本 wave の D (試走 v2 の発効)。
+- 固定 commit `299aa022ef08fca35ee4625e847cc25b49397ee6` (本実装を取り込んだ main の fold commit)。job ごとに 1 本の repo 外 detached checkout
+  (`trial-v2/trees/tree-01`〜`tree-18`) と LLM 親用の `parent-tree`。19 本とも HEAD・CCBench `511c9538`・tracked clean・hydrate を投入前に確かめた (`trial-v2/check_trees.py`)。
+- spec `trial-v2/specs-trial-v2.json` (sha256 `ea83ce7b…`): block 1 の write-heavy spec の cohort 名と置き場所だけを `t2850-trial-v2` へ差し替え (順序番号・A・B・N_eval・walltime は同じ)。
+- 投入 2026-09-26 22:34:30〜32 JST、block 1〜3 の順・block 内は順序番号の順、間隔なし:
+
+| block | 投入順の job (request) |
+|---|---|
+| 1 | bo 30122・block 30123・llm 30124・random 30125・sweep 30126・evolution 30127 |
+| 2 | llm 30128・random 30129・bo 30130・sweep 30131・evolution 30132・block 30133 |
+| 3 | llm 30134・bo 30135・random 30136・block 30137・evolution 30138・sweep 30139 |
+
+- LLM 3 系列の親: glue v3 の `parent_driver.py` を login で起動 (`trial-v2/run-driver.sh`、config `trial-v2/driver-trial-v2.json`、状態 `trial-v2/state-trial-v2/`)。
+  親は `claude -p --model claude-opus-5` をサブスクのログインで起動する (起動前に API キー類の環境変数 0 件・課金種別 `stripe_subscription` を確認)。
+  指示文は D2245 の template の写しで、固定 commit の記述だけ差し替えた (`trial-v2/parents/template-effective.md`、sha256 `ada47925…`)。
+- 所在はすべて repo 外の job dir `dev-wave-jobs/dev-wave-t2850-trace-concurrent-verify/trial-v2/`。結果の集計 (事前登録 §8) は試走の終了後の別 wave。
