@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 57 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Thirty-nine
+Claim boundary: the supply domain contains the 59 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-one
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -230,6 +230,14 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, "ycsb_mocc.exe",
         "patches/broken-mocc-hot-update-unlock.patch",
     ),
+    "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, "ycsb_mocc.exe",
+        "patches/broken-mocc-skip-canonical-restore.patch",
+    ),
+    "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, "ycsb_mocc.exe",
+        "patches/control-mocc-negated-temperature-predicate.patch",
+    ),
     "IZANAGI_BREAK_NOREAD_VALIDATION": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-norw-validation.patch",
@@ -373,6 +381,12 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK": (
         "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
     ),
+    "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE": (
+        "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE",
+    ),
+    "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": (
+        "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE",
+    ),
     "IZANAGI_BREAK_WRITE_INTENT_ERASE": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_ERASE",
     ),
@@ -476,6 +490,8 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF": 4,
     "IZANAGI_BREAK_REVERSE_WRITE_ORDER": 4,
     "IZANAGI_BREAK_CONSERVATIVE_ABORT": 4,
+    "IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE": 5,
+    "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": 9,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),

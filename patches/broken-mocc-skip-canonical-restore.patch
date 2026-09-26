@@ -1,0 +1,101 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+index e393efbfd..f5767bd46 100644
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -2,6 +2,11 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <thread>
++#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE
++#include <atomic>
++#include <cstdint>
++#include <cstdio>
++#endif
+ 
+ #include "../../include/atomic_wrapper.hh"
+ #include "../../include/backoff.hh"
+@@ -17,6 +22,25 @@
+ #line 17
+ 
+ using namespace std;
++#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE
++namespace {
++static std::atomic<uint64_t> t2847_reached{0};
++static std::atomic<uint64_t> t2847_changed{0};
++static std::atomic<uint64_t> t2847_committed{0};
++static std::atomic<uint64_t> t2847_skipped_locks{0};
++static thread_local bool t2847_transaction_touched = false;
++struct T2847Report {
++  ~T2847Report() {
++    std::fprintf(stderr, "T2847_FIRED slug=mocc-skip-canonical-restore reached=%llu changed=%llu committed=%llu skipped_locks=%llu\n",
++        static_cast<unsigned long long>(t2847_reached.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_changed.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_committed.load(std::memory_order_relaxed)),
++        static_cast<unsigned long long>(t2847_skipped_locks.load(std::memory_order_relaxed)));
++  }
++};
++static T2847Report t2847_report;
++} // namespace
++#endif
+ 
+ extern void moccLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -188,6 +212,9 @@ void TxExecutor::removeFromCLL(Tuple* key) {
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE
++  t2847_transaction_touched = false;
++#endif
+   /**
+    * Init by TransactionStatus::inflight status.
+    */
+@@ -832,7 +859,37 @@ void TxExecutor::lock(Tuple* tuple, bool mode) {
+ #endif // MQLOCK
+   }
+ 
++#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE
++  bool skip_canonical_restore = false;
++  if (vioctr > 0) {
++    t2847_reached.fetch_add(1, std::memory_order_relaxed);
++    // The CLL suffix remains held. Reject every lock that the following
++    // canonical loop would reacquire, and any existing lock on tuple itself.
++    bool overlaps = upgrade;
++    for (const auto& held : CLL_) {
++      if (held.key_ == tuple) overlaps = true;
++    }
++    if (!overlaps) {
++      for (const auto& requested : RLL_) {
++        if (requested.key_ <= threshold) continue;
++        if (requested.key_ >= tuple) break;
++        for (auto held = CLL_.end() - vioctr; held != CLL_.end(); ++held) {
++          if (held->key_ == requested.key_) overlaps = true;
++        }
++        if (overlaps) break;
++      }
++    }
++    skip_canonical_restore = !overlaps;
++    if (skip_canonical_restore) {
++      t2847_changed.fetch_add(1, std::memory_order_relaxed);
++      t2847_skipped_locks.fetch_add(vioctr, std::memory_order_relaxed);
++      t2847_transaction_touched = true;
++    }
++  }
++  if (vioctr != 0 && !skip_canonical_restore) {
++#else
+   if (vioctr != 0) {
++#endif
+     // not in canonical mode. restore.
+     for (auto itr = CLL_.begin() + (CLL_.size() - vioctr); itr != CLL_.end();
+          ++itr) {
+@@ -1279,6 +1336,10 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validation()) {
+     writePhase();
++#if IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE
++    if (t2847_transaction_touched)
++      t2847_committed.fetch_add(1, std::memory_order_relaxed);
++#endif
+     return true;
+   } else {
+     return false;

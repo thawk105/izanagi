@@ -1,0 +1,416 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c980d01d8b12cdd23c85e540fff6b5ed/izdw-c980d01d8b.o21353",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c980d01d8b12cdd23c85e540fff6b5ed/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 6.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "0a4d2461329d80aadc1d6cfa969e9e99988c2f856d84eda63c059787bd1fdc91"
+    },
+    "artifact_error": null,
+    "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+    "duration_s": 1559.248,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6a7dd2ab4597ed06592706c3085067973915240b82386d6fed20ef468e327b77",
+    "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+    "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+    "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+    "status": "PASSED",
+    "test_output_sha256": "0a4d2461329d80aadc1d6cfa969e9e99988c2f856d84eda63c059787bd1fdc91",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+  },
+  "date": "2026-09-23T13:08:33.426174+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab804179fcc88710c098da69f0863eb9/izdw-ab804179fc.o21402",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab804179fcc88710c098da69f0863eb9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 6.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "09e5766ec1fa4724d26712493df1dd9dfe4b4ab421518ce53aa3dc688affc05a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+      "duration_s": 1269.193,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P0",
+      "injection_diff_sha256": "81e7d7d3496b889d49f069af7fb0049f75c3ba6d33ee58d71ccaeeaf6a2a96a2",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9b783324200a5019c759e98de32618ccd8055a73a1137f9860242d176dc8780e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "        \"\"\"Session で 1 回の snapshot を複製する (P0)。\n",
+          "old": "        \"\"\"Session で 1 回の snapshot を複製する。\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "SURVIVED",
+      "test_output_sha256": "09e5766ec1fa4724d26712493df1dd9dfe4b4ab421518ce53aa3dc688affc05a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/044b69017edb8c4daa2f9fe5e1e88cd3/izdw-044b69017e.o21444",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/044b69017edb8c4daa2f9fe5e1e88cd3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_t080_shared_base_visible_output_uses_one_snapshot ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154636269030>\n\n    def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n        for key in tuple(os.environ):\n            if key.startswith(\"GIT_\"):\n                monkeypatch.delenv(key)\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n    \n        source = tmp_path / \"source\"\n        output = source / \"output\"\n        output.mkdir(parents=True)\n        _run_git(source, \"init\", \"-q\")\n        (source / \".gitignore\").write_text(\"output/ignored.txt\\n\", encoding=\"utf-8\")\n        tracked = output / \"tracked.txt\"\n        tracked.write_bytes(b\"original tracked\\n\")\n        receipt = source / migration.RECEIPT_REL\n        receipt.parent.mkdir(parents=True)\n        receipt.write_bytes(b\"excluded receipt\\n\")\n        _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n        tracked.write_bytes(b\"modified tracked\\n\")\n        (output / \"untracked.txt\").write_bytes(b\"untracked\\n\")\n        (output / \"ignored.txt\").write_bytes(b\"ignored\\n\")\n        old_mtime = time.time_ns() - 5_000_000_000\n        os.utime(tracked, ns=(old_mtime, old_mtime))\n    \n        direct = tmp_path / \"direct\"\n        _copy_git_visible_output(source, direct)\n    \n        def regular_files(directory):\n            return {\n                path.relative_to(directory).as_posix(): path.read_bytes()\n                for path in directory.rglob(\"*\")\n                if path.is_file() and not path.is_symlink()\n            }\n    \n        expected = regular_files(direct)\n        assert expected == {\n            \"tracked.txt\": b\"modified tracked\\n\",\n            \"untracked.txt\": b\"untracked\\n\",\n        }\n        bases = _T080SharedBases(tmp_path / \"bases\")\n        try:\n            with mock.patch.object(\n                    sys.modules[__name__], \"_copy_git_visible_output\",\n                    wraps=_copy_git_visible_output,\n                    ) as visible_copy:\n                first = tmp_path / \"first\"\n                bases.copy_visible_output(source, first)\n                tracked.write_bytes(b\"changed after snapshot\\n\")\n                (output / \"untracked.txt\").write_bytes(b\"changed untracked\\n\")\n                second = tmp_path / \"second\"\n                bases.copy_visible_output(source, second)\n                assert visible_copy.call_count == 1\n    \n            snapshot, = (bases.parent / \"visible-output-cache\").glob(\"*/output\")\n            assert (snapshot.parent / \"ready.json\").is_file()\n>           assert (second / \"tracked.txt\").read_bytes() == expected[\"tracked.txt\"]\nE           AssertionError: assert b'changed after snapshot\\n' == b'modified tracked\\n'\nE             \nE             At index 0 diff: b'c' != b'm'\nE             Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:1183: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n1 failed in 6.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=3053 retained_bytes=3053 omitted_bytes=0 rendered_excerpt_bytes=3224 sha256=97026b890d24e61fe59c3f1f415426b1b90bf4bd1fd7de7bc44d3c937d76d1fd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154636269030>\n> \n>     def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n>         for key in tuple(os.environ):\n>             if key.startswith(\"GIT_\"):\n>                 monkeypatch.delenv(key)\n>         monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n>         monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n>     \n>         source = tmp_path / \"source\"\n>         output = source / \"output\"\n>         output.mkdir(parents=True)\n>         _run_git(source, \"init\", \"-q\")\n>         (source / \".gitignore\").write_text(\"output/ignored.txt\\x5cn\", encoding=\"utf-8\")\n>         tracked = output / \"tracked.txt\"\n>         tracked.write_bytes(b\"original tracked\\x5cn\")\n>         receipt = source / migration.RECEIPT_REL\n>         receipt.parent.mkdir(parents=True)\n>         receipt.write_bytes(b\"excluded receipt\\x5cn\")\n>         _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n>         tracked.write_bytes(b\"modified tracked\\x5cn\")\n>         (output / \"untracked.txt\").write_bytes(b\"untracked\\x5cn\")\n>         (output / \"ignored.txt\").write_bytes(b\"ignored\\x5cn\")\n>         old_mtime = time.time_ns() - 5_000_000_000\n>         os.utime(tracked, ns=(old_mtime, old_mtime))\n>     \n>         direct = tmp_path / \"direct\"\n>         _copy_git_visible_output(source, direct)\n>     \n>         def regular_files(directory):\n>             return {\n>                 path.relative_to(directory).as_posix(): path.read_bytes()\n>                 for path in directory.rglob(\"*\")\n>                 if path.is_file() and not path.is_symlink()\n>             }\n>     \n>         expected = regular_files(direct)\n>         assert expected == {\n>             \"tracked.txt\": b\"modified tracked\\x5cn\",\n>             \"untracked.txt\": b\"untracked\\x5cn\",\n>         }\n>         bases = _T080SharedBases(tmp_path / \"bases\")\n>         try:\n>             with mock.patch.object(\n>                     sys.modules[__name__], \"_copy_git_visible_output\",\n>                     wraps=_copy_git_visible_output,\n>                     ) as visible_copy:\n>                 first = tmp_path / \"first\"\n>                 bases.copy_visible_output(source, first)\n>                 tracked.write_bytes(b\"changed after snapshot\\x5cn\")\n>                 (output / \"untracked.txt\").write_bytes(b\"changed untracked\\x5cn\")\n>                 second = tmp_path / \"second\"\n>                 bases.copy_visible_output(source, second)\n>                 assert visible_copy.call_count == 1\n>     \n>             snapshot, = (bases.parent / \"visible-output-cache\").glob(\"*/output\")\n>             assert (snapshot.parent / \"ready.json\").is_file()\n> >           assert (second / \"tracked.txt\").read_bytes() == expected[\"tracked.txt\"]\n> E           AssertionError: assert b'changed after snapshot\\x5cn' == b'modified tracked\\x5cn'\n> E             \n> E             At index 0 diff: b'c' != b'm'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1183: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3053 retained_bytes=3053 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3952 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a960a8dab1cc44451239726569cf4ab460e7352361508b88d76e013878d222b6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+      "duration_s": 415.858,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "638951158f0d90d7c38675b8eba616bfffa1326ed6169f20137fb540387d2a2d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "447ae8fe2a3ba1f460b449fd3c7735da45090de78a63100d32fd0ec66d3f1fb6",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "        shutil.copytree(source_root / \"output\", destination)\n",
+          "old": "        shutil.copytree(snapshot / \"output\", destination)\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "KILLED",
+      "test_output_sha256": "a960a8dab1cc44451239726569cf4ab460e7352361508b88d76e013878d222b6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df8969afd01bacf0ae7efbfa1f4b37d7/izdw-df8969afd0.o21455",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df8969afd01bacf0ae7efbfa1f4b37d7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_t080_shared_base_visible_output_uses_one_snapshot ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14973b416e90>\n\n    def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n        for key in tuple(os.environ):\n            if key.startswith(\"GIT_\"):\n                monkeypatch.delenv(key)\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n    \n        source = tmp_path / \"source\"\n        output = source / \"output\"\n        output.mkdir(parents=True)\n        _run_git(source, \"init\", \"-q\")\n        (source / \".gitignore\").write_text(\"output/ignored.txt\\n\", encoding=\"utf-8\")\n        tracked = output / \"tracked.txt\"\n        tracked.write_bytes(b\"original tracked\\n\")\n        receipt = source / migration.RECEIPT_REL\n        receipt.parent.mkdir(parents=True)\n        receipt.write_bytes(b\"excluded receipt\\n\")\n        _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n        tracked.write_bytes(b\"modified tracked\\n\")\n        (output / \"untracked.txt\").write_bytes(b\"untracked\\n\")\n        (output / \"ignored.txt\").write_bytes(b\"ignored\\n\")\n        old_mtime = time.time_ns() - 5_000_000_000\n        os.utime(tracked, ns=(old_mtime, old_mtime))\n    \n        direct = tmp_path / \"direct\"\n        _copy_git_visible_output(source, direct)\n    \n        def regular_files(directory):\n            return {\n                path.relative_to(directory).as_posix(): path.read_bytes()\n                for path in directory.rglob(\"*\")\n                if path.is_file() and not path.is_symlink()\n            }\n    \n        expected = regular_files(direct)\n        assert expected == {\n            \"tracked.txt\": b\"modified tracked\\n\",\n            \"untracked.txt\": b\"untracked\\n\",\n        }\n        bases = _T080SharedBases(tmp_path / \"bases\")\n        try:\n            with mock.patch.object(\n                    sys.modules[__name__], \"_copy_git_visible_output\",\n                    wraps=_copy_git_visible_output,\n                    ) as visible_copy:\n                first = tmp_path / \"first\"\n                bases.copy_visible_output(source, first)\n                tracked.write_bytes(b\"changed after snapshot\\n\")\n                (output / \"untracked.txt\").write_bytes(b\"changed untracked\\n\")\n                second = tmp_path / \"second\"\n                bases.copy_visible_output(source, second)\n>               assert visible_copy.call_count == 1\nE               AssertionError: assert 2 == 1\nE                +  where 2 = <MagicMock name='_copy_git_visible_output' id='22639764384464'>.call_count\n\norchestrator/tests/test_s8b_oracle_driver.py:1179: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n1 failed in 6.19s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2787 retained_bytes=2787 omitted_bytes=0 rendered_excerpt_bytes=2940 sha256=782c05ac6c647cfb59880c6c9c18067ef0ecfac38335283cb5296f9394f971f9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14973b416e90>\n> \n>     def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n>         for key in tuple(os.environ):\n>             if key.startswith(\"GIT_\"):\n>                 monkeypatch.delenv(key)\n>         monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n>         monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n>     \n>         source = tmp_path / \"source\"\n>         output = source / \"output\"\n>         output.mkdir(parents=True)\n>         _run_git(source, \"init\", \"-q\")\n>         (source / \".gitignore\").write_text(\"output/ignored.txt\\x5cn\", encoding=\"utf-8\")\n>         tracked = output / \"tracked.txt\"\n>         tracked.write_bytes(b\"original tracked\\x5cn\")\n>         receipt = source / migration.RECEIPT_REL\n>         receipt.parent.mkdir(parents=True)\n>         receipt.write_bytes(b\"excluded receipt\\x5cn\")\n>         _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n>         tracked.write_bytes(b\"modified tracked\\x5cn\")\n>         (output / \"untracked.txt\").write_bytes(b\"untracked\\x5cn\")\n>         (output / \"ignored.txt\").write_bytes(b\"ignored\\x5cn\")\n>         old_mtime = time.time_ns() - 5_000_000_000\n>         os.utime(tracked, ns=(old_mtime, old_mtime))\n>     \n>         direct = tmp_path / \"direct\"\n>         _copy_git_visible_output(source, direct)\n>     \n>         def regular_files(directory):\n>             return {\n>                 path.relative_to(directory).as_posix(): path.read_bytes()\n>                 for path in directory.rglob(\"*\")\n>                 if path.is_file() and not path.is_symlink()\n>             }\n>     \n>         expected = regular_files(direct)\n>         assert expected == {\n>             \"tracked.txt\": b\"modified tracked\\x5cn\",\n>             \"untracked.txt\": b\"untracked\\x5cn\",\n>         }\n>         bases = _T080SharedBases(tmp_path / \"bases\")\n>         try:\n>             with mock.patch.object(\n>                     sys.modules[__name__], \"_copy_git_visible_output\",\n>                     wraps=_copy_git_visible_output,\n>                     ) as visible_copy:\n>                 first = tmp_path / \"first\"\n>                 bases.copy_visible_output(source, first)\n>                 tracked.write_bytes(b\"changed after snapshot\\x5cn\")\n>                 (output / \"untracked.txt\").write_bytes(b\"changed untracked\\x5cn\")\n>                 second = tmp_path / \"second\"\n>                 bases.copy_visible_output(source, second)\n> >               assert visible_copy.call_count == 1\n> E               AssertionError: assert 2 == 1\n> E                +  where 2 = <MagicMock name='_copy_git_visible_output' id='22639764384464'>.call_count\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1179: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2787 retained_bytes=2787 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3668 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bd13c53730de7dfc9395b4ed5791a82647382bf9cb6335a0e011dc6d41f8ce40"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+      "duration_s": 27.322,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "7473132d42238885a193030c54aa5496c68de741bb953e5388ab61c918af268a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f6da6da1b7b24803d98f18c2bf5525b60f99f46715a15454da3f7005a7a3608f",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.unlink()\n",
+          "old": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.replace(marker)\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "KILLED",
+      "test_output_sha256": "bd13c53730de7dfc9395b4ed5791a82647382bf9cb6335a0e011dc6d41f8ce40",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/23ce5c2a8839fea8fa06f5f856e6929d/izdw-23ce5c2a88.o21456",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/23ce5c2a8839fea8fa06f5f856e6929d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_t080_shared_base_visible_output_uses_one_snapshot ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ebbe8d2080>\n\n    def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n        for key in tuple(os.environ):\n            if key.startswith(\"GIT_\"):\n                monkeypatch.delenv(key)\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n    \n        source = tmp_path / \"source\"\n        output = source / \"output\"\n        output.mkdir(parents=True)\n        _run_git(source, \"init\", \"-q\")\n        (source / \".gitignore\").write_text(\"output/ignored.txt\\n\", encoding=\"utf-8\")\n        tracked = output / \"tracked.txt\"\n        tracked.write_bytes(b\"original tracked\\n\")\n        receipt = source / migration.RECEIPT_REL\n        receipt.parent.mkdir(parents=True)\n        receipt.write_bytes(b\"excluded receipt\\n\")\n        _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n        tracked.write_bytes(b\"modified tracked\\n\")\n        (output / \"untracked.txt\").write_bytes(b\"untracked\\n\")\n        (output / \"ignored.txt\").write_bytes(b\"ignored\\n\")\n        old_mtime = time.time_ns() - 5_000_000_000\n        os.utime(tracked, ns=(old_mtime, old_mtime))\n    \n        direct = tmp_path / \"direct\"\n        _copy_git_visible_output(source, direct)\n    \n        def regular_files(directory):\n            return {\n                path.relative_to(directory).as_posix(): path.read_bytes()\n                for path in directory.rglob(\"*\")\n                if path.is_file() and not path.is_symlink()\n            }\n    \n        expected = regular_files(direct)\n        assert expected == {\n            \"tracked.txt\": b\"modified tracked\\n\",\n            \"untracked.txt\": b\"untracked\\n\",\n        }\n        bases = _T080SharedBases(tmp_path / \"bases\")\n        try:\n            with mock.patch.object(\n                    sys.modules[__name__], \"_copy_git_visible_output\",\n                    wraps=_copy_git_visible_output,\n                    ) as visible_copy:\n                first = tmp_path / \"first\"\n                bases.copy_visible_output(source, first)\n                tracked.write_bytes(b\"changed after snapshot\\n\")\n                (output / \"untracked.txt\").write_bytes(b\"changed untracked\\n\")\n                second = tmp_path / \"second\"\n                bases.copy_visible_output(source, second)\n                assert visible_copy.call_count == 1\n    \n            snapshot, = (bases.parent / \"visible-output-cache\").glob(\"*/output\")\n            assert (snapshot.parent / \"ready.json\").is_file()\n            assert (second / \"tracked.txt\").read_bytes() == expected[\"tracked.txt\"]\n            for destination in (first, second):\n                assert regular_files(destination) == expected\n                for relative in expected:\n>                   assert (destination / relative).stat().st_mtime_ns == (\n                        snapshot / relative\n                    ).stat().st_mtime_ns\nE                   AssertionError: assert 1790172231004493798 == 1790172226000570298\nE                    +  where 1790172231004493798 = os.stat_result(st_mode=33188, st_ino=403052462, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172231, st_ctime=1790172231).st_mtime_ns\nE                    +    where os.stat_result(st_mode=33188, st_ino=403052462, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172231, st_ctime=1790172231) = stat()\nE                    +      where stat = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0/first') / 'tracked.txt').stat\nE                    +  and   1790172226000570298 = os.stat_result(st_mode=33188, st_ino=269069750, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172226, st_ctime=1790172231).st_mtime_ns\nE                    +    where os.stat_result(st_mode=33188, st_ino=269069750, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172226, st_ctime=1790172231) = stat()\nE                    +      where stat = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0/bases/visible-output-cache/fee3af1b4c837a0c/output') / 'tracked.txt').stat\n\norchestrator/tests/test_s8b_oracle_driver.py:1187: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n1 failed in 6.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=4540 retained_bytes=3939 omitted_bytes=601 rendered_excerpt_bytes=4096 sha256=7386f270363afabb05d22c25b10a95eff8d44211a0990db5dd83f32c1b8953f5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>  / \"output\"\n>         output.mkdir(parents=True)\n>         _run_git(source, \"init\", \"-q\")\n>         (source / \".gitignore\").write_text(\"output/ignored.txt\\x5cn\", encoding=\"utf-8\")\n>         tracked = output / \"tracked.txt\"\n>         tracked.write_bytes(b\"original tracked\\x5cn\")\n>         receipt = source / migration.RECEIPT_REL\n>         receipt.parent.mkdir(parents=True)\n>         receipt.write_bytes(b\"excluded receipt\\x5cn\")\n>         _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n>         tracked.write_bytes(b\"modified tracked\\x5cn\")\n>         (output / \"untracked.txt\").write_bytes(b\"untracked\\x5cn\")\n>         (output / \"ignored.txt\").write_bytes(b\"ignored\\x5cn\")\n>         old_mtime = time.time_ns() - 5_000_000_000\n>         os.utime(tracked, ns=(old_mtime, old_mtime))\n>     \n>         direct = tmp_path / \"direct\"\n>         _copy_git_visible_output(source, direct)\n>     \n>         def regular_files(directory):\n>             return {\n>                 path.relative_to(directory).as_posix(): path.read_bytes()\n>                 for path in directory.rglob(\"*\")\n>                 if path.is_file() and not path.is_symlink()\n>             }\n>     \n>         expected = regular_files(direct)\n>         assert expected == {\n>             \"tracked.txt\": b\"modified tracked\\x5cn\",\n>             \"untracked.txt\": b\"untracked\\x5cn\",\n>         }\n>         bases = _T080SharedBases(tmp_path / \"bases\")\n>         try:\n>             with mock.patch.object(\n>                     sys.modules[__name__], \"_copy_git_visible_output\",\n>                     wraps=_copy_git_visible_output,\n>                     ) as visible_copy:\n>                 first = tmp_path / \"first\"\n>                 bases.copy_visible_output(source, first)\n>                 tracked.write_bytes(b\"changed after snapshot\\x5cn\")\n>                 (output / \"untracked.txt\").write_bytes(b\"changed untracked\\x5cn\")\n>                 second = tmp_path / \"second\"\n>                 bases.copy_visible_output(source, second)\n>                 assert visible_copy.call_count == 1\n>     \n>             snapshot, = (bases.parent / \"visible-output-cache\").glob(\"*/output\")\n>             assert (snapshot.parent / \"ready.json\").is_file()\n>             assert (second / \"tracked.txt\").read_bytes() == expected[\"tracked.txt\"]\n>             for destination in (first, second):\n>                 assert regular_files(destination) == expected\n>                 for relative in expected:\n> >                   assert (destination / relative).stat().st_mtime_ns == (\n>                         snapshot / relative\n>                     ).stat().st_mtime_ns\n> E                   AssertionError: assert 1790172231004493798 == 1790172226000570298\n> E                    +  where 1790172231004493798 = os.stat_result(st_mode=33188, st_ino=403052462, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172231, st_ctime=1790172231).st_mtime_ns\n> E                    +    where os.stat_result(st_mode=33188, st_ino=403052462, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172231, st_ctime=1790172231) = stat()\n> E                    +      where stat = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0/first') / 'tracked.txt').stat\n> E                    +  and   1790172226000570298 = os.stat_result(st_mode=33188, st_ino=269069750, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172226, st_ctime=1790172231).st_mtime_ns\n> E                    +    where os.stat_result(st_mode=33188, st_ino=269069750, st_dev=66309, st_nlink=1, st_uid=31609, st_gid=30410, st_size=17, st_atime=1790172231, st_mtime=1790172226, st_ctime=1790172231) = stat()\n> E                    +      where stat = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0/bases/visible-output-cache/fee3af1b4c837a0c/output') / 'tracked.txt').stat\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1187: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4540 retained_bytes=3939 omitted_bytes=601 budget_bytes=49152 rendered_bytes=4828 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2945b57d324ff1b3b6483a6ddc05a96dab0c455a81793f8b7bee431f3d85893f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+      "duration_s": 27.032,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "59b073782437bedb03a75760192bfa9794df20c8bff9d052c9e5bfe7a25a43e7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6391e4a011f98e1205792f005f04aa6a38f15def97e21773c42fa0e39ff2e760",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "        shutil.copytree(snapshot / \"output\", destination, copy_function=shutil.copy)\n",
+          "old": "        shutil.copytree(snapshot / \"output\", destination)\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "KILLED",
+      "test_output_sha256": "2945b57d324ff1b3b6483a6ddc05a96dab0c455a81793f8b7bee431f3d85893f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2d414f340c0558f1840de8d3b3cc4942/izdw-2d414f340c.o21457",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2d414f340c0558f1840de8d3b3cc4942/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_t080_shared_base_visible_output_uses_one_snapshot ____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1475d6aacc40>\n\n    def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n        for key in tuple(os.environ):\n            if key.startswith(\"GIT_\"):\n                monkeypatch.delenv(key)\n        monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n        monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n    \n        source = tmp_path / \"source\"\n        output = source / \"output\"\n        output.mkdir(parents=True)\n        _run_git(source, \"init\", \"-q\")\n        (source / \".gitignore\").write_text(\"output/ignored.txt\\n\", encoding=\"utf-8\")\n        tracked = output / \"tracked.txt\"\n        tracked.write_bytes(b\"original tracked\\n\")\n        receipt = source / migration.RECEIPT_REL\n        receipt.parent.mkdir(parents=True)\n        receipt.write_bytes(b\"excluded receipt\\n\")\n        _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n        tracked.write_bytes(b\"modified tracked\\n\")\n        (output / \"untracked.txt\").write_bytes(b\"untracked\\n\")\n        (output / \"ignored.txt\").write_bytes(b\"ignored\\n\")\n        old_mtime = time.time_ns() - 5_000_000_000\n        os.utime(tracked, ns=(old_mtime, old_mtime))\n    \n        direct = tmp_path / \"direct\"\n        _copy_git_visible_output(source, direct)\n    \n        def regular_files(directory):\n            return {\n                path.relative_to(directory).as_posix(): path.read_bytes()\n                for path in directory.rglob(\"*\")\n                if path.is_file() and not path.is_symlink()\n            }\n    \n        expected = regular_files(direct)\n        assert expected == {\n            \"tracked.txt\": b\"modified tracked\\n\",\n            \"untracked.txt\": b\"untracked\\n\",\n        }\n        bases = _T080SharedBases(tmp_path / \"bases\")\n        try:\n            with mock.patch.object(\n                    sys.modules[__name__], \"_copy_git_visible_output\",\n                    wraps=_copy_git_visible_output,\n                    ) as visible_copy:\n                first = tmp_path / \"first\"\n                bases.copy_visible_output(source, first)\n                tracked.write_bytes(b\"changed after snapshot\\n\")\n                (output / \"untracked.txt\").write_bytes(b\"changed untracked\\n\")\n                second = tmp_path / \"second\"\n                bases.copy_visible_output(source, second)\n>               assert visible_copy.call_count == 1\nE               AssertionError: assert 0 == 1\nE                +  where 0 = <MagicMock name='_copy_git_visible_output' id='22496328139680'>.call_count\n\norchestrator/tests/test_s8b_oracle_driver.py:1179: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n1 failed in 6.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2787 retained_bytes=2787 omitted_bytes=0 rendered_excerpt_bytes=2940 sha256=b7250b33bca0ddba85b726005f0e7b8f5473aac15979c18508dabdab79904226\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_visible_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1475d6aacc40>\n> \n>     def test_t080_shared_base_visible_output_uses_one_snapshot(tmp_path, monkeypatch):\n>         for key in tuple(os.environ):\n>             if key.startswith(\"GIT_\"):\n>                 monkeypatch.delenv(key)\n>         monkeypatch.setenv(\"GIT_CONFIG_NOSYSTEM\", \"1\")\n>         monkeypatch.setenv(\"GIT_CONFIG_GLOBAL\", os.devnull)\n>     \n>         source = tmp_path / \"source\"\n>         output = source / \"output\"\n>         output.mkdir(parents=True)\n>         _run_git(source, \"init\", \"-q\")\n>         (source / \".gitignore\").write_text(\"output/ignored.txt\\x5cn\", encoding=\"utf-8\")\n>         tracked = output / \"tracked.txt\"\n>         tracked.write_bytes(b\"original tracked\\x5cn\")\n>         receipt = source / migration.RECEIPT_REL\n>         receipt.parent.mkdir(parents=True)\n>         receipt.write_bytes(b\"excluded receipt\\x5cn\")\n>         _run_git(source, \"add\", \".gitignore\", \"output/tracked.txt\", migration.RECEIPT_REL)\n>         tracked.write_bytes(b\"modified tracked\\x5cn\")\n>         (output / \"untracked.txt\").write_bytes(b\"untracked\\x5cn\")\n>         (output / \"ignored.txt\").write_bytes(b\"ignored\\x5cn\")\n>         old_mtime = time.time_ns() - 5_000_000_000\n>         os.utime(tracked, ns=(old_mtime, old_mtime))\n>     \n>         direct = tmp_path / \"direct\"\n>         _copy_git_visible_output(source, direct)\n>     \n>         def regular_files(directory):\n>             return {\n>                 path.relative_to(directory).as_posix(): path.read_bytes()\n>                 for path in directory.rglob(\"*\")\n>                 if path.is_file() and not path.is_symlink()\n>             }\n>     \n>         expected = regular_files(direct)\n>         assert expected == {\n>             \"tracked.txt\": b\"modified tracked\\x5cn\",\n>             \"untracked.txt\": b\"untracked\\x5cn\",\n>         }\n>         bases = _T080SharedBases(tmp_path / \"bases\")\n>         try:\n>             with mock.patch.object(\n>                     sys.modules[__name__], \"_copy_git_visible_output\",\n>                     wraps=_copy_git_visible_output,\n>                     ) as visible_copy:\n>                 first = tmp_path / \"first\"\n>                 bases.copy_visible_output(source, first)\n>                 tracked.write_bytes(b\"changed after snapshot\\x5cn\")\n>                 (output / \"untracked.txt\").write_bytes(b\"changed untracked\\x5cn\")\n>                 second = tmp_path / \"second\"\n>                 bases.copy_visible_output(source, second)\n> >               assert visible_copy.call_count == 1\n> E               AssertionError: assert 0 == 1\n> E                +  where 0 = <MagicMock name='_copy_git_visible_output' id='22496328139680'>.call_count\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1179: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2787 retained_bytes=2787 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3668 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6dd930b92710de0edde5a29a549636c46a1217626dc4c5d5633956cbf6e4904a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "635d41d3c630d80992c29731d349d9cc09fbb05fcbd6822d19305d3049e7e6c5",
+      "duration_s": 27.473,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "b372fa304432e6e4e8df64e5a39cefb9847912ef276e5fc367416b12cf8920e7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2650a5ae9233d3efd4e74a483da2aa5a689575b03e8926a602c85da76be079d4",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "                shutil.copytree(source_root / \"output\", snapshot / \"output\")\n",
+          "old": "                _copy_git_visible_output(source_root, snapshot / \"output\")\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "KILLED",
+      "test_output_sha256": "6dd930b92710de0edde5a29a549636c46a1217626dc4c5d5633956cbf6e4904a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa6a3ba0b4d8bc6e07e643bbd9aff426/izdw-aa6a3ba0b4.o21335",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa6a3ba0b4d8bc6e07e643bbd9aff426/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n\n1 test collected in 2.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "93e031fa247ab3feb0e13ec4dbdf60957476cd3dca89d261bcba27ab18d432e6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "duration_s": 453.358,
+      "rc": 0,
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+      "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+      "status": "PASSED",
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    "hang_timeout_seconds": 4500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "638951158f0d90d7c38675b8eba616bfffa1326ed6169f20137fb540387d2a2d",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "        shutil.copytree(source_root / \"output\", destination)\n",
+            "old": "        shutil.copytree(snapshot / \"output\", destination)\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7473132d42238885a193030c54aa5496c68de741bb953e5388ab61c918af268a",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.unlink()\n",
+            "old": "                pending.write_text(\"{}\", encoding=\"utf-8\")\n                pending.replace(marker)\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "59b073782437bedb03a75760192bfa9794df20c8bff9d052c9e5bfe7a25a43e7",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "        shutil.copytree(snapshot / \"output\", destination, copy_function=shutil.copy)\n",
+            "old": "        shutil.copytree(snapshot / \"output\", destination)\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b372fa304432e6e4e8df64e5a39cefb9847912ef276e5fc367416b12cf8920e7",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "                shutil.copytree(source_root / \"output\", snapshot / \"output\")\n",
+            "old": "                _copy_git_visible_output(source_root, snapshot / \"output\")\n"
+          }
+        ]
+      },
+      "P0": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "81e7d7d3496b889d49f069af7fb0049f75c3ba6d33ee58d71ccaeeaf6a2a96a2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "        \"\"\"Session で 1 回の snapshot を複製する (P0)。\n",
+            "old": "        \"\"\"Session で 1 回の snapshot を複製する。\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6a7dd2ab4597ed06592706c3085067973915240b82386d6fed20ef468e327b77",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "160626ceab7326c720473ea29ee366ecd280ce74",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c943ba8210b8e49711fa986a61be470a56609fc1f39c35aadfe20397cca45a3b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c052678405bc6e3b549179cf5e2dcfcb82d0c79e7e681372965408eb83f263de",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2",
+  "updated_at": "2026-09-23T14:04:35.766044+00:00"
+}

@@ -1,0 +1,12 @@
+{
+  "class": "infra",
+  "reason": "shard-0 (29217.nqsv) の xdist worker が orchestrator/tests/real_repo_receipt_memo.py の早期待ち (_EARLY_WAIT_TIMEOUT_S = 120 秒) を超えて 'memo publication timeout' (TimeoutError ETIMEDOUT) の INTERNALERROR になり、no tests ran in 191.49s。dispatch は shard-0 と shard-2 (29218) を 'signal 15' (signal-abort、kind=infra) で終えた。A 走 (620a6bb13 = 実装を含まない main の code、real_repo_receipt_memo.py は本 wave で未変更) で起きており、実装差分から到達しない。同型は既知 (decisions の D2206 項 10 の渡し先の記録に memo publication timeout 1 例、hold 退避と再投入で対処)。qstat で 29217/29218/29219 の不在を確認、A 木に hold は残っていない。事前登録 §3 のとおり対 1 (順序 A,B) を同順序で取り直す。失敗走は捨てず、insight に条件別の失敗件数として残す。",
+  "failed_nodes": [],
+  "dispatch": {
+    "shard-0": "29217.nqsv signal-abort after worker INTERNALERROR (memo publication timeout)",
+    "shard-1": "29219.nqsv finished",
+    "shard-2": "29218.nqsv signal-abort"
+  },
+  "classified_at": "2026-09-26T10:21:09+09:00",
+  "classified_by": "parent (claude, manager)"
+}

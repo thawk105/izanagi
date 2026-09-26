@@ -12,7 +12,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | SS2PL ロック規律スタディ (`ss2pl-lock-protocol-study.patch`) | 合成 variant (D790。既定 `IMPL=0, KIND=1, DLR=1` は stock 逐語)。既定 OFF の待ちグラフ計器 (D791。閉路の立った tick ごとに標準出力へ `ss2pl-wfg/v2` の 1 行 JSON、同じ文字列を durable file にも書く。runner の検証器と 2026-09-17 に接続、一次資料 `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/`) と YCSB target・計数・テスト接続の修正を同梱する。使い方と既知の不足は `docs/cc-diagnostics.md` | **out-of-tree patch** (昇格・上流還元は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
-| broken-mocc (わざと壊した mocc 3 本) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
+| broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 (現行契約は entry 数 1 固定) |
 
 **broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
@@ -771,6 +771,25 @@ verifier が何を検出し何を判定しないかを実測で示すための�
   「盲点として certified」と「未発生」を分けるための記録であり、verifier の判定には使わない。
 - **駆動:** 既存の `orchestrator/campaign/s2_verify_calibration._broken_build_and_verify` (patch 適用・condition gate・
   commit 証人つき verifier) を repo 外の起動器から呼ぶ。実走の記録は `output/insights/2026-09-23/t2847-mutation-run/`。
+
+## broken-mocc-skip-canonical-restore.patch / control-mocc-negated-temperature-predicate.patch — 検出期待表の新規 mocc 変異 ([T-2847])
+
+設計書 (`output/insights/2026-09-22/t2847-verifier-detection-design/README.md` §4) の mocc 2 行。
+pin C (`68106660`、mocc の X/P 計装を含む) の `cc/mocc/transaction.cc` に**単独で**当てる
+(`instr-mocc-lock-coverage.patch` は重ねない。C には同じ計装が入っていて当たらない)。
+
+| V | patch | 裸マクロ | site | 変更 |
+|---|---|---|---|---|
+| V25 | broken-mocc-skip-canonical-restore | `IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE` | 5 | 逆順に取った lock の正準順への復元 (解放と CLL_ 除去) を飛ばし、逆順の lock を持ったまま追加で取る。upgrade でなく、対象 tuple と再取得先が保持中の lock と重ならないときだけ (同じ lock の二重取得・二重解放を避ける) |
+| V34 | control-mocc-negated-temperature-predicate | `IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE` | 9 | 温度述語 4 site を `!(temp < threshold)` へ等価変形する対照 |
+
+- **既定 OFF inert:** 裸マクロ 1 個の `#if` 枝に閉じ、未定義の枝を除いた全文が pin C とバイト一致する (patch 適用後の file 自体は `#if` 行の分だけ異なる)。pipeline の genome からは定義できない
+  (broken-silo と同じ隔離規約)。条件 gate への登録は driver の `-DCMAKE_CXX_FLAGS=-D<macro>=1` 経路で build するためで、判定基準は変えない。
+- **発火診断:** 有効時だけ `T2847_FIRED slug=<slug> reached=<n> changed=<n> committed=<n>` と追加の数
+  (V25 は `skipped_locks`、V34 は site 別の評価回数と `temp == threshold` の評価回数) を process 終了時に stderr へ 1 行出す。
+  V34 の changed は定義上 0。run timeout で止めた process では出ないことがある。verifier の判定には使わない。
+- **駆動:** 既存 mocc driver (`orchestrator/campaign/s3_mocc_mutation_proof.py`) の build・verify 関数を repo 外の起動器から呼ぶ
+  (既存 4 本も同じ起動器で pin C 上に単独で当てた)。実走の記録は `output/insights/2026-09-26/t2847-mocc-run/`。
 
 ---
 

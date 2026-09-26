@@ -1,0 +1,236 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a5dacded682d76b1c31d3bc1166ca3f/izdw-8a5dacded6.o21465",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a5dacded682d76b1c31d3bc1166ca3f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 76.65s (0:01:16)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ae48ad6fb44cdea979af13e7ae84a79f6b61a22be23252bdd4a294fde23e06bc"
+    },
+    "artifact_error": null,
+    "collection_sha256": "16e812a70f3811ef33971f7736ffcdc51f4864c0703e41b384d23e0b0fec9b46",
+    "duration_s": 98.88,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "bd788934c44a06dcf16f72a5a66a6582f09d716a4e6bfcfaafc6c4d5000c3f92",
+    "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+    "runner_sha256": "8b5645d5d625883a58bb2d814d0fbcf92621d5d8ec7fc923ed3607cc2118302a",
+    "spec_sha256": "84231bad4b7467c7e3e8a04113863302a744f2c3230efaecc319fcdd0fb35bd4",
+    "status": "PASSED",
+    "test_output_sha256": "ae48ad6fb44cdea979af13e7ae84a79f6b61a22be23252bdd4a294fde23e06bc",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+  },
+  "date": "2026-09-23T14:06:32.644029+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99ee419836bf9f1d661a2f0825c528b9/izdw-99ee419836.o21483",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/99ee419836bf9f1d661a2f0825c528b9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..                                                                       [100%]\n2 passed in 70.37s (0:01:10)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2af0f36b2f6b7f1090fac8b6ca76e7559ecc3247b39e8fe08a32ad0f6769aa62"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "16e812a70f3811ef33971f7736ffcdc51f4864c0703e41b384d23e0b0fec9b46",
+      "duration_s": 98.724,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "P0",
+      "injection_diff_sha256": "81e7d7d3496b889d49f069af7fb0049f75c3ba6d33ee58d71ccaeeaf6a2a96a2",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9b783324200a5019c759e98de32618ccd8055a73a1137f9860242d176dc8780e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "        \"\"\"Session で 1 回の snapshot を複製する (P0)。\n",
+          "old": "        \"\"\"Session で 1 回の snapshot を複製する。\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "8b5645d5d625883a58bb2d814d0fbcf92621d5d8ec7fc923ed3607cc2118302a",
+      "spec_sha256": "84231bad4b7467c7e3e8a04113863302a744f2c3230efaecc319fcdd0fb35bd4",
+      "status": "SURVIVED",
+      "test_output_sha256": "2af0f36b2f6b7f1090fac8b6ca76e7559ecc3247b39e8fe08a32ad0f6769aa62",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a955a9d5632c0f97d5bb29dd0de2201c/izdw-a955a9d563.o21489",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a955a9d5632c0f97d5bb29dd0de2201c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_______ test_t080_shared_base_builds_real_builder_once_across_processes ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_builds_r0')\nt080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x15441eb6e0e0>, <test_s8b_oracle_driver._T080SharedBases object at 0x15441d819210>)\n\n    def test_t080_shared_base_builds_real_builder_once_across_processes(\n            tmp_path, t080_shared_cache_probe):\n        repo, _bases = t080_shared_cache_probe\n    \n        def call(destination):\n            # wraps は実 builder を実行する。cache と builder の両層 stub ではない。\n            with mock.patch.object(\n                    sys.modules[__name__], \"_build_t080_stub_free_e2e_repo\",\n                    wraps=_build_t080_stub_free_e2e_repo,\n                    ) as builder, mock.patch.object(\n                    _bases, \"copy_visible_output\", wraps=_bases.copy_visible_output,\n                    ) as visible_copy:\n                root, _receipt, _document = repo(destination, issue_receipt=False)\n                assert (root / \"orchestrator/campaign/s8b_oracle_driver.py\").is_file()\n                base, _ = _bases.get((\"AI-Agent: none\", False, False, False))\n                for repository in (base, root):\n                    for git_root in (repository, repository / migration.CCBENCH_REL):\n                        assert _run_git(git_root, \"config\", \"--int\", \"--get\", \"gc.auto\") == \"0\"\n                assert visible_copy.call_count == builder.call_count\n                return builder.call_count\n    \n>       first = _t080_cache_fork_call(lambda: call(tmp_path / \"first\"))\n\norchestrator/tests/test_s8b_oracle_driver.py:1123: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\naction = <function test_t080_shared_base_builds_real_builder_once_across_processes.<locals>.<lambda> at 0x15441eb4a950>\n\n    def _t080_cache_fork_call(action):\n        \"\"\"process memo を共有しない子で実行し、失敗も親へ返す。\"\"\"\n        ctx = multiprocessing.get_context(\"fork\")\n        receive, send = ctx.Pipe(duplex=False)\n    \n        def child():\n            try:\n                send.send((True, action()))\n            except BaseException as exc:\n                send.send((False, repr(exc)))\n            finally:\n                send.close()\n    \n        process = ctx.Process(target=child)\n        process.start()\n        send.close()\n        try:\n            assert receive.poll(600), \"cache child did not finish\"\n            ok, result = receive.recv()\n            process.join(10)\n            assert process.exitcode == 0\n>           assert ok, result\nE           AssertionError: AssertionError(\"assert 0 == 1\\n +  where 0 = <MagicMock name='copy_visible_output' id='23382311025824'>.call_count\\n +  and   1 = <MagicMock name='_build_t080_stub_free_e2e_repo' id='23382297451712'>.call_count\")\nE           assert False\n\norchestrator/tests/test_s8b_oracle_driver.py:1092: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes\n1 failed, 1 passed in 67.48s (0:01:07)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2964 retained_bytes=2964 omitted_bytes=0 rendered_excerpt_bytes=3200 sha256=ad34696cd79851193bcb0b487d78247ddbefe2d47bae8ed52633ce3ef064fadb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_t080_shared_base_builds_r0')\n> t080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x15441eb6e0e0>, <test_s8b_oracle_driver._T080SharedBases object at 0x15441d819210>)\n> \n>     def test_t080_shared_base_builds_real_builder_once_across_processes(\n>             tmp_path, t080_shared_cache_probe):\n>         repo, _bases = t080_shared_cache_probe\n>     \n>         def call(destination):\n>             # wraps \\u306f\\u5b9f builder \\u3092\\u5b9f\\u884c\\u3059\\u308b\\u3002cache \\u3068 builder \\u306e\\u4e21\\u5c64 stub \\u3067\\u306f\\u306a\\u3044\\u3002\n>             with mock.patch.object(\n>                     sys.modules[__name__], \"_build_t080_stub_free_e2e_repo\",\n>                     wraps=_build_t080_stub_free_e2e_repo,\n>                     ) as builder, mock.patch.object(\n>                     _bases, \"copy_visible_output\", wraps=_bases.copy_visible_output,\n>                     ) as visible_copy:\n>                 root, _receipt, _document = repo(destination, issue_receipt=False)\n>                 assert (root / \"orchestrator/campaign/s8b_oracle_driver.py\").is_file()\n>                 base, _ = _bases.get((\"AI-Agent: none\", False, False, False))\n>                 for repository in (base, root):\n>                     for git_root in (repository, repository / migration.CCBENCH_REL):\n>                         assert _run_git(git_root, \"config\", \"--int\", \"--get\", \"gc.auto\") == \"0\"\n>                 assert visible_copy.call_count == builder.call_count\n>                 return builder.call_count\n>     \n> >       first = _t080_cache_fork_call(lambda: call(tmp_path / \"first\"))\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1123: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> action = <function test_t080_shared_base_builds_real_builder_once_across_processes.<locals>.<lambda> at 0x15441eb4a950>\n> \n>     def _t080_cache_fork_call(action):\n>         \"\"\"process memo \\u3092\\u5171\\u6709\\u3057\\u306a\\u3044\\u5b50\\u3067\\u5b9f\\u884c\\u3057\\u3001\\u5931\\u6557\\u3082\\u89aa\\u3078\\u8fd4\\u3059\\u3002\"\"\"\n>         ctx = multiprocessing.get_context(\"fork\")\n>         receive, send = ctx.Pipe(duplex=False)\n>     \n>         def child():\n>             try:\n>                 send.send((True, action()))\n>             except BaseException as exc:\n>                 send.send((False, repr(exc)))\n>             finally:\n>                 send.close()\n>     \n>         process = ctx.Process(target=child)\n>         process.start()\n>         send.close()\n>         try:\n>             assert receive.poll(600), \"cache child did not finish\"\n>             ok, result = receive.recv()\n>             process.join(10)\n>             assert process.exitcode == 0\n> >           assert ok, result\n> E           AssertionError: AssertionError(\"assert 0 == 1\\x5cn +  where 0 = <MagicMock name='copy_visible_output' id='23382311025824'>.call_count\\x5cn +  and   1 = <MagicMock name='_build_t080_stub_free_e2e_repo' id='23382297451712'>.call_count\")\n> E           assert False\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1092: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2964 retained_bytes=2964 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3937 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74682ca7ef05021416777c48c24feb4cdcb0d49f4ef8c0c76d550ee9347aad7f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "16e812a70f3811ef33971f7736ffcdc51f4864c0703e41b384d23e0b0fec9b46",
+      "duration_s": 523.644,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "2e0ba351f023ff6a286f8b81bbca747cf77a248da8b500456aed7bfa1f9609b8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9197d58dbab7eb531c209fed8dd08700b211c78674a7f4a918948102c8937464",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "    _copy_git_visible_output(ROOT, root / \"output\")\n",
+          "old": "    if _T080_SHARED_BASES is not None:\n        _T080_SHARED_BASES.copy_visible_output(ROOT, root / \"output\")\n    else:\n        _copy_git_visible_output(ROOT, root / \"output\")\n"
+        }
+      ],
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "8b5645d5d625883a58bb2d814d0fbcf92621d5d8ec7fc923ed3607cc2118302a",
+      "spec_sha256": "84231bad4b7467c7e3e8a04113863302a744f2c3230efaecc319fcdd0fb35bd4",
+      "status": "KILLED",
+      "test_output_sha256": "74682ca7ef05021416777c48c24feb4cdcb0d49f4ef8c0c76d550ee9347aad7f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a44ccde7623e7f3815e39b6f48b8e0a2/izdw-a44ccde762.o21458",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a44ccde7623e7f3815e39b6f48b8e0a2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot\n\n2 tests collected in 1.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c801290a88c54673398cbeea79c56ea70f44cd0902967f0180c5b3065b4b193b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot"
+      ],
+      "duration_s": 26.881,
+      "rc": 0,
+      "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+      "runner_sha256": "8b5645d5d625883a58bb2d814d0fbcf92621d5d8ec7fc923ed3607cc2118302a",
+      "spec_sha256": "84231bad4b7467c7e3e8a04113863302a744f2c3230efaecc319fcdd0fb35bd4",
+      "status": "PASSED",
+      "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2"
+    },
+    "hang_timeout_seconds": 4500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2e0ba351f023ff6a286f8b81bbca747cf77a248da8b500456aed7bfa1f9609b8",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "    _copy_git_visible_output(ROOT, root / \"output\")\n",
+            "old": "    if _T080_SHARED_BASES is not None:\n        _T080_SHARED_BASES.copy_visible_output(ROOT, root / \"output\")\n    else:\n        _copy_git_visible_output(ROOT, root / \"output\")\n"
+          }
+        ]
+      },
+      "P0": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "81e7d7d3496b889d49f069af7fb0049f75c3ba6d33ee58d71ccaeeaf6a2a96a2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "        \"\"\"Session で 1 回の snapshot を複製する (P0)。\n",
+            "old": "        \"\"\"Session で 1 回の snapshot を複製する。\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "bd788934c44a06dcf16f72a5a66a6582f09d716a4e6bfcfaafc6c4d5000c3f92",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "5c51e958e062827b34bb7af71dbd3c09bee70152",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes",
+      "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_visible_output_uses_one_snapshot",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "160626ceab7326c720473ea29ee366ecd280ce74",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8b5645d5d625883a58bb2d814d0fbcf92621d5d8ec7fc923ed3607cc2118302a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "84231bad4b7467c7e3e8a04113863302a744f2c3230efaecc319fcdd0fb35bd4",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "4ff8624c29081dedf3a0fa7e35392c081e5f88603b2f1de3cf01bc7ea51e4ba2",
+  "updated_at": "2026-09-23T14:18:51.850493+00:00"
+}
