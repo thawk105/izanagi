@@ -891,6 +891,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 evaluate_options = {
                     "verify_fanout_hosts": verify_fanout_hosts,
                 }
+                if cfg.search_config.get("verify_performance_concurrent") is True:
+                    evaluate_options["verify_performance_concurrent"] = True
                 if env_contract is not None:
                     evaluate_options["env_contract"] = env_contract
                     evaluate_options["declared_use_class"] = declared_use_class
