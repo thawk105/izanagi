@@ -2,13 +2,20 @@
 from __future__ import annotations
 
 import json
+import inspect
 import math
 from pathlib import Path
+import sys
+import tempfile
+import time
+import traceback
 from types import SimpleNamespace
 
 import pytest
 
 from tools.plotting import plot_p2_5_search_cost as fig1
+from orchestrator.campaign import replay
+from orchestrator.campaign.artifact_admission import CampaignReadPurpose
 
 
 def test_real_data():
@@ -22,6 +29,34 @@ def test_real_data():
     assert math.isclose(rows['write-heavy']['p'], .0002521080185096, rel_tol=1e-12)
     assert all(rows[t]['campaign']['campaign_verifier_epoch']['campaign_verifier_epoch'] == 'E0'
                for t in fig1.TAGS)
+    assert {t: rows[t]['campaign']['measurement_conditions']['read_ratio'] for t in fig1.TAGS} == {
+        'read-heavy': '95', 'balanced': '50', 'write-heavy': '5'}
+
+
+def test_p_format():
+    assert fig1.format_p(.0002521080185096) == 'p=2.5×10⁻⁴'
+    assert fig1.format_p(.00123) == 'p=1.2×10⁻³'
+
+
+def test_measurement_conditions_consistency():
+    view = replay.discover_p2_2_dir('balanced', str(fig1.ROOT/'output'),
+                                    purpose=CampaignReadPurpose.HISTORICAL_RAW)
+    records = list(view.records)
+    expected = fig1._measurement_conditions(records, view.lock_file)
+    assert expected['threads'] == '48' and expected['repetitions'] == 5
+    bench = next(i for i, r in enumerate(records) if r.stage == 'bench_done')
+    original = records[bench]
+    for replacement in (
+        SimpleNamespace(stage='bench_done', env_tag=original.env_tag,
+                        payload={**original.payload, 'run_cmd': original.payload['run_cmd'].replace('-thread_num=48', '-thread_num=47')}),
+        SimpleNamespace(stage='bench_done', env_tag='', payload=original.payload),
+        SimpleNamespace(stage='bench_done', env_tag=original.env_tag,
+                        payload={**original.payload, 'tps': original.payload['tps'][:-1]}),
+    ):
+        changed = records.copy()
+        changed[bench] = replacement
+        with pytest.raises(fig1.FigureDataError, match='measurement'):
+            fig1._measurement_conditions(changed, view.lock_file)
 
 
 @pytest.mark.parametrize('case', ('greedy', 'A', 'p', 'random'))
@@ -84,8 +119,10 @@ def test_end_to_end(tmp_path):
         assert a['oracle_line'] == d['oracle_E']
     assert prov['artist_series']['balanced']['annotations'] == ['A=0.58']
     assert 'A=0.23' in prov['artist_series']['write-heavy']['annotations']
-    assert 'p=2.5×10⁻⁴' in prov['artist_series']['write-heavy']['annotations']
+    assert fig1.format_p(prov['workloads']['write-heavy']['p']) in prov['artist_series']['write-heavy']['annotations']
     assert '8/12 mis-converged' in prov['artist_series']['write-heavy']['annotations']
+    assert '48 スレッド' in prov['caption']
+    assert prov['caption'] == fig1.caption(prov)
 
 
 def test_layout():
@@ -112,6 +149,14 @@ def test_closure(tmp_path):
         fig1.validate_repo_closure(prov)
 
 
+def test_closure_generator_history(tmp_path):
+    prefix = tmp_path/'fig1b'
+    assert fig1.main([str(prefix)]) == 0
+    prov = json.loads(prefix.with_suffix('.provenance.json').read_text())
+    prov['generator']['sha256'] = '0'*64
+    assert fig1.validate_repo_closure(prov)
+
+
 def test_landed_bundle():
     prefix = fig1.ROOT/'docs/paper-story/figures/fig1b_phase2_negative'
     provenance = prefix.with_suffix('.provenance.json')
@@ -120,5 +165,42 @@ def test_landed_bundle():
     prov = json.loads(provenance.read_text())
     assert fig1.validate_repo_closure(prov)
     readme = (prefix.parent/'README.md').read_text()
-    assert prov['caption'] == fig1.caption()
     assert prov['caption'] in readme
+
+
+def _run():
+    started = time.monotonic()
+    passed = failed = skipped = errors = 0
+    tests = [value for name, value in sorted(globals().items()) if name.startswith('test_') and callable(value)]
+    for test in tests:
+        cases = ('greedy', 'A', 'p', 'random') if test.__name__ == 'test_reconciliation' else (None,)
+        for case in cases:
+            node = f"{Path(__file__).name}::{test.__name__}" + (f'[{case}]' if case else '')
+            try:
+                with tempfile.TemporaryDirectory(prefix='fig1-search-cost-test-') as directory:
+                    params = inspect.signature(test).parameters
+                    kwargs = {'tmp_path': Path(directory)} if 'tmp_path' in params else {}
+                    if case is not None:
+                        kwargs['case'] = case
+                    test(**kwargs)
+                print(f'PASS {node}')
+                passed += 1
+            except pytest.skip.Exception as exc:
+                print(f'SKIP {node}: {exc}')
+                skipped += 1
+            except AssertionError as exc:
+                print(f'FAIL {node}: {exc}')
+                traceback.print_exc()
+                failed += 1
+            except Exception as exc:
+                print(f'ERROR {node}: {type(exc).__name__}: {exc}')
+                traceback.print_exc()
+                errors += 1
+    print(f'{passed} passed, {failed} failed, {skipped} skipped, {errors} errors')
+    print(f'wall seconds: {time.monotonic()-started:.3f}')
+    fig1.plt.close('all')
+    return 1 if failed or errors else 0
+
+
+if __name__ == '__main__':
+    sys.exit(_run())

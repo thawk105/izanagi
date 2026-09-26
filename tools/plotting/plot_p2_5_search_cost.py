@@ -10,6 +10,7 @@ import json
 import math
 from pathlib import Path
 import platform
+import shlex
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,7 +27,7 @@ from orchestrator.campaign.genome import SILO_SPACE
 
 TAGS = ('read-heavy', 'balanced', 'write-heavy')
 GENERATOR = 'tools/plotting/plot_p2_5_search_cost.py'
-GREEDY_KEYS = ('n', 'mean', 'median', 'min', 'max', 'iqr_lo', 'iqr_hi')
+GREEDY_KEYS = ('n', 'mean', 'iqr_lo', 'iqr_hi')
 
 
 class FigureDataError(ValueError):
@@ -48,6 +49,51 @@ def _file(path):
     except ValueError:
         name = str(path)
     return {'path': name, 'sha256': _sha256(path)}
+
+
+def _measurement_conditions(records, lock_file):
+    flags = {'-thread_num': 'threads', '-ycsb_tuple_num': 'records',
+             '-extime': 'seconds', '-clocks_per_us': 'clocks_per_us',
+             '-ycsb_zipf_skew': 'zipf_skew', '-ycsb_rratio': 'read_ratio',
+             '-ycsb_rmw': 'rmw'}
+    conditions = []
+    env_tags = [record.env_tag for record in records]
+    if not env_tags or not env_tags[0] or any(tag != env_tags[0] for tag in env_tags):
+        raise FigureDataError('measurement env_tag differs within campaign or missing')
+    for record in records:
+        if record.stage != 'bench_done':
+            continue
+        command = record.payload.get('run_cmd')
+        env_tag = record.env_tag
+        tps = record.payload.get('tps')
+        if not isinstance(command, str) or not env_tag or not tps:
+            raise FigureDataError('measurement conditions missing')
+        words = shlex.split(command)
+        if '--' not in words:
+            raise FigureDataError('measurement command missing executable separator')
+        split = words.index('--')
+        prefix, executable = words[:split], words[split+1:]
+        if not executable or not executable[0] or len(executable) != 1 + len(flags):
+            raise FigureDataError('measurement command flags missing')
+        if any('=' not in word for word in executable[1:]):
+            raise FigureDataError('measurement command flags missing')
+        pairs = dict(word.split('=', 1) for word in executable[1:])
+        if set(pairs) != set(flags) or len(executable[1:]) != len(flags):
+            raise FigureDataError('measurement command flags missing or duplicate')
+        if prefix[:2] != ['numactl', '--interleave=all']:
+            raise FigureDataError('measurement numactl condition missing')
+        if prefix[2:4] != ['perf', 'stat']:
+            raise FigureDataError('measurement perf condition missing')
+        conditions.append({**{name: pairs[flag] for flag, name in flags.items()},
+                           'numactl_interleave_all': True, 'perf_stat': True,
+                           'env_tag': env_tag, 'repetitions': len(tps)})
+    if not conditions or any(c != conditions[0] for c in conditions[1:]):
+        raise FigureDataError('measurement conditions differ within campaign or missing')
+    lock = json.loads(Path(lock_file).read_text())
+    commit = lock.get('ccbench_commit')
+    if not commit:
+        raise FigureDataError('measurement ccbench_commit missing')
+    return {**conditions[0], 'ccbench_commit': commit}
 
 
 def landscape_from_records(records):
@@ -87,12 +133,12 @@ def _equal(a, b):
 
 def _reconcile(tag, row, calc, summary):
     checked = []
-    for key in ('k', 'n', 'tied_set', 'random_E', 'oracle_E', 'greedy_p_lt', 'guided_n'):
+    for key in ('k', 'n', 'tied_set', 'random_E', 'oracle_E', 'guided_n'):
         if not _equal(calc[key], row[key]):
             raise FigureDataError(f'{tag}: {key} mismatch')
         checked.append(key)
-    for group in ('greedy', 'guided'):
-        for key in GREEDY_KEYS:
+    for group, keys in (('greedy', GREEDY_KEYS), ('guided', ('median',))):
+        for key in keys:
             if not _equal(calc[group][key], row[group][key]):
                 raise FigureDataError(f'{tag}: {group}.{key} mismatch')
             checked.append(f'{group}.{key}')
@@ -157,11 +203,7 @@ def load_data(summary_path=ROOT/'output/campaigns/p2-5-summary.json', output_roo
                     'excluded_scope': epoch.excluded_scope,
                     'verifier_assessment_basis': view.verifier_assessment_basis,
                 },
-                'measurement_conditions': {
-                    'run_cmd': sorted({r.payload['run_cmd'] for r in view.records
-                                       if isinstance(r.payload.get('run_cmd'), str)}),
-                    'ccbench_commit': json.loads(Path(view.lock_file).read_text())['ccbench_commit'],
-                },
+                'measurement_conditions': _measurement_conditions(view.records, view.lock_file),
             }
             data['workloads'][tag] = calc
         return data
@@ -171,14 +213,34 @@ def load_data(summary_path=ROOT/'output/campaigns/p2-5-summary.json', output_roo
         raise FigureDataError(f'invalid input: {exc}') from exc
 
 
-def caption():
-    return ('旧 linux-baremetal 環境の Phase 2 探索コスト。P2-2 の silo 8 構成について、'
-            'LLM-guided は中立 critic の 30 試行（read-heavy 6、balanced 12、write-heavy 12）の凍結値を示す。'
-            '原試行 WAL は削除済みである。未到達は事前登録どおり予算上限 8 として算入した。'
-            'greedy は P2-2 WAL の決定論的再生 500 seed、random は解析期待値、oracle は初手ランダム制約下の天井。'
+def caption(data):
+    rows = data['workloads']
+    counts = '、'.join(f"{tag} {rows[tag]['guided_n']}" for tag in TAGS)
+    failures = '、'.join(f"{tag} {rows[tag]['guided_failures']}/{rows[tag]['guided_n']}" for tag in TAGS)
+    conditions = '、'.join(
+        f"{tag}: read 比 {rows[tag]['campaign']['measurement_conditions']['read_ratio']}%"
+        for tag in TAGS)
+    c = rows[TAGS[0]]['campaign']['measurement_conditions']
+    return (f"旧 {c['env_tag']} 環境の Phase 2 探索コスト。P2-2 の silo {rows[TAGS[0]]['n']} 構成。"
+            f"測定条件は {c['threads']} スレッド、{c['records']} レコード、{c['seconds']} 秒、"
+            f"clocks_per_us={c['clocks_per_us']}、Zipf skew={c['zipf_skew']}、{conditions}、"
+            f"rmw={c['rmw']}、numactl --interleave=all、perf stat、各構成 {c['repetitions']} 反復、"
+            f"ccbench commit {c['ccbench_commit']}。"
+            f"LLM-guided は中立 critic の {sum(rows[t]['guided_n'] for t in TAGS)} 試行（{counts}）の凍結値を示す。"
+            f"原試行 WAL は削除済みである。未到達（{failures}）は事前登録どおり予算上限 8 として算入した。"
+            '点は誘導の各試行。横棒は誘導の中央値。四角は貪欲の平均。'
+            'ひげは貪欲の 25/75 分位（search_baselines._summ の順位 n//4・3n//4 の標本値）。'
+            '点線は random の解析期待値。破線は初手ランダム制約下の oracle 天井。'
+            'greedy は P2-2 WAL の決定論的再生 500 seed。'
             'A = P(誘導<貪欲)+0.5·P(=)、p は厳密 permutation 検定（片側）。'
             'P2-2 campaign は verifier epoch E0 の記録をそのまま使用し、現行 verifier では再検証していない。'
-            'read-heavy は k=4 で到達判定が情報を持たないため、A の注記を付けない。')
+            f"read-heavy は k={rows['read-heavy']['k']} で到達判定が情報を持たないため、A の注記を付けない。")
+
+
+def format_p(p):
+    mantissa, exponent = f'{p:.1e}'.split('e')
+    superscript = str.maketrans('-0123456789', '⁻⁰¹²³⁴⁵⁶⁷⁸⁹')
+    return f"p={mantissa}×10{str(int(exponent)).translate(superscript)}"
 
 
 def _contains(outer, inner):
@@ -217,14 +279,17 @@ def check_figure_layout(fig, axes):
 
 def make_figure(data):
     plt.rcParams.update({'font.family': 'sans-serif', 'font.size': 10,
-                         'axes.spines.top': False, 'axes.spines.right': False})
+                         'axes.spines.top': False, 'axes.spines.right': False,
+                         'axes.edgecolor': '#2a2a2a', 'axes.labelcolor': '#2a2a2a',
+                         'xtick.color': '#2a2a2a', 'ytick.color': '#2a2a2a',
+                         'text.color': '#2a2a2a'})
     fig, axes = plt.subplots(1, 3, figsize=(12.8, 4.8), sharey=True)
     fig.suptitle('Phase 2 negative result: LLM guidance does not beat a mechanical gradient — and is harmful under deceptive structure', fontsize=12)
     artists = {}
     for ax, tag in zip(axes, TAGS):
         d = data['workloads'][tag]
         costs, g = d['guided_costs'], d['greedy']
-        xs = [(i-(len(costs)-1)/2)*.012 for i in range(len(costs))]
+        xs = [(i-(len(costs)-1)/2)*.03 for i in range(len(costs))]
         dots = ax.scatter(xs, costs, s=32, color='#cd414c', edgecolor='white', linewidth=.4, zorder=4)
         median = ax.hlines(d['guided']['median'], -.25, .25, color='#c1121f', lw=3, zorder=5)
         whisker = ax.errorbar(1, g['mean'], yerr=[[g['mean']-g['iqr_lo']], [g['iqr_hi']-g['mean']]],
@@ -233,12 +298,12 @@ def make_figure(data):
         oracle = ax.axhline(d['oracle_E'], color='#2a9d8f', linestyle='--', lw=1.5)
         annotations = []
         if d['informative']:
-            color = '#c1121f' if tag == 'write-heavy' else '#333333'
+            color = '#c1121f' if tag == 'write-heavy' else '#2a2a2a'
             note = ax.text(.98, .97, f"A={d['A']:.2f}", transform=ax.transAxes,
                            ha='right', va='top', color=color, fontsize=9)
             note.set_gid('direct-label'); annotations.append(note)
         if 'p' in d:
-            note = ax.text(.98, .92, 'p=2.5×10⁻⁴', transform=ax.transAxes,
+            note = ax.text(.98, .92, format_p(d['p']), transform=ax.transAxes,
                            ha='right', va='top', color='#c1121f', fontsize=9)
             note.set_gid('direct-label'); annotations.append(note)
         if d['guided_failures']:
@@ -249,8 +314,9 @@ def make_figure(data):
             for label, y, color in (('random', d['random_E'], '#9aa0a6'), ('oracle', d['oracle_E'], '#2a9d8f')):
                 note = ax.text(1.69, y+.04, label, color=color, fontsize=8, ha='right', va='bottom')
                 note.set_gid('direct-label'); annotations.append(note)
-        ax.set(title=tag, xlim=(-.6, 1.7), ylim=(.45, 8.55), xticks=(0, 1),
+        ax.set(xlim=(-.6, 1.7), ylim=(.45, 8.55), xticks=(0, 1),
                xticklabels=('LLM-guided', 'greedy\n(no LLM)'), yticks=range(1, 9))
+        ax.set_title(tag, loc='left')
         artists[tag] = {
             'points': [list(map(float, xy)) for xy in dots.get_offsets()],
             'median_bar': float(median.get_segments()[0][0][1]),
@@ -261,12 +327,12 @@ def make_figure(data):
             'annotations': [a.get_text() for a in annotations],
         }
     axes[0].set_ylabel('configs evaluated to reach best\n(lower = faster)')
-    fig.subplots_adjust(left=.075, right=.98, bottom=.13, top=.78, wspace=.075)
+    fig.subplots_adjust(left=.075, right=.98, bottom=.13, top=.84, wspace=.075)
     return fig, axes, artists
 
 
 def validate_repo_closure(provenance, repo_root=ROOT):
-    refs = [provenance['generator'], provenance['summary']]
+    refs = [provenance['summary']]
     for d in provenance['workloads'].values():
         refs.extend((d['campaign']['wal'], d['campaign']['lock']))
     refs.extend(provenance['outputs'].values())
@@ -298,7 +364,7 @@ def main(argv=None):
             'schema': 'izanagi-p2-5-search-cost-figure-provenance/v1',
             'generator': _file(ROOT/GENERATOR), 'summary': data['summary'],
             'workloads': data['workloads'], 'artist_series': artists,
-            'caption': caption(), 'outputs': {'png': _file(png), 'pdf': _file(pdf)},
+            'caption': caption(data), 'outputs': {'png': _file(png), 'pdf': _file(pdf)},
             'argv': list(sys.argv[1:] if argv is None else argv),
             'generated_utc': datetime.now(timezone.utc).isoformat(),
             'versions': {'python': platform.python_version(), 'matplotlib': matplotlib.__version__, 'numpy': np.__version__},
