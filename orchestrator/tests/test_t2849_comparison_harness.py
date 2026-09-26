@@ -161,6 +161,20 @@ def test_llm_slot_argv_k0():
     assert "--allow-coder-derived-build" not in initial_score
 
 
+def test_write_heavy_concurrent_verify_slot_and_header():
+    base = dict(arm="stock", key="slot", sidecar_dir="sidecar",
+                prebuild_receipt="receipt")
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        argv = H.slot_argv(workload=workload, **base)
+        header = H._header("cohort", "stock", workload, 0, 0, ROOT, 1, 1, 1)
+        if workload == "write-heavy":
+            assert "--verify-performance-concurrent" in argv
+            assert header["verify_performance_method"] == "local-concurrent"
+        else:
+            assert "--verify-performance-concurrent" not in argv
+            assert "verify_performance_method" not in header
+
+
 def test_mocc_slot_argv_and_classification(tmp_path):
     runner = Runner()
     result = run(tmp_path, runner=runner, protocol="mocc", a_limit=1, b_limit=1)

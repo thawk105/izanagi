@@ -3485,6 +3485,7 @@ def main(
     ap.add_argument("--calibrated-perf", action="store_true")
     ap.add_argument("--perf-workload", choices=("write-heavy", "balanced", "read-heavy"))
     ap.add_argument("--verify-performance", action="store_true")
+    ap.add_argument("--verify-performance-concurrent", action="store_true")
     ap.add_argument("--stock-control", action="store_true",
                     help="同 campaign の適応 backoff stock 対照を評価")
     ap.add_argument("--no-build", action="store_true",
@@ -3619,6 +3620,9 @@ def main(
             ap.error("--b5-sidecar-dir requires --b5-slot and an existing directory")
     if a.verify_performance and not (a.calibrated_perf and a.perf_workload):
         ap.error("--verify-performance requires --calibrated-perf and --perf-workload")
+    if a.verify_performance_concurrent and (
+            not a.verify_performance or a.perf_workload != "write-heavy"):
+        ap.error("--verify-performance-concurrent requires --verify-performance and write-heavy")
     if a.calibrated_perf != (a.perf_workload is not None):
         ap.error("--calibrated-perf and --perf-workload must be supplied together")
     if a.stock_control:
@@ -3761,6 +3765,10 @@ def main(
     if a.verify_performance:
         cfg = replace(cfg, search_config={
             **cfg.search_config, SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
+        })
+    if a.verify_performance_concurrent:
+        cfg = replace(cfg, search_config={
+            **cfg.search_config, "verify_performance_concurrent": True,
         })
     cfg = _campaign_cfg_for_site(cfg, resolved_site, _contract=contract)
     if a.emit_planner_context:

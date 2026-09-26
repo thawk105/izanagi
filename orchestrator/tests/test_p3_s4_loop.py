@@ -10653,7 +10653,7 @@ def test_perf_cli_rejects_partial_and_invalid_options(capsys, args, message):
     assert message in capsys.readouterr().err
 
 
-def _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify):
+def _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify, workload="balanced"):
     from orchestrator.campaign import loop, pipeline
     layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
     observed = []
@@ -10669,7 +10669,7 @@ def _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify):
     monkeypatch.setattr(loop.source_digest, "resolve_evidence", lambda g, *_a, **_k:
                         _prebuild_source_evidence(g, sub, L.PIN))
     args = ["--stock-control", "--isolate-worktree", "--calibrated-perf",
-            "--perf-workload", "balanced"]
+            "--perf-workload", workload]
     if verify:
         args += ["--verify-performance"]
     assert L.main(args) == 1
@@ -10682,6 +10682,58 @@ def test_verify_opt_in_reaches_real_loop_evaluate_options(tmp_path, monkeypatch,
     _layout, observed = _observe_stock_loop_evaluate_options(tmp_path, monkeypatch, verify)
     assert observed == ([[("performance", pipeline.performance_correctness_workload(
         L.calibrated_perf("balanced")))]] if verify else [None])
+
+
+def test_concurrent_verify_cli_rejects_missing_requirements(capsys):
+    for args in (
+        ["--verify-performance-concurrent"],
+        ["--verify-performance-concurrent", "--verify-performance",
+         "--calibrated-perf", "--perf-workload", "balanced"],
+    ):
+        with pytest.raises(SystemExit) as exc:
+            L.main(args)
+        assert exc.value.code == 2
+        assert "--verify-performance-concurrent requires" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("verify,workload", [
+    (False, "balanced"),
+    (True, "read-heavy"),
+    (True, "balanced"),
+    (True, "write-heavy"),
+])
+def test_concurrent_verify_absent_from_default_search_identity(
+        tmp_path, monkeypatch, verify, workload):
+    layout, _ = _observe_stock_loop_evaluate_options(
+        tmp_path, monkeypatch, verify, workload)
+    lock = json.loads(wal.read_lock(layout))
+    search = json.loads(lock["identity_preimage"])["search_config"]
+    assert "verify_performance_concurrent" not in search
+
+
+def test_write_heavy_concurrent_flag_reaches_evaluate(tmp_path, monkeypatch):
+    from orchestrator.campaign import loop, pipeline
+    layout, sub, _calls = _stock_cli_fixture(tmp_path, monkeypatch)
+    observed = []
+
+    def evaluate(genome, *_args, **kwargs):
+        observed.append(kwargs)
+        return pipeline.EvalResult(genome=genome, variant=variant_id(genome),
+                                   certified=False, aborted=True)
+
+    monkeypatch.setattr(L, "run_campaign", loop.run_campaign)
+    monkeypatch.setattr(loop, "exploration_campaign_layout", lambda *_: layout)
+    monkeypatch.setattr(loop, "evaluate", evaluate)
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", lambda g, *_a, **_k:
+                        _prebuild_source_evidence(g, sub, L.PIN))
+    args = ["--stock-control", "--isolate-worktree", "--calibrated-perf",
+            "--perf-workload", "write-heavy", "--verify-performance",
+            "--verify-performance-concurrent"]
+    assert L.main(args) == 1
+    assert observed[0]["verify_performance_concurrent"] is True
+    lock = json.loads(wal.read_lock(layout))
+    search = json.loads(lock["identity_preimage"])["search_config"]
+    assert search["verify_performance_concurrent"] is True
 
 
 @pytest.mark.parametrize("verify", [False, True])
