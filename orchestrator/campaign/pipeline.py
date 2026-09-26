@@ -1336,6 +1336,8 @@ _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
     "perf_observation", "screening", "rep_returncodes", "reps",
 })
 _BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
+# 本番順序の実測 67・77 秒の最大値に約 1.5 倍の余裕を持たせる。
+_CONCURRENT_VERIFY_SETTLE_TIMEOUT_S = 120.0
 _BENCH_DONE_PAYLOAD_KEYS = (
     _BENCH_DONE_REQUIRED_PAYLOAD_KEYS
     | _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
@@ -1485,8 +1487,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                 return abort("bench-competing-tenant",
                              "競合 ccbench ベンチを検知 → 汚染計測を採用せず reject (規律4)",
                              {"competing": comp, "bench_wall_s": bench_wall_s}), None
-            settled = (settle(timeout_s=60.0) if verify_performance_concurrent
-                       else settle()) if do_settle else None
+            settled = (settle(timeout_s=_CONCURRENT_VERIFY_SETTLE_TIMEOUT_S)
+                       if verify_performance_concurrent else settle()) if do_settle else None
             bench_started = time.monotonic()
             try:
                 rem = remeasure_until_stable(_measure,

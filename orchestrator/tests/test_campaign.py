@@ -8410,7 +8410,7 @@ def test_concurrent_verify_extends_only_initial_settle():
                 )
         assert result.certified and not result.aborted
         assert calls == [
-            ("settle", {"timeout_s": 60.0} if concurrent else {}),
+            ("settle", {"timeout_s": 120.0} if concurrent else {}),
             ("settle", {}),
         ]
 
