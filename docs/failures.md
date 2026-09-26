@@ -28447,3 +28447,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 事実の範囲を広げる改訂で、食い違いうる箇所を「同じ事実を書いた文」だけから探し、その語を定義している文を探さなかった。
 - 恒久対応: 新しい検査は足さない。memory `defined-term-scope-check-before-adding-facts` (稿へ事実を足す前に、使う判定語 (certified など) の定義文を稿の中で grep し、定義を越えるなら語を替える)。
 - 再発検知: 段 6 の独立レビューで「定義語の全出現を定義と照合せよ」を検査項目に入れる (本 wave の焦点再レビューの検査 1 と同形)。
+
+### F1050. B-5 本走の LLM 親 4 本が週上限 (429) で同時に止まり、series job が計算 node を握ったまま提案を待ち切って系列を欠測で閉じた — 現行 cohort の 6 比較が判定不能になった [手順漏れ]
+
+- 事象: 2026-09-23 21:53 JST 投入の B-5 本走 (cohort `b5-registered-v1`) block 1 stage 1 で、LLM 親 (`claude -p --resume`) 4 本が最初の起動から約 1.9 時間・提案 22 機会の時点
+  (23:50〜23:52 JST) に `api_error_status: 429` "You've hit your weekly limit" で終了した。series job 4 本は提案を 2,703 s ずつ待って `proposal-wait-timeout` で系列を閉じ、
+  score を持たない系列が 3 workload すべてに残った。report (`orchestrator/campaign/b5_generator_contrast_report.py`) の規則ではこれで 6 比較すべてが `indeterminate-missing` になる。
+  LLM 4 job の Elapse 37,107 s のうち約 24,100 s は待ち (通常の応答待ち + 429 後の時間切れ 4 × 2,703 s) だった。同日の [T-2850] 試走の llm 系列も 429 で終了しており、独立 2 例目である。
+  同 stage では write-heavy random の 2 系列も系列開始 stock の品質欠測 (`stock-unestablished`) で終わり、write-heavy の LLM 対 random は再開しても判定不能のまま残る。
+- 根本原因: 本走の見積り (発効束 §10) と認可 (D2227 項 2) は node 時間だけを数え、LLM の週上限に対する提案機会数 (登録どおり 360〜1,080) を所要に入れていなかった。
+  待ちを計算 node 上に置く job 設計のため、上限到達は node 時間の浪費と系列の欠測を同時に生んだ。429 を受けた系列を再開する経路も規則も無かった。
+- 恒久対応: memory `llm-weekly-limit-kills-series-jobs` (LLM を含む走行の見積りに提案機会数と週枠の実績を並べ、待ちを node の外へ出す形を先に検討する)。
+  B-5 の続行形 (v1 を閉じて新 cohort とし、評価ごとの job 分割で待ちを node 外へ出し、429 を欠測にしない規則を書く) は
+  `output/insights/2026-09-26/t2797-b5-cost-options/README.md` §3・§4.1・§7 でユーザー裁定待ち。
+- 再発検知: series-end の `proposal-wait-timeout` と、LLM 親の `out.json` の `api_error_status: 429` (driver-state)。自動検知は未実装。
