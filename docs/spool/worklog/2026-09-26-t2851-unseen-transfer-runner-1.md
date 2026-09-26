@@ -21,6 +21,9 @@ title: [T-2851] の残り (2) 未知条件への転移の実行器と解析器�
   YCSB は certified に到達できなかった。review・焦点・fixture test はいずれも検出せず (F649 の再発として failures へ追記。親が実装子 prompt で verifier の fixture 化を許していた)。
   fix 3 巡目の後の 4 回目は certified。留保 cell は 1 走もしていない。
 - 変異 matrix: M1〜M13 (M13 は fix 3 巡目の前に追加登録)。結果は insight §4。
+- 受入全走 1 回目 (tested tip dc41d40ce) は赤 3 件で、本 wave に帰属した: 新 module の process launch site 2 つ (`_probe` の固定 pgrep、`run_job.once.capture` の run_once seam 中継) が
+  review 済み inventory (`test_ccbench_spawn_sites.py` の 2 node、`test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches`) に未分類だった。
+  段 5 の実装子が制約 meta-test を洗い出していなかった。inventory の設計どおり理由 comment 付きの追加だけで分類し (既存 entry は不変)、焦点走 52 passed の後に受入を再投入した。
 - 中断中の並走: 同じ引数の重複 wave (2026-09-23 22:03 投入) は先方が譲って停止 (成果物 0)。T-2858 の CCBench pin 前進 (68106660) は受入前の main 取り込みで入れ、新 module は pin を参照しない。
 
 ## 次の一手差分

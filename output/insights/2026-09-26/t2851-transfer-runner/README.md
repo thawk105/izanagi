@@ -40,6 +40,9 @@ TPC-C 版 (`docs/tpcc-unseen-condition-transfer-preregistration.md`) §5 の置�
   焦点 1 巡目 NO-GO (派生 field の保護、cohort 1 全件性、attempt 付番) + 親の所見 (clocks_per_us の暗黙依存) → fix 2 巡目 → 焦点 2 巡目 GO →
   計算ノードの生死確認で検証が certified に到達しない欠陥 (G-1) を発見 → fix 3 巡目 → 焦点 3 巡目 GO。
 - fix 1 巡目の子は、本 wave 新設の test の旧期待 (拒否記録を再検証回数に数える) と R-A5 裁定の衝突で停止し、親が test の書き直しを許可して再投入した。
+- 受入全走 1 回目 (tested tip dc41d40ce、main 856cdbcda 取り込み済み) の赤 3 件は本 wave に帰属: 新 module の process launch site 2 つが review 済み inventory に未分類
+  (`test_ccbench_spawn_sites.py` の 2 node と `test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches`)。裁定は `verbatim/s6-ruling-4.md`。
+  理由 comment 付きの追加だけで分類し (Codex author)、焦点走 (3 node + 新 test 2 本) 52 passed の後に受入を再投入した。
 - 不採用: TPC-C の認定経路への接続 (F-3)。裁定時点で経路は未着地だった。2026-09-26 時点の main では `pipeline._run_trace` が TPC-C 段 1 (57:43) の trace を許すようになっている (T-2854 の着地)。
   実行器の TPC-C 検証は `indeterminate` (認定経路なし) を記録し続ける。これは certified を誤って出さない側である。接続は発効時に経路を固定する別単位とした (worklog の新規 T)。
 
