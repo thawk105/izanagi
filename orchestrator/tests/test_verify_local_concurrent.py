@@ -352,3 +352,7 @@ def test_expected_commits_reaches_real_verifier_in_fork():
     result, records, _ = _evaluate(concurrent=True, verify_calls=True)
     assert result.certified and not result.aborted
     assert len([r for r in records if r.stage == STAGE_VERIFY_DONE]) == 6
+
+
+if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
+    raise SystemExit(pytest.main([__file__, "-q"]))
