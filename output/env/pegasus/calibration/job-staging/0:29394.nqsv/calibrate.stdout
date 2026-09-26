@@ -1,0 +1,14 @@
+[calibrate] L3 総量検出: 105 MB
+[calibrate] 倍々スイープ開始
+  [sweep] records=1,000,000 threads=48 reps=3 ...
+          miss_rate=14.349% median_tps=818,791 wall=3.5s maxrss=640MB
+  [sweep] records=2,000,000 threads=48 reps=3 ...
+          miss_rate=18.566% median_tps=859,796 wall=4.0s maxrss=1268MB
+  [sweep] records=4,000,000 threads=48 reps=3 ...
+          miss_rate=25.159% median_tps=910,868 wall=4.8s maxrss=2447MB
+  [sweep] 下限基準を充足 (records=1,000,000, working set ≥ L3×4) → スイープ打ち切り
+[calibrate] 飽和: NO (下限基準) → records=1,000,000
+[calibrate] noise floor: records=1,000,000 を 10 回 ...
+[calibrate] noise floor CV = 0.99%
+wrote /work/1/SFC/tanab/izanagi/.claude/worktrees/t2849-mocc-insertion/output/env/pegasus/calibration/attempts/0_29394.nqsv/calibration.json
+published /work/1/SFC/tanab/izanagi/.claude/worktrees/t2849-mocc-insertion/output/env/pegasus/calibration/registered/calibration-ae83d7382329999b.json via link-unlink

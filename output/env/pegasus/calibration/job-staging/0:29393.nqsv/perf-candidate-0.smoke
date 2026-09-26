@@ -1,0 +1,14 @@
+
+ Performance counter stats for 'sleep 0.1':
+
+               121      LLC-load-misses           #    7.70% of all LL-cache accesses
+              1572      LLC-loads                                                   
+            718032      instructions              #    0.83  insn per cycle         
+            861404      cycles                                                      
+
+       0.101269495 seconds time elapsed
+
+       0.000893000 seconds user
+       0.000000000 seconds sys
+
+

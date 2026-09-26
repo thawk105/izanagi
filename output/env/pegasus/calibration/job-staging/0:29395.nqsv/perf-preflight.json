@@ -1,0 +1,37 @@
+{
+  "available": true,
+  "candidates": [
+    {
+      "executable": true,
+      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+      "rc": 0
+    },
+    {
+      "executable": true,
+      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+      "rc": 0
+    }
+  ],
+  "parsed_events": [
+    "LLC-load-misses",
+    "LLC-loads",
+    "instructions",
+    "cycles"
+  ],
+  "probe_argv": [
+    "perf",
+    "stat",
+    "-x,",
+    "-o",
+    "<tmp>/perf.csv",
+    "-e",
+    "LLC-load-misses,LLC-loads,instructions,cycles",
+    "--",
+    "/bin/true"
+  ],
+  "rc": 0,
+  "reason": "available",
+  "schema": "izanagi-perf-preflight/v1",
+  "status": "available",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
