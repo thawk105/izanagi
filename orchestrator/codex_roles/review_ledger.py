@@ -8,15 +8,16 @@ from __future__ import annotations
 
 
 # Claude role / Codex adapter の絶対枚数。set 等号は各 source を相互束縛するが枚数自体は固定しない
-# ため、全 source から lockstep で 1 role を削除すると 13 件でも整合してしまう。この floor を
+# ため、全 source から lockstep で 1 role を削除すると 15 件でも整合してしまう。この floor を
 # 人間レビュー ledger に置くことで、role の増減は必ずここの明示更新を伴う review checkpoint になる。
-EXPECTED_ROLE_COUNT = 14
+EXPECTED_ROLE_COUNT = 16
 
 SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
     # Reviewed 2026-08-20: T-1356 fix; 型17-21の具体的な境界条件を削除し、verifier_blind_spot への事後報告へ移管。
     # Reviewed 2026-09-02: T-2145; verified sort IR の監査境界と残余リスクを追記。
-    "auditor": "dc63a3118393503f7eed4952478f0aa34690b344ee1ca98915e455e210165f34",
+    # Reviewed 2026-09-26: T-2865; 方策軸の型22〜26と免除範囲を追加。
+    "auditor": "1780945a475cdd036a1fccf52d179f69500c18d0b45d2cf8c5b8969aad54495b",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。
@@ -52,6 +53,10 @@ SOURCE_FILE_SHA256 = {
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy": "0a071db46da65a7979952fb68da50b8a8df2b158a5e00a632c7ad1222b16f809",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy-ir": "6b577e35013273edd5f70811fbc0f1d763e69f705a0a6e17d26cf5176d015e59",
 }
 
 # ``manifest.json`` の各 ``roles.<name>`` entry 全体を固定する独立 pin。schema 単体だけでなく
@@ -60,7 +65,8 @@ SOURCE_FILE_SHA256 = {
 ROLE_MANIFEST_SHA256 = {
     # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
     # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
-    "auditor": "07b097be18a5ca528b5b402746c05a5c1b27ca8e9b3b050b83c7463df445c456",
+    # Reviewed 2026-09-26: T-2865; auditor 出力型上限26に追随。
+    "auditor": "1e1967d1922c616af122be6ae29042bab94d41ad1e6e8c1067b1a91e06790e96",
     "axis-proposer": "57d9bd635e99c5eab2e7fb852043446ffe6c0aff1a1fa48ed5b724c4ae041ad1",
     "calibrator": "775d8e9fa963b6f2d895ffcb7be14a7ce487ea82911fd797f4f6bb840d8e9186",
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
@@ -78,6 +84,10 @@ ROLE_MANIFEST_SHA256 = {
     "profiler": "61a3cc067886a042bcf076fc1b2494bf26bb5e6e64bcd6a6e8bc01a77071ec30",
     "selector-8b": "8d1a101ca21c17dab7cc529ceda263f2ec77dbc09b290a838cfddc88346f8631",
     "verifier": "2d36ee3afec401942fc3e66d521ddbf9d1cc54b81d98090d883f5f49d8f94a8f",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy": "d16cd0214a038917693eb61bd58fce6aa4b1b445375e857ff4cbb8f3271cece3",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy-ir": "50ef6280b9357fd31b3c0451d92aa10dd636706e5c62169bea4d8b0282025845",
 }
 
 # ``spec.DEVELOPER_INSTRUCTION_TEMPLATE`` exact UTF-8 bytes の独立 pin。
@@ -102,6 +112,10 @@ DESCRIPTION_SHA256 = {
     "profiler": "208aa13e1acb0b281dc0de3e811c2ec4c9483217d9ec63a2ed9c69fa5fd16347",
     "selector-8b": "144f5f9b20ab953dfb2e1f5c8622f1db2b74a9be3f3ac4cf821f7c0752b11632",
     "verifier": "21906b5078651cf0b99b831b8be96aeca064a45c4a45ad42c6417238c129bdc3",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy": "bb106ed03285eeaa5c2e2d7e20034847f8f4f1de456170333b491fa3c39b1680",
+    # Reviewed 2026-09-26: T-2865; 方策 coder role を追加。
+    "coder-v4-autonomous-policy-ir": "e31783ab621f3837c5e207d806af29f80e4798a581d2ec7bfd40bffd7b18e733",
 }
 
 # ``manifest.json`` から生成してはならない独立 review pin。required field だけでなく
@@ -112,7 +126,8 @@ SCHEMA_SHA256 = {
         "input": "1b74afcd7a4100722d600004e3dba20245e548750937b87506c1a6fe55f68094",
         # Reviewed 2026-08-04: stage6-fix-ruling.md 2 巡目裁定 r1-3。
         # Reviewed 2026-08-19: T-1356; sort closed-region 残余の gallery型17-21追加、violation type 上限21。
-        "output": "c3de7a421aee251c533a2bd65e9a4c0b7445665072d7902d42a9c947dcf078a8",
+        # Reviewed 2026-09-26: T-2865; auditor violation type の最大値を26へ。
+        "output": "dc17b6811bff118ef189394f8062497ba9f185bb5f12d58aea966acf2ca27101",
     },
     "axis-proposer": {
         "input": "3da4142a4dda56f7c88296cb1ea6f540cd7577a9a49fa8fa25a44b0a7e4c8c10",
@@ -167,6 +182,10 @@ SCHEMA_SHA256 = {
         "input": "e3df4ec4dee7c5fa3c024ab4543f4f26180d953b2f82466164994140b2090789",
         "output": "1b9803e741452465e08073580992818a4cb57afe5134583ae196083ee200c7ce",
     },
+    # Reviewed 2026-09-26: T-2865; 方策 coder の入出力 schema を固定。
+    "coder-v4-autonomous-policy": {"input": "8d0570f36e2a742e5346c93df34ac4aac42aacbebba07a52e11d7c3b804c2357", "output": "701d1969d53ec2ff3a2f955ed6118d2760dbb0a94772f4cfeb86cd54fe6df9f2"},
+    # Reviewed 2026-09-26: T-2865; 方策 coder の入出力 schema を固定。
+    "coder-v4-autonomous-policy-ir": {"input": "8d0570f36e2a742e5346c93df34ac4aac42aacbebba07a52e11d7c3b804c2357", "output": "c7d77ac06a6f27108c70e20a3e9d2252e2af17143ea1280985fc737d9a9b7e7a"},
 }
 
 
@@ -227,6 +246,14 @@ ROLE_IO_CONTRACTS = {
     "coder-v4-autonomous-k2": _direct(
         ("leakproof_context", "knowledge_input", "baseline", "planner_direction", "whiteboard"),
         ("proposal", "knowledge_use", "classification", "data_boundary_report"),
+    ),
+    "coder-v4-autonomous-policy": _direct(
+        ("leakproof_context", "policy_spec", "baseline", "recon_projection", "self_history"),
+        ("proposal",),
+    ),
+    "coder-v4-autonomous-policy-ir": _direct(
+        ("leakproof_context", "policy_spec", "baseline", "recon_projection", "self_history"),
+        ("proposal",),
     ),
     "coder-v4-autonomous-sort": _direct(
         ("leakproof_context", "sort_spec", "baseline", "planner_direction", "whiteboard"),

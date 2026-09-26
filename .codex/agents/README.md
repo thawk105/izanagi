@@ -1,18 +1,18 @@
-# Codex role adapter — native 0 / static 14 / runtime blocked
+# Codex role adapter — native 0 / static 16 / runtime blocked
 
 `.claude/agents/*.md` は role 本文と Claude Code 固有の model/tools 契約の正本である。
-Codex 版は自動発見されない `.codex/role-adapters/*.json` に全 14 件を置き、共有 manifest と renderer、
+Codex 版は自動発見されない `.codex/role-adapters/*.json` に全 16 件を置き、共有 manifest と renderer、
 semantic policy、checker で同期する。初版判断は D54、native profile の休眠化は D55、当時の 13 件の
 静的移植と runtime 裁定は D56 とする。14 件目の `coder-v4-autonomous-k2` は D1429 (合成の既定を
-知識水準 K2 にする裁定) を受けて足した K2 宣言アーム用の兄弟 role であり、runtime は同じく blocked。
+知識水準 K2 にする裁定) を受けて足した K2 宣言アーム用の兄弟 role。15・16 件目は T-2865 の方策軸用 C++ / IR coder role。runtime は全件 blocked。
 
 現行状態は次の 3 軸を混同しない。
 
 | 面 | 状態 | 意味 |
 |---|---|---|
 | native profile | active 0 / 発見可能 profile 0 | `.codex/agents/*.toml` と project `[agents.<name>]` は禁止 |
-| static adapter | 14 / 14 定義済み | Claude 本文・metadata・I/O・capability lowering を byte-stable JSON に移植済み |
-| runtime activation | active 0 / blocked 14 | `input.additional_tools` を構造的に除去できないため実行禁止 |
+| static adapter | 16 / 16 定義済み | Claude 本文・metadata・I/O・capability lowering を byte-stable JSON に移植済み |
+| runtime activation | active 0 / blocked 16 | `input.additional_tools` を構造的に除去できないため実行禁止 |
 
 static adapter は実行可能 profile ではない。`dormant` は「無効な TOML を残す」という意味でも、
 prompt 規律だけで隔離できたという意味でもない。
@@ -85,7 +85,7 @@ Codex hook adapter だけでは条件 2 を満たさない。local file write �
 role の意味変更は対応する `.claude/agents/*.md` に入れる。
 `orchestrator/codex_roles/review_ledger.py` は自動生成物と独立したレビュー済み source/description/schema、
 full role manifest、共通 developer instruction template の SHA-256 と role 別 I/O 契約の固定台帳である。
-direct JSON 例を持つ 7 role は source の入力・出力 shape parity、mediated の 7 role は固定 source hash +
+direct JSON 例を持つ 9 role は source の入力・出力 shape parity、mediated の 7 role は固定 source hash +
 reviewed I/O obligations で移植契約を結び、台帳の明示レビュー無しに再生成だけで追従しない。checker は
 Claude と Codex の全単射、
 frontmatter、description の JSON quote、本文の埋込・digest、model/effort、capability lowering、I/O schema、

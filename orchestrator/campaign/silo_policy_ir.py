@@ -6,7 +6,7 @@ Rendering is a subset of policy-C++ v1, not an alternative admission gate.
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 import hashlib
 import json
 from pathlib import Path
@@ -131,6 +131,65 @@ class ReconCase:
 _NUMERIC = {'u32', 'u64'}
 _CPP = dict(u32='uint32_t', u64='uint64_t', bool='bool',
             reason='izanagi_silo_api::AbortReason', action='izanagi_silo_api::PolicyAction')
+
+
+def parse_policy_ir(document: object) -> PolicyIR:
+    """Parse the closed tagged JSON form in the T-2865 interface."""
+    classes = {cls.__name__: cls for cls in (
+        Const, Reason, Attempt, StateRef, Compare, Select, Min, Max,
+        SatAdd, SatSub, Shift, StateField, AbortHook, LockHook,
+        CommitHook, PolicyIR,
+    )}
+    expr_fields = {'left', 'right', 'condition', 'yes', 'no', 'value',
+                   'wait', 'action', 'initial_literal', 'after_abort',
+                   'on_lock_conflict', 'on_commit'}
+    tuple_fields = {'fields', 'next_state'}
+
+    def parse(value):
+        if type(value) is not dict or type(value.get('kind')) is not str:
+            raise ValueError('tagged IR object required')
+        cls = classes.get(value['kind'])
+        if cls is None:
+            raise ValueError('unknown IR kind')
+        names = {field.name for field in fields(cls)}
+        if set(value) != names | {'kind'}:
+            raise ValueError('IR keys mismatch')
+        args = {}
+        for name in names:
+            item = value[name]
+            if name in tuple_fields:
+                if name == 'next_state' and item is None:
+                    args[name] = None
+                elif type(item) is list:
+                    args[name] = tuple(parse(child) for child in item)
+                else:
+                    raise ValueError('IR array required')
+            elif name in expr_fields and not (cls is Const and name == 'value'):
+                args[name] = parse(item)
+            else:
+                args[name] = item
+        if cls is Const:
+            ty, literal = args['type'], args['value']
+            if type(ty) is not str or ty not in _CPP:
+                raise ValueError('IR constant type')
+            if ty in _NUMERIC and type(literal) is not int:
+                raise ValueError('IR integer type')
+            if ty == 'bool' and type(literal) is not bool:
+                raise ValueError('IR bool type')
+            if ty in ('reason', 'action') and type(literal) is not str:
+                raise ValueError('IR enum type')
+        elif cls in (StateRef, Shift):
+            key = 'index' if cls is StateRef else 'amount'
+            if type(args[key]) is not int:
+                raise ValueError('IR integer type')
+        for key in ('type', 'op', 'direction'):
+            if key in args and type(args[key]) is not str:
+                raise ValueError('IR string type')
+        return cls(**args)
+
+    ir = parse(document)
+    validate_ir(ir)
+    return ir
 
 
 def _require(ok, message):

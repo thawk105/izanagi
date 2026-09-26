@@ -23,6 +23,25 @@ from orchestrator.campaign.diff_quarantine import DiffQuarantineResult          
 from orchestrator.critic.digest import DIFF_QUARANTINE_REASON                        # noqa: E402
 
 
+def test_violation_type_ceiling_is_per_call_and_default_stays_21():
+    verdict = {'verdict': 'reject', 'diff_digest': 'a' * 64,
+               'violations': [{'type': 22}]}
+    try:
+        parse_auditor_dict(verdict)
+        raise AssertionError('default ceiling accepted type 22')
+    except AuditorGateFailure:
+        pass
+    for kind in range(22, 27):
+        verdict['violations'] = [{'type': kind}]
+        assert parse_auditor_dict(verdict, max_violation_type=26).violations[0]['type'] == kind
+    verdict['violations'] = [{'type': 27}]
+    try:
+        parse_auditor_dict(verdict, max_violation_type=26)
+        raise AssertionError('policy ceiling accepted type 27')
+    except AuditorGateFailure:
+        pass
+
+
 def test_assert_digest_matches_returns_actual_on_match():
     diff = "diff line 1\ndiff line 2\n"
     a = AuditorVerdict(verdict="pass", diff_digest=compute_diff_digest(diff))

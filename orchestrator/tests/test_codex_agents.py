@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Codex native 0 / non-native projection adapter 14 のfail-closedテスト。"""
+"""Codex native 0 / non-native projection adapter 16 のfail-closedテスト。"""
 from __future__ import annotations
 
 import importlib.util
@@ -125,16 +125,16 @@ def _reviewed_role_entry(root: Path, role: str):
         ROLE_MANIFEST_SHA256[role] = old_pin
 
 
-def test_policy_has_zero_native_and_fourteen_static_dormant_adapters():
+def test_policy_has_zero_native_and_sixteen_static_dormant_adapters():
     assert CCA.ACTIVE == {}
-    assert len(CCA.STATIC_ADAPTERS) == 14
+    assert len(CCA.STATIC_ADAPTERS) == 16
     assert CCA.STATIC_ADAPTERS == frozenset(CCA.ROLE_SPEC.load_role_specs(_REPO))
 
 
-def test_review_ledger_independently_pins_all_fourteen_sources_and_io_contracts():
+def test_review_ledger_independently_pins_all_sixteen_sources_and_io_contracts():
     specs = CCA.ROLE_SPEC.load_role_specs(_REPO)
     roles = set(specs)
-    assert len(roles) == 14
+    assert len(roles) == 16
     assert roles == set(SOURCE_FILE_SHA256)
     assert roles == set(DESCRIPTION_SHA256)
     assert roles == set(SCHEMA_SHA256)
@@ -161,6 +161,28 @@ def test_review_ledger_independently_pins_all_fourteen_sources_and_io_contracts(
         assert contract["mode"] == (
             "direct-json-example" if not spec.claude_tools else "mediated-override"
         )
+
+
+def test_policy_coder_roles_have_closed_five_key_input_and_proposal_only_output():
+    roles = CCA.ROLE_SPEC.load_role_specs(_REPO)
+    required = ("leakproof_context", "policy_spec", "baseline",
+                "recon_projection", "self_history")
+    for name, payload in (
+        ("coder-v4-autonomous-policy", "implementation"),
+        ("coder-v4-autonomous-policy-ir", "ir"),
+    ):
+        role = roles[name]
+        assert role.claude_tools == ()
+        assert tuple(role.input_schema["required"]) == required
+        assert role.input_schema["additionalProperties"] is False
+        assert "critic_diagnosis" in role.input_schema["properties"]
+        assert tuple(role.output_schema["required"]) == ("proposal",)
+        proposal = role.output_schema["properties"]["proposal"]
+        assert set(proposal["required"]) == {
+            "axis", payload, "justification", "confidence"
+        }
+        assert proposal["additionalProperties"] is False
+        assert role.consumer is None
 
 
 def test_current_sources_render_byte_exact_and_native_is_empty():
@@ -567,6 +589,8 @@ def test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed():
             "unevaluated_performance", "unevaluated_performances",
             "optimal_mechanism", "optimal_mechanisms",
         ),
+        "coder-v4-autonomous-policy": ("winning_policy", "winners", "candidate_rankings", "optimal_mechanisms"),
+        "coder-v4-autonomous-policy-ir": ("winning_policy", "winners", "candidate_rankings", "optimal_mechanisms"),
         "coder-v4-autonomous-sort": (
             "winning_comparator", "winning_comparators", "winners",
             "candidate_rankings", "rankings", "optimal_mechanisms",
@@ -1367,6 +1391,8 @@ def test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced():
         "coder-v4-autonomous",
         "coder-v4-autonomous-k2",
         "coder-v4-autonomous-sort",
+        "coder-v4-autonomous-policy",
+        "coder-v4-autonomous-policy-ir",
         "coder-v4-autonomous-trigger-gating",
     )
     for role in roles:

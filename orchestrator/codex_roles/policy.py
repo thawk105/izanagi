@@ -62,6 +62,22 @@ ROLE_FORBIDDEN_KEY_TOKENS: dict[str, tuple[str, ...]] = {
     "coder-v4-autonomous-k2": (
         "unevaluated_performance", "unevaluated_performances",
     ),
+    "coder-v4-autonomous-policy": (
+        "external_winning_policy", "external_winning_policies",
+        "winning_policy", "winning_policies", "winner", "winners",
+        "candidate_ranking", "candidate_rankings", "ranking", "rankings",
+        "unevaluated_performance", "unevaluated_performances",
+        "known_optimal_mechanism", "known_optimal_mechanisms",
+        "optimal_mechanism", "optimal_mechanisms",
+    ),
+    "coder-v4-autonomous-policy-ir": (
+        "external_winning_policy", "external_winning_policies",
+        "winning_policy", "winning_policies", "winner", "winners",
+        "candidate_ranking", "candidate_rankings", "ranking", "rankings",
+        "unevaluated_performance", "unevaluated_performances",
+        "known_optimal_mechanism", "known_optimal_mechanisms",
+        "optimal_mechanism", "optimal_mechanisms",
+    ),
     "coder-v4-autonomous-sort": (
         "external_winning_comparator", "external_winning_comparators",
         "winning_comparator", "winning_comparators", "winner", "winners",
@@ -351,6 +367,9 @@ def validate_input_semantics(role: Any, projected_input: Any) -> None:
         }[spec.name]
         _planner_direction(data.get("planner_direction"), axis=axis,
                            path="input.planner_direction")
+    elif spec.name in {"coder-v4-autonomous-policy", "coder-v4-autonomous-policy-ir"}:
+        # 入力の5必須keyと任意診断はclosed schemaが検査する。自由文はopaque。
+        pass
     elif spec.name == "critic-experiment":
         candidates = _array(data.get("unevaluated_candidates"),
                             "input.unevaluated_candidates")
@@ -468,6 +487,12 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
             raise RolePolicyError(
                 "calibrator selected_recordsはinput.measurements recordsのmemberでなければならない"
             )
+    elif spec.name in {"coder-v4-autonomous-policy", "coder-v4-autonomous-policy-ir"}:
+        proposal = _mapping(output.get("proposal"), "result.proposal")
+        if proposal.get("axis") != "silo-function-policy":
+            raise RolePolicyError("result.proposal.axis: 'silo-function-policy'固定")
+        _enum(proposal.get("confidence"), _CONFIDENCE,
+              "result.proposal.confidence")
     elif spec.name == "planner-v4":
         proposal = _mapping(output.get("proposal"), "result.proposal")
         _planner_direction(proposal, axis="silo-backoff-magnitude",

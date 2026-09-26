@@ -599,5 +599,11 @@ def _run():
     return 0 if (nfail == 0 and nerr == 0) else 1
 
 
+def test_policy_reject_subtypes_are_distinct_from_existing_subtypes():
+    assert DiffRejectSubtype.POLICY_GRAMMAR.value == 'policy-grammar'
+    assert DiffRejectSubtype.POLICY_COMPILE.value == 'policy-compile'
+    assert DiffRejectSubtype.POLICY_GRAMMAR is not DiffRejectSubtype.HOST_EFFECT
+
+
 if __name__ == "__main__":
     sys.exit(_run())
