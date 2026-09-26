@@ -1,0 +1,1294 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/40d4b66cbb243c276c975ba2f5da5053/izdw-40d4b66cbb.o30022",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/40d4b66cbb243c276c975ba2f5da5053/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 68%]\n.................................                                        [100%]\n105 passed in 6.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4da7a911faaf53d9638e8b098ba5abf7e01b97c335c8431f09681b7eca266ec8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+    "duration_s": 27.067,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "bdb70a46f37a822ab3f798c906f6ec4d67eabeff3e820a396251be7a7859d259",
+    "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+    "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+    "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+    "status": "PASSED",
+    "test_output_sha256": "4da7a911faaf53d9638e8b098ba5abf7e01b97c335c8431f09681b7eca266ec8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+  },
+  "date": "2026-09-26T12:22:03.418926+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7037e6c2057b6effd18f296fc6e28d2f/izdw-7037e6c205.o30023",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7037e6c2057b6effd18f296fc6e28d2f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 68%]\n...F.............................                                        [100%]\n=================================== FAILURES ===================================\n________________ test_policy_gate_digest_and_no_write_on_reject ________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_policy_gate_digest_and_no0')\n\n    def test_policy_gate_digest_and_no_write_on_reject(tmp_path):\n        compiler = find_compiler()\n        if compiler is None:\n            pytest.skip('g++ unavailable')\n        source = _source(tmp_path)\n        original = source.read_bytes()\n        bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')\n        result, _diff = P.policy_gate(str(tmp_path), bad, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert not result.passed\n        assert result.subtype is DiffRejectSubtype.POLICY_GRAMMAR\n        assert source.read_bytes() == original\n        unused_local = GOOD.replace('return 1u;', 'uint32_t unused = 1u; return 1u;')\n        result, _diff = P.policy_gate(str(tmp_path), unused_local, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>       assert not result.passed\nE       assert not True\nE        +  where True = DiffQuarantineResult(passed=True, subtype=None, reason=None, digest=None, violations=[]).passed\n\norchestrator/tests/test_p3_s4_loop_policy.py:323: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject\n1 failed, 104 passed in 5.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1223 retained_bytes=1223 omitted_bytes=0 rendered_excerpt_bytes=1272 sha256=3c16045553288e57a5a2fc9215b544611c99788f83f38232ba4c95b839124638\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_policy_gate_digest_and_no0')\n> \n>     def test_policy_gate_digest_and_no_write_on_reject(tmp_path):\n>         compiler = find_compiler()\n>         if compiler is None:\n>             pytest.skip('g++ unavailable')\n>         source = _source(tmp_path)\n>         original = source.read_bytes()\n>         bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')\n>         result, _diff = P.policy_gate(str(tmp_path), bad, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert not result.passed\n>         assert result.subtype is DiffRejectSubtype.POLICY_GRAMMAR\n>         assert source.read_bytes() == original\n>         unused_local = GOOD.replace('return 1u;', 'uint32_t unused = 1u; return 1u;')\n>         result, _diff = P.policy_gate(str(tmp_path), unused_local, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n> >       assert not result.passed\n> E       assert not True\n> E        +  where True = DiffQuarantineResult(passed=True, subtype=None, reason=None, digest=None, violations=[]).passed\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:323: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1223 retained_bytes=1223 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1991 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "21c084f919680365c2b0684059fccad8a29d966f3911f922dc5164fd5fa12a3c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.038,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject"
+      ],
+      "hang_risk": false,
+      "id": "m-e2-tu-accept",
+      "injection_diff_sha256": "2dff3921ddf411bacc3bcadf6db3781af0bef7a84fdcc77aa634793d82f5d858",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ba9d287c2a8b6449049a6f3d0f2bc5668f34cf281e0d7840681b1783345999b8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "        elif compiled is None:  # mutation M-E2\n",
+          "old": "        elif compiled is None or not compiled.accepted:\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "21c084f919680365c2b0684059fccad8a29d966f3911f922dc5164fd5fa12a3c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9f1700cedd7beb6aa7c9fb54d3634595/izdw-9f1700cedd.o30024",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9f1700cedd7beb6aa7c9fb54d3634595/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 68%]\n.....F.....F.....................                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_policy_gate_veto_checks_types_22_through_26 _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_policy_gate_veto_checks_t0')\n\n    def test_policy_gate_veto_checks_types_22_through_26(tmp_path):\n        compiler = find_compiler()\n        if compiler is None:\n            pytest.skip('g++ unavailable')\n        source = _source(tmp_path)\n        original = source.read_bytes()\n        preview, diff = P.policy_gate(str(tmp_path), GOOD, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert preview.passed\n        for kind in range(22, 27):\n            verdict = AuditorVerdict('reject', compute_diff_digest(diff),\n                violations=[{'type': kind}], max_violation_type=26)\n            result, _ = P.policy_gate(str(tmp_path), GOOD, verdict,\n                compiler=compiler, scratch_dir=str(tmp_path), write=True)\n>           assert not result.passed\nE           assert not True\nE            +  where True = DiffQuarantineResult(passed=True, subtype=None, reason=None, digest=None, violations=[]).passed\n\norchestrator/tests/test_p3_s4_loop_policy.py:132: AssertionError\n________________ test_policy_gate_digest_and_no_write_on_reject ________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_policy_gate_digest_and_no0')\n\n    def test_policy_gate_digest_and_no_write_on_reject(tmp_path):\n        compiler = find_compiler()\n        if compiler is None:\n            pytest.skip('g++ unavailable')\n        source = _source(tmp_path)\n        original = source.read_bytes()\n        bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')\n        result, _diff = P.policy_gate(str(tmp_path), bad, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert not result.passed\n        assert result.subtype is DiffRejectSubtype.POLICY_GRAMMAR\n        assert source.read_bytes() == original\n        unused_local = GOOD.replace('return 1u;', 'uint32_t unused = 1u; return 1u;')\n        result, _diff = P.policy_gate(str(tmp_path), unused_local, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert not result.passed\n        assert result.subtype is DiffRejectSubtype.POLICY_COMPILE\n        assert source.read_bytes() == original\n        result, diff = P.policy_gate(str(tmp_path), GOOD, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert result.passed\n        mismatch = AuditorVerdict('pass', '0' * 64)\n>       with pytest.raises(AuditorGateFailure):\nE       Failed: DID NOT RAISE AuditorGateFailure\n\norchestrator/tests/test_p3_s4_loop_policy.py:330: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject\n2 failed, 103 passed in 5.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1496 retained_bytes=1496 omitted_bytes=0 rendered_excerpt_bytes=1557 sha256=5d315160614cbffdaa1232a32a9cd2122696e0d520edb1eb01e545e591b84e63\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_policy_gate_digest_and_no0')\n> \n>     def test_policy_gate_digest_and_no_write_on_reject(tmp_path):\n>         compiler = find_compiler()\n>         if compiler is None:\n>             pytest.skip('g++ unavailable')\n>         source = _source(tmp_path)\n>         original = source.read_bytes()\n>         bad = GOOD.replace('return 1u;', 'uint32_t x = 1u; x++; return x;')\n>         result, _diff = P.policy_gate(str(tmp_path), bad, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert not result.passed\n>         assert result.subtype is DiffRejectSubtype.POLICY_GRAMMAR\n>         assert source.read_bytes() == original\n>         unused_local = GOOD.replace('return 1u;', 'uint32_t unused = 1u; return 1u;')\n>         result, _diff = P.policy_gate(str(tmp_path), unused_local, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert not result.passed\n>         assert result.subtype is DiffRejectSubtype.POLICY_COMPILE\n>         assert source.read_bytes() == original\n>         result, diff = P.policy_gate(str(tmp_path), GOOD, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert result.passed\n>         mismatch = AuditorVerdict('pass', '0' * 64)\n> >       with pytest.raises(AuditorGateFailure):\n> E       Failed: DID NOT RAISE AuditorGateFailure\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:330: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1180 sha256=2dc383d436d7b4f2d8e9a427219b461b3a07ecf6bfebaa18d2d01a18bc2395ca\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_policy_gate_veto_checks_t0')\n> \n>     def test_policy_gate_veto_checks_types_22_through_26(tmp_path):\n>         compiler = find_compiler()\n>         if compiler is None:\n>             pytest.skip('g++ unavailable')\n>         source = _source(tmp_path)\n>         original = source.read_bytes()\n>         preview, diff = P.policy_gate(str(tmp_path), GOOD, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert preview.passed\n>         for kind in range(22, 27):\n>             verdict = AuditorVerdict('reject', compute_diff_digest(diff),\n>                 violations=[{'type': kind}], max_violation_type=26)\n>             result, _ = P.policy_gate(str(tmp_path), GOOD, verdict,\n>                 compiler=compiler, scratch_dir=str(tmp_path), write=True)\n> >           assert not result.passed\n> E           assert not True\n> E            +  where True = DiffQuarantineResult(passed=True, subtype=None, reason=None, digest=None, violations=[]).passed\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:132: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2629 retained_bytes=2629 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3890 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "305b3769c69ec1c9a781bd87f0316e7934d518c29a634dff1b056394f2ad728a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.067,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject"
+      ],
+      "hang_risk": false,
+      "id": "m-e3-veto-off",
+      "injection_diff_sha256": "fa00d9179029bbe9f2642703ea9b2f64557c2d5ba06912f5d609f556e7a6bb4c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fab7924a329c3db8c524a1cde6d726081caafa331c829bfd43754ff41890505a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "    if False and auditor is not None:  # mutation M-E3\n        result = apply_mandatory_deny_only_veto(\n",
+          "old": "    if result.passed and auditor is not None:\n        result = apply_mandatory_deny_only_veto(\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "305b3769c69ec1c9a781bd87f0316e7934d518c29a634dff1b056394f2ad728a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7d6d212ea211639745f13695cb0e336/izdw-a7d6d212ea.o30025",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7d6d212ea211639745f13695cb0e336/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 68%]\n....F............................                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_policy_gate_veto_checks_types_22_through_26 _______________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_policy_gate_veto_checks_t0')\n\n    def test_policy_gate_veto_checks_types_22_through_26(tmp_path):\n        compiler = find_compiler()\n        if compiler is None:\n            pytest.skip('g++ unavailable')\n        source = _source(tmp_path)\n        original = source.read_bytes()\n        preview, diff = P.policy_gate(str(tmp_path), GOOD, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert preview.passed\n        for kind in range(22, 27):\n            verdict = AuditorVerdict('reject', compute_diff_digest(diff),\n                violations=[{'type': kind}], max_violation_type=26)\n>           result, _ = P.policy_gate(str(tmp_path), GOOD, verdict,\n                compiler=compiler, scratch_dir=str(tmp_path), write=True)\n\norchestrator/tests/test_p3_s4_loop_policy.py:130: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop_policy.py:185: in policy_gate\n    result = apply_mandatory_deny_only_veto(\norchestrator/campaign/auditor_gate.py:216: in apply_mandatory_deny_only_veto\n    _validate_auditor_entries(\norchestrator/campaign/auditor_gate.py:71: in _validate_auditor_entries\n    _reject_schema(\"violations\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfield = 'violations'\n\n    def _reject_schema(field: str) -> None:\n        # Raw entry values are deliberately absent from this message.  Auditor input\n        # is untrusted and may contain a candidate wire/mask which must not escape in\n        # exception text.\n>       raise AuditorGateFailure(\n            f\"auditor.{field} が閉じた構造化 schema に一致しない (規律2/6)\"\n        )\nE       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations が閉じた構造化 schema に一致しない (規律2/6)\n\norchestrator/campaign/auditor_gate.py:48: AuditorGateFailure\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26\n1 failed, 104 passed in 5.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=2014 retained_bytes=2014 omitted_bytes=0 rendered_excerpt_bytes=2187 sha256=7d8ead7d4095dc5475b5e47521ffc32677de32196bf0006deffabbd2dac627d5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_policy_gate_veto_checks_t0')\n> \n>     def test_policy_gate_veto_checks_types_22_through_26(tmp_path):\n>         compiler = find_compiler()\n>         if compiler is None:\n>             pytest.skip('g++ unavailable')\n>         source = _source(tmp_path)\n>         original = source.read_bytes()\n>         preview, diff = P.policy_gate(str(tmp_path), GOOD, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert preview.passed\n>         for kind in range(22, 27):\n>             verdict = AuditorVerdict('reject', compute_diff_digest(diff),\n>                 violations=[{'type': kind}], max_violation_type=26)\n> >           result, _ = P.policy_gate(str(tmp_path), GOOD, verdict,\n>                 compiler=compiler, scratch_dir=str(tmp_path), write=True)\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:130: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_s4_loop_policy.py:185: in policy_gate\n>     result = apply_mandatory_deny_only_veto(\n> orchestrator/campaign/auditor_gate.py:216: in apply_mandatory_deny_only_veto\n>     _validate_auditor_entries(\n> orchestrator/campaign/auditor_gate.py:71: in _validate_auditor_entries\n>     _reject_schema(\"violations\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> field = 'violations'\n> \n>     def _reject_schema(field: str) -> None:\n>         # Raw entry values are deliberately absent from this message.  Auditor input\n>         # is untrusted and may contain a candidate wire/mask which must not escape in\n>         # exception text.\n> >       raise AuditorGateFailure(\n>             f\"auditor.{field} \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\"\n>         )\n> E       orchestrator.campaign.auditor_gate.AuditorGateFailure: auditor.violations \\u304c\\u9589\\u3058\\u305f\\u69cb\\u9020\\u5316 schema \\u306b\\u4e00\\u81f4\\u3057\\u306a\\u3044 (\\u898f\\u5f8b2/6)\n> \n> orchestrator/campaign/auditor_gate.py:48: AuditorGateFailure\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2014 retained_bytes=2014 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2908 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "39bc366f996bd13fd72dee122b7ffe327ea1eda55a567080467d4a0cda604154"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.277,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+      ],
+      "hang_risk": false,
+      "id": "m-e4-policy-21",
+      "injection_diff_sha256": "189b7798e280a47ea665c57ad3ca16a81c9e3cd7c66589c99b52b2d1b8c89a73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7e55424e1e179728921372c7cd3cd073cc0218638eed2d2a041def8a0c1358e9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "            template_diff_id=axis.MARKER_ID, max_violation_type=21)  # mutation M-E4\n",
+          "old": "            template_diff_id=axis.MARKER_ID, max_violation_type=26)\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "39bc366f996bd13fd72dee122b7ffe327ea1eda55a567080467d4a0cda604154",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bfaf44d3a16bba1949d4ac33e35b21/izdw-90bfaf44d3.o30026",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90bfaf44d3a16bba1949d4ac33e35b21/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................F..............................F.. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n______________ test_parse_auditor_dict_rejects_violation_code_22 _______________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_parse_auditor_dict_rejects_violation_code_22():\n        try:\n            parse_auditor_dict({\n                \"verdict\": \"reject\",\n                \"diff_digest\": \"a\" * 64,\n                \"violations\": [{\"type\": 22}],\n            })\n>           raise AssertionError(\"gallery code 22 を素通しした\")\nE           AssertionError: gallery code 22 を素通しした\n\norchestrator/tests/test_auditor_gate.py:175: AssertionError\n_________ test_violation_type_ceiling_is_per_call_and_default_stays_21 _________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_violation_type_ceiling_is_per_call_and_default_stays_21():\n        verdict = {'verdict': 'reject', 'diff_digest': 'a' * 64,\n                   'violations': [{'type': 22}]}\n        try:\n            parse_auditor_dict(verdict)\n>           raise AssertionError('default ceiling accepted type 22')\nE           AssertionError: default ceiling accepted type 22\n\norchestrator/tests/test_auditor_gate.py:31: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22\nFAILED orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21\n2 failed, 103 passed in 5.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=487 retained_bytes=487 omitted_bytes=0 rendered_excerpt_bytes=550 sha256=eab7fdbc2f17bdeccde8262c358df7b9d3535b4d14aebcc9ce2e7759f2aefd11\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_parse_auditor_dict_rejects_violation_code_22():\n>         try:\n>             parse_auditor_dict({\n>                 \"verdict\": \"reject\",\n>                 \"diff_digest\": \"a\" * 64,\n>                 \"violations\": [{\"type\": 22}],\n>             })\n> >           raise AssertionError(\"gallery code 22 \\u3092\\u7d20\\u901a\\u3057\\u3057\\u305f\")\n> E           AssertionError: gallery code 22 \\u3092\\u7d20\\u901a\\u3057\\u3057\\u305f\n> \n> orchestrator/tests/test_auditor_gate.py:175: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=476 retained_bytes=476 omitted_bytes=0 rendered_excerpt_bytes=499 sha256=46bfc815b65fb21a3b10a626730f6bd3cee189cc20d26423a8f00c92ef4bd914\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_violation_type_ceiling_is_per_call_and_default_stays_21():\n>         verdict = {'verdict': 'reject', 'diff_digest': 'a' * 64,\n>                    'violations': [{'type': 22}]}\n>         try:\n>             parse_auditor_dict(verdict)\n> >           raise AssertionError('default ceiling accepted type 22')\n> E           AssertionError: default ceiling accepted type 22\n> \n> orchestrator/tests/test_auditor_gate.py:31: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=963 retained_bytes=963 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2200 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eb306bef93716d316f0ee2804a798803558086681c1a821dfbaf68b4de5b602f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.036,
+      "expected_nodes": [
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22",
+        "orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22",
+        "orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21"
+      ],
+      "hang_risk": false,
+      "id": "m-e5-default-26",
+      "injection_diff_sha256": "c8dc3063f903074dcce451abc7ac2e05f962c6cbbfc927974be90f46e0f0d585",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "10a623b7da0761b05eeb8dcd9b9b842b9bb9f22fb733d22d5f8e6d30a2efbae7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "    *, max_violation_type: int = 26,  # mutation M-E5\n",
+          "old": "    *, max_violation_type: int = 21,\n"
+        },
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "    max_violation_type: InitVar[int] = 26  # mutation M-E5\n",
+          "old": "    max_violation_type: InitVar[int] = 21\n"
+        },
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "    template_diff_id: str,\n    max_violation_type: int = 26,  # mutation M-E5\n) -> DiffQuarantineResult:\n",
+          "old": "    template_diff_id: str,\n    max_violation_type: int = 21,\n) -> DiffQuarantineResult:\n"
+        },
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "                          max_violation_type: int = 26) -> DiffQuarantineResult:  # mutation M-E5\n",
+          "old": "                          max_violation_type: int = 21) -> DiffQuarantineResult:\n"
+        },
+        {
+          "file": "orchestrator/campaign/auditor_gate.py",
+          "new": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 26) -> AuditorVerdict:  # mutation M-E5\n",
+          "old": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 21) -> AuditorVerdict:\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "eb306bef93716d316f0ee2804a798803558086681c1a821dfbaf68b4de5b602f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4f64da52cc9b84f52d62412a096f7e6c/izdw-4f64da52cc.o30027",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4f64da52cc9b84f52d62412a096f7e6c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................F................................ [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_parse_policy_ir_all_node_kinds_and_closed_types _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_parse_policy_ir_all_node_kinds_and_closed_types():\n        zero = {'kind': 'Const', 'type': 'u32', 'value': 0}\n        one = {'kind': 'Const', 'type': 'u32', 'value': 1}\n        field = {'kind': 'StateField', 'type': 'u32', 'initial_literal': zero}\n        ref = {'kind': 'StateRef', 'index': 0}\n        expressions = [\n            {'kind': 'Min', 'left': ref, 'right': one},\n            {'kind': 'Max', 'left': ref, 'right': one},\n            {'kind': 'SatAdd', 'left': ref, 'right': one},\n            {'kind': 'SatSub', 'left': ref, 'right': one},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 1},\n            {'kind': 'Select', 'condition': {'kind': 'Compare', 'op': '==',\n                                          'left': {'kind': 'Reason'},\n                                          'right': {'kind': 'Const', 'type': 'reason', 'value': 'unset'}},\n             'yes': ref, 'no': one},\n        ]\n        root = _tagged(ir.degenerate_policy())\n        root['fields'] = [field]\n        root['on_lock_conflict']['wait'] = {'kind': 'Attempt'}\n        root['on_commit']['next_state'] = [ref]\n        for expression in expressions:\n            root['after_abort']['wait'] = expression\n            parsed = ir.parse_policy_ir(root)\n            assert ir.render_policy(parsed)\n        for bad in (\n            {'kind': 'Unknown'},\n            dict(one, extra=1),\n            {'kind': 'Const', 'type': 'u32'},\n            {'kind': 'Const', 'type': 'u32', 'value': True},\n            {'kind': 'Const', 'type': 'u32', 'value': 2**32},\n            {'kind': 'StateRef', 'index': True},\n            {'kind': 'StateRef', 'index': 2},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': True},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 32},\n        ):\n            invalid = _tagged(ir.degenerate_policy())\n            invalid['fields'] = [field]\n            invalid['after_abort']['wait'] = bad\n>           with pytest.raises(ValueError):\nE           Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_silo_policy_ir.py:71: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types\n1 failed, 104 passed in 5.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=2165 retained_bytes=2165 omitted_bytes=0 rendered_excerpt_bytes=2254 sha256=f68bf7d68eb4139e79d99b4942cc3cd8276491aecb2b53d185ec5263159d2524\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_parse_policy_ir_all_node_kinds_and_closed_types():\n>         zero = {'kind': 'Const', 'type': 'u32', 'value': 0}\n>         one = {'kind': 'Const', 'type': 'u32', 'value': 1}\n>         field = {'kind': 'StateField', 'type': 'u32', 'initial_literal': zero}\n>         ref = {'kind': 'StateRef', 'index': 0}\n>         expressions = [\n>             {'kind': 'Min', 'left': ref, 'right': one},\n>             {'kind': 'Max', 'left': ref, 'right': one},\n>             {'kind': 'SatAdd', 'left': ref, 'right': one},\n>             {'kind': 'SatSub', 'left': ref, 'right': one},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 1},\n>             {'kind': 'Select', 'condition': {'kind': 'Compare', 'op': '==',\n>                                           'left': {'kind': 'Reason'},\n>                                           'right': {'kind': 'Const', 'type': 'reason', 'value': 'unset'}},\n>              'yes': ref, 'no': one},\n>         ]\n>         root = _tagged(ir.degenerate_policy())\n>         root['fields'] = [field]\n>         root['on_lock_conflict']['wait'] = {'kind': 'Attempt'}\n>         root['on_commit']['next_state'] = [ref]\n>         for expression in expressions:\n>             root['after_abort']['wait'] = expression\n>             parsed = ir.parse_policy_ir(root)\n>             assert ir.render_policy(parsed)\n>         for bad in (\n>             {'kind': 'Unknown'},\n>             dict(one, extra=1),\n>             {'kind': 'Const', 'type': 'u32'},\n>             {'kind': 'Const', 'type': 'u32', 'value': True},\n>             {'kind': 'Const', 'type': 'u32', 'value': 2**32},\n>             {'kind': 'StateRef', 'index': True},\n>             {'kind': 'StateRef', 'index': 2},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': True},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 32},\n>         ):\n>             invalid = _tagged(ir.degenerate_policy())\n>             invalid['fields'] = [field]\n>             invalid['after_abort']['wait'] = bad\n> >           with pytest.raises(ValueError):\n> E           Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_silo_policy_ir.py:71: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2165 retained_bytes=2165 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2976 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "942c6b087c02c2599c52946aa07360343bc7a975b8c145bf361da6ee9e7a6fb4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.083,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types"
+      ],
+      "hang_risk": false,
+      "id": "m-e6-ir-unknown-key",
+      "injection_diff_sha256": "564757c3d5a0d838397589d3da6e0be4fc53e2203ab259c859560af27c22942f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "16abc1208df4acce310570420a6ee4a08b8add1ce1a4d99e5ca4e9672c1c6aec",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "new": "        if not names | {'kind'} <= set(value):  # mutation M-E6\n            raise ValueError('IR keys mismatch')\n",
+          "old": "        if set(value) != names | {'kind'}:\n            raise ValueError('IR keys mismatch')\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "942c6b087c02c2599c52946aa07360343bc7a975b8c145bf361da6ee9e7a6fb4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/131fefdcee09f201e5f0fada09e1a05e/izdw-131fefdcee.o30028",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/131fefdcee09f201e5f0fada09e1a05e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................FF................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_____________ test_parse_policy_ir_all_node_kinds_and_closed_types _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_parse_policy_ir_all_node_kinds_and_closed_types():\n        zero = {'kind': 'Const', 'type': 'u32', 'value': 0}\n        one = {'kind': 'Const', 'type': 'u32', 'value': 1}\n        field = {'kind': 'StateField', 'type': 'u32', 'initial_literal': zero}\n        ref = {'kind': 'StateRef', 'index': 0}\n        expressions = [\n            {'kind': 'Min', 'left': ref, 'right': one},\n            {'kind': 'Max', 'left': ref, 'right': one},\n            {'kind': 'SatAdd', 'left': ref, 'right': one},\n            {'kind': 'SatSub', 'left': ref, 'right': one},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 1},\n            {'kind': 'Select', 'condition': {'kind': 'Compare', 'op': '==',\n                                          'left': {'kind': 'Reason'},\n                                          'right': {'kind': 'Const', 'type': 'reason', 'value': 'unset'}},\n             'yes': ref, 'no': one},\n        ]\n        root = _tagged(ir.degenerate_policy())\n        root['fields'] = [field]\n        root['on_lock_conflict']['wait'] = {'kind': 'Attempt'}\n        root['on_commit']['next_state'] = [ref]\n        for expression in expressions:\n            root['after_abort']['wait'] = expression\n            parsed = ir.parse_policy_ir(root)\n            assert ir.render_policy(parsed)\n        for bad in (\n            {'kind': 'Unknown'},\n            dict(one, extra=1),\n            {'kind': 'Const', 'type': 'u32'},\n            {'kind': 'Const', 'type': 'u32', 'value': True},\n            {'kind': 'Const', 'type': 'u32', 'value': 2**32},\n            {'kind': 'StateRef', 'index': True},\n            {'kind': 'StateRef', 'index': 2},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': True},\n            {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 32},\n        ):\n            invalid = _tagged(ir.degenerate_policy())\n            invalid['fields'] = [field]\n            invalid['after_abort']['wait'] = bad\n>           with pytest.raises(ValueError):\nE           Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_silo_policy_ir.py:71: Failed\n______________ test_reject_types_literals_and_abort_inputs[bad3] _______________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nbad = Const(type='u32', value=True)\n\n    @pytest.mark.parametrize('bad', [\n        ir.Const('u32', -1), ir.Const('u32', 2**32), ir.Const('u64', 2**64),\n        ir.Const('u32', True), ir.Const('bool', 1), ir.Const('reason', 'absent'),\n        ir.Const('action', 'absent'), ir.Const('bad', 0),\n        ir.Min(ZERO, ir.Const('u64', 0)), ir.Max(ir.Const('bool', True), ir.Const('bool', False)),\n        ir.SatAdd(ZERO, ir.Const('u64', 0)), ir.SatSub(ZERO, ir.Const('bool', False)),\n        ir.Compare('<', ir.Const('action', 'retry'), ir.Const('action', 'abort')),\n        ir.Compare('||', ZERO, ZERO), ir.Select(ZERO, ZERO, ZERO),\n        ir.Select(ir.Const('bool', True), ZERO, ir.Const('u64', 0)), ir.StateRef(0),\n        ir.StateRef(True), ir.Attempt(), ir.Const('bool', True),\n    ])\n    def test_reject_types_literals_and_abort_inputs(bad):\n>       with pytest.raises(ValueError):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_silo_policy_ir.py:170: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types\nFAILED orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]\n2 failed, 103 passed in 6.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=2165 retained_bytes=2165 omitted_bytes=0 rendered_excerpt_bytes=2254 sha256=f68bf7d68eb4139e79d99b4942cc3cd8276491aecb2b53d185ec5263159d2524\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_parse_policy_ir_all_node_kinds_and_closed_types():\n>         zero = {'kind': 'Const', 'type': 'u32', 'value': 0}\n>         one = {'kind': 'Const', 'type': 'u32', 'value': 1}\n>         field = {'kind': 'StateField', 'type': 'u32', 'initial_literal': zero}\n>         ref = {'kind': 'StateRef', 'index': 0}\n>         expressions = [\n>             {'kind': 'Min', 'left': ref, 'right': one},\n>             {'kind': 'Max', 'left': ref, 'right': one},\n>             {'kind': 'SatAdd', 'left': ref, 'right': one},\n>             {'kind': 'SatSub', 'left': ref, 'right': one},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 1},\n>             {'kind': 'Select', 'condition': {'kind': 'Compare', 'op': '==',\n>                                           'left': {'kind': 'Reason'},\n>                                           'right': {'kind': 'Const', 'type': 'reason', 'value': 'unset'}},\n>              'yes': ref, 'no': one},\n>         ]\n>         root = _tagged(ir.degenerate_policy())\n>         root['fields'] = [field]\n>         root['on_lock_conflict']['wait'] = {'kind': 'Attempt'}\n>         root['on_commit']['next_state'] = [ref]\n>         for expression in expressions:\n>             root['after_abort']['wait'] = expression\n>             parsed = ir.parse_policy_ir(root)\n>             assert ir.render_policy(parsed)\n>         for bad in (\n>             {'kind': 'Unknown'},\n>             dict(one, extra=1),\n>             {'kind': 'Const', 'type': 'u32'},\n>             {'kind': 'Const', 'type': 'u32', 'value': True},\n>             {'kind': 'Const', 'type': 'u32', 'value': 2**32},\n>             {'kind': 'StateRef', 'index': True},\n>             {'kind': 'StateRef', 'index': 2},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': True},\n>             {'kind': 'Shift', 'direction': '<<', 'value': ref, 'amount': 32},\n>         ):\n>             invalid = _tagged(ir.degenerate_policy())\n>             invalid['fields'] = [field]\n>             invalid['after_abort']['wait'] = bad\n> >           with pytest.raises(ValueError):\n> E           Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_silo_policy_ir.py:71: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1025 retained_bytes=1025 omitted_bytes=0 rendered_excerpt_bytes=1066 sha256=d8e0c444beb7c067763470fb47d42a9bd15a5c9a6b90b2e663ef6ee14a5bef5a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> bad = Const(type='u32', value=True)\n> \n>     @pytest.mark.parametrize('bad', [\n>         ir.Const('u32', -1), ir.Const('u32', 2**32), ir.Const('u64', 2**64),\n>         ir.Const('u32', True), ir.Const('bool', 1), ir.Const('reason', 'absent'),\n>         ir.Const('action', 'absent'), ir.Const('bad', 0),\n>         ir.Min(ZERO, ir.Const('u64', 0)), ir.Max(ir.Const('bool', True), ir.Const('bool', False)),\n>         ir.SatAdd(ZERO, ir.Const('u64', 0)), ir.SatSub(ZERO, ir.Const('bool', False)),\n>         ir.Compare('<', ir.Const('action', 'retry'), ir.Const('action', 'abort')),\n>         ir.Compare('||', ZERO, ZERO), ir.Select(ZERO, ZERO, ZERO),\n>         ir.Select(ir.Const('bool', True), ZERO, ir.Const('u64', 0)), ir.StateRef(0),\n>         ir.StateRef(True), ir.Attempt(), ir.Const('bool', True),\n>     ])\n>     def test_reject_types_literals_and_abort_inputs(bad):\n> >       with pytest.raises(ValueError):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_silo_policy_ir.py:170: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3190 retained_bytes=3190 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4474 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "96c3d4a9a52304c02abe89fd6f6bce6f9f82cddb673cbacef66d1bc8c7c56a8b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 418.174,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]"
+      ],
+      "hang_risk": false,
+      "id": "m-e7-ir-bool-two-layer",
+      "injection_diff_sha256": "2b0aafb859529721661c5d9b87499f7fb72e0af247d039da80d0ce051f02941a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "820ede9b6fbd042080dfba74d7ad2d5d2f0f57c7589ca8d9dff9486d98aa816d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "new": "            if ty in _NUMERIC and not isinstance(literal, int):  # mutation M-E7\n",
+          "old": "            if ty in _NUMERIC and type(literal) is not int:\n"
+        },
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "new": "            if not isinstance(args[key], int):  # mutation M-E7\n",
+          "old": "            if type(args[key]) is not int:\n"
+        },
+        {
+          "file": "orchestrator/campaign/silo_policy_ir.py",
+          "new": "        _require(isinstance(expr.value, int) and 0 <= expr.value < 1 << width, 'literal range')  # mutation M-E7\n",
+          "old": "        _require(type(expr.value) is int and 0 <= expr.value < 1 << width, 'literal range')\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "96c3d4a9a52304c02abe89fd6f6bce6f9f82cddb673cbacef66d1bc8c7c56a8b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9870dc43e46784d714a489f7ddb21d2e/izdw-9870dc43e4.o30030",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9870dc43e46784d714a489f7ddb21d2e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................FF..F.................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n____________________ test_preview_accepts_only_closed_coder ____________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_preview_accepts_only_clos0')\n\n    def test_preview_accepts_only_closed_coder(tmp_path):\n        for form in ('cpp', 'ir'):\n            path = _proposal(tmp_path, form=form, change=lambda d: d.pop('auditor'))\n            proposal, auditor = P.load_proposal_file(path, form=form, preview=True)\n            assert proposal.implementation and auditor is None\n            for change in (lambda d: d.update(auditor={}),\n                           lambda d: d.update(extra=1),\n                           lambda d: d['coder'].update(extra=1)):\n                path = _proposal(tmp_path, form=form, change=lambda d: (d.pop('auditor'), change(d)))\n                with pytest.raises(ValueError):\n                    P.load_proposal_file(path, form=form, preview=True)\n        path.write_text('{\"coder\":{\"axis\":\"x\",\"axis\":\"x\"}}')\n>       with pytest.raises(ValueError, match='duplicate'):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'duplicate'\nE         Actual message: 'invalid preview coder'\n\norchestrator/tests/test_p3_s4_loop_policy.py:114: AssertionError\n______________________ test_policy_loader_uses_26_ceiling ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_policy_loader_uses_26_cei0')\n\n    def test_policy_loader_uses_26_ceiling(tmp_path):\n        for kind in range(22, 27):\n            path = _proposal(tmp_path, change=lambda d: d['auditor'].update(\n                verdict='reject', violations=[{'type': kind}]))\n            _proposal_value, auditor = P.load_proposal_file(path, form='cpp')\n            assert auditor.violations == [{'type': kind}]\n        path = _proposal(tmp_path, change=lambda d: d['auditor'].update(\n            verdict='reject', violations=[{'type': 27}]))\n        with pytest.raises(AuditorGateFailure):\n            P.load_proposal_file(path, form='cpp')\n        path.write_text('{\"coder\":{\"axis\":\"silo-function-policy\",\"axis\":\"silo-function-policy\",\"implementation\":\"x\"},\"auditor\":{\"verdict\":\"pass\",\"diff_digest\":\"x\"}}', encoding='utf-8')\n>       with pytest.raises(ValueError, match='duplicate'):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_p3_s4_loop_policy.py:98: Failed\n____________ test_proposal_schema_both_forms_and_scalar_rejections _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_proposal_schema_both_form0')\n\n    def test_proposal_schema_both_forms_and_scalar_rejections(tmp_path):\n        for form in ('cpp', 'ir'):\n            path = _proposal(tmp_path, form=form)\n            proposal, auditor = P.load_proposal_file(path, form=form)\n            assert proposal.implementation and auditor.verdict == 'pass'\n            for change in (\n                lambda d: d.pop('coder'), lambda d: d.pop('auditor'),\n                lambda d: d['coder'].pop('implementation' if form == 'cpp' else 'ir'),\n                lambda d: d.update(planner={}), lambda d: d.update(value=1),\n                lambda d: d.update(prior_critic_reverse=False),\n                lambda d: d['coder'].update(extra=True),\n                lambda d: d['coder'].update(axis='other'),\n                lambda d: d['coder'].update(confidence=True),\n                lambda d: d['auditor'].update(verdict='other'),\n                lambda d: d['auditor'].update(diff_digest=''),\n            ):\n                path = _proposal(tmp_path, form=form, change=change)\n                with pytest.raises((ValueError, KeyError)):\n                    P.load_proposal_file(path, form=form)\n            with pytest.raises((ValueError, KeyError)):\n                P.load_proposal_file(_proposal(tmp_path, form=form), form='ir' if form == 'cpp' else 'cpp')\n        path.write_text('{\"coder\":{},\"coder\":{},\"auditor\":{}}', encoding='utf-8')\n        with pytest.raises(ValueError, match='duplicate'):\n>           P.load_proposal_file(path, form='cpp')\n\norchestrator/tests/test_p3_s4_loop_policy.py:84: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n    assert_closed_proposal_schema(document, require_auditor=True,\norchestrator/campaign/projection_guard.py:310: in assert_closed_proposal_schema\n    _assert_key_set(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalue = {}, field = '$.coder', required = frozenset({'axis', 'implementation'})\noptional = frozenset({'confidence', 'justification'})\n\n    def _assert_key_set(\n        value: Any,\n        *,\n        field: str,\n        required: frozenset[str],\n        optional: frozenset[str] = frozenset(),\n    ) -> None:\n        if not isinstance(value, Mapping):\n            raise ValueError(f\"{field} は object 必須\")\n        keys = set(value)\n        missing = required - keys\n        unknown = keys - required - optional\n        if missing:\n>           raise KeyError(\n                f\"{field} required key 欠落: {sorted(missing)}\"\n            )\nE           KeyError: \"$.coder required key 欠落: ['axis', 'implementation']\"\n\norchestrator/campaign/projection_guard.py:287: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections\n3 failed, 102 passed in 6.08s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=2864 retained_bytes=2864 omitted_bytes=0 rendered_excerpt_bytes=3004 sha256=a31e3e3e4b970812bbee79c0ac1eb9af42e5403324b117ced61337b5f1c275ef\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_proposal_schema_both_form0')\n> \n>     def test_proposal_schema_both_forms_and_scalar_rejections(tmp_path):\n>         for form in ('cpp', 'ir'):\n>             path = _proposal(tmp_path, form=form)\n>             proposal, auditor = P.load_proposal_file(path, form=form)\n>             assert proposal.implementation and auditor.verdict == 'pass'\n>             for change in (\n>                 lambda d: d.pop('coder'), lambda d: d.pop('auditor'),\n>                 lambda d: d['coder'].pop('implementation' if form == 'cpp' else 'ir'),\n>                 lambda d: d.update(planner={}), lambda d: d.update(value=1),\n>                 lambda d: d.update(prior_critic_reverse=False),\n>                 lambda d: d['coder'].update(extra=True),\n>                 lambda d: d['coder'].update(axis='other'),\n>                 lambda d: d['coder'].update(confidence=True),\n>                 lambda d: d['auditor'].update(verdict='other'),\n>                 lambda d: d['auditor'].update(diff_digest=''),\n>             ):\n>                 path = _proposal(tmp_path, form=form, change=change)\n>                 with pytest.raises((ValueError, KeyError)):\n>                     P.load_proposal_file(path, form=form)\n>             with pytest.raises((ValueError, KeyError)):\n>                 P.load_proposal_file(_proposal(tmp_path, form=form), form='ir' if form == 'cpp' else 'cpp')\n>         path.write_text('{\"coder\":{},\"coder\":{},\"auditor\":{}}', encoding='utf-8')\n>         with pytest.raises(ValueError, match='duplicate'):\n> >           P.load_proposal_file(path, form='cpp')\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:84: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n>     assert_closed_proposal_schema(document, require_auditor=True,\n> orchestrator/campaign/projection_guard.py:310: in assert_closed_proposal_schema\n>     _assert_key_set(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> value = {}, field = '$.coder', required = frozenset({'axis', 'implementation'})\n> optional = frozenset({'confidence', 'justification'})\n> \n>     def _assert_key_set(\n>         value: Any,\n>         *,\n>         field: str,\n>         required: frozenset[str],\n>         optional: frozenset[str] = frozenset(),\n>     ) -> None:\n>         if not isinstance(value, Mapping):\n>             raise ValueError(f\"{field} \\u306f object \\u5fc5\\u9808\")\n>         keys = set(value)\n>         missing = required - keys\n>         unknown = keys - required - optional\n>         if missing:\n> >           raise KeyError(\n>                 f\"{field} required key \\u6b20\\u843d: {sorted(missing)}\"\n>             )\n> E           KeyError: \"$.coder required key \\u6b20\\u843d: ['axis', 'implementation']\"\n> \n> orchestrator/campaign/projection_guard.py:287: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1198 retained_bytes=1198 omitted_bytes=0 rendered_excerpt_bytes=1243 sha256=a18eb2e374bbdb025d84f68811e7611ab9d81d2639475e194e70d83d87c4740a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_preview_accepts_only_clos0')\n> \n>     def test_preview_accepts_only_closed_coder(tmp_path):\n>         for form in ('cpp', 'ir'):\n>             path = _proposal(tmp_path, form=form, change=lambda d: d.pop('auditor'))\n>             proposal, auditor = P.load_proposal_file(path, form=form, preview=True)\n>             assert proposal.implementation and auditor is None\n>             for change in (lambda d: d.update(auditor={}),\n>                            lambda d: d.update(extra=1),\n>                            lambda d: d['coder'].update(extra=1)):\n>                 path = _proposal(tmp_path, form=form, change=lambda d: (d.pop('auditor'), change(d)))\n>                 with pytest.raises(ValueError):\n>                     P.load_proposal_file(path, form=form, preview=True)\n>         path.write_text('{\"coder\":{\"axis\":\"x\",\"axis\":\"x\"}}')\n> >       with pytest.raises(ValueError, match='duplicate'):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'duplicate'\n> E         Actual message: 'invalid preview coder'\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:114: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=1081 retained_bytes=1081 omitted_bytes=0 rendered_excerpt_bytes=1120 sha256=51bb85e44df441aff56a9eb0fa450cf7d2221d69f1db73da3db22156f6cb41df\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_policy_loader_uses_26_cei0')\n> \n>     def test_policy_loader_uses_26_ceiling(tmp_path):\n>         for kind in range(22, 27):\n>             path = _proposal(tmp_path, change=lambda d: d['auditor'].update(\n>                 verdict='reject', violations=[{'type': kind}]))\n>             _proposal_value, auditor = P.load_proposal_file(path, form='cpp')\n>             assert auditor.violations == [{'type': kind}]\n>         path = _proposal(tmp_path, change=lambda d: d['auditor'].update(\n>             verdict='reject', violations=[{'type': 27}]))\n>         with pytest.raises(AuditorGateFailure):\n>             P.load_proposal_file(path, form='cpp')\n>         path.write_text('{\"coder\":{\"axis\":\"silo-function-policy\",\"axis\":\"silo-function-policy\",\"implementation\":\"x\"},\"auditor\":{\"verdict\":\"pass\",\"diff_digest\":\"x\"}}', encoding='utf-8')\n> >       with pytest.raises(ValueError, match='duplicate'):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:98: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5143 retained_bytes=5143 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6937 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a6c0805fb6e4ceebca451f897b1e2b342d2198baeae482184ffcbb63915fabba"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 1176.802,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections"
+      ],
+      "hang_risk": false,
+      "id": "m-e8-dup-key",
+      "injection_diff_sha256": "ccef84c5b034d256cb0f586a3cfc33157848e5f35d2027c49c12480963d275e2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "776df83c9c26fd9aabc54b4a6ba9dca4e9319c2eadec56fd908bf1d209a3d82a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "        if False:  # mutation M-E8\n            raise ValueError('duplicate proposal key')\n",
+          "old": "        if key in result:\n            raise ValueError('duplicate proposal key')\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "a6c0805fb6e4ceebca451f897b1e2b342d2198baeae482184ffcbb63915fabba",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c76db1492e2204247262d1e08ed9e3b3/izdw-c76db1492e.o30034",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c76db1492e2204247262d1e08ed9e3b3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_____________________ test_cfg_and_coder_input_projection ______________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491413ad3f0>\n\n    def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n        for form in ('cpp', 'ir'):\n            cfg = P.default_cfg(form=form)\n            assert cfg.ccbench_commit == P.axis.PIN\n            assert cfg.search_config['axis'] == P.axis.MARKER_ID\n            assert cfg.search_config['form'] == form\n            assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\n        perf = P.default_perf()\n        assert perf == L.calibrated_perf('write-heavy')\n        assert cfg.search_config['perf'] == P._perf_identity(perf)\n        layout = CampaignLayout(str(tmp_path))\n        projection = tmp_path / 'projection.json'\n        projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': ['private']}))\n        monkeypatch.setattr(P, 'PROJECTION_PATH', projection)\n        (tmp_path / P.HISTORY_NAME).write_text(json.dumps({\n            'iteration': 1, 'implementation': BODY, 'ir': None,\n            'outcome': 'rejected', 'reject_subtype': 'policy-grammar',\n            'reject_rule_id': 'rule', 'verifier_digest': None,\n            'justification': 'private'}) + '\\n')\n        payload = P.make_policy_coder_input(layout, baseline={'throughput_tps': 1, 'abort_rate_pct': 2})\n        assert set(payload) == {'leakproof_context', 'policy_spec', 'baseline', 'recon_projection', 'self_history'}\n>       assert payload['recon_projection'] == {'binary': False, 'scope': 'scope'}\nE       AssertionError: assert {'binary': Fa...: ['private']} == {'binary': Fa...ope': 'scope'}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Left contains 1 more item:\nE         {'excluded': ['private']}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_s4_loop_policy.py:158: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\n1 failed, 104 passed in 5.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1991 retained_bytes=1991 omitted_bytes=0 rendered_excerpt_bytes=2065 sha256=0dc452d713d8b03b32bb089350d2e6eb909225dcfaaba3b26b91e986947ac7d5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491413ad3f0>\n> \n>     def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n>         for form in ('cpp', 'ir'):\n>             cfg = P.default_cfg(form=form)\n>             assert cfg.ccbench_commit == P.axis.PIN\n>             assert cfg.search_config['axis'] == P.axis.MARKER_ID\n>             assert cfg.search_config['form'] == form\n>             assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\n>         perf = P.default_perf()\n>         assert perf == L.calibrated_perf('write-heavy')\n>         assert cfg.search_config['perf'] == P._perf_identity(perf)\n>         layout = CampaignLayout(str(tmp_path))\n>         projection = tmp_path / 'projection.json'\n>         projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': ['private']}))\n>         monkeypatch.setattr(P, 'PROJECTION_PATH', projection)\n>         (tmp_path / P.HISTORY_NAME).write_text(json.dumps({\n>             'iteration': 1, 'implementation': BODY, 'ir': None,\n>             'outcome': 'rejected', 'reject_subtype': 'policy-grammar',\n>             'reject_rule_id': 'rule', 'verifier_digest': None,\n>             'justification': 'private'}) + '\\x5cn')\n>         payload = P.make_policy_coder_input(layout, baseline={'throughput_tps': 1, 'abort_rate_pct': 2})\n>         assert set(payload) == {'leakproof_context', 'policy_spec', 'baseline', 'recon_projection', 'self_history'}\n> >       assert payload['recon_projection'] == {'binary': False, 'scope': 'scope'}\n> E       AssertionError: assert {'binary': Fa...: ['private']} == {'binary': Fa...ope': 'scope'}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Left contains 1 more item:\n> E         {'excluded': ['private']}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:158: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1991 retained_bytes=1991 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2773 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ce5676374b501756ee76d82b6a182a78902ba75364f1a0af83f4f63dd06773e0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 33.412,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "hang_risk": false,
+      "id": "m-e9-excluded-leak",
+      "injection_diff_sha256": "29ba86e70be3c619e25ce1f71ccf69d69009a49817df019f73e79213aae1e431",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3f5cc2b30bbe521a587fd93ec400c9e3b08ce9a138ff055412aaa07253b0c4d1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "               'recon_projection': {'binary': projection['binary'], 'scope': projection['scope'], 'excluded': projection['excluded']},  # mutation M-E9\n",
+          "old": "               'recon_projection': {'binary': projection['binary'], 'scope': projection['scope']},\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "ce5676374b501756ee76d82b6a182a78902ba75364f1a0af83f4f63dd06773e0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0aaef6cc57acc03ad7b24810a2f6846b/izdw-0aaef6cc57.o30038",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0aaef6cc57acc03ad7b24810a2f6846b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................F................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_____________________ test_cfg_and_coder_input_projection ______________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bf0e6ea3e0>\n\n    def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n        for form in ('cpp', 'ir'):\n            cfg = P.default_cfg(form=form)\n            assert cfg.ccbench_commit == P.axis.PIN\n            assert cfg.search_config['axis'] == P.axis.MARKER_ID\n            assert cfg.search_config['form'] == form\n            assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\n        perf = P.default_perf()\n        assert perf == L.calibrated_perf('write-heavy')\n        assert cfg.search_config['perf'] == P._perf_identity(perf)\n        layout = CampaignLayout(str(tmp_path))\n        projection = tmp_path / 'projection.json'\n        projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': ['private']}))\n        monkeypatch.setattr(P, 'PROJECTION_PATH', projection)\n        (tmp_path / P.HISTORY_NAME).write_text(json.dumps({\n            'iteration': 1, 'implementation': BODY, 'ir': None,\n            'outcome': 'rejected', 'reject_subtype': 'policy-grammar',\n            'reject_rule_id': 'rule', 'verifier_digest': None,\n            'justification': 'private'}) + '\\n')\n        payload = P.make_policy_coder_input(layout, baseline={'throughput_tps': 1, 'abort_rate_pct': 2})\n        assert set(payload) == {'leakproof_context', 'policy_spec', 'baseline', 'recon_projection', 'self_history'}\n        assert payload['recon_projection'] == {'binary': False, 'scope': 'scope'}\n>       assert 'justification' not in payload['self_history'][0]\nE       AssertionError: assert 'justification' not in {'iteration': 1, 'implementation': 'struct PolicyState { };\\nuint32_t policy_after_abort(PolicyState&, const izanagi_s..._commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\n}\\n', 'ir': None, 'outcome': 'rejected', ...}\n\norchestrator/tests/test_p3_s4_loop_policy.py:159: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\n1 failed, 104 passed in 5.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=2083 retained_bytes=2083 omitted_bytes=0 rendered_excerpt_bytes=2158 sha256=325e69e36150d50493aa64c2e29da19e5755d8067a2b149d6e98aacad6a734cf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bf0e6ea3e0>\n> \n>     def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n>         for form in ('cpp', 'ir'):\n>             cfg = P.default_cfg(form=form)\n>             assert cfg.ccbench_commit == P.axis.PIN\n>             assert cfg.search_config['axis'] == P.axis.MARKER_ID\n>             assert cfg.search_config['form'] == form\n>             assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\n>         perf = P.default_perf()\n>         assert perf == L.calibrated_perf('write-heavy')\n>         assert cfg.search_config['perf'] == P._perf_identity(perf)\n>         layout = CampaignLayout(str(tmp_path))\n>         projection = tmp_path / 'projection.json'\n>         projection.write_text(json.dumps({'binary': False, 'scope': 'scope', 'excluded': ['private']}))\n>         monkeypatch.setattr(P, 'PROJECTION_PATH', projection)\n>         (tmp_path / P.HISTORY_NAME).write_text(json.dumps({\n>             'iteration': 1, 'implementation': BODY, 'ir': None,\n>             'outcome': 'rejected', 'reject_subtype': 'policy-grammar',\n>             'reject_rule_id': 'rule', 'verifier_digest': None,\n>             'justification': 'private'}) + '\\x5cn')\n>         payload = P.make_policy_coder_input(layout, baseline={'throughput_tps': 1, 'abort_rate_pct': 2})\n>         assert set(payload) == {'leakproof_context', 'policy_spec', 'baseline', 'recon_projection', 'self_history'}\n>         assert payload['recon_projection'] == {'binary': False, 'scope': 'scope'}\n> >       assert 'justification' not in payload['self_history'][0]\n> E       AssertionError: assert 'justification' not in {'iteration': 1, 'implementation': 'struct PolicyState { };\\x5cnuint32_t policy_after_abort(PolicyState&, const izanagi_s..._commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\x5cn}\\x5cn', 'ir': None, 'outcome': 'rejected', ...}\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:159: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2083 retained_bytes=2083 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2866 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "499a3a363a391cf1613845f54f1ed11b764179da744b599f49911934dcfd1d9c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.369,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "hang_risk": false,
+      "id": "m-e10-justification-leak",
+      "injection_diff_sha256": "b17a363a13d7b001a8132ffc3ffc179f5549f092c1428f42509dff9f42a6478d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9aec57dd01af0c329087a8bf16eb1b5d85bd5cb5fce08a59f95f9d691fedb500",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "                    'reject_subtype', 'reject_rule_id', 'verifier_digest', 'justification')})  # mutation M-E10\n",
+          "old": "                    'reject_subtype', 'reject_rule_id', 'verifier_digest')})\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "499a3a363a391cf1613845f54f1ed11b764179da744b599f49911934dcfd1d9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/58ece52346e57842b9650e929a953ddc/izdw-58ece52346.o30039",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/58ece52346e57842b9650e929a953ddc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_____________________ test_cfg_and_coder_input_projection ______________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148bd73ba350>\n\n    def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n        for form in ('cpp', 'ir'):\n            cfg = P.default_cfg(form=form)\n            assert cfg.ccbench_commit == P.axis.PIN\n            assert cfg.search_config['axis'] == P.axis.MARKER_ID\n            assert cfg.search_config['form'] == form\n>           assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\nE           AssertionError: assert 'legacy+s2' == 'legacy+performance'\nE             \nE             - legacy+performance\nE             + legacy+s2\n\norchestrator/tests/test_p3_s4_loop_policy.py:143: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\n1 failed, 104 passed in 5.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=842 retained_bytes=842 omitted_bytes=0 rendered_excerpt_bytes=879 sha256=2fc76b0cc28bdefeaa67a4c0ee119d6806848d4263f8d1bc9ee83740bba6c0fe\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_cfg_and_coder_input_proje0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148bd73ba350>\n> \n>     def test_cfg_and_coder_input_projection(tmp_path, monkeypatch):\n>         for form in ('cpp', 'ir'):\n>             cfg = P.default_cfg(form=form)\n>             assert cfg.ccbench_commit == P.axis.PIN\n>             assert cfg.search_config['axis'] == P.axis.MARKER_ID\n>             assert cfg.search_config['form'] == form\n> >           assert cfg.search_config[SEARCH_CONFIG_VERIFY_KEY] == VERIFY_LEGACY_PLUS_PERFORMANCE\n> E           AssertionError: assert 'legacy+s2' == 'legacy+performance'\n> E             \n> E             - legacy+performance\n> E             + legacy+s2\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:143: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=842 retained_bytes=842 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1582 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d4cb62f304f6357324868a201ae0855b083dd1ea886fb8146f83bde5d98ca5ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 32.686,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+      ],
+      "hang_risk": false,
+      "id": "m-e11-verify-s2",
+      "injection_diff_sha256": "dc5f01f05c5292c7388a794ab36d20e4441e1afc801cbada7068ef5caf48f322",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6ab71cb05427c01531080edcfbc80e37a1588e3acac9428a6e4b294d43030d08",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "                       SEARCH_CONFIG_VERIFY_KEY: 'legacy+s2'},  # mutation M-E11\n",
+          "old": "                       SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE},\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "d4cb62f304f6357324868a201ae0855b083dd1ea886fb8146f83bde5d98ca5ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0f95858a95a49f0e8a8174964ef6d94/izdw-d0f95858a9.o30040",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0f95858a95a49f0e8a8174964ef6d94/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n___________ test_perf_identity_rejects_changed_runtime_before_layout ___________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_perf_identity_rejects_cha0')\n\n    def test_perf_identity_rejects_changed_runtime_before_layout(tmp_path):\n        cfg = P.default_cfg(form='cpp')\n        perf = P.default_perf()\n        changed = replace(perf, threads=perf.threads + 1)\n        context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)\n        with pytest.raises(ValueError, match='performance configuration'):\n>           P.drive_iteration(cfg, changed, P.Proposal(BODY, None, ''), None,\n                str(tmp_path), False, compiler='unused', scratch_dir=str(tmp_path),\n                build_context=context, layout=CampaignLayout(str(tmp_path / 'campaign')))\n\norchestrator/tests/test_p3_s4_loop_policy.py:176: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop_policy.py:355: in drive_iteration\n    out = run_one_iteration(cfg, perf, proposal, auditor, sub, do_build,\norchestrator/campaign/p3_s4_loop_policy.py:312: in run_one_iteration\n    with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):\n/usr/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\norchestrator/campaign/patchharness.py:257: in applied\n    assert_pinned_clean(sub, pin_commit)  # check-then-act を排他内に (lock 取得後に照合)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsub = '/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_perf_identity_rejects_cha0'\npin_commit = '6810666'\n\n    def assert_pinned_clean(sub: str, pin_commit: str) -> None:\n        \"\"\"working-tree が pinned-clean (HEAD==pin かつ tracked 改変ゼロ) を assert (fails-closed)。\"\"\"\n        if not pin_commit:\n            raise RuntimeError(\"patchharness: pin_commit が空 — pin 照合なしで patch を\"\n                               \"当てない (campaign-id 不変の前提が崩れる)\")\n        if len(pin_commit) < 7:\n            # startswith 照合は短い pin ほど衝突確率が上がる (1 文字なら 1/16)。git の短縮 SHA\n            # 慣行 (7 桁) 未満は弱照合として拒否 — 呼び手の切り詰めミスで関所を形骸化させない\n            # (2026-07-03 敵対検証 low)。\n            raise RuntimeError(\n                f\"patchharness: pin_commit が短すぎる ({pin_commit!r}, 7 桁未満) — startswith \"\n                \"照合が形骸化するため拒否 (別版の tree に誤って patch を当てないための下限)\")\n        r = _git(sub, \"rev-parse\", \"HEAD\")\n        head = r.stdout.strip()\n        if r.returncode != 0 or not head:\n>           raise RuntimeError(\n                f\"patchharness: HEAD を確定できない (rc={r.returncode}) → fails-closed。\\n\"\n                f\"  {r.stderr.strip()[-300:]}\")\nE           RuntimeError: patchharness: HEAD を確定できない (rc=128) → fails-closed。\nE             fatal: not a git repository (or any of the parent directories): .git\n\norchestrator/campaign/patchharness.py:189: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout\n1 failed, 104 passed in 5.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=3111 retained_bytes=3111 omitted_bytes=0 rendered_excerpt_bytes=3703 sha256=546b7b8165b542851093b13443adaa08a802cedd86684d508cd53f03139dd005\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_perf_identity_rejects_cha0')\n> \n>     def test_perf_identity_rejects_changed_runtime_before_layout(tmp_path):\n>         cfg = P.default_cfg(form='cpp')\n>         perf = P.default_perf()\n>         changed = replace(perf, threads=perf.threads + 1)\n>         context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)\n>         with pytest.raises(ValueError, match='performance configuration'):\n> >           P.drive_iteration(cfg, changed, P.Proposal(BODY, None, ''), None,\n>                 str(tmp_path), False, compiler='unused', scratch_dir=str(tmp_path),\n>                 build_context=context, layout=CampaignLayout(str(tmp_path / 'campaign')))\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:176: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_s4_loop_policy.py:355: in drive_iteration\n>     out = run_one_iteration(cfg, perf, proposal, auditor, sub, do_build,\n> orchestrator/campaign/p3_s4_loop_policy.py:312: in run_one_iteration\n>     with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):\n> /usr/lib/python3.10/contextlib.py:135: in __enter__\n>     return next(self.gen)\n> orchestrator/campaign/patchharness.py:257: in applied\n>     assert_pinned_clean(sub, pin_commit)  # check-then-act \\u3092\\u6392\\u4ed6\\u5185\\u306b (lock \\u53d6\\u5f97\\u5f8c\\u306b\\u7167\\u5408)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> sub = '/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_perf_identity_rejects_cha0'\n> pin_commit = '6810666'\n> \n>     def assert_pinned_clean(sub: str, pin_commit: str) -> None:\n>         \"\"\"working-tree \\u304c pinned-clean (HEAD==pin \\u304b\\u3064 tracked \\u6539\\u5909\\u30bc\\u30ed) \\u3092 assert (fails-closed)\\u3002\"\"\"\n>         if not pin_commit:\n>             raise RuntimeError(\"patchharness: pin_commit \\u304c\\u7a7a \\u2014 pin \\u7167\\u5408\\u306a\\u3057\\u3067 patch \\u3092\"\n>                                \"\\u5f53\\u3066\\u306a\\u3044 (campaign-id \\u4e0d\\u5909\\u306e\\u524d\\u63d0\\u304c\\u5d29\\u308c\\u308b)\")\n>         if len(pin_commit) < 7:\n>             # startswith \\u7167\\u5408\\u306f\\u77ed\\u3044 pin \\u307b\\u3069\\u885d\\u7a81\\u78ba\\u7387\\u304c\\u4e0a\\u304c\\u308b (1 \\u6587\\u5b57\\u306a\\u3089 1/16)\\u3002git \\u306e\\u77ed\\u7e2e SHA\n>             # \\u6163\\u884c (7 \\u6841) \\u672a\\u6e80\\u306f\\u5f31\\u7167\\u5408\\u3068\\u3057\\u3066\\u62d2\\u5426 \\u2014 \\u547c\\u3073\\u624b\\u306e\\u5207\\u308a\\u8a70\\u3081\\u30df\\u30b9\\u3067\\u95a2\\u6240\\u3092\\u5f62\\u9ab8\\u5316\\u3055\\u305b\\u306a\\u3044\n>             # (2026-07-03 \\u6575\\u5bfe\\u691c\\u8a3c low)\\u3002\n>             raise RuntimeError(\n>                 f\"patchharness: pin_commit \\u304c\\u77ed\\u3059\\u304e\\u308b ({pin_commit!r}, 7 \\u6841\\u672a\\u6e80) \\u2014 startswith \"\n>                 \"\\u7167\\u5408\\u304c\\u5f62\\u9ab8\\u5316\\u3059\\u308b\\u305f\\u3081\\u62d2\\u5426 (\\u5225\\u7248\\u306e tree \\u306b\\u8aa4\\u3063\\u3066 patch \\u3092\\u5f53\\u3066\\u306a\\u3044\\u305f\\u3081\\u306e\\u4e0b\\u9650)\")\n>         r = _git(sub, \"rev-parse\", \"HEAD\")\n>         head = r.stdout.strip()\n>         if r.returncode != 0 or not head:\n> >           raise RuntimeError(\n>                 f\"patchharness: HEAD \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044 (rc={r.returncode}) \\u2192 fails-closed\\u3002\\x5cn\"\n>                 f\"  {r.stderr.strip()[-300:]}\")\n> E           RuntimeError: patchharness: HEAD \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044 (rc=128) \\u2192 fails-closed\\u3002\n> E             fatal: not a git repository (or any of the parent directories): .git\n> \n> orchestrator/campaign/patchharness.py:189: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3111 retained_bytes=3111 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4433 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f42d97aeda126eb33233cd04ca56e4d953510c8bebb352fd091c0a45bea772a0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.797,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout"
+      ],
+      "hang_risk": false,
+      "id": "m-e12-perf-identity-off",
+      "injection_diff_sha256": "0fbe2e3f6fba78809845cf009bfccf27a0f91f32766cc0b63136de0a623628dc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6ae54c2b10136223596e65860cdf66b2482d45dd689dc5139ab74ff0620a06cc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "    if False:  # mutation M-E12\n",
+          "old": "    if cfg.search_config.get('perf') != _perf_identity(perf):\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "f42d97aeda126eb33233cd04ca56e4d953510c8bebb352fd091c0a45bea772a0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3c8ba249c73587bd17430f6957817ccc/izdw-3c8ba249c7.o30041",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3c8ba249c73587bd17430f6957817ccc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................FF................................... [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n______________ test_exception_reason_is_closed_before_coder_input ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_exception_reason_is_close0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15553a414a60>\n\n    def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):\n        layout = CampaignLayout(str(tmp_path))\n        result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n                            build_attempt_id='attempt')\n        private = 'eval-exception: ValueError: arbitrary private exception text'\n        monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [\n            WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n                      {'build_attempt_id': 'attempt', 'reason': private})])\n        outcome, digest = P._result_history(layout, result)\n>       assert outcome == digest['reason'] == 'eval-exception'\nE       AssertionError: assert 'aborted' == 'eval-exception'\nE         \nE         - eval-exception\nE         + aborted\n\norchestrator/tests/test_p3_s4_loop_policy.py:255: AssertionError\n____ test_history_projects_wal_reason_workload_and_integrity_without_notes _____\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_history_projects_wal_reas0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1481ced2f6d0>\n\n    def test_history_projects_wal_reason_workload_and_integrity_without_notes(tmp_path, monkeypatch):\n        layout = CampaignLayout(str(tmp_path))\n        verify = VerifyResult('', True, integrity=Integrity(lock_coverage_violations=1),\n                              n_txns=1)\n        result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n                            verdict='indeterminate', notes=['untrusted free text'],\n                            build_attempt_id='attempt', verify_result=verify)\n        records = [WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n                             {'build_attempt_id': 'attempt', 'reason': 'indeterminate',\n                              'workload': {'tag': 'performance'}})]\n        monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)\n        outcome, digest = P._result_history(layout, result)\n        assert outcome == 'indeterminate'\n        assert digest['workload_tag'] == 'performance'\n        assert digest['integrity_reason_codes'] == ['lock_coverage_violations']\n        assert 'untrusted free text' not in json.dumps(digest)\n        records[0].payload['reason'] = 'trace-timeout'\n>       assert P._result_history(layout, result)[0] == 'trace-timeout'\nE       AssertionError: assert 'indeterminate' == 'trace-timeout'\nE         \nE         - trace-timeout\nE         + indeterminate\n\norchestrator/tests/test_p3_s4_loop_policy.py:241: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes\n2 failed, 103 passed in 5.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1658 retained_bytes=1658 omitted_bytes=0 rendered_excerpt_bytes=1717 sha256=6fb941fb24d607431d50d698daf1a9628a93d8a621f9b252df13efcd1a165631\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_history_projects_wal_reas0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1481ced2f6d0>\n> \n>     def test_history_projects_wal_reason_workload_and_integrity_without_notes(tmp_path, monkeypatch):\n>         layout = CampaignLayout(str(tmp_path))\n>         verify = VerifyResult('', True, integrity=Integrity(lock_coverage_violations=1),\n>                               n_txns=1)\n>         result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n>                             verdict='indeterminate', notes=['untrusted free text'],\n>                             build_attempt_id='attempt', verify_result=verify)\n>         records = [WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n>                              {'build_attempt_id': 'attempt', 'reason': 'indeterminate',\n>                               'workload': {'tag': 'performance'}})]\n>         monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)\n>         outcome, digest = P._result_history(layout, result)\n>         assert outcome == 'indeterminate'\n>         assert digest['workload_tag'] == 'performance'\n>         assert digest['integrity_reason_codes'] == ['lock_coverage_violations']\n>         assert 'untrusted free text' not in json.dumps(digest)\n>         records[0].payload['reason'] = 'trace-timeout'\n> >       assert P._result_history(layout, result)[0] == 'trace-timeout'\n> E       AssertionError: assert 'indeterminate' == 'trace-timeout'\n> E         \n> E         - trace-timeout\n> E         + indeterminate\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:241: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1078 retained_bytes=1078 omitted_bytes=0 rendered_excerpt_bytes=1121 sha256=86b56e75e8091530bcc379b8e26f58bcb5defd124808654e3c7b3707b6f4c352\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_exception_reason_is_close0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15553a414a60>\n> \n>     def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):\n>         layout = CampaignLayout(str(tmp_path))\n>         result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n>                             build_attempt_id='attempt')\n>         private = 'eval-exception: ValueError: arbitrary private exception text'\n>         monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [\n>             WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n>                       {'build_attempt_id': 'attempt', 'reason': private})])\n>         outcome, digest = P._result_history(layout, result)\n> >       assert outcome == digest['reason'] == 'eval-exception'\n> E       AssertionError: assert 'aborted' == 'eval-exception'\n> E         \n> E         - eval-exception\n> E         + aborted\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2736 retained_bytes=2736 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4017 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "946e209ecf8433bb859b371f13e3e073ca7ba5710a21d9db120bbc7beb0da1cc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.682,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes"
+      ],
+      "hang_risk": false,
+      "id": "m-e13-outcome-flat",
+      "injection_diff_sha256": "46a16cb7c7acf95a9a9cdf57ff69bec62998962b69aafc7b3ad63516374dcee1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "677cc6d05403c4ce1513475c58b843df30834853cf35ebc6454057878c8c0817",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "    elif False:  # mutation M-E13\n        outcome = _reason_code(reason)\n",
+          "old": "    elif type(reason) is str:\n        outcome = _reason_code(reason)\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "946e209ecf8433bb859b371f13e3e073ca7ba5710a21d9db120bbc7beb0da1cc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de97ee2021e8f6b11e68f19d246bfd8f/izdw-de97ee2021.o30042",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de97ee2021e8f6b11e68f19d246bfd8f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.F................................ [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n____________________ test_preview_accepts_only_closed_coder ____________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_preview_accepts_only_clos0')\n\n    def test_preview_accepts_only_closed_coder(tmp_path):\n        for form in ('cpp', 'ir'):\n            path = _proposal(tmp_path, form=form, change=lambda d: d.pop('auditor'))\n>           proposal, auditor = P.load_proposal_file(path, form=form, preview=True)\n\norchestrator/tests/test_p3_s4_loop_policy.py:105: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n    assert_closed_proposal_schema(document, require_auditor=True,\norchestrator/campaign/projection_guard.py:309: in assert_closed_proposal_schema\n    _assert_key_set(document, field='$', required=frozenset({'coder', 'auditor'}))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalue = {'coder': {'axis': 'silo-function-policy', 'implementation': 'struct PolicyState { };\\nuint32_t policy_after_abort(Pol...yAction::abort, 0u};\\n}\\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\n}\\n'}}\nfield = '$', required = frozenset({'auditor', 'coder'}), optional = frozenset()\n\n    def _assert_key_set(\n        value: Any,\n        *,\n        field: str,\n        required: frozenset[str],\n        optional: frozenset[str] = frozenset(),\n    ) -> None:\n        if not isinstance(value, Mapping):\n            raise ValueError(f\"{field} は object 必須\")\n        keys = set(value)\n        missing = required - keys\n        unknown = keys - required - optional\n        if missing:\n>           raise KeyError(\n                f\"{field} required key 欠落: {sorted(missing)}\"\n            )\nE           KeyError: \"$ required key 欠落: ['auditor']\"\n\norchestrator/campaign/projection_guard.py:287: KeyError\n______ test_record_reject_cli_uses_coder_only_input_without_build_opt_in _______\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_record_reject_cli_uses_co0')\n\n    def test_record_reject_cli_uses_coder_only_input_without_build_opt_in(tmp_path):\n        with pytest.raises(FileNotFoundError):\n            P.main(['--form', 'cpp', '--record-reject', str(tmp_path / 'absent.json')])\n        path = _proposal(tmp_path, change=lambda d: d.pop('auditor'))\n>       proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True)\n\norchestrator/tests/test_p3_s4_loop_policy.py:413: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n    assert_closed_proposal_schema(document, require_auditor=True,\norchestrator/campaign/projection_guard.py:309: in assert_closed_proposal_schema\n    _assert_key_set(document, field='$', required=frozenset({'coder', 'auditor'}))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalue = {'coder': {'axis': 'silo-function-policy', 'implementation': 'struct PolicyState { };\\nuint32_t policy_after_abort(Pol...yAction::abort, 0u};\\n}\\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\n}\\n'}}\nfield = '$', required = frozenset({'auditor', 'coder'}), optional = frozenset()\n\n    def _assert_key_set(\n        value: Any,\n        *,\n        field: str,\n        required: frozenset[str],\n        optional: frozenset[str] = frozenset(),\n    ) -> None:\n        if not isinstance(value, Mapping):\n            raise ValueError(f\"{field} は object 必須\")\n        keys = set(value)\n        missing = required - keys\n        unknown = keys - required - optional\n        if missing:\n>           raise KeyError(\n                f\"{field} required key 欠落: {sorted(missing)}\"\n            )\nE           KeyError: \"$ required key 欠落: ['auditor']\"\n\norchestrator/campaign/projection_guard.py:287: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in\n2 failed, 103 passed in 6.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1984 retained_bytes=1984 omitted_bytes=0 rendered_excerpt_bytes=2101 sha256=605513ebe0096e8dc5a8845bfbbe82651741bb39fa98a0cb8fe35e55dd2749b8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_record_reject_cli_uses_co0')\n> \n>     def test_record_reject_cli_uses_coder_only_input_without_build_opt_in(tmp_path):\n>         with pytest.raises(FileNotFoundError):\n>             P.main(['--form', 'cpp', '--record-reject', str(tmp_path / 'absent.json')])\n>         path = _proposal(tmp_path, change=lambda d: d.pop('auditor'))\n> >       proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True)\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:413: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n>     assert_closed_proposal_schema(document, require_auditor=True,\n> orchestrator/campaign/projection_guard.py:309: in assert_closed_proposal_schema\n>     _assert_key_set(document, field='$', required=frozenset({'coder', 'auditor'}))\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> value = {'coder': {'axis': 'silo-function-policy', 'implementation': 'struct PolicyState { };\\x5cnuint32_t policy_after_abort(Pol...yAction::abort, 0u};\\x5cn}\\x5cnvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\x5cn}\\x5cn'}}\n> field = '$', required = frozenset({'auditor', 'coder'}), optional = frozenset()\n> \n>     def _assert_key_set(\n>         value: Any,\n>         *,\n>         field: str,\n>         required: frozenset[str],\n>         optional: frozenset[str] = frozenset(),\n>     ) -> None:\n>         if not isinstance(value, Mapping):\n>             raise ValueError(f\"{field} \\u306f object \\u5fc5\\u9808\")\n>         keys = set(value)\n>         missing = required - keys\n>         unknown = keys - required - optional\n>         if missing:\n> >           raise KeyError(\n>                 f\"{field} required key \\u6b20\\u843d: {sorted(missing)}\"\n>             )\n> E           KeyError: \"$ required key \\u6b20\\u843d: ['auditor']\"\n> \n> orchestrator/campaign/projection_guard.py:287: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1873 retained_bytes=1873 omitted_bytes=0 rendered_excerpt_bytes=1988 sha256=2233a2d466d396b5652e721e34c046bf60623f07d7743f4b217e04e10745d09a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_preview_accepts_only_clos0')\n> \n>     def test_preview_accepts_only_closed_coder(tmp_path):\n>         for form in ('cpp', 'ir'):\n>             path = _proposal(tmp_path, form=form, change=lambda d: d.pop('auditor'))\n> >           proposal, auditor = P.load_proposal_file(path, form=form, preview=True)\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:105: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_s4_loop_policy.py:100: in load_proposal_file\n>     assert_closed_proposal_schema(document, require_auditor=True,\n> orchestrator/campaign/projection_guard.py:309: in assert_closed_proposal_schema\n>     _assert_key_set(document, field='$', required=frozenset({'coder', 'auditor'}))\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> value = {'coder': {'axis': 'silo-function-policy', 'implementation': 'struct PolicyState { };\\x5cnuint32_t policy_after_abort(Pol...yAction::abort, 0u};\\x5cn}\\x5cnvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\\x5cn}\\x5cn'}}\n> field = '$', required = frozenset({'auditor', 'coder'}), optional = frozenset()\n> \n>     def _assert_key_set(\n>         value: Any,\n>         *,\n>         field: str,\n>         required: frozenset[str],\n>         optional: frozenset[str] = frozenset(),\n>     ) -> None:\n>         if not isinstance(value, Mapping):\n>             raise ValueError(f\"{field} \\u306f object \\u5fc5\\u9808\")\n>         keys = set(value)\n>         missing = required - keys\n>         unknown = keys - required - optional\n>         if missing:\n> >           raise KeyError(\n>                 f\"{field} required key \\u6b20\\u843d: {sorted(missing)}\"\n>             )\n> E           KeyError: \"$ required key \\u6b20\\u843d: ['auditor']\"\n> \n> orchestrator/campaign/projection_guard.py:287: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3857 retained_bytes=3857 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5252 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "57f500b165db38c4ad1bd4c4f95cacc5d8bad47987fe73e251806d235b511f01"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.517,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in"
+      ],
+      "hang_risk": false,
+      "id": "m-e14-preview-needs-auditor",
+      "injection_diff_sha256": "bbb8b8af5f63a063248e67c11406b2227ce3749f6ed09493864980c44c8a932b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "59a6a2c6ea0fa8558c93b783302e52533ad138ad14bcfc6854cb67c53952245f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "    if False:  # mutation M-E14\n        if type(document) is not dict or set(document) != {'coder'}:\n",
+          "old": "    if preview:\n        if type(document) is not dict or set(document) != {'coder'}:\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "57f500b165db38c4ad1bd4c4f95cacc5d8bad47987fe73e251806d235b511f01",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8192398fff18623c57c7060398c405a6/izdw-8192398fff.o30043",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8192398fff18623c57c7060398c405a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................F................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n______________ test_exception_reason_is_closed_before_coder_input ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_exception_reason_is_close0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d58fd28c10>\n\n    def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):\n        layout = CampaignLayout(str(tmp_path))\n        result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n                            build_attempt_id='attempt')\n        private = 'eval-exception: ValueError: arbitrary private exception text'\n        monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [\n            WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n                      {'build_attempt_id': 'attempt', 'reason': private})])\n        outcome, digest = P._result_history(layout, result)\n>       assert outcome == digest['reason'] == 'eval-exception'\nE       AssertionError: assert 'eval-excepti...xception text' == 'eval-exception'\nE         \nE         - eval-exception\nE         + eval-exception: ValueError: arbitrary private exception text\n\norchestrator/tests/test_p3_s4_loop_policy.py:255: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input\n1 failed, 104 passed in 5.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1152 retained_bytes=1152 omitted_bytes=0 rendered_excerpt_bytes=1195 sha256=3193e12468a6ddd523feba8a4e3b37f25932313b86a67f937a5d6c52bc0dc812\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_exception_reason_is_close0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d58fd28c10>\n> \n>     def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):\n>         layout = CampaignLayout(str(tmp_path))\n>         result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n>                             build_attempt_id='attempt')\n>         private = 'eval-exception: ValueError: arbitrary private exception text'\n>         monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [\n>             WalRecord('variant', STAGE_ABORT, P.ENV_TAG, 0,\n>                       {'build_attempt_id': 'attempt', 'reason': private})])\n>         outcome, digest = P._result_history(layout, result)\n> >       assert outcome == digest['reason'] == 'eval-exception'\n> E       AssertionError: assert 'eval-excepti...xception text' == 'eval-exception'\n> E         \n> E         - eval-exception\n> E         + eval-exception: ValueError: arbitrary private exception text\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1152 retained_bytes=1152 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1918 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d34f955af275baf60bc89c62ade56c4fe683fadf95eaf75adc1c654f052c11dd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.925,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input"
+      ],
+      "hang_risk": false,
+      "id": "m-e15-reason-free-text",
+      "injection_diff_sha256": "44b876dbe0575221bcaaea41fd47a3db189c16b27bb07bea0e15d69cee7cb30d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "29ae91d465f3c5f6b7782f3ff7475065c2c71c695aa783903237cd43da4c8c29",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "        if True:  # mutation M-E15\n            return reason\n",
+          "old": "        if reason in REASON_CODES:\n            return reason\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "d34f955af275baf60bc89c62ade56c4fe683fadf95eaf75adc1c654f052c11dd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c9067f4c370e4657deb7b6306e49e1d/izdw-2c9067f4c3.o30047",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2c9067f4c370e4657deb7b6306e49e1d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F.................................. [ 68%]\n.................................                                        [100%]\n=================================== FAILURES ===================================\n_________ test_anomaly_digest_has_stable_first_eight_and_witness_count _________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_anomaly_digest_has_stable0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152338bacc70>\n\n    def test_anomaly_digest_has_stable_first_eight_and_witness_count(tmp_path, monkeypatch):\n        layout = CampaignLayout(str(tmp_path))\n        anomalies = [Anomaly([i, i], 'G2', []) for i in range(11, 0, -1)]\n        verify = VerifyResult('', False, anomalies=anomalies, total_cycles=39124)\n        result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n                            build_attempt_id='attempt', verify_result=verify)\n        monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [])\n        _outcome, digest = P._result_history(layout, result)\n        assert digest['witness_count'] == 11\n        assert digest['total_cycles'] == 39124\n>       assert len(digest['anomalies']) == 8\nE       AssertionError: assert 11 == 8\nE        +  where 11 = len([{'phenomenon': 'G2', 'cycle': [1, 1], 'edges': []}, {'phenomenon': 'G2', 'cycle': [10, 10], 'edges': []}, {'phenomeno...ges': []}, {'phenomenon': 'G2', 'cycle': [3, 3], 'edges': []}, {'phenomenon': 'G2', 'cycle': [4, 4], 'edges': []}, ...])\n\norchestrator/tests/test_p3_s4_loop_policy.py:279: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count\n1 failed, 104 passed in 5.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1317 retained_bytes=1317 omitted_bytes=0 rendered_excerpt_bytes=1358 sha256=686592eb5b102f13786e39ff4b4829539375b5e68dd775eb33c00029c8bf746c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_anomaly_digest_has_stable0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152338bacc70>\n> \n>     def test_anomaly_digest_has_stable_first_eight_and_witness_count(tmp_path, monkeypatch):\n>         layout = CampaignLayout(str(tmp_path))\n>         anomalies = [Anomaly([i, i], 'G2', []) for i in range(11, 0, -1)]\n>         verify = VerifyResult('', False, anomalies=anomalies, total_cycles=39124)\n>         result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,\n>                             build_attempt_id='attempt', verify_result=verify)\n>         monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [])\n>         _outcome, digest = P._result_history(layout, result)\n>         assert digest['witness_count'] == 11\n>         assert digest['total_cycles'] == 39124\n> >       assert len(digest['anomalies']) == 8\n> E       AssertionError: assert 11 == 8\n> E        +  where 11 = len([{'phenomenon': 'G2', 'cycle': [1, 1], 'edges': []}, {'phenomenon': 'G2', 'cycle': [10, 10], 'edges': []}, {'phenomeno...ges': []}, {'phenomenon': 'G2', 'cycle': [3, 3], 'edges': []}, {'phenomenon': 'G2', 'cycle': [4, 4], 'edges': []}, ...])\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:279: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1317 retained_bytes=1317 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2092 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3c236f0b26faff790c6679e57ec71d43aab9a791a7d6a39c26dad5b398abf1fa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.387,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count"
+      ],
+      "hang_risk": false,
+      "id": "m-e16-anomaly-uncapped",
+      "injection_diff_sha256": "5c9ff00b508f78e52f5a3e43a60a99f78f9b3b8c204217e0e00f42c4d4020565",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e4a95ec23a71b6164260d738e5510f9c97ad8d7539a5cc2c74ff54f3c43fe099",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "            item, sort_keys=True, ensure_ascii=False))  # mutation M-E16\n",
+          "old": "            item, sort_keys=True, ensure_ascii=False))[:8]\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "3c236f0b26faff790c6679e57ec71d43aab9a791a7d6a39c26dad5b398abf1fa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e2c42dab28b655acc3734437b3b7c8ab/izdw-e2c42dab28.o30048",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e2c42dab28b655acc3734437b3b7c8ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 68%]\n...............................F.                                        [100%]\n=================================== FAILURES ===================================\n______________ test_record_reject_records_only_real_gate_failure _______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_record_reject_records_onl0')\n\n    def test_record_reject_records_only_real_gate_failure(tmp_path):\n        compiler = find_compiler()\n        if compiler is None:\n            pytest.skip('g++ unavailable')\n        source = _source(tmp_path)\n        original = source.read_bytes()\n        layout = CampaignLayout(str(tmp_path / 'campaign'))\n        context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)\n        cfg = P.default_cfg(form='cpp')\n        cfg = P.ident.bind_admission_policy(cfg, context.policy)\n        cfg = P.ident.bind_environment_contract(cfg, P.env_contract.lookup(P.ENV_TAG))\n        state = L.LoopState(start_wall=time.time())\n        passing, _ = P.policy_gate(str(tmp_path), GOOD, None,\n            compiler=compiler, scratch_dir=str(tmp_path), write=False)\n        assert passing.passed\n>       with pytest.raises(ValueError, match='requires a rejected candidate'):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_p3_s4_loop_policy.py:370: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure\n1 failed, 104 passed in 5.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1120 retained_bytes=1120 omitted_bytes=0 rendered_excerpt_bytes=1167 sha256=a3f5ec43f92ce673c33a0f30290469e8ec1678a7078908a02f9c6af89d86f37d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_record_reject_records_onl0')\n> \n>     def test_record_reject_records_only_real_gate_failure(tmp_path):\n>         compiler = find_compiler()\n>         if compiler is None:\n>             pytest.skip('g++ unavailable')\n>         source = _source(tmp_path)\n>         original = source.read_bytes()\n>         layout = CampaignLayout(str(tmp_path / 'campaign'))\n>         context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)\n>         cfg = P.default_cfg(form='cpp')\n>         cfg = P.ident.bind_admission_policy(cfg, context.policy)\n>         cfg = P.ident.bind_environment_contract(cfg, P.env_contract.lookup(P.ENV_TAG))\n>         state = L.LoopState(start_wall=time.time())\n>         passing, _ = P.policy_gate(str(tmp_path), GOOD, None,\n>             compiler=compiler, scratch_dir=str(tmp_path), write=False)\n>         assert passing.passed\n> >       with pytest.raises(ValueError, match='requires a rejected candidate'):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_p3_s4_loop_policy.py:370: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1120 retained_bytes=1120 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1889 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "889379634da117b920e8b4a6573a67fe7733334b8f444c257dea7cbeeae87beb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d0f6c14072e81f3c99a2f4eca685e2abcc295745dcf613e2b4d35bf7ef7c5a6",
+      "duration_s": 27.694,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure"
+      ],
+      "hang_risk": false,
+      "id": "m-e17-record-passing",
+      "injection_diff_sha256": "5cc6b826b5a94c96fd4fb173d94f43b74d546f53be7c103fc966be6ae9f794d8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1e4d8124d52a48dd46a54831cc98b8e721ecacfab9ed1e943643d15f31516d00",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+          "new": "    if False:  # mutation M-E17\n        raise ValueError('record-reject requires a rejected candidate')\n",
+          "old": "    if result.passed:\n        raise ValueError('record-reject requires a rejected candidate')\n"
+        }
+      ],
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "KILLED",
+      "test_output_sha256": "889379634da117b920e8b4a6573a67fe7733334b8f444c257dea7cbeeae87beb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a33cadc57dc7cd710b310d38563d99f8/izdw-a33cadc57d.o30019",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a33cadc57dc7cd710b310d38563d99f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections\norchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling\norchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder\norchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26\norchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection\norchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout\norchestrator/tests/test_p3_s4_loop_policy.py::test_dry_pass_returns_without_history_or_admitted_view\norchestrator/tests/test_p3_s4_loop_policy.py::test_critic_output_only_with_emit_and_six_field_projection\norchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes\norchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input\norchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count\norchestrator/tests/test_p3_s4_loop_policy.py::test_real_grammar_reject_precedes_translation_unit\norchestrator/tests/test_p3_s4_loop_policy.py::test_real_translation_unit_only_rejection\norchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject\norchestrator/tests/test_p3_s4_loop_policy.py::test_budget_stop_preserves_checkpoint_without_candidate_work\norchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure\norchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_honors_budget_before_gate\norchestrator/tests/test_p3_s4_loop_policy.py::test_cli_requires_coder_build_opt_in_before_candidate_read\norchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in\norchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0000]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0001]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0010]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0011]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0100]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0101]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0110]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0111]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1000]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1001]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1010]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1011]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1100]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1101]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1110]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1111]\norchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[abort0]\norchestrator/tests/test_silo_policy_ir.py::test_deterministic_render_and_seed_bytes\norchestrator/tests/test_silo_policy_ir.py::test_depth_boundary\norchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary\norchestrator/tests/test_silo_policy_ir.py::test_field_boundary\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad0]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad1]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad2]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad4]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad5]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad6]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad7]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad8]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad9]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad10]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad11]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad12]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad13]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad14]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad15]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad16]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad17]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad18]\norchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad19]\norchestrator/tests/test_silo_policy_ir.py::test_hook_inputs_and_state_types\norchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]\norchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]\norchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution\norchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0000]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0001]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0010]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0011]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0100]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0101]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0110]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0111]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1000]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1001]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1010]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1011]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1100]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1101]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1110]\norchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1111]\norchestrator/tests/test_silo_policy_ir.py::test_other_operators_and_lock_commit_updates_execution\norchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance\norchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21\norchestrator/tests/test_auditor_gate.py::test_assert_digest_matches_returns_actual_on_match\norchestrator/tests/test_auditor_gate.py::test_assert_digest_matches_raises_on_mismatch\norchestrator/tests/test_auditor_gate.py::test_mandatory_deny_only_veto_acceptance_set_never_exceeds_machine_gate\norchestrator/tests/test_auditor_gate.py::test_mandatory_veto_revalidates_mutated_auditor_scalars_and_entries_at_sink\norchestrator/tests/test_auditor_gate.py::test_auditor_reject_result_carries_axis_identity_from_arguments\norchestrator/tests/test_auditor_gate.py::test_auditor_reject_result_uncertain_subtype_and_empty_evidence\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_roundtrip\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_consistent_pass_and_uncertain\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_unknown_verdict\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_empty_and_nonstring_digest\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_non_list_dict_structured_fields\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_nonstring_uncertainty\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_verdict_violation_contradictions\norchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_missing_keys_fail_closed\n\n105 tests collected in 0.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "51d28fc01e31ab730608412d7d0d27352b948102dac6d7d9bf4cac3b54c10ff8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_dry_pass_returns_without_history_or_admitted_view",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_critic_output_only_with_emit_and_six_field_projection",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_real_grammar_reject_precedes_translation_unit",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_real_translation_unit_only_rejection",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_budget_stop_preserves_checkpoint_without_candidate_work",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_honors_budget_before_gate",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_cli_requires_coder_build_opt_in_before_candidate_read",
+        "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in",
+        "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[0111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[1111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_all_cases_grammar_compile_unused_arguments[abort0]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_deterministic_render_and_seed_bytes",
+        "orchestrator/tests/test_silo_policy_ir.py::test_depth_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_node_occurrence_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_field_boundary",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[<<-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_shift_boundary[>>-u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad0]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad1]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad2]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad4]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad5]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad6]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad7]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad8]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad9]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad10]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad11]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad12]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad13]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad14]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad15]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad16]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad17]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad18]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad19]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_hook_inputs_and_state_types",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u32-32]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_saturation_execution[u64-64]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_swap_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_snapshot_output_before_reset_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[0111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1000]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1001]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1010]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1011]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1100]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1101]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1110]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_recon_semantics_execution[1111]",
+        "orchestrator/tests/test_silo_policy_ir.py::test_other_operators_and_lock_commit_updates_execution",
+        "orchestrator/tests/test_silo_policy_ir.py::test_job_factor_balance",
+        "orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21",
+        "orchestrator/tests/test_auditor_gate.py::test_assert_digest_matches_returns_actual_on_match",
+        "orchestrator/tests/test_auditor_gate.py::test_assert_digest_matches_raises_on_mismatch",
+        "orchestrator/tests/test_auditor_gate.py::test_mandatory_deny_only_veto_acceptance_set_never_exceeds_machine_gate",
+        "orchestrator/tests/test_auditor_gate.py::test_mandatory_veto_revalidates_mutated_auditor_scalars_and_entries_at_sink",
+        "orchestrator/tests/test_auditor_gate.py::test_auditor_reject_result_carries_axis_identity_from_arguments",
+        "orchestrator/tests/test_auditor_gate.py::test_auditor_reject_result_uncertain_subtype_and_empty_evidence",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_roundtrip",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_sort_closed_region_violation_codes_17_through_21",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_accepts_consistent_pass_and_uncertain",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_unknown_verdict",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_empty_and_nonstring_digest",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_non_list_dict_structured_fields",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_nonstring_uncertainty",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_verdict_violation_contradictions",
+        "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_missing_keys_fail_closed"
+      ],
+      "duration_s": 431.664,
+      "rc": 0,
+      "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+      "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+      "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+      "status": "PASSED",
+      "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m-e10-justification-leak": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b17a363a13d7b001a8132ffc3ffc179f5549f092c1428f42509dff9f42a6478d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "                    'reject_subtype', 'reject_rule_id', 'verifier_digest', 'justification')})  # mutation M-E10\n",
+            "old": "                    'reject_subtype', 'reject_rule_id', 'verifier_digest')})\n"
+          }
+        ]
+      },
+      "m-e11-verify-s2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc5f01f05c5292c7388a794ab36d20e4441e1afc801cbada7068ef5caf48f322",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "                       SEARCH_CONFIG_VERIFY_KEY: 'legacy+s2'},  # mutation M-E11\n",
+            "old": "                       SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE},\n"
+          }
+        ]
+      },
+      "m-e12-perf-identity-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_perf_identity_rejects_changed_runtime_before_layout"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0fbe2e3f6fba78809845cf009bfccf27a0f91f32766cc0b63136de0a623628dc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "    if False:  # mutation M-E12\n",
+            "old": "    if cfg.search_config.get('perf') != _perf_identity(perf):\n"
+          }
+        ]
+      },
+      "m-e13-outcome-flat": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input",
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_history_projects_wal_reason_workload_and_integrity_without_notes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "46a16cb7c7acf95a9a9cdf57ff69bec62998962b69aafc7b3ad63516374dcee1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "    elif False:  # mutation M-E13\n        outcome = _reason_code(reason)\n",
+            "old": "    elif type(reason) is str:\n        outcome = _reason_code(reason)\n"
+          }
+        ]
+      },
+      "m-e14-preview-needs-auditor": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_cli_uses_coder_only_input_without_build_opt_in"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bbb8b8af5f63a063248e67c11406b2227ce3749f6ed09493864980c44c8a932b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "    if False:  # mutation M-E14\n        if type(document) is not dict or set(document) != {'coder'}:\n",
+            "old": "    if preview:\n        if type(document) is not dict or set(document) != {'coder'}:\n"
+          }
+        ]
+      },
+      "m-e15-reason-free-text": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_exception_reason_is_closed_before_coder_input"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44b876dbe0575221bcaaea41fd47a3db189c16b27bb07bea0e15d69cee7cb30d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "        if True:  # mutation M-E15\n            return reason\n",
+            "old": "        if reason in REASON_CODES:\n            return reason\n"
+          }
+        ]
+      },
+      "m-e16-anomaly-uncapped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_anomaly_digest_has_stable_first_eight_and_witness_count"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c9ff00b508f78e52f5a3e43a60a99f78f9b3b8c204217e0e00f42c4d4020565",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "            item, sort_keys=True, ensure_ascii=False))  # mutation M-E16\n",
+            "old": "            item, sort_keys=True, ensure_ascii=False))[:8]\n"
+          }
+        ]
+      },
+      "m-e17-record-passing": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_record_reject_records_only_real_gate_failure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5cc6b826b5a94c96fd4fb173d94f43b74d546f53be7c103fc966be6ae9f794d8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "    if False:  # mutation M-E17\n        raise ValueError('record-reject requires a rejected candidate')\n",
+            "old": "    if result.passed:\n        raise ValueError('record-reject requires a rejected candidate')\n"
+          }
+        ]
+      },
+      "m-e2-tu-accept": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2dff3921ddf411bacc3bcadf6db3781af0bef7a84fdcc77aa634793d82f5d858",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "        elif compiled is None:  # mutation M-E2\n",
+            "old": "        elif compiled is None or not compiled.accepted:\n"
+          }
+        ]
+      },
+      "m-e3-veto-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_digest_and_no_write_on_reject",
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fa00d9179029bbe9f2642703ea9b2f64557c2d5ba06912f5d609f556e7a6bb4c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "    if False and auditor is not None:  # mutation M-E3\n        result = apply_mandatory_deny_only_veto(\n",
+            "old": "    if result.passed and auditor is not None:\n        result = apply_mandatory_deny_only_veto(\n"
+          }
+        ]
+      },
+      "m-e4-policy-21": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_gate_veto_checks_types_22_through_26"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "189b7798e280a47ea665c57ad3ca16a81c9e3cd7c66589c99b52b2d1b8c89a73",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "            template_diff_id=axis.MARKER_ID, max_violation_type=21)  # mutation M-E4\n",
+            "old": "            template_diff_id=axis.MARKER_ID, max_violation_type=26)\n"
+          }
+        ]
+      },
+      "m-e5-default-26": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1,
+          "3": 1,
+          "4": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_auditor_gate.py::test_parse_auditor_dict_rejects_violation_code_22",
+          "orchestrator/tests/test_auditor_gate.py::test_violation_type_ceiling_is_per_call_and_default_stays_21"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c8dc3063f903074dcce451abc7ac2e05f962c6cbbfc927974be90f46e0f0d585",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "    *, max_violation_type: int = 26,  # mutation M-E5\n",
+            "old": "    *, max_violation_type: int = 21,\n"
+          },
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "    max_violation_type: InitVar[int] = 26  # mutation M-E5\n",
+            "old": "    max_violation_type: InitVar[int] = 21\n"
+          },
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "    template_diff_id: str,\n    max_violation_type: int = 26,  # mutation M-E5\n) -> DiffQuarantineResult:\n",
+            "old": "    template_diff_id: str,\n    max_violation_type: int = 21,\n) -> DiffQuarantineResult:\n"
+          },
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "                          max_violation_type: int = 26) -> DiffQuarantineResult:  # mutation M-E5\n",
+            "old": "                          max_violation_type: int = 21) -> DiffQuarantineResult:\n"
+          },
+          {
+            "file": "orchestrator/campaign/auditor_gate.py",
+            "new": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 26) -> AuditorVerdict:  # mutation M-E5\n",
+            "old": "def parse_auditor_dict(a: Dict, *, max_violation_type: int = 21) -> AuditorVerdict:\n"
+          }
+        ]
+      },
+      "m-e6-ir-unknown-key": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "564757c3d5a0d838397589d3da6e0be4fc53e2203ab259c859560af27c22942f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_ir.py",
+            "new": "        if not names | {'kind'} <= set(value):  # mutation M-E6\n            raise ValueError('IR keys mismatch')\n",
+            "old": "        if set(value) != names | {'kind'}:\n            raise ValueError('IR keys mismatch')\n"
+          }
+        ]
+      },
+      "m-e7-ir-bool-two-layer": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_policy_ir.py::test_parse_policy_ir_all_node_kinds_and_closed_types",
+          "orchestrator/tests/test_silo_policy_ir.py::test_reject_types_literals_and_abort_inputs[bad3]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2b0aafb859529721661c5d9b87499f7fb72e0af247d039da80d0ce051f02941a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_ir.py",
+            "new": "            if ty in _NUMERIC and not isinstance(literal, int):  # mutation M-E7\n",
+            "old": "            if ty in _NUMERIC and type(literal) is not int:\n"
+          },
+          {
+            "file": "orchestrator/campaign/silo_policy_ir.py",
+            "new": "            if not isinstance(args[key], int):  # mutation M-E7\n",
+            "old": "            if type(args[key]) is not int:\n"
+          },
+          {
+            "file": "orchestrator/campaign/silo_policy_ir.py",
+            "new": "        _require(isinstance(expr.value, int) and 0 <= expr.value < 1 << width, 'literal range')  # mutation M-E7\n",
+            "old": "        _require(type(expr.value) is int and 0 <= expr.value < 1 << width, 'literal range')\n"
+          }
+        ]
+      },
+      "m-e8-dup-key": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_policy_loader_uses_26_ceiling",
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_preview_accepts_only_closed_coder",
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_proposal_schema_both_forms_and_scalar_rejections"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ccef84c5b034d256cb0f586a3cfc33157848e5f35d2027c49c12480963d275e2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "        if False:  # mutation M-E8\n            raise ValueError('duplicate proposal key')\n",
+            "old": "        if key in result:\n            raise ValueError('duplicate proposal key')\n"
+          }
+        ]
+      },
+      "m-e9-excluded-leak": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_policy.py::test_cfg_and_coder_input_projection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "29ba86e70be3c619e25ce1f71ccf69d69009a49817df019f73e79213aae1e431",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+            "new": "               'recon_projection': {'binary': projection['binary'], 'scope': projection['scope'], 'excluded': projection['excluded']},  # mutation M-E9\n",
+            "old": "               'recon_projection': {'binary': projection['binary'], 'scope': projection['scope']},\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "bdb70a46f37a822ab3f798c906f6ec4d67eabeff3e820a396251be7a7859d259",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_policy.py",
+      "orchestrator/tests/test_silo_policy_ir.py",
+      "orchestrator/tests/test_auditor_gate.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "650b9b80c3ee33957fa5532edbe475483d2c58e2",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_policy.py",
+      "orchestrator/tests/test_silo_policy_ir.py",
+      "orchestrator/tests/test_auditor_gate.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "2f8f6af6c40d80c4fb36dbc9a868d23040a7a804",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c2dd38d4052e5dd763c292d5e5106a0add02d4c4366a5dba2f2d22501db4e67c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "560327b790a76f8dd9ef9dbcd1ec188a1393c97fb62121a0fa47cc985ce8129b",
+  "summary": {
+    "KILLED": 16,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 16,
+    "matching": 16,
+    "recorded": 16,
+    "registered": 16
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-silo-policy-stage-e/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "af66cce9ea29187affed0c63a5ce24637733636eac61822dc3dce6d6e616c8a6",
+  "updated_at": "2026-09-26T12:59:08.321429+00:00"
+}
