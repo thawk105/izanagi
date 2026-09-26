@@ -15,7 +15,7 @@ block 1 は追補 2 §5 のとおり予備走とし、以後その cohort に投
 
 1. **計算確認 (D2212 項 4):** 2026-09-26、本決定の wave の最終報告で「試走 3 block (18 job) を見積り 22.2〜40.5 node 時間 (LLM の待ち 1.9〜19.5 時間) で投入してよいか」を
    問い、ユーザーは「いいよ」と答えた。費用上限は本登録 §9.2 の 200 node 時間のまま、job Elapse の総和が見積りの上側を超えそうなら新しい投入を止めて再確認する。
-2. **実装の commit:** `299aa022ef08fca35ee4625e847cc25b49397ee6` (同時検査の実装 {{D:concurrent-local-verify-fork-receipt}} を取り込んだ main の fold commit。
+2. **実装の commit:** `299aa022ef08fca35ee4625e847cc25b49397ee6` (同時検査の実装 D2251 を取り込んだ main の fold commit。
    受入の tested tip `5fd096999` からの差は docs だけ)。job ごとに 1 本の repo 外の detached checkout で走らせ、以後の main の変更で動かさない。CCBench は campaign の pin `511c9538…`。
 3. **配置:** cohort `t2850-trial-v2`、S1-wh × 5 手法 (random・sweep・bo・evolution・llm) × 系列 b = 1, 2, 3 + block job 3 = 18 job。系列番号 R = b (追補 1 §3)。
    A = 30、B = 10、N_eval = 5、block stock 5 session。walltime は系列 24:00:00、block job 08:53:30 (本登録 §4)。block 内の投入順は block 1 と同じ規則の順序
