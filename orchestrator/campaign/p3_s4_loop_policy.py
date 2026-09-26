@@ -247,7 +247,7 @@ def _result_history(layout, result):
         digest['total_cycles'] = structured['total_cycles']
         anomalies = [{key: item[key] for key in ('phenomenon', 'cycle', 'edges')}
                      for item in structured['anomalies']]
-        digest['anomaly_count'] = len(anomalies)
+        digest['witness_count'] = len(anomalies)
         digest['anomalies'] = sorted(anomalies, key=lambda item: json.dumps(
             item, sort_keys=True, ensure_ascii=False))[:8]
         integrity = structured['integrity']

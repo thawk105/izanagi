@@ -266,15 +266,16 @@ def test_exception_reason_is_closed_before_coder_input(tmp_path, monkeypatch):
     assert payload['self_history'][0]['outcome'] == 'eval-exception'
 
 
-def test_anomaly_digest_has_stable_first_eight_and_full_count(tmp_path, monkeypatch):
+def test_anomaly_digest_has_stable_first_eight_and_witness_count(tmp_path, monkeypatch):
     layout = CampaignLayout(str(tmp_path))
     anomalies = [Anomaly([i, i], 'G2', []) for i in range(11, 0, -1)]
-    verify = VerifyResult('', False, anomalies=anomalies)
+    verify = VerifyResult('', False, anomalies=anomalies, total_cycles=39124)
     result = EvalResult(Genome('silo', dict(P.BASE)), 'variant', False, True,
                         build_attempt_id='attempt', verify_result=verify)
     monkeypatch.setattr(P.wal, 'read_records', lambda _layout: [])
     _outcome, digest = P._result_history(layout, result)
-    assert digest['anomaly_count'] == 11
+    assert digest['witness_count'] == 11
+    assert digest['total_cycles'] == 39124
     assert len(digest['anomalies']) == 8
     assert all(set(item) == {'phenomenon', 'cycle', 'edges'} for item in digest['anomalies'])
     verify.anomalies.reverse()
