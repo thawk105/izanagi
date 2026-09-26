@@ -1,0 +1,19 @@
+read-heavy dir /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-fig1-redraw/output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad epoch E0 recorded-at-original-verifier-epoch
+  n genomes 8 all certified(recorded) True covers space True
+  k 4 4 tied True rE 1.8 1.8 oE 1.5 1.5
+  greedy {'mean': 1.756, 'median': 1.0, 'min': 1, 'max': 4, 'iqr_lo': 1, 'iqr_hi': 2} frozen {'n': 500, 'mean': 1.756, 'median': 1.0, 'min': 1, 'max': 4, 'iqr_lo': 1, 'iqr_hi': 2} p_lt 0.32600000000000023 0.32600000000000023
+  greedy counts [(1, 254), (2, 139), (3, 82), (4, 25)]
+  guided median 1.0 1.0 A 0.5413333333333333 p 0.6305555767681986 fail 0 / 6
+balanced dir /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-fig1-redraw/output/campaigns/p2-2-silo-balanced-enumerate-f1588056 epoch E0 recorded-at-original-verifier-epoch
+  n genomes 8 all certified(recorded) True covers space True
+  k 1 1 tied True rE 4.5 4.5 oE 1.875 1.875
+  greedy {'mean': 4.234, 'median': 5.0, 'min': 1, 'max': 7, 'iqr_lo': 2, 'iqr_hi': 6} frozen {'n': 500, 'mean': 4.234, 'median': 5.0, 'min': 1, 'max': 7, 'iqr_lo': 2, 'iqr_hi': 6} p_lt 0.47075 0.47075
+  greedy counts [(1, 62), (2, 66), (3, 89), (4, 23), (5, 57), (6, 142), (7, 61)]
+  guided median 4.0 4.0 A 0.58125 p 0.8331081851970146 fail 0 / 12
+write-heavy dir /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-fig1-redraw/output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6 epoch E0 recorded-at-original-verifier-epoch
+  n genomes 8 all certified(recorded) True covers space True
+  k 1 1 tied True rE 4.5 4.5 oE 1.875 1.875
+  greedy {'mean': 4.362, 'median': 5.0, 'min': 1, 'max': 7, 'iqr_lo': 2, 'iqr_hi': 6} frozen {'n': 500, 'mean': 4.362, 'median': 5.0, 'min': 1, 'max': 7, 'iqr_lo': 2, 'iqr_hi': 6} p_lt 0.45475 0.45475
+  greedy counts [(1, 62), (2, 66), (3, 67), (4, 35), (5, 31), (6, 182), (7, 57)]
+  guided median 8.0 8.0 A 0.23041666666666666 p 0.00025210801850960543 fail 8 / 12
+elapsed 1.3243045806884766

@@ -5417,3 +5417,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-26","base":"6d198ca8afddf9a1ecbc4ac421f163e080838751","content_sha256":"963bae04b134fa5756c5566adb7593688c62d902a85ea177b5ef7e049557604a","seq":1,"tested_tip":"14ea1fc49d95cd0121d5783c06142641e4d5c5e6","wave":"rulings-all-20260926b","wave_ref":"refs/heads/worktree-rulings-all-20260926b"}
 - {"allocations":{"D:rulings-full36-verdicts":"D2249"},"authored":"2026-09-26","base":"6d198ca8afddf9a1ecbc4ac421f163e080838751","content_sha256":"ee92ae9bb0c94baf82e0321001ab753312f75cc9733c426897cc0ac7129ba1c2","seq":1,"tested_tip":"14ea1fc49d95cd0121d5783c06142641e4d5c5e6","wave":"rulings-all-20260926b","wave_ref":"refs/heads/worktree-rulings-all-20260926b"}
+
+- {"allocations":{},"authored":"2026-09-26","base":"265cce13c5656a94f8fe5d6796bb07f65a03237f","content_sha256":"f56bd932da0cfab077c9608102d712df6f3e3855783b9b8f0a0f685635262a24","seq":1,"tested_tip":"96ad441aefaefd527f1dcd3cf4f2cb67ac0b9ac4","wave":"worktree-t2853-fig1-redraw","wave_ref":"refs/heads/worktree-t2853-fig1-redraw"}
