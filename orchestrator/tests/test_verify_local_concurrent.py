@@ -5,7 +5,9 @@ import os
 import json
 import shutil
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -185,6 +187,53 @@ def test_acquisition_failure_stops_later_trace_and_projection():
     assert len(collected) == 4  # legacy plus reps 0, 1, 2
     assert len([r for r in records if r.stage == STAGE_VERIFY_DONE]) == 3
     assert STAGE_COMMIT not in {r.stage for r in records}
+
+
+def test_disappearing_unrelated_proc_does_not_reject_rep(monkeypatch):
+    live_scandir = os.scandir
+    live_read_text = Path.read_text
+    vanished = "/proc/999999999/stat"
+    reads = []
+
+    @contextmanager
+    def proc_entries():
+        with live_scandir("/proc") as entries:
+            yield iter((SimpleNamespace(name="999999999"), *entries))
+
+    def scandir(path):
+        return proc_entries() if path == "/proc" else live_scandir(path)
+
+    def read_text(path, *args, **kwargs):
+        if str(path) == vanished:
+            reads.append(str(path))
+            raise ProcessLookupError("process exited during proc scan")
+        return live_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline.os, "scandir", scandir)
+    monkeypatch.setattr(Path, "read_text", read_text)
+    result, records, _ = _evaluate(concurrent=True, trace_failure=2)
+    assert reads
+    assert result.aborted
+    assert len([r for r in records if r.stage == STAGE_VERIFY_DONE]) == 3
+
+
+def test_disappearing_proc_still_detects_live_target_group(monkeypatch):
+    @contextmanager
+    def proc_entries():
+        yield iter(SimpleNamespace(name=name) for name in ("11", "12", "13", "14"))
+
+    def read_text(path, *args, **kwargs):
+        pid = path.parent.name
+        if pid == "11":
+            raise ProcessLookupError("process exited")
+        if pid == "12":
+            raise FileNotFoundError("process exited")
+        return f"{pid} (worker) {'Z' if pid == '13' else 'S'} 1 456"
+
+    monkeypatch.setattr(pipeline.os, "scandir", lambda path: proc_entries())
+    monkeypatch.setattr(Path, "read_text", read_text)
+    assert pipeline._local_group_has_live_members(456)
+    assert not pipeline._local_group_has_live_members(789)
 
 
 def test_all_traces_collected_before_first_fork():

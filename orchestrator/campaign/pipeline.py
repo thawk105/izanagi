@@ -368,10 +368,9 @@ def _local_group_has_live_members(pgid: int) -> bool:
                 continue
             try:
                 stat = Path(f"/proc/{entry.name}/stat").read_text(encoding="utf-8")
-            except FileNotFoundError:  # Process exited during the scan.
+            except (FileNotFoundError, ProcessLookupError):  # Process exited during the scan.
                 continue
-            parts = stat.rpartition(") ")[2].split()
-            if len(parts) < 3:
+            if len(parts := stat.rpartition(") ")[2].split()) < 3:
                 raise ValueError(f"unparseable proc stat for pid {entry.name}")
             if int(parts[2]) == pgid and parts[0] != "Z":
                 return True
@@ -2378,7 +2377,6 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 pass
 
         def wait_group_gone(pid: int) -> Optional[str]:
-            # Forked verifier workers must be gone before preserving traces.
             deadline = time.monotonic() + _LOCAL_GROUP_GONE_TIMEOUT_S
             while True:
                 try:
