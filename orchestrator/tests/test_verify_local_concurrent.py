@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import json
 import shutil
 import time
 from pathlib import Path
@@ -10,7 +11,7 @@ import pytest
 
 from orchestrator.campaign import pipeline, wal
 from orchestrator.verifier import parse
-from orchestrator.campaign.model import Genome, STAGE_COMMIT, STAGE_VERIFY_DONE
+from orchestrator.campaign.model import Genome, STAGE_ABORT, STAGE_COMMIT, STAGE_VERIFY_DONE
 from orchestrator.campaign.pipeline import CorrectnessWorkload, PerfConfig
 from orchestrator.tests import test_campaign as fixtures
 
@@ -237,6 +238,65 @@ def test_failed_rep_kills_later_groups_with_live_pool_workers(tmp_path):
             os.waitpid(pid, os.WNOHANG)
         with pytest.raises(ProcessLookupError):
             os.killpg(pid, 0)
+
+
+def test_group_timeout_rejects_reaps_and_preserves_traces(tmp_path, monkeypatch):
+    pids = []
+    archive_root = tmp_path / "archive"
+    monkeypatch.setenv("IZANAGI_TRACE_ARCHIVE_ROOT", str(archive_root))
+    monkeypatch.setattr(pipeline, "_LOCAL_GROUP_GONE_TIMEOUT_S", 0.0)
+    real_preserve = pipeline._preserve_trace_directory
+
+    def preserve_fixture(trace_dir, root, **kwargs):
+        # The proof source fixture is not a git checkout; archive the real
+        # traces without that fixture-only source binding.
+        return real_preserve(trace_dir, root, **{**kwargs, "evidence": None})
+
+    monkeypatch.setattr(pipeline, "_preserve_trace_directory", preserve_fixture)
+    live_check = pipeline._local_group_has_live_members
+
+    def forced_timeout(pgid):
+        return pgid == pids[0] or live_check(pgid)
+
+    monkeypatch.setattr(pipeline, "_local_group_has_live_members", forced_timeout)
+    result, records, collected = _evaluate(concurrent=True, fork_pids=pids)
+    assert result.aborted and not result.certified
+    assert [row.payload["reason"] for row in records if row.stage == STAGE_ABORT] == [
+        "verify-local-unavailable",
+    ]
+    assert STAGE_COMMIT not in {row.stage for row in records}
+    assert len(pids) == 5
+    for pid in pids:
+        with pytest.raises(ChildProcessError):
+            os.waitpid(pid, os.WNOHANG)
+    inventories = [json.loads(path.read_text())
+                   for path in archive_root.rglob("inventory.json")]
+    assert {row["original_directory"] for row in inventories} == set(collected)
+    assert all(row["status"] == "complete" for row in inventories)
+    assert all(not Path(directory).exists() for directory in collected)
+
+
+def test_group_checked_before_leader_reaped(monkeypatch):
+    events = []
+    pids = []
+    live_check = pipeline._local_group_has_live_members
+    live_waitpid = os.waitpid
+
+    def observed_check(pgid):
+        events.append(("check", pgid))
+        return live_check(pgid)
+
+    def observed_waitpid(pid, options):
+        events.append(("reap", pid))
+        return live_waitpid(pid, options)
+
+    monkeypatch.setattr(pipeline, "_local_group_has_live_members", observed_check)
+    monkeypatch.setattr(pipeline.os, "waitpid", observed_waitpid)
+    result, _, _ = _evaluate(concurrent=True, fork_pids=pids)
+    assert result.certified
+    assert len(pids) == 5
+    for pid in pids:
+        assert events.index(("check", pid)) < events.index(("reap", pid))
 
 
 def test_expected_commits_reaches_real_verifier_in_fork():
