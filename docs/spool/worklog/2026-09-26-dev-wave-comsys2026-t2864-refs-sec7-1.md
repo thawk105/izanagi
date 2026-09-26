@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-26
 wave: dev-wave-comsys2026-t2864-refs-sec7
 seq: 1
-title: [T-2864] ComSys 原稿の改訂 3 — 参考文献 3 件を採録版の書誌で照合し (Polyjuice の頁を追加)、7 節 (a) を存在履歴の検査と TPC-C trace 1 本の certified へ、(c) と限界節を B-5 本走の認可 (本稿の時点で結果なし) へ直して 15 頁で再組版 (docs のみ、branch worktree-dev-wave-comsys2026-t2864-refs-sec7)
+title: [T-2864] ComSys 原稿の改訂 3 — 参考文献 3 件を採録版の書誌で照合し (Polyjuice と NeurCC の頁を追加)、7 節 (a) を存在履歴の検査と TPC-C trace 1 本の直列化可能の判定へ、(c) と限界節を B-5 本走の認可 (本稿の時点で結果なし) へ直して 15 頁で再組版 (docs のみ、branch worktree-dev-wave-comsys2026-t2864-refs-sec7)
 ---
 
 ## 本文
@@ -21,6 +21,12 @@ title: [T-2864] ComSys 原稿の改訂 3 — 参考文献 3 件を採録版の�
   NeurCC は Crossref で PACMMOD 4(3) 2026・DOI 一致、SysInsight は Crossref で PVLDB 19(6) pp.1358–1371 2026 一致 (題目は大文字小文字だけ違う)。
 - 組版: 15 頁、platex rc=0・エラー 0・警告 0・Overfull 0、Underfull 2 は改訂前と同数 (改訂前の tex を同手順で組み直して再現)。改訂文の出現を頁ごとの文字抽出 (12〜15 頁) と 14 頁の画像で確かめた。`grep -n "^%.*．"` は 0 件。
 - AI provenance 全史監査は原稿 commit `852c2dce8` の後に 12,802 件・新規違反なし (rc=0)。
+- 段 6 (Codex read-only 1 本、`d8140a6ed` 対象): NO-GO、must-fix 2 = (1) 概要・3.3 節が certified を YCSB に限って定義するのに 7 節 (a) が TPC-C の trace を certified と呼んだ、
+  (2) NeurCC の採録版の頁 (Crossref の 1-28) が無い。どちらも real と裁定し、(1) は定義を広げず 7 節 (a) を「直列化可能と判定され」へ、(2) は pp.1--28 を足した。
+  should 1 (スコープの「TPC-C は評価していない」が trace の判定まで否定して読める) は採用し「合成・性能を評価していない」へ。should 2 (「結果は無い」が未投入と読まれうる) は不採用 —
+  本文は結果の不在だけを言い両方の読みで真で、投入状況は main 未着地の記録に頼ることになる。nit (出所コメントの旧参照) は「改訂 2 までの状態」と明記した。
+  親の (P3)「本稿の評価で」だけでは定義との衝突を解消しなかった (レビューの指摘どおり)。記録 = 原稿 README §11.4。
+- 工数: Codex 子 1 本 (review)。Claude 子なし。
 
 ## 次の一手差分
 
