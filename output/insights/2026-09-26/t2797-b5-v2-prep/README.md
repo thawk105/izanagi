@@ -84,7 +84,9 @@ T-2850 の本番順序 probe (trace 5 本を直列取得 → 直ちに 5 本同�
   系列の対づけ (3 arm を系列番号で対にし、実行順を均衡割当) は残した。4 比較の Holm、pooled の stock CV と fallback、429 の保留 (§3.3a)、1 評価 1 job (§5.6)、critic への入力の要請 (§4.1)。
 - **発効束 (本 dir の `bundle/`):** LLM 親の指示文 v2 (`b5-v2-llm-parent-template.md`)・header・resume。settings と知識 manifest は v1 の発効束のもの
   (`output/insights/2026-09-22/t2797-effect-bundle/bundle/b5-parent-settings.json`・`knowledge-manifest-wal-only.json`) をそのまま使う。
-  schedule・random 値・sweep 順序は実装 (`registered_v2_schedule`・`random_value`・`sweep_order` の v2 版文字列) から導く値で、発効 commit の checkout で出力して固定する。
+  schedule・random 値・sweep 順序は実装 (`registered_v2_schedule`・`random_value`・`sweep_order` の v2 版文字列) から導いた値を commit `4732c1b91` の木で出力して置いた:
+  `registered-v2-schedule.json` (sha256 `20691a3a…2197587`、24 対・78 項目 = 系列 72 + workload stock 6、各 workload で 6 通りの実行順が各 2 回)、
+  `random-values-v2.json` (`714bc688…ae40f`)、`sweep-orders-v2.json` (`539fe28d…bbb58`)。発効 commit の木で同じ値が出ることを発効時に確かめる。
 - **発効時に固定する残りの実値:** 発効 commit、同時に進める系列数の上限 (推奨 12 = 4 対。LLM の親は同時 4 本で v1 の D2216 と同じ)、job 種別ごとの walltime (v1 の試走の最大所要への倍率)、
   node 時間の上限 (§6)。
 
