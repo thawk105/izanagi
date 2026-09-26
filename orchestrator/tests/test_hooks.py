@@ -3167,6 +3167,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/b10_backoff_grid.sh": "dispatch-required",
     "tools/pegasus/b10_backoff_shape_campaign.sh": "dispatch-required",
     "tools/pegasus/b5_contrast_launch.py": "local-ok",
+    "tools/pegasus/b5_llm_parent.py": "local-ok",
     "tools/pegasus/certify_calibration.sh": "dispatch-required",
     "tools/pegasus/collect_receipt.py": "unknown",
     "tools/pegasus/collect_t126_qualification.py": "unknown",
@@ -3274,6 +3275,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "class": "local-ok",
         "reason": "login-side PBS B-5 generator-contrast pilot submitter (4 fixed jobs)",
         "primary_gate": "qsub submission; compute work stays in independent job bodies",
+        "evidence": "static login-side submitter classification"
+    },
+    "tools/pegasus/b5_llm_parent.py": {
+        "class": "local-ok",
+        "reason": "login-side v2 launcher parent that starts and resumes claude -p; compute work stays in independent job bodies",
+        "primary_gate": "v2 launcher invocation; compute work stays in independent job bodies",
         "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/certify_calibration.sh": {
@@ -4118,6 +4125,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
 
     expected_local_evidence = {
         "tools/pegasus/b5_contrast_launch.py":
+            "static login-side submitter classification",
+        "tools/pegasus/b5_llm_parent.py":
             "static login-side submitter classification",
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",

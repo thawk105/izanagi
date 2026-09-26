@@ -37,6 +37,12 @@
       "primary_gate": "qsub submission; compute work stays in independent job bodies",
       "evidence": "static login-side submitter classification"
     },
+    "tools/pegasus/b5_llm_parent.py": {
+      "class": "local-ok",
+      "reason": "login-side v2 launcher parent that starts and resumes claude -p; compute work stays in independent job bodies",
+      "primary_gate": "v2 launcher invocation; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",

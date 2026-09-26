@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from tools.pegasus.b5_llm_parent import Parent, classify_exit
 
 
@@ -82,3 +84,12 @@ def test_forbidden_environment_stops_before_parent_spawn(tmp_path, monkeypatch):
         assert str(exc) == "forbidden parent environment"
     else:
         raise AssertionError("forbidden environment was accepted")
+
+
+def _run() -> int:
+    """Keep this test file covered by the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
