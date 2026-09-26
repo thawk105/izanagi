@@ -96,6 +96,7 @@ b5_env_names=(
 )
 if [[ -v IZANAGI_S4_B5_MODE ]]; then
   case "$b5_mode" in
+    series-step) ;;
     series|block-stock) ;;
     *) refuse "IZANAGI_S4_B5_MODE must be series or block-stock" ;;
   esac
@@ -103,10 +104,11 @@ if [[ -v IZANAGI_S4_B5_MODE ]]; then
     [[ -n "${!name:-}" ]] || refuse "missing B-5 environment: $name"
   done
   case "${IZANAGI_S4_B5_PURPOSE-pilot}" in
-    pilot|registered) ;;
+    pilot|registered|registered-v2) ;;
     *) refuse "IZANAGI_S4_B5_PURPOSE must be pilot or registered" ;;
   esac
   case "$b5_mode:$IZANAGI_S4_B5_ARM" in
+    series-step:llm|series-step:random|series-step:sweep-matched) ;;
     series:llm|series:random|series:sweep-matched|block-stock:stock) ;;
     *) refuse "invalid B-5 arm for mode" ;;
   esac
@@ -114,16 +116,32 @@ if [[ -v IZANAGI_S4_B5_MODE ]]; then
     write-heavy|balanced|read-heavy) ;;
     *) refuse "invalid B-5 workload" ;;
   esac
+  if [[ "${IZANAGI_S4_B5_PURPOSE-pilot}" == registered-v2 \
+     && "$IZANAGI_S4_B5_WORKLOAD" == read-heavy ]]; then
+    refuse "invalid v2 workload"
+  fi
   [[ "$IZANAGI_S4_B5_SERIES" =~ ^([1-9]|1[0-2])$ ]] \
     || refuse "invalid B-5 series"
   [[ "$IZANAGI_S4_B5_BLOCK" =~ ^[1-3]$ ]] || refuse "invalid B-5 block"
   [[ "$IZANAGI_S4_B5_LEDGER_ROOT" == /* ]] || refuse "B-5 ledger root must be absolute"
+  if [[ "$b5_mode" == series-step ]]; then
+    [[ "${IZANAGI_S4_B5_PURPOSE-}" == registered-v2 ]] || refuse "series-step requires v2 cohort"
+    [[ "${IZANAGI_S4_B5_STEP-}" =~ ^(stock-evaluation-1|evaluation-([2-9]|10)|score)$ ]] \
+      || refuse "invalid B-5 step"
+    [[ "$IZANAGI_S4_B5_WORKLOAD" == write-heavy || "$IZANAGI_S4_B5_WORKLOAD" == balanced ]] \
+      || refuse "invalid v2 workload"
+  elif [[ -v IZANAGI_S4_B5_STEP ]]; then
+    refuse "B-5 step requires series-step"
+  fi
+  if [[ "$b5_mode" == series && "${IZANAGI_S4_B5_PURPOSE-pilot}" == registered-v2 ]]; then
+    refuse "v2 series requires series-step"
+  fi
   if [[ -v IZANAGI_S4_PROPOSAL_PATH || -v IZANAGI_S4_FIXTURE_VALUE \
      || "${IZANAGI_S4_STOCK_CONTROL-}" == 1 ]]; then
     refuse "B-5 mode excludes proposal, fixture, and stock-control"
   fi
 else
-  for name in "${b5_env_names[@]}" IZANAGI_S4_B5_PURPOSE; do
+  for name in "${b5_env_names[@]}" IZANAGI_S4_B5_PURPOSE IZANAGI_S4_B5_STEP; do
     [[ ! -v $name ]] || refuse "B-5 environment requires IZANAGI_S4_B5_MODE"
   done
 fi
@@ -184,9 +202,13 @@ if [[ "$k2_requested" == true ]]; then
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM"
     )
   fi
+  if [[ "$b5_mode" == series-step ]]; then
+    b5_mode=series
+  fi
   [[ ( "$b5_mode" == series && "${IZANAGI_S4_B5_ARM-}" == llm ) \
      || -n "${IZANAGI_S4_PROPOSAL_PATH:-}" ]] \
     || refuse "K2 environment requires IZANAGI_S4_PROPOSAL_PATH"
+  b5_mode=${IZANAGI_S4_B5_MODE-}
 fi
 
 case "${IZANAGI_S4_STOCK_CONTROL-0}" in
@@ -725,8 +747,11 @@ fi
 
 if [[ -n "$b5_mode" ]]; then
   b5_argv=("run-$b5_mode")
-  if [[ "$b5_mode" == series ]]; then
+  if [[ "$b5_mode" == series || "$b5_mode" == series-step ]]; then
     b5_argv+=(--arm "$IZANAGI_S4_B5_ARM" --series "$IZANAGI_S4_B5_SERIES")
+  fi
+  if [[ "$b5_mode" == series-step ]]; then
+    b5_argv+=(--step "$IZANAGI_S4_B5_STEP")
   fi
   b5_argv+=(--workload "$IZANAGI_S4_B5_WORKLOAD" --block "$IZANAGI_S4_B5_BLOCK"
     --ledger-root "$b5_ledger_root" --fetchcontent-prebuild-receipt "$prebuild_receipt")
@@ -735,8 +760,8 @@ if [[ -n "$b5_mode" ]]; then
       --knowledge-classification "$IZANAGI_S4_KNOWLEDGE_CLASSIFICATION"
       --knowledge-de-novo-claim "$IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM")
   fi
-  if [[ "${IZANAGI_S4_B5_PURPOSE-pilot}" == registered ]]; then
-    b5_argv+=(--purpose registered)
+  if [[ "${IZANAGI_S4_B5_PURPOSE-pilot}" != pilot ]]; then
+    b5_argv+=(--purpose "$IZANAGI_S4_B5_PURPOSE")
   fi
   b5_rc=0
   export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"

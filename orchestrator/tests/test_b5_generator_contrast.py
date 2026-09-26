@@ -301,6 +301,111 @@ def _events(result, kind):
     return [e for e in result["events"] if e["kind"] == kind]
 
 
+def _v2_step(tmp_path, runner, step, arm="random", **kwargs):
+    return B.run_series_step(arm, "write-heavy", 1, 1, step=step,
+                             ledger_root=tmp_path / "ledger", prebuild_receipt=tmp_path / "receipt",
+                             repo_root=ROOT, runner=runner, **kwargs)
+
+
+@pytest.mark.parametrize("arm", ["random", "sweep-matched"])
+def test_v2_first_job_has_stock_and_one_evaluation_and_later_job_one(tmp_path, arm):
+    runner = FakeRunner()
+    result = _v2_step(tmp_path, runner, "stock-evaluation-1", arm)
+    assert [call["kind"] for call in runner.calls] == ["stock-start", "search"]
+    assert [call["n"] for call in runner.calls] == [1, 1]
+    assert B.next_series_action(tmp_path / "ledger") == ("proposal", 2)
+    ledger = B.SeriesLedger(tmp_path / "ledger")
+    proposal, provenance = B._v2_machine_proposal(ledger, 2)
+    B._v2_proposal(ledger, 2, 1, proposal, provenance)
+    result = _v2_step(tmp_path, runner, "evaluation-2", arm)
+    assert [call["kind"] for call in runner.calls] == ["stock-start", "search", "search"]
+    assert len(_events(result, "evaluation-result")) == 2
+    assert "--verify-performance-concurrent" in runner.calls[-1]["argv"]
+
+
+def test_v2_step_mismatch_refuses_before_session(tmp_path):
+    runner = FakeRunner()
+    _v2_step(tmp_path, runner, "stock-evaluation-1")
+    with pytest.raises(ValueError, match="differs"):
+        _v2_step(tmp_path, runner, "score")
+    assert len(runner.calls) == 2
+
+
+def test_v2_unsettled_slot_attempt_stops_only_its_series(tmp_path):
+    ledger = B.SeriesLedger.create(tmp_path / "ledger", {"cohort": B.COHORT_REGISTERED_V2,
+                          "arm": "random", "workload": "write-heavy", "series": 1, "block": 1})
+    ledger.append("series-start", a=0, b=0)
+    ledger.append("slot-attempt-start", a=0, b=0, logical_slot="stock-start-1", attempt=0)
+    assert B.next_series_action(ledger) == ("interrupted-slot", ("stock-start-1", 0))
+
+
+def test_v2_concurrent_verify_write_heavy_and_balanced():
+    options = dict(arm="random", key="key", sidecar_dir="sidecar", prebuild_receipt="receipt")
+    assert "--verify-performance-concurrent" in B.slot_argv(
+        workload="write-heavy", cohort=B.COHORT_REGISTERED_V2, **options)
+    assert "--verify-performance-concurrent" in B.slot_argv(
+        workload="balanced", cohort=B.COHORT_REGISTERED_V2, **options)
+    assert "--verify-performance-concurrent" not in B.slot_argv(
+        workload="write-heavy", cohort=B.COHORT_REGISTERED, **options)
+    assert "--verify-performance-concurrent" not in B.slot_argv(
+        workload="balanced", cohort=B.COHORT_REGISTERED, **options)
+
+
+def test_v2_random_seed_preimage_uses_v2_version():
+    weights = (2, 3, 5)
+    U = int.from_bytes(hashlib.sha256(
+        b"b5-generator-contrast-v2|random|write-heavy|1|1|0").digest(), "big")
+    expected = 1 if U % 10 < 2 else 2 if U % 10 < 5 else 3
+    assert B.random_value("write-heavy", 1, 1, weights, version=B.PREREG_VERSION_V2) == (expected, 0)
+    assert B.slot_key(B.COHORT_REGISTERED_V2, "random", "write-heavy", 1,
+                      "search", 1, 0).startswith(B.PREREG_VERSION_V2 + "|")
+
+
+def test_v2_llm_first_job_has_stock_and_one_evaluation(tmp_path, monkeypatch):
+    def publish(_seconds):
+        directory = tmp_path / "ledger/handshake"
+        request = json.loads((directory / "request-1.json").read_text())
+        planner_input = {"whiteboard": [], "current_perf": request["current_perf"]}
+        coder_input = {"whiteboard": [], "baseline": request["baseline"]}
+        (directory / "inputs-1.json").write_text(json.dumps({"planner_input": planner_input,
+                                                            "coder_input": coder_input}))
+        doc = {"planner": {"axis": L.MARKER_ID, "direction": "decrease", "magnitude": "small"},
+               "coder": {"proposal": {"axis": L.MARKER_ID, "value": 20,
+                           "implementation": "double now_backoff = 20;", "justification": "fixture",
+                           "confidence": "low"}, "knowledge_use": [], "classification": "de_novo",
+                         "data_boundary_report": {"instruction_like_content_detected": False,
+                                                  "details": "fixture"}},
+               "prior_critic_reverse": True}
+        (directory / "proposal-1.json").write_text(json.dumps(doc))
+        B._v2_proposal(B.SeriesLedger(tmp_path / "ledger"), 1, 0,
+                       directory / "proposal-1.json", {"arm": "llm"})
+    monkeypatch.setattr(B.time, "sleep", publish)
+    runner = FakeRunner()
+    result = _v2_step(tmp_path, runner, "stock-evaluation-1", "llm", k2=B.K2Args(Path("manifest")))
+    assert [call["kind"] for call in runner.calls] == ["stock-start", "search"]
+    assert len(_events(result, "proposal-opportunity")) == 1
+    assert len(_events(result, "evaluation-result")) == 1
+
+
+def test_v2_outage_restarts_stock_and_same_request_a(tmp_path, monkeypatch):
+    requests = []
+    def outage(_seconds):
+        request = json.loads((tmp_path / "ledger/handshake/request-1.json").read_text())
+        requests.append(request)
+        (tmp_path / "ledger/handshake/outage-1.json").write_text('{"api_error_status":429}')
+    monkeypatch.setattr(B.time, "sleep", outage)
+    runner = FakeRunner()
+    first = _v2_step(tmp_path, runner, "stock-evaluation-1", "llm", k2=B.K2Args(Path("manifest")))
+    assert len(_events(first, "stock-start")) == 1
+    assert not _events(first, "proposal-opportunity") and not _events(first, "evaluation-result")
+    assert B.next_series_action(tmp_path / "ledger") == ("stock-evaluation-1", None)
+    second = _v2_step(tmp_path, runner, "stock-evaluation-1", "llm", k2=B.K2Args(Path("manifest")))
+    assert len(_events(second, "stock-start")) == 2
+    assert [call["kind"] for call in runner.calls] == ["stock-start", "stock-start"]
+    assert len(requests) == 2 and all(row["a"] == 1 for row in requests)
+    assert requests[0]["current_perf_source"]["campaign_root"] != requests[1]["current_perf_source"]["campaign_root"]
+
+
 def test_series_scores_fresh_sessions_after_endpoint_fix(tmp_path):
     def before(call, directory):
         if call["kind"] == "score":

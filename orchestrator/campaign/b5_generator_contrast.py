@@ -43,6 +43,10 @@ from .projection_guard import (CODER_CONTRACT_K2, CODER_CONTRACT_IMPLEMENTATION,
 PREREG_VERSION = "b5-generator-contrast-v1"
 COHORT_PILOT = "t2797-beta-v1"
 COHORT_REGISTERED = "b5-registered-v1"
+COHORT_REGISTERED_V2 = "b5-registered-v2"
+PREREG_VERSION_V2 = "b5-generator-contrast-v2"
+COHORT_VERSIONS = {COHORT_REGISTERED: PREREG_VERSION,
+                   COHORT_REGISTERED_V2: PREREG_VERSION_V2}
 B_EVALUATIONS = 10
 A_PROPOSALS = 30
 N_EVAL = 5
@@ -110,7 +114,7 @@ def _generator_coordinates(workload, series, a=None):
         raise ValueError("invalid proposal opportunity")
 
 
-def random_value(w, r, a, weights):
+def random_value(w, r, a, weights, *, version=PREREG_VERSION):
     _generator_coordinates(w, r, a)
     if not weights or any(type(x) is not int or x <= 0 for x in weights):
         raise ValueError("positive integer weights required")
@@ -121,20 +125,20 @@ def random_value(w, r, a, weights):
     L = (2**256 // M) * M
     c = 0
     while True:
-        preimage = f"b5-generator-contrast-v1|random|{w}|{r}|{a}|{c}"
+        preimage = f"{version}|random|{w}|{r}|{a}|{c}"
         U = int.from_bytes(hashlib.sha256(preimage.encode("ascii")).digest(), "big")
         if U < L:
             return bisect_right(cumulative, U % M) + 1, c
         c += 1
 
 
-def sweep_order(w, r):
+def sweep_order(w, r, *, version=PREREG_VERSION):
     _generator_coordinates(w, r)
     grid = tuple(v for v in EXTENDED_SWEEP_US if 1 <= v <= 1000)
     if len(grid) != 28 or len(set(grid)) != 28:
         raise ValueError("registered sweep grid changed")
     return tuple(sorted(grid, key=lambda v: (
-        hashlib.sha256(f"b5-generator-contrast-v1|sweep|{w}|{r}|{v}".encode("ascii")).digest(), v)))
+        hashlib.sha256(f"{version}|sweep|{w}|{r}|{v}".encode("ascii")).digest(), v)))
 
 
 def machine_proposal_document(arm, value, provenance):
@@ -154,7 +158,7 @@ def machine_proposal_document(arm, value, provenance):
     return doc
 
 
-def slot_key(cohort, arm, workload, series, kind, n, attempt):
+def slot_key(cohort, arm, workload, series, kind, n, attempt, *, stock_restart=0):
     _generator_coordinates(workload, series)
     if (not cohort or not cohort.isascii() or any(c.isspace() or c == "|" for c in cohort)
             or type(attempt) is not int or not 0 <= attempt <= MAX_MACHINE_RETRIES
@@ -166,7 +170,12 @@ def slot_key(cohort, arm, workload, series, kind, n, attempt):
         raise ValueError("invalid slot kind or ordinal")
     if (arm == "stock") != (kind == "block-stock") or arm not in (*ARMS, "stock"):
         raise ValueError("invalid slot arm")
-    return f"{PREREG_VERSION}|{cohort}|{arm}|{workload}|{series}|{kind}|{n}|attempt-{attempt}"
+    if (type(stock_restart) is not int or stock_restart < 0 or
+            stock_restart and (cohort != COHORT_REGISTERED_V2 or kind != "stock-start")):
+        raise ValueError("invalid stock restart")
+    restart = f"|stock-run-{stock_restart}" if stock_restart else ""
+    return (f"{COHORT_VERSIONS.get(cohort, PREREG_VERSION)}|{cohort}|{arm}|{workload}|{series}"
+            f"{restart}|{kind}|{n}|attempt-{attempt}")
 
 
 def _utc(epoch=None):
@@ -504,7 +513,8 @@ class K2Args:
     knowledge_de_novo_claim: str | None = None
 
 
-def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt, proposal_path=None, k2=None):
+def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt, proposal_path=None, k2=None,
+              cohort=None):
     if arm not in (*ARMS, "stock") or workload not in WORKLOADS:
         raise ValueError("unknown arm/workload")
     if (arm == "llm") != (k2 is not None):
@@ -514,6 +524,8 @@ def slot_argv(*, arm, workload, key, sidecar_dir, prebuild_receipt, proposal_pat
     argv += ["--isolate-worktree", "--fetchcontent-prebuild-receipt", str(prebuild_receipt),
              "--calibrated-perf", "--perf-workload", workload, "--verify-performance",
              "--b5-slot", key, "--b5-sidecar-dir", str(sidecar_dir)]
+    if cohort == COHORT_REGISTERED_V2 and workload in ("write-heavy", "balanced"):
+        argv.append("--verify-performance-concurrent")
     if k2 is not None:
         if proposal_path is not None:
             argv += ["--allow-coder-derived-build"]
@@ -570,9 +582,11 @@ def _header(arm, workload, series, block, repo_root, *, purpose="pilot"):
             head = next((line.split()[0] for line in (common / "packed-refs").read_text().splitlines()
                          if line.endswith(" " + ref)), None)
     deadline = _deadline()
-    return {
-        "cohort": COHORT_REGISTERED if purpose == "registered" else COHORT_PILOT,
-        "purpose": purpose, "arm": arm, "workload": workload,
+    header = {
+        "cohort": (COHORT_REGISTERED_V2 if purpose == "registered-v2" else
+                   COHORT_REGISTERED if purpose == "registered" else COHORT_PILOT),
+        "purpose": "registered" if purpose == "registered-v2" else purpose,
+        "arm": arm, "workload": workload,
         "series": series, "block": block, "repo_head": head, "pin": loop_driver.PIN,
         "mode": "block-stock" if arm == "stock" else "series",
         "perf_config": asdict(loop_driver.calibrated_perf(workload)),
@@ -584,9 +598,12 @@ def _header(arm, workload, series, block, repo_root, *, purpose="pilot"):
         "allocation_deadline_status": "unknown" if deadline is None else "known",
         "limits": ["Parent intervention and actual input delivery are not mechanically guaranteed.",
                    ("Registered producer; cohort activation and actual execution order require external approval and evidence."
-                    if purpose == "registered" else
+                    if purpose in ("registered", "registered-v2") else
                     "Pilot only; does not establish preregistration section 10 completeness.")],
     }
+    if purpose == "registered-v2":
+        header["prereg_version"] = PREREG_VERSION_V2
+    return header
 
 
 def _genome(value):
@@ -603,22 +620,25 @@ def _stock_established(observation):
 def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
                   prebuild_receipt, repo_root, k2, runner):
     h = ledger.header
-    logical_slot = f"{kind}-{n}"
+    restart = (sum(e["kind"] == "stock-start" for e in ledger.events)
+               if h["cohort"] == COHORT_REGISTERED_V2 and kind == "stock-start" else 0)
+    logical_slot = f"{kind}-{n}" + (f"-restart-{restart}" if restart else "")
     submitted_once = False
     for attempt in range(MAX_MACHINE_RETRIES + 1):
         if not _allocation_available():
             if submitted_once:
                 return {**fields, "outcome": "allocation-exhausted", "submitted": True}, b
             return {"outcome": "allocation-exhausted", "submitted": submitted_once}, b
-        key = slot_key(h["cohort"], h["arm"], h["workload"], h["series"], kind, n, attempt)
+        key = slot_key(h["cohort"], h["arm"], h["workload"], h["series"], kind, n, attempt,
+                       stock_restart=restart)
         sidecar = ledger.root / "slots" / f"{logical_slot}-attempt-{attempt}"
         sidecar.mkdir(parents=True)
         argv = slot_argv(arm=h["arm"], workload=h["workload"], key=key,
                          sidecar_dir=sidecar, prebuild_receipt=prebuild_receipt,
-                         proposal_path=proposal_path, k2=k2)
+                         proposal_path=proposal_path, k2=k2, cohort=h["cohort"])
         ledger.append("slot-attempt-start", a=a, b=b, n=n, slot_kind=kind,
                       logical_slot=logical_slot, attempt=attempt, slot_key=key,
-                      sidecar_dir=str(sidecar.relative_to(ledger.root)))
+                      sidecar_dir=str(sidecar.relative_to(ledger.root)), stock_restart=restart)
         started = time.monotonic()
         timed_out = False
         try:
@@ -654,6 +674,7 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
                 b += 1
         fields = {**observation, "a": a, "b": b, "logical_slot": logical_slot,
                   "attempt": attempt, "slot_key": key, "value": value,
+                  "stock_restart": restart,
                   "proposal_path": str(proposal_path) if proposal_path else None,
                   "proposal_sha256": hashlib.sha256(Path(proposal_path).read_bytes()).hexdigest() if proposal_path else None,
                   "provenance": provenance, "returncode": rc, "argv": argv,
@@ -669,14 +690,14 @@ def _execute_slot(ledger, *, kind, n, a, b, value, proposal_path, provenance,
     raise AssertionError("unreachable retry loop")
 
 
-def _handshake(ledger, a, b):
+def _handshake(ledger, a, b, *, outage=False):
     directory = ledger.root / "handshake"
     directory.mkdir(exist_ok=True)
     expected = expected_inputs(ledger, b + 1)
     wait_started = time.monotonic()
     deadline = wait_started + LLM_WAIT_S
     _publish(directory / f"request-{a}.json", {"a": a, **expected,
-             "deadline_utc": _utc(time.time() + LLM_WAIT_S)})
+             "deadline_utc": _utc(time.time() + LLM_WAIT_S)}, replace=outage)
     proposal = directory / f"proposal-{a}.json"
     inputs = directory / f"inputs-{a}.json"
     rejected = directory / f"proposal-{a}.rejected.json"
@@ -685,11 +706,24 @@ def _handshake(ledger, a, b):
                               "proposal_wait_wall_s": time.monotonic() - wait_started}
 
     while True:
-        if rejected.exists():
+        if outage and (directory / f"outage-{a}.json").exists():
+            return finish("outage")
+        if outage and (directory / f"stop-{a}.json").exists():
+            return finish(_read_json(directory / f"stop-{a}.json")["reason"])
+        if outage:
+            live = SeriesLedger(ledger.root)
+            confirmed = any(e["kind"] == "proposal-opportunity" and e["a"] == a
+                            for e in live.events)
+            denied = any(e["kind"] == "proposal-rejected" and e["a"] == a
+                         for e in live.events)
+            if denied:
+                return finish("proposal-rejected", provenance=_read_json(rejected) if rejected.exists() else {})
+        if rejected.exists() and not outage:
             if proposal.exists():
                 return finish("inheritance-mismatch")
             return finish("proposal-rejected", provenance=_read_json(rejected))
-        if proposal.exists() and inputs.exists():
+        if proposal.exists() and inputs.exists() and (not outage or
+                                                     confirmed and (ledger.root / "proposals" / f"accepted-{a}.json").exists()):
             try:
                 actual = _read_json(inputs)
                 assert_inherited_inputs(ledger, actual["planner_input"], actual["coder_input"],
@@ -721,6 +755,8 @@ def _validate_run(arm, workload, series, block, k2):
 
 def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
                repo_root, k2=None, runner=default_runner, purpose="pilot"):
+    if purpose == "registered-v2":
+        raise ValueError("registered-v2 requires run_series_step")
     _validate_run(arm, workload, series, block, k2)
     if arm == "stock":
         raise ValueError("use run-block-stock")
@@ -841,9 +877,245 @@ def run_series(arm, workload, series, block, *, ledger_root, prebuild_receipt,
     return _finish(ledger, reason, a, b, score=statistics.median(scores), score_sessions=scores)
 
 
+def next_series_action(ledger):
+    """Derive the next v2 unit solely from the numbered ledger events."""
+    ledger = _ledger(ledger)
+    if ledger.header.get("cohort") != COHORT_REGISTERED_V2:
+        raise ValueError("v2 ledger required")
+    events = ledger.events
+    if events and events[-1]["kind"] == "series-end":
+        return ("done", None)
+    for index, event in enumerate(events):
+        if event["kind"] != "slot-attempt-start":
+            continue
+        key = (event["logical_slot"], event["attempt"])
+        settled = any((later.get("logical_slot"), later.get("attempt")) == key
+                      and later["kind"] in {"machine-retry",
+                                             "stock-start", "evaluation-result",
+                                             "score-session", "proposal-rejected"}
+                      for later in events[index + 1:])
+        if not settled:
+            return ("interrupted-slot", key)
+    scores = [e for e in events if e["kind"] == "score-session"]
+    if scores or any(e["kind"] == "endpoint-fixed" for e in events):
+        return ("score", None)
+    evaluated = [e for e in events if e["kind"] == "evaluation-result"]
+    opportunities = [e for e in events if e["kind"] == "proposal-opportunity"]
+    a, b = len(opportunities), len(evaluated)
+    if b == B_EVALUATIONS or a == A_PROPOSALS or (ledger.header["arm"] == "sweep-matched"
+            and a == len(sweep_order(ledger.header["workload"], ledger.header["series"],
+                                     version=PREREG_VERSION_V2))):
+        return ("score", None)
+    rejected = {e["a"] for e in events if e["kind"] == "proposal-rejected"}
+    used = {e["a"] for e in evaluated}
+    pending = next((e for e in reversed(opportunities)
+                    if e["a"] not in rejected | used), None)
+    if pending:
+        return ("stock-evaluation-1" if b == 0 else f"evaluation-{b + 1}", pending["a"])
+    if b == 0:
+        return ("stock-evaluation-1", None)
+    return ("proposal", a + 1)
+
+
+def _v2_proposal(ledger, a, b, proposal, provenance):
+    """Confirm one original proposal, then freeze accepted bytes for a compute job."""
+    ledger = _ledger(ledger)
+    path = Path(proposal) if proposal else None
+    ledger.append("proposal-opportunity", a=a, b=b, logical_slot=f"search-{a}",
+                  proposal_path=str(path) if path else None,
+                  proposal_sha256=hashlib.sha256(path.read_bytes()).hexdigest() if path else None,
+                  provenance=provenance)
+    if path is None:
+        ledger.append("proposal-rejected", a=a, b=b, provenance=provenance)
+        return None
+    try:
+        document = _read_json(path)
+        arm = ledger.header["arm"]
+        assert_closed_proposal_schema(document, require_auditor=False, require_coder_value=True,
+                                      coder_contract=CODER_CONTRACT_K2 if arm == "llm" else CODER_CONTRACT_IMPLEMENTATION)
+        assert_no_ability_probe_material(document)
+        value = document["coder"]["proposal"]["value"] if arm == "llm" else document["coder"]["value"]
+        if not validate_backoff_value(value).accepted:
+            raise ValueError("value outside registered grammar")
+        planner = loop_driver.PlannerProposal(**document["planner"])
+        if arm != "llm":
+            loop_driver.load_proposal_file(str(path))
+    except (ValueError, KeyError, TypeError) as exc:
+        ledger.append("proposal-rejected", a=a, b=b, note=str(exc), proposal_path=str(path),
+                      provenance=provenance)
+        return None
+    directory = ledger.root / "proposals"
+    directory.mkdir(exist_ok=True)
+    frozen = directory / f"accepted-{a}.json"
+    with frozen.open("xb") as stream:
+        stream.write(path.read_bytes())
+        stream.flush()
+        os.fsync(stream.fileno())
+    return frozen, int(value), planner.direction, planner.magnitude
+
+
+def _v2_machine_proposal(ledger, a):
+    h = ledger.header
+    version = PREREG_VERSION_V2
+    if h["arm"] == "random":
+        value, counter = random_value(h["workload"], h["series"], a, weights_table(), version=version)
+        preimage = f"{version}|random|{h['workload']}|{h['series']}|{a}|{counter}"
+    else:
+        value = sweep_order(h["workload"], h["series"], version=version)[a - 1]
+        counter = None
+        preimage = f"{version}|sweep|{h['workload']}|{h['series']}|{value}"
+    provenance = {"preimage": preimage, "counter": counter, "arm": h["arm"]}
+    directory = ledger.root / "proposals"
+    directory.mkdir(exist_ok=True)
+    path = directory / f"proposal-{a}.json"
+    _publish(path, machine_proposal_document(h["arm"], value, provenance))
+    return path, provenance
+
+
+def run_series_step(arm, workload, series, block, *, step, ledger_root, prebuild_receipt,
+                    repo_root, k2=None, runner=default_runner):
+    """Execute exactly one v2 compute allocation: first, evaluation, or score."""
+    _validate_run(arm, workload, series, block, k2)
+    if workload not in ("write-heavy", "balanced") or arm == "stock":
+        raise ValueError("invalid v2 coordinates")
+    root = Path(ledger_root)
+    if (root / "header.json").exists():
+        ledger = SeriesLedger(root)
+        h = ledger.header
+        if (h["cohort"], h["arm"], h["workload"], h["series"], h["block"]) != (
+                COHORT_REGISTERED_V2, arm, workload, series, block):
+            raise ValueError("v2 series coordinates mismatch")
+    else:
+        if step != "stock-evaluation-1":
+            raise ValueError("first step must include stock")
+        ledger = SeriesLedger.create(root, _header(arm, workload, series, block, repo_root,
+                                                   purpose="registered-v2"))
+        ledger.append("series-start", a=0, b=0)
+    action, pending_a = next_series_action(ledger)
+    if action != step:
+        raise ValueError(f"requested step {step} differs from ledger next step {action}")
+    common = dict(prebuild_receipt=prebuild_receipt, repo_root=repo_root, k2=k2, runner=runner)
+    b = sum(e["kind"] == "evaluation-result" for e in ledger.events)
+    a = sum(e["kind"] == "proposal-opportunity" for e in ledger.events)
+    if step == "stock-evaluation-1":
+        (ledger.root / "handshake").mkdir(exist_ok=True)
+        if arm == "llm":
+            (ledger.root / "handshake" / f"request-{a + 1}.json").unlink(missing_ok=True)
+            (ledger.root / "handshake" / f"outage-{a + 1}.json").unlink(missing_ok=True)
+        stock, _ = _execute_slot(ledger, kind="stock-start", n=1, a=a, b=0, value=-1,
+                                 proposal_path=None, provenance={}, **common)
+        ledger.append("stock-start", **stock)
+        if stock["outcome"] == "allocation-exhausted":
+            return _finish(ledger, "allocation-exhausted", a, 0)
+        if not _stock_established(stock):
+            return _finish(ledger, "stock-unestablished", a, 0)
+        if arm == "llm":
+            while True:
+                status, proposal, provenance = _handshake(ledger, a + 1, 0, outage=True)
+                if status == "outage":
+                    return ledger.view()
+                if status == "proposal-rejected":
+                    ledger = SeriesLedger(ledger.root)
+                    a += 1
+                    if a == A_PROPOSALS:
+                        break
+                    continue
+                if status != "proposal":
+                    return _finish(ledger, status, a, 0, provenance=provenance)
+                ledger = SeriesLedger(ledger.root)
+                confirmed = next((e for e in ledger.events if e["kind"] == "proposal-opportunity"
+                                  and e["a"] == a + 1), None)
+                frozen = ledger.root / "proposals" / f"accepted-{a + 1}.json"
+                if confirmed and frozen.exists():
+                    doc = _read_json(frozen)
+                    planner = loop_driver.PlannerProposal(**doc["planner"])
+                    accepted = (frozen, doc["coder"]["proposal"]["value"],
+                                planner.direction, planner.magnitude)
+                    provenance = confirmed["provenance"]
+                else:
+                    raise ValueError("LLM proposal lacks login confirmation")
+                a += 1
+                if accepted:
+                    break
+                if a == A_PROPOSALS:
+                    break
+        else:
+            proposal, provenance = _v2_machine_proposal(ledger, a + 1)
+            accepted = _v2_proposal(ledger, a + 1, 0, proposal, provenance)
+            a += 1
+    elif step.startswith("evaluation-"):
+        accepted = None
+        if pending_a is None:
+            raise ValueError("evaluation has no confirmed proposal")
+        a = pending_a
+    else:
+        evaluations = [e for e in ledger.events if e["kind"] == "evaluation-result"]
+        reason = ("b-complete" if b == B_EVALUATIONS else "a-exhausted" if a == A_PROPOSALS
+                  else "grid-exhausted")
+        disqualified = {e["value"] for e in evaluations if e["anomalies"] or e["outcome"] == "anomaly"}
+        endpoint = select_endpoint(evaluations, disqualified)
+        if not any(e["kind"] == "endpoint-fixed" for e in ledger.events):
+            ledger.append("endpoint-fixed", a=a, b=b, endpoint=endpoint,
+                          fallback="pending-block-stock" if endpoint is None else None)
+        if endpoint is None:
+            return _finish(ledger, "unclassified-missing" if any(e["quality"] == "quality-missing"
+                               for e in evaluations) else reason, a, b,
+                           fallback="pending-block-stock", score=None)
+        scores = [e["fitness_tps"] for e in ledger.events if e["kind"] == "score-session"]
+        for n in range(len(scores) + 1, N_EVAL + 1):
+            observed, _ = _execute_slot(ledger, kind="score", n=n, a=a, b=b,
+                                        value=endpoint["value"], proposal_path=endpoint["proposal_path"],
+                                        provenance=endpoint["provenance"], **common)
+            ledger.append("score-session", **observed)
+            if observed["outcome"] == "allocation-exhausted":
+                return _finish(ledger, "allocation-exhausted", a, b, score=None)
+            if observed["outcome"] == "anomaly":
+                return _finish(ledger, reason, a, b, fallback="pending-block-stock", score=None)
+            if observed["outcome"] != "certified" or observed["quality"] != "normal":
+                return _finish(ledger, "unclassified-missing", a, b, score=None)
+            scores.append(observed["fitness_tps"])
+        return _finish(ledger, reason, a, b, score=statistics.median(scores), score_sessions=scores)
+    if step == "stock-evaluation-1" and not accepted:
+        return ledger.view()
+    if step.startswith("evaluation-"):
+        opportunity = next(e for e in ledger.events if e["kind"] == "proposal-opportunity" and e["a"] == a)
+        proposal = Path(ledger.root / "proposals" / f"accepted-{a}.json")
+        if not proposal.exists() or hashlib.sha256(proposal.read_bytes()).hexdigest() != opportunity["proposal_sha256"]:
+            raise ValueError("accepted proposal digest mismatch")
+        provenance = opportunity["provenance"]
+        document = _read_json(proposal)
+        value = document["coder"]["proposal"]["value"] if arm == "llm" else document["coder"]["value"]
+        planner = loop_driver.PlannerProposal(**document["planner"])
+        direction, magnitude = planner.direction, planner.magnitude
+    else:
+        proposal, value, direction, magnitude = accepted
+    observed, b = _execute_slot(ledger, kind="search", n=a, a=a, b=b, value=int(value),
+                                proposal_path=proposal, provenance=provenance, **common)
+    if observed["submitted"]:
+        observed["whiteboard_entry"] = {"iteration": b, "direction": direction,
+                                        "magnitude": magnitude,
+                                        "result": "success" if observed["outcome"] == "certified" else "fail",
+                                        "delta_pct": None}
+        event = ledger.append("evaluation-result", **observed)
+        directory = ledger.root / "handshake"
+        directory.mkdir(exist_ok=True)
+        _publish(directory / f"slot-{b}.json", {**event,
+                 "digest_path": str(Path(observed["campaign_root"]) / "s4_loop_digest.txt")
+                 if observed["campaign_root"] else None})
+    else:
+        ledger.append("proposal-rejected", **observed)
+    if observed["outcome"] in {"allocation-exhausted", "duplicate-skip", "unclassified-missing",
+                               "submitted-unresolved", "pre-start-failure", "machine-failure"}:
+        return _finish(ledger, "allocation-exhausted" if observed["outcome"] == "allocation-exhausted"
+                       else "unclassified-missing", a, b, score=None)
+    return ledger.view()
+
+
 def run_block_stock(workload, block, *, ledger_root, prebuild_receipt, repo_root,
                     runner=default_runner, purpose="pilot"):
     _validate_run("stock", workload, block, block, None)
+    if purpose == "registered-v2" and workload not in ("write-heavy", "balanced"):
+        raise ValueError("invalid v2 workload")
     ledger = SeriesLedger.create(ledger_root, _header("stock", workload, block, block, repo_root, purpose=purpose))
     ledger.append("series-start", a=0, b=0)
     for n in range(1, BLOCK_STOCK_SESSIONS + 1):
@@ -861,16 +1133,18 @@ def run_block_stock(workload, block, *, ledger_root, prebuild_receipt, repo_root
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run-series", "run-block-stock"):
+    for name in ("run-series", "run-series-step", "run-block-stock"):
         p = sub.add_parser(name)
-        p.add_argument("--purpose", choices=("pilot", "registered"), default="pilot")
+        p.add_argument("--purpose", choices=("pilot", "registered", "registered-v2"), default="pilot")
         p.add_argument("--workload", choices=WORKLOADS, required=True)
         p.add_argument("--block", type=int, required=True)
         p.add_argument("--ledger-root", type=Path, required=True)
         p.add_argument("--fetchcontent-prebuild-receipt", type=Path, required=True)
-        if name == "run-series":
+        if name in ("run-series", "run-series-step"):
             p.add_argument("--arm", choices=ARMS, required=True)
             p.add_argument("--series", type=int, required=True)
+            if name == "run-series-step":
+                p.add_argument("--step", required=True)
             p.add_argument("--knowledge-manifest", type=Path)
             p.add_argument("--knowledge-classification")
             p.add_argument("--knowledge-de-novo-claim", choices=("true", "false"))
@@ -890,7 +1164,7 @@ def main(argv=None):
     options = dict(purpose=args.purpose, ledger_root=args.ledger_root.resolve(),
                    prebuild_receipt=args.fetchcontent_prebuild_receipt.resolve(),
                    repo_root=Path(__file__).resolve().parents[2])
-    if args.command == "run-series":
+    if args.command in ("run-series", "run-series-step"):
         supplied = any(getattr(args, key) is not None for key in
                        ("knowledge_manifest", "knowledge_classification", "knowledge_de_novo_claim"))
         if ((args.arm == "llm" and not all(getattr(args, key) for key in
@@ -903,7 +1177,16 @@ def main(argv=None):
             _validate_run(args.arm, args.workload, args.series, args.block, k2)
         except ValueError as exc:
             parser.error(str(exc))
-        result = run_series(args.arm, args.workload, args.series, args.block, k2=k2, **options)
+        if args.command == "run-series-step":
+            if args.purpose != "registered-v2":
+                parser.error("run-series-step requires registered-v2")
+            result = run_series_step(args.arm, args.workload, args.series, args.block,
+                                     step=args.step, k2=k2, **{k: v for k, v in options.items()
+                                                                 if k != "purpose"})
+        else:
+            if args.purpose == "registered-v2":
+                parser.error("registered-v2 requires run-series-step")
+            result = run_series(args.arm, args.workload, args.series, args.block, k2=k2, **options)
     else:
         try:
             _validate_run("stock", args.workload, args.block, args.block, None)
@@ -911,6 +1194,8 @@ def main(argv=None):
             parser.error(str(exc))
         result = run_block_stock(args.workload, args.block, **options)
     end = result["events"][-1]
+    if args.command == "run-series-step" and end["kind"] != "series-end":
+        return 0
     return 0 if end["reason"] in {"b-complete", "a-exhausted", "grid-exhausted"} else 1
 
 

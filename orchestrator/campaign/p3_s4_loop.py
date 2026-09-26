@@ -3621,8 +3621,8 @@ def main(
     if a.verify_performance and not (a.calibrated_perf and a.perf_workload):
         ap.error("--verify-performance requires --calibrated-perf and --perf-workload")
     if a.verify_performance_concurrent and (
-            not a.verify_performance or a.perf_workload != "write-heavy"):
-        ap.error("--verify-performance-concurrent requires --verify-performance and write-heavy")
+            not a.verify_performance or a.perf_workload not in ("write-heavy", "balanced")):
+        ap.error("--verify-performance-concurrent requires --verify-performance and write-heavy or balanced")
     if a.calibrated_perf != (a.perf_workload is not None):
         ap.error("--calibrated-perf and --perf-workload must be supplied together")
     if a.stock_control:

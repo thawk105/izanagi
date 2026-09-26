@@ -13,6 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from orchestrator.campaign import b5_generator_contrast_report as R
+from orchestrator.campaign import b5_generator_contrast as core
 
 WORKLOADS = ("write-heavy", "balanced", "read-heavy")
 ARMS = ("llm", "random", "sweep-matched")
@@ -87,6 +88,38 @@ def registered(llm=200, random=100, sweep=100):
     return [ledger(a, r, w, score={"llm": llm, "random": random, "sweep-matched": sweep}[a])
             for w in WORKLOADS for a in ARMS for r in range(1, 13)] + [
                 ledger("stock", b, w, score=100) for w in WORKLOADS for b in (1, 2, 3)]
+
+
+def v2_registered(*, fallback_series=()):
+    docs = [ledger(a, r, w, score=200 if a == "llm" else 100,
+                   fallback=(w, a, r) in fallback_series)
+            for w in WORKLOADS[:2] for a in ARMS for r in range(1, 13)] + [
+                ledger("stock", b, w, score=100) for w in WORKLOADS[:2] for b in (1, 2, 3)]
+    for doc in docs:
+        doc["header"]["cohort"] = R.V2_COHORT
+        doc["header"]["purpose"] = "registered"
+        doc["header"]["prereg_version"] = R.V2_PREREG_VERSION
+        for event in doc["events"]:
+            if event.get("slot_key"):
+                event["slot_key"] = event["slot_key"].replace(
+                    "b5-generator-contrast-v1|synthetic-registration|",
+                    R.V2_PREREG_VERSION + "|" + R.V2_COHORT + "|", 1)
+                event["campaign_id"] = event["slot_key"]
+            if event["kind"] == "stock-start":
+                event["stock_restart"] = 0
+        fixed = next((e for e in doc["events"] if e["kind"] == "endpoint-fixed"), None)
+        if fixed and fixed["endpoint"] is not None:
+            fixed["endpoint"] = deepcopy(doc["events"][2])
+    return docs
+
+
+def set_score(doc, score):
+    for event in doc["events"]:
+        if event["kind"] == "score-session":
+            event["fitness_tps"] = score
+            event["bench_payload"].update(tps=[score] * 5, median_tps=score)
+        if event["kind"] == "series-end":
+            event.update(score=score, score_sessions=[score] * 5)
 
 
 def save(tmp_path, doc, name="ledger"):
@@ -274,6 +307,150 @@ def test_registered_twelve_pairs_three_blocks(llm, expected):
         assert c["primary"]["block_medians"] == pytest.approx({b: math.log(llm / 100) for b in (1, 2, 3)})
         assert c["certified_endpoint_counts"] == {"llm": 12, c["baseline"]: 12}
     assert result["all_workloads_superiority"] == (llm == 200)
+
+
+def test_v2_four_comparison_holm_family():
+    report = R.build_report(v2_registered(), purpose="registered")
+    assert report["invalid"] == []
+    assert len(report["cells"]) == 6
+    assert len(report["comparisons"]) == 4
+    assert set(report["floors"]) == set(WORKLOADS[:2])
+    assert all(c["raw_p"] == Fraction(1, 4096) and
+               c["adjusted_p"] == Fraction(4, 4096) and
+               c["holm_threshold"] == Fraction(1, 80) for c in report["comparisons"])
+    assert all(c["judgment"] == "conditional-superiority" for c in report["comparisons"])
+    incomplete = [d for d in v2_registered() if not (d["header"]["workload"] == "write-heavy" and
+                   d["header"]["arm"] == "random" and d["header"]["series"] == 1)]
+    report = R.build_report(incomplete, purpose="registered")
+    unavailable = next(c for c in report["comparisons"] if c["workload"] == "write-heavy" and
+                       c["baseline"] == "random")
+    assert unavailable["raw_p"] == 1 and unavailable["p_is_unavailable_placeholder"]
+    assert len(report["comparisons"]) == 4
+
+
+def test_v2_restarted_stock_keeps_score_and_comparison():
+    docs = v2_registered()
+    doc = next(d for d in docs if d["header"]["arm"] == "llm" and
+               d["header"]["workload"] == "write-heavy" and d["header"]["series"] == 1)
+    first = doc["events"][1]
+    restart = deepcopy(first)
+    restart["logical_slot"] = "stock-start-1-restart-1"
+    restart["stock_restart"] = 1
+    restart["slot_key"] = core.slot_key(R.V2_COHORT, "llm", "write-heavy", 1,
+                                        "stock-start", 1, 0, stock_restart=1)
+    restart["campaign_id"] = restart["slot_key"]
+    doc["events"].insert(2, restart)
+    for n, event in enumerate(doc["events"], 1):
+        event["event_seq"] = n
+    fixed = next(e for e in doc["events"] if e["kind"] == "endpoint-fixed")
+    fixed["endpoint"] = deepcopy(next(e for e in doc["events"] if e["kind"] == "evaluation-result"))
+    report = R.build_report(docs, purpose="registered")
+    row = next(s for s in report["series"] if s["arm"] == "llm" and
+               s["workload"] == "write-heavy" and s["series"] == 1)
+    comparison = next(c for c in report["comparisons"] if c["workload"] == "write-heavy" and
+                      c["baseline"] == "random")
+    assert report["invalid"] == []
+    assert row["score"] == 200 and row["missing"] is None
+    assert row["superseded_stock_count"] == 1 and len(row["stock"]) == 2
+    assert "先行 stock は outage により測り直され" in row["stock_interpretation"]
+    assert comparison["judgment"] == "conditional-superiority"
+    restart["quality"] = "quality-missing"
+    restart["outcome"] = "quality-missing"
+    restart["fitness_tps"] = None
+    rejected = R.build_report(docs, purpose="registered")
+    row = next(s for s in rejected["series"] if s["arm"] == "llm" and
+               s["workload"] == "write-heavy" and s["series"] == 1)
+    assert row["score"] is None and row["missing"] == "stock-unestablished"
+
+
+@pytest.mark.parametrize("version", [None, "b5-generator-contrast-v1"])
+def test_v2_header_requires_registered_version(version):
+    doc = v2_registered()[0]
+    if version is None:
+        del doc["header"]["prereg_version"]
+    else:
+        doc["header"]["prereg_version"] = version
+    report = R.build_report([doc], purpose="registered")
+    assert any(i["category"] == "schema-inconsistent" for i in report["invalid"])
+
+
+def test_v2_batch_median_is_descriptive_only():
+    docs = v2_registered()
+    for doc in docs:
+        h = doc["header"]
+        if h["arm"] == "llm" and h["series"] <= 4:
+            set_score(doc, 99)
+    report = R.build_report(docs, purpose="registered")
+    assert report["invalid"] == []
+    for comparison in report["comparisons"]:
+        assert comparison["primary"]["block_medians"][1] < 0
+        assert comparison["judgment"] == "conditional-superiority"
+    v1_pairs = pairs()
+    for pair in v1_pairs[:4]:
+        pair["difference"] = math.log(0.99)
+    assert decide(v1_pairs)["judgment"] == "indeterminate-remaining"
+
+
+def test_v2_secondary_can_have_empty_batch_with_eight_pairs():
+    selected = pairs()
+    for pair in selected[:4]:
+        pair["fallback_arms"] = ["random"]
+    assert decide(selected)["judgment"] == "indeterminate-pairs"
+    assert decide(selected, v2=True)["judgment"] == "conditional-superiority"
+
+
+def test_v2_pooled_stock_cv_not_batch_maximum():
+    docs = v2_registered()
+    stock = next(d for d in docs if d["header"]["arm"] == "stock" and
+                 d["header"]["workload"] == "write-heavy" and d["header"]["block"] == 1)
+    for event, value in zip((e for e in stock["events"] if e["kind"] == "stock-start"),
+                            (80, 90, 100, 110, 120)):
+        event["fitness_tps"] = value
+        event["bench_payload"].update(tps=[value] * 5, median_tps=value)
+    report = R.build_report(docs, purpose="registered")
+    assert report["invalid"] == []
+    floor = report["floors"]["write-heavy"]
+    assert floor["cv_stock"] == pytest.approx(math.sqrt(1000 / 14) / 100)
+    assert floor["cv_stock"] == floor["cv_all"]
+    assert floor["cv_block"][1] > floor["cv_stock"]
+    assert floor["f"] == floor["cv_stock"]
+
+
+def test_v2_fallback_uses_pooled_fifteen_session_median():
+    docs = v2_registered(fallback_series={("write-heavy", "llm", 1)})
+    for doc in docs:
+        h = doc["header"]
+        if h["arm"] == "stock" and h["workload"] == "write-heavy":
+            value = {1: 80, 2: 100, 3: 120}[h["block"]]
+            for event in (e for e in doc["events"] if e["kind"] == "stock-start"):
+                event["fitness_tps"] = value
+                event["bench_payload"].update(tps=[value] * 5, median_tps=value)
+    report = R.build_report(docs, purpose="registered")
+    assert report["invalid"] == []
+    row = next(s for s in report["series"] if s["workload"] == "write-heavy" and
+               s["arm"] == "llm" and s["series"] == 1)
+    assert row["fallback"] and row["score"] == 100
+    assert len(row["score_sessions"]) == 15
+    assert not row["fallback_shared_block_stock"]
+    without_stock_session = docs.copy()
+    stock = next(d for d in without_stock_session if d["header"]["arm"] == "stock" and
+                 d["header"]["workload"] == "write-heavy" and d["header"]["block"] == 3)
+    stock["events"][1].update(outcome="quality-missing", quality="quality-missing", fitness_tps=None)
+    missing = R.build_report(without_stock_session, purpose="registered")
+    row = next(s for s in missing["series"] if s["workload"] == "write-heavy" and
+               s["arm"] == "llm" and s["series"] == 1)
+    assert row["score"] is None and row["missing"] == "stock-unestablished"
+    assert missing["floors"]["write-heavy"] is None
+
+
+def test_v2_read_heavy_and_mixed_cohort_rejected():
+    read_heavy = ledger(workload="read-heavy")
+    read_heavy["header"]["cohort"] = R.V2_COHORT
+    report = R.build_report([read_heavy], purpose="registered")
+    assert any(i["category"] == "schema-inconsistent" for i in report["invalid"])
+    mixed = R.build_report(v2_registered() + [ledger()], purpose="registered")
+    assert any(i["detail"] == "registered cohort must be unique" for i in mixed["invalid"])
+    assert all(c["judgment"] == "protocol-nonconforming" for c in mixed["comparisons"])
 
 
 def test_one_baseline_win_is_not_workload_superiority():

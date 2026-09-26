@@ -9,11 +9,246 @@ from types import SimpleNamespace, ModuleType
 import pytest
 
 from tools.pegasus import b5_contrast_launch as launch
+from orchestrator.campaign import b5_generator_contrast as core
 
 
 def _git(path, *args, input=None):
     return subprocess.run(["git", "-C", str(path), *args], input=input,
                           capture_output=True, text=True, check=True).stdout.strip()
+
+
+def test_v2_schedule_pairs_and_six_orders_twice():
+    schedule = launch.registered_v2_schedule()
+    assert schedule["cohort"] == core.COHORT_REGISTERED_V2
+    assert len(schedule["orders"]) == 24
+    for workload in ("write-heavy", "balanced"):
+        orders = [row["order"] for row in schedule["orders"] if row["workload"] == workload]
+        assert sorted({order: orders.count(order) for order in orders}.values()) == [2] * 6
+    assert all(row["workload"] in ("write-heavy", "balanced") for row in schedule["jobs"])
+
+
+@pytest.mark.parametrize("reply,expected", [("outage", "outage"), ("success", "ready")])
+def test_v2_login_429_does_not_count_a_and_empty_output_does(tmp_path, reply, expected):
+    ledger = core.SeriesLedger.create(tmp_path / "ledger", {"cohort": core.COHORT_REGISTERED_V2,
+                          "arm": "llm", "workload": "write-heavy", "series": 1, "block": 1})
+    ledger.append("series-start", a=0, b=0)
+    ledger.append("stock-start", a=0, b=0, outcome="certified", quality="normal",
+                  fitness_tps=100., bench_payload={"leading_indicators": {"abort_rate": 0.1}},
+                  campaign_root="/tmp/stock")
+    job = launch.RegisteredJob("job", 1, "series-step", "llm", "write-heavy", 1, 1,
+                               ledger.root, tmp_path / "evidence")
+    class FakeParent:
+        def __init__(self, *_args): pass
+        def tick(self, _item, a, _request, handshake):
+            if reply == "outage":
+                (handshake / f"outage-{a}.json").write_text('{"api_error_status":429}')
+            return reply
+    driver = launch.V2Launcher((job,), {"job": launch.SubmitTree(tmp_path, "0" * 40, tmp_path)},
+                               parent_config={"series": [{"job_id": "job", "workload": "write-heavy",
+                                                          "series": 1, "block": 1,
+                                                          "ledger_root": str(ledger.root)}]},
+                               state_root=tmp_path / "state", max_active_series=1,
+                               parent_factory=FakeParent)
+    assert driver._drive_parent(job, ledger, 1, first=False) == expected
+    opportunities = [e for e in ledger.events if e["kind"] == "proposal-opportunity"]
+    rejected = [e for e in ledger.events if e["kind"] == "proposal-rejected"]
+    assert len(opportunities) == len(rejected) == (0 if reply == "outage" else 1)
+    if rejected:
+        assert rejected[0]["provenance"]["reason"] == "empty-output"
+
+
+def test_v2_three_parent_outages_leave_a_b_and_missing_unchanged(tmp_path):
+    ledger = core.SeriesLedger.create(tmp_path / "ledger", {"cohort": core.COHORT_REGISTERED_V2,
+                          "arm": "llm", "workload": "write-heavy", "series": 1, "block": 1})
+    ledger.append("series-start", a=0, b=0)
+    ledger.append("stock-start", a=0, b=0, outcome="certified", quality="normal",
+                  fitness_tps=100., bench_payload={"leading_indicators": {"abort_rate": 0.1}},
+                  campaign_root="/tmp/stock")
+    job = launch.RegisteredJob("job", 1, "series-step", "llm", "write-heavy", 1, 1,
+                               ledger.root, tmp_path / "evidence")
+    class ParentWithOutages:
+        calls = 0
+        def __init__(self, *_args): pass
+        def tick(self, _item, _a, _request, _handshake):
+            self.calls += 1
+            return "outage" if self.calls <= 3 else "success"
+    driver = launch.V2Launcher((job,), {"job": launch.SubmitTree(tmp_path, "0" * 40, tmp_path)},
+                               parent_config={"series": [{"job_id": "job", "workload": "write-heavy",
+                                                          "series": 1, "block": 1,
+                                                          "ledger_root": str(ledger.root)}]},
+                               state_root=tmp_path / "state", max_active_series=1,
+                               parent_factory=ParentWithOutages)
+    for _ in range(3):
+        assert driver._drive_parent(job, ledger, 1, first=False) == "outage"
+        assert not [e for e in ledger.events if e["kind"] in
+                    {"proposal-opportunity", "evaluation-result", "series-end"}]
+    assert driver._drive_parent(job, ledger, 1, first=False) == "ready"
+    assert [e["a"] for e in ledger.events if e["kind"] == "proposal-opportunity"] == [1]
+    assert not [e for e in ledger.events if e["kind"] in {"evaluation-result", "series-end"}]
+
+
+def test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    import time
+    from orchestrator.tests.test_b5_generator_contrast import FakeRunner, ROOT
+    from tools.pegasus.b5_llm_parent import Parent, FORBIDDEN
+
+    for key in FORBIDDEN:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(core, "LLM_POLL_S", 0.001)
+    real_time = time.time
+
+    def exercise(label, outages):
+        root = tmp_path / label
+        root.mkdir()
+        stock = launch.RegisteredJob("stock", 0, "block-stock", "stock", "write-heavy", 1, 1,
+                                     root / "stock", root / "stock-evidence")
+        stock_ledger = core.SeriesLedger.create(stock.ledger_root, {"cohort": core.COHORT_REGISTERED_V2})
+        stock_ledger.append("series-end", reason="b-complete")
+        job = launch.RegisteredJob("llm", 1, "series-step", "llm", "write-heavy", 1, 1,
+                                   root / "ledger", root / "evidence",
+                                   launch.K2(root / "manifest", "de_novo", "true"))
+        for name, content in (("header", "request {a} {request_path}\n"),
+                              ("resume", "request {a} {request_path}\n"),
+                              ("template", "# template\n## 2. fixed\ntext\n")):
+            (root / name).write_text(content)
+        config = {"effect_checkout": str(ROOT), "settings": "settings.json", "model": "fixture",
+                  "header": str(root / "header"), "resume": str(root / "resume"),
+                  "template": str(root / "template"), "manifest": str(root / "manifest"),
+                  "series": [{"job_id": "llm", "workload": "write-heavy", "series": 1,
+                              "block": 1, "ledger_root": str(job.ledger_root),
+                              "materials_root": str(root), "session_id": "fixed-session"}]}
+        runner = FakeRunner()
+        launches = []
+        clock = [real_time()]
+        monkeypatch.setattr(launch.time, "time", lambda: clock[0])
+
+        class Child:
+            pid = 12345
+            def __init__(self, publish=None): self.publish = publish
+            def poll(self):
+                if self.publish:
+                    self.publish()
+                    self.publish = None
+                return 0
+
+        def spawn(argv, **kwargs):
+            index = len(launches)
+            launches.append(argv)
+            publish = None
+            if index < outages:
+                answer = {"is_error": True, "api_error_status": 429}
+            else:
+                request = Path(kwargs["stdin"].read().decode().splitlines()[0].split()[-1])
+                expected = json.loads(request.read_text())
+                handshake = request.parent
+                inputs = {"planner_input": {"whiteboard": [], "current_perf": expected["current_perf"]},
+                          "coder_input": {"whiteboard": [], "baseline": expected["baseline"]}}
+                proposal = {"planner": {"axis": core.loop_driver.MARKER_ID,
+                                        "direction": "decrease", "magnitude": "small"},
+                            "coder": {"proposal": {"axis": core.loop_driver.MARKER_ID, "value": 20,
+                                                   "implementation": "double now_backoff = 20;",
+                                                   "justification": "fixture", "confidence": "low"},
+                                      "knowledge_use": [], "classification": "de_novo",
+                                      "data_boundary_report": {"instruction_like_content_detected": False,
+                                                               "details": "fixture"}},
+                            "prior_critic_reverse": True}
+                def publish():
+                    (handshake / "inputs-1.json").write_text(json.dumps(inputs))
+                    (handshake / "proposal-1.json").write_text(json.dumps(proposal))
+                answer = {"is_error": False}
+            kwargs["stdout"].write(json.dumps(answer).encode())
+            return Child(publish)
+
+        def parent_factory(parent_config, state_dir):
+            return Parent(parent_config, state_dir, spawn=spawn, alive=lambda _pid: False,
+                          now=lambda: clock[0])
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            futures = []
+            def submit(argv, **_kwargs):
+                evidence = Path(argv[argv.index("-o") + 1]).parent
+                env = dict(part.split("=", 1) for part in argv[argv.index("-v") + 1].split(","))
+                def compute():
+                    try:
+                        core.run_series_step("llm", "write-heavy", 1, 1,
+                            step=env["IZANAGI_S4_B5_STEP"], ledger_root=job.ledger_root,
+                            prebuild_receipt=root / "receipt", repo_root=ROOT,
+                            k2=core.K2Args(root / "manifest"), runner=runner)
+                        rc = 0
+                    except Exception:
+                        rc = 1
+                        raise
+                    finally:
+                        (evidence / "compute-result.json").write_text(json.dumps({"driver_rc": rc}))
+                futures.append(pool.submit(compute))
+                return subprocess.CompletedProcess(argv, 0, "123.server\n", "")
+
+            driver = launch.V2Launcher((stock, job), {"stock": launch.SubmitTree(ROOT, "0" * 40, ROOT),
+                                                   "llm": launch.SubmitTree(ROOT, "0" * 40, ROOT)},
+                parent_config=config, state_root=root / "state", max_active_series=1,
+                submitter=submit, parent_factory=parent_factory)
+            for _ in range(5000):
+                status = driver.tick()
+                clock[0] += 21 if status.get("llm") == "outage" else 0.01
+                if (job.ledger_root / "header.json").exists():
+                    events = core.SeriesLedger(job.ledger_root).events
+                    if any(e["kind"] == "evaluation-result" for e in events):
+                        break
+                time.sleep(0.001)
+            else:
+                handshake = job.ledger_root / "handshake"
+                handshake.mkdir(exist_ok=True)
+                (handshake / "outage-1.json").write_text('{"api_error_status":429}')
+                pytest.fail("first evaluation did not finish")
+            for future in futures:
+                future.result()
+        ledger = core.SeriesLedger(job.ledger_root)
+        assert ledger.header["purpose"] == "registered"
+        assert ledger.header["cohort"] == core.COHORT_REGISTERED_V2
+        assert ledger.header["prereg_version"] == core.PREREG_VERSION_V2
+        state = json.loads((root / "state/parents/llm/state.json").read_text())
+        return ledger, runner, launches, state
+
+    baseline, baseline_runner, baseline_launches, baseline_state = exercise("baseline", 0)
+    resumed, resumed_runner, resumed_launches, resumed_state = exercise("resumed", 3)
+    count = lambda ledger, kind: sum(e["kind"] == kind for e in ledger.events)
+    assert [count(resumed, kind) for kind in ("proposal-opportunity", "evaluation-result",
+                                              "series-end")] == [1, 1, 0]
+    assert [count(resumed, kind) for kind in ("proposal-opportunity", "evaluation-result",
+                                              "series-end")] == [
+        count(baseline, kind) for kind in ("proposal-opportunity", "evaluation-result", "series-end")]
+    assert count(resumed, "stock-start") == 4 and count(baseline, "stock-start") == 1
+    assert len({e["campaign_root"] for e in resumed.events if e["kind"] == "stock-start"}) == 4
+    assert [call["kind"] for call in resumed_runner.calls] == ["stock-start"] * 4 + ["search"]
+    assert len(resumed_launches) == len(baseline_launches) + 3 == 4
+    assert resumed_state["failures"] == baseline_state["failures"] == 0
+    assert resumed_state["success_a"] == baseline_state["success_a"] == 1
+    assert [e["quality"] for e in resumed.events if e["kind"] == "evaluation-result"] == ["normal"]
+    assert all("--resume" in argv for argv in resumed_launches[1:])
+    assert [e["a"] for e in resumed.events if e["kind"] == "proposal-opportunity"] == [1]
+
+
+def test_v2_qsub_no_answer_stays_fail_closed_on_restart(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    thirdparty = tmp_path / "thirdparty"
+    thirdparty.mkdir()
+    job = launch.RegisteredJob("stock", 0, "block-stock", "stock", "write-heavy", 1, 1,
+                               tmp_path / "ledger", tmp_path / "evidence")
+    tree = launch.SubmitTree(repo, "0" * 40, repo, thirdparty)
+    calls = []
+    def submit(argv, **_kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+    driver = launch.V2Launcher((job,), {"stock": tree}, parent_config={"series": []},
+                               state_root=tmp_path / "state", max_active_series=1,
+                               submitter=submit)
+    with pytest.raises(RuntimeError, match="did not answer"):
+        driver._submit(job)
+    with pytest.raises(RuntimeError, match="unanswered qsub"):
+        driver._submit(job)
+    assert len(calls) == 1
 
 
 def _fixed_repo(path):

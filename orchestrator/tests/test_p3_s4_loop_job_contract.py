@@ -1997,6 +1997,15 @@ def test_b5_fragment_mutants_have_one_static_failure(label, fragment):
     assert str(error.value) == f"job contract missing: {label}"
 
 
+def test_b5_v2_step_surface_is_separate_from_v1_modes():
+    body = JOB.read_text()
+    assert 'series-step:llm|series-step:random|series-step:sweep-matched) ;;' in body
+    assert '[[ "${IZANAGI_S4_B5_PURPOSE-}" == registered-v2 ]]' in body
+    assert 'stock-evaluation-1|evaluation-([2-9]|10)|score' in body
+    assert 'b5_argv+=(--step "$IZANAGI_S4_B5_STEP")' in body
+    assert 'b5_argv+=(--purpose "$IZANAGI_S4_B5_PURPOSE")' in body
+
+
 def _b5_environment(tmp_path, arm="random"):
     env = {
         "IZANAGI_S4_B5_MODE": "block-stock" if arm == "stock" else "series",

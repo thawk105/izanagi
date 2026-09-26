@@ -13,6 +13,7 @@ from itertools import product
 import json
 import math
 from pathlib import Path
+import re
 import statistics
 import sys
 from typing import Literal
@@ -25,6 +26,10 @@ from . import b5_generator_contrast as core
 
 ComparisonKey = tuple[str, str]
 COMPARISONS = tuple((w, b) for w in core.WORKLOADS for b in core.ARMS[1:])
+V2_COHORT = core.COHORT_REGISTERED_V2
+V2_PREREG_VERSION = core.PREREG_VERSION_V2
+V2_WORKLOADS = core.WORKLOADS[:2]
+V2_COMPARISONS = tuple((w, b) for w in V2_WORKLOADS for b in core.ARMS[1:])
 INDEPENDENCE = "登録した独立性の仮定の下で"
 RESULT_KINDS = {"stock-start", "evaluation-result", "score-session", "proposal-rejected"}
 
@@ -57,10 +62,14 @@ def exact_sign_flip_p(differences) -> Fraction:
 
 def holm_six(raw_p: Mapping[ComparisonKey, Fraction | float]) -> dict:
     """Fixed six-member family, including unavailable tests as computational 1."""
-    if set(raw_p) - set(COMPARISONS):
+    return _holm(raw_p, COMPARISONS)
+
+
+def _holm(raw_p, comparisons):
+    if set(raw_p) - set(comparisons):
         raise ValueError("unknown comparison")
     p = {}
-    for key in COMPARISONS:
+    for key in comparisons:
         value = raw_p.get(key, 1)
         try:
             value = Fraction(str(value)) if isinstance(value, float) else Fraction(value)
@@ -68,22 +77,24 @@ def holm_six(raw_p: Mapping[ComparisonKey, Fraction | float]) -> dict:
         except (ValueError, TypeError, OverflowError):
             p[key] = Fraction(1)
     adjusted, running = {}, Fraction(0)
-    for rank, key in enumerate(sorted(COMPARISONS, key=lambda k: (p[k], k))):
-        running = max(running, min(Fraction(1), (6 - rank) * p[key]))
+    for rank, key in enumerate(sorted(comparisons, key=lambda k: (p[k], k))):
+        remaining = len(comparisons) - rank
+        multiplier = (6 - rank) * p[key] if len(comparisons) == 6 else remaining * p[key]
+        running = max(running, min(Fraction(1), multiplier))
         adjusted[key] = {"raw_p": p[key], "adjusted_p": running,
                          "significant": running <= Fraction(1, 20),
-                         "threshold": Fraction(1, 20 * (6 - rank))}
+                         "threshold": Fraction(1, 20 * remaining)}
     return adjusted
 
 
-def stock_cv_floor(block_stock_sessions) -> dict:
-    """The maximum of all 15 sessions' CV and each of three blocks' CV."""
+def stock_cv_floor(block_stock_sessions, *, v2=False) -> dict:
+    """Use pooled CV for v2; v1 retains the maximum of pooled and block CVs."""
     blocks = dict(block_stock_sessions)
     if set(blocks) != {1, 2, 3} or any(len(v) != core.BLOCK_STOCK_SESSIONS for v in blocks.values()):
         raise ValueError("floor requires three blocks of five sessions")
     cvs = {b: _cv(blocks[b]) for b in (1, 2, 3)}
     all_cv = _cv([x for b in (1, 2, 3) for x in blocks[b]])
-    stock = max(all_cv, *cvs.values())
+    stock = all_cv if v2 else max(all_cv, *cvs.values())
     f = max(0.03, stock)
     return {"cv_all": all_cv, "cv_block": cvs, "cv_stock": stock,
             "f": f, "delta": math.log1p(f)}
@@ -115,7 +126,7 @@ def _analysis(pairs):
 
 
 def decide_comparison(pairs, *, floor, certified_counts,
-                      invalid=False, missing=False, significant=False) -> dict:
+                      invalid=False, missing=False, significant=False, v2=False) -> dict:
     """Apply preregistration 7.4 in order; Holm is supplied after eligibility."""
     omitted = [p for p in pairs if p["fallback_arms"]]
     secondary_pairs = [p for p in pairs if not p["fallback_arms"]]
@@ -138,14 +149,14 @@ def decide_comparison(pairs, *, floor, certified_counts,
         failed = [a for a, n in certified_counts.items() if n < 6]
         if failed:
             judgment = "generation-failed-both" if len(failed) == 2 else "generation-failed-" + failed[0]
-        elif chosen["n"] < 6 or any(v is None for v in chosen["block_medians"].values()):
+        elif chosen["n"] < 6 or (not v2 and any(v is None for v in chosen["block_medians"].values())):
             judgment = "indeterminate-pairs"
         elif any(cv > 2 * floor["f"] for p in selected for cv in p["endpoint_cvs"]):
             judgment = "indeterminate-precision"
     if judgment is None:
         result.update(raw_p=chosen["raw_p"], p_is_unavailable_placeholder=False)
         median, delta = chosen["median"], floor["delta"]
-        if significant and median > delta and all(x > 0 for x in chosen["block_medians"].values()):
+        if significant and median > delta and (v2 or all(x > 0 for x in chosen["block_medians"].values())):
             judgment = "conditional-superiority"
         elif abs(median) <= delta:
             judgment = "equivalent-within-floor"
@@ -206,6 +217,10 @@ def _validate(ledger, invalid, purpose):
             or not isinstance(h.get("job"), dict) or not isinstance(h.get("perf_config"), dict)
             or (h.get("A"), h.get("B"), h.get("N_eval")) != (core.A_PROPOSALS, core.B_EVALUATIONS, core.N_EVAL)):
         bad("schema-inconsistent", "header contract")
+        return False
+    if h["cohort"] == V2_COHORT and (purpose != "registered" or h["workload"] not in V2_WORKLOADS
+                                     or h.get("prereg_version") != V2_PREREG_VERSION):
+        bad("schema-inconsistent", "v2 cohort workload/purpose/version mismatch")
         return False
     stock = h["arm"] == "stock"
     if h["verify_mode"] != "legacy+performance" or h["bench_max_rounds"] != 3:
@@ -276,8 +291,18 @@ def _validate(ledger, invalid, purpose):
             continue  # A1 records the opportunity before any physical attempt exists.
         if logical is not None:
             try:
-                slot_kind, number = logical.rsplit("-", 1)
-                expected = core.slot_key(h["cohort"], h["arm"], h["workload"], h["series"], slot_kind, int(number), attempt)
+                stock_restart = 0
+                restart_slot = re.fullmatch(r"stock-start-1-restart-([1-9][0-9]*)", logical) if h["cohort"] == V2_COHORT else None
+                if restart_slot:
+                    slot_kind, number = "stock-start", 1
+                    stock_restart = int(restart_slot.group(1))
+                else:
+                    slot_kind, number = logical.rsplit("-", 1)
+                    number = int(number)
+                expected = core.slot_key(h["cohort"], h["arm"], h["workload"], h["series"], slot_kind, number, attempt,
+                                         stock_restart=stock_restart)
+                if h["cohort"] == V2_COHORT and slot_kind == "stock-start" and e.get("stock_restart") != stock_restart:
+                    raise ValueError("stock restart mismatch")
                 if type(attempt) is not int or not 0 <= attempt <= core.MAX_MACHINE_RETRIES or expected != e["slot_key"]:
                     raise ValueError("slot ownership")
                 attempts.setdefault(logical, set()).add(attempt)
@@ -410,7 +435,7 @@ def _describe(ledger):
             "interval_label": "trace+verifier+周辺処理 区間"}
 
 
-def _project(ledger, disqualified, stocks, corrections):
+def _project(ledger, disqualified, stocks, corrections, *, v2=False):
     h, events = ledger["header"], ledger["events"]
     result = _describe(ledger)
     fixed = next((e for e in events if e["kind"] == "endpoint-fixed"), None)
@@ -423,15 +448,17 @@ def _project(ledger, disqualified, stocks, corrections):
     missing = None
     sessions = []
     if fallback:
-        sessions = stocks.get((h["workload"], h["block"]), [])
-        if len(sessions) != core.BLOCK_STOCK_SESSIONS:
+        sessions = (stocks.get(h["workload"], []) if v2 else
+                    stocks.get((h["workload"], h["block"]), []))
+        if len(sessions) != (15 if v2 else core.BLOCK_STOCK_SESSIONS):
             missing = "stock-unestablished"
     elif endpoint and len(scores) == core.N_EVAL and all(_normal(e) for e in scores):
         sessions = [e["fitness_tps"] for e in scores]
     else:
         missing = "quality-missing" if quality_missing else "machine-missing" if any(e.get("failure_class") == "machine" or e.get("outcome") in {"pre-start-failure", "machine-failure"} for e in events) else "unclassified-missing"
     starts = [e for e in events if e["kind"] == "stock-start"]
-    if len(starts) != 1 or not all(_stock_normal(e) for e in starts):
+    if not starts or (v2 and not _stock_normal(starts[-1])) or (not v2 and
+            (len(starts) != 1 or not all(_stock_normal(e) for e in starts))):
         missing = "stock-unestablished"
     if (h["workload"], -1) in disqualified:
         missing = "stock-unestablished"
@@ -444,9 +471,12 @@ def _project(ledger, disqualified, stocks, corrections):
     score = statistics.median(sessions) if sessions and missing is None else None
     result.update(endpoint=endpoint, endpoint_revoked=revoked, certified_endpoint=endpoint is not None and not revoked,
                   score=score, score_sessions=sessions, endpoint_cv=_cv(sessions) if sessions and not fallback else None,
-                  fallback=fallback, fallback_shared_block_stock=fallback, missing=missing,
+                  fallback=fallback, fallback_shared_block_stock=fallback and not v2, missing=missing,
                   failure_condition_a=revoked or bool(result["anomaly"]),
                   events=events)
+    if v2:
+        result["superseded_stock_count"] = max(0, len(starts) - 1)
+        result["stock_interpretation"] = "先行 stock は outage により測り直され、最後の stock-start を系列開始 stock として使う。"
     return result
 
 
@@ -460,6 +490,12 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
         if ledger is not None and _validate(ledger, invalid, purpose):
             ledger["reconciled"] = _reconcile(ledger, invalid)
             loaded.append(ledger)
+    cohorts = {x["header"]["cohort"] for x in loaded}
+    v2 = purpose == "registered" and cohorts == {V2_COHORT}
+    workloads = V2_WORKLOADS if v2 else core.WORKLOADS
+    comparisons_family = V2_COMPARISONS if v2 else COMPARISONS
+    if purpose == "registered" and len(cohorts) != 1:
+        invalid.append({"category": "schema-inconsistent", "detail": "registered cohort must be unique"})
     identities, session_owners = set(), {}
     configurations = {}
     for ledger in loaded:
@@ -492,8 +528,11 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
             stocks[h["workload"], h["block"]] = values
         stock_descriptions.append({**_describe(ledger), "sessions": values,
                                    "descriptive_cv": _cv(values) if len(values) == 5 else None})
+    if v2:
+        stocks.update({w: [value for b in (1, 2, 3) for value in stocks.get((w, b), [])]
+                       for w in workloads})
     corrections = []
-    series = [_project(x, disqualified, stocks, corrections) for x in loaded if x["header"]["arm"] != "stock"]
+    series = [_project(x, disqualified, stocks, corrections, v2=v2) for x in loaded if x["header"]["arm"] != "stock"]
     for ledger, row in zip((x for x in loaded if x["header"]["arm"] != "stock"), series):
         ends = [e for e in ledger["events"] if e["kind"] == "series-end"]
         if ends and ends[-1].get("score") is not None and not row["endpoint_revoked"] and ends[-1]["score"] != row["score"]:
@@ -508,42 +547,40 @@ def build_report(ledgers, *, purpose: Literal["pilot", "registered"]) -> dict:
                          "missing_count": sum(x["workload"] == w and x["arm"] == a and x["missing"] is not None for x in series),
                          "unfinished_count": sum(x["workload"] == w and x["arm"] == a and x["unfinished"] for x in series),
                          "certified_endpoint_count": sum(x["workload"] == w and x["arm"] == a and x["certified_endpoint"] for x in series)}
-                        for w in core.WORKLOADS for a in core.ARMS]}
+                        for w in workloads for a in core.ARMS]}
     if purpose == "pilot":
         report["registered_judgment"] = "not-applicable-pilot"
         report["interpretation"] = "登録比較に必要な系列数・block・floorを満たさない。stock CV は記述統計。"
         return report
     report["registered_judgment"] = "see-comparisons"
     report["scope"] = "Frozen environment, workload and generators only; this report does not authorize cohort activation."
-    report["assumption"] = INDEPENDENCE + "。block の再現は共通ショックを排除せず、独立性を証明しない。"
+    report["assumption"] = (INDEPENDENCE + "。時間分離を独立性の支えに数えず、共通の変動や対の中の時期差を排除しない。"
+                            if v2 else INDEPENDENCE + "。block の再現は共通ショックを排除せず、独立性を証明しない。")
     floors, inputs, preliminary = {}, {}, {}
-    cohorts = {x["header"]["cohort"] for x in loaded}
-    if len(cohorts) != 1:
-        invalid.append({"category": "schema-inconsistent", "detail": "registered cohort must be unique"})
-    for w in core.WORKLOADS:
+    for w in workloads:
         try:
-            floors[w] = stock_cv_floor({b: stocks.get((w, b), []) for b in (1, 2, 3)})
+            floors[w] = stock_cv_floor({b: stocks.get((w, b), []) for b in (1, 2, 3)}, v2=v2)
         except ValueError:
             floors[w] = None
         for b in core.ARMS[1:]:
             arms = {a: [s for s in series if s["workload"] == w and s["arm"] == a] for a in ("llm", b)}
             pairs = pair_differences(arms["llm"], arms[b])
-            kwargs = dict(floor=floors[w], certified_counts={a: sum(s["certified_endpoint"] for s in rows) for a, rows in arms.items()},
+            kwargs = dict(floor=floors[w], v2=v2, certified_counts={a: sum(s["certified_endpoint"] for s in rows) for a, rows in arms.items()},
                           invalid=any(
-                              (i.get("workload") not in core.WORKLOADS or i["workload"] == w)
+                              (i.get("workload") not in workloads or i["workload"] == w)
                               and (i.get("arm") not in core.ARMS or i["arm"] in ("llm", b)) for i in invalid),
                           missing=any(len(rows) != 12 or any(s["missing"] for s in rows) for rows in arms.values()))
             inputs[w, b] = (pairs, kwargs)
             preliminary[w, b] = decide_comparison(pairs, **kwargs)
-    adjusted = holm_six({k: v["raw_p"] for k, v in preliminary.items()})
+    adjusted = _holm({k: v["raw_p"] for k, v in preliminary.items()}, comparisons_family)
     comparisons = []
-    for key in COMPARISONS:
+    for key in comparisons_family:
         pairs, kwargs = inputs[key]
         comparisons.append({"workload": key[0], "baseline": key[1], **decide_comparison(pairs, **kwargs, significant=adjusted[key]["significant"]),
                             "adjusted_p": adjusted[key]["adjusted_p"], "holm_threshold": adjusted[key]["threshold"]})
     report.update(floors=floors, comparisons=comparisons)
     report["workloads"] = {w: {"conditional_superiority": all(x["judgment"] == "conditional-superiority" for x in comparisons if x["workload"] == w),
-                               "llm_specific_gain_not_shown": any(x["judgment"] == "equivalent-within-floor" for x in comparisons if x["workload"] == w)} for w in core.WORKLOADS}
+                               "llm_specific_gain_not_shown": any(x["judgment"] == "equivalent-within-floor" for x in comparisons if x["workload"] == w)} for w in workloads}
     report["all_workloads_superiority"] = all(x["conditional_superiority"] for x in report["workloads"].values())
     return report
 

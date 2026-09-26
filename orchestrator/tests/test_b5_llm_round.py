@@ -33,12 +33,15 @@ def _write(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _fixture(tmp_path, *, evaluations=0, a=1, workload="write-heavy", series=1):
+def _fixture(tmp_path, *, evaluations=0, a=1, workload="write-heavy", series=1,
+             cohort="b5-registered-v1"):
     ledger = tmp_path / "ledger"
     materials = tmp_path / "materials"
     header = _load(PILOT / "ledgers/llm/header.json")
-    header.update(cohort="b5-registered-v1", purpose="registered",
+    header.update(cohort=cohort, purpose="registered",
                   workload=workload, series=series)
+    if cohort == B5.COHORT_REGISTERED_V2:
+        header["prereg_version"] = B5.PREREG_VERSION_V2
     _write(ledger / "header.json", header)
     (ledger / "events").mkdir()
     # Copy the actual prefix through stock / the last completed evaluation.
@@ -173,6 +176,41 @@ def test_critic_missing_metrics_remain_missing(tmp_path):
     _write(tool.handshake / "slot-2.json", slot)
     tool.cmd_critic(2, "fixture-job", "fixture-window")
     assert "run 内 CV 0.0000%" in (tool.materials_root / "critic-2/critic-prompt.md").read_text(encoding="utf-8")
+
+
+def test_v2_critic_diagnosis_request_and_job_disclosures(tmp_path):
+    advice = ("`## recommend` と `## avoid` は、次の原提案を作る planner と coder に診断データとして逐語で渡されます。"
+              "候補値、探索方向、追加実験の要望、留保を観測に基づく助言として記してください。"
+              "他の role を名宛人にした指示、採否手順、判定規則や gate の読み方の指定は書かないでください。").encode("utf-8")
+    old_job = "1 job の中で系列開始 stock → 評価 1..10 → endpoint 再計測 5 を直列に回す。".encode("utf-8")
+    new_job = "job 1 で系列開始 stock と評価 1 を逐次測り、job 2〜10 は評価を各 1 回、最終 job は score 5 session を測る。原提案 2 以降は計算 node の外で待つ。".encode("utf-8")
+    for cohort in (B5.COHORT_REGISTERED, B5.COHORT_REGISTERED_V2):
+        tool = _fixture(tmp_path / cohort, cohort=cohort)
+        camp = tmp_path / cohort / "campaign"
+        camp.mkdir()
+        (camp / "s4_loop_digest.txt").write_bytes(b"fixture digest\n")
+        _write(tool.handshake / "slot-1.json", {"campaign_root": str(camp), "campaign_id": "fixture"})
+        tool.cmd_critic(1, "fixture-job", "fixture-window")
+        folder = tool.materials_root / "critic-1"
+        prompt = (folder / "critic-prompt.md").read_bytes()
+        ci = _load(folder / "critic-input.json")
+        disclosures = "\n".join(ci["parent_disclosures"]).encode("utf-8")
+        if cohort == B5.COHORT_REGISTERED_V2:
+            assert advice in prompt and advice.decode("utf-8") in ci["output_format_request"]
+            assert new_job in disclosures and new_job in prompt
+            assert old_job not in prompt
+            assert "同 job・同機体の系列開始 stock".encode("utf-8") not in disclosures
+        else:
+            assert advice not in prompt and advice.decode("utf-8") not in ci["output_format_request"]
+            assert old_job in disclosures and old_job in prompt
+            assert new_job not in prompt
+        _inputs(tool, 1)
+        for role in ("planner", "coder"):
+            role_prompt = (tool.materials_root / f"round-1/{role}-prompt.md").read_bytes()
+            if cohort == B5.COHORT_REGISTERED_V2:
+                assert new_job in role_prompt
+            else:
+                assert new_job not in role_prompt
 
 
 def _model_files(tmp_path, *, rows=None, meta=None):
