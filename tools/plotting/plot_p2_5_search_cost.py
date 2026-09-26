@@ -96,6 +96,17 @@ def _measurement_conditions(records, lock_file):
     return {**conditions[0], 'ccbench_commit': commit}
 
 
+def _common_measurement_conditions(rows):
+    keys = ('threads', 'records', 'seconds', 'clocks_per_us', 'zipf_skew',
+            'rmw', 'numactl_interleave_all', 'perf_stat', 'env_tag',
+            'repetitions', 'ccbench_commit')
+    conditions = [rows[tag]['campaign']['measurement_conditions'] for tag in TAGS]
+    common = {key: conditions[0][key] for key in keys}
+    if any(any(c[key] != common[key] for key in keys) for c in conditions[1:]):
+        raise FigureDataError('measurement conditions differ across campaigns')
+    return common
+
+
 def landscape_from_records(records):
     """Use only committed genomes and recorded certified flags; no new verdict."""
     genome_of, bench_of, cert_of, committed = {}, {}, {}, set()
@@ -206,6 +217,7 @@ def load_data(summary_path=ROOT/'output/campaigns/p2-5-summary.json', output_roo
                 'measurement_conditions': _measurement_conditions(view.records, view.lock_file),
             }
             data['workloads'][tag] = calc
+        _common_measurement_conditions(data['workloads'])
         return data
     except FigureDataError:
         raise
@@ -220,7 +232,7 @@ def caption(data):
     conditions = '、'.join(
         f"{tag}: read 比 {rows[tag]['campaign']['measurement_conditions']['read_ratio']}%"
         for tag in TAGS)
-    c = rows[TAGS[0]]['campaign']['measurement_conditions']
+    c = _common_measurement_conditions(rows)
     return (f"旧 {c['env_tag']} 環境の Phase 2 探索コスト。P2-2 の silo {rows[TAGS[0]]['n']} 構成。"
             f"測定条件は {c['threads']} スレッド、{c['records']} レコード、{c['seconds']} 秒、"
             f"clocks_per_us={c['clocks_per_us']}、Zipf skew={c['zipf_skew']}、{conditions}、"

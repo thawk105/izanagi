@@ -59,6 +59,17 @@ def test_measurement_conditions_consistency():
             fig1._measurement_conditions(changed, view.lock_file)
 
 
+def test_measurement_conditions_across_campaigns():
+    rows = fig1.load_data()['workloads']
+    changed = {tag: {**row, 'campaign': {**row['campaign'],
+               'measurement_conditions': dict(row['campaign']['measurement_conditions'])}}
+               for tag, row in rows.items()}
+    conditions = changed['balanced']['campaign']['measurement_conditions']
+    conditions['threads'] = str(int(conditions['threads']) + 1)
+    with pytest.raises(fig1.FigureDataError, match='measurement conditions differ across campaigns'):
+        fig1._common_measurement_conditions(changed)
+
+
 @pytest.mark.parametrize('case', ('greedy', 'A', 'p', 'random'))
 def test_reconciliation(tmp_path, case):
     summary = json.loads((fig1.ROOT/'output/campaigns/p2-5-summary.json').read_text())
