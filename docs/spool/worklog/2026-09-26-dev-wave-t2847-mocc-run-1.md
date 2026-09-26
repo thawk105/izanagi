@@ -17,7 +17,8 @@ title: [T-2847] 残り (2) の mocc 部分を pin C で実走した — 既存�
 - **段 5:** 実装子が `test_screening_driver.py` に足した追加検査 (既定値 0 の固定と、Genome 経由で裸マクロを供給できないことの固定) は、依頼の scope 外 (仮想リスク向けの検査の追加) として統合しなかった。焦点走 (33 file) は 4,049 passed・8 skipped・失敗 0。
 - **段 6:** レビュー A・B とも条件付き GO。実装への must-fix は無く、fix 子は起動していない。段 4 の分類に「対照正常」の名前が無かったので erratum で足した (計測後、変異 cell の分類は不変)。README の inert 文を「未定義の枝を除いた全文が pin C と一致」に狭めた。
 - **並走 [T-2849] との合流:** `orchestrator/tests/test_ccbench_spawn_sites.py` の件数行は、t2849-unit-a の変更 (非 CCBench subprocess site 1 件) が件数に増分を持たないので、合流値 = 55 / 59 / 45 / 45 (レビュー B の照合)。
-- **near miss:** unit worktree の作成に短縮 SHA を手で伸ばした値を渡し `git worktree add` が rc=255 で失敗した (何も作られず、rev-parse の完全 SHA でやり直した)。
+- **near miss 2 件 (段 8 で failures へ再発として記録):** (1) unit worktree の作成に短縮 SHA を手で伸ばした値を渡し `git worktree add` が rc=255 で失敗した (何も作られず、rev-parse の完全 SHA でやり直した、F1031 の再発)。(2) 段 8 を閉じる前に受入の門番を投入し、子の起動前に止めて段 8 の fragment を足してから投入し直した (F889 の再発)。
+- **受入全走:** 本 fragment を含む最終 tip に対して走らせる。結果は本 fragment に書けないので、job dir の `acceptance-*` (受領証) が正本。
 - 工数: Codex 子 = plan 1、consult 2、author 3、review 2 の計 8 本。
 
 ## 次の一手差分

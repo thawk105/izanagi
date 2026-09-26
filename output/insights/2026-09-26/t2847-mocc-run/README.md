@@ -135,7 +135,7 @@ site 別の評価回数 (t1 / t4): 297 行 = hot 839,305 / 896,703、cold 892,76
 
 ## 8. 受入全走
 
-受入全走と land は本書を含む記録 commit の後に走るので、本書には結果を書かない (worklog の本エントリと job dir の `acceptance-*` / `land-*` が正本)。
+受入全走と land は本書を含む記録 commit の後に走るので、本書には結果を書かない (job dir の `acceptance-*` / `land-*` が正本)。
 
 ## 9. 限界・言わないこと
 
