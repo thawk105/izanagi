@@ -2630,6 +2630,20 @@ def _compress_trace_archive(stream, compressed) -> None:
                    stdout=compressed, stderr=subprocess.PIPE, check=True)
 
 
+def _archive_git(root: str, subcommand: str) -> bytes:
+    """Read an archival HEAD or binary patch with an isolated Git environment."""
+    if subcommand == "head":
+        argv = ["rev-parse", "HEAD"]
+    elif subcommand == "diff":
+        argv = ["diff", "--binary", "HEAD", "--"]
+    else:
+        raise ValueError("unsupported archive git subcommand")
+    return subprocess.run(
+        ["git", "-C", root, *argv], check=True, capture_output=True,
+        env=_sanitized_git_env(),
+    ).stdout
+
+
 def _preserve_trace_directory(
         tdir: str, archive_root: str, *, campaign_id: str, variant: str,
         build_attempt_id: str, tag: str, workload_flags: Mapping,
@@ -2692,11 +2706,7 @@ def _preserve_trace_directory(
                 os.replace(partial, archive)
                 row.update(status="complete", compressed_bytes=os.path.getsize(archive))
         repo_root = os.path.realpath(os.path.join(os.path.dirname(__file__), "../.."))
-        git_env = _sanitized_git_env()
-        inventory["repo_head"] = subprocess.run(
-            ["git", "-C", repo_root, "rev-parse", "HEAD"],
-            check=True, capture_output=True, text=True, env=git_env,
-        ).stdout.strip()
+        inventory["repo_head"] = _archive_git(repo_root, "head").decode().strip()
         verifier_root = Path(repo_root) / "orchestrator" / "verifier"
         inventory["verifier_module_sha256"] = {
             path.name: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -2711,10 +2721,8 @@ def _preserve_trace_directory(
                     tdir, "--json", "--expected-commits", str(commit_count_witness),
                     "--protocol", genome.protocol, "--ccbench-root", evidence.source_root,
                 ]
-            patch = subprocess.run(
-                ["git", "-C", evidence.source_root, "diff", "--binary", "HEAD", "--"],
-                check=True, capture_output=True, env=git_env,
-            ).stdout
+            source_head = _archive_git(evidence.source_root, "head").decode().strip()
+            patch = _archive_git(evidence.source_root, "diff")
             inventory["patch_sha256"] = hashlib.sha256(patch).hexdigest()
             inventory["patch_bytes"] = len(patch)
             inventory["patch_path"] = "patch/ccbench.diff.zst"
@@ -2726,6 +2734,10 @@ def _preserve_trace_directory(
                 with open(patch_archive + ".partial", "xb") as compressed:
                     _compress_trace_archive(patch_stream, compressed)
             os.replace(patch_archive + ".partial", patch_archive)
+            if source_head != evidence.ccbench_commit:
+                raise ValueError("archive source HEAD differs from source evidence")
+            if inventory["patch_sha256"] != evidence.tracked_diff_sha256:
+                raise ValueError("archive source patch differs from source evidence")
         inventory["status"] = "complete"
         with open(inventory_path, "x", encoding="utf-8") as stream:
             json.dump(inventory, stream, sort_keys=True)
