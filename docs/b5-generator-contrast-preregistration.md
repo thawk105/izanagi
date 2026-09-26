@@ -594,3 +594,32 @@ D1409 の二重の壁、旧 headline の休眠、B-4 の因果分離を閉じな
 - クロスプロトコル最良 (d)、同一 variant の横断退行 (e)、B-7。
 - 統計の前提 (対差の独立性と符号対称性、時間ドリフト、系列相関) の成立の証明と、崩れの検出。本書は前提を
   明示し、崩れうることと、その場合に主張へ添える限定 (§7.3) を固定するだけである。
+
+## 15. Erratum — v1 cohort を block 1 stage 1 で閉じ、判定不能と既知結果の閲覧を開示する (2026-09-26)
+
+**種類:** 本書の判定規則の変更ではない。cohort `b5-registered-v1` の実行を打ち切った事実と、その帰結・閲覧の開示である。§0 に従い、既存本文の bytes は変えずに追記した。
+**適用する cohort:** `b5-registered-v1` (D2227 項 2 で発効)。測定時点の本書の raw bytes の SHA-256 は発効束が記録した
+`66cc3911e0e4026de7ff6d33d419c362d40130944ec1f30be1ec2f2ac9afd669` であり、v1 cohort の実行はすべてこの版の下で行われた。本節の追記後の版は v1 cohort のどの測定にも使っていない。
+**決定:** D2249 項 1 (ユーザー裁定、2026-09-26) により v1 を閉じ、write-heavy・balanced の 2 workload の v2 として登録し直す (`docs/b5-generator-contrast-preregistration-v2.md`)。
+
+**実行した範囲:** block 1 stage 1 の 12 job だけ (2026-09-23 21:53 JST 投入、job Elapse の和 126,426 s = 35.1 node 時間)。残り 8 stage は投入していない。v1 を再開しない。
+
+**判定 (§7.4 の手順 2 で止まる):** 6 比較すべてが**判定不能 (欠測)**。生成器の比較の結果ではない。優越・同等・逆向きのいずれも主張しない。
+- LLM の 4 系列 (3 workload) は、親 session が 2026-09-23 23:50〜23:52 JST に利用の週上限 (429) で止まり、series job が提案を 2,700 s 待って `proposal-wait-timeout` で終わった。
+  score が無いので分類不能欠測である (failures F1050)。本書 §3.3 は 429 を機械故障として retry する経路を持たず、実装にも無かった。
+- write-heavy の random 2 系列は、系列開始 stock の品質欠測 (静定待ちの時間切れ、`stock-unestablished`) で終わった。§5.3 は品質欠測を retry しないので、
+  write-heavy の LLM 対 random は LLM 系列を再開しても判定不能のままである。
+- write-heavy の LLM 系列は 14 機会のうち採用 1 (評価 1 回)、coder の検疫による却下 11、planner の出力書式 (JSON をコードフェンスで囲んだ) による却下 1、429 による時間切れ 1 だった。
+  検疫の却下 11 件はすべて、評価 1 の critic 診断の `recommend` に「次の critic 評価への指示」と名乗る採否の読み方の記述があり、coder がそれを指示めいた内容として申告したことによる。
+  評価 2 が起きないため同じ診断が 11 回入力された。検疫は設計どおり働いた。v2 はこれを受けて critic への入力を改めた (v2 §4.1)。
+
+**既知結果の閲覧 (§8 の差分台帳):** v1 の結果は v2 の主標本に入れない。v2 の設計選択は次の閲覧の後に行った。
+- 本走 wave (dev-wave `t2797-b5-main-run`、2026-09-23〜24): 実行者として全 12 系列の台帳・LLM 親の入出力を見た。
+- 費用見直し wave (2026-09-26 14:07 JST 前後、Claude): 全 12 系列の台帳 event の所要・品質・終了理由と候補値 (探索中の v と endpoint の v) を集計で見た。
+  throughput は balanced の LLM 系列の評価 1 件を 1 回見た (`output/insights/2026-09-26/t2797-b5-cost-options/README.md` §8)。
+- v2 準備 wave (dev-wave `t2797-b5-v2-prep`、2026-09-26 22:03〜22:45 JST の間、Claude): write-heavy の LLM 系列の critic 診断 1 件 (系列開始 stock と値 80 の throughput・その比を含む)、
+  critic への入力 (値 80 の fitness_tps と abort_rate を含む)、planner・coder の出力 13 件 (提案値を含む)、台帳の却下 event を読んだ。balanced・read-heavy の LLM 系列の critic 診断は
+  「指示」の語を含む行だけを見た。score の集計、系列間・arm 間の比較はしていない。
+- v2 の規模 (2 workload・n = 12) は所要時間と費用から決めた (D2249 項 1)。所要は候補値と相関する (backoff の小さい候補ほど検証が長い) ので、結果から完全に独立だとは言わない。
+
+**判定への影響:** v1 の 6 比較は判定不能で確定し、後の cohort の結果で置き換えない (§7.4)。v2 は v1 の失敗後の再発火であり、独立の成功機会として隠さない。

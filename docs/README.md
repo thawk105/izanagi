@@ -67,7 +67,10 @@
   作成認可は 2026-09-19 のユーザー決定)。共通の候補集合 (整数 µs 1..1000)、3 生成器の操作的定義、
   評価経路と session の契約、endpoint の独立再計測による score、系列単位の対検定と判定順、
   失敗条件 (c) の事前固定、既知結果台帳、既存機構で欠ける部品 (実装が要る) の照合、発効束の正本。
-  **本走・実装の認可ではなく、headline と D1409 の条件を変えない**
+  **本走・実装の認可ではなく、headline と D1409 の条件を変えない**。v1 cohort は block 1 stage 1 で閉じた (§15、判定不能の開示)
+- `b5-generator-contrast-preregistration-v2.md` — B-5 の v2 (D2249 項 1)。v1 の発効時の版を土台にした差分登録で、
+  write-heavy と balanced の 2 workload・n = 12、1 評価 1 job と LLM の待ちの node 外化、利用上限 (429) の保留規則、
+  時間帯の block の削除 (同時刻対照と系列の対づけは残す)、4 比較の Holm、pooled の stock CV と fallback の正本。**本走の認可ではない**
 - `b8-final-candidate-longrun-verify-preregistration.md` — B-8 (種を変えた長時間実行による最終候補の検証) の
   事前登録 v1 (未発効、台帳 ID 未起票)。対象の 2 案 (S-1 最終候補 g_rl / g_rt を推奨、採用静的 backoff
   2 genome を代替) と択一を発効時に記録する規則、「種を変えた」= 独立 process の自己シード (seed 値は
