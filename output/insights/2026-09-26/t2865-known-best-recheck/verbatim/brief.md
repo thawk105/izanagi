@@ -1,0 +1,16 @@
+# 段 1 brief — [T-2865] 付随: 既知最良超え IR 3 点の別 job 再測 (2026-09-26)
+
+- **研究前進:** D2240 で同 job の静的 10 µs (既知最良、fixed10) を 6〜7% 上回った IR 3 点 (1111 = job 0、1110 = job 1、1001 = job 6) を、論文 (ComSys 原稿を含む) で「既知最良超え」と書けるかを決める。D2243 項 1 が「書く前に別 job 再測」を条件にした。完了判定 = 3 点それぞれに事前登録の判定 (再現 / 非再現 / 失格 / 判定不能) が付き、insight に記録されること。
+- **確定済み裁定:** D2243 項 1 (再測は論文で書く前、検査込みタスク合計を見積もる)、D2240 (比の定義・適格条件・3% 線)、D2212 項 4 (合計 2 node 時間以上ならユーザー確認)、手順書 `docs/axis-onboarding.md` §3-D (点 ID・比は段階 E/F の coder・planner の入力へ流さない)。
+- **scope:** 既存 driver `orchestrator/campaign/silo_policy_recon.py run --phase compare --job {0,1,6}` を無変更で 3 job (1 job 1 ノード、`tools/pegasus/dispatch_compute.py --task generic`、walltime 30 分、待ち上限 3600 秒、計測用 detached worktree 3 本) で投げ直す。repo のコード変更ゼロ (実装面 0)。比の集計は repo 外 (job dir) の小スクリプトを Codex author に書かせる。記録は新しい insight (`output/insights/2026-09-26/t2865-known-best-recheck/README.md`)、結果 JSON は `output/env/pegasus/calibration/silo_function_policy_recon/compare-recheck/`。
+- **(P1) 親の provisional 裁定・攻撃対象:** job 構成は元の compare job をそのまま使う (狙いの点 + 同 job の相方 IR 1 点 + abort0・stock・B0-L-W0・fixed10、実行順も元と同じ job mod 6 巡回)。依頼の「1 job = IR 点 + 参照 4 本」を、相方 1 点を含む既存構成で満たすと解釈する。単点 mode の追加はコード変更で「本題だけ」に反する。相方点は判定に使わず記述だけ。
+- **(P2) 判定規則 (結果を見る前に insight へ書き commit する):** 点 X の新 job で、(i) 束縛: phase=compare・job 番号・case_order が driver の `_cases` と一致、IR 本文 sha256・因子が元と一致、abort0 本文・対照 genome・fixed10 の実効 define (trace1/trace0) が D2240 と同じ照合を通る、workload 固定、(hostname, started_at) が元 8 job と異なる。(ii) D2240 項 2 と同じ適格条件で最良参照比 r' を出す。判定: 点が verify-not-certified / trace0-not-clean → **失格**; 束縛不成立・参照不適格・high-abort・未完 → **判定不能**; r' > 1.03 → **再現**; r' ≤ 1.03 → **非再現**。論文で「別 job 再測でも既知最良を 3% 超えた」と書けるのは再現の点だけ。「3 点とも」は 3 点すべて再現のときだけ。
+- **(P3) infra 失敗の扱い (値を見ない):** driver が起動しない・error で点の行が無い job は、同じ job を 1 回だけ別 checkout から投げ直す。Pre-running 停滞は別 checkout から投げ直し先着採用 (完了順は値に依存しない)、後着も記述で残す。それ以外の再測・追加 job はしない。
+- **(P4) pin:** 元の計測は CCBench `e9e477ca`、現行は `68106660`。両 pin の差分は `cc/mocc/transaction.cc` だけ (親が `git diff --stat` で実測)、silo の build 入力は同一。規律 7 により pin 差は再測を無効にも有効にもしない、記録する。
+- **(P5) 集計:** 既存 `compare-aggregate` は 8 job 揃いを要求するので使えない。Codex author が driver の `_reps`・`_eligible`・`_cases` 等を import して同じ per-job 論理を 3 job に当てる repo 外スクリプトを書き、**元の 8 job の JSON に当てて既存 `compare-aggregate.json` の 16 点の比・reason と完全一致すること**を正例として親が確認してから新 job に使う。
+- **不変条件:** 規律 2 (verify 失格は即失格、ゲートを緩めない)、規律 3 (判定規則を先に固定)、firewall (点 ID・比を段階 E/F の入力や projection.json に入れない、並走中の段階 E wave へ送らない)、診断 build は NON_ADMISSIBLE。
+- **見積り (job Elapse 実測単価):** 元の compare job 768〜779 秒 × 3 = 約 2,330 秒 (0.65 node 時間)、infra 投げ直し 1 本の上限 +0.22、受入全走 約 0.25 × 最大 2 回 = 0.5。検査込み合計 ≦ 約 1.4 node 時間 < 2 → ユーザー確認不要 (D2212 項 4)。
+- **成果物:** 新 insight (判定規則は結果前 commit、結果・判定・限定は後追記)、結果 JSON 3 本、集計 JSON、worklog fragment、decision fragment (判定の記録)。
+- **子の構成 (軽量版 + 計算 job 診断 wave の型):** 段 3 read-only 相談 1 本 (brief と判定規則を攻撃)、段 5 Codex author 1 本 (repo 外集計スクリプト)、段 6 read-only review 1 本 (README の数値を生 JSON と照合)。変異 matrix は repo 実装面 0 で免除 (DW-S04)、受入全走は行う。
+- **受入・実測環境:** Pegasus。計測 job は gen_S、受入は `tools/dev_wave_wait.py acceptance --lease-optional` (計測完了後、gen_S を自分の計測で埋めている間は投げない)。
+- **並走:** 段階 E wave (`worktree-dev-wave-t2865-silo-policy-stage-e`) が `silo_policy_ir.py` に追加中 (未着地)。本 wave は現 main `265cce13c` の driver で測り、IR 本文 sha256 の一致で同一性を確かめる。

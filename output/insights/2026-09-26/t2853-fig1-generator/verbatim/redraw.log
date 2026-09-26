@@ -1,0 +1,11 @@
+# 着地版 fig1b の描画 (親、login node。生成器は stdout / stderr に何も書かない)
+host: pegasus02
+cwd: /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-fig1-redraw (HEAD 3798ba6c8)
+command: python3 tools/plotting/plot_p2_5_search_cost.py docs/paper-story/figures/fig1b_phase2_negative
+rc: 0
+finished: 2026-09-26 19:40:28 JST
+outputs (sha256):
+  docs/paper-story/figures/fig1b_phase2_negative.png 371c88edea4c5a018866fdc8dd99f9299ce8a1fce967e9c7b9288672905b4be2
+  docs/paper-story/figures/fig1b_phase2_negative.pdf a8deac1ba026c5b1f672edf5e256f094c48685b663b13915657fa1eedac6a86c
+  docs/paper-story/figures/fig1b_phase2_negative.provenance.json 8421a1e1ea39040386beac8e4150b4292bf815c79eef47add25274d750a015b6
+old fig1 (unchanged, sha256): docs/paper-story/figures/fig1_phase2_negative.png 5a8d414b62b95f8721df61b7ad5d54ce7160af24dff4cec46b1fcae4017fdfe3
