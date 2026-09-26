@@ -1,0 +1,502 @@
+{
+  "schema": "izanagi-p2-5-search-cost-figure-provenance/v1",
+  "generator": {
+    "path": "tools/plotting/plot_p2_5_search_cost.py",
+    "sha256": "49eae3b914652a282a9b1e1afac7de104267c6690a3e162648ed5eb2463cac68"
+  },
+  "summary": {
+    "path": "output/campaigns/p2-5-summary.json",
+    "sha256": "8b55897c06220b7d853202bac87abdb768baed920409675ff2f9a1bd47c50bb1"
+  },
+  "workloads": {
+    "read-heavy": {
+      "n": 8,
+      "k": 4,
+      "tied_set": [
+        "B0-L-W0",
+        "B0-L-W1",
+        "B0-T-W0",
+        "B0-T-W1"
+      ],
+      "random_E": 1.8,
+      "oracle_E": 1.5,
+      "greedy": {
+        "mean": 1.756,
+        "median": 1.0,
+        "min": 1,
+        "max": 4,
+        "iqr_lo": 1,
+        "iqr_hi": 2,
+        "n": 500
+      },
+      "greedy_p_lt": 0.32600000000000023,
+      "greedy_counts": {
+        "1": 254,
+        "2": 139,
+        "3": 82,
+        "4": 25
+      },
+      "guided": {
+        "mean": 1.6666666666666667,
+        "median": 1.0,
+        "min": 1,
+        "max": 3,
+        "iqr_lo": 1,
+        "iqr_hi": 3,
+        "n": 6
+      },
+      "guided_n": 6,
+      "guided_costs": [
+        1,
+        1,
+        1,
+        1,
+        3,
+        3
+      ],
+      "guided_failures": 0,
+      "informative": false,
+      "checked_keys": [
+        "k",
+        "n",
+        "tied_set",
+        "random_E",
+        "oracle_E",
+        "guided_n",
+        "greedy.n",
+        "greedy.mean",
+        "greedy.iqr_lo",
+        "greedy.iqr_hi",
+        "guided.median"
+      ],
+      "campaign": {
+        "id": "p2-2-silo-read-heavy-enumerate-5ffcabad",
+        "wal": {
+          "path": "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/runs/wal.jsonl",
+          "sha256": "50f772772fc5c2cd527338c54a43bd9b7b29dc4e2637f73df2cbecb05e0ea76d"
+        },
+        "lock": {
+          "path": "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad/campaign.lock",
+          "sha256": "5ffcabad086d15725ff14dcc5c75c57c1cf6fa048c7736e06ca6a8e19bc44000"
+        },
+        "campaign_verifier_epoch": {
+          "campaign_verifier_epoch": "E0",
+          "state": "E0",
+          "reason_code": "v1-authority-absent",
+          "identity_scope": "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)",
+          "excluded_scope": "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり (収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない",
+          "verifier_assessment_basis": "recorded-at-original-verifier-epoch"
+        },
+        "measurement_conditions": {
+          "threads": "48",
+          "records": "1000000",
+          "seconds": "3",
+          "clocks_per_us": "1800",
+          "zipf_skew": "0.9",
+          "read_ratio": "95",
+          "rmw": "0",
+          "numactl_interleave_all": true,
+          "perf_stat": true,
+          "env_tag": "linux-baremetal",
+          "repetitions": 5,
+          "ccbench_commit": "6656e93"
+        }
+      }
+    },
+    "balanced": {
+      "n": 8,
+      "k": 1,
+      "tied_set": [
+        "B0-L-W0"
+      ],
+      "random_E": 4.5,
+      "oracle_E": 1.875,
+      "greedy": {
+        "mean": 4.234,
+        "median": 5.0,
+        "min": 1,
+        "max": 7,
+        "iqr_lo": 2,
+        "iqr_hi": 6,
+        "n": 500
+      },
+      "greedy_p_lt": 0.47075,
+      "greedy_counts": {
+        "1": 62,
+        "2": 66,
+        "3": 89,
+        "4": 23,
+        "5": 57,
+        "6": 142,
+        "7": 61
+      },
+      "guided": {
+        "mean": 3.75,
+        "median": 4.0,
+        "min": 1,
+        "max": 5,
+        "iqr_lo": 4,
+        "iqr_hi": 4,
+        "n": 12
+      },
+      "guided_n": 12,
+      "guided_costs": [
+        1,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        5,
+        5
+      ],
+      "guided_failures": 0,
+      "informative": true,
+      "A": 0.58125,
+      "checked_keys": [
+        "k",
+        "n",
+        "tied_set",
+        "random_E",
+        "oracle_E",
+        "guided_n",
+        "greedy.n",
+        "greedy.mean",
+        "greedy.iqr_lo",
+        "greedy.iqr_hi",
+        "guided.median",
+        "guided_vs_greedy_A"
+      ],
+      "campaign": {
+        "id": "p2-2-silo-balanced-enumerate-f1588056",
+        "wal": {
+          "path": "output/campaigns/p2-2-silo-balanced-enumerate-f1588056/runs/wal.jsonl",
+          "sha256": "d6e98161d8cc3a011688316c3a180a532c0374c87fbbcc30934106f51f95f34c"
+        },
+        "lock": {
+          "path": "output/campaigns/p2-2-silo-balanced-enumerate-f1588056/campaign.lock",
+          "sha256": "f15880560640c76223fb7c20ed4f8b1e6d4596ae80c94bdbc55c95d5201a180f"
+        },
+        "campaign_verifier_epoch": {
+          "campaign_verifier_epoch": "E0",
+          "state": "E0",
+          "reason_code": "v1-authority-absent",
+          "identity_scope": "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)",
+          "excluded_scope": "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり (収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない",
+          "verifier_assessment_basis": "recorded-at-original-verifier-epoch"
+        },
+        "measurement_conditions": {
+          "threads": "48",
+          "records": "1000000",
+          "seconds": "3",
+          "clocks_per_us": "1800",
+          "zipf_skew": "0.9",
+          "read_ratio": "50",
+          "rmw": "0",
+          "numactl_interleave_all": true,
+          "perf_stat": true,
+          "env_tag": "linux-baremetal",
+          "repetitions": 5,
+          "ccbench_commit": "6656e93"
+        }
+      }
+    },
+    "write-heavy": {
+      "n": 8,
+      "k": 1,
+      "tied_set": [
+        "B0-L-W0"
+      ],
+      "random_E": 4.5,
+      "oracle_E": 1.875,
+      "greedy": {
+        "mean": 4.362,
+        "median": 5.0,
+        "min": 1,
+        "max": 7,
+        "iqr_lo": 2,
+        "iqr_hi": 6,
+        "n": 500
+      },
+      "greedy_p_lt": 0.45475,
+      "greedy_counts": {
+        "1": 62,
+        "2": 66,
+        "3": 67,
+        "4": 35,
+        "5": 31,
+        "6": 182,
+        "7": 57
+      },
+      "guided": {
+        "mean": 6.333333333333333,
+        "median": 8.0,
+        "min": 1,
+        "max": 8,
+        "iqr_lo": 4,
+        "iqr_hi": 8,
+        "n": 12
+      },
+      "guided_n": 12,
+      "guided_costs": [
+        1,
+        3,
+        4,
+        4,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "guided_failures": 8,
+      "informative": true,
+      "A": 0.23041666666666666,
+      "p": 0.00025210801850960543,
+      "checked_keys": [
+        "k",
+        "n",
+        "tied_set",
+        "random_E",
+        "oracle_E",
+        "guided_n",
+        "greedy.n",
+        "greedy.mean",
+        "greedy.iqr_lo",
+        "greedy.iqr_hi",
+        "guided.median",
+        "guided_vs_greedy_A",
+        "write_heavy_guided_vs_greedy_exact_p"
+      ],
+      "campaign": {
+        "id": "p2-2-silo-write-heavy-enumerate-8967bed6",
+        "wal": {
+          "path": "output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/runs/wal.jsonl",
+          "sha256": "14b43988f228c573fa1a0b1e7d7fcdc51e8e34c42f4c6b39ff5c27808ff399a5"
+        },
+        "lock": {
+          "path": "output/campaigns/p2-2-silo-write-heavy-enumerate-8967bed6/campaign.lock",
+          "sha256": "8967bed610968f6f955e2b5585ef0f5f4cd326f6b8823e386dd29610880b6c55"
+        },
+        "campaign_verifier_epoch": {
+          "campaign_verifier_epoch": "E0",
+          "state": "E0",
+          "reason_code": "v1-authority-absent",
+          "identity_scope": "enforcement source closure (curated exact 96 path; source-import 推移閉包ではない; 発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、2026-09-21 (5efd69367 の source 木、本版の 96 path を起点) の実測では 173 module、うち収載 96)",
+          "excluded_scope": "同実測の発見集合の未収載 77 module、同発見集合に入らない module、orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり (収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない",
+          "verifier_assessment_basis": "recorded-at-original-verifier-epoch"
+        },
+        "measurement_conditions": {
+          "threads": "48",
+          "records": "1000000",
+          "seconds": "3",
+          "clocks_per_us": "1800",
+          "zipf_skew": "0.9",
+          "read_ratio": "5",
+          "rmw": "0",
+          "numactl_interleave_all": true,
+          "perf_stat": true,
+          "env_tag": "linux-baremetal",
+          "repetitions": 5,
+          "ccbench_commit": "6656e93"
+        }
+      }
+    }
+  },
+  "artist_series": {
+    "read-heavy": {
+      "points": [
+        [
+          -0.075,
+          1.0
+        ],
+        [
+          -0.045,
+          1.0
+        ],
+        [
+          -0.015,
+          1.0
+        ],
+        [
+          0.015,
+          1.0
+        ],
+        [
+          0.045,
+          3.0
+        ],
+        [
+          0.075,
+          3.0
+        ]
+      ],
+      "median_bar": 1.0,
+      "greedy_square": 1.756,
+      "greedy_whisker": [
+        1.0,
+        2.0
+      ],
+      "random_line": 1.8,
+      "oracle_line": 1.5,
+      "annotations": []
+    },
+    "balanced": {
+      "points": [
+        [
+          -0.16499999999999998,
+          1.0
+        ],
+        [
+          -0.135,
+          3.0
+        ],
+        [
+          -0.105,
+          3.0
+        ],
+        [
+          -0.075,
+          4.0
+        ],
+        [
+          -0.045,
+          4.0
+        ],
+        [
+          -0.015,
+          4.0
+        ],
+        [
+          0.015,
+          4.0
+        ],
+        [
+          0.045,
+          4.0
+        ],
+        [
+          0.075,
+          4.0
+        ],
+        [
+          0.105,
+          4.0
+        ],
+        [
+          0.135,
+          5.0
+        ],
+        [
+          0.16499999999999998,
+          5.0
+        ]
+      ],
+      "median_bar": 4.0,
+      "greedy_square": 4.234,
+      "greedy_whisker": [
+        2.0,
+        6.0
+      ],
+      "random_line": 4.5,
+      "oracle_line": 1.875,
+      "annotations": [
+        "A=0.58"
+      ]
+    },
+    "write-heavy": {
+      "points": [
+        [
+          -0.16499999999999998,
+          1.0
+        ],
+        [
+          -0.135,
+          3.0
+        ],
+        [
+          -0.105,
+          4.0
+        ],
+        [
+          -0.075,
+          4.0
+        ],
+        [
+          -0.045,
+          8.0
+        ],
+        [
+          -0.015,
+          8.0
+        ],
+        [
+          0.015,
+          8.0
+        ],
+        [
+          0.045,
+          8.0
+        ],
+        [
+          0.075,
+          8.0
+        ],
+        [
+          0.105,
+          8.0
+        ],
+        [
+          0.135,
+          8.0
+        ],
+        [
+          0.16499999999999998,
+          8.0
+        ]
+      ],
+      "median_bar": 8.0,
+      "greedy_square": 4.362,
+      "greedy_whisker": [
+        2.0,
+        6.0
+      ],
+      "random_line": 4.5,
+      "oracle_line": 1.875,
+      "annotations": [
+        "A=0.23",
+        "p=2.5×10⁻⁴",
+        "8/12 mis-converged",
+        "random",
+        "oracle"
+      ]
+    }
+  },
+  "caption": "旧 linux-baremetal 環境の Phase 2 探索コスト。P2-2 の silo 8 構成。測定条件は 48 スレッド、1000000 レコード、3 秒、clocks_per_us=1800、Zipf skew=0.9、read-heavy: read 比 95%、balanced: read 比 50%、write-heavy: read 比 5%、rmw=0、numactl --interleave=all、perf stat、各構成 5 反復、ccbench commit 6656e93。LLM-guided は中立 critic の 30 試行（read-heavy 6、balanced 12、write-heavy 12）の凍結値を示す。原試行 WAL は削除済みである。未到達（read-heavy 0/6、balanced 0/12、write-heavy 8/12）は事前登録どおり予算上限 8 として算入した。点は誘導の各試行。横棒は誘導の中央値。四角は貪欲の平均。ひげは貪欲の 25/75 分位（search_baselines._summ の順位 n//4・3n//4 の標本値）。点線は random の解析期待値。破線は初手ランダム制約下の oracle 天井。greedy は P2-2 WAL の決定論的再生 500 seed。A = P(誘導<貪欲)+0.5·P(=)、p は厳密 permutation 検定（片側）。P2-2 campaign は verifier epoch E0 の記録をそのまま使用し、現行 verifier では再検証していない。read-heavy は k=4 で到達判定が情報を持たないため、A の注記を付けない。",
+  "outputs": {
+    "png": {
+      "path": "docs/paper-story/figures/fig1b_phase2_negative.png",
+      "sha256": "371c88edea4c5a018866fdc8dd99f9299ce8a1fce967e9c7b9288672905b4be2"
+    },
+    "pdf": {
+      "path": "docs/paper-story/figures/fig1b_phase2_negative.pdf",
+      "sha256": "a8deac1ba026c5b1f672edf5e256f094c48685b663b13915657fa1eedac6a86c"
+    }
+  },
+  "argv": [
+    "docs/paper-story/figures/fig1b_phase2_negative"
+  ],
+  "generated_utc": "2026-09-26T10:40:28.664485+00:00",
+  "versions": {
+    "python": "3.10.12",
+    "matplotlib": "3.10.9",
+    "numpy": "2.2.6"
+  }
+}

@@ -29,6 +29,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] [T-2853] (1') 保全口の inventory に R1 の入力一式の残り (verifier の等価 argv・repo commit・完全 SHA の pin と宣言値・patch の bytes と sha256・verifier module の sha256) を
   D2160・B-8 の runner と同じ名前で足し、標準評価経路では build 時の source evidence と照合できたものだけを complete にした。(5') のうち生成器のある 17 図を login で描き直し、値の差 0・PNG は bytes 一致を確かめた (2026-09-26、node 時間 0)。
   job body での opt-in の有効化・fig1 の生成器・fig15 の入力の写し・R2 は残り。記録 = `output/insights/2026-09-26/t2853-archive-inventory-figure-redraw/README.md`。
+- [x] [T-2853] (5'') fig1 (P2-5 誘導探索の否定的結果) の生成器 `tools/plotting/plot_p2_5_search_cost.py` を作り、後継図 `fig1b_phase2_negative` を追跡下の summary と P2-2 の 3 campaign から描いた (2026-09-26、新規計測 0)。
+  再計算値は summary の記録値と照合 key 全件で一致、旧図と新図の画素読み取りの差は全 18 要素で 0.020 以下。P2-2 は E0 の記録を `HISTORICAL_RAW` で使う。焦点走 1,014 passed、変異 14 / 14 KILLED。
+  旧 fig1 の bytes は不変。fig15 の入力の写し・R2・job body の opt-in は残り。記録 = `output/insights/2026-09-26/t2853-fig1-generator/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
   (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。
