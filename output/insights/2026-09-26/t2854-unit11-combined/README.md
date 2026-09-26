@@ -67,7 +67,7 @@ default_effect: no-state-change
 - 21 entry = 変更 header を読む 12 source (9 protocol の `tpcc_<p>.cc` と silo・si・mocc の `transaction.cc`) × target。C と C2' の両木で、CMake の宣言から作った期待集合と compile database が一致した。
 - 内容照合の定義は前例と同じ (W の署名と宣言種別の一致 `content-txtype`、表構成 `content-table`)。
 - **trace 量 (実測):** TPC-C silo 36,619,792 byte / 36,106 取引、mocc 35,856,381 byte / 34,859 取引 (約 1,014 byte / 取引と約 1,029 byte / 取引。前例の単独確認は silo 約 1,024・mocc 約 1,020)。
-- **生 trace の保持:** B0 の 4 走を zstd で job dir `evidence/traces-1/` に保持 (計 38 MB、sha256 = job dir `evidence/kept-traces-sha256.txt`)。repo には入れない。
+- **生 trace の保持:** B0 の 4 走を zstd で job dir `evidence/traces-1/` に保持 (8 file 計 39,437,099 byte ≈ 38 MiB、sha256 = job dir `evidence/kept-traces-sha256.txt`)。repo には入れない。
 - throughput は trace build の値なので性能の主張に使わない。比較は選んだ構成 (Release・stock の protocol option・GCC 11.4) に限る。
 
 ## 4. 変異 (C6、事前登録 = 段 4 裁定 §3)
@@ -124,9 +124,10 @@ harness は単位 3 の probe の独自 harness (出現 1 回の assert・逐次
 - **段 1:** brief (`verbatim/s1-brief.md`、provisional (P1)〜(P7))。前提の実測 = branch の作成と照合、D297 検査器の実走、GitHub の ls-remote。
 - **段 2・3:** 受理方式が設計択一で正しさ防壁に触るので残した。plan 1 本 (`verbatim/s2-plan.md`) → 敵対相談 2 本 (A = 正しさ境界・受理方式 `verbatim/s3-consult-A.md`、B = 実効性と過剰・削除 `verbatim/s3-consult-B.md`)。A は 16 文脈の説明・`-dD` の扱い・header 無変更案の既裁定・推奨の束ね方を、B は変異の再演と「影響しない側の PASS」の kill 条件を攻撃し、いずれも採用 (段 4 裁定 §1)。
 - **段 4:** `verbatim/s4-ruling.md`。変異を 4 件に絞り (結合固有の H-set と規律 1 層の H-line、protocol 側の代表 2 件)、受理方式を 4 択に。
-- **段 5:** Codex author B (probe、252 秒) が単位 3 の probe を 2 protocol 向けに改めた。自己確認の `py_compile` が作った `__pycache__` を消そうとして拒否され、指示どおり報告の途中で停止した (改修自体は入っていた)。親が probe を job dir へ退避し、差分を作り、自己試験 (184 / 184) と anchor 照合を行ってレビューへ渡した。
-- **段 6:** 敵対レビュー 2 本 (A = 正しさ境界 NO-GO: 4 OID を裁定済みの値に固定していない、B = 過剰・削除 GO: C4 の結果名・診断計数の名残・説明文)。**親の検算で H-line の判定の誤りを見つけた:** TPC-C consumer を target 名 (`tpcc_` で始まる) で選んでいたが、実際の 21 entry では該当が 12 件 (`transaction.cc` の tpcc target 3 件を含む) で、正しく検出しても必ず「理由違い」になる形だった。selftest の合成 row が実構成を写していなかったため、レビュー 2 本とも見逃した。段 6 裁定 (`verbatim/s6-ruling.md`) で fix 1 巡 (Codex、213 秒: source で選ぶ・selftest を前例の実測 21 組にする・旧 filter が拒否される陰性 case・結果名・名残の削除)、親は投入 script に OID 照合を足した。焦点再レビュー (`verbatim/s6-review-F-1.md`) は全所見 closed、GO。
-- Codex 子は計 8 本 (plan 1・consult 2・author 1・review 2・fix 1・focus 1)、model call 計 112、wall 合計 1,483 秒。全子 gpt-6-sol / medium。
+- **段 5:** Codex author B (probe、254 秒) が単位 3 の probe を 2 protocol 向けに改めた。自己確認の `py_compile` が作った `__pycache__` を消そうとして拒否され、指示どおり報告の途中で停止した (改修自体は入っていた)。親が probe を job dir へ退避し、差分を作り、自己試験 (184 / 184) と anchor 照合を行ってレビューへ渡した。
+- **段 6:** 敵対レビュー 2 本 (A = 正しさ境界 NO-GO: 4 OID を裁定済みの値に固定していない、B = 過剰・削除 GO: C4 の結果名・診断計数の名残・説明文)。**親の検算で H-line の判定の誤りを見つけた:** TPC-C consumer を target 名 (`tpcc_` で始まる) で選んでいたが、実際の 21 entry では該当が 12 件 (`transaction.cc` の tpcc target 3 件を含む) で、正しく検出しても必ず「理由違い」になる形だった。selftest の合成 row が実構成を写していなかったため、レビュー 2 本とも見逃した。段 6 裁定 (`verbatim/s6-ruling.md`) で fix 1 巡 (Codex、216 秒: source で選ぶ・selftest を前例の実測 21 組にする・旧 filter が拒否される陰性 case・結果名・名残の削除)、親は投入 script に OID 照合を足した。焦点再レビュー (`verbatim/s6-review-F-1.md`) は全所見 closed、GO。
+- **段 7:** 記録の read-only レビュー 1 本 (`verbatim/s6-review-R-1.md`、NO-GO) が Codex 実績の合計の誤り (初稿の 112 call・1,483 秒は受領証の別 field を拾っていた)、worklog の [T-2854] 更新本文での旧事実の脱落、F109 再発の恒久対応の言い過ぎ、trace 量の単位を指摘し、全件を直した。焦点再レビュー (`verbatim/s6-review-G-1.md`) は数値と F109 の記述を closed とし、worklog の 2 箇所 (C 単独の pin 前進の既承認の脱落、択 4 を含めて「既裁定の変更を要する」と書いた矛盾) を残したので、親が直して一次資料 (main の gitlink、本 insight §5.2) と照合した。
+- Codex 子は計 10 本 (plan 1・consult 2・author 1・review 2・fix 1・focus 1・記録レビュー 1・記録の焦点再レビュー 1)。受領証の `actuals` の合計は model call 143、wall 1,842.6 秒 (段 7 の 2 本を除く 8 本では 116 call・1,546.1 秒)。全子 gpt-6-sol / medium。
 
 ## 7. 主張しないこと
 
