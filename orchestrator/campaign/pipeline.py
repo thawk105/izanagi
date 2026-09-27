@@ -1741,6 +1741,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
     bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
     軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
+    bench_build_workload = workload
     if a1_source_context is not None and canonical_build_pin is None:
         raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
@@ -2102,16 +2103,16 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     )
                 return buildcache.build(
                     genome, ccbench_commit, trace=trace, src_token=src_tok,
-                    workload=workload,
+                    workload=bench_build_workload,
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
                     **build_options,
                 )
             if qualification_policy is None:
-                return buildcache.build_v2(genome, trace=trace, workload=workload, **common)
+                return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload, **common)
             return buildcache.build_v2(
-                genome, trace=trace, workload=workload,
+                genome, trace=trace, workload=bench_build_workload,
                 timeout_s=qualification_policy.build_timeout_s, **common,
             )
 
@@ -2694,7 +2695,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
             build_attempt_id=build_attempt_id,
-            workload_name=workload,
+            workload_name=bench_build_workload,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
         record_rep_integer_counters=record_rep_integer_counters,
@@ -2809,7 +2810,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         env_tag=env_tag,
         perf_binary=pf.binary,
         perf=perf,
-        workload=workload,
+        workload=bench_build_workload,
         clocks_per_us=clocks_per_us,
         numactl=numactl,
         do_bench=do_bench,

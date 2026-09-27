@@ -13737,6 +13737,7 @@ def _balanced_prepared_fixture(
         env_tag="linux-baremetal",
         perf_binary=arm,
         perf=PerfConfig(records=1000, threads=2, reps=reps),
+        workload="ycsb",
         clocks_per_us=1800,
         numactl=None,
         do_bench=True,
