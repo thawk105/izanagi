@@ -105,8 +105,8 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
 ```
 - 候補を評価した後、同じ authorization session で stock を 1 評価する (同じ job・同じ動作点の対照)。
   候補が例外で終わっても stock は試み、最後に候補の例外で rc≠0 になる (履歴には `eval-exception` の行が残る)。
-- **系列 dir と計測 dir は別である。** 系列 dir (loop campaign の dir) には `loop_state.json`・`policy_history.jsonl`・
-  `silo_policy_loop_digest.txt` だけが置かれる。pair の候補と stock は、系列の identity に `policy_iteration`
+- **系列 dir と計測 dir は別である。** 系列 dir (loop campaign の dir) は `loop_state.json`・`policy_history.jsonl`・
+  `silo_policy_loop_digest.txt` の置き場で、login の record-reject の WAL もここに入る。pair の候補と stock は、系列の identity に `policy_iteration`
   (その pair が消費する系列の iteration 番号) を足した**計測 campaign** に入り、claim・`campaign.lock`・WAL はそちらに
   できる。番号は driver が系列の `loop_state.json` から決める (argv では渡さない)。同じ submit checkout で pair job を
   **直列に** 投入すれば、各 job は別の claim を取り、前の job の stock も skip されない。系列履歴の pair の行と stdout JSON の
@@ -121,7 +121,7 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
   (検査を通れば `dry-pass` を返すが、WAL・履歴・critic digest には載らない)。
 - driver は検疫 → 構文検査 → 単独 TU → auditor digest 照合 → 書込 → digest 再照合 → build → legacy verify →
   性能構成 verify → bench の順に進め、履歴 (`policy_history.jsonl`) と critic digest
-  (`silo_policy_loop_digest.txt`) を campaign dir に書く。
+  (`silo_policy_loop_digest.txt`) を系列 dir に書く。
 - `AuditorGateFailure` は手順ミスか監査帰属の破れ。値を転記し直さず (c) からやり直す。
 
 ### (g) 停止判定を読み、続けるなら critic を spawn
@@ -155,7 +155,7 @@ critic は Read・Bash を持つので閲覧を機械的に防いだとは言え
 
 ## 3. 停止と継承
 
-`L.check_stop` の予算 (`MAX_ITER` / `MAX_WALLTIME_S`) に委譲する。checkpoint は campaign dir の
+`L.check_stop` の予算 (`MAX_ITER` / `MAX_WALLTIME_S`) に委譲する。checkpoint は系列 dir の
 `loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。stock baseline (bootstrap campaign) と
 R2 (r2 campaign) は loop の checkpoint・履歴を動かさない。
 
@@ -168,7 +168,7 @@ identity ごとに 1 file・release も stale 判定も無い (D464・D553)。�
 
 driver は counter を進めた直後、計測より前に系列の `loop_state.json` を保存する。pair job が claim 取得後に強制終了
 (walltime 超過など) した場合、その番号は**欠番**になる — 系列履歴にその番号の行は無く、計測 dir と claim file だけが残る。
-次の job は次の番号で進む。欠番の計測 dir は評価結果として読まない。並行投入 (同じ系列へ 2 本同時) は番号を予約しないので行わない。
+次の job は次の番号で進む。欠番の計測 dir と claim は証跡として残し、完了した pair の評価結果としては数えない。並行投入 (同じ系列へ 2 本同時) は番号を予約しないので行わない。
 
 walltime 予算は campaign の `loop_state.json` の作成時刻から数えるので、止まった系列を後から続けることはできない。
 **骨格 patch (`patches/silo-function-policy-variant.patch`) を変えたら、その変更 commit を含む HEAD から新しい submit
