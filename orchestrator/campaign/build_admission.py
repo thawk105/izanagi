@@ -32,6 +32,9 @@ from enum import Enum
 from typing import Mapping
 
 from .axis_trigger_gating import (
+    FROZEN_TEMPLATE_ABORT_HEAD_BYTES,
+    FROZEN_TEMPLATE_ABORT_TALLY_BYTES,
+    FROZEN_TEMPLATE_PROLOGUE_BYTES,
     FROZEN_TEMPLATE_BLOCK_BYTES,
     FROZEN_TEMPLATE_EPILOGUE_BYTES,
     FROZEN_TEMPLATE_HOLE_BYTES,
@@ -83,6 +86,20 @@ if (
     or FROZEN_TEMPLATE_HOLE_BYTES in _TRIGGER_TEMPLATE_SUFFIX
 ):
     raise RuntimeError("frozen trigger template hole must occur exactly once")
+
+_TRIGGER_ABORT_DECLARATION = b"void TxExecutor::abort() {\n"
+if (
+    not FROZEN_TEMPLATE_ABORT_HEAD_BYTES.startswith(_TRIGGER_ABORT_DECLARATION)
+    or FROZEN_TEMPLATE_ABORT_HEAD_BYTES.count(_TRIGGER_ABORT_DECLARATION) != 1
+):
+    raise RuntimeError("frozen trigger abort declaration must occur exactly once")
+_TRIGGER_FROZEN_PREFIXES = (
+    FROZEN_TEMPLATE_ABORT_HEAD_BYTES + FROZEN_TEMPLATE_PROLOGUE_BYTES,
+    _TRIGGER_ABORT_DECLARATION
+    + FROZEN_TEMPLATE_ABORT_TALLY_BYTES
+    + FROZEN_TEMPLATE_ABORT_HEAD_BYTES[len(_TRIGGER_ABORT_DECLARATION):]
+    + FROZEN_TEMPLATE_PROLOGUE_BYTES,
+)
 
 
 class BuildAdmissionError(RuntimeError):
@@ -168,17 +185,13 @@ def _reject_trigger_axis() -> None:
 
 
 def _require_materialized_trigger_axis_predicate(evidence: SourceEvidence) -> None:
-    """凍結 frame と隣接 epilogue の raw bytes だけを検査する。
+    """abort() 宣言から BEGIN 行頭直前までの 2 形、frame と隣接 epilogue を照合する。
 
-    生きた C++ であることは保証しない。R1 のコメント化、raw string の囮、前処理器による
-    識別子置換、R3 の evidence 取得から compiler read までの ABA 窓は残る。さらに R4 の
-    prologue での ``izanagi_gate_pass`` 再宣言（型差し替えによる代入・真理値の無効化）、
-    R5 の宣言と BEGIN の間の制御流変更（``return;`` 等）による hole/gated call の非到達化、
-    R6 の epilogue 直後への dangling ``else`` 付加による常時 backoff 化、R7 の block と epilogue を
-    逐語一致させたまま行う call target／引数の名前解決差し替え（宣言と BEGIN の間等での
-    ``Backoff`` や ``FLAGS_clocks_per_us`` の local shadowing）も残る。
-    source が存在しない場合（``FileNotFoundError``）と、BEGIN/END marker も skeleton token も無い
-    source の場合、この検査は発火せず受理する。
+    その領域内の R4 型差し替え・reason reset、R5 非到達化、R7 局所 shadowing の
+    提示形と移設形を拒否する。生きた C++ 全体は保証しない。関数前の file scope 宣言、
+    他 file の header／class member による名前解決差し替え、前処理器による識別子置換、
+    R1 のコメント化・raw string、R3 の ABA 窓、R6 の dangling else は残る。
+    source 不在 (FileNotFoundError) と marker・skeleton token とも無い source は受理する。
     C++ 字句解析、BOM/NUL/decode の source 全体検査は行わない。
     """
 
@@ -198,6 +211,9 @@ def _require_materialized_trigger_axis_predicate(evidence: SourceEvidence) -> No
             _reject_trigger_axis()
         return
     if len(begins) != 1 or len(ends) != 1 or begins[0].start() >= ends[0].start():
+        _reject_trigger_axis()
+
+    if not raw[:begins[0].start()].endswith(_TRIGGER_FROZEN_PREFIXES):
         _reject_trigger_axis()
 
     epilogue_start = ends[0].end()

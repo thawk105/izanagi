@@ -29,6 +29,8 @@ from orchestrator.campaign import reflux_origin_binding as origin_binding  # noq
 from orchestrator.campaign import reflux_result_evidence as evidence  # noqa: E402
 from orchestrator.campaign import source_digest, trigger_gate_binding, wal  # noqa: E402
 from orchestrator.campaign.axis_trigger_gating import (  # noqa: E402
+    FROZEN_TEMPLATE_ABORT_HEAD_BYTES,
+    FROZEN_TEMPLATE_PROLOGUE_BYTES,
     FROZEN_TEMPLATE_BLOCK_BYTES,
     FROZEN_TEMPLATE_EPILOGUE_BYTES,
 )
@@ -168,6 +170,8 @@ def _synthetic_silo_checkout(tmp_path: Path) -> tuple[Path, str, str]:
 
     silo_source = (
         "#include <initializer_list>\n"
+        "#include <cstdint>\n"
+        "#include <vector>\n"
         "namespace izanagi_trace {\n"
         "struct FixtureStream {\n"
         "  template <class T> FixtureStream& operator<<(T) { return *this; }\n"
@@ -184,11 +188,25 @@ def _synthetic_silo_checkout(tmp_path: Path) -> tuple[Path, str, str]:
         "};\n"
         "static thread_local IzanagiAbortReason izanagi_abort_reason_ =\n"
         "    IzanagiAbortReason::kUnset;\n"
-        "static void exercise_trigger_gate() {\n"
-        "  bool izanagi_gate_pass = true;\n"
+        "enum class OpType { INSERT };\n"
+        "struct Tuple {};\n"
+        "struct WriteEntry { OpType op_; int storage_; int key_; Tuple* rcdptr_; };\n"
+        "struct Masstree { void remove_value_if_present(int) {} };\n"
+        "static Masstree Masstrees[1];\n"
+        "static int get_storage(int) { return 0; }\n"
+        "static std::uint64_t rdtscp() { return 0; }\n"
+        "struct TxExecutor {\n"
+        "  std::vector<WriteEntry> write_set_;\n"
+        "  std::vector<int> read_set_;\n"
+        "  std::vector<int> node_map_;\n"
+        "  void gc_records() {}\n"
+        "  void abort();\n"
+        "};\n"
+        + FROZEN_TEMPLATE_ABORT_HEAD_BYTES.decode("utf-8")
+        + FROZEN_TEMPLATE_PROLOGUE_BYTES.decode("utf-8")
         + FROZEN_TEMPLATE_BLOCK_BYTES.decode("utf-8")
         + FROZEN_TEMPLATE_EPILOGUE_BYTES.decode("utf-8")
-        + "}\n"
+        + "#endif\n}\n"
         "#if TRACE\n"
         "static void fixture_proof_surfaces() {\n"
         "  izanagi_trace::emit_lock_violation(\n"
@@ -196,7 +214,7 @@ def _synthetic_silo_checkout(tmp_path: Path) -> tuple[Path, str, str]:
         "  izanagi_trace::stream(0) << \"P \";\n"
         "}\n"
         "#endif\n"
-        "int main() { exercise_trigger_gate(); return 0; }\n"
+        "int main() { TxExecutor tx; tx.abort(); return 0; }\n"
     )
     transaction = root / "cc" / "silo" / "transaction.cc"
     transaction.write_text(silo_source, encoding="utf-8")

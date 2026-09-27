@@ -5696,7 +5696,10 @@ def test_qualification_stock_build_case_dependency_options(tmp_path, check):
         end_marker = b"    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
         end = raw.index(end_marker, begin) + len(end_marker)
         source.write_bytes(
-            raw[:begin] + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
+            raw[:raw.index(b"void TxExecutor::abort() {\n")]
+            + axis_trigger_gating.FROZEN_TEMPLATE_ABORT_HEAD_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_PROLOGUE_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
             + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES + raw[end:]
         )
         subprocess.run(["git", "-C", str(checkout), "add", axis_trigger_gating.SOURCE_REL],
