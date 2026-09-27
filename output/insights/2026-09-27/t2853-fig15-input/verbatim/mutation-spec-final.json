@@ -1,0 +1,74 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "old": "'W1/result.json': 'W1-result.json',",
+          "new": "'W1/result.json': 'W2-result.json',"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_default_reads_flat_verbatim_fixture",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "old": "parser.add_argument(\"--evidence-root\", type=Path)",
+          "new": "parser.add_argument(\"--evidence-root\", type=Path, default=Path(EVIDENCE_ROOT))"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_default_reads_flat_verbatim_fixture"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "old": "path = Path(evidence_root)/VERBATIM_FILES[rel]",
+          "new": "path = Path(evidence_root)/rel"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_cli_default_reads_flat_verbatim_fixture",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_real_evidence_matches_results_document_when_root_present",
+        "orchestrator/tests/test_plot_mocc_witlight_four_arm.py::test_landed_fig15_external_closure_when_root_present"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "C0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_mocc_witlight_four_arm.py",
+          "old": "\"\"\"Pinned, non-certifying MOCC witness observations: one forest and exposure columns.\"\"\"",
+          "new": "\"\"\"Pinned, non-certifying MOCC witness observations.\"\"\""
+        }
+      ],
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false
+    }
+  ]
+}
