@@ -1,0 +1,51 @@
+{
+  "verdict": "pass",
+  "diff_digest": "0def2b390fae28ae768d4ed032ee763284fc171521b6a0549869ae4b89cc405d",
+  "violations": [],
+  "nits": [
+    "cc/silo/transaction.cc の hole 内 jittered_wait: window=1 のとき half=0、(jitter*1)>>16=0 なので、戻り値は常に 0 になる。grow_window が最初に置く kFirstStepUs=1 は、実際には待ち 0 us の段になる。正しさには影響しないが、設計どおりに待つのは window=2 からになる。",
+    "policy_on_lock_conflict の static_cast<uint32_t>(ctx.attempt) は冗長。LockContext::attempt は元から uint32_t である。",
+    "policy_after_abort は ctx.reason を読まない。施錠競合による abort 以外 (read_tid / read_locked / node_validation / scan_node / insert_node / update_absent) でも同じように backoff する。正しさの問題ではない。軸の意図 (要因別の gate) を使っていない点だけ次手シグナルとして残す。",
+    "lock 方策は stock の no-wait (NO_WAIT_LOCKING_IN_VALIDATION=1 は即 abort) を、上限付きの待機に替える (attempt<4 は 0 us、<12 は 1 us、<20 は 2 us の retry、20 以上で abort)。先に取った write_set の lock を保持したまま待つ。KEY_SORT=0 で施錠順が揃っていないと、互いに待つ組が生じうる。ただし候補の上限 20 と骨格の上限 32 で必ず abort に抜けるので、deadlock ではなく liveness の劣化にとどまる。直列化可能性は壊さない。この軸の API が retry を正式に許しているので、型10 の違反とは扱わない。"
+  ],
+  "proposed_tests": [
+    {
+      "id": "PT1-lock-attempt-cap",
+      "mutation": "骨格の lockWriteSet から `if (attempt >= 32u) {...return;}` の分岐を除く。hole には常に LockResponse{retry, 0u} を返す方策を入れる。",
+      "red_assert": "単体 harness で、別 thread が lock bit を立てたまま保持する tuple を write_set に 1 件入れ、lockWriteSet() を呼ぶ。その後 status_==aborted と、on_lock_conflict の呼出し回数 <= 32 を assert する。変異後は無限に retry するので、timeout で赤になる。",
+      "expected_verdict": "変異版は indeterminate (liveness が失われ trace-empty になる)。原本は緑。",
+      "machine_judgement": "driver の mutation_red_gate が、原本の緑と変異版の timeout または assert 失敗を一対で記録する。候補の kMaxLockAttempts=20 はこの上限より小さく、上限の非恒真性は候補には依存しない。"
+    },
+    {
+      "id": "PT2-hook-firing-evidence",
+      "mutation": "hole を stock の no-op 方策 (lock hook は常に abort、after_abort は 0) に差し替える。",
+      "red_assert": "#if TRACE 内だけで、骨格の on_lock_conflict で retry を選んだ回数と after_abort の非 0 戻り値の回数を数え、verify digest へ出す。本候補を verify したとき retry 回数 > 0 を要求する。stock 方策へ差し替えると retry 回数が 0 になり赤になる。",
+      "expected_verdict": "retry 回数 0 なら lock 方策は『verify 中の発火証拠なし』= indeterminate。certified にしない。",
+      "machine_judgement": "driver が verify digest の計数欄を読んで gate する。計数は TRACE build だけに置き、perf build からは消す (規律1)。v1 には候補ごとの hook 計数が無いので、これは新規提案である。consumer (driver gate) への配線が無ければ型5 の片肺になる。"
+    },
+    {
+      "id": "PT3-hole-containment",
+      "mutation": "working diff に EVOLVE-BLOCK-END の外側で 1 行 (例: lockWriteSet の `if (attempt >= 32u)` を `64u` にする) を加える。",
+      "red_assert": "DiffQuarantine が、マーカー外の物理行を含む diff を拒否する。",
+      "expected_verdict": "reject",
+      "machine_judgement": "driver の検疫 rc と、拒否理由に外側の行番号が出ることを照合する。"
+    },
+    {
+      "id": "PT4-policy-language-gate",
+      "mutation": "hole の helper に `static uint32_t hidden = 0u;` (保存域の迂回、型24) か、`while (current < kCapUs) { ... }` (loop、型20) を加える。",
+      "red_assert": "policy-C++ v1 の構文検査が拒否する。",
+      "expected_verdict": "reject",
+      "machine_judgement": "driver の検疫結果 (構文検査の段) が不受理になることを記録する。本候補は同じ検査で受理されるべきである (対の正例)。"
+    }
+  ],
+  "uncertainty": [
+    "diff_digest は入力値をそのまま返している。私は Bash を持たないので SHA-256 を再計算していない。working diff との機械照合は driver が行う。",
+    "監査範囲: 手元の patches/silo-function-policy-variant.patch の骨格と working diff を行単位で照合した。hunk (@@ -40,15 +40,60 @@) は hole の #if SILO_POLICY_VARIANT 枝の中身 9 行の置換だけだった。context は file 40 行目の #endif、BEGIN、#if、#else、#endif、END で、骨格の適用済み行番号と一致した。変更は transaction.cc の 1 file のみで、要因記録・begin() の reset・wait_us・1000/50 us の clamp・32 回上限・expected の再読込・prefix unlock・呼出し点・Options.cmake には触れていない。",
+    "読取契約: hole が読むのは ctx.rand、ctx.attempt、state の 2 field、namespace scope の constexpr だけだった。FLAGS_*、getenv、thid_、result_、read_set_/write_set_/node_map_、時刻、TRACE、マクロ名、__ を含む識別子、コメント、前処理指令はどれも無い。external/ccbench で、候補が使う識別子 (kCapUs 等の定数、helper 名、局所変数名、min) と同名の #define が無いことを grep で確かめた (0 件)。helper 名 (grow_window / jittered_wait / kCapUs / kMaxLockAttempts) は CCBench 内で衝突していない。骨格は hook を ::izanagi_silo_policy:: で完全修飾して呼ぶので、hole 側の宣言で骨格の呼出しを置き換えることはできない (型22)。system header 側のマクロまでは確かめていない。",
+    "言語契約の静的確認: PolicyState は uint32_t の field が 2 個で、どちらもリテラルで初期化されている。helper は定義順に前方参照だけをし、再帰は無い。全関数が noexcept で、非 void 関数は return で終わる。cast は static_cast だけ、shift の回数はリテラルの 1u / 16u で型幅より小さい。除算・loop・pointer・配列・可変の static 変数・例外は無い。演算の最大値はいずれも数百万程度で、uint32_t の範囲に収まる (window は 64 以下、jitter は 65535 以下)。ただし driver の検疫結果 (構文検査と単独 TU compile を通った受領) は入力に含まれていないので、確認できていない。受領が無ければ、この pass は受理の根拠にならない。",
+    "発火証拠 (型4/26): abort_digest は空 {} だった。lock 方策と after_abort の方策が verify 中に一度でも実行されたかは分からない。既定どおり『verify 中の発火証拠なし』として扱う。この pass は、静的監査で正しさ違反が見つからなかったという意味にとどまり、合成枝が検証されたことは主張しない。",
+    "fairness (型15): 状態は thread ごとの thread_local で、骨格が持つ。方策は key・storage・thread ID を読まない。指数 backoff はどの thread にも同じ規則で掛かるので、恒常的な優先順位を作る構造は読み取れなかった。ただし per-key / per-thread の commit 分布を機械的に観測する仕組みは無く、実際に飢餓が起きないことは確かめられない。",
+    "入力隔離: output/ 配下、WAL (runs/wal.jsonl)、fitness やスループットを含む file は開いていない。読んだのは designated_sources の 3 file と、external/ccbench への grep だけである。",
+    "入力中に、振る舞いを誘導する文字列は見当たらなかった。"
+  ]
+}
