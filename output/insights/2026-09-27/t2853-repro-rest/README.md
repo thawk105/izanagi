@@ -181,12 +181,17 @@ R2 を推奨する 9 図 (計画稿 §0 項 2) と、推奨しない・保留の
 |---|---|---|---|
 | S1 の残り / N1 | §0 項 2 の「T-2850 試走 v2 は trace 保全を指定していない」が §2.3 の調査範囲を超えた断定のまま | real | §0 項 2 を §2.3 と同じ範囲に限定した。保存先の `README.md` の同じ文も同様に直した |
 
+焦点再レビュー 2 巡目 (Codex、read-only、commit `f99846ffc` と保存先の README が対象、rc=0、受理 rc=0、逐語 `verbatim/s6-focus-2.md`) は **GO** — S1・N1 は closed、
+M1・M2 は closed のまま回帰なし、新規所見なし。レビュー子は glue v3・投入 script・投入台帳を読み直して `TRACE_ARCHIVE` の指定が無いことと、
+本文と repo 外 README 2 本に調査範囲を超える断定が残っていないことを確かめた。
+
 ## 5. 出所
 
 - `verbatim/request.md` — 依頼の逐語。`verbatim/startup-gate.log` — 開始 gate (rc=0)。`verbatim/s1-brief.md` — 段 1 brief。
 - `verbatim/dryrun.log`・`verbatim/copy.log`・`verbatim/recheck.log` — 写す前の数え上げ、写しと照合、写し側の独立再検算。
 - `verbatim/tree-heads.log` — 42 本の checkout の HEAD。`verbatim/manifest-sha256.log`・`verbatim/tools-sha256.log` — 保存先の manifest 14 file と tools の sha256。
 - `verbatim/elapse.log` — B-10 の元 job の NQSV 会計 (Request ID・開始・終了・Elapse) の抜粋。
+- `verbatim/s6-review.md`・`verbatim/s6-focus-1.md`・`verbatim/s6-focus-2.md` — 段 6 のレビューと焦点再レビュー 2 巡の逐語 (無加工、行末空白なし)。
 - 調査子 (Claude Explore、sonnet) 3 本 (系列ごとの所在と写す候補) の報告は会話内のみ。3 本とも途中で隔離 session のガードにより Bash を使えなくなり、
   T-2850 と T-2865 の checkout 内の件数・bytes は親が保存先 `tools/` の読み取り script と `archive_copy.py` の数え上げで実測し直した。本文の数値はすべて親の実測である。
   調査子が「T-2850 の checkout 内の campaign は試走 v2 と無関係かもしれない」と推測した点は、checkout が試走 v2 専用の `trial-v2/trees/` にあり HEAD が試走の固定 commit に揃うこと、
