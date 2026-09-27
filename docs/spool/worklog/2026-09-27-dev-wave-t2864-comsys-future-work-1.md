@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-27
 wave: dev-wave-t2864-comsys-future-work
 seq: 1
-title: [T-2864] ComSys 原稿の改訂 4 — 7 節と限界節を一次資料と照合し直し、(b) を LLM の方策 1 件の certified (比 2.80 は 1 回の観測で主張にしない)、(c) と限界節を B-5 本走の判定不能での閉鎖と v2 の見送りへ、限界節のスコープを MOCC の疎通後の状態へ直した。15 頁のまま (docs のみ、branch dev-wave-t2864-comsys-future-work)
+title: [T-2864] ComSys 原稿の改訂 4 — 7 節と限界節を一次資料と照合し直し、(b) を LLM の方策 1 件の certified (同じ job の stock 比 2.80 は 1 度の対の観測で主張にしない)、(c) と限界節を B-5 本走の判定不能での閉鎖と v2 の見送りへ、限界節のスコープを MOCC の疎通後の状態へ直した。15 頁のまま (docs のみ、branch dev-wave-t2864-comsys-future-work)
 ---
 
 ## 本文
@@ -17,7 +17,9 @@ title: [T-2864] ComSys 原稿の改訂 4 — 7 節と限界節を一次資料と
 - 親の裁定: 関数方策の軸の機械偵察で 3 点が静的 10 µs を超えた結果 (D2240・D2250) は、依頼が食い違いの是正で、LLM の候補でない診断 build の探索的な超過を足すと新しい性能の記述になるので本文に足さず、
   README §12.2 に残した。載せるかはユーザーの判断。MOCC の read-heavy の G2 6 件は D2261 項 6 に従い書かない。
 - `EnterWorktree(name)` が「Could not read the repository git config to neutralize filter drivers」で失敗したので、`git worktree add -b … main` を手で行い `EnterWorktree(path)` で入った (既知の回避策)。
-- 段 6 の read-only レビュー: (段 6 の後に書く)
+- 段 6 の read-only レビュー (codex 1 本): NO-GO、must-fix 3・should 1 をすべて real と裁定して直した — 「1 候補・1 回」が別 job の再評価 (R2) と字面で矛盾、3.1・4.9・5 節の現在形
+  (「現在扱う軸」「非 Silo の性能比較は 0 件」「現行の合成空間」) が改訂後の限界節と食い違う、MOCC の「1 回の観測」の単位。3.1・4.9・5 節は依頼の範囲外だが、時点・範囲を限る語句だけを直した。
+  (P1) (偵察の 3 点を足さない) はレビューが refuted とした。焦点再レビューの結果は README §12.5。
 
 ## 次の一手差分
 
