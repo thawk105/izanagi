@@ -60,393 +60,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
 
 ---
-## 2026-09-27 (1891) — [T-1068] trigger 骨格の凍結を abort() 宣言行から BEGIN 行頭直前まで広げ、R4 / R5 / R7 の提示形と同じ関数内への移設形を build admission で拒否した。受理形は骨格のみと骨格 + S8a 計装の 2 つ、変異 7/7 KILLED (コード + テスト、branch worktree-t1068-skeleton-decl-freeze)
-
-- 依頼 (ユーザー直接起動の `/dev-wave`、逐語 = `output/insights/2026-09-27/t1068-skeleton-decl-freeze/verbatim/request.md`): 2026-08-16 /rulings 全件 第 3 回 項 22 の実装。設計判断は D2267、記録は同 insight の README。
-- 起点 = local main `ad114fba0` (fresh worktree、開始 gate rc=0)。全 9 段 (設計択一が割れ、正しさ防壁に触り、受理集合が変わるため軽量版にしない)。
-- 段 1 の前提確認: [T-1068] は 2026-09-26 の持ち越し整理 (D2257) で残す側、D2260 項 2 (正しさ防壁の束縛拡張の停止) の対象外。wave 開始後に T-1068 へ触れる新しい裁定は無し (裁定 inbox を段 4 直前に再走査)。
-- 設計の決着: 段 1 の provisional (関数冒頭から凍結) を段 2 plan・段 3 の 2 レンズとも支持。段 6 レビュー A の must-fix 1 件 (buildcache の fixture が借用 checkout の `Transaction::abort()` を探せない) と、
-  焦点走 f1 で初めて出た赤 3 件 (合成 checkout に canonical head の `#if ADD_ANALYSIS` が入り、source_digest の未知マクロ検査が fail-closed) を fix 1 巡で直した。検査は緩めず、fixture に実 CCBench と同じ形で ADD_ANALYSIS を供給した。
-  レビュー B の should (import 時の宣言行 assert は plan 外) は不採用 — 切り出しの前提を守る既存 hole の RuntimeError と同型。静的レビュー 4 本は ADD_ANALYSIS の件を見落とした。
-- 検査: 焦点走 f1 (commit `56b810852`、34 file) 10 failed / 5,159 passed (赤は全て fixture の形)。f2 (commit `4ea4d601d`、fix した 2 file) 271 passed。単独走は M3 で `test_campaign.py` 1 file (458 passed / 3 skipped)、
-  `test_build_admission.py` は変異 probe の baseline が単独走を兼ねる。変異 final (commit `4ea4d601d`、runner = `test_build_admission.py`) baseline PASSED・7/7 KILLED・MISMATCH 0、contract-loader drift の node 0。
-  受入全走は本 fragment を含む記録 commit の tip で行う (記録時点では未実施)。
-- 並走: main は B-4 事前登録・T-2867・T-2207・T-2850 などの着地で前進したが、編集した 6 file・借用 fixture・source_digest・patches には触れていない (着地通知ごとに diff で確認)。
-- エージェント工数: Codex 子 = plan 1・consult 2・author 1・review 2・fix 1・焦点再レビュー 1 (全て gpt-6-sol / medium)。Claude 子 = sonnet 1 (producer の棚卸し、read-only)。計算ノード job = 焦点走 2・単独走 1・変異 probe / final (各 8 run)・受入。
-
-- [T-1068] trigger 骨格の宣言側と呼出依存を凍結した (D2267)。R4 / R5 / R7 の提示形と、abort() 宣言行から BEGIN 行頭直前までの領域内への移設形を拒否する。
-  残る限界 (宣言行より前・前処理器・他 file・R1・R3・R6・source 不在の受理) は docstring と insight に明記し、R6 は [T-1069] のまま。
-
-### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
-
-- [T-139] (1890)
-- [T-265] (1890)
-- [T-129] (1890)
-- [T-238] (1890)
-- [T-570] (1890)
-- [T-580] (1890)
-- [T-793] (1890)
-- [T-823] (1890)
-- [T-841] (1890)
-- [T-1069] (1890)
-- [T-1071] (1890)
-- [T-1072] (1890)
-- [T-1234] (1890)
-- [T-1295] (1890)
-- [T-1418] (1890)
-- [T-1524] (1890)
-- [T-1660] (1890)
-- [T-1702] (1890)
-- [T-1703] (1890)
-- [T-1708] (1890)
-- [T-1784] (1890)
-- [T-1794] (1890)
-- [T-1832] (1890)
-- [T-1834] (1890)
-- [T-1882] (1890)
-- [T-1883] (1890)
-- [T-1944] (1890)
-- [T-1950] (1890)
-- [T-2000] (1890)
-- [T-2005] (1890)
-- [T-2052] (1890)
-- [T-2084] (1890)
-- [T-2092] (1890)
-- [T-2100] (1890)
-- [T-2104] (1890)
-- [T-2172] (1890)
-- [T-2205] (1890)
-- [T-2207] (1890)
-- [T-2218] (1890)
-- [T-2221] (1890)
-- [T-2222] (1890)
-- [T-2244] (1890)
-- [T-2245] (1890)
-- [T-2250] (1890)
-- [T-2273] (1890)
-- [T-2277] (1890)
-- [T-2288] (1890)
-- [T-2300] (1890)
-- [T-2318] (1890)
-- [T-2322] (1890)
-- [T-2323] (1890)
-- [T-2351] (1890)
-- [T-2378] (1890)
-- [T-2387] (1890)
-- [T-2404] (1890)
-- [T-2415] (1890)
-- [T-2422] (1890)
-- [T-2425] (1890)
-- [T-2451] (1890)
-- [T-2453] (1890)
-- [T-2459] (1890)
-- [T-2461] (1890)
-- [T-2463] (1890)
-- [T-2511] (1890)
-- [T-2522] (1890)
-- [T-2538] (1890)
-- [T-2541] (1890)
-- [T-2559] (1890)
-- [T-2560] (1890)
-- [T-2561] (1890)
-- [T-2575] (1890)
-- [T-2604] (1890)
-- [T-2605] (1890)
-- [T-2606] (1890)
-- [T-2648] (1890)
-- [T-2685] (1890)
-- [T-2699] (1890)
-- [T-2725] (1890)
-- [T-2739] (1890)
-- [T-2740] (1890)
-- [T-2741] (1890)
-- [T-2754] (1890)
-- [T-2755] (1890)
-- [T-2759] (1890)
-- [T-2767] (1890)
-- [T-2787] (1890)
-- [T-2806] (1890)
-- [T-2808] (1890)
-- [T-2818] (1890)
-- [T-2820] (1890)
-- [T-2827] (1890)
-- [T-2829] (1890)
-- [T-2838] (1890)
-- [T-2840] (1890)
-- [T-2846] (1890)
-- [T-2848] (1890)
-- [T-2850] (1890)
-- [T-2851] (1890)
-- [T-2852] (1890)
-- [T-2853] (1890)
-- [T-2854] (1890)
-- [T-2855] (1890)
-- [T-2859] (1890)
-- [T-2864] (1890)
-- [T-2865] (1890)
-- [T-2866] (1890)
-- [T-2867] (1890)
-- [T-2868] (1890)
-- [T-2869] (1890)
-
-## 2026-09-27 (1892) — [T-2104] campaign の advisory flock を B-4 認可から checkpoint 完了まで広げた (D1346)。base driver と main の B-4 経路が外側で lock を取り、run_campaign へ保持 handle を渡す。旧 driver では新しい負例 7 件すべてで producer が実行中の arm の lock を取れる誤判定を再現し、新 driver で緑 (コード + test、branch dev-wave-t2104-flock-scope)
-
-- 依頼どおり base driver (`p3_s4_loop.py`) の並行実行契約だけを変えた。sort / trigger / policy driver・tools/pegasus/・producer は触っていない。
-  対象を base に限った根拠は B-4 事前登録 §5「対象 driver と軸」= base。受け渡しの設計は D2268。
-- 実測: 焦点走 f1 (39 file) 2 failed / 5080 passed → fix 1 巡 (各 1 行) → 再走 f2 1146 passed / 赤 0。
-  旧 driver (p3_s4_loop.py だけ ad114fba0 版) で新しい負例 7 件すべてが「DID NOT RAISE CampaignBusy」で赤 = 誤判定の再現。
-  変異 harness 本走 10/10 KILLED (drift 核 148 node を対照 M0a/M0b で分離)。drift に隠れる M1/M2/M3/M5 は commit 済み変異の個別走で狙いの負例だけが赤。
-  単独走は M1 (fix 後の再走 f2 を変更 test file 2 本 + signature test の file に置き換え)。
-- 棄却・見送り: 段 3 の「path 不一致を B-4 消費前に拒否する追加照合」は本番経路で起きない仮想リスク向け gate として不採用。
-  sort / trigger の同型の窓と producer の非保証文の陳腐化は insight に記録し起票しない。
-- セッション異常: 親が DW-O13 (検証の新設時の入力実在) を段 2 前に読まず、段 4 直前に段 2・3 を無効化して再実行した (codex 3 本分)。
-  実装子 worktree の作成が EINTR で 1 回失敗、submodule 初期化が 1 回 runtime-io-failure (いずれも再実行で回復)。
-- 工数: codex 11 本 (plan 2・consult 4・author 1・review 2・fix 1・focus 1)、計算ノード job は焦点走 2・旧 driver 確認 1・変異 probe/本走 各 11 run・commit 済み変異 4・受入。
-- 詳細: output/insights/2026-09-27/t2104-campaign-flock-scope/README.md
-
-- [T-2104] campaign の advisory flock を base driver の B-4 認可・preflight・実行・checkpoint 完了までと main の B-4 事前認可から driver 復帰までへ広げ、誤判定の再現 test と既存の並行実行契約 test を同じ単位で置いた。
-
-### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
-
-- [T-139] (1891)
-- [T-265] (1891)
-- [T-129] (1891)
-- [T-238] (1891)
-- [T-570] (1891)
-- [T-580] (1891)
-- [T-793] (1891)
-- [T-823] (1891)
-- [T-841] (1891)
-- [T-1069] (1891)
-- [T-1071] (1891)
-- [T-1072] (1891)
-- [T-1234] (1891)
-- [T-1295] (1891)
-- [T-1418] (1891)
-- [T-1524] (1891)
-- [T-1660] (1891)
-- [T-1702] (1891)
-- [T-1703] (1891)
-- [T-1708] (1891)
-- [T-1784] (1891)
-- [T-1794] (1891)
-- [T-1832] (1891)
-- [T-1834] (1891)
-- [T-1882] (1891)
-- [T-1883] (1891)
-- [T-1944] (1891)
-- [T-1950] (1891)
-- [T-2000] (1891)
-- [T-2005] (1891)
-- [T-2052] (1891)
-- [T-2084] (1891)
-- [T-2092] (1891)
-- [T-2100] (1891)
-- [T-2172] (1891)
-- [T-2205] (1891)
-- [T-2207] (1891)
-- [T-2218] (1891)
-- [T-2221] (1891)
-- [T-2222] (1891)
-- [T-2244] (1891)
-- [T-2245] (1891)
-- [T-2250] (1891)
-- [T-2273] (1891)
-- [T-2277] (1891)
-- [T-2288] (1891)
-- [T-2300] (1891)
-- [T-2318] (1891)
-- [T-2322] (1891)
-- [T-2323] (1891)
-- [T-2351] (1891)
-- [T-2378] (1891)
-- [T-2387] (1891)
-- [T-2404] (1891)
-- [T-2415] (1891)
-- [T-2422] (1891)
-- [T-2425] (1891)
-- [T-2451] (1891)
-- [T-2453] (1891)
-- [T-2459] (1891)
-- [T-2461] (1891)
-- [T-2463] (1891)
-- [T-2511] (1891)
-- [T-2522] (1891)
-- [T-2538] (1891)
-- [T-2541] (1891)
-- [T-2559] (1891)
-- [T-2560] (1891)
-- [T-2561] (1891)
-- [T-2575] (1891)
-- [T-2604] (1891)
-- [T-2605] (1891)
-- [T-2606] (1891)
-- [T-2648] (1891)
-- [T-2685] (1891)
-- [T-2699] (1891)
-- [T-2725] (1891)
-- [T-2739] (1891)
-- [T-2740] (1891)
-- [T-2741] (1891)
-- [T-2754] (1891)
-- [T-2755] (1891)
-- [T-2759] (1891)
-- [T-2767] (1891)
-- [T-2787] (1891)
-- [T-2806] (1891)
-- [T-2808] (1891)
-- [T-2818] (1891)
-- [T-2820] (1891)
-- [T-2827] (1891)
-- [T-2829] (1891)
-- [T-2838] (1891)
-- [T-2840] (1891)
-- [T-2846] (1891)
-- [T-2848] (1891)
-- [T-2850] (1891)
-- [T-2851] (1891)
-- [T-2852] (1891)
-- [T-2853] (1891)
-- [T-2854] (1891)
-- [T-2855] (1891)
-- [T-2859] (1891)
-- [T-2864] (1891)
-- [T-2865] (1891)
-- [T-2866] (1891)
-- [T-2867] (1891)
-- [T-2868] (1891)
-- [T-2869] (1891)
-
-## 2026-09-27 (1893) — [T-1072] critic digest の材料 diff_region を表示直前に文字集合で検査し、外部 diff の file path が制御文字・表示偽装のまま critic 入力へ載る経路を閉じた。外側の理由文字列は T-1047 で閉鎖済みを確認し、同じ record の負例を同じ単位に置いた (コード + テスト、branch worktree-t1072-material-path-charset)
-
-- 依頼 (2026-09-27): 2026-08-25 /rulings 択 (a) のとおり材料の逐語経路に文字集合の制限を掛け、外側の理由文字列も同じ変更単位で閉じる。
-  正例と負例を同じ単位で置き、規律 2 を緩めず、本題だけ実装する。記録は `output/insights/2026-09-27/t1072-material-region-charset/README.md`。
-- 段 3 相談 2 本の指摘で親 brief を 2 点改めた。(1) 検査は loader と renderer の両方でなく renderer だけに置いた
-  (2026-08-15 裁定の「表示直前の無害化に限る」、loader 値を表示・比較する consumer が無い)。(2) 攻撃者制御の値が region に届くのは
-  `DiffQuarantine` へ外部 diff を直接渡した場合に限る — 通常の段 4 driver は固定 source_rel から diff を組むので、到達の主張を条件付きにした。
-- 実 WAL 154 本に diff 検疫 payload は 0 件で、正当値の網羅証拠にはならない。正例は producer の `_mk_digest` 13 箇所と実 producer 経由のテストで取った。
-- 変異: digest.py は contract-loader 閉包に入っており、bytes が HEAD と違うだけで test_critic.py の 64 node が赤になる (comment だけの対照 M0 で測定)。
-  WAL を読む今回の新テストもこの層に入るため、固有証拠は直構築テストと、変異を commit した使い捨て木の side run (drift なし) が担う。
-  本走 6 / 6 KILLED (対照 M0 を含む、期待外 0)、side run は 5 変異とも事前登録の期待集合と完全一致 (M2 の固有証拠はこちらだけ)。
-- scope 外の残余 (実装・起票せず、insight §6 に記録): trace 由来の key・integrity notes の逐語表示 (D2257 が T-1072 を残した根拠) と、
-  検疫以外の STAGE_ABORT の外側 reason。どちらも起票の材料 field の外で、到達性は未測定。
-- 検査: 焦点走 15 file 2,473 passed / 3 skipped を 2 回、provenance 全史監査 rc=0。三軸語走査 (`s8b_holdout_freeze search`) は rc=1 だが hit は 2026-09-16 の
-  `output/env/pegasus/calibration/s8b-floor-official/` の既存 3 file だけで、本 wave の新 file は 0 件。受入全走は本記録の commit の後に行い、結果は land の受領証に残る。
-- 工数: codex 8 本 (plan 1・consult 2・author 1・review 2・fix 1・focus 1)、計算ノード job は焦点走 2・変異 3 走 (probe・M0 probe・本走)・side run 6 回・受入。
-
-- [T-1072] 材料 (critic digest の diff 検疫 rejection) の diff_region を renderer で文字集合検査し、許可外を sentinel に置き換えた。
-  外側の理由文字列は T-1047 で閉鎖済み。正例・負例を同じ commit に置いた。scope 外の残余は insight §6。
-
-### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
-
-- [T-139] (1892)
-- [T-265] (1892)
-- [T-129] (1892)
-- [T-238] (1892)
-- [T-570] (1892)
-- [T-580] (1892)
-- [T-793] (1892)
-- [T-823] (1892)
-- [T-841] (1892)
-- [T-1069] (1892)
-- [T-1071] (1892)
-- [T-1234] (1892)
-- [T-1295] (1892)
-- [T-1418] (1892)
-- [T-1524] (1892)
-- [T-1660] (1892)
-- [T-1702] (1892)
-- [T-1703] (1892)
-- [T-1708] (1892)
-- [T-1784] (1892)
-- [T-1794] (1892)
-- [T-1832] (1892)
-- [T-1834] (1892)
-- [T-1882] (1892)
-- [T-1883] (1892)
-- [T-1944] (1892)
-- [T-1950] (1892)
-- [T-2000] (1892)
-- [T-2005] (1892)
-- [T-2052] (1892)
-- [T-2084] (1892)
-- [T-2092] (1892)
-- [T-2100] (1892)
-- [T-2172] (1892)
-- [T-2205] (1892)
-- [T-2207] (1892)
-- [T-2218] (1892)
-- [T-2221] (1892)
-- [T-2222] (1892)
-- [T-2244] (1892)
-- [T-2245] (1892)
-- [T-2250] (1892)
-- [T-2273] (1892)
-- [T-2277] (1892)
-- [T-2288] (1892)
-- [T-2300] (1892)
-- [T-2318] (1892)
-- [T-2322] (1892)
-- [T-2323] (1892)
-- [T-2351] (1892)
-- [T-2378] (1892)
-- [T-2387] (1892)
-- [T-2404] (1892)
-- [T-2415] (1892)
-- [T-2422] (1892)
-- [T-2425] (1892)
-- [T-2451] (1892)
-- [T-2453] (1892)
-- [T-2459] (1892)
-- [T-2461] (1892)
-- [T-2463] (1892)
-- [T-2511] (1892)
-- [T-2522] (1892)
-- [T-2538] (1892)
-- [T-2541] (1892)
-- [T-2559] (1892)
-- [T-2560] (1892)
-- [T-2561] (1892)
-- [T-2575] (1892)
-- [T-2604] (1892)
-- [T-2605] (1892)
-- [T-2606] (1892)
-- [T-2648] (1892)
-- [T-2685] (1892)
-- [T-2699] (1892)
-- [T-2725] (1892)
-- [T-2739] (1892)
-- [T-2740] (1892)
-- [T-2741] (1892)
-- [T-2754] (1892)
-- [T-2755] (1892)
-- [T-2759] (1892)
-- [T-2767] (1892)
-- [T-2787] (1892)
-- [T-2806] (1892)
-- [T-2808] (1892)
-- [T-2818] (1892)
-- [T-2820] (1892)
-- [T-2827] (1892)
-- [T-2829] (1892)
-- [T-2838] (1892)
-- [T-2840] (1892)
-- [T-2846] (1892)
-- [T-2848] (1892)
-- [T-2850] (1892)
-- [T-2851] (1892)
-- [T-2852] (1892)
-- [T-2853] (1892)
-- [T-2854] (1892)
-- [T-2855] (1892)
-- [T-2859] (1892)
-- [T-2864] (1892)
-- [T-2865] (1892)
-- [T-2866] (1892)
-- [T-2867] (1892)
-- [T-2868] (1892)
-- [T-2869] (1892)
-
 ## 2026-09-27 (1894) — [T-1418] 変異 harness に commit 注入モード (--inject commit) を足し、contract-loader 閉包の member の変異を値の層で観測できるようにした。loop.py の実 dispatch で、file-swap では等価変異も drift で owner を落とし、commit モードでは等価変異 SURVIVED・値変異は owner だけ KILLED (コード + test + docs、branch worktree-dev-wave-t1418-closure-mutation)
 
 - 依頼 (ユーザー直接起動の `/dev-wave`、逐語 = `output/insights/2026-09-27/t1418-commit-injection/verbatim/request.md`): harness 側か fixture 側のどちらに閉包を横断する安全な変異経路を持たせるかを段 1 で決めて実装する。本題の実装だけ。設計判断は D2269、F424 の記述訂正は failures fragment、測定と経緯は同 insight の README。
@@ -1596,3 +1209,158 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-2868] (1901)
 - [T-2870] (1901)
 - [T-2871] **P1・新規 (AI、設計択一が割れるので敵対検証子付きの wave)**: 方策 loop (`orchestrator/campaign/p3_s4_loop_policy.py`) を Pegasus で複数 iteration 回せるようにする。Pegasus 契約の campaign claim は identity ごとに一度きり (release・stale 判定なし、D464・D553) で、同じ job 内の候補→stock は 1 process の認可 session で共有して解いた (D2205) が、job をまたぐ同じ loop campaign の 2 本目の pair job は `ClaimError` で build 前に止まる (2026-09-27 に実測、`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4)。claim leaf と one-shot 性は変えず、driver 側で解く設計を段 1〜4 で決める (claim を手で退避して続ける運用は採らない)。backoff 軸の loop (`p3_s4_loop.py`) の Pegasus 系列が iteration をどう分けているかも段 1 で実測して先例として使う。結合検査は実 `_authorize_measurement`・実 `acquire_claim` を 2 process で通す形を含める (F1019)。計算は job Elapse の実測単価で見積もり、検査込み 2 node 時間以上ならユーザー確認。
+
+## 2026-09-27 (1903) — [T-2854] D297 検査器に header 差分の受理規則 v2 を実装し、改訂後の検査器で C → C2' を GCC 11.4 / 12.3 とも pass と判定した。負例対照は拒否、pin は C のまま、C2' の pin 前進は問い 2 としてユーザー裁定へ (コード + test + insight、branch worktree-dev-wave-t2854-d297-header-v2)
+
+- 依頼 = [T-2854] の残り (1) (D2260 項 1 で承認・委任)。設計判断 = D2275、記録 = `output/insights/2026-09-27/t2854-d297-header-v2/README.md`。受理集合を変え正しさ防壁に触るので 9 段を回した (段 2 plan 1、段 3 相談 2、段 5 実装子 1、段 6 レビュー 2 + fix 3 巡 + 焦点再レビュー 1)。
+- 判定 (31903.nqsv、Elapse 1,944 秒、commit 82e9e780): GCC 11.4 (980 秒)・12.3 (988 秒) とも pass。負例対照 (tpcc.hh の `#line 56` 削除) は拒否。変異 12 件 KILLED。V2・V12 は単一理由の偽緑に届かず登録から外した。
+- 棄却 finding: 段 6 レビューの F9 (root 正規化の path 境界、焦点再レビューでも反証として再提出) と F10 (test 用供給で本体経路が分岐) は不採用 (理由は D2275 の却下欄)。DW-O16 の 3 巡上限で F9 の fix は重ねなかった。
+- セッション異常: 段 4 裁定の gitlink の事実誤認で判定 1 回目 (31898.nqsv、10 秒) が止まった (F1055)。fix 1 は親の投げ文の相対 path で子が即停止 (F819 再発、near miss)。合成 fixture の `-Werror` 欠落 (F899 再発)、consumer test の AST 固定の見落とし (F42 再発) は段 6 と焦点走で直した。判定 job script (job dir、repo 外) は関数内で `set -e` を戻してから `return 1` したため負例の末尾検査が job 内で走らず rc=1 になった。検査器の出力は保存済みで、親が同じ検査を当てて成立を確認し、再走しなかった。
+- 計算: job の Elapse 合計 2,137 秒 (生死確認 170、焦点走 13、判定 10 + 1,944) + 変異 2 走 742.7 秒 (queue 込み) ≈ 0.80 node 時間 (受入を除く)、2 node 時間の確認線の下 (段 4 の見積り 1.2〜1.75)。
+- 工数: Codex 子 13 本 (全子 gpt-6-sol / medium、段 7 の記録レビュー 1 本を含む) で model call 199、wall 3,638.8 秒 (うち fix 1 は 16.0 秒の即停止)。段 7 の記録レビューは数値・名乗りを一次資料と一致と確認し、failures の再発分類 2 件 (F42・F819) を指摘した。F42 は 2026-07-27 (26) で広げた型と 2026-08-28・09-10 の再発に照らして維持 (refuted)、F819 は型の同一と結末の違い (fail-closed) を本文に明記して維持した。
+- 受入 1 回目 (tested main 19d3f2bae、tip 1eaf4331) は 27,879 passed / 74 skipped / 1 failed で、赤は新 test file の自走入口・allowlist 欠落 (`test_plain_runner_coverage.py`、F42 再発) だった。親が `orchestrator/tests/README.md` の pytest 専用 allowlist に 1 行足し、同メタテストの自走 3 件緑を確かめた。受入 1 回目の Elapse は 3 shard 計 848 秒 (wave の計算は累計約 1.04 node 時間)。受入 2 回目は本 commit の後に走る (結果は land の受領証)。
+
+### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
+
+- [T-139] (1902)
+- [T-265] (1902)
+- [T-129] (1902)
+- [T-238] (1902)
+- [T-570] (1902)
+- [T-580] (1902)
+- [T-793] (1902)
+- [T-823] (1902)
+- [T-841] (1902)
+- [T-1069] (1902)
+- [T-1071] (1902)
+- [T-1234] (1902)
+- [T-1295] (1902)
+- [T-1524] (1902)
+- [T-1660] (1902)
+- [T-1702] (1902)
+- [T-1703] (1902)
+- [T-1708] (1902)
+- [T-1784] (1902)
+- [T-1794] (1902)
+- [T-1832] (1902)
+- [T-1834] (1902)
+- [T-1882] (1902)
+- [T-1883] (1902)
+- [T-1944] (1902)
+- [T-1950] (1902)
+- [T-2000] (1902)
+- [T-2005] (1902)
+- [T-2052] (1902)
+- [T-2084] (1902)
+- [T-2092] (1902)
+- [T-2100] (1902)
+- [T-2172] (1902)
+- [T-2205] (1902)
+- [T-2218] (1902)
+- [T-2221] (1902)
+- [T-2222] (1902)
+- [T-2244] (1902)
+- [T-2245] (1902)
+- [T-2250] (1902)
+- [T-2273] (1902)
+- [T-2277] (1902)
+- [T-2288] (1902)
+- [T-2300] (1902)
+- [T-2318] (1902)
+- [T-2322] (1902)
+- [T-2323] (1902)
+- [T-2351] (1902)
+- [T-2378] (1902)
+- [T-2387] (1902)
+- [T-2404] (1902)
+- [T-2415] (1902)
+- [T-2422] (1902)
+- [T-2425] (1902)
+- [T-2451] (1902)
+- [T-2453] (1902)
+- [T-2459] (1902)
+- [T-2461] (1902)
+- [T-2463] (1902)
+- [T-2511] (1902)
+- [T-2522] (1902)
+- [T-2538] (1902)
+- [T-2541] (1902)
+- [T-2559] (1902)
+- [T-2560] (1902)
+- [T-2561] (1902)
+- [T-2575] (1902)
+- [T-2604] (1902)
+- [T-2606] (1902)
+- [T-2648] (1902)
+- [T-2685] (1902)
+- [T-2699] (1902)
+- [T-2725] (1902)
+- [T-2739] (1902)
+- [T-2740] (1902)
+- [T-2741] (1902)
+- [T-2754] (1902)
+- [T-2755] (1902)
+- [T-2759] (1902)
+- [T-2767] (1902)
+- [T-2787] (1902)
+- [T-2806] (1902)
+- [T-2808] (1902)
+- [T-2818] (1902)
+- [T-2820] (1902)
+- [T-2827] (1902)
+- [T-2829] (1902)
+- [T-2838] (1902)
+- [T-2840] (1902)
+- [T-2846] (1902)
+- [T-2848] (1902)
+- [T-2850] (1902)
+- [T-2851] (1902)
+- [T-2852] (1902)
+- [T-2853] (1902)
+- [T-2854] **P1・段 1 の一部完了 (D2212 項 2、D2219 項 2) 、単位 11 の材料は済 → 規則 v2 を D297 検査器に実装し C → C2' は GCC 11.4 / 12.3 とも pass (D2275) → 残り = C2' pin 前進の承認 (ユーザー裁定、問い 2)・承認後の pin 前進 wave (AI)・人間の push・campaign で TPC-C を評価する配線**: TPC-C 段 1 (NewOrder / Payment、CCBench 既定比 45% + 43%、
+  点読み・点書き・insert のみで `tx.scan` を使わない) の合成候補を直列化可能性で認定できるようにする。設計 = `output/insights/2026-09-21/tpcc-trace-certification-design/README.md`
+  (§7.1 の実装単位、§8 の親決定)。実装は Codex author、正しさゲートは不変、trace は compile 時に除去する (規律 1)。
+  **済:** 単位 1・2 (CCBench 側、D2225、`output/insights/2026-09-22/t2854-tpcc-ccbench-v3/README.md`) = CCBench の local branch
+  `izanagi-tpcc-v3-trace` に pin e9e477ca の子として C1 `56b5cb709628c9cac98e4e18ff676defc77a9117` (trace.hh の v3 helper・tpcc.hh の取引種別 context と
+  trace build 限定の計数) と C2 `a6f2c7410d58ad140a62b11cc1beab29bfcd191b` (silo の v3 emitter)。計算ノード 1 走で v3 の構造・witness・内容、YCSB v2 の certified、
+  TRACE=0 の前処理と逆アセンブルの一致、変異 6 件を確認。この branch は 2026-09-23 08:4x JST に人間が GitHub へ push した (D2227 項 7 の「今は push しない」と食い違い、F937 の再発)。
+  公開済みのまま残し、pin 候補ではない (D2235 項 1、C1 / C2 は job dir の自己完結 bundle にも保全済み)。単位 11 で C の上へ乗せ直し、
+  header 差分の受理方法と結合確認を揃えた候補は別名の branch で人間の push 判断へ渡す (D16、同名への force push はしない)。単位 4 (verifier 側、D2224、entry 1828、
+  `output/insights/2026-09-22/t2854-tpcc-verifier-v3/README.md`) = v3 を (表, key) で読み cycle に表と取引種別を載せる。単位 3 (mocc 側、D2230、`output/insights/2026-09-23/t2854-mocc-v3-emitter/README.md`) =
+  CCBench の local branch `izanagi-tpcc-v3-mocc` に [T-2844] の候補 C `68106660686232781bca3be792a750d3e19d7a8a` の子として C1' `6aa7a58fccff9efa218067d1b7ce83026a75357d`
+  (C1 の cherry-pick、header の blob は C1 と同一) と C3 `53f6b09757331ac7200f3f6bb5d526a676480fe3` (mocc の v3 emitter)。計算ノード 1 走で C を基点に同じ形の確認
+  (v3 の構造・witness・内容、YCSB v2 の certified、TRACE=0 の前処理と逆アセンブルの一致、変異 6 件) を満たした。この branch も今は push しない
+  (bundle で保全、単位 11 の候補の材料)。存在履歴 (entry 1843、D2232、`output/insights/2026-09-23/t2854-v3-existence/README.md`) =
+  設計 §3.3 を silo の版付けに裏付けた段 1 の契約で検査し、単位 4 が立てた印 `Integrity.v3_existence_unverified` を撤去。単位 1・2 の実 trace (silo) は公開 API で certified、
+  単位 3 の実 trace (mocc) も存在違反 0 (mocc の認定は X/P 証拠面が pin に入った後)。mocc でも存在の契約 (初期ロードの版が (1,0)、insert は既存 key で失敗) が
+  静的に成り立つことは単位 3 の insight §6。単位 5 (entry 1852、D2238、`output/insights/2026-09-23/t2854-unit5-v3-wiring/README.md`) =
+  CLI の `--json`・pipeline の reject 診断・受領証 digest を `core.result_to_dict_v3` に配線 (v2 は bytes・digest 不変)、pipeline の `_run_trace` は `tpcc_` で 57:43 の 4 flag が
+  文字列で一致するときだけ受理し、verifier 後に v3 を要求 (v2 は既存 `trace-witness-unsupported-workload` で reject)。§6.1 の段 1 例は既存試験への対応づけと合成 v3 の
+  lost update・直列対照・executor の witness 欠落 3 形態で揃えた (「genesis の誤用」は存在検査の `read-unborn-genesis`)。実 trace (silo) は pipeline の executor で certified。
+  **単位 11 (本 entry、D2244、`output/insights/2026-09-26/t2854-unit11-combined/README.md`):** 新しい local branch `izanagi-tpcc-v3-silo-mocc` =
+  C `68106660` → C1' → C3 → C2' `40a7f4acb174ca43cb590f40d13847216a1564bc` (C2 の cherry-pick、新規 commit はこれだけ、未 push、job dir の自己完結 bundle に保全)。計算ノード 1 走 (Elapse 243 秒) で C を基点に、
+  TPC-C の silo・mocc とも v3 の構造・witness・内容、YCSB の silo・mocc とも v2 の certified、TRACE=0 の 21 entry の前処理と 4 binary の逆アセンブルの一致、
+  変異 4 件 (共有 header の setter、共有 header の `#line`、silo の表、mocc の種別) の KILLED を確認。現行の D297 検査器は C → C2' を `include/tpcc.hh` の header 差分で拒否する (rc=1)。
+  D297 の合格・TPC-C の certified は名乗らない。
+  **残り:** (1) C 単独の pin 前進は [T-2858] で承認・実施済み (D2227 項 1) で、C1' / C2' / C3 は C の上の別候補として改めて承認を求める。**D297 の header 差分の受理規則は設計審査を終えた (D2249 項 2 の択 1、D2255、`output/insights/2026-09-26/t2854-d297-header-review/README.md`):** 規則 v2 = header の M 差分に限り、実 compile database の全 entry から `-MG` なしの依存列挙 (旧・新 × TRACE=0/1) で変更 header の consumer を選び、選定 configure 集合 (stock と、consumer を含む production target の protocol の genome 空間。C → C2' では stock + silo 8 + mocc 8 = 17) の各 configure で全 consumer entry の TRACE=0 完全展開と include 活性を GCC 11.4 / 12.3 の別 configure で旧新比較する (実行は計算ノード)。**規則 v2 の承認と実装の委任は D2260 項 1 で決まった (ユーザー裁定、推奨どおり)。** **実装済み (D2275、`output/insights/2026-09-27/t2854-d297-header-v2/README.md`):** header 用の 4 引数 (`--header-cc` `--third-party-cache` `--dependency-prefix` `--scratch-root`) を全部与えたときだけ header の M 差分を規則 v2 で検査し、与えなければ従来どおり拒否する。改訂後の検査器で C → C2' は計算ノード 1 job (31903.nqsv、Elapse 1,944 秒) で **GCC 11.4・12.3 とも pass** (選定 17 configure、tictoc・cicada 各 24 genome は consumer なし、consumer 21 entry、予定 = 実行 357、.cc 2 本も match、gitlink `third_party/shirakami` は旧新一致)。負例対照 (tpcc.hh の `#line 56` 削除) は TPC-C consumer の完全展開不一致で拒否。変異 12 件 KILLED。wave の計算は受入を除き約 0.80 node 時間。**問い 2 (ユーザー裁定、今):** この結果・実費・pin 波及 (同 insight §7: code 5 file・test 14 file・`patches/README.md`、C2' の変える 4 file に当たる patch 54 本は C2' での適用可否が未測定、C を束縛する較正記録は D2184 どおり保持) を示して、C2' `40a7f4ac` の pin 前進を承認するか (条件つき事前承認は推さない)。承認後の pin 前進 wave は patch 54 本の厳密適用を最初に測る。この問い 2 の機会に、si の trace v2 (`patches/instr-si-trace-v2.patch`、[T-2847]、D2252) を `izanagi-trace` 枝へ移して pin を進めるかも併せて諮る (D2260 項 4)。それまで pin は C。C2' の D297 pass は改訂後の検査器の結果 (上記) に限って言い、単位 11 の証拠を遡って pass と呼ばない。TPC-C の certified は名乗らない。D780 項 2 は維持し、その比較を trace 完全除去の防壁と呼ばない。択 2 (C2' 限定の例外)・択 3 (header を変えない作り直し)・択 4 (何もしない) は採らない。段 2 も header を変えるので、規則 v2 は段 2 の pin 前進にも適用できる (合格するかは段 2 の実差分で確かめる)。**人間の手番:** branch `izanagi-tpcc-v3-silo-mocc` の push
+  (別名なので force 不要、任意の時点で可) と、審査後の裁定を経た pin 前進の承認 (承認後の gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` の同時更新は AI の wave、先例 D2150 / D2184)。
+  v3 emitter が pin に入るまで、現 pin の tpcc binary は v2 を出し単位 5 の v3 要求で reject される。
+  (2) campaign で TPC-C の候補を評価する配線 (設計 §7.1 の単位に無い): production の build は `ycsb_<protocol>.exe` だけを作り (buildcache)、workload の登録・flag の受け渡しも ycsb だけ。
+  critic の reason 説明「YCSB allowlist 外」も TPC-C の v2 reject に合わせる (単位 5 の insight §6・§9)。
+  単位 1・2 の実 trace は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/`、単位 3 の実 trace は
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/traces-1/`、単位 11 (C2' の silo・mocc) は
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-unit11-combined/evidence/traces-1/` に zstd で保持。
+  段 2 へは段 1 の存在契約をそのまま広げない (削除後の再挿入で版順が存在の遷移と逆になりうる、範囲読みの不在は §4.3 の初期キー一覧、entry 1843 の insight §8)。
+  見送り台帳 [T-156] (selector-8b descriptor への set-size 条件) の発火条件は単位 5 で再評価した (pipeline は受理するが corpus の実体は無いので着手しない、単位 5 の insight §8)。
+  設計 insight §9 の CCBench 所見 (D2219 項 7): 段 1 で観測できたのは実行時の OrderLine 番号が 0 始まりであることだけ。寿命と範囲読みの所見は [T-2855]、
+  si の所見は si を走らせる wave の担当。計算: 検証走・計測・開発の検査を含め 1 タスクの job 合計が 2 node 時間以上になる投入は、見積りを示してユーザー確認後に
+  投入する (D2212 項 4、D2219 項 1)。一次資料 `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §10、roadmap §3.1。
+- [T-2855] (1902)
+- [T-2859] (1902)
+- [T-2864] (1902)
+- [T-2865] (1902)
+- [T-2866] (1902)
+- [T-2867] (1902)
+- [T-2868] (1902)
+- [T-2870] (1902)
+- [T-2871] (1902)
