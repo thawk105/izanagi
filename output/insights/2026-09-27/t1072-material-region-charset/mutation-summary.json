@@ -1,0 +1,177 @@
+{
+ "note": "results 本体は repo 外 (job dir) に置き、sha256 で束縛する。own_nodes_outside_drift_core = failed(Mi) - failed(M0)。",
+ "final": {
+  "results_sha256": "cbd910eb2e8fc7b26f68049f36e0a6322774be86a681cf3c92536a42de93d40f",
+  "repo_head": "c415e1da054c532e613dcfbdc48a7e717f88287b",
+  "spec_sha256": "ba92dad43676828589d172c0c55b512eeb9ce2558a70c3405d5193498ad22b39",
+  "summary": {
+   "KILLED": 6,
+   "MISMATCH": 0,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 0,
+   "TIMEOUT": 0,
+   "completed": 6,
+   "matching": 6,
+   "recorded": 6,
+   "registered": 6
+  },
+  "baseline": {
+   "rc": 0,
+   "failed_nodes": []
+  },
+  "mutations": [
+   {
+    "id": "m0-comment-only-control",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 64,
+    "injection_diff_sha256": "a7e8615fb6e3d0078e373b8dceea781f38a930ec1f4228e54f516aa6b0c28271"
+   },
+   {
+    "id": "m1-render-raw-region",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 70,
+    "injection_diff_sha256": "0243ff5ae0279cc69e3944082c201e0c02c7ee3e9a2ade693297ec23a34064f2"
+   },
+   {
+    "id": "m2-region-without-at",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 64,
+    "injection_diff_sha256": "8c8e1230dd6b849359627604eecbe555aea000c48892a43448b3d3db2c45ef73"
+   },
+   {
+    "id": "m3-shared-set-with-at",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 65,
+    "injection_diff_sha256": "9cc0cc6332052c3c4ddc0d25c726d0d2cb9e1b27df43945168da72cf8838192c"
+   },
+   {
+    "id": "m4-empty-region-validated",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 65,
+    "injection_diff_sha256": "11a1275dc5f37ab76c764b34f49a4f78cb514f67cacf80f8e1c663cba5fa4d8a"
+   },
+   {
+    "id": "m5-region-always-invalid",
+    "status": "KILLED",
+    "matches_expectation": true,
+    "n_failed": 68,
+    "injection_diff_sha256": "b5f53e95d4dfab8f2c4f814425eb8b0d7dcae86fd8095d8a57820ba40bd0adc7"
+   }
+  ]
+ },
+ "probe": {
+  "results_sha256": "2ea8a46bd56dcc12003f5173906e137f5abceef728b75235122e8b8145a778bc",
+  "repo_head": "c415e1da054c532e613dcfbdc48a7e717f88287b",
+  "spec_sha256": "83f8fc52eb0391521367c545c07e8b479f0da676a211ab5a5b3ec5c7f61f7261",
+  "summary": {
+   "KILLED": 0,
+   "MISMATCH": 5,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 0,
+   "TIMEOUT": 0,
+   "completed": 5,
+   "matching": 0,
+   "recorded": 5,
+   "registered": 5
+  },
+  "baseline": {
+   "rc": 0,
+   "failed_nodes": []
+  },
+  "mutations": [
+   {
+    "id": "m1-render-raw-region",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 70,
+    "injection_diff_sha256": "0243ff5ae0279cc69e3944082c201e0c02c7ee3e9a2ade693297ec23a34064f2"
+   },
+   {
+    "id": "m2-region-without-at",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 64,
+    "injection_diff_sha256": "8c8e1230dd6b849359627604eecbe555aea000c48892a43448b3d3db2c45ef73"
+   },
+   {
+    "id": "m3-shared-set-with-at",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 65,
+    "injection_diff_sha256": "9cc0cc6332052c3c4ddc0d25c726d0d2cb9e1b27df43945168da72cf8838192c"
+   },
+   {
+    "id": "m4-empty-region-validated",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 65,
+    "injection_diff_sha256": "11a1275dc5f37ab76c764b34f49a4f78cb514f67cacf80f8e1c663cba5fa4d8a"
+   },
+   {
+    "id": "m5-region-always-invalid",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 68,
+    "injection_diff_sha256": "b5f53e95d4dfab8f2c4f814425eb8b0d7dcae86fd8095d8a57820ba40bd0adc7"
+   }
+  ]
+ },
+ "probe_m0": {
+  "results_sha256": "ccf66bd98ea934f69b83c11009a7dca25df655f58f0ee48285e8f80f83c39178",
+  "repo_head": "c415e1da054c532e613dcfbdc48a7e717f88287b",
+  "spec_sha256": "e030ad1b4c53a2a946d27b95db53ee6de1acd29dab8b35ca6a4b9a0fc34a7508",
+  "summary": {
+   "KILLED": 0,
+   "MISMATCH": 1,
+   "PARSE_ERROR": 0,
+   "SURVIVED": 0,
+   "TIMEOUT": 0,
+   "completed": 1,
+   "matching": 0,
+   "recorded": 1,
+   "registered": 1
+  },
+  "baseline": {
+   "rc": 0,
+   "failed_nodes": []
+  },
+  "mutations": [
+   {
+    "id": "m0-comment-only-control",
+    "status": "MISMATCH",
+    "matches_expectation": false,
+    "n_failed": 64,
+    "injection_diff_sha256": "a7e8615fb6e3d0078e373b8dceea781f38a930ec1f4228e54f516aa6b0c28271"
+   }
+  ]
+ },
+ "own_nodes_outside_drift_core": {
+  "m0-comment-only-control": [],
+  "m1-render-raw-region": [
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[bidi-override]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[escape]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[left-bracket]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[line-feed]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[non-string]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[tab]"
+  ],
+  "m2-region-without-at": [],
+  "m3-shared-set-with-at": [
+   "orchestrator/tests/test_critic.py::test_diff_quarantine_reason_rejects_unsafe_unicode_and_non_strings[at@sign]"
+  ],
+  "m4-empty-region-validated": [
+   "orchestrator/tests/test_critic.py::test_diff_region_empty_or_missing_renders_question_mark[empty]"
+  ],
+  "m5-region-always-invalid": [
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[backoff-hh]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[mocc-marker]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[mocc-transaction]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[silo-transaction]"
+  ]
+ }
+}

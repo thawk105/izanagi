@@ -2917,6 +2917,10 @@
   (codex 子 3 本の再投入、約 15 分)。型は同じ「L2 節の読了が発火より遅れる」。段 1 brief を書き終えた直後に条件表 08/09/10/13 を
   一括再評価する手順を memory へ置いた。`DW-S01` へ同旨の 1 文 (76 bytes) を足す案は `check_docs` の L1 予算
   (10701 > 10625 bytes) に当たり、D782 / D730 に従い docs 側へは入れていない。
+
+- **再発: 2026-09-27** — campaign flock 保持区間の拡大の wave (D1346 実装) で、段 1 brief の provisional 裁定に「run_campaign は渡された保持を照合し、不一致は fail-closed」と書いた時点で条件 dispatch 13 (`DW-O13`、検証の新設、最遅 = 段 2 前) が成立していたのに辿らず、段 3 の相談 2 本を終えて段 4 に入る直前に気づいた (near miss、実害なし)。契約どおり段 2・3 の成果物を無効化し、照合入力 (driver と run_campaign と producer の lock path) の到達可能性をコードと実 campaign 53 件で測ってから段 2・3 をやり直した (codex 子 3 本の再投入、約 40 分)。型は同じ「L2 節の読了が発火より遅れる」。2026-09-20 に memory へ置いた「brief 直後に条件表 08/09/10/13 を一括再評価する」手順を、memory 索引の 1 行が表出しておらず段 1 で引けなかった。`DW-S01` への 1 文追加は L1 予算満杯のため docs 側へは入れず、memory の索引行へ表出する。
+
+- **再発: 2026-09-27** — [T-2865] 段階 F の wave (背景 job + worktree 隔離) で、専用 handoff と開始 gate の log を背景 job harness の既定の job dir (`$CLAUDE_JOB_DIR` = home 配下の `~/.claude/jobs/<id>/`) に作り、wave の終盤 (受入待ち) に auto-memory `pegasus-keep-home-clean` を読んで気づいた (near-miss、実害なし)。/work の wave 用 job dir へ移し、home 側を消した。session の system prompt が一時物の置き場として `$CLAUDE_JOB_DIR/tmp` を名指し、`DW-O20` は「背景jobはrepo外」とだけ書くので、repo 外かつ home 外の具体的な置き場を開始時に決める手掛かりが入口に無かった。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -5187,6 +5191,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-18** (同日 3 回目、near miss、実害なし) — [T-2724] 整合 wave の親が `cd <Codex author worktree> && python3 tools/dev_wave_codex.py … --dry-run` (読み取りだけ) を打ち、harness の追跡 cwd が author worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰。以後の dry-run は `cd` を前置せず絶対 path で打った。書き込みは発生していない。
 
 - **再発: 2026-09-20** (near miss、実害なし) — 凍結 v2 g1 の launch validator 修復 wave の親が、段 5 実装子の進捗確認で `cd /work/1/SFC/tanab/izanagi/.codex/worktrees/t2810-unit-impl 2>/dev/null && echo …` (読み取りだけ) を Bash に含め、harness の追跡 cwd が author の子 worktree へ移った。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file を見るときは絶対 path で `ls` / `cat` し、`cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本台帳の 2026-09-18 3 件と同じ手順で復帰)。
+
+- **再発: 2026-09-27** (near miss、実害なし) — [T-2850] 試走 v2 後段 wave の親が、repo 外の glue の差分を読むために Bash で `cd <Codex author の子 worktree の scratch> && diff …` (読み取りだけ) を実行し、harness の追跡 cwd がその子 worktree へ移って以後の command が拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file は絶対 path で読み `cd` を前置しない。どうしても `cd` が要る操作は job dir の `.sh` に閉じ込める (本 wave の以後の写し出し・pytest はそうした)。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -14173,6 +14179,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ident.py`、`artifact_admission.py`、`orchestrator/verifier/*`、`s8c_preregistration*.py`、
   `s8c_generation_projection.py`、`campaign_lock.py`、`contract_loader_binding.py`、
   `enforcement_source_ratification.py` 等) のいずれかへ変異 matrix を登録する全 wave。
+- **supersede: 2026-09-27** — 根本原因の記述は古い: `ratified_enforcement_source` fixture は b4ff38f6b (2026-08-27) で no-op になり、現行の drift 源は `orchestrator/campaign/ident.py` → `contract_loader_binding.capture_contract_loader_binding` (現 HEAD の閉包 96 path の blob と disk bytes の一致) である。file-swap の変異は停止せず全件 drift で赤になり、値の層が見えない形に変わっていた。恒久対応は D2269 の `tools/mutation_harness.py --inject commit` (検査: `orchestrator/tests/test_mutation_harness.py` の commit 注入 test 群、実 dispatch の dogfood は `output/insights/2026-09-27/t1418-commit-injection/README.md`)。
 
 ### F425. read-only 調査 fork が継承した command 本文を自分の役割と誤認し無許可で実行段を起動した [権限逸脱]
 
@@ -19488,6 +19495,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21** — [T-2825] の A/B 測定走 03-B (固定 2 tree の直接投入、受入形) で `test_t810_coordinator.py` の prepare_group 系 3 node が `cannot read worktree registration: file is absent` (`.git/worktrees/diag-login-check-wall/gitdir`、別 session が走行中に撤去) で赤。本 wave の差分 (台帳 1 file) から到達しないこと (同 test file は台帳を参照しない) と単独再走 3 passed (request 14912.nqsv) で infra に分類し、事前登録どおり走だけを無効化して対を同順序で取り直した。測定系列の赤は親の本文分類が要るので、系列は 1 走分 (約 26 分) と分類の手間を失った。
 
 - **再発: 2026-09-21 ([T-2844] wave の受入 attempt 2)** — `test_t810_coordinator.py` の prepare_group 系 2 node (`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir` / `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (同時刻に別 wave が land 後の撤去を行っていた)。本 wave の worktree 登録 3 つは健在で、差分 (mocc driver の候補 mode・候補 test・patch・JSON・docs) から到達しない。同じ tip の単独再走 (15978.nqsv) は 2 passed。恒久対応は未実施のまま (受理集合を変えるため裁定を要する、既存記述どおり)。
+
+- **再発: 2026-09-27** ([T-2850] 試走 v2 後段 wave の受入 final2 attempt 1、session root `.izanagi-acceptance-shards/664541b207b8da004472b54e961286e7`) — `test_t810_coordinator.py` の prepare_group 系 3 node (`test_prepare_group_accepts_external_root_with_anchor_union`・`..._rejects_self_consistent_foreign_git_identity_before_any_mkdir`・`..._rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (受入中の 15:4x〜15:5x に他 wave 2 本が land していた)。本 wave の差分は docs と insight だけで同 test から到達しない。同じ tip `6a2ae3d73` の単独再走 (31432.nqsv) は 45 passed。非帰属として受入を再走した。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -23075,6 +23084,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 計装 arm と対照 arm の**赤 nodeid 集合の一致**を測定の受理条件に含める。
   一致しなければ、その計装値は測定対象を代表していない。
 
+
+- **再発: 2026-09-27** — [T-2853] fig15 入力 wave の焦点走 1 回目で、親が wave worktree に未 commit で置いていた docs 編集 (`docs/paper-story/figures/README.md`・`tools/plotting/README.md`) を `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` が検出して 1 件赤になった (142 passed / 1 failed、Elapse 42 s)。assertion の左辺の余剰が docs の 2 path だけだったので実装差分に帰属させず、docs を記録 commit に入れた後の受入で再確認した。原因は (a) と同じで、作業ツリー全体を走査する検査の存在を焦点走の投入前に確かめなかった。焦点走は親の docs 編集を commit してから (または作業ツリーが clean の間に) 投げる。記録 = `output/insights/2026-09-27/t2853-fig15-input/README.md` §4。
 ### F804. 受入の赤が当たった計算ノードの openssl 版で変わる [テスト代表性]
 
 - 事象: `test_mocc_trace_pair.py::test_anchor_v3_accepts_external_signed_pin_manifest` と
@@ -28511,3 +28522,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: `tools/b5_llm_round.py` の v2 cohort の critic 入力 (`output_format_request`) に要請を足した (D2258)。検疫・coder の役割文書・節抽出は変えない。
   吸収状態そのものは機構で防がず、`docs/b5-generator-contrast-preregistration-v2.md` §4.1 で開示した。
 - 再発検知: `orchestrator/tests/test_b5_llm_round.py` の v2 critic prompt の bytes test。本走では台帳の却下 event の理由を系列ごとに数える (v2 §7.4 の報告項目)。
+
+### F1054. auditor role の出力節が driver の auditor gate の閉じた形を定めておらず、実 LLM の初回 E2E で proposal の読込みが止まった [手順漏れ]
+
+- 事象: silo-function-policy 軸の段階 F の初回 E2E で、auditor (role `.claude/agents/auditor.md`) が `uncertainty` を文字列の配列、`nits` を文字列の配列、`proposed_tests` を独自の key で返した。driver の auditor gate (`orchestrator/campaign/auditor_gate.py` の `parse_auditor_dict`) は `uncertainty` を文字列 1 つ、`nits` を `{"finding"|"note": 文字列}`、`proposed_tests` をちょうど `{mutation, expected_gate, machine_judgment}` に限る閉じた形で、proposal の読込みが `AuditorGateFailure` で止まった。verdict (pass) と digest の echo は正しかった。
+- 根本原因: role の出力節は field 名と意味だけを書き、gate が受理する型を書いていない。gate の型契約は fixture と test で固定されているが、LLM 子に渡る文面へ届いていなかった。段階 E までは auditor 出力を fixture で与えていたので表面化しなかった。
+- 恒久対応: `docs/phase3-silo-policy-runbook.md` §1(d) に「spawn の prompt に gate の閉じた出力形を明記し、拒否されたら値を直さず同じ入力で再審査させる」手順を足した (本 wave の 2 回目の auditor はこの形で gate を通った)。role 本文の改訂はユーザー承認事項なので [T-2870] に起票した。
+- 再発検知: driver の `load_proposal_file` が auditor 出力を gate に通す時点の `AuditorGateFailure` (fails-closed。値の補正で迂回しない)。

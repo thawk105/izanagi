@@ -15,9 +15,14 @@
 1. **fresh session である** — 新しい role はセッション開始時にだけ登録される。Agent の利用可能型に
    `coder-v4-autonomous-policy` (C++ 形) または `coder-v4-autonomous-policy-ir` (IR 形)、`auditor`、`critic`
    が並ぶこと。
-2. **計算ノードの投入経路がある** — 本 driver 用の Pegasus job body は段階 E では作っていない
-   (`tools/pegasus/p3_s4_loop_pegasus.sh` は `p3_s4_loop` 固定)。build・verify・bench を伴う
-   `--run-iteration` を計算ノードで走らせる経路を先に用意する。login node では build しない。
+2. **計算ノードの投入経路** — `tools/pegasus/p3_s4_loop_pegasus.sh` の方策 mode
+   (`IZANAGI_S4_POLICY_MODE=stock|pair|replay`、段階 F で追加) を親が `qsub` する。qsub の例と env は
+   `tools/pegasus/README.md` の §7 (方策 mode) が正本。build・verify・bench は計算ノードだけで行い、
+   login node では build しない。
+   **submit checkout を 1 本だけ使う。** AI worktree 容器 (`.claude/worktrees/`・`.codex/worktrees/`) の外に
+   detach checkout を 1 本作り (submodule 初期化・third-party の hydrate・`git worktree lock`)、stock job・
+   login 側の (a)〜(e)・pair job をすべてその checkout で**直列に**行う。campaign dir はその checkout の
+   `output/` 配下にでき、login と計算ノードが同じ campaign を指す。同じ campaign の操作を並行させない。
 3. **submodule が pinned-clean** — `external/ccbench` の HEAD が `p3_s4_loop_policy` の参照する
    `axis_silo_function_policy.PIN` (= `pin.CURRENT_PIN`) と一致し、tracked clean。値は `pin.py` が正本で、
    ここに literal を書かない。
@@ -35,9 +40,21 @@
 
 ループ主導権はメインセッション。driver は LLM を spawn しない。planner 段は無い。
 
+**共通引数:** 計算ノードで回す系列では、login 側の (a)・(c)・record-reject にも `--campaign-env pegasus` を付ける
+(計算ノードの job body は同じ値で呼ぶ)。付けないと login の履歴と計算ノードの評価が別 campaign に割れる。
+計測する操作 (stock・run・replay) は、実行 site の契約と `--campaign-env` が食い違えば実行前に拒否される。
+
+### (0) 初回だけ: stock の baseline を測る
+job body の `IZANAGI_S4_POLICY_MODE=stock` を 1 job 投げる (driver は `--stock-baseline`)。stock は
+CCBench 原型 source (方策 patch なし) と方策 flag を除いた genome で、性能動作点・verify 構成は loop と同じ。
+結果は loop とは別の campaign (`evaluation_purpose=bootstrap`) に入る — 同じ campaign に入れると、pair で
+測る同じ stock variant が terminal skip になるため。job stdout の JSON の `fitness_tps` と `abort_rate_pct`
+(同じ attempt の bench の abort 率 × 100) を (a) の 2 scalar にする。2 回目以降の iteration は直前の
+pair の stock の値を使う。
+
 ### (a) coder の入力を driver に作らせる
 ```
-python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --emit-coder-input \
+python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus --emit-coder-input \
     --baseline-throughput-tps <stock の値> --baseline-abort-rate-pct <stock の値 (percent 0..100)>
 ```
 出力 JSON (5 key: `leakproof_context`・`policy_spec`・`baseline`・`recon_projection`・`self_history`) を
@@ -57,7 +74,7 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --preview-dif
 出力 = `{passed, working_diff, diff_digest, subtype, rule_id}`。preview は検疫・構文検査・単独 TU compile までを
 build 無しで通す (auditor 判定はしない。auditor の deny-only veto と digest 照合は (f) の run で掛かる)。`passed=false` なら auditor を呼ばず、同じ file で拒否を記録してから (a) に戻る (iteration を 1 消費する):
 ```
-python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --record-reject <scratch>/coder.json
+python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus --record-reject <scratch>/coder.json
 ```
 driver が同じ gate を掛け直し、拒否なら WAL と履歴 (`policy_history.jsonl`) に subtype・rule id を記録する
 (gate を通る候補は拒否して何も書かない)。メインセッションは拒否理由を言い換えて coder に渡さない —
@@ -68,17 +85,31 @@ driver が同じ gate を掛け直し、拒否なら WAL と履歴 (`policy_hist
 `designated_sources`・`abort_digest`)。`designated_sources` には `orchestrator/campaign/silo_function_policy_api.hh`
 と `orchestrator/campaign/silo_function_policy_coder_spec.md` を含める。返却 `diff_digest` は (c) の値の echo
 であり、caller が補正しない。本軸の違反型は 1〜26。
+spawn の prompt には、driver の auditor gate (`auditor_gate.parse_auditor_dict`) が受理する閉じた出力形を明記する:
+`violations` は `{type (整数), location, correctness_impact, verifier_blind_spot}` の配列、`nits` は `{"finding": 文字列}`
+か `{"note": 文字列}` の配列、`proposed_tests` はちょうど `{mutation, expected_gate, machine_judgment}` (文字列) の配列、
+`uncertainty` は文字列 1 つ。auditor role の出力節は型を定めておらず、明記しないと (e) の読込みで
+`AuditorGateFailure` になる (段階 F の初回で観測)。返却が gate に拒否されたら値を直さず、同じ入力で再審査させる。
 
 ### (e) proposal file を確定
 `{"coder": <(b) の proposal>, "auditor": <(d) の返却>}`。top key はこの 2 つだけ
 (`planner`・`value`・`prior_critic_reverse` を書くと driver が拒否する)。
 
 ### (f) 1 iteration を実走 (計算ノード、single-tenant)
+job body の `IZANAGI_S4_POLICY_MODE=pair` (`IZANAGI_S4_POLICY_PROPOSAL_PATH=<scratch>/prop.json`) を qsub する。
+job body は前処理 (gflags・glog・masstree) の後に次を 1 回呼ぶ:
 ```
-python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --run-iteration <scratch>/prop.json \
-    --allow-coder-derived-build
+python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus \
+    --fetchcontent-prebuild-receipt <job が作る receipt> \
+    --allow-coder-derived-build --run-iteration <scratch>/prop.json --stock-control
 ```
-- `--allow-coder-derived-build` が無ければ build は拒否される。配線確認だけなら `--no-build`
+- 候補を評価した後、同じ authorization session で stock を 1 評価する (同じ job・同じ動作点の対照)。
+  候補が例外で終わっても stock は試み、最後に候補の例外で rc≠0 になる (履歴には `eval-exception` の行が残る)。
+  pair の成立は job rc ではなく、両 attempt の WAL で確かめる。
+- **投入前に walltime を確かめる。** loop の walltime 予算 (`MAX_WALLTIME_S`) は `loop_state.json` の作成時刻から
+  数える。login の record-reject が先に loop_state を作った系列では、queue 待ちも予算に入る。残りが足りなければ
+  投入せず、予算停止として記録する。
+- `--allow-coder-derived-build` が無ければ build は拒否される。配線確認だけなら login で `--no-build`
   (検査を通れば `dry-pass` を返すが、WAL・履歴・critic digest には載らない)。
 - driver は検疫 → 構文検査 → 単独 TU → auditor digest 照合 → 書込 → digest 再照合 → build → legacy verify →
   性能構成 verify → bench の順に進め、履歴 (`policy_history.jsonl`) と critic digest
@@ -105,7 +136,26 @@ critic の出力は次の (a) で `critic_diagnosis` として渡す。
 ## 3. 停止と継承
 
 `L.check_stop` の予算 (`MAX_ITER` / `MAX_WALLTIME_S`) に委譲する。checkpoint は campaign dir の
-`loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。
+`loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。stock baseline (bootstrap campaign) と
+R2 (r2 campaign) は loop の checkpoint・履歴を動かさない。
+
+---
+
+## 3.1 R2 — 保存候補の LLM なし再評価
+
+再現パッケージの R2 (保存した候補を LLM なしで新しく評価し直す、見積り稿
+`output/insights/2026-09-22/t2853-repro-package-estimate/README.md` §8) の入口。入力は (e) の proposal file
+(`{coder, auditor}`) そのもので、job body の `IZANAGI_S4_POLICY_MODE=replay` が
+`--replay-proposal <proposal>` で driver を呼ぶ。検疫・構文検査・単独 TU・auditor の digest 照合と deny-only veto・
+書込後の digest 再照合を実走と同じ gate で掛け直し、loop とは別の campaign (`evaluation_purpose=r2`) で 1 評価する。
+結果は新しい有限履歴についての新しい判定であり、元の判定の再確認ではない。同じ候補を同じ checkout で 2 回 R2 すると
+同じ variant が terminal skip になる (反復が要るときに識別子を足す)。
+
+## 3.2 trace の保全
+
+方策 mode の job は `IZANAGI_TRACE_ARCHIVE_ROOT` (絶対 path、repo の外) を必須にする (欠けると driver の前に rc=2)。
+保全の実体は pipeline の既存 opt-in (D2233・D2247、qsub の env で渡す運用は D2261 項 3)。write-heavy 1 評価で
+約 0.75 GiB (見積り稿 §7)。保全先は `/work/1/SFC/tanab/izanagi-repro-archive/<日付付きの dir>/`。
 
 ---
 

@@ -1,0 +1,134 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m1-startup-detached",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "        if args.inject == \"commit\":\n            _assert_detached_head(repo)\n        originals = _read_head_sources(repo, head, spec)\n",
+     "new": "        if False:  # mutation T1418-M1\n            _assert_detached_head(repo)\n        originals = _read_head_sources(repo, head, spec)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-post-commit-paths",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    if changed.returncode != 0 or set(changed.stdout.splitlines()) != set(mutated):\n",
+     "new": "    if changed.returncode != 0:  # mutation T1418-M2\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-post-commit-parent",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    if parents.returncode != 0 or parents.stdout.split() != [commit, head]:\n",
+     "new": "    if parents.returncode != 0:  # mutation T1418-M3\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-post-commit-blob",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    _assert_blob_bytes(repo, commit, mutated)\n",
+     "new": "    pass  # mutation T1418-M4\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-restore-detached",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "    with _defer_cleanup_signals():\n        _assert_detached_head(repo)\n        current = _repo_head(repo)\n",
+     "new": "    with _defer_cleanup_signals():\n        pass  # mutation T1418-M5\n        current = _repo_head(repo)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-commit-hold-restores",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "        preserve = pending_stop is not None or hold_present\n",
+     "new": "        preserve = (pending_stop is not None or hold_present) and inject != \"commit\"  # mutation T1418-M6\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-residual-author",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "        if _commit_author(repo, head) == HARNESS_EMAIL:\n",
+     "new": "        if False:  # mutation T1418-M7\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-policy-same-as-file-swap",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "COMMIT_SOURCE_POLICY = \"fixed repo_head blob plus committed mutation HEAD/blob equality\"\nCOMMIT_RESTORE_POLICY = \"soft reset detached mutation commit then restore fixed repo_head blob\"\n",
+     "new": "COMMIT_SOURCE_POLICY = \"fixed repo_head blob plus startup/read-back equality\"  # mutation T1418-M8\nCOMMIT_RESTORE_POLICY = \"write fixed repo_head text then exact read_text equality\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-post-runner-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/mutation_harness.py",
+     "old": "        if inject == \"commit\":\n            assert mutation_head is not None\n            _assert_detached_head(repo)\n            _assert_head(repo, mutation_head)\n",
+     "new": "        if inject == \"commit\" and False:  # mutation T1418-M9\n            assert mutation_head is not None\n            _assert_detached_head(repo)\n            _assert_head(repo, mutation_head)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

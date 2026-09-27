@@ -1,0 +1,55 @@
+host pegasus02 start 2026-09-27 14:56:38 JST HEAD 779b984e4cda24031774d4d58b2892cae66c86bf
+python 3.10.12 matplotlib 3.10.9 numpy 2.2.6
+== input sha256 (tracked verbatim copy)
+b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698  output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/summary.json
+ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50  output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/W1-result.json
+473063aa741cc4c349931d987c902facbc5dcf6499b3692ea2cad3a27ac1e584  output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/W2-result.json
+f68876600f1cd5b7300b030fb3cfa75509cc7a687858d6f12985051ce46e3642  output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/W3-result.json
+197a2798de5ef53a7f6a32460f7ecfa5adbba8e853778b315d3b6e1839c36a6c  output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/W4-result.json
+== landed bytes before
+11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966  docs/paper-story/figures/fig15_mocc_witlight_four_arm.png
+4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018  docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf
+fb1c04606aa6dc84c74b3ca82754e54a8896c44634f4cbf5c26b0373f35f996a  docs/paper-story/figures/fig15_mocc_witlight_four_arm.provenance.json
+== generator (no --evidence-root)
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm.png / .pdf / .provenance.json
+generator rc=0
+== compare with landed
+top-level keys: 15; keys with any leaf difference: ['generated_utc', 'generator', 'outputs', 'reproduction']
+leaf differences: 9
+  $.generated_utc
+    landed: "2026-09-21T12:38:06.982614+00:00"
+    redraw: "2026-09-27T05:56:40.036570+00:00"
+  $.generator.sha256
+    landed: "fba1c0afb3e72d9796fd6237c0d31dcb7d72febdd3e06366c9c99803fd3aac5a"
+    redraw: "187bc7626ac1008b19190e149b3b6401cacb4434c7aa3b4c4861273000d1d2c6"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm.pdf"
+  $.outputs[1].sha256
+    landed: "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018"
+    redraw: "472061506973f8b05d3f76081ea8b84568eff54dc90ca803f4462028cb0dcca5"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input"
+  $.reproduction.argv[5]
+    landed: "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input/output/insights/2026-09-19/mocc-witlight-arm-run/verbatim"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    redraw: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input --evidence-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input/output/insights/2026-09-19/mocc-witlight-arm-run/verbatim ../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm"
+.png: landed 11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966 redraw 11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966 equal=True
+.pdf: landed 4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018 redraw 472061506973f8b05d3f76081ea8b84568eff54dc90ca803f4462028cb0dcca5 equal=False
+compare rc=0
+== landed bytes after
+11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966  docs/paper-story/figures/fig15_mocc_witlight_four_arm.png
+4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018  docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf
+fb1c04606aa6dc84c74b3ca82754e54a8896c44634f4cbf5c26b0373f35f996a  docs/paper-story/figures/fig15_mocc_witlight_four_arm.provenance.json
+ M docs/paper-story/figures/README.md
+ M tools/plotting/README.md
+end 2026-09-27 14:57:08 JST

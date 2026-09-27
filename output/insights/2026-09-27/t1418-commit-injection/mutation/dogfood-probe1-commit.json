@@ -1,0 +1,316 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/e2b8de1d296597e6e9133ebaa6db4e42/izdw-e2b8de1d29.o31367",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/e2b8de1d296597e6e9133ebaa6db4e42/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 5.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ffe3a1af022fa028436b4d82ab15a4965c6c1b8f24b71f3f747e30b355bbbf7e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "36663e29fbab145d66a30021febdab0f09e7521d61b4f5b30b771c39a9b431c5",
+    "duration_s": 27.966,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c969dd89c9e93762dbd7295c10ebe1eb08a8300ea7fb49df9d17109082e1fb33",
+    "repo_head": "6d2e14cdbf92c58b45b319f1f3f5d2897d63e8c0",
+    "runner_sha256": "448b5fbf81e421f0852000f3d833a6ce065e3f50eb9bd49a142af3944697c09b",
+    "spec_sha256": "14c98a8c1c5b1c5825b85089159565b51772c261457e4a31165238cb0821350c",
+    "status": "PASSED",
+    "test_output_sha256": "ffe3a1af022fa028436b4d82ab15a4965c6c1b8f24b71f3f747e30b355bbbf7e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "879a88fc35536050cac6d573523bf7bd0ac2c5627d720c2b8bfe656acf3433cb"
+  },
+  "date": "2026-09-27T06:31:42.055697+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/4a1c2dd37e21520dabf1b5190533e18c/izdw-4a1c2dd37e.o31368",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/4a1c2dd37e21520dabf1b5190533e18c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 5.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "943277c15295638a886f6e9805bcd848e9dd56ac7b195add3851ad55d0338e46"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "36663e29fbab145d66a30021febdab0f09e7521d61b4f5b30b771c39a9b431c5",
+      "duration_s": 27.782,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "dogfood-e-loop-comment",
+      "injection_diff_sha256": "7dc22f7c6ec62b096d73834607849b4eb236d6f3d00fab7d8962e4da7b91e3b1",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "88a4af9d87028726f5b7d28c150054c69c23438a4d2172783a5e191921c7a45c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "new": "                source_options = {}  # mutation T1418-E (equivalent comment)\n",
+          "old": "                source_options = {}\n"
+        }
+      ],
+      "repo_head": "6d2e14cdbf92c58b45b319f1f3f5d2897d63e8c0",
+      "runner_sha256": "448b5fbf81e421f0852000f3d833a6ce065e3f50eb9bd49a142af3944697c09b",
+      "spec_sha256": "14c98a8c1c5b1c5825b85089159565b51772c261457e4a31165238cb0821350c",
+      "status": "SURVIVED",
+      "test_output_sha256": "943277c15295638a886f6e9805bcd848e9dd56ac7b195add3851ad55d0338e46",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "879a88fc35536050cac6d573523bf7bd0ac2c5627d720c2b8bfe656acf3433cb"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/c378f861e0224f14f9e62dcdd9d6311f/izdw-c378f861e0.o31376",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/c378f861e0224f14f9e62dcdd9d6311f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n\n    def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n        tmp_path,\n    ):\n        from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n        from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n    \n        contract_id = ORACLE_CONTRACT_ID\n        raw_token = \"a\" * 64\n        bound_token = source_digest._bind_sort_oracle_contract_id(\n            raw_token, contract_id,\n        )\n        source_root = tmp_path / \"ccbench\"\n        source_root.mkdir()\n        evidence = _sort_contract_evidence(\n            source_root, raw_token=raw_token, bound_token=bound_token,\n        )\n        evaluated = pipeline.EvalResult(\n            genome=_G,\n            variant=source_digest.verification_variant_id(_G, bound_token),\n            certified=False,\n            aborted=True,\n        )\n        context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n    \n        with mock.patch.object(\n            loop.source_digest,\n            \"resolve_evidence\",\n            autospec=True,\n            return_value=evidence,\n        ) as resolve_spy, mock.patch.object(\n            loop,\n            \"evaluate\",\n            autospec=True,\n            return_value=evaluated,\n        ) as evaluate_spy:\n            summary = loop.run_campaign(\n                S.default_cfg(),\n                [_G],\n                S.default_perf(),\n                S.ENV_TAG,\n                S.CLK,\n                numactl=S.NUMA,\n                do_bench=False,\n                output_root=str(tmp_path / \"output\"),\n                ccbench_dir=str(source_root),\n                authorization_contract=env_contract.authorize(S.ENV_TAG),\n                build_context=context,\n                declared_use_class=S.DECLARED_USE_CLASS,\n                sort_oracle_contract_id=contract_id,\n                log=lambda *_args: None,\n            )\n    \n        assert summary.results == [evaluated]\n>       assert resolve_spy.call_args.kwargs[\"sort_oracle_contract_id\"] == contract_id\nE       KeyError: 'sort_oracle_contract_id'\n\norchestrator/tests/test_p3_s4_loop_sort.py:1485: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\n1 failed, 2 passed in 9.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=2277 retained_bytes=2277 omitted_bytes=0 rendered_excerpt_bytes=2400 sha256=4ca28f13621adb34a30182839044eeecafd7b7cc54993d120826d2c449ee117b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n> \n>     def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n>         tmp_path,\n>     ):\n>         from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n>         from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n>     \n>         contract_id = ORACLE_CONTRACT_ID\n>         raw_token = \"a\" * 64\n>         bound_token = source_digest._bind_sort_oracle_contract_id(\n>             raw_token, contract_id,\n>         )\n>         source_root = tmp_path / \"ccbench\"\n>         source_root.mkdir()\n>         evidence = _sort_contract_evidence(\n>             source_root, raw_token=raw_token, bound_token=bound_token,\n>         )\n>         evaluated = pipeline.EvalResult(\n>             genome=_G,\n>             variant=source_digest.verification_variant_id(_G, bound_token),\n>             certified=False,\n>             aborted=True,\n>         )\n>         context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n>     \n>         with mock.patch.object(\n>             loop.source_digest,\n>             \"resolve_evidence\",\n>             autospec=True,\n>             return_value=evidence,\n>         ) as resolve_spy, mock.patch.object(\n>             loop,\n>             \"evaluate\",\n>             autospec=True,\n>             return_value=evaluated,\n>         ) as evaluate_spy:\n>             summary = loop.run_campaign(\n>                 S.default_cfg(),\n>                 [_G],\n>                 S.default_perf(),\n>                 S.ENV_TAG,\n>                 S.CLK,\n>                 numactl=S.NUMA,\n>                 do_bench=False,\n>                 output_root=str(tmp_path / \"output\"),\n>                 ccbench_dir=str(source_root),\n>                 authorization_contract=env_contract.authorize(S.ENV_TAG),\n>                 build_context=context,\n>                 declared_use_class=S.DECLARED_USE_CLASS,\n>                 sort_oracle_contract_id=contract_id,\n>                 log=lambda *_args: None,\n>             )\n>     \n>         assert summary.results == [evaluated]\n> >       assert resolve_spy.call_args.kwargs[\"sort_oracle_contract_id\"] == contract_id\n> E       KeyError: 'sort_oracle_contract_id'\n> \n> orchestrator/tests/test_p3_s4_loop_sort.py:1485: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2277 retained_bytes=2277 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3141 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "07d35804d1a44f234d21a5dca981a32e6ba8b27fb9c171d347242015c7048aab"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "36663e29fbab145d66a30021febdab0f09e7521d61b4f5b30b771c39a9b431c5",
+      "duration_s": 32.423,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "hang_risk": false,
+      "id": "dogfood-v-loop-sort-forward",
+      "injection_diff_sha256": "332d796956645290f86e982a8fa382fd4eb35c5fe5c7a843028dbc2e5e603130",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "0673e265be052a14a4823a11c9dfa3afea5144ab9051aaa48289db9521cb941b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "new": "                if False:  # mutation T1418-V\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+          "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "repo_head": "6d2e14cdbf92c58b45b319f1f3f5d2897d63e8c0",
+      "runner_sha256": "448b5fbf81e421f0852000f3d833a6ce065e3f50eb9bd49a142af3944697c09b",
+      "spec_sha256": "14c98a8c1c5b1c5825b85089159565b51772c261457e4a31165238cb0821350c",
+      "status": "MISMATCH",
+      "test_output_sha256": "07d35804d1a44f234d21a5dca981a32e6ba8b27fb9c171d347242015c7048aab",
+      "test_output_tail": [
+        "                sort_oracle_contract_id=contract_id,",
+        "                log=lambda *_args: None,",
+        "            )",
+        "    ",
+        "        assert summary.results == [evaluated]",
+        ">       assert resolve_spy.call_args.kwargs[\"sort_oracle_contract_id\"] == contract_id",
+        "E       KeyError: 'sort_oracle_contract_id'",
+        "",
+        "orchestrator/tests/test_p3_s4_loop_sort.py:1485: KeyError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "1 failed, 2 passed in 9.20s",
+        "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=2277 retained_bytes=2277 omitted_bytes=0 rendered_excerpt_bytes=2400 sha256=4ca28f13621adb34a30182839044eeecafd7b7cc54993d120826d2c449ee117b",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw0] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')",
+        "> ",
+        ">     def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(",
+        ">         tmp_path,",
+        ">     ):",
+        ">         from orchestrator.campaign import env_contract, loop, pipeline, source_digest",
+        ">         from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID",
+        ">     ",
+        ">         contract_id = ORACLE_CONTRACT_ID",
+        ">         raw_token = \"a\" * 64",
+        ">         bound_token = source_digest._bind_sort_oracle_contract_id(",
+        ">             raw_token, contract_id,",
+        ">         )",
+        ">         source_root = tmp_path / \"ccbench\"",
+        ">         source_root.mkdir()",
+        ">         evidence = _sort_contract_evidence(",
+        ">             source_root, raw_token=raw_token, bound_token=bound_token,",
+        ">         )",
+        ">         evaluated = pipeline.EvalResult(",
+        ">             genome=_G,",
+        ">             variant=source_digest.verification_variant_id(_G, bound_token),",
+        ">             certified=False,",
+        ">             aborted=True,",
+        ">         )",
+        ">         context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)",
+        ">     ",
+        ">         with mock.patch.object(",
+        ">             loop.source_digest,",
+        ">             \"resolve_evidence\",",
+        ">             autospec=True,",
+        ">             return_value=evidence,",
+        ">         ) as resolve_spy, mock.patch.object(",
+        ">             loop,",
+        ">             \"evaluate\",",
+        ">             autospec=True,",
+        ">             return_value=evaluated,",
+        ">         ) as evaluate_spy:",
+        ">             summary = loop.run_campaign(",
+        ">                 S.default_cfg(),",
+        ">                 [_G],",
+        ">                 S.default_perf(),",
+        ">                 S.ENV_TAG,",
+        ">                 S.CLK,",
+        ">                 numactl=S.NUMA,",
+        ">                 do_bench=False,",
+        ">                 output_root=str(tmp_path / \"output\"),",
+        ">                 ccbench_dir=str(source_root),",
+        ">                 authorization_contract=env_contract.authorize(S.ENV_TAG),",
+        ">                 build_context=context,",
+        ">                 declared_use_class=S.DECLARED_USE_CLASS,",
+        ">                 sort_oracle_contract_id=contract_id,",
+        ">                 log=lambda *_args: None,",
+        ">             )",
+        ">     ",
+        ">         assert summary.results == [evaluated]",
+        "> >       assert resolve_spy.call_args.kwargs[\"sort_oracle_contract_id\"] == contract_id",
+        "> E       KeyError: 'sort_oracle_contract_id'",
+        "> ",
+        "> orchestrator/tests/test_p3_s4_loop_sort.py:1485: KeyError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2277 retained_bytes=2277 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3141 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "879a88fc35536050cac6d573523bf7bd0ac2c5627d720c2b8bfe656acf3433cb"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/e3288cba6de007c189be30029d6b918b/izdw-e3288cba6d.o31362",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/e3288cba6de007c189be30029d6b918b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\norchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]\norchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]\n\n3/58 tests collected (55 deselected) in 1.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "71c2165cdf99c588ff897e34a26f7bbc1dc6ad615cf8b498c89613deac0a3748"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]"
+      ],
+      "duration_s": 68.015,
+      "rc": 0,
+      "repo_head": "6d2e14cdbf92c58b45b319f1f3f5d2897d63e8c0",
+      "runner_sha256": "448b5fbf81e421f0852000f3d833a6ce065e3f50eb9bd49a142af3944697c09b",
+      "spec_sha256": "14c98a8c1c5b1c5825b85089159565b51772c261457e4a31165238cb0821350c",
+      "status": "PASSED",
+      "tool_sha256": "879a88fc35536050cac6d573523bf7bd0ac2c5627d720c2b8bfe656acf3433cb"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "dogfood-e-loop-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "7dc22f7c6ec62b096d73834607849b4eb236d6f3d00fab7d8962e4da7b91e3b1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/loop.py",
+            "new": "                source_options = {}  # mutation T1418-E (equivalent comment)\n",
+            "old": "                source_options = {}\n"
+          }
+        ]
+      },
+      "dogfood-v-loop-sort-forward": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "332d796956645290f86e982a8fa382fd4eb35c5fe5c7a843028dbc2e5e603130",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/loop.py",
+            "new": "                if False:  # mutation T1418-V\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+            "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c969dd89c9e93762dbd7295c10ebe1eb08a8300ea7fb49df9d17109082e1fb33",
+    "restore_policy": "soft reset detached mutation commit then restore fixed repo_head blob",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus committed mutation HEAD/blob equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_sort.py",
+      "-k",
+      "forwards_one_sort_contract",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "6d2e14cdbf92c58b45b319f1f3f5d2897d63e8c0",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_sort.py",
+      "-k",
+      "forwards_one_sort_contract",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a74623c9b218422bb09fef65f4d01a1638a6df78",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "448b5fbf81e421f0852000f3d833a6ce065e3f50eb9bd49a142af3944697c09b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "14c98a8c1c5b1c5825b85089159565b51772c261457e4a31165238cb0821350c",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 1,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4912dc4ce851d48ea6e11c8d30cd3dae1c4c5526b24511f72b0a415a8f04b5dc",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4912dc4ce851d48ea6e11c8d30cd3dae1c4c5526b24511f72b0a415a8f04b5dc"
+  },
+  "tool_sha256": "879a88fc35536050cac6d573523bf7bd0ac2c5627d720c2b8bfe656acf3433cb",
+  "updated_at": "2026-09-27T06:35:36.093987+00:00"
+}

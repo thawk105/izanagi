@@ -72935,3 +72935,147 @@ buildcache / campaign の設定式が引数依存なら不在 macro を `unresol
 - 別分類で数えて failure にしない — D1539 の「受理集合を狭める向き」に反する。
 - 依頼の方が後なので (2)(3) を実行する — 依頼文が D2260 以前の提案の写しである可能性を排除できず、撤去は D2260 が起こさないと決めた向きである。
   最も強い反対論 (後の直接依頼を無効扱いにできない) は、実行しない根拠を「依頼は無効」から「推測で選ばない」へ改めることで受けた。
+
+## D2265. 探索の独立反復の試走 v2 から事前登録 §8 の入力を計算して追補 3 に登録し、本比較の課題は S1-wh の 1 つに絞り、LLM の待ちを node の外へ出す案は設計しない (2026-09-27)
+
+**決定:** `docs/search-repetition-trial-preregistration-addendum-3.md` (追補 3) を置く。規則は変えず、本登録 §8 が試走の後に書くとした値と本比較の固定値だけを記録する。
+記録は `output/insights/2026-09-27/t2850-trial-v2-analysis/README.md`。本決定は本比較の投入の認可ではない (D2212 項 4)。
+
+1. **試走 v2 の実績:** 18 job の Elapse 計 103,310 s (28.70 node 時間、D2254 の見積り 22.2〜40.5 の内)。15 系列すべて B = 10 を完走し E_B の score が得られた。
+   retry・`verify-local-unavailable`・LLM 429・探索系列の品質欠測はいずれも 0。LLM の提案 36 機会中 6 件が planner の axis 名の揺れで拒否された (A を消費)。
+2. **§8.1 の入力:** s_plan = 0.03894 (random と sweep の対)、T_c(wh) = 3,052 s、Σ_m c(wh, m) = 11.05 node 時間 / block、ℓ(wh) = 9,594.9 s。
+   session 所要の中央値は課題の全 300 session でとる。未試走の bal・rh は式どおり wh の値を代入し、B-5 v1 の直列検査からの換算を別欄に置く。
+3. **課題の集合:** Q = {S1-wh}。費用 (第 2 段で 110.5 node 時間、bal を足すと式で 243.2・換算で 378〜392、rh を含むと換算で約 799〜809 (3 課題で 1,151〜1,178))、分散 (s_plan は wh だけの値)、
+   実行可能性と失敗の種類 (bal・rh は固定 commit で直列検査 + 静定上限 20 秒になり、旧 block 1 はこの組で静定の時間切れを出した。同時化の追補も未登録) だけで選んだ。
+4. **系列数:** C_max に従う。C(10) ≤ C_max < C(60) なら n = 10 (C(n) は丸めずに比べる、概数 C(10) ≈ 110.544・C(60) ≈ 663.263 node 時間) (第 2 段。計画精度の上では実用上同等の分類はほとんど得られない)。C_max はユーザーの計算確認で決める。
+5. **本比較の固定値:** cohort `t2850-main-v1`、系列番号 R = 100 + b、投入順の鍵 `t2850-main-order-v1|<b>`、固定 commit `299aa022e` と試走 v2 と同じ実行方法、
+   walltime 24:00:00 / 08:53:30、全 job で trace 保全口 `IZANAGI_TRACE_ARCHIVE_ROOT` を有効にする (D2233 の opt-in)、LLM 親は同時 4 本以下を投入者の手順で守る (D2216)。
+6. **案 (a) は設計しない:** 残る待ちの外挿は 26.65 node 時間だが回収可能額の実測ではなく、導入費 (実行方法の変更に伴う試走のやり直し・実装・検査・smoke・追加 job) も未測定で、
+   待ちが導入費を上回ることを実測で示せない。
+
+**理由:**
+- 規模の入力を分散・費用・所要・失敗の種類に限る本登録 §8.1・§8.4 に従った。score は cell ごとの ln score の SD にだけ使い、閲覧を追補 3 に開示した。
+- 本登録 §3.1 と追補 2 §5 は、実行方法を変えた系列を変更後の構成の分散の推定に混ぜないとする。案 (a) はどの形でも実行方法を変えるので、試走 v2 の分散と T_c を引き継げない。
+- 段 3 相談 2 本が T_c・s・n・c・ℓ を独立に検算し、未試走課題の換算を確定費用のように書く表現と、案 (a) の断定的な根拠を real と指摘した。
+
+**却下した選択肢:**
+- Q に bal を入れる — 式では 243.2 node 時間で C_max 510 に収まるが、換算では 378〜392 で、検査の同時化と静定上限の追補 (追補 2 §7) が無く、直列経路には静定の時間切れの前例がある。
+- 案 (a) を今設計する — 依頼の条件 (残る待ち > 導入費) を実測で示せない。LLM だけを分ける形は系列内の node の混在と経過時間の意味が手法間で揃わない。
+- p ≤ 4 を glue で機械的に強制する — 仮想リスク向けの機構の追加になる。投入者の手順として書き、機械保証とは書かない。
+
+## D2266. 論文ストーリーの版は図を先に置き、文章は図の説明にする (2026-09-27)
+
+**決定 (ユーザー指示):** `docs/paper-story/` の版は次の版から図やグラフを多く使って書く。規則の正本は
+`docs/paper-story/README.md` の「版を書くときの図の使い方」節で、要点は次の 6 つである。
+(1) `figures/` の論文図を §4 で説明するだけにせず、根拠になる節へ埋め込む。
+(2) §0 と §2 の各幕・§3・§6・§8・§9 は図から始め、置けない節は「図なし: 理由」を 1 行書く。
+(3) 値を並べて比べる記述はグラフにし、無ければ作図規約どおり生成器付きで新しい図を作る (作れなければ「図の候補」を書く)。
+(4) 値を含まない流れ・構造・状態の模式図は版の本文に Mermaid 図で描いてよいが、数値・判定・区間・有意性は書かない。
+(5) 埋め込む図の用途の制限と後継関係は `figures/README.md` を正本とし、写さない。
+(6) 版の wave は図の埋め込み数を数えて前版より減らさず、数を版の §10 と worklog に書く。
+凍結済みの版は書き換えない。
+
+**理由:**
+- ユーザーの理由: 文章量が多く全部を精読するのは難しい。図のほうが見てわかりやすい。
+- 実測: 版の分量は 2026-07-03 版の約 20 KB から 2026-09-26 版の約 1.15 MB へ増えたが、本文に埋め込まれた図は
+  2026-08-23 版から 2026-09-26 版まで毎版 2 枚のままだった。その間に論文図は fig1〜fig15 の 15 系統へ増えたが、
+  §4 の文章で説明されるだけで、§0 は文字だけの段落になっていた。
+- Mermaid 図を値なしに限るのは、値を持つ図が生成器と provenance を通る鎖 (`tools/plotting/FIGURE_CONVENTIONS.md`) を
+  迂回しないためである。値なしの模式図は既存の状態図・流れ図 (fig3b / fig3c / fig12) と同じ種類で、本文の一部として版と一緒に凍結される。
+
+**却下した選択肢:**
+- 図の埋め込み数を `tools/check_docs.py` で機械検査する — 版を書く頻度は数日に 1 回で、確認は版の wave の手順で足りる。
+  検査を増やす根拠になる実害 (規則があるのに図が減った事例) はまだ無い。
+- 既存の版へ図を差し込む — 版は凍結物であり、差分改訂を新しい日付の版として置くことも README が禁じている。
+- 値を含む図も Mermaid で描く — 数値が生成器と provenance を通らずに本文へ入る。
+
+## D2267. trigger 骨格の凍結を abort() 宣言行から BEGIN 行頭直前まで広げ、受理形は骨格のみと骨格 + S8a 計装 tally の 2 つに限る (2026-09-27)
+
+**決定:** build admission の trigger 軸検査に、marker のある source の BEGIN 行頭直前の bytes が
+`void TxExecutor::abort() {` から始まる凍結 2 形 (骨格のみ / 宣言行直後に S8a 計装 tally を挿入した形) のどちらかで終わることを論理積で足す。
+2026-08-16 /rulings 全件 第 3 回 項 22 (「trigger 骨格 = 凍結する (R4 / R5 / R7)」) の実装である。
+凍結 bytes は CCBench 原文 (pin の abort() 冒頭 20 行)・骨格 patch の prologue 7 行・tally patch の 24 行の 3 定数に分け、それぞれを出所と照合する独立テストで固定する。
+実行時には patch も CCBench も読まない。宣言行より前の bytes、block・epilogue の照合、source 不在と stock の受理は変えない。受理集合は狭くなるだけである。
+閉じたと主張するのは「abort() 宣言行から BEGIN 行頭直前までの領域内」の R4・R5・R7 の提示形と移設形に限る。
+file scope の宣言、前処理器、他 file による名前解決、R1・R3・R6、source 不在の受理は残る限界として docstring と insight に書く。
+凍結 JSON (known_axes / measurement / holdout) は再 pin しない (`axis_trigger_gating.py` は wave 前から記録値と不一致で、`_HISTORICAL_CODE_PATHS` が許容している)。
+
+**理由:**
+- BEGIN 直前の骨格 prologue だけを凍結すると、`return;`・局所 shadowing・reason reset を prologue の 1 行上 (同じ関数本体) へ移すだけで通る。
+  裁定理由の「文字は同じだが意味は死んでいる」状態が残る。変異 M2 (照合を prologue だけへ弱める) が移設版 4 件を受理側へ落とすことで、この差を実測した。
+- S8a の特性評価 (coverage / freq) は admitted 経路で、計装 tally を関数の開き括弧の直後に挿入する。これを拒否すると正当な build が止まるので第 2 形が要る。
+  misattr は `lockWriteSet` だけを変えるので専用形は不要。
+- 定数から正例の入力を作るテストは定数と同時に動くので、出所との独立照合がないと誤った凍結 bytes が緑になる (T-1048 の MUT-3 と同型)。変異 M6・M7 で独立照合だけが落ちることを確認した。
+- CCBench 原文 bytes への結合は、pin 前進で abort() 冒頭が変われば HEAD ↔ pin 原文の独立テストが赤になって検出する。候補 C2' の silo 差分は `writePhase` だけである。
+
+**却下した選択肢:**
+- BEGIN 直前の prologue 7 行だけを凍結する — 移設で通る (上記)。
+- C++ の字句解析・制御流解析で意味を判定する — T-897 の段 6 が自前字句解析の偽受理と過剰拒否を両方向で実証済み。
+- misattr 専用の第 3 形・tally の位置を問わない受理 — 前者は不要、後者は tally 位置への `return;` を通す (変異 M5 で実測)。
+- 凍結 JSON の再 pin — 保留中の凍結チェーン検証の条件 (凍結 bytes を書き換えない) に反する。
+
+## D2268. campaign 実行 lock は driver が外側で取り、run_campaign へ保持 handle を明示的に渡す (2026-09-27)
+
+**決定:** D1346 の保持区間の拡大は、base driver (`p3_s4_loop.drive_iteration`) と `main()` の B-4 経路が
+`campaign_lock` を非ブロッキングで外側から取り、`campaign_lock` が yield する保持 handle (path・取得 PID・保持中フラグ) を
+`run_campaign(held_campaign_lock=...)` へ渡す形で実装する。`run_campaign` は handle の exact 型・保持中・PID・自分が計算する
+lock path との一致を WAL より前に確かめて取得を省き、不一致は fail-closed にする。引数を渡さない caller は従来どおり自分で取る。
+対象は B-4 事前登録の対象 driver である base だけとし、sort / trigger / policy driver は変えない。
+
+**理由:**
+- 同一 process の再入を CampaignBusy で拒否する既存契約 (`test_campaign_lock_reentry_rejected_in_same_process`) を保ったまま、
+  外側と内側で同じ lock を二重に取らずに済む形がこれだけだった。
+- PID を束縛するのは、fork で継承した handle を別 process が渡して並走するのを塞ぐため。fd・inode の照合は区間の保証に要らないので入れない。
+- 本番の main は layout を注入しないので、driver と run_campaign と producer の lock path は同じ式で同じ値になる。
+  test の注入 layout で食い違う場合は run_campaign の照合が WAL 前に止める。
+
+**却下した選択肢:**
+- `campaign_lock` を同一 process 内で再入可能にする — 既存の再入拒否契約を壊す。
+- B-4 認可の消費より前に driver が path 一致を追加で照合する — 本番経路で起きない不一致に対する仮想リスク向けの検査になる。
+- sort / trigger driver へも同時に広げる — 今回の B-4 の記録に効かない一般化になる。対象 driver を変えるときに同じ変更を行う。
+
+## D2269. contract-loader 閉包の member を変異させるときは、変異 harness の commit 注入モード (`--inject commit`) で走らせる (2026-09-27)
+
+**決定:**
+- `tools/mutation_harness.py` に opt-in の `--inject {file-swap,commit}` (既定 file-swap) を置く。commit モードは detached HEAD の木でだけ起動し、1 変異ごとに注入 bytes を固定 identity (`mutation-harness@invalid`) の一時 commit M にして runner を走らせ、終了後に固定 HEAD H へ戻す (`reset --soft H` と touched の `restore --source=H`)。branch ref は動かさない。
+- runner の前に M を検査する (親がちょうど H、H..M の変更 path が touched と一致、M の blob が注入 bytes と一致、作業木 clean、detached)。runner の後は、dispatch の orphan 判定を先に行い、hold でなければ HEAD==M・detached・bytes==M blob を再検査してから記録する。orphan hold では M を保持したまま停止する。
+- 起動時に HEAD の author email が harness identity なら、モードを問わず fresh / resume / plan-only とも拒否する (kill で残った変異 commit を固定 HEAD として受理しないため)。
+- ledger は v4 のまま。commit モードだけ procedure の `source_policy` / `restore_policy` を別の固定文言にし、既存の完全一致照合で resume をモードに束縛する。既定 file-swap の挙動と文言は変えない。wrapper (`tools/mutation_worktree.py`・`tools/mutation_fanout*.py`) は変えず、commit モードは harness を detached の登録 worktree (または detach した独立 clone) へ直接当てて使う。
+- 閉包の一致検査 (`orchestrator/campaign/ident.py` → `contract_loader_binding.capture_contract_loader_binding`) と fixture は 1 byte も変えない。
+
+**理由:**
+- 閉包 member を file-swap で変異させると、disk と現 HEAD blob の一致検査が変異の中身と無関係に先に落ち、owner test の赤が値の層か drift かを区別できない。本 wave の実 dispatch で、loop.py の等価コメント変異と `sort_oracle_contract_id` 転送落としの値変異が、どちらも `contract-loader-drift` で同じ owner test を落とした。commit モードでは等価変異が SURVIVED、値変異は owner test だけが `KeyError: 'sort_oracle_contract_id'` で赤になった (`output/insights/2026-09-27/t1418-commit-injection/README.md`)。
+- 一致検査を通すのではなく、検査が正しく一致する状態 (HEAD blob == disk) を作るだけなので、検査の受理集合は変わらない。
+- F424 が名指しした `ratified_enforcement_source` fixture は b4ff38f6b で既に no-op であり、現行の drift 源は ident / contract_loader_binding である。
+
+**却下した選択肢:**
+- fixture 側 (または ident / binding 側) に変異検査用の opt-out を作る — D1712 が「変異中だけ contract loader 束縛を無効化する」を規律 2 違反として却下済み。
+- ledger を v5 に上げて変異 commit の SHA を記録する — 木は `repo_head` と `injection_diff_sha256` で決まり、判定に新しい値を足さない。reader・wrapper・fanout の同時改修が要る。
+- wrapper / fanout へ `--inject` を中継する — 本 wave の完了判定に不要。wrapper は並行 churn で共有木検査が破れるため、閉包の変異は harness 直当てで走らせる。
+
+**適用範囲:** 新規 capture 経路 (現 HEAD に束縛) の drift だけを外す。既存の v2 campaign.lock を検証する経路は lock に記録された commit に束縛されるため (ident.py の `verify_against_lock`)、固定 commit の lock を使う test は commit モードでも drift で落ちる。変異 commit object は共有 object store に gc まで残る。
+
+## D2270. silo-function-policy 軸の段階 F — 既存 job body に方策 mode を足して計算ノードで回し、初回 stock は別 campaign、以後は候補の後に同じ job で stock を測り、R2 は別 campaign の保存 proposal 再評価、trace 保全は方策 mode で必須にする (2026-09-27)
+
+**決定:** D2214・D2256 に従い、軸 `silo-function-policy` の段階 F を次の形で実装し、実 LLM (C++ 形) の 1 iteration を E2E で通した。記録は `output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md`、手順は `docs/phase3-silo-policy-runbook.md`。
+
+1. **投入経路は既存の job body `tools/pegasus/p3_s4_loop_pegasus.sh` への方策 mode (`IZANAGI_S4_POLICY_MODE=stock|pair|replay`、`IZANAGI_S4_POLICY_FORM=cpp|ir`) の追加。** gflags・glog・masstree の前処理と投入許可台帳の登録を共用する。方策 mode は T-2849・B-5・K2・`IZANAGI_S4_PROPOSAL_PATH`・fixture・`IZANAGI_S4_STOCK_CONTROL` と排他で、CCBench は方策軸の pin を 40 桁へ解決して照合する。既存 mode の受理・argv は変えない。台帳と hooks は変更しない (登録済み body の mode 追加)。
+2. **方策 driver の campaign 環境は `--campaign-env` で選ぶ。** 既定 `linux-baremetal` の identity は不変、`pegasus` は `p3_s4_loop` と同じ `measurement_env` 束縛で、login の emit・preview・record-reject と計算ノードの評価が同じ campaign を指す。計測する操作は実行 site の契約と一致しなければ実行前に拒否する。計算ノードでは契約の clocks・numactl・masstree 事前 build 受領証を `run_campaign` に渡し、依存 prefix は `p3_s4_loop` と同じく明示引数に写さない (job body が export した環境変数を build が読む)。
+3. **stock は原型 source (方策 patch なし) と方策 flag を除いた genome を、coder authority の無い stock 用 build context と stock capability resolver で評価する。** `certified-stock` は同じ attempt の BUILD_START の source token が STOCK のときだけで、baseline の abort 率は同じ attempt の bench の `abort_rate` × 100。初回の baseline は別 campaign (`evaluation_purpose=bootstrap`) で測り、以後は `--run-iteration --stock-control` (pair) が候補の後に同じ authorization session で stock を測る。stock が不成立なら rc=1、候補が走らなかった pair は stock を測らず rc=1。
+4. **R2 の入口は `--replay-proposal` (job mode `replay`)。** 保存 proposal (`{coder, auditor}`) を実走と同じ gate (検疫・構文・単独 TU・auditor の digest 照合と veto・書込後の digest 再照合) に通し、別 campaign (`evaluation_purpose=r2`) で LLM なしに評価する。loop の状態と履歴は作らない。
+5. **trace 保全は方策 mode で必須。** `IZANAGI_TRACE_ARCHIVE_ROOT` (絶対 path・repo と git common repo の外) を driver 起動前に検査する (再現パッケージの持ち越し項目 (1'')、保全の実体は D2233・D2247、qsub の env で渡す運用は D2261 項 3)。他 mode の挙動は変えない。
+6. **評価が例外で終わった iteration は履歴に `eval-exception` の行を残す。** loop_state の iteration と履歴の行が食い違わないため (規律 3)。
+7. **login 側の操作と計算ノードの job は、AI worktree 容器の外の submit checkout 1 本で直列に行う。** campaign dir はその checkout の `output/` にでき、共有の出力先の配線は置かない。
+
+**理由:**
+- 兄弟 job body は前処理と reservation・receipt・pin 検査の約 600 行を複製する。B-5・T-2849 も同じ body の mode として足した先例がある。
+- 初回 stock を loop campaign に入れると、pair で測る同じ stock variant が terminal skip になり、同じ job の対照が取れない (段 2 plan、段 3 相談 A・B が一致)。
+- 同じ job の stock があれば、1 回の候補評価に同時刻の対照が付く。
+- 方策 driver の `run_campaign` 呼出しを共通 helper にまとめると、spawn site 台帳の define sink 検査 (T-2155) が方策 flag に到達しうる未登録の build 入口として拒否した。stock と候補の各関数に置けば base と同じく全 define が proven-unreachable になる。登録簿 (certified writer の caller inventory と exploration namespace の driver 契約) は `p3_s4_loop` と同じく 2 箇所で登録した。
+
+**却下した選択肢:**
+- 兄弟 job body — 上記。
+- 共有 campaign base (`IZANAGI_EXPLORATION_OUTPUT_ROOT` を login と job で揃える) — 逐次運用なら submit checkout 1 本の既定 `output/` で足り、指定漏れで履歴が別 campaign に割れる危険だけが増える (段 3 相談 B)。
+- R2 の run id と `replay-pair` mode — 今回の入口に要らない。同じ候補を同じ checkout で繰り返す必要が出たときに足す。
+- login の record-reject で loop の walltime 起点が早まる点をコードで直す — 停止条件は D2256 項 3・D39 の予算で、runbook の投入前確認で足りる。
+- 依存 prefix を環境から明示引数に写す (段 5 の初版) — build の明示引数はセミコロン区切りで解釈され、コロン区切りの環境値が 1 つの不正 path になる (段 6 レビュー A)。

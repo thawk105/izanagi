@@ -1,0 +1,50 @@
+{
+ "m-f1-stock-keeps-flag": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline"
+ ],
+ "m-f2-baseline-ratio": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline"
+ ],
+ "m-f3-baseline-other-attempt": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_result_requires_stock_source_in_selected_attempt",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline"
+ ],
+ "m-f4-replay-advances-loop": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_replay_uses_real_auditor_gate_without_loop_state"
+ ],
+ "m-f5-replay-no-auditor": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_replay_uses_real_auditor_gate_without_loop_state"
+ ],
+ "m-f6-no-env-marker": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_campaign_environment_and_purpose_identity"
+ ],
+ "m-f7-policy-old-pin": [
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[replay-action2]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[stock-action0]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[pair-action1]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_uses_policy_pin",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_driver_status_is_job_status[7]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[campaign-pin-import-'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'-'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)']",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_driver_status_is_job_status[0]"
+ ],
+ "m-f8-no-archive-check": [
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_excludes_git_common_repository",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[relative/archive]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[None]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[repo/../repo/archive]",
+  "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[repo/archive]"
+ ],
+ "m-f9-no-src-token-check": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_result_requires_stock_source_in_selected_attempt"
+ ],
+ "m-f10-stock-rc-zero": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_cli_preserves_environment_prefix_and_stderr_log",
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_baseline_failure_returns_one_with_json"
+ ],
+ "m-f11-stock-after-stopped": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_without_candidate_attempt_skips_stock"
+ ],
+ "m-f12b-prefix-from-env-guard-open": [
+  "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_cli_preserves_environment_prefix_and_stderr_log"
+ ]
+}

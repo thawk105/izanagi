@@ -8,6 +8,7 @@ import builtins
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +21,9 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import source_digest  # noqa: E402
 from orchestrator.campaign.axis_trigger_gating import (  # noqa: E402
+    FROZEN_TEMPLATE_ABORT_HEAD_BYTES,
+    FROZEN_TEMPLATE_ABORT_TALLY_BYTES,
+    FROZEN_TEMPLATE_PROLOGUE_BYTES,
     FROZEN_TEMPLATE_BLOCK_BYTES,
     FROZEN_TEMPLATE_EPILOGUE_BYTES,
     FROZEN_TEMPLATE_HOLE_BYTES,
@@ -229,11 +233,17 @@ def _trigger_source_bytes(
     *,
     epilogue: bytes = FROZEN_TEMPLATE_EPILOGUE_BYTES,
     after: bytes = b"int izanagi_after_block = 0;\n",
+    before: bytes = b"",
+    tally: bool = False,
 ) -> bytes:
     marker_explanation = (
         b"// explanation mentions " + TRIGGER_MARKER_ID.encode("ascii") + b" only\n"
     )
-    return marker_explanation + block + epilogue + after
+    declaration = b"void TxExecutor::abort() {\n"
+    head = FROZEN_TEMPLATE_ABORT_HEAD_BYTES
+    if tally:
+        head = declaration + FROZEN_TEMPLATE_ABORT_TALLY_BYTES + head[len(declaration):]
+    return marker_explanation + before + head + FROZEN_TEMPLATE_PROLOGUE_BYTES + block + epilogue + after
 
 
 def _write_trigger_source(tmp_path: Path, raw: bytes) -> tuple[SourceEvidence, Path]:
@@ -711,6 +721,105 @@ def test_trigger_axis_semantic_validator_precedes_class_selection(tmp_path: Path
     source = _source(root=source.source_root, token=_SHA_C, clean=False)
     with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
         derive_build_admission(_context(), source)
+
+
+@pytest.mark.parametrize(
+    "mutation,relocated",
+    [
+        pytest.param("gate-pass-type", False, id="R4-gate-pass-type"),
+        pytest.param("reason-reset", False, id="R4-reason-reset"),
+        pytest.param("return", False, id="R5-return"),
+        pytest.param("flags-shadow", False, id="R7-flags-shadow"),
+        pytest.param("backoff-shadow", False, id="R7-backoff-shadow"),
+        pytest.param("reason-reset", True, id="R4-reason-reset-relocated"),
+        pytest.param("return", True, id="R5-return-relocated"),
+        pytest.param("flags-shadow", True, id="R7-flags-shadow-relocated"),
+        pytest.param("backoff-shadow", True, id="R7-backoff-shadow-relocated"),
+        pytest.param("tally-return", False, id="tally-slot-return"),
+    ],
+)
+def test_trigger_axis_rejects_mutated_abort_prefix(
+    tmp_path: Path, mutation: str, relocated: bool,
+):
+    edits = {
+        "reason-reset": b"  izanagi_abort_reason_ = IzanagiAbortReason::kUnset;\n",
+        "return": b"  return;\n",
+        "flags-shadow": b"  const uint64_t FLAGS_clocks_per_us = 0;\n",
+        "backoff-shadow": b"  struct Backoff { static void backoff(uint64_t) {} };\n",
+    }
+    raw = _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES)
+    if mutation == "gate-pass-type":
+        raw = raw.replace(
+            b"  bool izanagi_gate_pass = true;\n",
+            b"  struct GatePass {\n"
+            b"    GatePass& operator=(bool) { return *this; }\n"
+            b"    explicit operator bool() const { return false; }\n"
+            b"  } izanagi_gate_pass;\n",
+        )
+    elif mutation == "tally-return":
+        raw = raw.replace(
+            b"void TxExecutor::abort() {\n",
+            b"void TxExecutor::abort() {\n  return;\n",
+        )
+    elif relocated:
+        raw = raw.replace(
+            FROZEN_TEMPLATE_PROLOGUE_BYTES,
+            edits[mutation] + FROZEN_TEMPLATE_PROLOGUE_BYTES,
+        )
+    else:
+        raw = raw.replace(
+            b"  bool izanagi_gate_pass = true;\n",
+            b"  bool izanagi_gate_pass = true;\n" + edits[mutation],
+        )
+    source, _ = _write_trigger_source(tmp_path, raw)
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), source)
+
+
+def test_trigger_axis_accepts_tally_abort_prefix(tmp_path: Path):
+    source, _ = _write_trigger_source(
+        tmp_path, _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES, tally=True),
+    )
+    admission = derive_build_admission(_context(), source)
+    assert require_build_admission(
+        admission, expected_policy=_context().policy, expected_source=source
+    ) is admission
+
+
+def test_trigger_axis_accepts_bytes_before_abort_declaration(tmp_path: Path):
+    source, _ = _write_trigger_source(
+        tmp_path,
+        _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES, before=b"/* changed preamble */ "),
+    )
+    assert derive_build_admission(_context(), source).provenance is BuildProvenance.STOCK_BASELINE
+
+
+def test_frozen_trigger_prologue_matches_template_patch_bytes():
+    lines = (ORCHESTRATOR.parent / "patches" / "silo-backoff-trigger-gating-variant.patch").read_bytes().splitlines(keepends=True)
+    start = lines.index(b"+#if BACKOFF_TRIGGER_GATING\n", lines.index(b"@@ -44,7 +78,39 @@ void TxExecutor::abort() {\n"))
+    assert all(line.startswith(b"+") for line in lines[start:start + 7])
+    assert b"".join(line[1:] for line in lines[start:start + 7]) == FROZEN_TEMPLATE_PROLOGUE_BYTES
+
+
+def test_frozen_trigger_tally_matches_patch_bytes():
+    lines = (ORCHESTRATOR.parent / "patches" / "instr-silo-backoff-trigger-gating-tally.patch").read_bytes().splitlines(keepends=True)
+    start = lines.index(b"+#if BACKOFF_TRIGGER_GATING && TRACE\n")
+    assert all(line.startswith(b"+") for line in lines[start:start + 24])
+    assert b"".join(line[1:] for line in lines[start:start + 24]) == FROZEN_TEMPLATE_ABORT_TALLY_BYTES
+
+
+def test_frozen_trigger_abort_head_matches_pin_source():
+    sub = ORCHESTRATOR.parent / "external" / "ccbench"
+    if not (sub / ".git").exists():
+        pytest.skip("submodule 未 init — pin 原文照合には .git が必要")
+    result = subprocess.run(
+        ["git", "-C", str(sub), "show", f"{CURRENT_PIN}:cc/silo/transaction.cc"],
+        capture_output=True, check=True,
+    )
+    original = result.stdout
+    start = original.index(b"void TxExecutor::abort() {\n")
+    stop = original.index(b"  Backoff::backoff", start)
+    assert original[start:stop] == FROZEN_TEMPLATE_ABORT_HEAD_BYTES
 
 
 def test_frozen_trigger_block_matches_template_patch_bytes():

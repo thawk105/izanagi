@@ -1,0 +1,217 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m-f1-stock-keeps-flag",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "    genome = Genome('silo', {key: value for key, value in BASE.items()\n                             if key != axis.FLAG})\n",
+     "new": "    genome = Genome('silo', dict(BASE))  # mutation M-F1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f2-baseline-ratio",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                abort_rate = leading['abort_rate'] * 100\n",
+     "new": "                abort_rate = leading['abort_rate']  # mutation M-F2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f3-baseline-other-attempt",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                   if record.variant == result.variant\n                   and record.payload.get('build_attempt_id') == result.build_attempt_id]\n        stock_genome",
+     "new": "                   if record.variant == result.variant]  # mutation M-F3\n        stock_genome"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_genome_and_same_attempt_baseline",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_result_requires_stock_source_in_selected_attempt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f4-replay-advances-loop",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        if args.replay_proposal:\n            out = run_one_iteration(cfg, default_perf(), proposal, auditor, sub, True,\n",
+     "new": "        if args.replay_proposal:  # mutation M-F4\n            out = drive_iteration(cfg, default_perf(), proposal, auditor, sub, True,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_replay_uses_real_auditor_gate_without_loop_state"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f5-replay-no-auditor",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        if args.replay_proposal:\n            out = run_one_iteration(cfg, default_perf(), proposal, auditor, sub, True,\n",
+     "new": "        if args.replay_proposal:\n            out = run_one_iteration(cfg, default_perf(), proposal, None, sub, True,  # mutation M-F5\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_replay_uses_real_auditor_gate_without_loop_state"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f6-no-env-marker",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        return L._campaign_cfg_for_site(cfg, site_policy.PEGASUS_COMPUTE,\n                                        _contract=env_contract.lookup('pegasus'))\n",
+     "new": "        return ident.bind_environment_contract(cfg, env_contract.lookup('pegasus'))  # mutation M-F6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_campaign_environment_and_purpose_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f7-policy-old-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "    \"$PY\" -B -c 'from orchestrator.campaign.axis_silo_function_policy import PIN; print(PIN)'\n",
+     "new": "    \"$PY\" -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'  # mutation M-F7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[pair-action1]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[replay-action2]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_argv_archive_and_lock[stock-action0]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_actual_job_uses_policy_pin",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_driver_status_is_job_status[0]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_driver_status_is_job_status[7]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[campaign-pin-import-'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'-'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)']"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f8-no-archive-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "if [[ -n \"$policy_mode\" ]]; then\n  [[ \"${IZANAGI_TRACE_ARCHIVE_ROOT:-}\" == /* ]] \\\n",
+     "new": "if false; then  # mutation M-F8\n  [[ \"${IZANAGI_TRACE_ARCHIVE_ROOT:-}\" == /* ]] \\\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_excludes_git_common_repository",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[None]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[relative/archive]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[repo/../repo/archive]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_archive_root_is_required_outside_repository[repo/archive]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f9-no-src-token-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        stock_source = (result.variant == variant_id(stock_genome)\n                        and any(record.stage == STAGE_BUILD_START\n",
+     "new": "        stock_source = True or (result.variant == variant_id(stock_genome)  # mutation M-F9\n                        and any(record.stage == STAGE_BUILD_START\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_result_requires_stock_source_in_selected_attempt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f10-stock-rc-zero",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "            return 0 if out['outcome'] == 'certified-stock' else 1\n",
+     "new": "            return 0  # mutation M-F10\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_baseline_failure_returns_one_with_json",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_cli_preserves_environment_prefix_and_stderr_log"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f11-stock-after-stopped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                if candidate_error is None and candidate.get('ran') is False:\n",
+     "new": "                if False:  # mutation M-F11\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_without_candidate_attempt_skips_stock"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m-f12b-prefix-from-env-guard-open",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "    if contract.env_tag == 'pegasus':\n",
+     "new": "    if True:  # mutation M-F12b\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                contract=contract, fetchcontent_options=fetchcontent_options,\n                log=measurement_log)\n            print(json.dumps(out, ensure_ascii=False))\n",
+     "new": "                contract=contract, fetchcontent_options=fetchcontent_options,\n                dependency_prefix=__import__('os').environ.get('CMAKE_PREFIX_PATH', ''),  # mutation M-F12b\n                log=measurement_log)\n            print(json.dumps(out, ensure_ascii=False))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_stock_cli_preserves_environment_prefix_and_stderr_log"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

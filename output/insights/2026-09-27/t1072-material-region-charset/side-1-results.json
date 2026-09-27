@@ -1,0 +1,93 @@
+{
+ "baseline": {
+  "head": "c415e1da054c532e613dcfbdc48a7e717f88287b",
+  "dirty": "",
+  "rc": 0,
+  "failed_nodes": [],
+  "summary": [
+   "| 169 passed in 8.88s"
+  ]
+ },
+ "m1-render-raw-region": {
+  "head": "31c744af3e5174b5bdbd887553826fd442372252",
+  "dirty": "",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[bidi-override]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[escape]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[left-bracket]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[line-feed]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[non-string]",
+   "orchestrator/tests/test_critic.py::test_diff_region_direct_invalid_values_render_sentinel[tab]",
+   "orchestrator/tests/test_critic.py::test_diff_region_forbidden_file_path_and_reason_are_sanitized"
+  ],
+  "summary": [
+   "| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=9678 retained_bytes=9678 omitted_bytes=0 budget_bytes=49152 rendered_bytes=15396 omitted_manifest_sha256=-"
+  ]
+ },
+ "m2-region-without-at": {
+  "head": "2b005b367ca82fedd2a796854fb24723af600d64",
+  "dirty": "",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[outside-file]",
+   "orchestrator/tests/test_critic.py::test_diff_region_path_at_sign_survives_real_producer"
+  ],
+  "summary": [
+   "| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6311 retained_bytes=5570 omitted_bytes=741 budget_bytes=49152 rendered_bytes=7862 omitted_manifest_sha256=-"
+  ]
+ },
+ "m3-shared-set-with-at": {
+  "head": "f36a5945a3bc38cd8105b22c15ba24e620879efd",
+  "dirty": "",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_critic.py::test_diff_quarantine_reason_rejects_unsafe_unicode_and_non_strings[at@sign]"
+  ],
+  "summary": [
+   "| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=845 retained_bytes=845 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1663 omitted_manifest_sha256=-"
+  ]
+ },
+ "m4-empty-region-validated": {
+  "head": "44fb174cdd63f6e69ed9073761d6c2bb678547c4",
+  "dirty": "",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_critic.py::test_diff_region_empty_or_missing_renders_question_mark[empty]",
+   "orchestrator/tests/test_critic.py::test_diff_region_empty_or_missing_renders_question_mark[missing-in-wal]"
+  ],
+  "summary": [
+   "| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3124 retained_bytes=3124 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4983 omitted_manifest_sha256=-"
+  ]
+ },
+ "m5-region-always-invalid": {
+  "head": "c95866e8c32c3a73a8a8e2d2b956d82b7884a527",
+  "dirty": "",
+  "rc": 1,
+  "failed_nodes": [
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[content-comment-block]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[content-comment-line]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[content-directive]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[content-line-splice]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[content-marker]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[delete-outside]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[head-content]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[head-range]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[insert-outside]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[malformed-body]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[malformed-header]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[malformed-truncated]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[outside-file]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[template-comment]",
+   "orchestrator/tests/test_critic.py::test_diff_region_all_producer_forms_survive_loader_and_renderer[template-splice]",
+   "orchestrator/tests/test_critic.py::test_diff_region_path_at_sign_survives_real_producer",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[backoff-hh]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[mocc-marker]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[mocc-transaction]",
+   "orchestrator/tests/test_critic.py::test_diff_region_stage_four_constants_render_verbatim[silo-transaction]"
+  ],
+  "summary": [
+   "| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=20 failed=20 errors=0 selected=10 omitted_failures=10 source_bytes=71984 retained_bytes=35814 omitted_bytes=36170 budget_bytes=49152 rendered_bytes=45916 omitted_manifest_sha256=3c0d2698e9750623f9161077bb10d1fed25679de8ef2ce0cd7f3668bbcb8de1d"
+  ]
+ }
+}
