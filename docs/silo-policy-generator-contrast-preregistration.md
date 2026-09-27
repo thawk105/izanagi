@@ -54,7 +54,7 @@ B-5 から暗黙に持ち込まない。
 
 - LLM の必要性 (「LLM でなければ到達できない」)。非 LLM 生成器一般 (BO・他の進化方式・大きい予算) に対する優越。
 - 他の workload (balanced・read-heavy・TPC-C)、他の protocol、他の環境での成立。本書は write-heavy だけを測る。
-- 経過時間・費用を揃えた比較。どの arm も B = 10 で止まり、LLM は評価の間に長い待ちを持つ (§11)。
+- 経過時間・費用を揃えた比較。どの arm も B = 10 を上限として止まり (A の枯渇で B 未達もありうる)、LLM は評価の間に長い待ちを持つ (§11)。
 - certified を全実行の正しさの証明と読むこと。certified は観測した有限の trace の判定で、verify と perf で同じ分岐を踏んだとは
   言えない (設計 §3.1)。「LLM が壊した CC 論理を verifier が捕らえた」ことも主張しない (D2214 項 2)。
 - 公平性 (worker 間の偏り)。機械的な観測点は無い (設計 §3.4)。
@@ -107,8 +107,11 @@ B-5 から暗黙に持ち込まない。
 - **構成:** K0 (外部の実験知識の射影なし)・R0 (空間外の参照値を渡さない)・planner なし (D2214 項 8)。役割は coder・auditor・critic。
   - coder: C++ 形は `coder-v4-autonomous-policy`、IR 形は `coder-v4-autonomous-policy-ir` (D2256 項 7 でユーザーが差分を承認済み)。
   - auditor: LLM 由来の全候補に掛ける (違反型 1〜26、deny-only veto と digest 照合、D2256 項 2・項 5)。
-  - critic: job 1 (系列開始 stock と初期点 2 個) の後に 1 回、以後は評価が 1 回進むごとに 1 回。材料は driver が系列の campaign に書く
-    critic digest だけ。出力は次の原提案の coder 入力へ、driver が 6 文字列 field の閉じた形で載せる (D2256 項 4)。
+  - critic: 原提案機会の最初の役割として、前回の critic の後に新しい結果 (job 1 の系列開始 stock と初期点 2 個、または評価 1 回) が
+    あるときだけ呼ぶ。したがって原提案 1 の機会は job 1 の結果についての critic から始まり、却下が続いて新しい結果が無い機会では呼ばない。
+    critic は原提案機会の中の役割なので、§5.5 の 429 の保留と異常終了の規則はその機会の番号 a で掛かり、§11.2 の機会数に含まれる
+    (B-5 v1 の 1 機会の待ちの実測も、評価が進んだ機会の critic を含む)。材料は driver が系列の campaign に書く critic digest だけ。
+    出力は同じ機会の coder 入力へ、driver が 6 文字列 field の閉じた形で載せる (D2256 項 4)。
 - **coder の入力:** driver の `--emit-coder-input` の出力だけを、そのまま渡す (runbook `docs/phase3-silo-policy-runbook.md` §1(a))。
   5 key = 固定のリーク防止文脈・接続仕様・baseline (系列開始 stock の throughput と abort 率)・段階 D の二値と射程文・
   自系列の履歴 (justification を除く)。critic 診断があれば同じ出力に載る。親は key を足さず、値を書き換えず、説明を付け足さない。
@@ -256,7 +259,8 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   同値は slot の早い方。endpoint の identity・source・出所 slot を再計測の前に固定する。他系列の候補や既知の勝者を補充しない。
 - **anomaly の波及:** ある identity で anomaly が 1 件でも観測されたら (探索・初期点・再計測のどこでも、どの系列・arm でも)、
   その identity は全系列で endpoint の資格を失う (比較基盤 §4.6)。先行する certified 記録は歴史事実として残す (規律 7)。
-  score 確定後に波及した場合は、その系列を不採用とし、下の優先 4 の fallback の score へ改め、失敗条件 (a) に記録して、
+  score 確定後に波及した場合は、その系列の endpoint を資格なしとして下の「欠測と fallback の優先」を 1 から当て直し
+  (他の資格ある点へ選び直さない。優先 1〜3 に当たれば欠測・判定不能、当たらなければ優先 4 の fallback)、失敗条件 (a) に記録して、
   日付付きの「結果の訂正」として報告する (Erratum ではない、B-5 v1 §6 と同じ)。この判定は生成器へ還流しない。
 - **score:** endpoint を N_eval = 5 の fresh session で再計測し、その 5 session の median throughput。同じ 5 session から endpoint の CV を求める。
 - **欠測と fallback の優先 (比較基盤 §4.6 と同じ順):**
@@ -323,7 +327,7 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   10/12 なら p = 79/4096 ≈ 0.0193 で初段を通る (2 段目は 0.05)。9/12 なら p = 299/4096 ≈ 0.073 で通らない。p は差の大きさにも依存する。
   これは p 値の解像度の根拠で、検出力の保証ではない。結果を見て n を増減しない。
 - 報告: 全 4 arm の score、全 4 比較、記述の LLM×C++ 対 LLM×IR、各 arm の endpoint の静的 10 µs 比と stock 比 (参照 job の median に対する記述)、
-  全未完走・anomaly・fallback・欠測・floor・raw p・補正 p・batch 別の median(d) (記述)・certified endpoint 数・endpoint が初期点だった系列数・
+  全未完走・anomaly・fallback・欠測・floor・raw p・補正 p・batch 別の median(d) (記述)・certified endpoint 数・certified・品質正常の探索点を持つ系列の数 (§7.4 の手順 3 の根拠)・endpoint が初期点だった系列数・
   A の使用数と拒否の内訳 (検査段・auditor)・実消費 B の分布と B 未達の系列・一意な identity の数・§5.5 の保留の全件・§6 の目視の所見。
   本書の主 cohort は 1 回だけとする。
 
@@ -437,7 +441,8 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 - G_rand と進化の実装 (commit と file の SHA-256) と、§4.4・§4.5 の確率・重みの実値。v1 の preimage で引いた値は発効の前に閲覧しない。
 - 48 系列の schedule (組・ラテン方格の順・batch)、同時に進める系列数と LLM 親の数の上限。
 - job 種別ごとの walltime とその根拠 (生死確認の実測の最大所要への倍率)。
-- 規模の択一 (§11.3) の選択。選んだ案に合わせて §7.1・§7.3 の arm と族を書き換えた版を、本書の起草版として発効の前に着地させる。
+- 規模の択一 (§11.3) の選択。推奨以外を選んだときは、本文の arm と族 (§1.1・§7.1・§7.3)、系列数に依る全箇所 (§7.4 の「12 系列」「12 中」
+  と p 値の例、§11 の系列数、schedule の組の数) と report の系列数を選んだ案の値へ書き換えた版を、本書の起草版として発効の前に着地させる。
 - 既知結果台帳の差分。
 
 発効の確認で、ユーザーへ示す事項:
@@ -477,3 +482,5 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 - 2026-09-27: 起草 wave の段 6 レビュー (Codex 2 本) と親の点検を受けて改めた (着地前): critic を job 1 の後にも回す・性能が critic 経由でだけ
   LLM に届くことの開示、後発 anomaly の score 訂正、公平性の目視、B を上限と明記、進化の field 追加の規則、生成不成立の定義、
   `select_endpoint` の流用不可、n = 10 案の report 系列数、週上限の書き方。裁定の記録は起草 insight §7。
+- 2026-09-27: 同じ wave の焦点再レビューを受けて改めた (着地前): critic を原提案機会の中の役割にした、後発 anomaly の訂正に欠測の優先を当て直す、
+  推奨以外の規模を選んだときの書き換え範囲、生成不成立の根拠の数の報告、B を上限とする表現の統一。
