@@ -85,6 +85,154 @@ def _admission_bundle(genome: Genome, commit: str, source_root: str):
     return context, evidence, admission
 
 
+def test_workload_identity_preserves_ycsb_golden_and_separates_tpcc():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    _, _, admission = _admission_bundle(genome, "a" * 40, "/fixed/source")
+    # Values from HEAD before workload support, using this fixed source root.
+    legacy = buildcache.cache_key(genome, "a" * 40, False, admission=admission)
+    assert legacy == "silo_c2d907920f_t0"
+    assert buildcache.cache_key(
+        genome, "a" * 40, False, admission=admission, workload="ycsb",
+    ) == legacy
+    assert buildcache.cache_key(
+        genome, "a" * 40, False, admission=admission, workload="tpcc",
+    ) != legacy
+    args = (genome, "a" * 40, False, "stock", "test-cc", "test-cxx", {
+        "cmake": {"realpath": "/cmake"},
+        "cc": {"realpath": "/cc"},
+        "cxx": {"realpath": "/cxx"},
+    })
+    kwargs = dict(site="other", dependency_prefix=[],
+                  admission=dict(admission.as_cache_identity()))
+    ycsb, ycsb_digest = buildcache._v2_identity(*args, **kwargs)
+    assert ycsb_digest == (
+        "f7da7e59a9c330609b86a8fae5a3dd3ae33ea0d33b3720729e1193eabf85ba5d"
+    )
+    assert buildcache._v2_identity(*args, workload="ycsb", **kwargs) == (
+        ycsb, ycsb_digest,
+    )
+    assert "workload" not in ycsb
+    tpcc, tpcc_digest = buildcache._v2_identity(
+        *args, workload="tpcc", **kwargs,
+    )
+    assert tpcc["workload"] == "tpcc"
+    assert tpcc_digest != ycsb_digest
+
+
+@pytest.mark.parametrize("bad", ["TPCC", "", None, 1, True])
+def test_invalid_build_workload_rejected(tmp_path, monkeypatch, bad):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    _, _, admission = _admission_bundle(genome, "a" * 40, "/fixed/source")
+    with pytest.raises(ValueError, match="workload"):
+        buildcache.cache_key(genome, "a" * 40, False, admission=admission,
+                             workload=bad)
+    with pytest.raises(ValueError, match="workload"):
+        buildcache._v2_identity(
+            genome, "a" * 40, False, "stock", "cc", "cxx", {},
+            site="other", dependency_prefix=[], admission={}, workload=bad,
+        )
+    with pytest.raises(ValueError, match="workload"):
+        buildcache._v2_commands(
+            genome, False, "/src", "/build", {}, workload=bad,
+        )
+    with pytest.raises(ValueError, match="workload"):
+        _build(tmp_path, _contract(1), workload=bad)
+    context, evidence, local_admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
+    with pytest.raises(ValueError, match="workload"):
+        buildcache.build(
+            genome, "a" * 40, False, workload=bad,
+            admission=local_admission, build_context=context,
+            source_evidence=evidence,
+        )
+
+
+def test_tpcc_fresh_hit_compiler_target_and_cross_workload_misses(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    collected = []
+    real_collect = buildcache._collect_compiler_inputs
+
+    def observe_collect(*args, **kwargs):
+        collected.append(kwargs["target"])
+        return real_collect(*args, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_collect_compiler_inputs", observe_collect)
+    source = tmp_path / "ccbench"
+    source.mkdir()
+    (source / "compiler-input.hh").write_bytes(b"compiler input fixture\n")
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(source),
+    )
+    kwargs = dict(
+        admission=admission, build_context=context, source_evidence=evidence,
+        contract=_contract(1), ccbench_commit="a" * 40, trace=False,
+        src_token="stock", cc="test-cc", cxx="test-cxx",
+        cache_root=str(tmp_path / "cache"), ccbench_dir=str(source),
+        source_snapshot_sha256=(
+            buildcache.s8b_expected_materialization.snapshot_tree_digest(source)
+        ),
+    )
+    tpcc = buildcache.build_v2(genome, workload="tpcc", **kwargs)
+    assert not tpcc.cached
+    assert Path(tpcc.binary).relative_to(tpcc.build_dir).as_posix() == (
+        "cc/silo/tpcc_silo.exe"
+    )
+    assert tpcc.build_argv[tpcc.build_argv.index("--target") + 1] == "tpcc_silo.exe"
+    assert tpcc.compiler_input_manifest["target"] == "tpcc_silo.exe"
+    assert collected == ["tpcc_silo.exe"]
+    hit_targets = []
+    real_validate = buildcache.s8b_compiler_input.validate_compiler_input_manifest
+
+    def observe_validate(*args, **kwargs):
+        hit_targets.append(kwargs["target"])
+        return real_validate(*args, **kwargs)
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input, "validate_compiler_input_manifest",
+        observe_validate,
+    )
+    tpcc_hit = buildcache.build_v2(genome, workload="tpcc", **kwargs)
+    assert tpcc_hit.cached and tpcc_hit.build_dir == tpcc.build_dir
+    assert "tpcc_silo.exe" in hit_targets
+    assert collected == ["tpcc_silo.exe"]
+    ycsb = buildcache.build_v2(genome, **kwargs)
+    assert not ycsb.cached and ycsb.build_dir != tpcc.build_dir
+    assert ycsb.compiler_input_manifest["target"] == "ycsb_silo.exe"
+    assert buildcache.build_v2(genome, **kwargs).cached
+    assert buildcache.build_v2(genome, workload="tpcc", **kwargs).cached
+
+
+def test_legacy_tpcc_target_and_cross_workload_misses(tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path)
+    source = tmp_path / "ccbench"
+    source.mkdir()
+    genome = Genome("silo", {"BACK_OFF": 1})
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(source),
+    )
+    kwargs = dict(
+        admission=admission, build_context=context, source_evidence=evidence,
+        ccbench_dir=str(source), cache_root=str(tmp_path / "cache"),
+        cc="test-cc", cxx="test-cxx",
+    )
+    tpcc = buildcache.build(genome, "a" * 40, False, workload="tpcc", **kwargs)
+    assert not tpcc.cached
+    assert Path(tpcc.binary).relative_to(tpcc.build_dir).as_posix() == (
+        "cc/silo/tpcc_silo.exe"
+    )
+    assert tpcc.build_argv[tpcc.build_argv.index("--target") + 1] == "tpcc_silo.exe"
+    assert buildcache.build(
+        genome, "a" * 40, False, workload="tpcc", **kwargs,
+    ).cached
+    ycsb = buildcache.build(genome, "a" * 40, False, **kwargs)
+    assert not ycsb.cached and ycsb.build_dir != tpcc.build_dir
+    assert buildcache.build(genome, "a" * 40, False, **kwargs).cached
+
+
 def _review_admission_bundle(
         genome: Genome, commit: str, source_root: str, *, input_sha256: str):
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -399,7 +547,7 @@ def _fake_build_environment(
             )
         if what == "build":
             bdir = Path(cmd[cmd.index("--build") + 1])
-            binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
+            binary = bdir / "cc" / "silo" / cmd[cmd.index("--target") + 1]
             binary.parent.mkdir(parents=True, exist_ok=True)
             binary.write_bytes(payload)
 
@@ -407,6 +555,7 @@ def _fake_build_environment(
 
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
+           workload: str = "ycsb",
            ccbench_dir: str = "", timeout_s: int | None = None,
            source_snapshot_sha256: str | None = None,
            bind_source_snapshot: bool = False,
@@ -449,6 +598,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
             ),
         )
     kwargs = dict(
+        workload=workload,
         admission=admission,
         build_context=context,
         source_evidence=evidence,

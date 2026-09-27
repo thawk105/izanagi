@@ -5945,7 +5945,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    commit_witness=_MATCH_TRACE_WITNESS, batch_witness=0,
                    unsupported_workload=False, preexisting_trace=False,
                    unavailable_trace_dir=False,
-                   measurement_site=site_policy.PEGASUS_COMPUTE):
+                   measurement_site=site_policy.PEGASUS_COMPUTE,
+                   measure_delegate=None):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
     yield する list = measure_point (実 bench) が呼ばれた回数の証跡。
@@ -5959,6 +5960,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.cache_hits = []
             self.build_roots = []
             self.build_options = []
+            self.build_workloads = []
             self.source_resolve_calls = []
             self.measure_kwargs = []
             self.lock_enters = 0
@@ -6023,26 +6025,28 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         return point
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",
-                   *, admission, build_context, source_evidence):
+                   *, admission, build_context, source_evidence, workload="ycsb"):
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("legacy", trace, None))
+        bench_calls.build_workloads.append(workload)
         bench_calls.cache_hits.append(build_cached)
         if build_raises:
             raise RuntimeError("build boom")
         bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)
         return types.SimpleNamespace(bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
-                                     binary="/nonexistent/ycsb.exe", cached=build_cached,
+                                     binary=f"/nonexistent/{workload}_silo.exe", cached=build_cached,
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_build_v2(genome, *, admission, build_context, source_evidence,
                       contract, ccbench_commit, trace, src_token,
                       cc, cxx, cache_root, ccbench_dir="", timeout_s=None,
                       dependency_prefix="", expected_toolchain_manifest=None,
-                      declared_use_class=None):
+                      declared_use_class=None, workload="ycsb"):
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bench_calls.builds.append(("v2", trace, contract.contract_sha256))
+        bench_calls.build_workloads.append(workload)
         bench_calls.cache_hits.append(build_cached)
         bench_calls.build_roots.append(ccbench_dir)
         bench_calls.build_options.append({
@@ -6069,7 +6073,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             ).hexdigest()
         return types.SimpleNamespace(
             bin_hash=bin_sha256[:16], bin_sha256=bin_sha256,
-            binary="/nonexistent/ycsb.exe", cached=build_cached,
+            binary=f"/nonexistent/{workload}_silo.exe", cached=build_cached,
             configure_cmd="<cfg-v2>", build_cmd="<build-v2>",
             contract_sha256=contract.contract_sha256,
             toolchain=toolchain,
@@ -6202,7 +6206,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             raise probe_raises
         return list(competing or [])
     patch("competing_bench_pids", fake_competing)  # 既定: 単一テナント
-    patch("measure_point", fake_measure)
+    patch("measure_point", measure_delegate or fake_measure)
     patch("remeasure_until_stable", fake_remeasure)
     try:
         yield bench_calls
@@ -6212,7 +6216,8 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
 
 
 def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
-          record_rep_returncodes=False, protocol="silo", **mock_kw):
+          record_rep_returncodes=False, protocol="silo",
+          workload_name="ycsb", correctness=None, use_v2=False, **mock_kw):
     """1 genome を mock 下で評価し (EvalResult, bench 呼び出し回数 list) を返す。"""
     if wal.read_lock(lay) is None:
         cfg = _cfg()
@@ -6228,6 +6233,8 @@ def _eval(lay, do_bench=True, screening=None, expected_perf_sha256=None,
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
             numactl=_AUTH_CONTRACT.numactl,
             do_bench=do_bench, screening=screening,
+            workload=workload_name, correctness=correctness,
+            env_contract=_AUTH_CONTRACT if use_v2 else None,
             expected_perf_sha256=expected_perf_sha256,
             record_rep_returncodes=record_rep_returncodes,
             authorization_contract=_AUTHORIZATION,
@@ -7583,6 +7590,80 @@ def test_run_trace_parses_abort_from_stdout():
     assert result2.abort_counts is None      # 集計行なし → None (呼び手が fails-closed)
 
 
+@pytest.mark.parametrize("use_v2", [False, True], ids=["legacy", "v2-build"])
+def test_tpcc_evaluate_v2_aborts_before_bench_and_builds_tpcc(use_v2):
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    layout = _tmp_layout()
+    result, calls = _eval(
+        layout, workload_name="tpcc", use_v2=use_v2,
+        correctness=pipeline.CorrectnessWorkload(flags=flags),
+        trace_content="C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n", ncommit=1,
+    )
+    assert result.aborted and not result.certified
+    assert calls == []
+    assert calls.build_workloads == ["tpcc", "tpcc"]
+    assert wal.replay(layout)[result.variant].last_terminal.payload["reason"] == (
+        "trace-witness-unsupported-workload")
+    assert STAGE_BENCH_DONE not in wal.replay(layout)[result.variant].stages_seen
+
+
+def test_tpcc_evaluate_v3_reaches_bench_with_workload():
+    flags = {"tpcc_perc_payment": "43", "tpcc_perc_order_status": "0",
+             "tpcc_perc_delivery": "0", "tpcc_perc_stock_level": "0"}
+    frames = ("C 0 0 2 1 0 1 0 0 1\nW 0 1 aa I 2 1\nE 0\n"
+              "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n")
+    from orchestrator.calibrator import runner as calibrator_runner
+    seen = []
+    real_measure_point = pipeline.measure_point
+    original_run_once = calibrator_runner.run_once
+
+    def fake_run_once(binary, argv, **kwargs):
+        seen.append(list(argv))
+        return ({"throughput[tps]": "1000", "abort_rate": "0.01",
+                 "latency[ns]": "1000", "maxrss": "100 kB"},
+                calibrator_runner.PerfCounters(), 0.5)
+
+    def measured(*args, **kwargs):
+        return real_measure_point(*args, **{**kwargs, "use_perf": False})
+
+    calibrator_runner.run_once = fake_run_once
+    try:
+        layout = _tmp_layout()
+        result, calls = _eval(
+            layout, workload_name="tpcc",
+            correctness=pipeline.CorrectnessWorkload(flags=flags),
+            trace_content=frames, ncommit=2, measure_delegate=measured,
+        )
+    finally:
+        calibrator_runner.run_once = original_run_once
+    assert result.certified and len(seen) == 5
+    assert all("-tpcc_num_wh=1000" in argv for argv in seen)
+    assert all(not any(flag.startswith("-ycsb_tuple_num=") for flag in argv)
+               for argv in seen)
+    assert calls.build_workloads == ["tpcc", "tpcc"]
+    bench_records = [record for record in wal.read_records(layout)
+                     if record.stage == STAGE_BENCH_DONE]
+    assert len(bench_records) == 1
+    assert bench_records[0].payload["workload"] == "tpcc"
+    assert wal.replay(layout)[result.variant].last_terminal.payload["workload"] == "tpcc"
+
+
+def test_tpcc_bench_rejects_duplicate_warehouse_flag():
+    saved = pipeline._require_measurement_site
+    pipeline._require_measurement_site = lambda *_: None
+    try:
+        with pytest.raises(ValueError, match="tpcc_num_wh"):
+            pipeline._run_bench(
+                "/bench", PerfConfig(records=1, threads=2,
+                workload={"tpcc_num_wh": "2"}), 1800, None, False,
+                _tmp_layout(), "v", "env", lambda *args: None,
+                build_attempt_id="attempt", workload_name="tpcc",
+            )
+    finally:
+        pipeline._require_measurement_site = saved
+
+
 def test_tpcc_stage1_run_trace_allowlist():
     root = _tmpdir("izanagi_tpcc_allowlist_")
     for name in ("tpcc_fake", "ycsb_fake", "other_fake"):
@@ -8376,7 +8457,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         )
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",
-                   *, admission, build_context, source_evidence):
+                   *, admission, build_context, source_evidence, workload="ycsb"):
         assert build_context is _BUILD_CONTEXT
         assert admission.as_wal_receipt()["source"] == source_evidence.as_receipt()
         bin_sha256 = ("da" if trace else "db") * 32  # 64 hex (WAL 新キー用)

@@ -186,7 +186,7 @@ def s2_correctness_workload() -> CorrectnessWorkload:
 
 @dataclass
 class PerfConfig:
-    """bench 用の確定 calibration (records/threads/workload)。"""
+    """bench 用の確定 calibration。records は YCSB では行数、TPC-C では倉庫数 (-tpcc_num_wh)。"""
     records: int
     threads: int
     workload: Dict[str, str] = field(default_factory=dict)
@@ -1263,6 +1263,7 @@ class _PreparedEvaluation:
     env_tag: str
     perf_binary: str
     perf: PerfConfig
+    workload: str
     clocks_per_us: int
     numactl: Optional[Sequence[str]]
     do_bench: bool
@@ -1333,7 +1334,7 @@ _BENCH_DONE_REQUIRED_PAYLOAD_KEYS = frozenset({
     "rep_notes", "run_cmd",
 })
 _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
-    "perf_observation", "screening", "rep_returncodes", "reps",
+    "perf_observation", "screening", "rep_returncodes", "reps", "workload",
 })
 _BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
 # 本番順序の実測 67・77 秒の最大値に約 1.5 倍の余裕を持たせる。
@@ -1398,6 +1399,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                perf_preflight_receipt: Optional[dict] = None,
                *,
                build_attempt_id: str,
+               workload_name: str = "ycsb",
                record_rep_integer_counters: bool = False,
                verify_performance_concurrent: bool = False,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
@@ -1405,13 +1407,17 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
     if type(build_attempt_id) is not str or not build_attempt_id:
         raise TypeError("build_attempt_id は non-empty str が必要")
     _require_measurement_site("campaign throughput 測定")
-    # records は measure_point が -ycsb_tuple_num として渡す → workload に入れない
+    # records は measure_point が workload 別の件数 flag として渡す → workload に入れない
     # (入れると gflags last-wins で calibration の records を無言上書きする)。
     if "ycsb_tuple_num" in perf.workload:
         # assert だと python -O で消える。calibration の records を gflags last-wins で
         # 無言上書きする事故 (規律4 の動作点破壊) への唯一の防壁なので例外文にする。
         raise ValueError(
             "PerfConfig.workload に ycsb_tuple_num を入れない (records を上書きする)")
+
+    if workload_name == "tpcc" and "tpcc_num_wh" in perf.workload:
+        raise ValueError(
+            "PerfConfig.workload に tpcc_num_wh を入れない (records を上書きする)")
 
     # IZANAGI_TRACE_DIR を perf run にも対称に設定する (D36 決定4-5): verify run だけが
     # この環境変数を持つと、EVOLVE_BLOCK の共有コード (#if TRACE の外) が getenv 有無で
@@ -1443,6 +1449,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                 perf_binary, perf.records, perf.threads, clocks_per_us,
                 extime=perf.extime, reps=perf.reps,
                 workload=perf.workload, numactl=numactl,
+                workload_name=workload_name,
                 extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
                 **qualification_kwargs,
             )
@@ -1451,6 +1458,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             perf_binary, perf.records, perf.threads, clocks_per_us,
             extime=perf.extime, reps=perf.reps,
             workload=perf.workload, numactl=numactl,
+            workload_name=workload_name,
             extra_env={"IZANAGI_TRACE_DIR": dummy_tdir},
             rep_returncodes=rep_returncodes,
             **qualification_kwargs,
@@ -1555,6 +1563,8 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         "rep_notes": getattr(pt, "notes", []),
         "run_cmd": pt.run_cmd,                    # この測定点を再現する実行コマンド
     }
+    if workload_name == "tpcc":
+        bench_payload["workload"] = "tpcc"
     perf_observation = _perf_preflight.build_perf_observation(
         perf_preflight_receipt,
         run_cmd=pt.run_cmd,
@@ -1657,6 +1667,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              fetchcontent_dependency_receipt: Optional[
                  Mapping[str, object]
              ] = None, *,
+             workload: str = "ycsb",
              record_rep_integer_counters: bool = False,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
@@ -2091,15 +2102,16 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     )
                 return buildcache.build(
                     genome, ccbench_commit, trace=trace, src_token=src_tok,
+                    workload=workload,
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
                     **build_options,
                 )
             if qualification_policy is None:
-                return buildcache.build_v2(genome, trace=trace, **common)
+                return buildcache.build_v2(genome, trace=trace, workload=workload, **common)
             return buildcache.build_v2(
-                genome, trace=trace,
+                genome, trace=trace, workload=workload,
                 timeout_s=qualification_policy.build_timeout_s, **common,
             )
 
@@ -2682,6 +2694,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
             build_attempt_id=build_attempt_id,
+            workload_name=workload,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
         record_rep_integer_counters=record_rep_integer_counters,
@@ -2796,6 +2809,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         env_tag=env_tag,
         perf_binary=pf.binary,
         perf=perf,
+        workload=workload,
         clocks_per_us=clocks_per_us,
         numactl=numactl,
         do_bench=do_bench,
@@ -2839,6 +2853,7 @@ def _bench_prepared(
         prepared.layout, prepared.result.variant, prepared.env_tag,
         prepared.abort, prepared.log,
         build_attempt_id=prepared.build_attempt_id,
+        workload_name=prepared.workload,
         bench_payload_extra=prepared.screening_disabled_payload,
         bench_max_rounds=prepared.bench_max_rounds,
         record_rep_returncodes=prepared.record_rep_returncodes,
@@ -2902,6 +2917,9 @@ def _commit_prepared(
         }
         if prepared.active_screening is not None:
             commit_payload["screened"] = True
+
+    if prepared.workload == "tpcc":
+        commit_payload["workload"] = "tpcc"
 
     _require_measurement_site("campaign COMMIT 記録")
     if prepared.qualification_policy is None:
@@ -3073,6 +3091,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              fetchcontent_dependency_receipt: Optional[
                  Mapping[str, object]
              ] = None, *,
+             workload: str = "ycsb",
              record_rep_integer_counters: bool = False,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
@@ -3144,7 +3163,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         }
     outcome = _prepare_evaluation_core(
         genome, layout, env_tag, ccbench_commit, perf, clocks_per_us,
-        numactl=numactl, correctness=correctness,
+        numactl=numactl, correctness=correctness, workload=workload,
         extra_correctness=extra_correctness, do_bench=do_bench,
         do_settle=do_settle, src_token=src_token, log=log,
         ccbench_dir=ccbench_dir, cache_root=cache_root, screening=screening,

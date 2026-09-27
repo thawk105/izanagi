@@ -1333,8 +1333,9 @@ _LIVENESS_HINTS = {
                                "trace_dir の run 帰属を確定できない",
     "trace-batch-commits-unattributed": "batch commit が非 0 — trace C 行との対応を "
                                         "証明できず帰属不能",
-    "trace-witness-unsupported-workload": "commit 後 counter 加算契約を証明済みでない "
-                                          "workload — YCSB allowlist 外",
+    "trace-witness-unsupported-workload": "commit witness 契約または v3 契約を満たさない "
+                                          "workload / 構成 — YCSB 以外、TPC-C 段 1 の "
+                                          "57:43 以外、または TPC-C v2 trace",
 }
 
 

@@ -329,27 +329,83 @@ def test_run_job_anchor_uses_real_run_once_with_subprocess_seam(tmp_path, monkey
     assert result["blocks"][0]["runs"]["K"]["tps"] == 100
 
 
-def test_verify_tpcc_anchor_is_indeterminate():
-    record = dict(workload="tpcc", stage="s1", selection_rule="frozen",
+def _tpcc_record(stage="s1"):
+    anchor = stage + "-H-base"
+    return dict(workload="tpcc", stage=stage, selection_rule="frozen",
                   environment={"env_tag": "fixture", "clocks_per_us": 1777, "numactl": []},
                   series=[dict(task="t", method="m", independent_search="1",
-                               protocol="silo", anchor="s1-H-base", selected_identity="K")],
-                  search_groups=[dict(task="t", method="m", learning_cells=["s1-H-base"],
+                               protocol="silo", anchor=anchor, selected_identity="K")],
+                  search_groups=[dict(task="t", method="m", learning_cells=[anchor],
                                       independent_searches=["1"], reachability=False)],
                   references={"silo": {"mode": "a", "R0": "R0", "reference_identity": "K"}},
                   binaries={k: dict(perf_path="/unused", perf_sha256="0" * 64,
                                     trace_path="/unused", trace_sha256="0" * 64,
                                     trace_ccbench_root=str(Path(__file__).resolve().parents[2] / "external/ccbench"))
                            for k in ("R0", "K")})
-    frozen = runner.freeze_candidates(record)
-    result = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
-                                          cell="s1-H-base", identity="K"))
+
+
+@pytest.mark.parametrize("stage,cell", [("s2", "s2-H-base"),
+                                        ("s1", "s1-H-pay20")])
+def test_verify_tpcc_anchor_is_indeterminate(stage, cell):
+    frozen = runner.freeze_candidates(_tpcc_record(stage))
+    spec = dict(freeze=frozen, protocol="silo", cell=cell, identity="K")
+    if cell.endswith("pay20"):
+        spec["activation"] = {"decision_id": "fixture", "freeze_sha256": frozen["sha256"],
+                              "stage": stage, "certification_path": "fixture"}
+    def forbidden(*args, **kwargs):
+        raise AssertionError("trace runner reached")
+    result = runner.verify_candidate(spec, trace_runner=forbidden)
     assert result["status"] == "indeterminate" and result["reason"] == "認定経路なし"
     assert result["attempt"] is None
-    repeated = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
-        cell="s1-H-base", identity="K", attempt_history=[result]))
+    repeated = runner.verify_candidate(spec | {"attempt_history": [result]},
+                                       trace_runner=forbidden)
     assert repeated["status"] == "indeterminate" and repeated["reason"] == "認定経路なし"
     assert repeated["attempt"] is None
+
+
+def test_verify_tpcc_s1_real_verifier_v3_v2_and_witness(tmp_path):
+    binary = tmp_path / "trace-binary"
+    binary.write_bytes(b"fixture")
+    source_root = Path(__file__).resolve().parents[2] / "external/ccbench"
+    first = "C 0 0 2 1 0 1 0 0 1\nW 0 1 aa I 2 1\nE 0\n"
+    second = "C 1 0 2 2 1 0 0 0 2\nR 1 1 aa 2 1\nE 1\n"
+    v2 = "C 0 0 2 1 0 1\nW 0 aa U 2 1\nE 0\n"
+    record = _tpcc_record()
+    record["binaries"]["K"].update(trace_path=str(binary),
+        trace_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
+    wrong_root = tmp_path / "wrong-ccbench"
+    wrong_root.mkdir()
+    cases = [("v3", (first, second), 2, source_root, True),
+             ("missing-root", (first, second), 2, tmp_path / "missing", True),
+             ("wrong-root", (first, second), 2, wrong_root, True),
+             ("v2", (v2,), 1, source_root, True),
+             ("v2-anomaly", (Path(__file__).parent / "fixtures/r1_write_skew/trace_0.log",),
+              2, source_root, True),
+             ("witness", (first, second), 2, source_root, False)]
+    for name, frames, count, root, witness in cases:
+        record["binaries"]["K"]["trace_ccbench_root"] = str(root)
+        frozen = runner.freeze_candidates(record)
+        def trace_runner(_binary, trace_dir, flags, _clocks, **_kwargs):
+            assert flags["tpcc_perc_payment"] == "43"
+            for index, frame in enumerate(frames):
+                data = frame.read_text() if isinstance(frame, Path) else frame
+                (Path(trace_dir) / f"trace_{index}.log").write_text(data)
+            return SimpleNamespace(returncode=0, trace_c_lines=count,
+                abort_counts={}, commit_count_witness=count,
+                batch_commit_count_witness=0 if witness else 1)
+        result = runner.verify_candidate(dict(freeze=frozen, protocol="silo",
+            cell="s1-H-base", identity="K"), trace_runner=trace_runner)
+        if name == "v3":
+            assert result["status"] == "certified" and result["verifier"]["certified"]
+            assert result["verifier"]["integrity"]["existence_violation_details"] == []
+        elif name == "v2-anomaly":
+            assert result["status"] == "disqualified"
+        else:
+            assert result["status"] == "indeterminate", (name, result)
+            if name == "v2":
+                assert result["reason"] == "trace-witness-unsupported-workload"
+            if name == "witness":
+                assert result["reason"] == "trace-witness-failed" and result["verifier"] is None
 
 
 def test_ycsb_reverification_counts_only_trace_runs(monkeypatch, tmp_path):

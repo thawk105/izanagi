@@ -622,10 +622,20 @@ def _ccbench_dir() -> str:
 DEFAULT_CC, DEFAULT_CXX = "gcc-13", "g++-13"
 
 
+def _validate_workload(workload: str) -> None:
+    if type(workload) is not str or workload not in ("ycsb", "tpcc"):
+        raise ValueError("workload must be exact str ycsb or tpcc")
+
+
+def _build_target(genome: Genome, workload: str) -> str:
+    _validate_workload(workload)
+    return f"{workload}_{genome.protocol}.exe"
+
+
 def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
               src_token: str = source_digest.STOCK,
               cc: str = DEFAULT_CC, cxx: str = DEFAULT_CXX, *,
-              admission: BuildAdmission) -> str:
+              admission: BuildAdmission, workload: str = "ycsb") -> str:
     """内容キー。Phase 3 で coder がコードを書き換えるので src_token (preprocess 後
     ハッシュ, D23) を pre-image に織り込み、同 genome 別ソースの偽 hit を防ぐ。
     stock (working-tree==HEAD) は src を省き旧キーを温存 (後方互換)。
@@ -635,12 +645,15 @@ def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
     歴史的ツールチェーン (gcc-13, g++-13) だけを省いて旧キーを温存する。
     省略条件は DEFAULT_CC/DEFAULT_CXX から独立させ、既定変更後の
     新ツールチェーンが旧キーへ衝突することを防ぐ。"""
+    _validate_workload(workload)
     if type(admission) is not BuildAdmission:
         raise TypeError("admission は derive_build_admission() 由来の exact value が必要")
     src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
     tc = "" if (cc, cxx) == ("gcc-13", "g++-13") else f"|cc={cc}|cxx={cxx}"
     raw = (f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
            f"|adm={admission.receipt_sha256}")
+    if workload == "tpcc":
+        raw += "|workload=tpcc"
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
     return f"{genome.protocol}_{h}_t{int(trace)}"
 
@@ -1314,8 +1327,10 @@ def _v2_identity(
         fetchcontent_dependency_manifest_sha256: Optional[object] = None,
         compiler_input_policy: Optional[str] = None,
         expected_materialization_sha256: Optional[str] = None,
+        workload: str = "ycsb",
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
+    _validate_workload(workload)
     if (source_snapshot_sha256 is not None
             and not is_full_sha256(source_snapshot_sha256)):
         raise BuildCacheError("source snapshot sha256 が不正")
@@ -1332,6 +1347,8 @@ def _v2_identity(
         "dependency_prefix": dependency_prefix,
         "admission": admission,
     }
+    if workload == "tpcc":
+        preimage["workload"] = "tpcc"
     if expected_materialization_sha256 is not None:
         if not is_full_sha256(expected_materialization_sha256) or source_snapshot_sha256 is None:
             raise BuildCacheError("sealed source identity requires both snapshot digests")
@@ -1957,9 +1974,10 @@ def _v2_commands(
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
+        workload: str = "ycsb",
 ) -> tuple[List[str], List[str]]:
+    target = _build_target(genome, workload)
     resolved_jobs = _resolve_build_jobs(jobs, site)
-    target = f"ycsb_{genome.protocol}.exe"
     defines = genome.cmake_defines() + [f"-DCCBENCH_TRACE={int(trace)}"]
     prefix_define = (
         [f"-DCMAKE_PREFIX_PATH={dependency_prefix}"] if dependency_prefix else []
@@ -2129,9 +2147,10 @@ def _v2_result(
         compiler_input_dependency_prefix_roots: tuple[str, ...] = (),
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         compiler_input_masstree_root: str = "",
+        workload: str = "ycsb",
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
-        genome, trace, sub, bdir, toolchain, site=site,
+        genome, trace, sub, bdir, toolchain, site=site, workload=workload,
         dependency_prefix=dependency_prefix,
         binary_path_policy=binary_path_policy,
         fetchcontent_base_dir=fetchcontent_base_dir,
@@ -2409,6 +2428,7 @@ def _build_v2_impl(
         fetchcontent_archive_sha256: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
+        workload: str = "ycsb",
 ) -> BuildResult | _PendingV2Publication:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -2473,6 +2493,7 @@ def _build_v2_impl(
     には ``renameat2(RENAME_NOREPLACE)`` がないため、directory publish の create-only
     原子性は保証しない。cache publish 時点の inode 厳格化に限定した境界である。
     """
+    target = _build_target(genome, workload)
     if expected_materialization_sha256 is not None:
         if sealed_session is None:
             raise BuildCacheError("descriptor build requires an exact sealed session")
@@ -2682,6 +2703,7 @@ def _build_v2_impl(
         ).hexdigest()
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
+        workload=workload,
         source_snapshot_sha256=source_snapshot_sha256,
         expected_materialization_sha256=expected_materialization_sha256,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
@@ -2707,7 +2729,7 @@ def _build_v2_impl(
     bdir = os.path.join(parent, digest)
     claim = os.path.join(parent, f"{digest}.building")
     binary_relpath = os.path.join(
-        "cc", genome.protocol, f"ycsb_{genome.protocol}.exe",
+        "cc", genome.protocol, target,
     )
     parent_fd = _open_or_create_directory_path(parent)
     transferred = False
@@ -2735,8 +2757,7 @@ def _build_v2_impl(
                     sub if source_snapshot_sha256 is not None else None
                 ),
                 compiler_target=(
-                    f"ycsb_{genome.protocol}.exe"
-                    if source_snapshot_sha256 is not None else None
+                    target if source_snapshot_sha256 is not None else None
                 ),
                 expected_evolve_block_sources=expected_evolve_block_sources,
                 current_compiler_input_masstree_root=(
@@ -2796,6 +2817,7 @@ def _build_v2_impl(
                 compiler_input_manifest, compiler_input_manifest_sha256,
                 compiler_input_dependency_prefix_roots,
                 post_oracle_binding,
+                workload=workload,
             )
 
         nonce = secrets.token_hex(16)
@@ -2820,6 +2842,7 @@ def _build_v2_impl(
             staging_created = True
             configure, build_cmd = _v2_commands(
                 genome, trace, sub, staging, toolchain, site=resolved_site,
+                workload=workload,
                 dependency_prefix=configure_dependency_prefix,
                 binary_path_policy=binary_path_policy,
                 binary_path_staging_root=(
@@ -2927,7 +2950,7 @@ def _build_v2_impl(
                     ) if allow_external_compiler_inputs else None
                     compiler_inputs = _collect_compiler_inputs(
                         staging, sub,
-                        target=f"ycsb_{genome.protocol}.exe",
+                        target=target,
                         allow_external_inputs=allow_external_compiler_inputs,
                         expected_evolve_block_sources=(
                             expected_evolve_block_sources
@@ -2951,7 +2974,7 @@ def _build_v2_impl(
                             compiler_inputs.manifest,
                             compiler_inputs.manifest_sha256,
                             snapshot_root=sub,
-                            target=f"ycsb_{genome.protocol}.exe",
+                            target=target,
                             expected_evolve_block_sources=(
                                 expected_evolve_block_sources
                             ),
@@ -3106,6 +3129,7 @@ def _build_v2_impl(
                     compiler_input_dependency_prefix_roots,
                     post_oracle_binding,
                     compiler_input_masstree_root=effective_root or "",
+                    workload=workload,
                 )
                 if pending_publications is None:
                     raise BuildCacheError("sealed publication requires a caller-owned cleanup list")
@@ -3172,6 +3196,7 @@ def _build_v2_impl(
             compiler_input_dependency_prefix_roots,
             post_oracle_binding,
             compiler_input_masstree_root=effective_root or "",
+            workload=workload,
         )
     finally:
         if pending is None:
@@ -3243,6 +3268,7 @@ def build_v2(
         fetchcontent_archive_sha256: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
+        workload: str = "ycsb",
 ) -> BuildResult:
     """Build with a sealed compiler view when a declaration is supplied.
 
@@ -3259,7 +3285,9 @@ def build_v2(
     The child's clone3/ENOSYS fallback was qualified on glibc 2.35 only;
     this does not assert compatibility with other libc implementations.
     """
+    _validate_workload(workload)
     common = {
+        "workload": workload,
         "admission": admission,
         "build_context": build_context,
         "source_evidence": source_evidence,
@@ -3418,7 +3446,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           build_context: BuildRunContext, source_evidence: SourceEvidence,
           site: Optional[str] = None,
           backoff_grammar_version: Optional[int] = None,
-          sort_oracle_contract_id: Optional[str] = None) -> BuildResult:
+          sort_oracle_contract_id: Optional[str] = None,
+          workload: str = "ycsb") -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
@@ -3432,6 +3461,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     完成名へ rename するが、Python 3.10 stdlib では directory publish の create-only
     原子性は保証しない。
     """
+    target = _build_target(genome, workload)
     _require_secure_fs_contract()
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -3452,10 +3482,9 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     root = cache_root or os.path.join(sub, "build-variants")
     key = cache_key(
         genome, ccbench_commit, trace, src_token, cc=cc, cxx=cxx,
-        admission=admission,
+        admission=admission, workload=workload,
     )
     bdir = os.path.join(root, key)
-    target = f"ycsb_{genome.protocol}.exe"
     binary = os.path.join(bdir, "cc", genome.protocol, target)
     resolved_site = _resolve_site(site)
     resolved_jobs = _resolve_build_jobs(jobs, resolved_site)

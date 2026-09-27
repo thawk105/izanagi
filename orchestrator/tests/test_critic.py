@@ -1005,6 +1005,14 @@ def test_commit_witness_liveness_reasons_preserve_witness_and_workload():
         assert "読み方:" in rendered
 
 
+def test_tpcc_unsupported_workload_hint_names_v3_contract():
+    hint = critic_digest._LIVENESS_HINTS["trace-witness-unsupported-workload"]
+    assert "commit witness" in hint
+    assert "v3" in hint
+    assert "57:43" in hint
+    assert "TPC-C v2" in hint
+
+
 def test_screen_rejection_loader_is_disjoint_and_render_hides_uncertified_metrics():
     """screen reject は専用 loader だけが拾い、未認証性能値は render へ渡さない。
 

@@ -822,6 +822,14 @@ def _summarize_rep_results(rep_results):
     return counters, walltime_s, maxrss_kb, abort_rate, latency_ns
 
 
+def _records_flag(workload_name: str) -> str:
+    if workload_name == "ycsb":
+        return "ycsb_tuple_num"
+    if workload_name == "tpcc":
+        return "tpcc_num_wh"
+    raise ValueError(f"unsupported workload_name: {workload_name!r}")
+
+
 def capture_measure_point(
         binary: str, records: int, threads: int,
         clocks_per_us: int, extime: int = 3, reps: int = 5,
@@ -835,6 +843,7 @@ def capture_measure_point(
         subprocess_runner: Callable[..., object] = subprocess.run,
         rep_returncodes: Optional[List[int]] = None,
         rep_observations: Optional[List[Dict[str, object]]] = None, *,
+        workload_name: str = "ycsb",
                   record_rep_integer_counters: bool = False,
         use_perf: bool = True,
         holdout_observation_admission: Optional[
@@ -859,7 +868,7 @@ def capture_measure_point(
 
     base_flags = [
         f"-thread_num={threads}",
-        f"-ycsb_tuple_num={records}",
+        f"-{_records_flag(workload_name)}={records}",
         f"-extime={extime}",
         f"-clocks_per_us={clocks_per_us}",
     ]
@@ -1094,6 +1103,7 @@ def measure_point(binary: str, records: int, threads: int,
                   subprocess_runner: Callable[..., object] = subprocess.run,
                   rep_returncodes: Optional[List[int]] = None,
                   rep_observations: Optional[List[Dict[str, object]]] = None, *,
+                  workload_name: str = "ycsb",
                   record_rep_integer_counters: bool = False,
                   rep_timestamps: Optional[List[Dict[str, int]]] = None,
                   use_perf: bool = True,
@@ -1118,7 +1128,7 @@ def measure_point(binary: str, records: int, threads: int,
 
     base_flags = [
         f"-thread_num={threads}",
-        f"-ycsb_tuple_num={records}",
+        f"-{_records_flag(workload_name)}={records}",
         f"-extime={extime}",
         f"-clocks_per_us={clocks_per_us}",
     ]
