@@ -2,7 +2,7 @@
 
 - 位置づけ: D2259 (B-5 v2 は見送り、「なぜ LLM か」は関数単位の軸で取り直す) の後継。事前登録の草稿は `docs/silo-policy-generator-contrast-preregistration.md`
   (以下「草稿」、**未発効**)。本 insight は起草の記録で、可変状態の正本 (worklog 末尾・`docs/phase3.md`) にはしない。
-- wave: branch `worktree-dev-wave-t2867-llm-contrast`、起点 local main `ad114fba0` (2026-09-27 14:4x JST に開始 gate rc=0)。docs だけの変更で、コード・テスト・`.claude/agents/`・
+- wave: branch `worktree-dev-wave-t2867-llm-contrast`、起点 local main `ad114fba0` (2026-09-27、14:38 JST の handoff 作成の直後に開始 gate rc=0)。docs だけの変更で、コード・テスト・`.claude/agents/`・
   `orchestrator/campaign/p3_s4_loop_policy.py`・`tools/pegasus/` (並走 [T-2865] の担当) は変えていない。計算は投入していない。
 - 逐語 (`verbatim/`): 依頼 `request.md`、段 1 brief `brief.md` (同日の改訂節を含む)、段 6 のレビュー・裁定 (段 6 の後に置く)。
 
@@ -29,7 +29,7 @@
 
 | D2258 の契約 | 流用元 | 判定 | 根拠 (file:line) |
 |---|---|---|---|
-| 1 評価 1 job の系列制御 (項 1) | `orchestrator/campaign/b5_generator_contrast.py` | **規則は継承、コードはそのままでは使えない** | 評価の起動は `p3_s4_loop` の argv に固定 (`slot_argv`、:516)。候補は backoff 値 (`_genome`、:609、`validate_backoff_value`、:816・:938)。LLM の提案は K2 の閉じた schema と planner を要求 (:810・:935)。`run_series_step` (:975)・`next_series_action` (:880) はこれらを通る。`SeriesLedger` (:217) は arm も値も検査しないので呼べる候補 (比較基盤 §7 の区分と同じ) |
+| 1 評価 1 job の系列制御 (項 1) | `orchestrator/campaign/b5_generator_contrast.py` | **規則は継承、コードはそのままでは使えない** | 評価の起動は `p3_s4_loop` の argv に固定 (`slot_argv`、:516)。候補は backoff 値 (`_genome`、:609、`validate_backoff_value`、:816・:938)。LLM の提案は K2 の閉じた schema と planner を要求 (:810・:935)。`run_series_step` (:975)・`next_series_action` (:880) はこれらを通る。`SeriesLedger` (:217) は arm も値も検査しないので呼べる候補 (比較基盤 §7 の区分と同じ)。`select_endpoint` (:450-454) は同値を候補値 v で破る (`(-fitness, value, b)`) ので、slot 順で破る草稿 §6 には使えない (段 6 レビュー B が指摘、初版はこれを呼べる側に入れていた) |
 | 利用上限 (429) の保留 (項 2) | `tools/pegasus/b5_llm_parent.py` | **判定規則はそのまま使える** | `classify_exit` (:41) は出力 JSON の `is_error` と `api_error_status` だけを見る汎用関数。再試行の間隔 900 s (:17)。ただし親の argv は同じ session を `--resume` し (:167)、許可 tool は `tools/b5_llm_round.py` だけ (:168)、config の必須 field は系列・block・台帳 path |
 | LLM 親の起動器 (項 1) | `tools/pegasus/b5_contrast_launch.py` の v2 経路 | **形は継承、コードは使えない** | `p3_s4_loop` と B-5 core を import (:29・:30)、親は B-5 の `Parent` (:31)、schedule は `registered_v2_schedule` (:414) の 24 対 |
 | critic への入力の要請 (項 3) | `tools/b5_llm_round.py` の v2 の要請文 | 文言は使える | round tool 自体は `p3_s4_loop`・K2 の知識 manifest・backoff 文法を import (:19〜:28) |
@@ -37,6 +37,10 @@
 | report の v2 判定 (項 5) | `orchestrator/campaign/b5_generator_contrast_report.py` | **統計の核は呼べる** | `exact_sign_flip_p` (:48、1〜12 対)、`_holm` (:68、任意の族。6 比較だけ特別扱い)、`stock_cv_floor(v2=True)` (:90、3 × 5 session の pooled)、`pair_differences` (:103、系列 1..12)、`decide_comparison(v2=True)` (:128、block 条件なし)。台帳の読込・検証・射影 (`_load`・`_validate`・`_reconcile`・`_project`) は B-5 の schema に結合 |
 
 政策 driver (`orchestrator/campaign/p3_s4_loop_policy.py`、D2256) 側で、対照に要るが無いもの (いずれも [T-2865] の担当範囲の file):
+
+- 初期点と系列開始 stock を系列の campaign の履歴と critic digest に載せる口。coder 入力の自系列の履歴 (`make_policy_coder_input`、:283-285) は
+  本文・結果の分類・拒否の分類・verifier の digest だけで throughput を持たず、性能は critic 診断を通してしか coder に届かない (段 6 レビュー A の指摘)。
+  草稿は critic を job 1 の後にも回すと定めた。
 
 - 系列ごとの campaign identity。`default_cfg` (:121) の search_config は形・軸・動作点・verify 構成だけで、形ごとに 1 campaign になる。coder 入力の自系列の履歴は
   campaign の履歴 file から読むので (`make_policy_coder_input`、:272)、系列ごとに campaign を分ける口が要る。
@@ -56,7 +60,7 @@
 | 進化の方式 | 型付き GP の subtree 変異の (1+1)、field 追加 1/5、親は初期点を含む自系列の最良 | 比較基盤 §6.4 の候補のうち最小。初期点の方策は状態を持たないので、field を足す変異が無いと状態を使う方策へ行けない | 交叉・TPE・SMAC (比較基盤 §6.4 の他案、B = 10 では効きにくく実装が大きい) |
 | random の分布 | 型付き grow 法、深さ ≤ 4、葉 1/2、定数は 0 (1/8) と B-5 の log-uniform 1..1000 の混合 | IR の文法をそのまま引く。定数は骨格の上限 1000 µs と B-5 の分布に揃えた。支持集合が IR 全体より狭いことは草稿 §2 で開示 | 任意の C++ 文字列の乱択 (オンボーディング §3-D が禁じる) |
 | 初期点 | k = 2 (新骨格内の静的 5・10 µs)、B の外、endpoint 候補に含める | 比較基盤 §4.5 と設計 §5 の seed | 即 abort も含める k = 3 — 即 abort は write-heavy で thrashing 点 (段階 D) で、費用に見合う情報が無い |
-| job の切り方 | job 1 = stock + 初期点 2、評価は 1 job 1 回、score job、参照 job 3 本 | D2258 項 1 の「stock と評価 1 を同 job」は同 job の対照のためで、本書では初期点が同 job の対照を担う。評価 1 を外に出すと LLM の待ちを全部 node の外へ出せ、job 1 の中の 429 の保留で stock を測り直す規則も要らない。B-5 v2 の見積りでは原提案 1 の node 上の待ちが 24 系列で 3.0〜6.1 h だった | D2258 項 1 どおり (評価 1 を job 1 に置き、LLM の原提案 1 を node 上で待つ) |
+| job の切り方 | job 1 = stock + 初期点 2、評価は 1 job 1 回、score job、参照 job 3 本 | D2258 項 1 の「stock と評価 1 を同 job」は同 job の対照のためで、本書では初期点が同 job の対照を担う。評価 1 を外に出すと LLM の待ちを全部 node の外へ出せ、job 1 の中の 429 の保留で stock を測り直す規則も要らない。原提案 1 の node 上の待ちは、1 機会の実測 255〜1,021 s (B-5 v1) の 24 系列分で 1.7〜6.8 h (v2 準備の insight §6.1 は同じ項目を 3.0〜6.1 h と記すが、この実測範囲の 24 倍と合わず計算根拠を確かめられなかった。段 6 レビュー B の指摘で訂正) | D2258 項 1 どおり (評価 1 を job 1 に置き、LLM の原提案 1 を node 上で待つ) |
 | LLM 親 | 1 原提案ごとに新 session | 系列の状態は driver が coder 入力に載せる。B-5 v1 では resume で 1 機会ごとに cache read が約 0.45 M token 増えた (write-heavy 系列で 1 機会目 2.0 M → 13 機会目 7.5 M、`output/insights/2026-09-26/t2797-b5-cost-options/README.md` §5) | 1 系列 1 session の resume (比較基盤 §3.4・D2216 の運用) |
 | workload | write-heavy だけ | driver の動作点が write-heavy 固定 (`default_perf`、:137)。段階 D・小比較・再測も write-heavy | balanced を足す — 系列数が倍、balanced の政策の地形は未偵察 |
 | 規模 | n = 12、B = 10、A = 30、N_eval = 5 | B-5 と同じ。n = 8 は 2 比較の Holm でも 1 敗で初段 (0.025) を通らない (等しい大きさの差で p = 9/256 ≈ 0.035) | n = 8 |
@@ -94,8 +98,9 @@
 - 1 機会の待ち (実測): B-5 v1 の 22 機会 (採用と却下、429 の時間切れを除く) で 255〜1,021 s、平均 599 s、中央値 473 s (同 insight §2)。
 - 直列: 240 機会 × 599 s = 39.9 h、720 × 599 = 119.8 h。両端 240 × 255 = 17.0 h、720 × 1,021 = 204.2 h。同時 4 親の理想の下限はその 1/4。
 - 週上限 (試算): B-5 v1 は 22 機会で週上限に達し、429 までの使用量は出力 1.14 M token・cache read 114 M token (同 insight §5)。1 原提案ごとの新 session で
-  1 機会の cache read を 1 機会目の 2.0 M と置き、114 M を週の枠と置くと 57 機会 / 週で、240〜720 機会は 4.2〜12.6 週。枠は他 session と共有で、token に
-  比例する保証も無いので、上下限ではない。
+  1 機会の cache read を 1 機会目の 2.0 M と置き、429 までの使用量 114 M (他 session と共有の枠の中での使用量で、枠そのものではない) を仮に週の枠と置くと
+  57 機会 / 週で、240〜720 機会は 4.2〜12.6 週。1 週に回せる機会数は測れておらず、枠が token に比例する保証も無いので、上下限ではない。週上限は律速に「なりうる」
+  (初版は「律速である」と断定しており、段 6 レビュー B の指摘で改めた)。
 - 本書の比較でも LLM の直列時間が律速になりうる。D2219 項 6 の再提示条件は T-2850 の本比較を名指すので、草稿は条件を広げず事実だけを発効の提示に添えるとした (草稿 §14)。
 
 ## 5. 発効までに要る実装 (後続の wave、本 wave では実装しない)
@@ -129,4 +134,12 @@
 
 ## 7. 段 6 の経緯
 
-(段 6 の後に追記する)
+- 段 2・3 は省いた (実装面なし、DW-C00 の軽量版)。設計の択一が割れるので、段 6 で Codex (gpt-6-sol、read-only) の敵対レビューを 2 本並列に当てた:
+  A = 判定規則・公平性・規律 2 (`verbatim/s6-review-a.md`)、B = 過剰・削除と一次資料との事実照合 (`verbatim/s6-review-b.md`)。どちらも 14:56 起動、15:01 に rc=0。
+- 裁定 (`verbatim/s6-ruling-1.md`): real 12 (A1〜A5、B1〜B5、親の点検 S1・S2)、refuted 4 (A6・A7・B7 は誤りなしの確認、B6 の §8・§9・§13 の縮小は
+  既知結果の開示が HARKing 境界として要るので削らない)。最重要は次の 3 件:
+  1. 初期点の性能が LLM に届かない (A1)。driver の履歴は throughput を持たず、性能は critic 経由でだけ届く。critic を job 1 の後にも回す規則と、
+     初期点を系列の campaign に載せる前提を足した。
+  2. 生成不成立の規則が初期点を endpoint に含めるとほぼ発火しない (親の点検 S1)。「certified・品質正常の探索点を持つ系列の数」で数え直した。
+  3. 週上限を律速と断定し、3.0〜6.1 h を実測範囲と合わない形で引いていた (B3・B4)。
+- 算術 (1 系列 4,270.92〜5,035.2 s、合計 58.60〜69.09 h、LLM の直列 39.9〜119.8 h、p 値の例) は両レビューが独立に検算して一致した。

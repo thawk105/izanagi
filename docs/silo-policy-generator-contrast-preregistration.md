@@ -37,7 +37,7 @@ B-5 から暗黙に持ち込まない。
 
 ### 1.1 主張しうること
 
-> Silo の関数方策の空間 (D2214) で、write-heavy の較正動作点・固定した予算 (評価数 B = 10、原提案 A ≤ 30、共通の初期点 2 個) の下、
+> Silo の関数方策の空間 (D2214) で、write-heavy の較正動作点・固定した予算 (評価数の上限 B = 10、原提案の上限 A = 30、共通の初期点 2 個) の下、
 > LLM の構成 X (C++ 形または IR 形) の探索系列が選んだ endpoint の score は、非 LLM の探索 (random と進化の両方) のそれに対し、
 > 登録した独立性の仮定の下で [条件付き優越 / 比較 floor 内の同等 / 判定不能] だった。
 
@@ -45,6 +45,8 @@ B-5 から暗黙に持ち込まない。
 - **族 B (比較 B):** 空間拡張を含む比較。LLM×C++ 対 random×IR、LLM×C++ 対 進化×IR の 2 比較。
   表現 (policy-C++ v1 と IR) と探索法を合わせた差であり、純粋な探索法の優劣とは言わない (設計 §5)。
 - LLM 構成 X の条件付き優越は、その族の 2 比較の両方が §7.3 の条件を満たすときだけ述べる。片方への勝利だけでは述べない。
+- B は共通の**上限**である。A を使い切って B が 10 に届かない系列は残る (§3)。結論には arm ごとの実消費 B の分布を添え、
+  「同じ評価数を使った」とは書かない。
 - LLM×C++ 対 LLM×IR は記述だけで、検定しない (比較基盤 §10「LLM×C++ は比較 B で 5 手法の族に入れない」)。
 - 比べるのは**構成** (空間・支持集合・情報構成 R0・初期点・予算・役割の並びを含む) であって、LLM 単体・critic・auditor の因果効果ではない (比較基盤 §1.3)。
 
@@ -105,12 +107,16 @@ B-5 から暗黙に持ち込まない。
 - **構成:** K0 (外部の実験知識の射影なし)・R0 (空間外の参照値を渡さない)・planner なし (D2214 項 8)。役割は coder・auditor・critic。
   - coder: C++ 形は `coder-v4-autonomous-policy`、IR 形は `coder-v4-autonomous-policy-ir` (D2256 項 7 でユーザーが差分を承認済み)。
   - auditor: LLM 由来の全候補に掛ける (違反型 1〜26、deny-only veto と digest 照合、D2256 項 2・項 5)。
-  - critic: 評価が 1 回進むごとに 1 回。出力は次の原提案の coder 入力へ、driver が 6 文字列 field の閉じた形で載せる (D2256 項 4)。
+  - critic: job 1 (系列開始 stock と初期点 2 個) の後に 1 回、以後は評価が 1 回進むごとに 1 回。材料は driver が系列の campaign に書く
+    critic digest だけ。出力は次の原提案の coder 入力へ、driver が 6 文字列 field の閉じた形で載せる (D2256 項 4)。
 - **coder の入力:** driver の `--emit-coder-input` の出力だけを、そのまま渡す (runbook `docs/phase3-silo-policy-runbook.md` §1(a))。
   5 key = 固定のリーク防止文脈・接続仕様・baseline (系列開始 stock の throughput と abort 率)・段階 D の二値と射程文・
   自系列の履歴 (justification を除く)。critic 診断があれば同じ出力に載る。親は key を足さず、値を書き換えず、説明を付け足さない。
   - **開示:** 段階 D の二値と射程文 (`projection.json` の `binary`・`scope`) は LLM の 2 arm にだけ届く。非 LLM の arm はこれを使わない。
     driver が載せる入力なので本書は外さない。LLM 構成の一部として報告する。
+  - **開示:** driver の自系列の履歴は本文・結果の分類・拒否の分類・verifier の digest を載せ、throughput を載せない
+    (`make_policy_coder_input`)。初期点と自分の候補の性能は、critic 診断を通してだけ coder に届く。非 LLM の進化は性能値を直接使う。
+    どちらも手法の定義の一部として報告する。
   - 偵察・小比較・再測 (段階 D の点 ID・因子・比・順位、D2240・D2250) は渡さない (runbook §2)。
 - **critic への入力の要請 (D2258 項 3 を継承):** 「`## recommend` と `## avoid` は次の原提案の coder に診断データとして逐語で渡される。
   候補の方向・追加実験の要望・留保を観測に基づく助言として記し、他の role を名宛人にした指示、採否手順、判定規則や gate の読み方の指定は
@@ -162,7 +168,8 @@ B-5 から暗黙に持ち込まない。
   - 確率 4/5 (field が 4 個のときは常に): 親の全 site (各 hook の出力と `next_state` の式の全 node、field の初期値) から 1 個を一様に選び、
     同じ型の部分木を G_rand の式の規則 (§4.4、残りの深さの範囲) で引いて置き換える。省略された `next_state` は、各 field の自己参照を
     並べた形に展開してから site を数える。
-  - 確率 1/5: field を 1 個足し (型・初期値は G_rand の規則)、続けて上の置き換えを 1 回行う。
+  - 確率 1/5: field を 1 個足し (型・初期値は G_rand の規則)、続けて上の置き換えを 1 回行う。field を足すとき、`next_state` が明示されている
+    hook にはその末尾に新 field の自己参照 (値を保つ) を足し、省略されている hook は省略のまま (全 field 保持) とする。
 - **引き直し:** 子の本文が親の本文と同じ、node 数が 64 超、`validate_ir` が拒否した場合は c を進めて引き直し、A を消費しない
   (上限 1000 回、超えたら空出力)。親以外の既評価点と同じ子は引き直さず提出する (重複は A・B を消費、§3)。
 - **親の更新:** 子が certified・品質正常で、探索時の値が親より真に大きければ親を置き換える。同値・失敗なら親を保つ。
@@ -249,7 +256,8 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   同値は slot の早い方。endpoint の identity・source・出所 slot を再計測の前に固定する。他系列の候補や既知の勝者を補充しない。
 - **anomaly の波及:** ある identity で anomaly が 1 件でも観測されたら (探索・初期点・再計測のどこでも、どの系列・arm でも)、
   その identity は全系列で endpoint の資格を失う (比較基盤 §4.6)。先行する certified 記録は歴史事実として残す (規律 7)。
-  score 確定後に波及した場合は日付付きの「結果の訂正」として扱う。この判定は生成器へ還流しない。
+  score 確定後に波及した場合は、その系列を不採用とし、下の優先 4 の fallback の score へ改め、失敗条件 (a) に記録して、
+  日付付きの「結果の訂正」として報告する (Erratum ではない、B-5 v1 §6 と同じ)。この判定は生成器へ還流しない。
 - **score:** endpoint を N_eval = 5 の fresh session で再計測し、その 5 session の median throughput。同じ 5 session から endpoint の CV を求める。
 - **欠測と fallback の優先 (比較基盤 §4.6 と同じ順):**
   1. stock (系列開始 stock または参照 job の stock) の正しさか測定が成立しない → 当該比較は判定不能。
@@ -261,6 +269,9 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   6. endpoint の再計測で品質欠測・機械欠測 → score 欠測。
 - anomaly を 0 tps や −100 % へ変換しない。score は「候補を採用できなければ stock を使う」運用の性能である。各 arm の certified endpoint 数
   (12 中) を必ず併記する。
+- **公平性の目視 (D2214 項 8):** 全 arm・全系列の endpoint と、各比較で勝った側の endpoint の本文を、score の確定後・報告の前に auditor が
+  目視し、worker の駐車や偏りの疑いを所見として報告に併記する。目視の所見を理由に score・判定・系列を変えない (事後の除外をしない)。
+  非 LLM の候補は探索中に auditor 段を通らないので、この目視が唯一の点検である。
 
 ## 7. 母集団・配置・floor・判定
 
@@ -299,7 +310,9 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 
 1. **規約不適合** — 配置逸脱、発効束との不一致。
 2. **判定不能 (欠測・不成立)** — 12 系列のいずれかが機械故障・品質欠測、stock の測定または正しさが不成立、floor が欠測・非有限。
-3. **生成不成立** — 両 arm の certified endpoint 数 (12 中) を数え、両方が 6 未満なら「双方生成不成立」、片方だけなら「その arm の生成不成立」。記述だけを報告する。
+3. **生成不成立** — arm ごとに「certified・品質正常の探索点 (初期点を除く) を 1 つ以上持つ系列」の数 (12 中) を数え、両方が 6 未満なら
+   「双方生成不成立」、片方だけなら「その arm の生成不成立」。記述だけを報告する。初期点は endpoint の候補に入るので、certified endpoint の数では
+   生成器の力を測れない (B-5 v1 の定義からの変更)。
 4. **判定不能 (対不足・精度不足)** — 判定に使う解析の対が 6 未満、または精度不足の endpoint を含む。
 5. **条件付き優越** — §7.3 の (i)(ii)。
 6. **同等 = 失敗条件 (c) の成立** — `|median(d)| ≤ δ`。観測差が比較 floor 内だったという判定で、母集団の等価性の証明ではない。
@@ -311,7 +324,8 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   これは p 値の解像度の根拠で、検出力の保証ではない。結果を見て n を増減しない。
 - 報告: 全 4 arm の score、全 4 比較、記述の LLM×C++ 対 LLM×IR、各 arm の endpoint の静的 10 µs 比と stock 比 (参照 job の median に対する記述)、
   全未完走・anomaly・fallback・欠測・floor・raw p・補正 p・batch 別の median(d) (記述)・certified endpoint 数・endpoint が初期点だった系列数・
-  A の使用数と拒否の内訳 (検査段・auditor)・一意な identity の数・§5.5 の保留の全件。本書の主 cohort は 1 回だけとする。
+  A の使用数と拒否の内訳 (検査段・auditor)・実消費 B の分布と B 未達の系列・一意な identity の数・§5.5 の保留の全件・§6 の目視の所見。
+  本書の主 cohort は 1 回だけとする。
 
 ## 8. 既知結果台帳と HARKing の境界
 
@@ -347,13 +361,13 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 
 | 部品 | 流用元 | 本書で使えるか | 欠ける部分 |
 |---|---|---|---|
-| 1 評価 1 job の系列制御 (D2258 項 1) | `orchestrator/campaign/b5_generator_contrast.py` の `run_series_step`・`next_series_action`・`SeriesLedger` | **規則は継承、コードはそのままでは使えない** | 評価の起動が `p3_s4_loop` の argv に固定 (`slot_argv`)、候補が backoff 値 (`_genome`・`validate_backoff_value`)、LLM の提案が K2 の閉じた schema と planner を要求。`SeriesLedger`・session の分類・`select_endpoint` の同値規則は呼べる候補 (比較基盤 §7 と同じ区分) |
+| 1 評価 1 job の系列制御 (D2258 項 1) | `orchestrator/campaign/b5_generator_contrast.py` の `run_series_step`・`next_series_action`・`SeriesLedger` | **規則は継承、コードはそのままでは使えない** | 評価の起動が `p3_s4_loop` の argv に固定 (`slot_argv`)、候補が backoff 値 (`_genome`・`validate_backoff_value`)、LLM の提案が K2 の閉じた schema と planner を要求。`SeriesLedger`・session の分類は呼べる候補 (比較基盤 §7 と同じ区分)。`select_endpoint` は同値を候補値 v で破る (`(fitness 降順, v, b)`) ので、slot 順で破る本書 §6 には使わない |
 | 429 の保留 (D2258 項 2) | `tools/pegasus/b5_llm_parent.py` の `classify_exit` と保留の再試行 | **判定規則はそのまま使える** | config の field・指示文・許可 tool (`tools/b5_llm_round.py` 固定)・同じ session の resume が B-5 固有 |
 | LLM 親の起動器 (D2258 項 1) | `tools/pegasus/b5_contrast_launch.py` の v2 経路 | **形は継承、コードは使えない** | schedule・job 定義・K2 設定・`p3_s4_loop` の import が B-5 固有 |
 | report の v2 判定 | `orchestrator/campaign/b5_generator_contrast_report.py` | **統計の核は呼べる** (`exact_sign_flip_p`・任意の族の `_holm`・`stock_cv_floor(v2=True)`・`decide_comparison(v2=True)`・`pair_differences`) | 台帳の読込・検証・射影は B-5 の schema に結合。族は 6 / 4 比較の固定 |
 | critic への入力の要請 (D2258 項 3) | `tools/b5_llm_round.py` の v2 の要請文 | 文言は使える | round tool 自体は K2・planner・backoff 値に結合 |
 | 同時検査 (D2258 項 4) | campaign 設定の `verify_performance_concurrent` (`orchestrator/campaign/loop.py` が読み `pipeline.evaluate` へ渡す) | write-heavy は実測済み (D2251) | 政策 driver の campaign 設定 (`default_cfg`) にこの key が無い |
-| 政策 driver | `orchestrator/campaign/p3_s4_loop_policy.py` (D2256) | 検査の順・coder 入力・auditor の digest 照合は使える | 系列ごとの campaign identity (cfg に cohort・arm・系列番号が無く、形ごとに 1 campaign)、§3 の停止規則の切り離し、機械生成 IR 候補を auditor なしで通す口、stock と静的 10 µs 参照の口、session の分類 (B-5 の slot sidecar に当たるもの)、同時検査、計算ノードの job body (`tools/pegasus/p3_s4_loop_pegasus.sh` は `p3_s4_loop` 固定) |
+| 政策 driver | `orchestrator/campaign/p3_s4_loop_policy.py` (D2256) | 検査の順・coder 入力・auditor の digest 照合は使える | 初期点と系列開始 stock を系列の campaign の履歴と critic digest に載せる口 (§4.1 の critic が job 1 の後に読む)、系列ごとの campaign identity (cfg に cohort・arm・系列番号が無く、形ごとに 1 campaign)、§3 の停止規則の切り離し、機械生成 IR 候補を auditor なしで通す口、stock と静的 10 µs 参照の口、session の分類 (B-5 の slot sidecar に当たるもの)、同時検査、計算ノードの job body (`tools/pegasus/p3_s4_loop_pegasus.sh` は `p3_s4_loop` 固定) |
 | random×IR・進化×IR の生成器 | `orchestrator/campaign/silo_policy_ir.py` | IR の型・検証・描画は使える | 乱数の生成器と変異は不在 (偵察の固定 16 点の列挙だけ) |
 
 - **政策 driver と `tools/pegasus/` の変更は並走の [T-2865] (段階 F) の担当で、本書の起草では触れない。** 生成器・系列制御・round tool・report は
@@ -373,7 +387,7 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 | 1 系列の論理 session | 18 (stock 1 + 初期点 2 + B 10 + N_eval 5) | 本書 §3 |
 | 1 系列の計算 (直列の検査のままなら) | 約 7,700 s | 換算 (B-5 v1 の write-heavy の完走系列: 評価 1 回平均 407 s、score 1 session 平均 510 s、stock 251〜265 s) |
 | 同時検査による縮小 | ×0.51〜0.60 | 換算 (B-5 費用見直しの模型、write-heavy、冷却 60 s 込み) |
-| job の準備 | 1 job 29〜35 s × 12 job | 実測 (B-5 v1) |
+| job の準備 | 1 job 29〜35 s × 12 job | 1 job の単価は実測 (B-5 v1 の job Elapse と計算の和の差)、12 job 分は換算 |
 | 1 系列 | 1.19〜1.40 h | 換算 |
 | 48 系列 | 57.0〜67.1 h | 換算 |
 | 参照 job 3 本 (30 session) | 1.7〜2.0 h | 換算 (stock は 258 s、静的 10 µs は score の 510 s と置いた) |
@@ -395,9 +409,10 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 | 直列の LLM 時間 | 平均で 40〜120 h (両端 17〜204 h) | 換算 |
 | 同時 4 親の理想の下限 | 平均で 10〜30 h | 換算 |
 | 週上限に当たるまでの機会 | 不明 | B-5 v1 は他 session と共有の枠で 22 機会 (resume 運用、cache read 計 114 M token) で週上限に達した (F1050) |
-| 暦時間 | 不明 (1 週 57 機会なら 4〜13 週) | 試算: 1 原提案ごとに新 session (§4.1) で 1 機会の cache read を B-5 の 1 機会目の 2.0 M token と置き、B-5 v1 の 114 M token を週の枠と置いた仮定。枠は token に比例する保証が無い |
+| 暦時間 | 不明 (仮に 1 週 57 機会なら 4〜13 週) | 試算: 1 原提案ごとに新 session (§4.1) で 1 機会の cache read を B-5 の 1 機会目の 2.0 M token と置き、B-5 v1 が 429 までに使った 114 M token (他 session と共有の枠の中での使用量であって枠そのものではない) を週の枠と仮に置いた。1 週に回せる機会数は測れていない |
 
-- **律速は LLM の週上限である。** §5.5 の保留で系列は欠測にならず、待つ間 node を消費しないが、暦時間は延びる。
+- **LLM の週上限が律速になりうる。** 1 週に回せる機会数が測れていないので、暦時間は上下限を示せない。§5.5 の保留で系列は欠測にならず、
+  待つ間 node を消費しないが、暦時間は延びる。
 
 ### 11.3 規模の択一 (発効の前にユーザーが選ぶ)
 
@@ -406,7 +421,7 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 | **推奨** | 4 (LLM×C++・LLM×IR・random・進化) | 48 | 約 59〜69 | 240〜720 | — |
 | 進化を外す | 3 | 36 | 約 44〜52 | 240〜720 | 非 LLM が random だけになり、「巨大な文法上の乱択は藁人形」の査読に答えられない |
 | LLM×IR を外す | 3 | 36 | 約 44〜52 | 120〜360 | 族 A (同じ IR での探索法の比較) が消え、族 B だけになる |
-| n = 10 | 4 | 40 | 約 49〜58 | 200〜600 | 最小 p が 1/1024。等しい大きさの差なら 9/10 勝ちで p ≈ 0.011 (初段 0.025 を通る)、8/10 は p ≈ 0.055 で通らない |
+| n = 10 | 4 | 40 | 約 49〜58 | 200〜600 | 最小 p が 1/1024。等しい大きさの差なら 9/10 勝ちで p ≈ 0.011 (初段 0.025 を通る)、8/10 は p ≈ 0.055 で通らない。report の系列数 (流用候補の `pair_differences` は系列 1..12 固定) も変える |
 
 - 推奨の理由: 「なぜ LLM か」に効くのは、フィードバックを使う非 LLM の探索 (進化) との差である (random との差だけでは LLM の事前知識と
   フィードバックの利用を分けられない)。差分分析 P2 は比べる手法に進化探索を挙げる。n = 12 は B-5 v2 でユーザーが選んだ規模である (D2249 項 1)。
@@ -441,7 +456,7 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 - write-heavy だけの結果であることを添える。
 - random と進化の支持集合は定数の分布で狭められている (§2)。
 - LLM だけが段階 D の二値と射程文を受け取る (§4.1)。LLM 候補だけに auditor が掛かる (§3)。
-- 評価数を揃えた比較で、時間・費用を揃えた比較ではない。LLM の待ちと暦時間を別に報告する。
+- 評価数の上限を揃えた比較で、時間・費用を揃えた比較ではない。LLM の待ちと暦時間、実消費 B を別に報告する。
 - certified の射程 (有限の観測、verify と perf の分岐の一致は言えない) を添える。
 - stock (適応 backoff) と既知最良 (静的 10 µs、元の適用方法) を混同しない。偵察の 16 点の値を本書の結果と並べるときは別 job・別登録と書く。
 - 非有意、等価域内の同等、欠測・精度不足による判定不能、生成不成立を分ける。条件付き優越には「登録した独立性の仮定の下で」を添える。
@@ -459,3 +474,6 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 ## 15. 改訂履歴 (起草版の間だけ使う)
 
 - 2026-09-27: 起草 ([T-2867])。
+- 2026-09-27: 起草 wave の段 6 レビュー (Codex 2 本) と親の点検を受けて改めた (着地前): critic を job 1 の後にも回す・性能が critic 経由でだけ
+  LLM に届くことの開示、後発 anomaly の score 訂正、公平性の目視、B を上限と明記、進化の field 追加の規則、生成不成立の定義、
+  `select_endpoint` の流用不可、n = 10 案の report 系列数、週上限の書き方。裁定の記録は起草 insight §7。
