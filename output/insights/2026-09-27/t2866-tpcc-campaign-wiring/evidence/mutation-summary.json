@@ -251,6 +251,133 @@
       }
     ]
   },
+  "final2": {
+    "repo_head": "d8d337e7bd2ce305f47ee2ae140249b3196aeec0",
+    "spec_sha256": "c6c04783c29fb3b0f2ee2ae4bb4001438e2fa5414397df202cc7049c342a451d",
+    "baseline": "PASSED",
+    "summary": {
+      "KILLED": 14,
+      "MISMATCH": 0,
+      "PARSE_ERROR": 0,
+      "SURVIVED": 1,
+      "TIMEOUT": 0,
+      "completed": 15,
+      "matching": 15,
+      "recorded": 15,
+      "registered": 15
+    },
+    "mutations": [
+      {
+        "id": "M1-bench-workload-dropped",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v3_reaches_bench_with_workload"
+        ]
+      },
+      {
+        "id": "M2-build-v2-workload-dropped",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v2_aborts_before_bench_and_builds_tpcc[v2-build]"
+        ]
+      },
+      {
+        "id": "M3-tpcc-emits-ycsb-records-flag",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[direct]",
+          "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v3_reaches_bench_with_workload"
+        ]
+      },
+      {
+        "id": "M4-ycsb-records-flag-form-changed",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[direct]"
+        ]
+      },
+      {
+        "id": "M5-v2-preimage-ignores-workload",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_buildcache_v2.py::test_tpcc_fresh_hit_compiler_target_and_cross_workload_misses",
+          "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+        ]
+      },
+      {
+        "id": "M6-legacy-key-ignores-workload",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_buildcache_v2.py::test_legacy_tpcc_target_and_cross_workload_misses",
+          "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+        ]
+      },
+      {
+        "id": "M7-hit-compiler-target-ycsb",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_buildcache_v2.py::test_tpcc_fresh_hit_compiler_target_and_cross_workload_misses"
+        ]
+      },
+      {
+        "id": "M8-ycsb-preimage-gets-workload",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+        ]
+      },
+      {
+        "id": "M9-runner-v2-check-removed",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+        ]
+      },
+      {
+        "id": "M10-runner-tpcc-no-source-root",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+        ]
+      },
+      {
+        "id": "M11-runner-mix-check-removed",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_anchor_is_indeterminate[s1-s1-H-pay20]"
+        ]
+      },
+      {
+        "id": "M12-runner-early-return-restored",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+        ]
+      },
+      {
+        "id": "M13-runner-v2-anomaly-indeterminate",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+        ]
+      },
+      {
+        "id": "M14-duplicate-warehouse-flag-allowed",
+        "status": "KILLED",
+        "failed_nodes": [
+          "orchestrator/tests/test_campaign.py::test_tpcc_bench_rejects_duplicate_warehouse_flag"
+        ]
+      },
+      {
+        "id": "M15-equivalent-target-format",
+        "status": "SURVIVED",
+        "failed_nodes": []
+      }
+    ]
+  },
   "probe_results_sha256": "650fdf401f92e4a04ced4060a2119497f223e6acbd6c4e3e4ca3a97998cfe973",
-  "final_results_sha256": "5580ee6c71411ecd639834eb5a37ae3a36916c2b652b539ce21815af88c193cf"
+  "final_results_sha256": "5580ee6c71411ecd639834eb5a37ae3a36916c2b652b539ce21815af88c193cf",
+  "final2_results_sha256": "711c3c7f7ceeb9a2f450dda6aab5cf4515316fd06d81cdff68befa2a5beab1e4"
 }

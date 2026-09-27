@@ -29,7 +29,8 @@ authority: none / default_effect: no-state-change (記録。可変状態の正�
 - 受入 attempt 1 (tested main `19d3f2bae`、tip `73197863c`) は 1 failed / 27,882 passed / 74 skipped。赤は `test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys`
   (bench payload の条件付き key が 4 → 5)。本 wave に帰属: 統合 commit が bench payload に `workload` を足したが、親は private symbol `_BENCH_DONE_*_PAYLOAD_KEYS` の consumer である
   この test を焦点走の集合に入れていなかった (DW-O26 の symbol grep の漏れ)。裁定 2 (`verbatim/s6-ruling-2.md`) で bench・commit payload への `workload` 追加を取り下げた
-  (既存の `run_cmd` と build 記録で識別でき、WAL の `workload` key は検証記録の `{"tag": ...}` と二義になる)。
+  (既存の `run_cmd` と build 記録で識別でき、WAL の `workload` key は検証記録の `{"tag": ...}` と二義になる)。fix `3b95bf8b6` (Codex author) の後、変更した private symbol の
+  consumer test 44 file と inventory 群の焦点走 3 回目は 5,716 passed・20 skipped (HEAD `d8d337e7b`)、変異 final も同 HEAD で再走した (§2)。
 
 ## 2. 変異 matrix
 
@@ -40,7 +41,8 @@ authority: none / default_effect: no-state-change (記録。可変状態の正�
 | 回 | spec sha256 | baseline | 結果 |
 |---|---|---|---|
 | probe | `1b14c268a2663a3b057c6dd5998d458869803a53dde151fe005ed8546dfc2b7c` | PASSED | M1〜M14 すべて失敗 node あり (probe では期待が SURVIVED なので MISMATCH と表示)、M15 SURVIVED |
-| final | `c6c04783c29fb3b0f2ee2ae4bb4001438e2fa5414397df202cc7049c342a451d` | PASSED | M1〜M14 すべて KILLED、M15 SURVIVED、期待との一致 15/15 |
+| final | `c6c04783c29fb3b0f2ee2ae4bb4001438e2fa5414397df202cc7049c342a451d` | PASSED | M1〜M14 すべて KILLED、M15 SURVIVED、期待との一致 15/15 (対象 `724088a08`) |
+| final 再走 | 同上 | PASSED | 受入の赤を受けた fix (`3b95bf8b6`) の後の `d8d337e7b` で同じ spec を再走。M1〜M14 すべて KILLED、M15 SURVIVED、一致 15/15 |
 
 | ID | 変異 | 殺した test |
 |---|---|---|
