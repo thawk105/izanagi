@@ -1,0 +1,245 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/76ceb7b428b871fa5dbaf227dfe1d35d/izdw-76ceb7b428.o31625",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/76ceb7b428b871fa5dbaf227dfe1d35d/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 6.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "cc698a8d3d09658ffdbbd9d01ec715557beb58792c72e03d2f5cc5a16b0e7972"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e9095ad41875df997554788ec4b9488d4265b57bfb063dc366e2f94ca4ab1a27",
+    "duration_s": 27.015,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0a79da519a6807f72d00e44c74b2b658a01d992aaf14f7df96b8439d170ca84d",
+    "repo_head": "54d472756c7a5c0e1e900052377ec131cda11423",
+    "runner_sha256": "56372f61057f4b25e67bafa1ba3ff53ddfd29bbcf545382f8fc3509e8f530100",
+    "spec_sha256": "f3c2ab5b4f4240fbe19d0ba8e380ec23d0d779ee7358bc68b1cac489fb6edd78",
+    "status": "PASSED",
+    "test_output_sha256": "cc698a8d3d09658ffdbbd9d01ec715557beb58792c72e03d2f5cc5a16b0e7972",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ca9429c4f953f2b73af16a62c534533ebc4d60d41159d8a5611eaab961e7ad74"
+  },
+  "date": "2026-09-27T08:11:29.973299+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/1f6dbeb51f6962c96459b28c45c84c43/izdw-1f6dbeb51f.o31626",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/1f6dbeb51f6962c96459b28c45c84c43/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n>           binding = contract_loader_binding.capture_contract_loader_binding()\n\norchestrator/campaign/ident.py:283: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def capture_contract_loader_binding() -> ContractLoaderBinding:\n        \"\"\"current HEAD blob と live closure bytes が一致する binding を取得する。\"\"\"\n        root = _validated_root()\n        commit = _head_commit(root)\n        digests: dict[str, str] = {}\n        for relative, blob in _iter_blobs(\n            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n            disk = _read_regular_file_no_follow(root, relative)\n            if disk != blob:\n>               raise ContractLoaderBindingError(\n                    f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n                )\nE               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/loop.py\n\norchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n\n    def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n        tmp_path,\n    ):\n        from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n        from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n    \n        contract_id = ORACLE_CONTRACT_ID\n        raw_token = \"a\" * 64\n        bound_token = source_digest._bind_sort_oracle_contract_id(\n            raw_token, contract_id,\n        )\n        source_root = tmp_path / \"ccbench\"\n        source_root.mkdir()\n        evidence = _sort_contract_evidence(\n            source_root, raw_token=raw_token, bound_token=bound_token,\n        )\n        evaluated = pipeline.EvalResult(\n            genome=_G,\n            variant=source_digest.verification_variant_id(_G, bound_token),\n            certified=False,\n            aborted=True,\n        )\n        context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n    \n        with mock.patch.object(\n            loop.source_digest,\n            \"resolve_evidence\",\n            autospec=True,\n            return_value=evidence,\n        ) as resolve_spy, mock.patch.object(\n            loop,\n            \"evaluate\",\n            autospec=True,\n            return_value=evaluated,\n        ) as evaluate_spy:\n>           summary = loop.run_campaign(\n                S.default_cfg(),\n                [_G],\n                S.default_perf(),\n                S.ENV_TAG,\n                S.CLK,\n                numactl=S.NUMA,\n                do_bench=False,\n                output_root=str(tmp_path / \"output\"),\n                ccbench_dir=str(source_root),\n                authorization_contract=env_contract.authorize(S.ENV_TAG),\n                build_context=context,\n                declared_use_class=S.DECLARED_USE_CLASS,\n                sort_oracle_contract_id=contract_id,\n                log=lambda *_args: None,\n            )\n\norchestrator/tests/test_p3_s4_loop_sort.py:1467: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/loop.py:735: in run_campaign\n    repair = ident.ensure_resumable_wal(\norchestrator/campaign/ident.py:484: in ensure_resumable_wal\n    ensure_campaign_identity(\norchestrator/campaign/ident.py:584: in ensure_campaign_identity\n    binding = _capture_current_loader_binding()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n            binding = contract_loader_binding.capture_contract_loader_binding()\n            contract_loader_binding.verify_live_contract_loader_binding(binding)\n            return binding\n        except contract_loader_binding.ContractLoaderBindingError as exc:\n>           raise IdentityMismatch(\n                f\"contract-loader-drift: {exc}\",\n                reason=\"contract-loader-drift\",\n            ) from exc\nE           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/loop.py\n\norchestrator/campaign/ident.py:287: IdentityMismatch\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\n1 failed, 2 passed in 5.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=4586 retained_bytes=3868 omitted_bytes=718 rendered_excerpt_bytes=4096 sha256=c1508b0e11278e0303efe7ecdd1d55a83d343c1f74399499ab8ae8bd1bfcd3c0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> TIVE_PATHS,\n>         ):\n>             disk = _read_regular_file_no_follow(root, relative)\n>             if disk != blob:\n> >               raise ContractLoaderBindingError(\n>                     f\"contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: {relative}\"\n>                 )\n> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/loop.py\n> \n> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n> \n>     def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n>         tmp_path,\n>     ):\n>         from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n>         from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n>     \n>         contract_id = ORACLE_CONTRACT_ID\n>         raw_token = \"a\" * 64\n>         bound_token = source_digest._bind_sort_oracle_contract_id(\n>             raw_token, contract_id,\n>         )\n>         source_root = tmp_path / \"ccbench\"\n>         source_root.mkdir()\n>         evidence = _sort_contract_evidence(\n>             source_root, raw_token=raw_token, bound_token=bound_token,\n>         )\n>         evaluated = pipeline.EvalResult(\n>             genome=_G,\n>             variant=source_digest.verification_variant_id(_G, bound_token),\n>             certified=False,\n>             aborted=True,\n>         )\n>         context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n>     \n>         with mock.patch.object(\n>             loop.source_digest,\n>             \"resolve_evidence\",\n>             autospec=True,\n>             return_value=evidence,\n>         ) as resolve_spy, mock.patch.object(\n>             loop,\n>             \"evaluate\",\n>             autospec=True,\n>             return_value=evaluated,\n>         ) as evaluate_spy:\n> >           summary = loop.run_campaign(\n>                 S.default_cfg(),\n>                 [_G],\n>                 S.default_perf(),\n>                 S.ENV_TAG,\n>                 S.CLK,\n>                 numactl=S.NUMA,\n>                 do_bench=False,\n>                 output_root=str(tmp_path / \"output\"),\n>                 ccbench_dir=str(source_root),\n>                 authorization_contract=env_contract.authorize(S.ENV_TAG),\n>                 build_context=context,\n>                 declared_use_class=S.DECLARED_USE_CLASS,\n>                 sort_oracle_contract_id=contract_id,\n>                 log=lambda *_args: None,\n>             )\n> \n> orchestrator/tests/test_p3_s4_loop_sort.py:1467: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/loop.py:735: in run_campaign\n>     repair = ident.ensure_resumable_wal(\n> orchestrator/campaign/ident.py:484: in ensure_resumable_wal\n>     ensure_campaign_identity(\n> orchestrator/campaign/ident.py:584: in ensure_campaign_identity\n>     binding = _capture_current_loader_binding()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def _capture_current_loader_binding(\n>     ) -> contract_loader_binding.ContractLoaderBinding:\n>         try:\n>             binding = contract_loader_binding.capture_contract_loader_binding()\n>             contract_loader_binding.verify_live_contract_loader_binding(binding)\n>             return binding\n>         except contract_loader_binding.ContractLoaderBindingError as exc:\n> >           raise IdentityMismatch(\n>                 f\"contract-loader-drift: {exc}\",\n>                 reason=\"contract-loader-drift\",\n>             ) from exc\n> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/loop.py\n> \n> orchestrator/campaign/ident.py:287: IdentityMismatch\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4586 retained_bytes=3868 omitted_bytes=718 budget_bytes=49152 rendered_bytes=4841 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "55a7d2d1e2663026c61c5946ef75e477164124a85a0297ce01c3bca37d0c4ff2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9095ad41875df997554788ec4b9488d4265b57bfb063dc366e2f94ca4ab1a27",
+      "duration_s": 27.069,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "hang_risk": false,
+      "id": "dogfood-e-loop-comment",
+      "injection_diff_sha256": "7dc22f7c6ec62b096d73834607849b4eb236d6f3d00fab7d8962e4da7b91e3b1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b4a569a8d03fb2f1c26343211b03db516fcd8d62704566db9c907f442c2f522f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "new": "                source_options = {}  # mutation T1418-E (equivalent comment)\n",
+          "old": "                source_options = {}\n"
+        }
+      ],
+      "repo_head": "54d472756c7a5c0e1e900052377ec131cda11423",
+      "runner_sha256": "56372f61057f4b25e67bafa1ba3ff53ddfd29bbcf545382f8fc3509e8f530100",
+      "spec_sha256": "f3c2ab5b4f4240fbe19d0ba8e380ec23d0d779ee7358bc68b1cac489fb6edd78",
+      "status": "KILLED",
+      "test_output_sha256": "55a7d2d1e2663026c61c5946ef75e477164124a85a0297ce01c3bca37d0c4ff2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca9429c4f953f2b73af16a62c534533ebc4d60d41159d8a5611eaab961e7ad74"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/a12d0f8f62bea016746209335442f7a7/izdw-a12d0f8f62.o31628",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/a12d0f8f62bea016746209335442f7a7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n____ test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n>           binding = contract_loader_binding.capture_contract_loader_binding()\n\norchestrator/campaign/ident.py:283: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def capture_contract_loader_binding() -> ContractLoaderBinding:\n        \"\"\"current HEAD blob と live closure bytes が一致する binding を取得する。\"\"\"\n        root = _validated_root()\n        commit = _head_commit(root)\n        digests: dict[str, str] = {}\n        for relative, blob in _iter_blobs(\n            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n            disk = _read_regular_file_no_follow(root, relative)\n            if disk != blob:\n>               raise ContractLoaderBindingError(\n                    f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n                )\nE               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/loop.py\n\norchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n\n    def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n        tmp_path,\n    ):\n        from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n        from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n    \n        contract_id = ORACLE_CONTRACT_ID\n        raw_token = \"a\" * 64\n        bound_token = source_digest._bind_sort_oracle_contract_id(\n            raw_token, contract_id,\n        )\n        source_root = tmp_path / \"ccbench\"\n        source_root.mkdir()\n        evidence = _sort_contract_evidence(\n            source_root, raw_token=raw_token, bound_token=bound_token,\n        )\n        evaluated = pipeline.EvalResult(\n            genome=_G,\n            variant=source_digest.verification_variant_id(_G, bound_token),\n            certified=False,\n            aborted=True,\n        )\n        context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n    \n        with mock.patch.object(\n            loop.source_digest,\n            \"resolve_evidence\",\n            autospec=True,\n            return_value=evidence,\n        ) as resolve_spy, mock.patch.object(\n            loop,\n            \"evaluate\",\n            autospec=True,\n            return_value=evaluated,\n        ) as evaluate_spy:\n>           summary = loop.run_campaign(\n                S.default_cfg(),\n                [_G],\n                S.default_perf(),\n                S.ENV_TAG,\n                S.CLK,\n                numactl=S.NUMA,\n                do_bench=False,\n                output_root=str(tmp_path / \"output\"),\n                ccbench_dir=str(source_root),\n                authorization_contract=env_contract.authorize(S.ENV_TAG),\n                build_context=context,\n                declared_use_class=S.DECLARED_USE_CLASS,\n                sort_oracle_contract_id=contract_id,\n                log=lambda *_args: None,\n            )\n\norchestrator/tests/test_p3_s4_loop_sort.py:1467: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/loop.py:735: in run_campaign\n    repair = ident.ensure_resumable_wal(\norchestrator/campaign/ident.py:484: in ensure_resumable_wal\n    ensure_campaign_identity(\norchestrator/campaign/ident.py:584: in ensure_campaign_identity\n    binding = _capture_current_loader_binding()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n            binding = contract_loader_binding.capture_contract_loader_binding()\n            contract_loader_binding.verify_live_contract_loader_binding(binding)\n            return binding\n        except contract_loader_binding.ContractLoaderBindingError as exc:\n>           raise IdentityMismatch(\n                f\"contract-loader-drift: {exc}\",\n                reason=\"contract-loader-drift\",\n            ) from exc\nE           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/loop.py\n\norchestrator/campaign/ident.py:287: IdentityMismatch\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\n1 failed, 2 passed in 5.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=4586 retained_bytes=3868 omitted_bytes=718 rendered_excerpt_bytes=4096 sha256=c1508b0e11278e0303efe7ecdd1d55a83d343c1f74399499ab8ae8bd1bfcd3c0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> TIVE_PATHS,\n>         ):\n>             disk = _read_regular_file_no_follow(root, relative)\n>             if disk != blob:\n> >               raise ContractLoaderBindingError(\n>                     f\"contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: {relative}\"\n>                 )\n> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/loop.py\n> \n> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_run_campaign_forwards_one0')\n> \n>     def test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate(\n>         tmp_path,\n>     ):\n>         from orchestrator.campaign import env_contract, loop, pipeline, source_digest\n>         from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID\n>     \n>         contract_id = ORACLE_CONTRACT_ID\n>         raw_token = \"a\" * 64\n>         bound_token = source_digest._bind_sort_oracle_contract_id(\n>             raw_token, contract_id,\n>         )\n>         source_root = tmp_path / \"ccbench\"\n>         source_root.mkdir()\n>         evidence = _sort_contract_evidence(\n>             source_root, raw_token=raw_token, bound_token=bound_token,\n>         )\n>         evaluated = pipeline.EvalResult(\n>             genome=_G,\n>             variant=source_digest.verification_variant_id(_G, bound_token),\n>             certified=False,\n>             aborted=True,\n>         )\n>         context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)\n>     \n>         with mock.patch.object(\n>             loop.source_digest,\n>             \"resolve_evidence\",\n>             autospec=True,\n>             return_value=evidence,\n>         ) as resolve_spy, mock.patch.object(\n>             loop,\n>             \"evaluate\",\n>             autospec=True,\n>             return_value=evaluated,\n>         ) as evaluate_spy:\n> >           summary = loop.run_campaign(\n>                 S.default_cfg(),\n>                 [_G],\n>                 S.default_perf(),\n>                 S.ENV_TAG,\n>                 S.CLK,\n>                 numactl=S.NUMA,\n>                 do_bench=False,\n>                 output_root=str(tmp_path / \"output\"),\n>                 ccbench_dir=str(source_root),\n>                 authorization_contract=env_contract.authorize(S.ENV_TAG),\n>                 build_context=context,\n>                 declared_use_class=S.DECLARED_USE_CLASS,\n>                 sort_oracle_contract_id=contract_id,\n>                 log=lambda *_args: None,\n>             )\n> \n> orchestrator/tests/test_p3_s4_loop_sort.py:1467: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/loop.py:735: in run_campaign\n>     repair = ident.ensure_resumable_wal(\n> orchestrator/campaign/ident.py:484: in ensure_resumable_wal\n>     ensure_campaign_identity(\n> orchestrator/campaign/ident.py:584: in ensure_campaign_identity\n>     binding = _capture_current_loader_binding()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def _capture_current_loader_binding(\n>     ) -> contract_loader_binding.ContractLoaderBinding:\n>         try:\n>             binding = contract_loader_binding.capture_contract_loader_binding()\n>             contract_loader_binding.verify_live_contract_loader_binding(binding)\n>             return binding\n>         except contract_loader_binding.ContractLoaderBindingError as exc:\n> >           raise IdentityMismatch(\n>                 f\"contract-loader-drift: {exc}\",\n>                 reason=\"contract-loader-drift\",\n>             ) from exc\n> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/loop.py\n> \n> orchestrator/campaign/ident.py:287: IdentityMismatch\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4586 retained_bytes=3868 omitted_bytes=718 budget_bytes=49152 rendered_bytes=4841 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6a571df4043cabd5fec3614d2f200b7fc0236ed3f25b8d1b18ecbed8cfd7768d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e9095ad41875df997554788ec4b9488d4265b57bfb063dc366e2f94ca4ab1a27",
+      "duration_s": 27.292,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "hang_risk": false,
+      "id": "dogfood-v-loop-sort-forward",
+      "injection_diff_sha256": "332d796956645290f86e982a8fa382fd4eb35c5fe5c7a843028dbc2e5e603130",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aee87d2faa178b5ff44fec6da809d695fcccadb926b06024b3088f4c9ae5f4bf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "new": "                if False:  # mutation T1418-V\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+          "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "repo_head": "54d472756c7a5c0e1e900052377ec131cda11423",
+      "runner_sha256": "56372f61057f4b25e67bafa1ba3ff53ddfd29bbcf545382f8fc3509e8f530100",
+      "spec_sha256": "f3c2ab5b4f4240fbe19d0ba8e380ec23d0d779ee7358bc68b1cac489fb6edd78",
+      "status": "KILLED",
+      "test_output_sha256": "6a571df4043cabd5fec3614d2f200b7fc0236ed3f25b8d1b18ecbed8cfd7768d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca9429c4f953f2b73af16a62c534533ebc4d60d41159d8a5611eaab961e7ad74"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/c619c3036e483b030823e861cb42eb93/izdw-c619c3036e.o31624",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/output/pegasus-dispatch/c619c3036e483b030823e861cb42eb93/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate\norchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]\norchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]\n\n3/58 tests collected (55 deselected) in 1.23s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "aa44a05f429a8e72b80d26532acb221794f5cf4f05fcba79e4e4ff0cecfde62a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[v2]"
+      ],
+      "duration_s": 22.402,
+      "rc": 0,
+      "repo_head": "54d472756c7a5c0e1e900052377ec131cda11423",
+      "runner_sha256": "56372f61057f4b25e67bafa1ba3ff53ddfd29bbcf545382f8fc3509e8f530100",
+      "spec_sha256": "f3c2ab5b4f4240fbe19d0ba8e380ec23d0d779ee7358bc68b1cac489fb6edd78",
+      "status": "PASSED",
+      "tool_sha256": "ca9429c4f953f2b73af16a62c534533ebc4d60d41159d8a5611eaab961e7ad74"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "dogfood-e-loop-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7dc22f7c6ec62b096d73834607849b4eb236d6f3d00fab7d8962e4da7b91e3b1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/loop.py",
+            "new": "                source_options = {}  # mutation T1418-E (equivalent comment)\n",
+            "old": "                source_options = {}\n"
+          }
+        ]
+      },
+      "dogfood-v-loop-sort-forward": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "332d796956645290f86e982a8fa382fd4eb35c5fe5c7a843028dbc2e5e603130",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/loop.py",
+            "new": "                if False:  # mutation T1418-V\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+            "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0a79da519a6807f72d00e44c74b2b658a01d992aaf14f7df96b8439d170ca84d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_sort.py",
+      "-k",
+      "forwards_one_sort_contract",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "54d472756c7a5c0e1e900052377ec131cda11423",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_s4_loop_sort.py",
+      "-k",
+      "forwards_one_sort_contract",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ed8a7fa4e52deacda0c8b3d03a43fbaba65ca462",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "56372f61057f4b25e67bafa1ba3ff53ddfd29bbcf545382f8fc3509e8f530100",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f3c2ab5b4f4240fbe19d0ba8e380ec23d0d779ee7358bc68b1cac489fb6edd78",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t1418-mut/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "ca9429c4f953f2b73af16a62c534533ebc4d60d41159d8a5611eaab961e7ad74",
+  "updated_at": "2026-09-27T08:13:12.221997+00:00"
+}
