@@ -26,6 +26,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   `--protocol mocc` / env `IZANAGI_S4_T2849_PROTOCOL`、MOCC の slot だけ campaign pin C、意味検査を build する protocol の翻訳単位で、K0 巡 tool の MOCC 文脈。
   焦点走 7,064 passed、変異 12 / 12 KILLED、計算ノードで MOCC の stock と literal 候補 5 slot と block 対照 1 slot が certified。(3) 疎通は残り。
   記録 = `output/insights/2026-09-26/t2849-mocc-insertion/README.md`。
+- [x] [T-2849] (3) 第 2 プロトコル MOCC での疎通 (2026-09-27、コード変更なし)。5 手法 × 3 workload の 15 系列 (候補 20 / workload) がすべて `b-complete`、stock 比 0.66〜1.76 (既知最良の参照なし)。
+  read-heavy の候補 slot 25 件中 6 件で G2 を検出して reject (stock 7 件は 0、原因は未確定で別課題)、K0 planner の axis 名の揺れで提案 13 機会中 7 件が拒否 (別課題)。本投入 13.65 node 時間。
+  記録 = `output/insights/2026-09-27/t2849-mocc-conn/README.md`。
 - [x] [T-2853] (1') 保全口の inventory に R1 の入力一式の残り (verifier の等価 argv・repo commit・完全 SHA の pin と宣言値・patch の bytes と sha256・verifier module の sha256) を
   D2160・B-8 の runner と同じ名前で足し、標準評価経路では build 時の source evidence と照合できたものだけを complete にした。(5') のうち生成器のある 17 図を login で描き直し、値の差 0・PNG は bytes 一致を確かめた (2026-09-26、node 時間 0)。
   job body での opt-in の有効化・fig1 の生成器・fig15 の入力の写し・R2 は残り。記録 = `output/insights/2026-09-26/t2853-archive-inventory-figure-redraw/README.md`。
