@@ -148,7 +148,7 @@ balanced の 4 slot (evolution の初期点 10 と探索 2、random の探索 24
 本節は追記であり、§0〜§9 の記述と判定は変えない (規律 7)。詳細は `output/insights/2026-09-27/t2868-mocc-g2-cause/README.md`。
 
 - §4 の 6 件は、保全 trace で同じ版の verifier を再実行して同じ witness が出た。verifier を使わない生の行の照合でも 2 辺が成立した。保全 patch は template + `now_backoff` の 1 行だけだった。
-- 同じ構成の stock (literal なし) を 16 slot 追加で走らせると、性能構成 74 反復中 3 件に同じ形の G2 が出た。候補 6/119 対 stock 3/109 (本節の 0/35 を含む) で率の差は検出されない (両側 Fisher p = 0.50)。原因は MOCC 側 (本体の実装か trace の記録) に絞られ、literal の差し込みは必要条件ではない。
+- 同じ構成の stock (literal なし) を 16 slot 追加で走らせると、性能構成 74 反復中 3 件に同じ形の G2 が出た。候補 6/119 対 stock 3/109 (本節の 0/35 を含む) で率の差は検出されない (両側 Fisher p = 0.50)。原因は MOCC 側 (本体の実装か trace の記録、両者は未分離) に絞られ、literal の差し込みは必要条件ではない (候補での寄与の有無と率の同等性は示していない)。
 - 訂正 1: §4 の「検査走行の abort 率」列は digest の legacy workload (4 thread・200 record・1 秒) の値だった。性能構成の anomaly 反復では bo 初期点で 6.8%。
 - 訂正 2: 1 slot は legacy 1 回 + 性能構成最大 5 反復 (anomaly で打ち切り) で、「stock slot 7 件は 0」は性能構成の反復で 0/35。
-- read-heavy の block 対照の stock も同じ性質の実装なので、§3 の read-heavy の stock 比と certified の終点は「基準が約 3〜5% の反復で性能構成の検査に落ちる cell」での値である。扱いは新しい課題で決める。
+- read-heavy の block 対照の stock も同じ性質の実装なので、§3 の read-heavy の stock 比と certified の終点は「基準の stock が性能構成の検査に落ちる反復がある cell」(観測 3/109、95% 区間 0.6〜7.8%) での値である。扱いは新しい課題で決める。

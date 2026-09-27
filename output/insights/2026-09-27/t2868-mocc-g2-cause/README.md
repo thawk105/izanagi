@@ -14,13 +14,14 @@ default_effect: no-state-change
 | 分岐 | 判定 | 根拠 (節) |
 |---|---|---|
 | (i) verifier の誤検出 | **記録された trace を前提とする限り排除。** 候補 6 件と stock 3 件の計 9 件すべてで、保全時と同じ版の verifier を同じ引数で再実行して同じ witness が出た。verifier を使わない生の行の照合でも 2 本の rw 辺が成立した | §2・§3 |
-| (ii) literal 差し込みの意味の変更 | **排除。** 候補 6 件の保全 patch は、変更 file が `cmake/Options.cmake` と `include/backoff.hh` の 2 つだけで、template との差は hole 内の `double now_backoff = <値>;` の 1 行だけ。validation・lock・trace 記録の source には触れていない | §2 |
+| (ii) literal 差し込みによる source の直接変更 | **排除。** 候補 6 件の保全 patch は、変更 file が `cmake/Options.cmake` と `include/backoff.hh` の 2 つだけで、template との差は hole 内の `double now_backoff = <値>;` の 1 行だけ。validation・lock・trace 記録の source には触れていない。**待ち時間の変化が並行実行の結果 (G2 の起き方) を変える経路は、この照合では排除していない** | §2 |
 | (ii') literal (待ち時間の変更) が G2 の必要条件 | **この cell では排除。** literal を差し込まない stock (適応 backoff) の 16 slot で、性能構成 74 反復中 3 件に同じ形の G2 が出た | §3 |
 | (ii'') literal が G2 の率を上げる | **差は検出されない。** 候補 6/119 (5.0%) 対 stock 3/109 (2.8%、t2849 の 0/35 を含む)、両側 Fisher p = 0.50 | §3 |
-| (iii) MOCC 本体の欠陥 | **支持 (実装側で排除されずに残る唯一の分岐)。** witness の形は既往の stock MOCC の G2 (T-1892・T-2774・T-2779) と同じで、既往の静的候補 (a) の順序 (validation が版と lock 状態を別の load で読む) は pin C の現物にも残る。**ただし根因は確定していない** | §4 |
+| (iii) MOCC 本体の欠陥 | **実装側で排除されずに残る候補 ((iv) とは未分離)。** 実測は本体欠陥を hook の誤記録より選り分けていない。witness の形は既往の stock MOCC の G2 (T-1892・T-2774・T-2779) と同じで、既往の静的候補 (a) の順序 (validation が版と lock 状態を別の load で読む) は pin C の現物にも残る。**ただし根因は確定していない** | §4 |
 | (iv) trace hook の記録誤り | **未検証。** 生の行の照合は trace の中の整合だけを言う。hook が実際に読んだ版を書いたかは trace からは分からない (既往の三分岐の「hook」と同じ未達) | §2・§4 |
 
-要するに、6 件の reject は「合成が持ち込んだ誤り」ではなく、**MOCC の stock 自体がこの cell (48 thread・1,000,000 record・rr95・zipf) で性能構成の検査に落ちる性質**が、候補にも同じ率で現れたものである。
+要するに、**MOCC の stock 自体がこの cell (48 thread・1,000,000 record・rr95・zipf 0.9) で、性能構成の検査に同じ形の G2 で落ちる** (観測 3/109)。
+6 件の G2 を起こすのに literal は必要でなかった。ただし候補での literal の寄与の有無や、率が stock と同等かは示していない (率の差が非有意なだけで、同等性の証明ではない)。
 **論文への使い方は未決** (§6)。「正しさゲートが合成候補の誤りを捕まえた」例には使えない。
 
 ## 1. 問いと範囲
@@ -98,9 +99,9 @@ default_effect: no-state-change
 ## 4. CCBench (MOCC) 側の所見の構造化 (`output/README.md` の形式)
 
 - **発見:** pin C (`68106660…` = e9e477ca + X/P 計装、`cc/mocc/transaction.cc` の差は `#if TRACE` 内だけ) の MOCC の stock (`BACK_OFF=1`、適応 backoff、`KEY_SORT=0`、`TEMPERATURE_RESET_OPT=1`) が、性能構成の trace 検査で長さ 2・両辺 rw の G2 (write skew) を commit する。74 反復中 3 件。literal の固定 backoff の候補でも同じ形が 119 反復中 6 件。
-- **再現条件:** 48 thread・1,000,000 record・rr95 (read 95%)・rmw 0・max_ope 10・zipf 0.9 (保全 inventory の `workload_flags`。比較 harness の read-heavy、pin C の較正 `calibration-7f00a49f493e1015.json` の動作点)・3 秒・trace-enabled build (TRACE=1、X/P 計装あり、T-1943 の witness なし)・GCC は harness の既定。1 slot の性能構成の反復あたり約 3〜5%。
+- **再現条件:** 48 thread・1,000,000 record・rr95 (read 95%)・rmw 0・max_ope 10・zipf 0.9 (保全 inventory の `workload_flags`。比較 harness の read-heavy、pin C の較正 `calibration-7f00a49f493e1015.json` の動作点)・3 秒・trace-enabled build (TRACE=1、X/P 計装あり、T-1943 の witness なし)・GCC は harness の既定。性能構成の反復あたりの観測は stock 3/109 (2.8%、95% 区間 0.6〜7.8%)、候補 6/119 (5.0%)。
 - **witness の共通形 (9 件):** 2 取引が互いの読んだ版を上書きして両方 commit する。commit 版は同 epoch で tid 差 1〜3 (9 件で 1 が 6 件・2 が 2 件・3 が 1 件)。関わる key は 0・1・2・3・5・8・0x61 (zipf の上位)。2 取引は常に別の thread。読んだ版を書いた取引はいずれも trace に実在する。
-- **該当コード (pin C の行):** validation の read set 走査 `cc/mocc/transaction.cc` 1033〜1063 行。版の読み (1035〜1036) と比較 (1037〜1038) の後に、別の load で lock 状態を読む (1049、`ldAcqCounter() == W_LOCKED`)。writer 側の publish は 1261〜1262 行 (`#line 1195` 指令の下)、unlock は 1271 行 (`unlockCLL()`)。
+- **該当コード (pin C の行):** validation の read set 走査 `cc/mocc/transaction.cc` 1033〜1063 行。版の読み (1035〜1036) と比較 (1037〜1038) の後に、別の load で lock 状態を読む (1049、`ldAcqCounter() == W_LOCKED`)。writer 側の publish (tidword の atomic store) は 1259〜1260 行 (`#line 1195` 指令の下)、unlock は 1271 行 (`unlockCLL()`)。
 - **仮説 (未確定):** T-2774 §3 の静的候補 (a) と同じ順序で両方が validation を通る可能性がある。すなわち、R が x の版を読む → W が x を publish して unlock する → R が x の lock 状態を読む、の順。既往では、診断 patch (validation の版再読 + cold 側 abort) で通常 5/120 が 0/120 に下がった ([T-2779]、2 変更を束ねた介入)。本 wave では診断 patch を走らせていない。**hook の記録誤り (iv) と区別できていない**ので、根因とは書かない。
 - **CCBench 論文・既往との関係:** 既往の stock MOCC の G2 (T-1892 5/42、T-2774 7/120、T-2779 通常 5/120・BACK_OFF=1 2/120) は 10,000 record・rr50 の小さな cell だった。本件は比較 harness の read-heavy 動作点 (100 万 record・rr95) でも、stock が同じ形の G2 を出すことを示した新しい条件である。上流報告案 [T-2791] の送信前なら、この条件を追記する材料になる。
 - **還元判断: ユーザー確認待ち。** 上流への報告・PR は人間の判断 (D16、D2148 項 13)。AI は構造化までとした。
@@ -113,11 +114,11 @@ default_effect: no-state-change
 
 ## 6. 論文への使い方と残り (裁定の材料)
 
-- **使えないこと:** 「正しさゲートが合成候補の誤りを捕まえた」例として 6 件を使うこと。原因は候補の内容ではなく、stock を含む MOCC の実装側にある。
+- **使えないこと:** 「正しさゲートが合成候補の誤りを捕まえた」例として 6 件を使うこと。literal なしの stock でも同じ形の G2 が出るので、6 件を合成が持ち込んだ誤りとは言えない。候補での literal の寄与の有無は決まっていない。
 - **言えること (非 certifying、主張に使うかは未決):**
-  - ゲートは候補と stock を同じ基準で検査し、同じ実装の G2 を候補にも stock にも同じ程度の率で検出した。
+  - ゲートは候補と stock を同じ基準で検査し、同じ形の G2 を両方で検出した (候補 6/119、stock 3/109。率の差は検出されないが同等性も示していない)。
   - 1 slot の certified (性能構成 5 反復) は、この cell では安全の強い証拠にならない。
-- **影響 (未決の事項):** MOCC の read-heavy では、比較の基準である stock 自体が性能構成の検査に約 3〜5% の反復で落ちる。t2849 の read-heavy の stock 比・終点選択 (`_disqualified`)・certified な終点 (evolution 13 µs、llm 80 µs) は、いずれもこの性質を持つ実装の上で得られた。
+- **影響 (未決の事項):** MOCC の read-heavy では、比較の基準である stock 自体が性能構成の検査に落ちる反復がある (観測 本 wave 3/74 = 4.1%、t2849 を含め 3/109 = 2.8%、95% 区間 0.6〜7.8%。母率は精度よく決まっていない)。t2849 の read-heavy の stock 比・終点選択 (`_disqualified`)・certified な終点 (evolution 13 µs、llm 80 µs) は、いずれもこの性質を持つ実装の上で得られた。
 - 扱いの択一 (起票して裁定を待つ):
   - (a) MOCC の read-heavy を比較から外す。
   - (b) 「基準プロトコル自体が非直列化可能な cell」として注記して残す。
@@ -135,3 +136,4 @@ default_effect: no-state-change
   - 段 A の結論を「記録された trace の中の整合」に限定した。
 - 段 5: Codex author 1 本が probe 1 file (465 行) を unit 木に書いた。親は内容を読んで監査し、selftest 6 項目 (正例: write skew の 2 辺成立・template + literal の合格。負例: 直列の辺不成立・書き手不明・transaction.cc の hunk の不合格・hole 外 1 行変更の不合格) を実走した。
 - 変異 matrix: repo の実装面の差分が 0 なので免除 (DW-S04)。probe の機構は selftest の正例・負例で確かめた。
+- 段 6: read-only レビュー 1 本 (事実の再抽出)。件数・witness・統計値・Elapse・該当コードの行 (1 件を除く) は一次資料と一致した。所見 5 件 (patch 照合からの「意味の変更」の排除が広すぎた、非有意な率比較から候補の原因を断定していた、publish の行番号、(iii) の判定語、率の書き方) をすべて real とし、本文を修正した。
