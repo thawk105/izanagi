@@ -19,7 +19,7 @@ wait側`--receipt-file`はworker launcher receiptと別pathにする。
 
 prompt・log・patch・親brief・前段の子成果物はwave専用dirへ置き、job tmp直下や過去waveと共有しない。
 確保不能なら停止。全文複製せず絶対パスで読ませ、promptに「読めなければ即停止」と書く。context欠落の出力は採用しない。
-必読資料と既裁定は逐語を job dir へ出す。repo 内 path は worktree の遅れで fail-closed。**prompt の repo path は投入先 worktree のもの**にする（親側だと子は書けず空成功、F819）。
+必読資料と既裁定は逐語をjob dirへ出す。repo内pathはworktreeの遅れでfail-closed。**promptのrepo pathは投入先worktreeのもの**にする（親側だと子は書けず空成功、F819）。
 出力・読取ログはNFC。U+0300〜U+036F禁止。非NFC資料はASCII escape表示、原文保持。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
@@ -41,7 +41,7 @@ heredoc と command substitution を併用してはならない。
 
 ## DW-O05 — read-only codex
 
-書込可能 tmp がないため静的検査でよいと明記する。
+書込可能tmpがないため静的検査でよいと明記する。
 テスト実測は親が行い、子の非実走を緑と記録しない。予算が尽きそうなら途中結論を出力形式どおり
 書いて終われ、も入れる。
 
@@ -60,7 +60,7 @@ rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に成果物・変更 source の path で `git grep -n` し pin する台帳・test・trust root を全列挙。
+着手前に成果物・変更 source の path・module/file 名で `git grep -n` し pin する台帳・test・trust root を全列挙。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
 review ledger、全 field から同一性 hash を導く dataclass・schema を含む。path 検索は path key の
 pin しか出さない。role 名や xdist group 名など key 側でも検索し、hit 0 件を pin なしとしない（F30）。

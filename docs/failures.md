@@ -13011,6 +13011,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   この波及が載らなかった。恒久対応は F370 の 2026-09-16 再発が定めた「hit した test の中身で pin の形を読む」を、
   **実 ROOT を clone / 走査する fixture の有無**まで読む方向へ適用する (一次資料
   `output/insights/2026-09-18/t2724-freeze-g1-chain-land/README.md` §3)。
+- **supersede: 2026-09-27** — 2026-09-16 再発節の追加検索形は `DW-O09` へ収容済み ([T-2726] で「path・module/file 名で `git grep -n`」、変更前 sha256 の逆引きと hit した test の中身読みは T-548 の段 8)。
 ### F371. 終了主体を記録しない計装が、「送る前に送ったことにする」形で自分の目的を偽った [恒真ゲート]
 
 - 事象: F285 は `codex_exit_code=-9` が外部 SIGKILL と識別不能であることを
@@ -27906,6 +27907,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 段 5 の投入直前 (midflight gate の直後) に、段 1 と同じ検索で consumer 列挙を採り直し、
   差があれば裁定へ追補する。取り込み (`--ff-only`) と列挙の再走を 1 手順にする。
 - 再発検知: 実装子が「裁定の一覧に無い読み手を見つけた」と報告して止まったとき、まず main の進行量を疑う。
+- **supersede: 2026-09-27** — 恒久対応は `DW-S05-A` へ収容済み ([T-2727]): midflight gate の直後に段 1 の consumer 検索を local main で再走し、差を裁定へ送る。
 
 ### F1015. 所有の素集合分割を file 名の重なりだけで判断し、共有 fixture 経由の結合を見落とした [手順漏れ]
 
