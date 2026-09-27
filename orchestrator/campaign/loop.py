@@ -552,11 +552,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  holdout_observation_admission: Optional[
                      HoldoutObservationAdmission
                  ] = None,
+                 held_campaign_lock: Optional[HeldCampaignLock] = None,
                  verify_fanout_hosts: tuple[str, ...] = (),
                  result_evidence_context: Optional[
                      reflux_result_evidence.ResultEvidenceIssuanceContext
                  ] = None,
-                 held_campaign_lock: Optional[HeldCampaignLock] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた

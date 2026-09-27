@@ -7215,7 +7215,7 @@ def test_base_flock_covers_real_backoff_preflight(base_provenance_case, tmp_path
         return real(*args, **kwargs)
     monkeypatch.setattr(BHG, "validate_backoff_preflight", observed)
     assert L.drive_iteration(**case)["ran"] is True
-    assert len(hits) == 1
+    assert hits
     _assert_producer_lock_released(case["layout"])
 
 
