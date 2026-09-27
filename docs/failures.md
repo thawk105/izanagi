@@ -5187,6 +5187,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-18** (同日 3 回目、near miss、実害なし) — [T-2724] 整合 wave の親が `cd <Codex author worktree> && python3 tools/dev_wave_codex.py … --dry-run` (読み取りだけ) を打ち、harness の追跡 cwd が author worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰。以後の dry-run は `cd` を前置せず絶対 path で打った。書き込みは発生していない。
 
 - **再発: 2026-09-20** (near miss、実害なし) — 凍結 v2 g1 の launch validator 修復 wave の親が、段 5 実装子の進捗確認で `cd /work/1/SFC/tanab/izanagi/.codex/worktrees/t2810-unit-impl 2>/dev/null && echo …` (読み取りだけ) を Bash に含め、harness の追跡 cwd が author の子 worktree へ移った。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file を見るときは絶対 path で `ls` / `cat` し、`cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本台帳の 2026-09-18 3 件と同じ手順で復帰)。
+
+- **再発: 2026-09-27** (near miss、実害なし) — [T-2850] 試走 v2 後段 wave の親が、repo 外の glue の差分を読むために Bash で `cd <Codex author の子 worktree の scratch> && diff …` (読み取りだけ) を実行し、harness の追跡 cwd がその子 worktree へ移って以後の command が拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file は絶対 path で読み `cd` を前置しない。どうしても `cd` が要る操作は job dir の `.sh` に閉じ込める (本 wave の以後の写し出し・pytest はそうした)。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -19488,6 +19490,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21** — [T-2825] の A/B 測定走 03-B (固定 2 tree の直接投入、受入形) で `test_t810_coordinator.py` の prepare_group 系 3 node が `cannot read worktree registration: file is absent` (`.git/worktrees/diag-login-check-wall/gitdir`、別 session が走行中に撤去) で赤。本 wave の差分 (台帳 1 file) から到達しないこと (同 test file は台帳を参照しない) と単独再走 3 passed (request 14912.nqsv) で infra に分類し、事前登録どおり走だけを無効化して対を同順序で取り直した。測定系列の赤は親の本文分類が要るので、系列は 1 走分 (約 26 分) と分類の手間を失った。
 
 - **再発: 2026-09-21 ([T-2844] wave の受入 attempt 2)** — `test_t810_coordinator.py` の prepare_group 系 2 node (`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir` / `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (同時刻に別 wave が land 後の撤去を行っていた)。本 wave の worktree 登録 3 つは健在で、差分 (mocc driver の候補 mode・候補 test・patch・JSON・docs) から到達しない。同じ tip の単独再走 (15978.nqsv) は 2 passed。恒久対応は未実施のまま (受理集合を変えるため裁定を要する、既存記述どおり)。
+
+- **再発: 2026-09-27** ([T-2850] 試走 v2 後段 wave の受入 final2 attempt 1、session root `.izanagi-acceptance-shards/664541b207b8da004472b54e961286e7`) — `test_t810_coordinator.py` の prepare_group 系 3 node (`test_prepare_group_accepts_external_root_with_anchor_union`・`..._rejects_self_consistent_foreign_git_identity_before_any_mkdir`・`..._rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (受入中の 15:4x〜15:5x に他 wave 2 本が land していた)。本 wave の差分は docs と insight だけで同 test から到達しない。同じ tip `6a2ae3d73` の単独再走 (31432.nqsv) は 45 passed。非帰属として受入を再走した。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
