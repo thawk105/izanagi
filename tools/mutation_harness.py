@@ -42,6 +42,10 @@ ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
 ORPHAN_HOLD_DIR_NAME = "orphan-holds"
+HARNESS_EMAIL = "mutation-harness@invalid"
+COMMIT_SOURCE_POLICY = "fixed repo_head blob plus committed mutation HEAD/blob equality"
+COMMIT_RESTORE_POLICY = "soft reset detached mutation commit then restore fixed repo_head blob"
+COMMIT_SOURCE_STATE = "mutation-commit-left-in-place"
 _DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = (
     "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
 )
@@ -272,6 +276,7 @@ def _latch_dispatch_orphan_hold(
     mutation_id: str | None,
     result: dict[str, Any],
     reason: str,
+    source_state: str = "unchanged",
 ) -> tuple[Path, str | None]:
     path = _dispatch_orphan_hold_path(repo)
     request = result.get("request")
@@ -296,6 +301,10 @@ def _latch_dispatch_orphan_hold(
         },
         "recovery": {
             "order": (
+                "job 終端確認 → HEAD と bytes の確認 → git reset --soft H + "
+                "git restore --source=H --staged --worktree -- <touched> → "
+                "clean/HEAD 確認 → hold と sidecar 削除"
+                if source_state == COMMIT_SOURCE_STATE else
                 "qstat で対象の不在または終端を確認し、dirty source を復元し、"
                 "clean/HEAD を確認してから hold を手動削除する"
             ),
@@ -378,6 +387,7 @@ def _dispatch_orphan_stop(
                 mutation_id=mutation_id,
                 result=result,
                 reason=hold_reason,
+                source_state=source_state,
             )
         return OrphanHoldStop(
             phase=phase,
@@ -694,6 +704,85 @@ def _repo_head(repo: Path) -> str:
     if result.returncode != 0:
         raise HarnessError(f"repo HEAD を取得できない: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def _commit_author(repo: Path, commit: str) -> str:
+    result = _git(repo, "show", "-s", "--format=%ae", commit)
+    if result.returncode != 0:
+        raise HarnessError(f"commit author を確認できない: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _assert_detached_head(repo: Path) -> None:
+    result = _git(repo, "symbolic-ref", "-q", "HEAD")
+    if result.returncode == 0:
+        raise HarnessError("commit 注入には detached HEAD が必要")
+    if result.returncode != 1:
+        raise HarnessError(f"detached HEAD を確認できない: {result.stderr.strip()}")
+
+
+def _assert_blob_bytes(repo: Path, commit: str, sources: Mapping[str, str]) -> None:
+    for rel, value in sources.items():
+        blob = _git(repo, "show", f"{commit}:{rel}", text=False)
+        if blob.returncode != 0 or blob.stdout != value.encode("utf-8"):
+            raise HarnessError(f"commit blob が注入 bytes と不一致: {rel}")
+        try:
+            disk = (repo / rel).read_bytes()
+        except OSError as exc:
+            raise HarnessError(f"commit working tree を読めない: {rel}: {exc}") from exc
+        if disk != blob.stdout:
+            raise HarnessError(f"working tree bytes が commit blob と不一致: {rel}")
+
+
+def _commit_mutation(repo: Path, mutation_id: str, touched: Sequence[str]) -> None:
+    result = _git(
+        repo, "-c", "user.name=izanagi-mutation-harness",
+        "-c", f"user.email={HARNESS_EMAIL}", "-c", "commit.gpgsign=false",
+        "commit", "--quiet", "--only", "-m", f"mutation-harness: {mutation_id}",
+        "--", *touched,
+    )
+    if result.returncode != 0:
+        raise HarnessError(f"変異 commit に失敗: {result.stderr.strip()}")
+
+
+def _assert_mutation_commit(
+    repo: Path, head: str, commit: str, mutated: Mapping[str, str]
+) -> None:
+    parents = _git(repo, "rev-list", "--parents", "-n", "1", commit)
+    if parents.returncode != 0 or parents.stdout.split() != [commit, head]:
+        raise HarnessError("変異 commit の親が固定 HEAD と不一致")
+    changed = _git(repo, "diff", "--name-only", head, commit, "--")
+    if changed.returncode != 0 or set(changed.stdout.splitlines()) != set(mutated):
+        raise HarnessError("変異 commit の changed paths が touched と不一致")
+    _assert_blob_bytes(repo, commit, mutated)
+    _assert_clean_tracked(repo)
+    _assert_detached_head(repo)
+    _assert_head(repo, commit)
+
+
+def _restore_mutation_commit(
+    repo: Path, head: str, originals: Mapping[str, str], touched: Sequence[str]
+) -> None:
+    with _defer_cleanup_signals():
+        _assert_detached_head(repo)
+        current = _repo_head(repo)
+        if current != head:
+            parents = _git(repo, "rev-list", "--parents", "-n", "1", current)
+            if (parents.returncode != 0 or parents.stdout.split() != [current, head]
+                    or _commit_author(repo, current) != HARNESS_EMAIL):
+                raise HarnessError(
+                    "HEAD が期待する変異 commit でない。上書きせず手動復旧が必要"
+                )
+            reset = _git(repo, "reset", "--soft", head)
+            if reset.returncode != 0:
+                raise HarnessError(f"変異 commit の soft reset に失敗: {reset.stderr.strip()}")
+        restore = _git(repo, "restore", f"--source={head}", "--staged", "--worktree", "--", *touched)
+        if restore.returncode != 0:
+            raise HarnessError(f"変異 file の restore に失敗: {restore.stderr.strip()}")
+        _verify_originals(repo, dict(originals))
+        _assert_blob_bytes(repo, head, {rel: originals[rel] for rel in touched})
+        _assert_clean_tracked(repo)
+        _assert_head(repo, head)
 
 
 def _assert_clean_tracked(repo: Path) -> None:
@@ -2241,6 +2330,7 @@ def _apply_mutation(
     tool_sha256: str,
     collection_sha256: str,
     attempt_recorder: AttemptRecorder | None = None,
+    inject: str = "file-swap",
 ) -> dict[str, Any]:
     _assert_head(repo, head)
     _verify_originals(repo, originals)
@@ -2267,6 +2357,8 @@ def _apply_mutation(
     origin_error: BaseException | None = None
     injection_complete = False
     result: dict[str, Any] | None = None
+    mutation_head: str | None = None
+    source_state = COMMIT_SOURCE_STATE if inject == "commit" else "mutation-left-in-place"
     try:
         for rel in touched:
             target = repo / rel
@@ -2279,12 +2371,16 @@ def _apply_mutation(
         _purge_pycache(repo, touched)
         _assert_only_expected_dirt(repo, head, touched)
         injection_complete = True
+        if inject == "commit":
+            _commit_mutation(repo, mutation.id, touched)
+            mutation_head = _repo_head(repo)
+            _assert_mutation_commit(repo, head, mutation_head, mutated)
         pending_stop = _dispatch_orphan_stop(
             repo,
             runner_mode=runner_mode,
             phase="mutation",
             mutation_id=mutation.id,
-            source_state="mutation-left-in-place",
+            source_state=source_state,
             dirty_paths=touched,
         )
         if pending_stop is not None:
@@ -2301,12 +2397,17 @@ def _apply_mutation(
             attempt_phase="mutation" if attempt_recorder is not None else None,
             mutation_id=mutation.id if attempt_recorder is not None else None,
         )
+        if inject == "commit":
+            assert mutation_head is not None
+            _assert_detached_head(repo)
+            _assert_head(repo, mutation_head)
+            _assert_blob_bytes(repo, mutation_head, mutated)
         pending_stop = _dispatch_orphan_stop(
             repo,
             runner_mode=runner_mode,
             phase="mutation",
             mutation_id=mutation.id,
-            source_state="mutation-left-in-place",
+            source_state=source_state,
             dirty_paths=touched,
             result=result,
         )
@@ -2366,9 +2467,17 @@ def _apply_mutation(
         if preserve:
             verification_error: BaseException | None = None
             try:
-                _assert_only_expected_dirt(repo, head, touched)
-                _assert_head(repo, head)
-                if injection_complete:
+                if inject == "commit":
+                    if mutation_head is None:
+                        raise HarnessError("orphan hold 時に変異 commit が未確定")
+                    _assert_detached_head(repo)
+                    _assert_head(repo, mutation_head)
+                    _assert_blob_bytes(repo, mutation_head, mutated)
+                    _assert_clean_tracked(repo)
+                else:
+                    _assert_only_expected_dirt(repo, head, touched)
+                    _assert_head(repo, head)
+                if injection_complete and inject == "file-swap":
                     for rel in touched:
                         if (repo / rel).read_text(encoding="utf-8") != mutated[rel]:
                             raise HarnessError(
@@ -2382,7 +2491,7 @@ def _apply_mutation(
                     phase="mutation",
                     mutation_id=mutation.id,
                     hold_path=_dispatch_orphan_hold_path(repo),
-                    source_state="mutation-left-in-place",
+                    source_state=source_state,
                     dirty_paths=touched,
                     active_record=result,
                 )
@@ -2399,8 +2508,11 @@ def _apply_mutation(
             elif not had_pending_stop:
                 raise pending_stop
         else:
-            _restore_targets(repo, {rel: originals[rel] for rel in touched})
-            _assert_head(repo, head)
+            if inject == "commit":
+                _restore_mutation_commit(repo, head, originals, touched)
+            else:
+                _restore_targets(repo, {rel: originals[rel] for rel in touched})
+                _assert_head(repo, head)
 
 
 def _summary(spec: MutationSpec, records: Sequence[dict[str, Any]]) -> dict[str, int]:
@@ -2444,6 +2556,7 @@ def _new_ledger(
     command: Sequence[str],
     registration: dict[str, Any],
     collection: dict[str, Any],
+    inject: str = "file-swap",
 ) -> dict[str, Any]:
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     records: list[dict[str, Any]] = []
@@ -2462,8 +2575,10 @@ def _new_ledger(
             "test_command": list(command),
             "timeout_seconds": spec.timeout_seconds,
             "hang_timeout_seconds": spec.hang_timeout_seconds,
-            "source_policy": "fixed repo_head blob plus startup/read-back equality",
-            "restore_policy": "write fixed repo_head text then exact read_text equality",
+            "source_policy": (COMMIT_SOURCE_POLICY if inject == "commit" else
+                              "fixed repo_head blob plus startup/read-back equality"),
+            "restore_policy": (COMMIT_RESTORE_POLICY if inject == "commit" else
+                               "write fixed repo_head text then exact read_text equality"),
             "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
             "registration_preflight": registration,
             "registration_sha256": _json_sha256(registration),
@@ -2698,6 +2813,7 @@ def _load_resume_ledger(
     tool_identity: dict[str, Any],
     registration: dict[str, Any],
     runner_mode: str,
+    inject: str = "file-swap",
 ) -> dict[str, Any]:
     try:
         ledger = json.loads(path.read_text(encoding="utf-8"))
@@ -2762,8 +2878,10 @@ def _load_resume_ledger(
         "test_command": runner_identity["command"],
         "timeout_seconds": spec.timeout_seconds,
         "hang_timeout_seconds": spec.hang_timeout_seconds,
-        "source_policy": "fixed repo_head blob plus startup/read-back equality",
-        "restore_policy": "write fixed repo_head text then exact read_text equality",
+        "source_policy": (COMMIT_SOURCE_POLICY if inject == "commit" else
+                          "fixed repo_head blob plus startup/read-back equality"),
+        "restore_policy": (COMMIT_RESTORE_POLICY if inject == "commit" else
+                           "write fixed repo_head text then exact read_text equality"),
         "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
     }
     for key, expected_value in procedure_expected.items():
@@ -2892,6 +3010,7 @@ def _orphan_stop_path(ledger_path: Path) -> Path:
 
 def _orphan_stop_gate_message(path: Path) -> str:
     hold_error: str | None = None
+    commit_hold = False
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
@@ -2900,19 +3019,32 @@ def _orphan_stop_gate_message(path: Path) -> str:
         reason = document.get("reason")
         if isinstance(reason, dict) and reason.get("hold_error") is not None:
             hold_error = str(reason["hold_error"])
+        commit_hold = isinstance(reason, dict) and reason.get("source_state") == COMMIT_SOURCE_STATE
     hold_error_detail = (
         f"、reason.hold_error={hold_error}" if hold_error is not None else ""
     )
     return (
         "orphan-stop sidecar が存在または判定不能のため停止: "
         f"sidecar path={path}{hold_error_detail}。"
-        "復旧順序: 対象の不在または終端を確認 → dirty path の復元 → "
-        "clean/HEAD 確認 → hold と sidecar の手動削除"
+        "復旧順序: " + (
+            "job 終端確認 → HEAD と bytes の確認 → git reset --soft H + "
+            "git restore --source=H --staged --worktree -- <touched> → "
+            "clean/HEAD 確認 → hold と sidecar 削除 (H は sidecar の repo_head)"
+            if commit_hold else
+            "対象の不在または終端を確認 → dirty path の復元 → "
+            "clean/HEAD 確認 → hold と sidecar の手動削除"
+        )
     )
 
 
 def _orphan_recovery(stop: OrphanHoldStop) -> str:
     dirty = " ".join(stop.dirty_paths) if stop.dirty_paths else "<なし>"
+    if stop.source_state == COMMIT_SOURCE_STATE:
+        return (
+            "job 終端確認 → HEAD と bytes の確認 → git reset --soft H + "
+            f"git restore --source=H --staged --worktree -- {dirty} → "
+            "clean/HEAD 確認 → hold と sidecar 削除。H は sidecar の repo_head。"
+        )
     if not stop.hold_latched:
         return (
             "job が投入された可能性を scheduler 上で確認し、"
@@ -3057,6 +3189,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--attempt-out", type=Path)
     parser.add_argument("--wrapper-attempt", type=int)
     parser.add_argument("--runner-mode", required=True, choices=("local", "dispatch"))
+    parser.add_argument("--inject", choices=("file-swap", "commit"), default="file-swap")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
         "--detached",
@@ -3161,6 +3294,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     head = ""
     try:
         head = _repo_head(repo)
+        if _commit_author(repo, head) == HARNESS_EMAIL:
+            raise HarnessError("HEAD が mutation harness の残留 commit のため停止")
+        if args.inject == "commit":
+            _assert_detached_head(repo)
         originals = _read_head_sources(repo, head, spec)
         _assert_clean_tracked(repo)
         registration = _validate_registrations(repo, spec, originals)
@@ -3198,6 +3335,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 tool_identity=tool_identity,
                 registration=registration,
                 runner_mode=args.runner_mode,
+                inject=args.inject,
             )
             collection = ledger["procedure"]["collection"]
         else:
@@ -3256,6 +3394,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command=command,
                 registration=registration,
                 collection=collection,
+                inject=args.inject,
             )
         assert collection is not None
         registration_sha256 = _json_sha256(registration)
@@ -3319,6 +3458,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     tool_sha256=tool_sha256,
                     collection_sha256=collection_sha256,
                     attempt_recorder=attempt_recorder,
+                    inject=args.inject,
                 )
                 _validate_mutation_record(
                     record,

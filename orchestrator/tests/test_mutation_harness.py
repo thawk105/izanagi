@@ -3337,3 +3337,281 @@ def test_t2484_inband_rc16_preserves_receipt_hold_contract(repo, job_may_remain)
     else:
         assert stop is None
         assert not hold.exists()
+
+
+def _commit_case(repo: Path) -> tuple[str, dict[str, str], MH.MutationSpec, MH.Mutation, dict[str, object]]:
+    _git(repo, "checkout", "--detach", "-q")
+    spec_path, _, _, _ = _paths(repo)
+    _single_spec(spec_path)
+    spec, _ = MH._load_spec(spec_path)
+    head = MH._repo_head(repo)
+    originals = MH._read_head_sources(repo, head, spec)
+    mutation = spec.mutations[0]
+    registration = MH._validate_registrations(repo, spec, originals)[mutation.id]
+    return head, originals, spec, mutation, registration
+
+
+def _apply_case(
+    repo: Path, case: tuple, *, inject: str = "commit", runner_mode: str = "local"
+) -> dict[str, object]:
+    head, originals, spec, mutation, registration = case
+    return MH._apply_mutation(
+        repo, head, originals, mutation, spec,
+        [sys.executable, "-m", "pytest", "tests/test_gate.py", "-rf"],
+        runner_mode, registration, spec_sha256="spec", runner_sha256="runner",
+        tool_sha256="tool", collection_sha256="collection", inject=inject,
+    )
+
+
+def _fake_result(*, rc: int = 0, output: str = "", timed_out: bool = False) -> dict[str, object]:
+    return {
+        "rc": rc, "timed_out": timed_out, "job_stdout": output,
+        "duration_s": 0.01, "artifact_error": None,
+    }
+
+
+def _assert_restored_commit(repo: Path, head: str, originals: dict[str, str]) -> None:
+    assert MH._repo_head(repo) == head
+    assert subprocess.run(
+        ["git", "-C", str(repo), "symbolic-ref", "-q", "HEAD"],
+        capture_output=True,
+    ).returncode == 1
+    assert (repo / "target.py").read_bytes() == _git(repo, "show", f"{head}:target.py").encode()
+    assert (repo / "target.py").read_text(encoding="utf-8") == originals["target.py"]
+    MH._assert_clean_tracked(repo)
+
+
+def test_commit_injection_exposes_head_blob_and_value_layer(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _commit_case(repo)
+    head, originals, *_ = case
+    equivalent = MH.dataclasses.replace(
+        case[3],
+        replacements=(MH.Replacement("target.py", 'TOKEN = "x"', 'TOKEN = "x"  # equivalent'),),
+    )
+    equivalent_spec = MH.dataclasses.replace(case[2], mutations=(equivalent,))
+    equivalent_registration = MH._validate_registrations(repo, equivalent_spec, originals)[equivalent.id]
+    equivalent_case = (head, originals, equivalent_spec, equivalent, equivalent_registration)
+    seen: list[str] = []
+
+    def runner(root: Path, *_args: object, **_kwargs: object) -> dict[str, object]:
+        head_blob = _git(root, "show", "HEAD:target.py").encode()
+        disk = (root / "target.py").read_bytes()
+        value = disk.splitlines()[0]
+        seen.append(value.decode())
+        if disk != head_blob:
+            return _fake_result(rc=1, output="FAILED tests/test_gate.py::test_gate[one]\n")
+        if value == b"VALUE = 1":
+            return _fake_result(rc=1, output="FAILED tests/test_gate.py::test_gate[one]\n")
+        return _fake_result()
+
+    monkeypatch.setattr(MH, "_run_tests", runner)
+    assert _apply_case(repo, equivalent_case, inject="file-swap")["status"] == "KILLED"
+    assert _apply_case(repo, equivalent_case)["status"] == "SURVIVED"
+    assert _apply_case(repo, case)["status"] == "KILLED"
+    assert seen == ["VALUE = 0", "VALUE = 0", "VALUE = 1"]
+    _assert_restored_commit(repo, head, originals)
+
+
+@pytest.mark.parametrize("plan_only", [True, False])
+def test_commit_attached_head_rejected_before_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, plan_only: bool,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    branch = _git(repo, "symbolic-ref", "HEAD").strip()
+    before = _git(repo, "rev-parse", branch).strip()
+    monkeypatch.setattr(MH, "_run_tests", lambda *_a, **_k: pytest.fail("runner reached"))
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--"):argv.index("--")] = ["--inject", "commit"] + (["--plan-only"] if plan_only else [])
+    with pytest.raises(MH.HarnessError, match="detached HEAD"):
+        MH.main(argv)
+    assert _git(repo, "rev-parse", branch).strip() == before
+
+
+@pytest.mark.parametrize("defect", ["extra-path", "wrong-parent", "wrong-blob"])
+def test_commit_post_commit_boundary_rejects_single_defect(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, defect: str,
+) -> None:
+    case = _commit_case(repo)
+    head, originals, *_ = case
+    real_commit = MH._commit_mutation
+
+    def broken_commit(root: Path, mutation_id: str, touched: tuple[str, ...]) -> None:
+        if defect == "extra-path":
+            (root / "tracked.txt").write_text("extra\n", encoding="utf-8")
+            _git(
+                root, "-c", "user.name=izanagi-mutation-harness",
+                "-c", f"user.email={MH.HARNESS_EMAIL}",
+                "-c", "commit.gpgsign=false", "commit", "--quiet", "--only",
+                "-m", "extra path", "--", *touched, "tracked.txt",
+            )
+        elif defect == "wrong-parent":
+            _git(root, "commit", "--quiet", "--allow-empty", "-m", "intermediate")
+            real_commit(root, mutation_id, touched)
+        else:
+            (root / touched[0]).write_text("VALUE = 8\nTOKEN = \"x\"\nTOKEN_COPY = \"x\"\n", encoding="utf-8")
+            real_commit(root, mutation_id, touched)
+
+    monkeypatch.setattr(MH, "_commit_mutation", broken_commit)
+    monkeypatch.setattr(MH, "_run_tests", lambda *_a, **_k: pytest.fail("runner reached"))
+    expected = {
+        "extra-path": "changed paths", "wrong-parent": "親", "wrong-blob": "注入 bytes",
+    }[defect]
+    with pytest.raises(MH.HarnessError) as caught:
+        _apply_case(repo, case)
+    assert expected in str(caught.value) or expected in str(caught.value.__context__)
+    if defect == "wrong-blob":
+        _assert_restored_commit(repo, head, originals)
+
+
+@pytest.mark.parametrize("outcome", ["normal", "nonzero", "timeout"])
+def test_commit_restores_after_runner_outcomes(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, outcome: str,
+) -> None:
+    case = _commit_case(repo)
+    head, originals, *_ = case
+    branch = _git(repo, "for-each-ref", "--format=%(refname):%(objectname)", "refs/heads").strip()
+    result = {
+        "normal": _fake_result(),
+        "nonzero": _fake_result(rc=1, output="FAILED tests/test_gate.py::test_gate[one]\n"),
+        "timeout": _fake_result(rc=None, timed_out=True),
+    }[outcome]
+    monkeypatch.setattr(MH, "_run_tests", lambda *_a, **_k: result)
+    assert _apply_case(repo, case)["status"] == {
+        "normal": "SURVIVED", "nonzero": "KILLED", "timeout": "TIMEOUT",
+    }[outcome]
+    _assert_restored_commit(repo, head, originals)
+    assert _git(repo, "for-each-ref", "--format=%(refname):%(objectname)", "refs/heads").strip() == branch
+
+
+def test_commit_restore_refuses_attached_head_without_moving_branch(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _commit_case(repo)
+    branch = _git(repo, "for-each-ref", "--format=%(refname)", "refs/heads").strip()
+    branch_head = _git(repo, "rev-parse", branch).strip()
+
+    def attach(root: Path, *_a: object, **_k: object) -> dict[str, object]:
+        _git(root, "symbolic-ref", "HEAD", branch)
+        return _fake_result()
+
+    monkeypatch.setattr(MH, "_run_tests", attach)
+    with pytest.raises(MH.HarnessError, match="detached HEAD"):
+        _apply_case(repo, case)
+    assert _git(repo, "rev-parse", branch).strip() == branch_head
+
+
+def test_commit_signal_during_runner_restores(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _commit_case(repo)
+    head, originals, *_ = case
+
+    def interrupted(*_a: object, **_k: object) -> dict[str, object]:
+        os.kill(os.getpid(), signal.SIGTERM)
+        pytest.fail("signal handler did not abort")
+
+    monkeypatch.setattr(MH, "_run_tests", interrupted)
+    handlers = MH._install_signal_handlers()
+    try:
+        with pytest.raises(MH.SignalAbort):
+            _apply_case(repo, case)
+    finally:
+        MH._restore_signal_handlers(handlers)
+    _assert_restored_commit(repo, head, originals)
+
+
+def _inject_argv(args: list[str], inject: str, *, plan_only: bool = False) -> list[str]:
+    result = list(args)
+    result[result.index("--"):result.index("--")] = ["--inject", inject] + (
+        ["--plan-only"] if plan_only else []
+    )
+    return result
+
+
+def test_commit_orphan_hold_preserves_m_then_manual_resume(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _git(repo, "checkout", "--detach", "-q")
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    (repo / ".git" / "info" / "exclude").write_text("/output/\n", encoding="utf-8")
+    head = MH._repo_head(repo)
+    branch_before = _git(repo, "for-each-ref", "--format=%(refname):%(objectname)", "refs/heads")
+    real_run = MH._run_tests
+    observed_m: list[str] = []
+
+    def hold_runner(root: Path, command: list[str], **kwargs: object) -> dict[str, object]:
+        if (root / "target.py").read_text(encoding="utf-8").startswith("VALUE = 1\n"):
+            mutation_head = MH._repo_head(root)
+            observed_m.append(mutation_head)
+            assert (root / "target.py").read_bytes() == _git(root, "show", "HEAD:target.py").encode()
+            hold, error = MH._latch_dispatch_orphan_hold(
+                root, phase="mutation", mutation_id="M1", result={},
+                reason="fixture-orphan", source_state=MH.COMMIT_SOURCE_STATE,
+            )
+            assert error is None and hold.exists()
+            return _fake_result()
+        return real_run(root, command, **kwargs)
+
+    monkeypatch.setattr(MH, "_run_tests", hold_runner)
+    argv = _inject_argv(_argv(repo, spec, out, calls, mode), "commit")
+    assert MH.main(argv) == 2
+    assert len(observed_m) == 1
+    assert MH._repo_head(repo) == observed_m[0]
+    MH._assert_clean_tracked(repo)
+    assert _git(repo, "for-each-ref", "--format=%(refname):%(objectname)", "refs/heads") == branch_before
+    sidecar = MH._orphan_stop_path(out)
+    reason = json.loads(sidecar.read_text(encoding="utf-8"))["reason"]
+    assert reason["source_state"] == MH.COMMIT_SOURCE_STATE
+    assert "git reset --soft H" in reason["recovery"]
+    for resume in (False, True):
+        blocked = _inject_argv(_argv(repo, spec, out, calls, mode, resume=resume), "commit")
+        with pytest.raises(MH.HarnessError):
+            MH.main(blocked)
+    _git(repo, "reset", "--soft", head)
+    _git(repo, "restore", f"--source={head}", "--staged", "--worktree", "--", "target.py")
+    _assert_restored_commit(repo, head, {"target.py": _git(repo, "show", f"{head}:target.py")})
+    MH._dispatch_orphan_hold_path(repo).unlink()
+    sidecar.unlink()
+    monkeypatch.setattr(MH, "_run_tests", real_run)
+    assert MH.main(_inject_argv(_argv(repo, spec, out, calls, mode, resume=True), "commit")) == 0
+    _assert_restored_commit(repo, head, {"target.py": _git(repo, "show", f"{head}:target.py")})
+
+
+@pytest.mark.parametrize("first,second", [("file-swap", "commit"), ("commit", "file-swap")])
+def test_resume_rejects_injection_policy_mismatch(
+    repo: Path, first: str, second: str,
+) -> None:
+    _git(repo, "checkout", "--detach", "-q")
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    assert MH.main(_inject_argv(_argv(repo, spec, out, calls, mode), first)) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["schema"] == MH.LEDGER_SCHEMA
+    before = _calls(calls)
+    with pytest.raises(MH.HarnessError, match="source_policy"):
+        MH.main(_inject_argv(_argv(repo, spec, out, calls, mode, resume=True), second))
+    assert _calls(calls) == before
+
+
+@pytest.mark.parametrize("inject", ["file-swap", "commit"])
+@pytest.mark.parametrize("resume", [False, True])
+@pytest.mark.parametrize("plan_only", [False, True])
+def test_residual_harness_commit_rejected_before_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, inject: str, resume: bool,
+    plan_only: bool,
+) -> None:
+    _git(repo, "checkout", "--detach", "-q")
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    _git(
+        repo, "-c", "user.name=izanagi-mutation-harness",
+        "-c", f"user.email={MH.HARNESS_EMAIL}",
+        "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "residual",
+    )
+    monkeypatch.setattr(MH, "_run_tests", lambda *_a, **_k: pytest.fail("runner reached"))
+    with pytest.raises(MH.HarnessError, match="残留 commit"):
+        MH.main(_inject_argv(_argv(repo, spec, out, calls, mode, resume=resume), inject, plan_only=plan_only))
+    assert not calls.exists()
