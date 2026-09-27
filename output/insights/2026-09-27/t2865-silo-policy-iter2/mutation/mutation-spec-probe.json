@@ -1,0 +1,50 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 7200,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m1-seed-ignores-thid",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/silo-function-policy-variant.patch",
+     "old": "+  uint64_t x = thid + 0x9e3779b97f4a7c15ul;\n",
+     "new": "+  uint64_t x = 0ul + 0x9e3779b97f4a7c15ul;\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-reseed-every-begin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/silo-function-policy-variant.patch",
+     "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n",
+     "new": "+  ::izanagi_silo_skel::seed_random(thid_);\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-begin-does-not-seed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/silo-function-policy-variant.patch",
+     "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n",
+     "new": "+  (void)::izanagi_silo_skel::random_seeded;\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

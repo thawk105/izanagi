@@ -375,6 +375,8 @@
 - **再発: 2026-09-22 (near-miss、論文ストーリー 2026-09-22 版の wave)** — 版の置換案を書いた下書き役 (Claude の子) が、起点より前に着地した出来事を「2026-09-22 版で (Tier0 を) 実装」「2026-09-21 版で (D297 が) 拒否」のように版の出来事として書いた (11 か所)。版名 (文書の版) と出来事の日付が同じ日付文字列を持つので取り違えが起きる。親が置換案の new を版名の正規表現で走査して見つけ、「この版の起点までに」「前版の起点の後」へ直した (job dir `story/fix_r4_versionwords.py`)。同じ wave で親自身も brief の見出しに推定の時刻を書き、file の mtime で直した。恒久対応は既存のとおり (時点語の機械置換を先に当てる手順と、`grep -n "前版\|この版"` の全走)。今回は加えて、置換案の new に出る「<日付> 版で」を機械で洗った。
 
 - **再発: 2026-09-26 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-26 版の wave で発見)** — 2026-09-23 版 §1 は機序を言語化する仮説層 (v3) について「K2 2 巡目で初めて適用され 3 巡目でも同型に適用されたが、生まれた材料は 2 巡分の非 certifying の二次 view」と書いたが、K2 4 巡目の還流 (entry 1832、材料レポート v3 の `mechanism_hypotheses` 1 件) は同版の起点 `65fd1422f` に着地済みで、同版自身の §8 B-9 は「3 巡分」と書いていた (版内の不一致)。同版の親・段 6 の Codex レビュー・焦点再レビューはいずれも拾わなかった。2026-09-26 版の §1 担当の子が段 5 で見つけ、2026-09-26 版は訂正 1 件として冒頭・§10・`docs/paper-story/README.md` に記録した (凍結物の 2026-09-23 版は書き換えない)。版の再導出で同じ事実を複数の節が書くときは、件数・巡数を節ごとに一次資料 (entry) へ再照合し、節どうしの値を突き合わせる (2026-09-20 版の追記と同型)。
+
+- **再発: 2026-09-27 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-27 版の wave で発見)** — 2026-09-26 版 §6・§7 は認定較正 record の現物を「計 8 record」「現物は 8 record」と現在形で書いたが、MOCC の動作点を pin C で較正した 3 件 (`f72ad2c52`、2026-09-26 14:12 JST、D2248) は同版の起点 `6d198ca8a` の祖先で、起点の `output/env/pegasus/calibration/registered/` は 11 file だった (2026-09-23 版の起点 `65fd1422f` では 8 file で真)。前版から運んだ件数の文を、起点の現物の件数と照合せずに運んだのが原因。2026-09-27 版の §7 担当の子が起点の tree を数えて見つけ、同版の冒頭・§6・§7・§10 と README で訂正した。版の再導出では、運ぶ件数の文を起点の現物 (tree の file 数) で数え直す。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -23044,6 +23046,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `git diff <tip> <merge の第 2 parent> -- docs/` が空であることを確かめるのが最も安い照合である。
   第 2 parent が現 main と一致する場合、この diff が空でなければ混成である。
 
+
+- **再発: 2026-09-27 (near miss、受入前)** — [T-2869] wave で base digest と fold dry-run のために `git checkout main -- docs/` で台帳を借り、
+  `git checkout HEAD -- docs/` と main にだけ在る archive file の `rm` で戻したところ、その file が index に `A` のまま残った (`git status --short` で `AD` / `A`)。
+  2 回とも (借用時点の main が 1 fold ずつ進み、残った file は `worklog-phase3-0927-1882-1884.md` と `worklog-phase3-0927-1885.md`) commit 前の `git status` で気づき、
+  `git restore --staged` で外した。気づかなければ次の `git commit` が main の archive file を wave branch へ混ぜていた。根本原因は本項と同じく
+  `git checkout <ref> -- <path>` が index と作業ツリーの両方を書くことで、`docs/spool/worklog/README.md` の復元手順が作業ツリーの除去しか書いていなかった。
+  恒久対応: 同 README の借用手順へ、index から外す手順と `git status --short` が空であることの確認を足した。
 ### F802. 新設 E2E fixture が登録母集合 2122 行を実走し、単一 file が 21 分 55 秒を占めた [測定の歪み] [手順漏れ]
 
 - 事象: 軸 3 検索の実行器を移植した wave で、`orchestrator/tests/test_related_work_search.py` の
@@ -28038,6 +28047,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異 harness は固定 HEAD へ bytes を注入するため、この 2 file を変異させると「変異の内容と無関係に」lock を作る test が `contract-loader-drift` で落ちる。
   等価変異 (comment 1 行) の probe で該当 node を実測し (114 node: `test_p3_s4_loop.py` 81 / `test_campaign.py` 33)、変異走行ではこれを `--deselect` して帰属を保った。
   同 file 群を変異させる後続 wave は、同じ手順 (等価変異で drift 集合を実測 → 除外) を取るか、commit 済み状態で走らせる probe に切り替える必要がある。
+
+- **再発: 2026-09-27** — silo-function-policy 軸の段階 F (D2270) は Pegasus で pair job を 1 本だけ実走し、記録 (`output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md` §7) に「2 iteration 目以降は runbook §1(g) の手順がそのまま使える」と書いた。次の wave で同じ loop campaign の 2 本目の pair job (`31899.nqsv`) を投入すると、build 前に `ClaimError: campaign claim は既に 3235201 が所有している` で止まった。Pegasus 契約の campaign claim は identity ごとに一度きりで、同じ job 内の候補→stock は D2205 の認可 session で解いたが、job をまたぐ 2 本目は通らない (D2187 と同型の、one-shot claim と複数 process 設計の不整合)。反復手順を 2 本目まで実走で確かめないまま「使える」と記録した。恒久対応: runbook `docs/phase3-silo-policy-runbook.md` §3 に「Pegasus では 1 loop campaign あたり pair job 1 本まで、claim を手で退避して続けない」を書き、修復は [T-2871] (実 `_authorize_measurement`・実 `acquire_claim` を 2 process で通す結合検査を含める)。一次資料 `output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4、判断は D2274。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と

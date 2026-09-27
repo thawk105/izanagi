@@ -110,7 +110,9 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   main を取り込まずに取るなら `docs/worklog.md` だけでは足りない。carry 鎖が
   過去エントリを指すため `docs/archive/` も同時に借りないと `carry-reference` で
   invalid になる。`git checkout <main> -- docs/` で一式を借り、lookup 後に
-  `git checkout HEAD -- docs/` と、main にだけ在る path の除去で作業木を戻す。
+  `git checkout HEAD -- docs/` と、main にだけ在る path の除去で作業木を戻す。借用は index にも書くので、
+  main にだけ在る path は `git restore --staged <path>` で index から外してから消し、`git status --short` が空であることを確かめる
+  (作業木から消すだけでは stage に残り、次の commit に混ざる。F801)。
 - `見送り` は `docs/phase3.md` の見送り台帳に**実在する H3 名**を H4 として指定し、`理由:` を必ず書く。
 - item の継続行は 2 space インデントにする。
 - エントリ番号・日付・carry stub `- [T-NNN] (N)` の N は **fold が付ける**。fragment に書かない。

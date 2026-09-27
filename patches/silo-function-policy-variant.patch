@@ -23,7 +23,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 index 054a7e5f1..bc730f28c 100644
 --- a/cc/silo/transaction.cc
 +++ b/cc/silo/transaction.cc
-@@ -8,6 +8,88 @@
+@@ -8,6 +8,97 @@
  #include "include/scan_callback.hh"
  #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
  
@@ -77,6 +77,15 @@ index 054a7e5f1..bc730f28c 100644
 +thread_local ::izanagi_silo_policy::PolicyState state{};
 +thread_local ::izanagi_silo_api::AbortReason reason = ::izanagi_silo_api::AbortReason::unset;
 +thread_local uint64_t random_state = 88172645463325252ul;
++thread_local bool random_seeded = false;
++
++void seed_random(uint64_t thid) noexcept {
++  uint64_t x = thid + 0x9e3779b97f4a7c15ul;
++  x = (x ^ (x >> 30u)) * 0xbf58476d1ce4e5b9ul;
++  x = (x ^ (x >> 27u)) * 0x94d049bb133111ebul;
++  random_state = (x ^ (x >> 31u)) | 1ul;
++  random_seeded = true;
++}
 +
 +uint64_t next_random() noexcept {
 +  random_state ^= random_state << 13u;
@@ -112,7 +121,7 @@ index 054a7e5f1..bc730f28c 100644
  extern void displayDB();
  extern void siloLeaderWork(uint64_t& epoch_timer_start,
                             uint64_t& epoch_timer_stop);
-@@ -44,7 +126,12 @@ void TxExecutor::abort() {
+@@ -44,7 +135,12 @@ void TxExecutor::abort() {
    std::uint64_t start(rdtscp());
  #endif
  
@@ -125,17 +134,18 @@ index 054a7e5f1..bc730f28c 100644
  
  #if ADD_ANALYSIS
    result_->local_backoff_latency_ += rdtscp() - start;
-@@ -54,6 +141,9 @@ void TxExecutor::abort() {
+@@ -54,6 +150,10 @@ void TxExecutor::abort() {
  
  void TxExecutor::begin() {
    status_ = TransactionStatus::inflight;
 +#if SILO_POLICY_VARIANT
++  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);
 +  ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;
 +#endif
    max_wset_.obj_ = 0;
    max_rset_.obj_ = 0;
  }
-@@ -96,6 +186,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -96,6 +196,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
        if (it != node_map_.end()) {
          if (unlikely(it->second != insert_info.old_version)) {
            status_ = TransactionStatus::aborted;
@@ -145,7 +155,7 @@ index 054a7e5f1..bc730f28c 100644
            return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
          }
          // otherwise, bump the version
-@@ -155,9 +248,33 @@ void TxExecutor::lockWriteSet() {
+@@ -155,9 +258,33 @@ void TxExecutor::lockWriteSet() {
    [[maybe_unused]] retry
        : for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if (itr->op_ == OpType::INSERT) continue;
@@ -179,7 +189,7 @@ index 054a7e5f1..bc730f28c 100644
  #if NO_WAIT_LOCKING_IN_VALIDATION
          this->status_ = TransactionStatus::aborted;
          if (itr != write_set_.begin()) unlockWriteSet(itr);
-@@ -165,6 +282,7 @@ void TxExecutor::lockWriteSet() {
+@@ -165,6 +292,7 @@ void TxExecutor::lockWriteSet() {
  #elif NO_WAIT_OF_TICTOC
          if (itr != write_set_.begin()) unlockWriteSet(itr);
          goto retry;
@@ -187,7 +197,7 @@ index 054a7e5f1..bc730f28c 100644
  #endif
        } else {
          desired = expected;
-@@ -185,6 +303,9 @@ void TxExecutor::lockWriteSet() {
+@@ -185,6 +313,9 @@ void TxExecutor::lockWriteSet() {
      if (itr->op_ == OpType::UPDATE && itr->rcdptr_->tidword_.absent) {
        unlockWriteSet(itr);
        this->status_ = TransactionStatus::aborted;
@@ -197,7 +207,7 @@ index 054a7e5f1..bc730f28c 100644
        return;
      }
  
-@@ -456,6 +577,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -456,6 +587,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
        result_->local_vali_latency_ += rdtscp() - start;
  #endif
        this->status_ = TransactionStatus::aborted;
@@ -207,7 +217,7 @@ index 054a7e5f1..bc730f28c 100644
        unlockWriteSet();
        return false;
      }
-@@ -468,6 +592,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -468,6 +602,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
        result_->local_vali_latency_ += rdtscp() - start;
  #endif
        this->status_ = TransactionStatus::aborted;
@@ -217,7 +227,7 @@ index 054a7e5f1..bc730f28c 100644
        unlockWriteSet();
        return false;
      }
-@@ -479,6 +606,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+@@ -479,6 +616,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
      auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
      if (node->full_version_value() != it.second) {
        this->status_ = TransactionStatus::aborted;
@@ -227,7 +237,7 @@ index 054a7e5f1..bc730f28c 100644
        unlockWriteSet();
        return false;
      }
-@@ -706,6 +836,9 @@ void TxExecutor::writePhase() {
+@@ -706,6 +846,9 @@ void TxExecutor::writePhase() {
  bool TxExecutor::commit() {
    if (validationPhase()) {
      writePhase();
@@ -237,7 +247,7 @@ index 054a7e5f1..bc730f28c 100644
      return true;
    } else {
      return false;
-@@ -737,5 +870,8 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+@@ -737,5 +880,8 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
      tx_->node_map_.emplace_hint(it, (void*) n, version);
    } else if ((*it).second != version) {
      tx_->status_ = TransactionStatus::aborted;
