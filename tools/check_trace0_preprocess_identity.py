@@ -1116,7 +1116,15 @@ def check(
         )
     if not files and not header_paths:
         raise CheckError("比較対象が 0 件")
-    report = {
+    if header_paths:
+        assert header_cc is not None and third_party_cache is not None
+        assert dependency_prefix is not None and scratch_root is not None
+        header_rule = _h_check(
+            repo, old_oid, new_oid, header_paths, header_cc, cxx,
+            Path(third_party_cache), Path(dependency_prefix), Path(scratch_root),
+            configure_supply, genome_spaces,
+        )
+    return {
         "schema": SCHEMA,
         "guarantee": GUARANTEE,
         "result": "pass",
@@ -1133,16 +1141,8 @@ def check(
             "expected_context_count_per_file": expected_context_count,
         },
         "files": files,
+        **({"header_rule": header_rule} if header_paths else {}),
     }
-    if header_paths:
-        assert header_cc is not None and third_party_cache is not None
-        assert dependency_prefix is not None and scratch_root is not None
-        report["header_rule"] = _h_check(
-            repo, old_oid, new_oid, header_paths, header_cc, cxx,
-            Path(third_party_cache), Path(dependency_prefix), Path(scratch_root),
-            configure_supply, genome_spaces,
-        )
-    return report
 
 
 def _parser() -> argparse.ArgumentParser:
