@@ -31,7 +31,7 @@
 | `fig12_k2_manual_loop_dataflow.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_k2_loop_flow.py` | K2 手動 loop 3 巡 (稿 `results/2026-09-20-k2-manual-loop-three-rounds.md`、B-6 の材料) の**データフローの説明図** (fig2 系と同じ「説明図」、fig3b と同じ値なしの模式図)。役割 (planner-v4 / coder-v4-autonomous-k2 = role 定義が `tools: []` の構造遮断、critic = Bash を持つ legacy role)、親が射影する入力 key、評価経路 (Pegasus 計算ノード job → trace-enabled verify → trace-disabled bench → WAL)、実測の還流 2 回・診断の還流 1 回 (exact 6 field)、規律 6 の自己申告 marker を描く。**性能値を描かず、3 走を比較せず、知識・診断の因果効果を主張せず、B-6 の充足を判定しない。同 job stock 対照は未達 ([T-2795] 裁定待ち)。** 入力は稿から人が写した流れ JSON `tools/plotting/k2_loop_flow_2026-09-20.json` で、生成器は稿の見出し行の一意性と role frontmatter との一致だけを検査し判定・値を再計算しない。稿を `caption_source` として SHA-256 束縛する (稿は provenance の hash を持たない、F36)。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 | `fig13_b10_waiting_grid_forest.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_waiting_grid_forest.py` | B-10 待ち方 grid 正式走 (report phase、request `978195.nqsv`、事前登録 発効版 commit `77b33e37d`) の**結果図**。登録した `constant` 対 `symmetric-modulo` の 1 contrast についての 3 族 Holm 判定 (3 族とも `different`、方向は 3 族とも `symmetric-modulo` が高い側) と、36 cell の効果量・95% paired-block 区間 (df 2)・等価域 ±3.0% との関係 (内側 32 / 境界を跨ぐ 4 / 外側 0) を 1 行 × 3 panel の forest 図に描く。判定は report の provenance JSON から読み、生成器は 135 record から同じ式で再計算して一致を要求するだけで判定を作らない。**区間が帯の内側にあることは等価性の成立ではなく (等価性検定はしていない)、cell ごとの有意差は判定せず、静的右 tail の 2 cohort (fig8 / fig8b) と合成・比較しない。`official_certification` は `false` で、性能値を採用根拠にしない。機序は述べない。** 既存図の後継ではなく独立した新図。稿 `results/2026-09-20-b10-waiting-grid-formal.md` を `caption_source` として SHA-256 束縛 (稿 bytes は不変。稿の限定 11「論文図は無い」は起草時点の事実)。2 本目の論文と共用しない (D1637) |
 | `fig14_a1_balanced5_sized_attempt2.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` (`--attempt attempt-0002`) | A-1 balanced5 sized 本走 **attempt-0002** (job `13220` / `13221` / `13222`、D2172 項 2 が 1 attempt 限定で認可した独立の観測) の**記述図**。fig9 と同じ生成器・同じ形で、3 workload の 30 対の差と対差平均 ± 登録済み区間 h を床 ±B と並べ、各 panel 題に `variance_plan_breach` (write-heavy / read-heavy は true、balanced は false) と sd / planned sigma を描く。**非認証 lane** の descriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にしない。**attempt-0001 (fig9) とプールせず、差・比・区間の重なり・再現判定を描かない (D1993 項 6、D2194 項 6)**。breach の原因を帰属しない。A-1 の充足・formal 化・L-A1S-4 の解除は判定しない。fig9 の兄弟であって後継ではない (fig9 の bytes は不変)。2 本目の論文と共用しない (D1637) |
-| `fig15_mocc_witlight_four_arm.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_mocc_witlight_four_arm.py` | stock mocc の軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4、smoke は含めない) の**記述図**。arm 別の G2 signal 検出率 (on 0/60・0/60、off 1/60・1/60) と Clopper–Pearson 両側 95% 区間を forest で、走あたり commit 数の平均 (TRACE=1 の曝露量) と on/off 比を数値列で示す。値は稿 `results/2026-09-20-mocc-witlight-four-arm.md` §2 の逐語。**非 certifying の観測**であり、片側 Fisher p = 0.500 (未調整) の非有意を同等性・効果なしとして、commit 数を性能として、G2 signal を根因の同定として描かない。repo 外の 5 file (W1〜W4 `result.json`・`summary.json`) を SHA-256 で束縛する。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
+| `fig15_mocc_witlight_four_arm.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_mocc_witlight_four_arm.py` | stock mocc の軽量 witness 4 arm × 60 走 (本走 4 block W1〜W4、smoke は含めない) の**記述図**。arm 別の G2 signal 検出率 (on 0/60・0/60、off 1/60・1/60) と Clopper–Pearson 両側 95% 区間を forest で、走あたり commit 数の平均 (TRACE=1 の曝露量) と on/off 比を数値列で示す。値は稿 `results/2026-09-20-mocc-witlight-four-arm.md` §2 の逐語。**非 certifying の観測**であり、片側 Fisher p = 0.500 (未調整) の非有意を同等性・効果なしとして、commit 数を性能として、G2 signal を根因の同定として描かない。入力の 5 file (W1〜W4 `result.json`・`summary.json`) を SHA-256 で束縛し、既定では追跡下の逐語写しから読む。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -1990,10 +1990,13 @@ W3 の `e9-witlight-nowit-bo1` (round 2) にある (block 内の分母は 15)。
 
 ## 入力
 
-- 権威入力 (repo 外、稿 §5.1 の表): root `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W` の `summary.json` (SHA-256 `b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698`)、
+- 権威入力 (稿 §5.1 の表): 原保存先 (repo 外) root `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W` の `summary.json` (SHA-256 `b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698`)、
   `W1/result.json` (`ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50`)、`W2/result.json` (`473063aa741cc4c349931d987c902facbc5dcf6499b3692ea2cad3a27ac1e584`)、
   `W3/result.json` (`f68876600f1cd5b7300b030fb3cfa75509cc7a687858d6f12985051ce46e3642`)、`W4/result.json` (`197a2798de5ef53a7f6a32460f7ecfa5adbba8e853778b315d3b6e1839c36a6c`) の 5 file だけ。
-  生成器は 5 件の SHA-256 を定数 (`EXTERNAL_SHA256`) で持ち、**CLI から渡せない**。`--evidence-root` は読み出し場所で、既定は上の root。`smoke/`・`parent-accounting.json`・走ごとの dir は開かない。
+  生成器は 5 件の SHA-256 を定数 (`EXTERNAL_SHA256`) で持ち、**CLI から渡せない**。`smoke/`・`parent-accounting.json`・走ごとの dir は開かない。
+- 読み出し場所 (`--evidence-root`): 既定は `--repo-root` 配下の追跡下の逐語写し `output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/` (2026-09-27 から。それまでの既定は上の原保存先で、job dir の撤去で失われる型だった)。
+  写しは同じ 5 file を平坦な名前 (`summary.json`・`W1-result.json`〜`W4-result.json`) で持ち、SHA-256 は 5 件とも上の値と一致する。生成器は file ごとに、`--evidence-root` 配下に階層の名前 (`W1/result.json`) があればそれを、
+  無ければ写しの名前 (`W1-result.json`) を読み、どちらも上の SHA-256 で照合する。原保存先も `--evidence-root` で渡せば従来どおり読める。
 - 再計算と照合: 240 走が benchmark `rc = 0` かつ verifier (rc, status) が (0, `no-g2`) か (1, `g2`) であることを要求し (failure・indeterminate は拒否)、arm 別の N / m / k / decisive_m、
   位置の配分 (各 arm 各位置 15)、Clopper–Pearson 両側 95%、片側 Fisher (on が低い方向)、走あたり commit 数の平均と on/off 比を `runs[]` から計算する。`summary.json` が持つ量 (N / m / k / failure /
   indeterminate / decisive_m / k_over_m / cp95 / discriminator_counts / identification) とは fail-closed で照合する。**Fisher p と commit 数平均は `summary.json` に無い**ので照合先は稿 §2.3 / §2.6 だけで、
@@ -2002,28 +2005,27 @@ W3 の `e9-witlight-nowit-bo1` (round 2) にある (block 内の分母は 15)。
 - 拒否条件: 5 file の SHA-256 不一致、`summary.json.inputs` の余剰・重複・欠落・順序・path・digest の不一致、block・run・回転・bindings の不一致、failure / indeterminate / 未知 status、集計の不一致、
   caption_source (稿) の不在。いずれでも成果物を出さない。
 - **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として稿 `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md` の path と SHA-256 を記録する (稿は provenance の SHA-256 を持たない。稿と provenance が互いの hash を持つ循環を避けるため)。
-  repo 外の 5 file は `external_inputs` (root 相対 path・kind・SHA-256) と `source_inputs` (`summary.json` が記録する原保存先の絶対 path) に分けて記録する。
+  5 file は `external_inputs` (原保存先の root 相対 path・kind・SHA-256。写しから読んでも path は同じ論理名で記録する) と `source_inputs` (`summary.json` が記録する原保存先の絶対 path) に分けて記録する。
 
 ## 再現
 
 ```bash
 python3 tools/plotting/plot_mocc_witlight_four_arm.py \
-  --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W \
   docs/paper-story/figures/fig15_mocc_witlight_four_arm
 ```
 
+入力は既定の追跡下の逐語写しから読む (上の「入力」)。着地 provenance の `reproduction` は着地時 (2026-09-21) の argv で、`--evidence-root` に原保存先を明示している。
 図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。生成は login node で行う (計測機の外、FIGURE_CONVENTIONS §7)。
 
 ### 再現できるのは「値」であって「バイト列」ではない
 
 provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。着地したバイト列の同一性は provenance JSON が記録した
-`outputs[].sha256` と `test_landed_fig15_repo_closure_and_caption_when_present` が守る。**検査は 2 層で、射程が違う。** `validate_repo_closure` は repo 外を読まず、稿の現 SHA-256・出力の SHA-256・
-provenance に記録した arm 統計から作り直した caption / artist との一致を見る (provenance の自己整合であって、外部原本との一致の証明ではない)。外部原本との一致は `validate_external_sources`
-(5 file の SHA-256 と、原本から再導出した統計・書式・条件が provenance と一致すること) が見て、`test_landed_fig15_external_closure_when_root_present` は root が無い環境でだけ skip する。
-同じく root が無い環境でだけ skip する `test_real_evidence_matches_results_document_when_root_present` は、稿 §2.2 / §2.3 / §2.6 の表セルとの逐語一致に加えて、
-図中の曝露比注記 2 行 (`BACK_OFF=0: on/off exposure ratio 0.8636` / `BACK_OFF=1: ... 0.8450`) が可視 text に描かれていることも検査する。外部 root が見えない環境ではこの 2 つも未検証になる
-(2026-09-21 の焦点走では計算ノードから root が見え、skip されずに走った)。
-repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/` の W1〜W4 `result.json` と `summary.json`) は原本と SHA-256 が一致するが、生成器はそれを入力にしない。
+`outputs[].sha256` と `test_landed_fig15_repo_closure_and_caption_when_present` が守る。**検査は 2 層で、射程が違う。** `validate_repo_closure` は入力の 5 file を読まず、稿の現 SHA-256・出力の SHA-256・
+provenance に記録した arm 統計から作り直した caption / artist との一致を見る (provenance の自己整合であって、入力の 5 file との一致の証明ではない)。入力の 5 file との一致は `validate_external_sources`
+(5 file の SHA-256 と、5 file から再導出した統計・書式・条件が provenance と一致すること) が見て、`test_landed_fig15_external_closure_when_root_present` は追跡下の逐語写しを読んでこれを検査する。
+`test_real_evidence_matches_results_document_when_root_present` も追跡下の写しを読み、稿 §2.2 / §2.3 / §2.6 の表セルとの逐語一致に加えて、
+図中の曝露比注記 2 行 (`BACK_OFF=0: on/off exposure ratio 0.8636` / `BACK_OFF=1: ... 0.8450`) が可視 text に描かれていることも検査する。
+2 つの test は、写しを読むように変える前は原保存先の root が無い環境で skip していた。いまは root の有無に依らず走る (test 名は記録との対応のため変えていない)。
 生成器の `generator.sha256` は生成時点の記録であり、現行 source を縛る pin ではない (規律 7)。
 
 ## 作図規約への適合
@@ -2033,7 +2035,7 @@ repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verba
   **走あたり commit 数の平均は、稿 §2.2 / §2.6 の記録値を数値の列として示すだけで、区間を付けず推論に使わない** (曝露量の記述であって性能の推定ではない。本図での局所の適用判断で、段 3 相談の所見による)。
 - §3: on と off を同じ軸の隣り合う行に置き、区間の重なりから判定しない。
 - §5: 図中ラベルは `on / off`・`BACK_OFF`・数値列の見出しだけ。arm ID (`e9-witlight-wit` 等) との対応は caption で 1 回展開する。
-- §6: provenance に入力 (repo 外 5 file の path と SHA-256、原保存先、caption_source)・測定条件 (48 threads、10,000 records、Zipf 0.9、read ratio 50、rmw 0、max operations 10、3 s、TRACE=1、
+- §6: provenance に入力 (5 file の論理 path と SHA-256、原保存先、caption_source。読み出し場所は `reproduction` の `--evidence-root`)・測定条件 (48 threads、10,000 records、Zipf 0.9、read ratio 50、rmw 0、max operations 10、3 s、TRACE=1、
   pin `e9e477ca` + patches、Pegasus 計算ノード、4 block × 15 round)・arm 統計・block 別 k/m と host・Fisher・曝露比・caption・再現 argv を記録する。条件は caption の `Conditions:` 文にも出す。
 - §7: login で生成。§8: matplotlib + numpy + 標準 library (CP・Fisher は標準 library で計算し scipy に依存しない)。
 - §9: 保存前の renderer-backed layout check (axes ちょうど 1、text の重なり・逸脱で 3 成果物を 1 つも出さない)。注記は実 artist として描き、test は `fig.findobj(Text)` の可視 text を検査する (F872)。
@@ -2058,8 +2060,8 @@ repo 内の逐語写し (`output/insights/2026-09-19/mocc-witlight-arm-run/verba
 - 条件・束縛 (pin、patch、runner、toolchain、configure) → 各 block の `bindings` (稿 §1.5)
 - 限定と条件の言い方 → 稿 (provenance の `caption_source`、SHA-256 束縛)
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_mocc_witlight_four_arm.py` (`test_landed_fig15_repo_closure_and_caption_when_present`: 着地 bytes の SHA-256・caption の逐語収録・repo 側閉包、
-  `test_landed_fig15_external_closure_when_root_present`: 外部原本からの再導出、`test_production_pins_match_results_document`: 5 pin と稿 §5.1、
-  `test_real_evidence_matches_results_document_when_root_present`: 稿 §2.2 / §2.3 / §2.6 の表セルと図中の曝露比注記 2 行、外部 root 不在時は skip)
+  `test_landed_fig15_external_closure_when_root_present`: 追跡下の逐語写し (原保存先と同じ SHA-256) からの再導出、`test_production_pins_match_results_document`: 5 pin と稿 §5.1、
+  `test_real_evidence_matches_results_document_when_root_present`: 追跡下の逐語写しから、稿 §2.2 / §2.3 / §2.6 の表セルと図中の曝露比注記 2 行)
 - 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md`、記録 insight `output/insights/2026-09-19/mocc-witlight-arm-run/README.md`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
 

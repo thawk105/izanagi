@@ -26,6 +26,14 @@ GENERATOR_PATH = 'tools/plotting/plot_mocc_witlight_four_arm.py'
 GENERATOR = Path(__file__).resolve()
 REPO_ROOT = GENERATOR.parents[2]
 EVIDENCE_ROOT = '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W'
+VERBATIM_PATH = 'output/insights/2026-09-19/mocc-witlight-arm-run/verbatim'
+VERBATIM_FILES = {
+    'summary.json': 'summary.json',
+    'W1/result.json': 'W1-result.json',
+    'W2/result.json': 'W2-result.json',
+    'W3/result.json': 'W3-result.json',
+    'W4/result.json': 'W4-result.json',
+}
 EXTERNAL_SHA256 = {
     'summary.json': 'b1be3ebde10c20ea26de3956495f927d2baa8c06ecc1b7e2d7222f2795310698',
     'W1/result.json': 'ca8ab3ff579e3fb55b97447ebb7b647d34806a6fd452ad410051aca9e5bd4b50',
@@ -120,6 +128,8 @@ def _load_external(evidence_root, expected_hashes=None):
     docs = {}
     for rel in EXTERNAL_SHA256:
         path = Path(evidence_root)/rel
+        if not path.is_file():
+            path = Path(evidence_root)/VERBATIM_FILES[rel]
         _require(_sha256(path) == pins[rel], f'external SHA-256 mismatch: {rel}')
         docs[rel] = _json(path)
     summary = docs['summary.json']
@@ -235,9 +245,11 @@ def _external_data(evidence_root, expected_hashes=None):
                 blocks=[dict(block=b['block_id'], hostname=b['hostname'], arms={a: dict(m=15, k=sum(r['arm'] == a and r['verifier']['status'] == 'g2' for r in b['runs'])) for a in ARMS}) for b in blocks])
 
 
-def load_evidence(repo_root, evidence_root=EVIDENCE_ROOT, *, expected_hashes=None):
+def load_evidence(repo_root, evidence_root=None, *, expected_hashes=None):
     try:
         root = Path(repo_root).resolve()
+        if evidence_root is None:
+            evidence_root = root/VERBATIM_PATH
         return dict(repo_root=str(root), tracked_inputs=[dict(kind='caption_source', path=CAPTION_SOURCE, sha256=_sha256(root/CAPTION_SOURCE))],
                     **_external_data(evidence_root, expected_hashes))
     except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:
@@ -467,16 +479,17 @@ def _publish_outputs(fig, axes, prefix, data, argv):
 def main(argv=None, *, expected_hashes=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
-    parser.add_argument("--evidence-root", type=Path, default=Path(EVIDENCE_ROOT))
+    parser.add_argument("--evidence-root", type=Path)
     parser.add_argument("out_prefix", type=Path)
     args = parser.parse_args(argv)
     root, prefix = args.repo_root.resolve(), args.out_prefix.resolve()
+    evidence_root = (args.evidence_root if args.evidence_root is not None else root/VERBATIM_PATH).resolve()
     figure = None
     try:
         _figure_number(prefix)
-        data = load_evidence(root, args.evidence_root.resolve(), expected_hashes=expected_hashes)
+        data = load_evidence(root, evidence_root, expected_hashes=expected_hashes)
         figure, axes = make_figure(data)
-        expanded = ["python3", GENERATOR_PATH, "--repo-root", str(root), "--evidence-root", str(args.evidence_root.resolve()), os.path.relpath(prefix, root)]
+        expanded = ["python3", GENERATOR_PATH, "--repo-root", str(root), "--evidence-root", str(evidence_root), os.path.relpath(prefix, root)]
         _publish_outputs(figure, axes, prefix, data, expanded)
     except Exception as exc:
         print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)

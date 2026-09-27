@@ -387,6 +387,20 @@ def test_cli_outputs_and_provenance_closure(tmp_path):
     _reject(lambda:PLOT.validate_repo_closure(prov,root,expected_hashes=pins),'output closure')
 
 
+def test_cli_default_reads_flat_verbatim_fixture(tmp_path):
+    root, external, pins = _fixture(tmp_path)
+    verbatim = root/PLOT.VERBATIM_PATH
+    verbatim.mkdir(parents=True)
+    for rel, name in PLOT.VERBATIM_FILES.items():
+        shutil.copyfile(external/rel, verbatim/name)
+    prefix = root/'fig15_flat'
+    assert PLOT.main(['--repo-root', str(root), str(prefix)], expected_hashes=pins) == 0
+    assert all(Path(str(prefix)+suffix).is_file() for suffix in SUFFIXES)
+    prov = PLOT._json(Path(str(prefix)+SUFFIXES[2]))
+    assert prov['reproduction']['argv'][5] == str(verbatim.resolve())
+    PLOT.validate_external_sources(prov, verbatim.resolve(), expected_hashes=pins)
+
+
 def test_external_sources_and_repo_closure_have_separate_roots(tmp_path):
     root, external, pins = _fixture(tmp_path)
     prov = _provenance(root,external,pins)
@@ -451,8 +465,6 @@ def test_landed_fig15_rejects_missing_or_partial_bundle(tmp_path):
 
 
 def test_real_evidence_matches_results_document_when_root_present():
-    if not Path(PLOT.EVIDENCE_ROOT).exists():
-        skip('external evidence root absent')
     data = PLOT.load_evidence(REPO)
     doc = (REPO/PLOT.CAPTION_SOURCE).read_text().replace('`','').replace('**','')
     section = doc.split('### 2.2 ',1)[1].split('### 2.3 ',1)[0]
@@ -485,10 +497,8 @@ def test_real_evidence_matches_results_document_when_root_present():
 
 
 def test_landed_fig15_external_closure_when_root_present():
-    if not Path(PLOT.EVIDENCE_ROOT).exists():
-        skip('external evidence root absent')
     _, prov = _landed(REPO)
-    PLOT.validate_external_sources(prov,PLOT.EVIDENCE_ROOT)
+    PLOT.validate_external_sources(prov,(REPO/PLOT.VERBATIM_PATH).resolve())
 
 
 def _run():

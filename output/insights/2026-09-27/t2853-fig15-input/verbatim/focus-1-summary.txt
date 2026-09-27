@@ -1,0 +1,6 @@
+[Pegasus dispatch] request ID 31244.nqsv を受理しました
+| FAILED orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes
+| ======================== 1 failed, 142 passed in 36.17s ========================
+|   Elapse:               42S
+|   Remaining Elapse:     3558S
+rc=1
