@@ -150,6 +150,12 @@ critic は Read・Bash を持つので閲覧を機械的に防いだとは言え
 `loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。stock baseline (bootstrap campaign) と
 R2 (r2 campaign) は loop の checkpoint・履歴を動かさない。
 
+**Pegasus 契約では 1 つの loop campaign を測れる pair job は 1 本だけである。** campaign claim は identity ごとに
+一度きり (release も stale 判定も無い、D464・D553) で、同じ job の候補→stock は 1 process の認可 session で共有する
+(D2205) が、次の job へは持ち越さない。2 本目の pair job は build 前に `ClaimError` で止まり、履歴に `eval-exception` が
+残る (2026-09-27 に実測、`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4)。claim を手で退避して
+続けない。§1(g) の critic → 次の (a) は、この制約が driver 設計で解けるまで Pegasus では 2 本目の評価に進めない。
+
 walltime 予算は campaign の `loop_state.json` の作成時刻から数えるので、止まった系列を後から続けることはできない。
 **骨格 patch (`patches/silo-function-policy-variant.patch`) を変えたら、その変更 commit を含む HEAD から新しい submit
 checkout を作り、新しい系列として回す。** 投入前に checkout の HEAD と骨格 patch の SHA-256 を確かめる。
