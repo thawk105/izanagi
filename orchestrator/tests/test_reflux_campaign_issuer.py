@@ -135,6 +135,7 @@ def _synthetic_silo_checkout(tmp_path: Path) -> tuple[Path, str, str]:
     )
     (root / "cmake" / "Options.cmake").write_text(
         "set(CCBENCH_BACK_OFF 1 CACHE STRING \"\")\n"
+        "set(CCBENCH_ADD_ANALYSIS 0 CACHE STRING \"extra per-tx analysis counters\")\n"
         "set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION 1 CACHE STRING \"\")\n"
         "set(CCBENCH_NO_WAIT_OF_TICTOC 0 CACHE STRING \"\")\n"
         "set(CCBENCH_WAL 0 CACHE STRING \"\")\n"
@@ -142,6 +143,7 @@ def _synthetic_silo_checkout(tmp_path: Path) -> tuple[Path, str, str]:
         "set(CCBENCH_TRACE 0 CACHE STRING \"\")\n"
         "function(ccbench_universal_definitions out_var)\n"
         "  set(${out_var}\n"
+        "    ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n"
         "    BACK_OFF=${CCBENCH_BACK_OFF}\n"
         "    NO_WAIT_LOCKING_IN_VALIDATION="
         "${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}\n"
