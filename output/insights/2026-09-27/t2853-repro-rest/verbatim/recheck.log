@@ -1,0 +1,9 @@
+start 2026-09-27T19:47:11+0900
+t2849-mocc-conn-jobdir.sha256 lines=1538 rc=0
+t2849-mocc-conn-originals.sha256 lines=555 rc=0
+t2850-trial-v2-followup-jobdir.sha256 lines=236 rc=0
+t2850-trial-v2-originals.sha256 lines=1728 rc=0
+t2850-trial-v2-rundir.sha256 lines=4317 rc=0
+t2865-stage-f-jobdir.sha256 lines=654 rc=0
+t2865-stage-f-originals.sha256 lines=13 rc=0
+end 2026-09-27T19:47:18+0900 rc=0
