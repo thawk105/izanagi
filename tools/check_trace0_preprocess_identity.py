@@ -671,20 +671,25 @@ def _h_run(argv: Sequence[str], cwd: Path | None = None, timeout: int = 120) -> 
     return result.stdout
 
 
-def _h_sources(repo: Path, old: str, new: str, root: Path) -> dict[str, Path]:
+def _h_sources(repo: Path, old: str, new: str, root: Path) -> tuple[dict[str, Path], list[dict[str, str]]]:
     bare = root / "objects.git"
     _h_run(["git", "clone", "--bare", "--no-local", repo, bare], timeout=300)
     (bare / "info" / "attributes").write_text("* -export-ignore\n* -export-subst\n")
     sources = {}
+    gitlinks = {}
     for side, oid in (("old", old), ("new", new)):
         src = root / f"src-{side}"
         src.mkdir()
         expected = {}
+        side_gitlinks = {}
         for row in _h_run(["git", "-C", bare, "ls-tree", "-r", "-z", oid]).split(b"\0"):
             if not row:
                 continue
             meta, name = row.split(b"\t", 1)
             mode, kind, blob = meta.decode().split()
+            if mode == "160000" and kind == "commit":
+                side_gitlinks[_decode_path(name)] = blob
+                continue
             if mode not in ("100644", "100755") or kind != "blob":
                 raise CheckError(f"source tree に regular file 以外: {name!r}")
             expected[_decode_path(name)] = blob
@@ -711,7 +716,10 @@ def _h_sources(repo: Path, old: str, new: str, root: Path) -> dict[str, Path]:
             if hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest() != blob:
                 raise CheckError(f"source tree blob が不一致: {name}")
         sources[side] = src
-    return sources
+        gitlinks[side] = side_gitlinks
+    if gitlinks["old"] != gitlinks["new"]:
+        raise CheckError("source tree gitlink の path/commit OID 集合が不一致")
+    return sources, [{"path": path, "commit_oid": oid} for path, oid in sorted(gitlinks["old"].items())]
 
 
 def _h_supply(genome: Any, src: Path, build: Path, toolchain: Mapping[str, Mapping[str, str]],
@@ -873,7 +881,7 @@ def _h_check(
     provider = supply or _h_supply
     with tempfile.TemporaryDirectory(prefix="trace0-header-", dir=scratch_root) as temporary:
         root = Path(temporary)
-        source = _h_sources(repo, old, new, root)
+        source, gitlinks = _h_sources(repo, old, new, root)
         if supply is None:
             payload = json.loads(_h_run([
                 sys.executable, "-B", REPO_ROOT / "tools/pegasus/fetch_third_party.py",
@@ -1040,6 +1048,7 @@ def _h_check(
                 {"configure": label, "file": key[0], "target": key[1]} for label, key in planned],
             "planned_count": len(planned), "executed_count": len(done),
             "unique_comparison_count": len(comparisons), "comparisons": comparisons,
+            "gitlinks": gitlinks,
             "production_argv_difference": ["-DCCBENCH_CCACHE=OFF"],
         }
 

@@ -49,7 +49,8 @@ def _pair(tmp_path: Path, *, old_header: str, new_header: str,
           wrapper: str = '#include "mod.hh"\n',
           generated: str = '#define GENERATED 1\n',
           extra_cmake: str = '', extra_files: dict[str, str] | None = None,
-          include_genome_define: bool = True):
+          include_genome_define: bool = True,
+          gitlink_old: str | None = None, gitlink_new: str | None = None):
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -87,10 +88,16 @@ target_compile_options(ycsb_gamma.exe PRIVATE -Werror)
         _put(repo, name, body)
     _put(repo, "mod.hh", old_header)
     _git(repo, "add", ".")
+    if gitlink_old is not None:
+        _git(repo, "update-index", "--add", "--cacheinfo",
+             f"160000,{gitlink_old},third_party/shirakami")
     _git(repo, "commit", "-qm", "old")
     old = _git(repo, "rev-parse", "HEAD")
     _put(repo, "mod.hh", new_header)
     _git(repo, "add", "mod.hh")
+    if gitlink_new is not None:
+        _git(repo, "update-index", "--add", "--cacheinfo",
+             f"160000,{gitlink_new},third_party/shirakami")
     _git(repo, "commit", "-qm", "new")
     new = _git(repo, "rev-parse", "HEAD")
     return repo, old, new
@@ -126,6 +133,25 @@ def test_v3_v4_v9_generated_header_and_trace_one_consumer(tmp_path: Path) -> Non
     assert {(row["file"], row["target"]) for row in rule["consumers"] if row["configure"] == "stock"} == {
         ("<SOURCE>/alpha.cc", "ycsb_alpha.exe"), ("<SOURCE>/beta.cc", "ycsb_beta.exe")}
     assert not any(row["target"] == "ycsb_gamma.exe" for row in rule["consumers"])
+
+
+def test_matching_gitlink_is_reported_and_header_compared(tmp_path: Path) -> None:
+    gitlink_oid = "a" * 40
+    pair = _pair(tmp_path, old_header="#define VALUE 1\n",
+                 new_header="#define VALUE 1 /* changed */\n",
+                 gitlink_old=gitlink_oid)
+    report = _check(pair, tmp_path)
+    assert report["header_rule"]["gitlinks"] == [
+        {"path": "third_party/shirakami", "commit_oid": gitlink_oid}]
+    assert report["header_rule"]["planned_count"] == report["header_rule"]["executed_count"]
+
+
+def test_changed_gitlink_oid_is_rejected_by_diff_validation(tmp_path: Path) -> None:
+    pair = _pair(tmp_path, old_header="#define VALUE 1\n",
+                 new_header="#define VALUE 1 /* changed */\n",
+                 gitlink_old="a" * 40, gitlink_new="b" * 40)
+    with pytest.raises(checker.CheckError, match=r"regular file でない C/C\+\+ path は未対応"):
+        _check(pair, tmp_path)
 
 
 def test_discovery_only_checks_production_target(tmp_path: Path) -> None:
