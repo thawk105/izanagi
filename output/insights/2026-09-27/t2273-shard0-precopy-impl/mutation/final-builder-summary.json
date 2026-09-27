@@ -1,0 +1,34 @@
+{
+ "tag": "final-builder",
+ "repo_head": "6041d2f28600a30b401886a31d5462f72e8515d0",
+ "spec_sha256": "de840e63ad6b807fff587bfa41efcb02779ea035f4563db2a1546faf280fb0a7",
+ "summary": {
+  "KILLED": 1,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 2,
+  "matching": 2,
+  "recorded": 2,
+  "registered": 2
+ },
+ "mutations": [
+  {
+   "id": "P0",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "rc": 0,
+   "failed_nodes": []
+  },
+  {
+   "id": "M1",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes"
+   ]
+  }
+ ]
+}

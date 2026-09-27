@@ -1,0 +1,10 @@
+{
+  "P0": [],
+  "M1": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_builds_real_builder_once_across_processes"],
+  "M2": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"],
+  "M3": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"],
+  "M4": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"],
+  "M5": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"],
+  "M6": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"],
+  "M7": ["orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"]
+}

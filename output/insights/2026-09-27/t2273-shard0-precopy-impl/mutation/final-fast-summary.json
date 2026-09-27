@@ -1,0 +1,79 @@
+{
+ "tag": "final-fast",
+ "repo_head": "6041d2f28600a30b401886a31d5462f72e8515d0",
+ "spec_sha256": "0be94d2b659a29cb5b2e28bf64f01057fe5f98d9c50d178dc3acdb7391a938b6",
+ "summary": {
+  "KILLED": 6,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 7,
+  "matching": 7,
+  "recorded": 7,
+  "registered": 7
+ },
+ "mutations": [
+  {
+   "id": "P0",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "rc": 0,
+   "failed_nodes": []
+  },
+  {
+   "id": "M2",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M3",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M4",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M5",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M6",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M7",
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  }
+ ]
+}

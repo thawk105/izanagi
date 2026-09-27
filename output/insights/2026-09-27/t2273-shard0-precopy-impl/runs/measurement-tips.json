@@ -1,0 +1,10 @@
+{
+  "A": {
+    "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2273pi-base-a",
+    "sha": "a0bf57976bb28bde6c2525fb173e83e566e6d875"
+  },
+  "B": {
+    "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2273-shard0-precopy",
+    "sha": "163c5eeb73eb5a71cc5b4095572ea8da8bfef82f"
+  }
+}

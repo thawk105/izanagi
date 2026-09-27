@@ -1,0 +1,288 @@
+{
+ "pairs": [
+  {
+   "pair_slot": 1,
+   "attempt": 1,
+   "runs": [
+    "01-A",
+    "02-B"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    {
+     "nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy",
+     "shard": 0
+    }
+   ],
+   "W_0_A": 351.492,
+   "W_0_B": 296.137,
+   "delta_W_0": 55.35500000000002,
+   "r": 0.1574858033753258,
+   "W_max_A": 351.492,
+   "W_max_B": 296.137
+  },
+  {
+   "pair_slot": 2,
+   "attempt": 1,
+   "runs": [
+    "03-B",
+    "04-A"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    {
+     "nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy",
+     "shard": 0
+    }
+   ],
+   "W_0_A": 363.195,
+   "W_0_B": 317.194,
+   "delta_W_0": 46.000999999999976,
+   "r": 0.12665647930175244,
+   "W_max_A": 363.195,
+   "W_max_B": 317.194
+  },
+  {
+   "pair_slot": 3,
+   "attempt": 1,
+   "runs": [
+    "05-A",
+    "06-B"
+   ],
+   "valid": true,
+   "skipped_match": true,
+   "e1_reasons": [],
+   "B_added_node_shards": [
+    {
+     "nodeid": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy",
+     "shard": 0
+    }
+   ],
+   "W_0_A": 384.713,
+   "W_0_B": 336.973,
+   "delta_W_0": 47.74000000000001,
+   "r": 0.12409250532214926,
+   "W_max_A": 384.713,
+   "W_max_B": 336.973
+  }
+ ],
+ "total_runs": 6,
+ "valid_pairs": 3,
+ "series_invalid": [],
+ "W_0": {
+  "median_delta_s": 47.74000000000001,
+  "median_pair_rate": 0.12665647930175244
+ },
+ "land_condition": "met",
+ "land_reasons": [],
+ "record_category": "land-5min-not-met-next-b",
+ "record_line": "record_category: land-5min-not-met-next-b; land: met; 5min: not-met",
+ "five_minute_goal": {
+  "status": "not-met",
+  "median_B_W_max_s": 317.194,
+  "threshold_s": 300,
+  "B_runs": [
+   {
+    "run": "02-B",
+    "W_max_s": 296.137,
+    "excess_s": -3.863,
+    "exceeds_300_s": false
+   },
+   {
+    "run": "03-B",
+    "W_max_s": 317.194,
+    "excess_s": 17.194,
+    "exceeds_300_s": true
+   },
+   {
+    "run": "06-B",
+    "W_max_s": 336.973,
+    "excess_s": 36.973,
+    "exceeds_300_s": true
+   }
+  ]
+ },
+ "submission_limitations": "投入台帳は launcher が追記専用で扱う通常ファイル。台帳自身の改竄・削除（RUN と同時の削除を含む）や外部の同時変更は防げない。追記後の異常終了は自動修復せず拒否する。",
+ "condition_summaries": {
+  "A": {
+   "runs": [
+    "01-A",
+    "04-A",
+    "05-A"
+   ],
+   "run_numbers": [
+    "01",
+    "04",
+    "05"
+   ],
+   "valid_runs": 3,
+   "shards": [
+    {
+     "shard": 0,
+     "W": 363.195,
+     "O": 287.316555239,
+     "L": 269.36,
+     "F": 75.87844476099997,
+     "pre": 65.7552809715271,
+     "post": 10.028781175613403
+    },
+    {
+     "shard": 1,
+     "W": 229.669,
+     "O": 158.097627697,
+     "L": 146.255,
+     "F": 71.571372303,
+     "pre": 67.46497464179993,
+     "post": 3.758551836013794
+    },
+    {
+     "shard": 2,
+     "W": 219.956,
+     "O": 150.356416645,
+     "L": 150.356,
+     "F": 70.14835876000001,
+     "pre": 66.45750975608826,
+     "post": 3.4520015716552734
+    }
+   ]
+  },
+  "B": {
+   "runs": [
+    "02-B",
+    "03-B",
+    "06-B"
+   ],
+   "run_numbers": [
+    "02",
+    "03",
+    "06"
+   ],
+   "valid_runs": 3,
+   "shards": [
+    {
+     "shard": 0,
+     "W": 317.194,
+     "O": 219.900954343,
+     "L": 200.767,
+     "F": 97.29304565700002,
+     "pre": 72.92348122596741,
+     "post": 10.028062343597412
+    },
+    {
+     "shard": 1,
+     "W": 267.803,
+     "O": 190.342290743,
+     "L": 190.342,
+     "F": 77.46070925699999,
+     "pre": 73.46150517463684,
+     "post": 3.465698719024658
+    },
+    {
+     "shard": 2,
+     "W": 222.917,
+     "O": 147.243770617,
+     "L": 147.244,
+     "F": 75.611284157,
+     "pre": 71.58661437034607,
+     "post": 3.471207618713379
+    }
+   ]
+  }
+ },
+ "runs": [
+  {
+   "tag": "01-A",
+   "valid": true,
+   "errors": [],
+   "W_0": 351.492,
+   "W_max": 351.492,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    351.492,
+    228.606,
+    219.0
+   ]
+  },
+  {
+   "tag": "02-B",
+   "valid": true,
+   "errors": [],
+   "W_0": 296.137,
+   "W_max": 296.137,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    296.137,
+    232.923,
+    221.254
+   ]
+  },
+  {
+   "tag": "03-B",
+   "valid": true,
+   "errors": [],
+   "W_0": 317.194,
+   "W_max": 317.194,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    317.194,
+    312.981,
+    222.917
+   ]
+  },
+  {
+   "tag": "04-A",
+   "valid": true,
+   "errors": [],
+   "W_0": 363.195,
+   "W_max": 363.195,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    363.195,
+    229.669,
+    220.804
+   ]
+  },
+  {
+   "tag": "05-A",
+   "valid": true,
+   "errors": [],
+   "W_0": 384.713,
+   "W_max": 384.713,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    384.713,
+    230.841,
+    219.956
+   ]
+  },
+  {
+   "tag": "06-B",
+   "valid": true,
+   "errors": [],
+   "W_0": 336.973,
+   "W_max": 336.973,
+   "W_max_argmax": [
+    0
+   ],
+   "W_by_shard": [
+    336.973,
+    267.803,
+    225.25
+   ]
+  }
+ ]
+}

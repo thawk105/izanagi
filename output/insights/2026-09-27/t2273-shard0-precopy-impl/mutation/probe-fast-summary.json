@@ -1,0 +1,79 @@
+{
+ "tag": "probe-fast",
+ "repo_head": "6041d2f28600a30b401886a31d5462f72e8515d0",
+ "spec_sha256": "25ec568b7a9d9476e4885c835915b923ff6a3291f25c978e2d5f440f3dcc3bdb",
+ "summary": {
+  "KILLED": 0,
+  "MISMATCH": 6,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 7,
+  "matching": 1,
+  "recorded": 7,
+  "registered": 7
+ },
+ "mutations": [
+  {
+   "id": "P0",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "rc": 0,
+   "failed_nodes": []
+  },
+  {
+   "id": "M2",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M3",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M4",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M5",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M6",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  },
+  {
+   "id": "M7",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy"
+   ]
+  }
+ ]
+}
