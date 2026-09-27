@@ -434,21 +434,29 @@ def test_axis_prefilter_skips_common_only_text_and_memo_searches_unique_expressi
     _write(irrelevant, irrelevant_text)
     original_compile = M.re.compile
     searched = []
+    candidates = []
+    original_localized = M._search_localized
+
+    def localized(pattern, text, literal, width, position):
+        candidates.append(text)
+        return original_localized(pattern, text, literal, width, position)
 
     class SearchSpy:
         def __init__(self, expression):
             self._pattern = original_compile(expression)
 
-        def search(self, text):
-            searched.append(text)
-            return self._pattern.search(text)
+        def search(self, text, *args):
+            searched.append((text, bool(args)))
+            return self._pattern.search(text, *args)
 
     monkeypatch.setattr(M.re, "compile", SearchSpy)
+    monkeypatch.setattr(M, "_search_localized", localized)
     M.search_repository(tmp_path, files=[positive, irrelevant])
 
-    assert irrelevant_text not in searched
-    assert searched.count(positive_text) == 5
-    assert len(searched) == 5
+    assert irrelevant_text not in candidates
+    assert candidates.count(positive_text) == 5
+    assert len(candidates) == 5
+    assert all(bounded for _, bounded in searched)
 
 
 def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
@@ -459,9 +467,9 @@ def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
         def __init__(self, expression):
             self._pattern = original_compile(expression)
 
-        def search(self, text):
+        def search(self, text, *args):
             searched.append(text)
-            return self._pattern.search(text)
+            return self._pattern.search(text, *args)
 
     monkeypatch.setattr(M.re, "compile", SearchSpy)
     result = M._scan_one(
@@ -481,9 +489,9 @@ def test_disabled_common_prefilter_disables_every_axis_prefilter(monkeypatch):
         def __init__(self, expression):
             self._pattern = original_compile(expression)
 
-        def search(self, text):
+        def search(self, text, *args):
             searched.append(text)
-            return self._pattern.search(text)
+            return self._pattern.search(text, *args)
 
     def disable_common(expressions):
         derive_calls.append(dict(expressions))
@@ -592,9 +600,9 @@ def test_scan_memo_misses_for_a_different_text_mapping(monkeypatch):
         def __init__(self, value):
             self._pattern = original_compile(value)
 
-        def search(self, text):
+        def search(self, text, *args):
             searched.append(text)
-            return self._pattern.search(text)
+            return self._pattern.search(text, *args)
 
     monkeypatch.setattr(M.re, "compile", SearchSpy)
     first = M._scan_one(first_texts, "first", expression, memo=memo)
@@ -663,9 +671,9 @@ def test_memo_cache_hit_skips_regex_and_matches_slow_counts_and_sorted_conjuncti
         def __init__(self, expression):
             self._pattern = original_compile(expression)
 
-        def search(self, text):
+        def search(self, text, *args):
             searched.append(text)
-            return self._pattern.search(text)
+            return self._pattern.search(text, *args)
 
     monkeypatch.setattr(M.re, "compile", SearchSpy)
     cached = M._scan_one(texts, "candidate", expressions, memo=memo)
@@ -982,6 +990,59 @@ def test_prefilter_scans_common_and_axis_literals_after_8192_bytes():
     assert optimized == reference
 
 
+@pytest.mark.parametrize("expression,text", [
+    ("(?:ab=cd)", "ab=cd"),
+    ('(?:"ab":"cd")', '"ab":"cd"'),
+    ("(?:aa=bb)", "aaa=bb"),
+    ("(?:ab=c.d)", "ab=cXd"),
+    ("(?:ab=cd)", "x" * 9000 + "ab=cd"),
+])
+def test_localized_single_axis_matches_full_search_and_reference(expression, text):
+    texts = {"case.txt": text}
+    expressions = {"axis": expression}
+    expected = bool(re.compile(expression).search(text))
+
+    optimized = M._scan_one(texts, "candidate", expressions)
+    reference = _reference_scan_one(texts, "candidate", expressions)
+
+    assert bool(optimized["conjunction_hits"]) == expected
+    assert optimized["per_axis_counts"] == {"axis": int(expected)}
+    assert _report_bytes(optimized) == _report_bytes(reference)
+
+
+def test_common_literal_memo_is_keyed_by_literal_and_rel():
+    texts = {"case.txt": "present=v"}
+    memo = M._ScanMemo(texts)
+    first = M._scan_one(texts, "first", {"axis": "(?:absent=v)"}, memo=memo)
+    second = M._scan_one(texts, "second", {"axis": "(?:present=v)"}, memo=memo)
+
+    assert first["conjunction_hits"] == []
+    assert second["conjunction_hits"] == ["case.txt"]
+    assert _report_bytes(second) == _report_bytes(
+        _reference_scan_one(texts, "second", {"axis": "(?:present=v)"})
+    )
+
+
+def test_common_literal_is_checked_once_per_text_per_search(tmp_path, monkeypatch):
+    positive = tmp_path / "positive.txt"
+    irrelevant = tmp_path / "irrelevant.txt"
+    _write(positive, _positive_text())
+    _write(irrelevant, "ycsb_unrelated\n")
+    original = M._text_contains
+    calls = []
+
+    def counted(text, literal):
+        calls.append((text, literal))
+        return original(text, literal)
+
+    monkeypatch.setattr(M, "_text_contains", counted)
+    M.search_repository(tmp_path, files=[positive, irrelevant])
+
+    assert len(calls) == 2
+    assert {text for text, _ in calls} == {_positive_text(), "ycsb_unrelated\n"}
+    assert len({literal for _, literal in calls}) == 1
+
+
 def _prefilter_equivalence_fixture(root: Path) -> tuple[list[str], str]:
     positive = "fixtures/positive.txt"
     holdout = "fixtures/holdout.txt"
@@ -1038,25 +1099,48 @@ def test_prefilter_report_exactly_matches_slow_path(tmp_path, monkeypatch, mode)
 
     original_compile = M.re.compile
     searched = []
+    candidates = []
+    original_localized = M._search_localized
+
+    def localized(pattern, text, literal, width, position):
+        candidates.append(text)
+        return original_localized(pattern, text, literal, width, position)
 
     class SearchSpy:
         def __init__(self, expression):
             self._pattern = original_compile(expression)
 
-        def search(self, text):
-            searched.append(text)
-            return self._pattern.search(text)
+        def search(self, text, *args):
+            searched.append((text, bool(args)))
+            return self._pattern.search(text, *args)
 
     monkeypatch.setattr(M.re, "compile", SearchSpy)
+    monkeypatch.setattr(M, "_search_localized", localized)
     optimized = M.search_repository(root, **kwargs)
-    assert searched.count("ycsb_unrelated\n") == 0
+    assert candidates.count("ycsb_unrelated\n") == 0
+    assert searched and all(bounded for _, bounded in searched)
+    optimized_candidates = list(candidates)
     searched.clear()
+    candidates.clear()
+    with monkeypatch.context() as unlocalized_path:
+        def full_search(pattern, text, literal, width, position):
+            candidates.append(text)
+            return bool(pattern.search(text))
+
+        unlocalized_path.setattr(M, "_search_localized", full_search)
+        unlocalized = M.search_repository(root, **kwargs)
+    assert candidates == optimized_candidates
+    assert searched and all(not bounded for _, bounded in searched)
+    assert unlocalized == optimized
+    searched.clear()
+    candidates.clear()
     with monkeypatch.context() as memo_only_path:
         memo_only_path.setattr(
             M, "_derive_required_literal", lambda _expressions: None,
         )
         memo_only = M.search_repository(root, **kwargs)
-    assert searched.count("ycsb_unrelated\n") == 5
+    assert sum(text == "ycsb_unrelated\n" for text, _ in searched) == 5
+    assert candidates == []
     assert memo_only == optimized
     searched.clear()
     reference_calls = []
@@ -1072,7 +1156,8 @@ def test_prefilter_report_exactly_matches_slow_path(tmp_path, monkeypatch, mode)
         unfiltered = M.search_repository(root, **kwargs)
 
     assert reference_calls == ["H1", "H2", "rr50-positive-control"]
-    assert searched.count("ycsb_unrelated\n") == 9
+    assert sum(text == "ycsb_unrelated\n" for text, _ in searched) == 9
+    assert candidates == []
     assert optimized["holdouts"]["rr80"]["conjunction_hits"] == [
         "fixtures/holdout.txt",
     ]

@@ -17,6 +17,7 @@ import json
 import math
 import os
 import re
+import sre_parse
 import stat
 import subprocess
 import sys
@@ -500,6 +501,7 @@ class _ScanMemo:
 
     texts: Mapping[str, str]
     hits_by_expression: Dict[str, frozenset[str]] = field(default_factory=dict)
+    contains_by_literal_rel: Dict[Tuple[str, str], bool] = field(default_factory=dict)
     _mutable_texts_snapshot: Optional[Dict[str, str]] = field(
         init=False, repr=False, compare=False,
     )
@@ -511,6 +513,28 @@ class _ScanMemo:
             else dict(self.texts.items())
         )
         object.__setattr__(self, "_mutable_texts_snapshot", snapshot)
+
+
+def _text_contains(text: str, literal: str) -> bool:
+    return literal in text
+
+
+def _search_localized(
+    pattern, text: str, literal: str, width: int, position: int,
+) -> bool:
+    """全 match は L を含み長さが W 以下なので、各 L の周囲の窓に収まる。
+
+    受理文法に anchor や lookaround はなく、pos/endpos 付き search と全文 search の真偽は同じ。
+    """
+    while position != -1:
+        if pattern.search(
+            text,
+            max(0, position + len(literal) - width),
+            min(len(text), position + width),
+        ):
+            return True
+        position = text.find(literal, position + 1)
+    return False
 
 
 def _scan_one(
@@ -540,12 +564,19 @@ def _scan_one(
         if required_literal is not None
         else {axis: None for axis in expression_snapshot}
     )
+    axis_widths = {
+        axis: sre_parse.parse(expression).getwidth()[1]
+        for axis, expression in expression_snapshot.items()
+        if axis_literals[axis] is not None
+    }
     memo_hits = None
+    contains_cache: Dict[Tuple[str, str], bool] = {}
     if memo is not None and memo.texts is texts:
         if (memo._mutable_texts_snapshot is not None
                 and dict(texts.items()) != memo._mutable_texts_snapshot):
             raise FreezeError("_ScanMemo の texts 内容が再利用前に変化した")
         memo_hits = memo.hits_by_expression
+        contains_cache = memo.contains_by_literal_rel
     matched_paths = {}
     for axis, expression in expression_snapshot.items():
         hits = (
@@ -556,12 +587,23 @@ def _scan_one(
         if hits is None:
             found = set()
             for rel, text in texts.items():
-                if required_literal is not None and required_literal not in text:
-                    continue
+                if required_literal is not None:
+                    cache_key = (required_literal, rel)
+                    if cache_key not in contains_cache:
+                        contains_cache[cache_key] = _text_contains(text, required_literal)
+                    if not contains_cache[cache_key]:
+                        continue
                 axis_literal = axis_literals[axis]
-                if axis_literal is not None and axis_literal not in text:
-                    continue
-                if compiled[axis].search(text):
+                if axis_literal is not None:
+                    position = text.find(axis_literal)
+                    if position == -1:
+                        continue
+                    matched = _search_localized(
+                        compiled[axis], text, axis_literal, axis_widths[axis], position,
+                    )
+                else:
+                    matched = bool(compiled[axis].search(text))
+                if matched:
                     found.add(rel)
             hits = frozenset(found)
             if memo_hits is not None and type(expression) is str:
