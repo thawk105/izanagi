@@ -203,6 +203,7 @@ class ScreenRejection:
 DIFF_QUARANTINE_REASON = "diff-quarantine"
 DIFF_QUARANTINE_REASON_INVALID = "diff-quarantine-reason-invalid"
 DIFF_QUARANTINE_EVIDENCE_INVALID = "diff-quarantine-evidence-invalid"
+DIFF_QUARANTINE_REGION_INVALID = "diff-quarantine-region-invalid"
 ORACLE_CONTRACT_INVALID = "oracle-contract-invalid"
 
 ORACLE_CONTRACT_GENERATION_CURRENT = "current"
@@ -220,6 +221,7 @@ _LEGACY_ORACLE_CONTRACT_ID_V2 = (
     "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
 )
 _DIFF_QUARANTINE_TEXT_PUNCTUATION = frozenset(" -._:/=+(),#;・")
+_DIFF_QUARANTINE_REGION_PUNCTUATION = _DIFF_QUARANTINE_TEXT_PUNCTUATION | frozenset("@")
 
 
 class OracleContractIdTooLong(ValueError):
@@ -230,13 +232,16 @@ class OracleContractIdMismatch(ValueError):
     """oracle contract ID が選択された世代と exact 一致しない。"""
 
 
-def _validated_diff_quarantine_text(value: object, invalid: str) -> str:
+def _validated_diff_quarantine_text(
+    value: object, invalid: str,
+    punctuation: frozenset[str] = _DIFF_QUARANTINE_TEXT_PUNCTUATION,
+) -> str:
     """制御文字・表示偽装・非正規 Unicode を閉じる。意味上の指示隔離ではない。"""
     if type(value) is not str or not value or unicodedata.normalize("NFC", value) != value:
         return invalid
     if not all(
         unicodedata.category(char)[:1] in {"L", "N"}
-        or char in _DIFF_QUARANTINE_TEXT_PUNCTUATION
+        or char in punctuation
         for char in value
     ):
         return invalid
@@ -249,6 +254,12 @@ def _validated_diff_quarantine_reason(value: object) -> str:
 
 def _validated_diff_quarantine_evidence(value: object) -> str:
     return _validated_diff_quarantine_text(value, DIFF_QUARANTINE_EVIDENCE_INVALID)
+
+
+def _validated_diff_quarantine_region(value: object) -> str:
+    return _validated_diff_quarantine_text(
+        value, DIFF_QUARANTINE_REGION_INVALID, _DIFF_QUARANTINE_REGION_PUNCTUATION,
+    )
 
 
 def _validated_oracle_contract_id(value: object, expected: str) -> str:
@@ -1478,7 +1489,8 @@ def render_rejections(rejections: List[Rejection],
                  f"candidate_label={projected_variant or '?'} "
                  f"genome={dq.genome}"
                  + (f" src_token={projected_src_token}" if projected_src_token else ""))
-        L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
+        safe_region = _validated_diff_quarantine_region(dq.diff_region) if dq.diff_region else "?"
+        L.append(f"  marker={dq.template_diff_id or '?'} / region={safe_region}")
         safe_reason = _validated_diff_quarantine_reason(dq.reason)
         L.append(f"  理由: {safe_reason}")
         if dq.evidence and (dq.subtype or "") not in {"host-effect", "sort-swo-oracle"}:
