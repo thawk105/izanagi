@@ -110,5 +110,7 @@ T-156 は「TPC-C の候補を campaign が評価する wave で改めて判断�
 ## 6. 残るもの
 
 - TPC-C の探索 loop への配線 (`loop.run_campaign` の workload、verify mode、TPC-C の calibration、`calibrator/cli.py:416`)。TPC-C の探索設計と一緒に行う。
+  D297 検査器の規則 v2 (D2275、本 wave と同日に着地) は production target を `buildcache._v2_commands` の `--target` から導き `ycsb_<protocol>.exe` の形だけを受理する。
+  本 wave の変更は既定 `ycsb` なので検査器の入力は変わらないが、TPC-C を production target に入れる段ではこの選定も広げる。
 - pin 前進 (C2'、D297 規則 v2 の実装 wave の後) で v3 を出す binary になれば、同じ経路で certified に届くかを実機で確かめる。
 - 発効束: 取引別件数の出力源 (§3.1)、s1 の 57:43 以外の留保 cell (pay20 / pay70) は D2238 の受理外で「認定経路なし」のままであること。

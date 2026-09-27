@@ -35,7 +35,7 @@ title: [T-2866] [T-2854] TPC-C の候補を campaign の評価単位 (buildcache
 
 ### 更新
 
-- [T-2854] **P1・段 1 の一部完了 (D2212 項 2、D2219 項 2) 、単位 11 の材料は済 → 規則 v2 は承認・実装を委任 (D2260 項 1) → 残り = D297 検査器への規則 v2 の実装 wave (AI、Codex author)・実装後の C2' pin 前進の承認・人間の push・TPC-C の探索 loop への配線 (評価単位までの配線は済、{{D:tpcc-campaign-evaluate-wiring}})**: TPC-C 段 1 (NewOrder / Payment、CCBench 既定比 45% + 43%、
+- [T-2854] **P1・段 1 の一部完了 (D2212 項 2、D2219 項 2) 、単位 11 の材料は済 → 規則 v2 を D297 検査器に実装し C → C2' は GCC 11.4 / 12.3 とも pass (D2275) → 残り = C2' pin 前進の承認 (ユーザー裁定、問い 2)・承認後の pin 前進 wave (AI)・人間の push・TPC-C の探索 loop への配線 (評価単位までの配線は済、{{D:tpcc-campaign-evaluate-wiring}})**: TPC-C 段 1 (NewOrder / Payment、CCBench 既定比 45% + 43%、
   点読み・点書き・insert のみで `tx.scan` を使わない) の合成候補を直列化可能性で認定できるようにする。設計 = `output/insights/2026-09-21/tpcc-trace-certification-design/README.md`
   (§7.1 の実装単位、§8 の親決定)。実装は Codex author、正しさゲートは不変、trace は compile 時に除去する (規律 1)。
   **済:** 単位 1・2 (CCBench 側、D2225、`output/insights/2026-09-22/t2854-tpcc-ccbench-v3/README.md`) = CCBench の local branch
@@ -60,12 +60,13 @@ title: [T-2866] [T-2854] TPC-C の候補を campaign の評価単位 (buildcache
   TPC-C の silo・mocc とも v3 の構造・witness・内容、YCSB の silo・mocc とも v2 の certified、TRACE=0 の 21 entry の前処理と 4 binary の逆アセンブルの一致、
   変異 4 件 (共有 header の setter、共有 header の `#line`、silo の表、mocc の種別) の KILLED を確認。現行の D297 検査器は C → C2' を `include/tpcc.hh` の header 差分で拒否する (rc=1)。
   D297 の合格・TPC-C の certified は名乗らない。
-  **残り:** (1) C 単独の pin 前進は [T-2858] で承認・実施済み (D2227 項 1) で、C1' / C2' / C3 は C の上の別候補として改めて承認を求める。**D297 の header 差分の受理規則は設計審査を終えた (D2249 項 2 の択 1、D2255、`output/insights/2026-09-26/t2854-d297-header-review/README.md`):** 規則 v2 = header の M 差分に限り、実 compile database の全 entry から `-MG` なしの依存列挙 (旧・新 × TRACE=0/1) で変更 header の consumer を選び、選定 configure 集合 (stock と、consumer を含む production target の protocol の genome 空間。C → C2' では stock + silo 8 + mocc 8 = 17) の各 configure で全 consumer entry の TRACE=0 完全展開と include 活性を GCC 11.4 / 12.3 の別 configure で旧新比較する (実行は計算ノード)。**規則 v2 の承認と実装の委任は D2260 項 1 で決まった (ユーザー裁定、推奨どおり)。** 実装は Codex author の wave (AI) が行い、最初に計算ノードで生死確認を取り、見積りが 1 タスク 2 node 時間以上ならユーザー確認後に投入する。問い 2 = 実装後、改訂後の検査器で C → C2' が GCC 2 版とも pass した結果・実費・pin 波及を示して C2' `40a7f4ac` の pin 前進を承認するか (条件つき事前承認は推さない)。この問い 2 の機会に、si の trace v2 (`patches/instr-si-trace-v2.patch`、[T-2847]、D2252) を `izanagi-trace` 枝へ移して pin を進めるかも併せて諮る (D2260 項 4)。それまで pin は C、C2' は D297 の合格も TPC-C の certified も名乗らない。D780 項 2 は維持し、その比較を trace 完全除去の防壁と呼ばない。択 2 (C2' 限定の例外)・択 3 (header を変えない作り直し)・択 4 (何もしない) は採らない。段 2 も header を変えるので、規則 v2 は段 2 の pin 前進にも適用できる (合格するかは段 2 の実差分で確かめる)。**人間の手番:** branch `izanagi-tpcc-v3-silo-mocc` の push
+  **残り:** (1) C 単独の pin 前進は [T-2858] で承認・実施済み (D2227 項 1) で、C1' / C2' / C3 は C の上の別候補として改めて承認を求める。**D297 の header 差分の受理規則は設計審査を終えた (D2249 項 2 の択 1、D2255、`output/insights/2026-09-26/t2854-d297-header-review/README.md`):** 規則 v2 = header の M 差分に限り、実 compile database の全 entry から `-MG` なしの依存列挙 (旧・新 × TRACE=0/1) で変更 header の consumer を選び、選定 configure 集合 (stock と、consumer を含む production target の protocol の genome 空間。C → C2' では stock + silo 8 + mocc 8 = 17) の各 configure で全 consumer entry の TRACE=0 完全展開と include 活性を GCC 11.4 / 12.3 の別 configure で旧新比較する (実行は計算ノード)。**規則 v2 の承認と実装の委任は D2260 項 1 で決まった (ユーザー裁定、推奨どおり)。** **実装済み (D2275、`output/insights/2026-09-27/t2854-d297-header-v2/README.md`):** header 用の 4 引数 (`--header-cc` `--third-party-cache` `--dependency-prefix` `--scratch-root`) を全部与えたときだけ header の M 差分を規則 v2 で検査し、与えなければ従来どおり拒否する。改訂後の検査器で C → C2' は計算ノード 1 job (31903.nqsv、Elapse 1,944 秒) で **GCC 11.4・12.3 とも pass** (選定 17 configure、tictoc・cicada 各 24 genome は consumer なし、consumer 21 entry、予定 = 実行 357、.cc 2 本も match、gitlink `third_party/shirakami` は旧新一致)。負例対照 (tpcc.hh の `#line 56` 削除) は TPC-C consumer の完全展開不一致で拒否。変異 12 件 KILLED。wave の計算は受入を除き約 0.80 node 時間。**問い 2 (ユーザー裁定、今):** この結果・実費・pin 波及 (同 insight §7: code 5 file・test 14 file・`patches/README.md`、C2' の変える 4 file に当たる patch 54 本は C2' での適用可否が未測定、C を束縛する較正記録は D2184 どおり保持) を示して、C2' `40a7f4ac` の pin 前進を承認するか (条件つき事前承認は推さない)。承認後の pin 前進 wave は patch 54 本の厳密適用を最初に測る。この問い 2 の機会に、si の trace v2 (`patches/instr-si-trace-v2.patch`、[T-2847]、D2252) を `izanagi-trace` 枝へ移して pin を進めるかも併せて諮る (D2260 項 4)。それまで pin は C。C2' の D297 pass は改訂後の検査器の結果 (上記) に限って言い、単位 11 の証拠を遡って pass と呼ばない。TPC-C の certified は名乗らない。D780 項 2 は維持し、その比較を trace 完全除去の防壁と呼ばない。択 2 (C2' 限定の例外)・択 3 (header を変えない作り直し)・択 4 (何もしない) は採らない。段 2 も header を変えるので、規則 v2 は段 2 の pin 前進にも適用できる (合格するかは段 2 の実差分で確かめる)。**人間の手番:** branch `izanagi-tpcc-v3-silo-mocc` の push
   (別名なので force 不要、任意の時点で可) と、審査後の裁定を経た pin 前進の承認 (承認後の gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` の同時更新は AI の wave、先例 D2150 / D2184)。
   v3 emitter が pin に入るまで、現 pin の tpcc binary は v2 を出し単位 5 の v3 要求で reject される。
   (2) campaign で TPC-C の候補を評価する配線は評価単位まで済 ({{D:tpcc-campaign-evaluate-wiring}}、`output/insights/2026-09-27/t2866-tpcc-campaign-wiring/README.md`): buildcache と `pipeline.evaluate` が workload (ycsb / tpcc) を受け、
   `tpcc_<protocol>.exe` を build し `-tpcc_num_wh` で bench へ渡す。critic の説明文も TPC-C の v2 reject に合わせた。計算ノードの錨 s1-H-base で build・evaluate・bench が走り、現 pin の v2 trace は既存 reason で abort (bench 未起動)。
   残りは TPC-C の探索 loop への配線 (`loop.run_campaign` の workload・verify mode、TPC-C の calibration、`calibrator/cli.py` の ycsb target 固定) で、TPC-C の探索設計と一緒に行う。
+  D297 検査器の規則 v2 は production target を `buildcache._v2_commands` の `--target` から導き `ycsb_<protocol>.exe` の形だけを受理する (D2275) ので、TPC-C を production target に入れる段ではこの選定も広げる。
   現 pin の perf binary は取引別の commit / abort 件数を出さない (同 insight §3.1)。
   単位 1・2 の実 trace は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-tpcc-ccbench-v3/evidence/traces-2/`、単位 3 の実 trace は
   `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2854-mocc-v3-emitter/evidence/traces-1/`、単位 11 (C2' の silo・mocc) は
@@ -75,7 +76,7 @@ title: [T-2866] [T-2854] TPC-C の候補を campaign の評価単位 (buildcache
   設計 insight §9 の CCBench 所見 (D2219 項 7): 段 1 で観測できたのは実行時の OrderLine 番号が 0 始まりであることだけ。寿命と範囲読みの所見は [T-2855]、
   si の所見は si を走らせる wave の担当。計算: 検証走・計測・開発の検査を含め 1 タスクの job 合計が 2 node 時間以上になる投入は、見積りを示してユーザー確認後に
   投入する (D2212 項 4、D2219 項 1)。一次資料 `output/insights/2026-09-21/vldb-direction/gap-analysis.md` §10、roadmap §3.1。
-  base: 5c6743350be1c6168567775741429214684bc1d02fb39bb2ceb810a04fc4e55a
+  base: de0031c6eb8cd2510c55bd83e18b8614c23a0ede98d42adefc1461ba23acc512
 
 ### 見送り追記
 
