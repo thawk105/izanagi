@@ -1,0 +1,12 @@
+**must-fix・[README §3](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/output/insights/2026-09-27/t2207-closure-unresolved/README.md:57)、[worklog 本文](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/docs/spool/worklog/2026-09-27-dev-wave-t2207-closure-unresolved-1.md:18)、[decisions 理由](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/docs/spool/decisions/2026-09-27-dev-wave-t2207-closure-unresolved-2.md:25)**：「開いている経路は S1 だけ」は、調べた経路全体への断定になっている。一次資料の相談 A は P3 *stock JSON* の任意 macro 投入を否定し、S1 の注入経路を具体的に示した。一方、段 2 plan は他の sink も呼び手や policy を含めた閉包証明が必要としており、全経路を閉じたとは示していない。**直し方:**「今回、未閉包の具体的な入力列を示せたのは S1 の注入口」と範囲を限定する。
+
+**must-fix・[README §1](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/output/insights/2026-09-27/t2207-closure-unresolved/README.md:9)、[decisions 決定 1](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/docs/spool/decisions/2026-09-27-dev-wave-t2207-closure-unresolved-2.md:13)、[worklog title](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/docs/spool/worklog/2026-09-27-dev-wave-t2207-closure-unresolved-1.md:7)**：赤を消す処置が一律に scope 外だという書き方は強すぎる。依頼逐語が除くのは「**これ以外の** gate・検査・台帳・一般化」で、相談 A は S1 の flag 一致検査を本題の一部と読める余地を明示している。README §4 自身もその余地を認めている。**直し方:** 台帳追加や本題外の一般化は scope 外としつつ、「12 sink・715 セルすべてを本題内で解消する案は組めなかった」を停止理由にする。
+
+**should・[README §5](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/output/insights/2026-09-27/t2207-closure-unresolved/README.md:89)、[worklog 本文](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2207-closure-unresolved/docs/spool/worklog/2026-09-27-dev-wave-t2207-closure-unresolved-1.md:16)**：背景 job「13 本」と「開始から 3〜6 分」は、指定された逐語・probe・裁定資料では照合できない。**直し方:** ListAgents の時刻付き一次記録を参照可能にするか、この数量・時間表現を削る。「依頼文の出所は確かめられなかった」は維持できる。
+
+**照合して一致:** 表の全 sink の file:行、kind、件数、行き先は両 probe ログと一致。再計算でも failure は `9×60＋2×59＋57＝715`、deferred は `2×60＋2×47＝214`、計 16 sink・929 セル、S1 を除く failure は 658。旧 18・22 define と現行 57・61 define の区別も一次資料どおりで、レビュー対象 3 本に「242」は無い。14:28 JST、07:52 JST、D2260 項 2 の要約も一致する。3 本の未完了・一時停止の扱い、worklog の `更新` と base 行・2 space 継続行は整合し、新しい gate・検査・台帳・一般化の追加や D1539 の取消しは記録していない。実編集 probe は分類関数の集計であり、pytest の実行記録ではない。
+
+## 総括
+
+**NO-GO。must-fix 2 件。**
+量化の範囲と scope 外の断定を直せば、数値・裁定・未完了の記録は一次資料と整合する。
