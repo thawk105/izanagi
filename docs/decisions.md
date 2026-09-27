@@ -73265,3 +73265,27 @@ D2186 以降の「送信は人間手番 (継続)」はこれで終わる。返�
 - claim を repo 外へ退避して iteration 3 を再投入する — 上の理由。攻撃側が挙げた「採るなら最低限の条件」(host・boot_id・pid・starttime の照合、元 bytes と SHA-256 の保存、iteration 3 の eval-exception を残す、一般化しない) は insight に記録した。
 - iteration 3 の proposal を R2 (別 campaign) で測る — 同じ job の stock 対照が付かず loop も進まない。
 - `MAX_WALLTIME_S` や loop_state を変えて旧系列 A を続ける — 停止条件は D2256 項 3 の予算で、段階 F の裁定もコードで直さないとした。
+
+## D2275. D297 検査器の header 差分の受理規則 v2 を、header 用の 4 引数を全部与えた起動だけで働く分岐として実装し、production target は production の configure 関数から取り、source の gitlink は照合から除外して旧新一致を確かめる。改訂後の検査器で C → C2' は GCC 11.4 / 12.3 とも pass、pin 前進は問い 2 として別に諮る (2026-09-27)
+
+対象: T-2854。資料: D2255 (規則 v2)、D2260 項 1 (承認と委任)、D297、D780、D2150 (iii)、D2207、D2244 項 4、insight `output/insights/2026-09-27/t2854-d297-header-v2/README.md` (§2 実装、§3 判定、§6 変異、§7 pin 波及)、段 4 裁定 `verbatim/s4-ruling.md`、段 6 裁定 `verbatim/s6-ruling.md`。
+
+**決定 (実装 wave の設計判断。規則 v2 そのものは D2255 のまま):**
+
+1. **起動:** header 分岐は `--header-cc` `--third-party-cache` `--dependency-prefix` `--scratch-root` を全部与えた起動だけで働く。1 つも与えない起動 (既存 caller) は段 5 前の検査器と同じ検査順序・拒否文言・返り値で、header を含む差分は従来どおり拒否する。一部だけの指定は拒否。1 起動 = 1 compiler 組 (既存 `--cxx` と `--header-cc`)、GCC 2 版は 2 起動 (D2150 (iii) の先例)。
+2. **configure と production target:** configure argv は production の `buildcache._v2_commands` を呼んで得る (`-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` と `-DCCBENCH_CCACHE=OFF` を足し、後者は production argv との差分として report に記録)。production target は genome 空間を持つ各 protocol について同じ関数の build argv の `--target` から取り、`ycsb_<protocol>.exe` 以外の形は拒否する。検査器に target 名の一覧を複製しない。並走の配線 (tpcc の production 化) が同関数を変えれば、形の検査で拒否に変わる。
+3. **選定 (R4 の読み方):** stock で production target の entry が変更 header を読む protocol は空間全体を選ぶ。読まない protocol は全 genome を production target の entry だけの依存列挙で調べ、見つけた時点で空間全体を選ぶ (stock だけで決めると genome でだけ読む target を落とす、段 3 相談 A)。
+4. **集約 (R4) と予定集合 (R5):** 同じ比較の集約鍵に旧新それぞれの TRACE=0 依存閉包の全 file の内容 sha256 を含める (argv が同じでも生成物が違えば別比較)。実行済み集合は比較結果から作って予定集合と照合する。
+5. **source:** 与えられた repo の管理領域を変えないため worktree は作らず、scratch の bare clone から `git archive` し全 regular file の blob を照合する。gitlink は展開・照合から除外して旧新で (path, commit OID) が一致することを確かめ report に列挙する (段 4 裁定の「gitlink は拒否」は親の事実誤認で、判定 1 回目の拒否で判明)。gitlink の変更は既存の diff 検証が拒否し、gitlink 配下を読む entry は `-MG` なしの依存列挙で失敗して拒否になる。
+6. **判定の結果と名乗り:** 改訂後の検査器 (commit 82e9e780) で C `68106660` → C2' `40a7f4ac` は GCC 11.4・12.3 とも pass、負例対照は拒否 (insight §3)。保証名は D2255 項 2 のまま、D780 項 1 の文言を継承し、trace 完全除去・TPC-C の certified は名乗らない。pin は C のまま。C2' の pin 前進は D2255 項 4 の問い 2 として、結果・実費・波及 (insight §7) を添えてユーザー裁定へ出す。
+
+**理由:**
+- 起動を 4 引数で分けると、計算ノードでしか走らない header 分岐を login の既存 caller (mocc_trace_pilot.sh) と既存 test に波及させずに足せる。
+- production target を production の関数から取ると、選定の母集合が production の定義と一致し、定義が変われば黙って古い一覧で選ぶことにならない。
+- 判定 1 回目が gitlink で止まり、段 6 の builtin probe の失敗 (`-Werror`) も親の実測で見つかった。どちらも合成 fixture と使い捨て driver が実構成を写していなかった所で、実 CCBench の判定 job が必要だったことを示す。
+
+**却下した選択肢:**
+- root 正規化に path 境界の検査を足す (段 6 レビューの F9) — 置換される root は検査器が新しい mkdtemp 下に作る一意名で、root を含む bytes はその root から構成されたものに限られ、旧新の同じ構成は同じ置き場で同じ bytes になる。別の実体が同じ token に潰れる入力が作れない。
+- test 用の供給で本体の生成物経路が分岐する構造を作り直す (段 6 レビューの F10) — production 経路は実 CCBench の判定 job で実走した。構造変更は裁定 S3 の範囲を超える。
+- 事前登録の V2 (`-MG` + 生成 build の省略) と V12 (有効化を「どれか 1 つ」へ緩める) を変異として走らせる — 前者は `-E -dM -MD` の 1 回実行で偽緑に届かず、後者は直後の拒否と `None` 引数の失敗が先に落として単一理由にならない。
+- 判定 script の欠陥で走らなかった負例の末尾検査のために判定 job を再走する — 検査器の出力は保存されており、同じ検査を親が保存物に当てて成立を確認できた。再走は約 0.55 node 時間。
