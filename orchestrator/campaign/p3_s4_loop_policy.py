@@ -5,7 +5,6 @@ import argparse
 import contextlib
 from dataclasses import dataclass
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -16,7 +15,7 @@ if __package__ in {None, ""}:
     __package__ = "orchestrator.campaign"
 
 from . import axis_silo_function_policy as axis
-from . import env_contract, ident, p3_s4_loop as L, site_policy
+from . import env_contract, ident, p3_s4_loop as L, site_policy, source_digest
 from . import wal
 from .artifact_admission import CampaignReadPurpose, require_admitted_campaign
 from .auditor_gate import (AuditorGateFailure, apply_mandatory_deny_only_veto,
@@ -27,8 +26,8 @@ from .build_admission import (BuildAdmissionError, GeneratorId,
 from .diff_quarantine import DiffQuarantineResult, DiffRejectSubtype
 from .layout import exploration_campaign_layout
 from .loop import run_campaign
-from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BENCH_DONE
-from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, PerfConfig
+from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START
+from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, PerfConfig, variant_id
 from .projection_guard import assert_closed_proposal_schema
 from .silo_policy_compile import check_policy_body, find_compiler
 from .silo_policy_ir import parse_policy_ir, render_policy
@@ -344,17 +343,25 @@ def _run_measurement(cfg, perf, genome, sub, *, layout, cache_root,
 def _stock_result(layout, summary):
     result = summary.results[0] if summary.results else None
     abort_rate = None
+    stock_source = False
     if result is not None:
         records = [record for record in wal.read_records(layout)
                    if record.variant == result.variant
-                   and record.stage == STAGE_BENCH_DONE
                    and record.payload.get('build_attempt_id') == result.build_attempt_id]
-        if records:
-            leading = records[-1].payload.get('leading_indicators')
+        stock_genome = Genome('silo', {key: value for key, value in BASE.items()
+                                        if key != axis.FLAG})
+        stock_source = (result.variant == variant_id(stock_genome)
+                        and any(record.stage == STAGE_BUILD_START
+                                and record.payload.get('src_token') == source_digest.STOCK
+                                for record in records))
+        benches = [record for record in records if record.stage == STAGE_BENCH_DONE]
+        if benches:
+            leading = benches[-1].payload.get('leading_indicators')
             if type(leading) is dict and type(leading.get('abort_rate')) in (int, float):
                 abort_rate = leading['abort_rate'] * 100
-    return {'outcome': ('certified-stock' if result.certified and not result.aborted
-                        else 'aborted') if result else 'skipped',
+    return {'outcome': (('certified-stock' if stock_source else 'non-stock-source')
+                        if result.certified and not result.aborted else 'aborted')
+                        if result else 'skipped',
             'variant': result.variant if result else None,
             'fitness_tps': result.fitness_tps if result else None,
             'abort_rate_pct': abort_rate,
@@ -599,14 +606,14 @@ def main(argv=None):
     with checkout as sub:
         scratch = tempfile.gettempdir()
         cache_root = str(Path(fixed_sub) / 'build-variants') if isolated else ''
-        dependency_prefix = os.environ.get('CMAKE_PREFIX_PATH', '')
+        measurement_log = lambda *parts: print(*parts, file=sys.stderr)
         if args.stock_baseline:
             out = run_stock_control(cfg, default_perf(), sub, layout=layout,
                 cache_root=cache_root, build_context=stock_context,
-                contract=contract, dependency_prefix=dependency_prefix,
-                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
+                contract=contract, fetchcontent_options=fetchcontent_options,
+                log=measurement_log)
             print(json.dumps(out, ensure_ascii=False))
-            return 0
+            return 0 if out['outcome'] == 'certified-stock' else 1
         if args.preview_diff:
             from .patchharness import applied
             with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
@@ -628,8 +635,7 @@ def main(argv=None):
             out = run_one_iteration(cfg, default_perf(), proposal, auditor, sub, True,
                 layout=layout, compiler=compiler, scratch_dir=scratch,
                 cache_root=cache_root, build_context=context, contract=contract,
-                dependency_prefix=dependency_prefix,
-                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
+                fetchcontent_options=fetchcontent_options, log=measurement_log)
         elif args.stock_control:
             from . import loop
             candidate_error = None
@@ -638,31 +644,34 @@ def main(argv=None):
                     candidate = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
                         True, compiler=compiler, scratch_dir=scratch, layout=layout,
                         cache_root=cache_root, build_context=context, contract=contract,
-                        dependency_prefix=dependency_prefix,
                         fetchcontent_options=fetchcontent_options,
-                        authorization_session=session, log=lambda *_: None)
+                        authorization_session=session, log=measurement_log)
                 except Exception as exc:
                     candidate_error = exc
+                if candidate_error is None and candidate.get('ran') is False:
+                    print(json.dumps(candidate, ensure_ascii=False))
+                    return 1
                 try:
                     stock = run_stock_control(cfg, default_perf(), sub, layout=layout,
                         cache_root=cache_root, build_context=stock_context,
-                        contract=contract, dependency_prefix=dependency_prefix,
+                        contract=contract,
                         fetchcontent_options=fetchcontent_options,
-                        authorization_session=session, log=lambda *_: None)
+                        authorization_session=session, log=measurement_log)
                 except Exception:
                     if candidate_error is None:
                         raise
             if candidate_error is not None:
                 raise candidate_error.with_traceback(candidate_error.__traceback__)
             out = {'candidate': candidate, 'stock': stock}
+            result_code = 0 if stock['outcome'] == 'certified-stock' else 1
         else:
             out = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
                 not args.no_build, compiler=compiler, scratch_dir=scratch,
                 layout=layout, cache_root=cache_root, build_context=context,
-                contract=contract, dependency_prefix=dependency_prefix,
-                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
+                contract=contract, fetchcontent_options=fetchcontent_options,
+                log=measurement_log)
     print(json.dumps(out, ensure_ascii=False))
-    return 0
+    return result_code if args.stock_control else 0
 
 
 if __name__ == '__main__':

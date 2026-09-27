@@ -20,8 +20,8 @@ from orchestrator.campaign.silo_policy_compile import check_policy_body, find_co
 from orchestrator.campaign.auditor_gate import AuditorVerdict, compute_diff_digest
 from orchestrator.campaign.build_admission import BuildAdmissionError
 from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
-from orchestrator.campaign.model import STAGE_BENCH_DONE
-from orchestrator.campaign.pipeline import EvalResult
+from orchestrator.campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START
+from orchestrator.campaign.pipeline import EvalResult, variant_id
 from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
 
 BODY = (ROOT / 'orchestrator/campaign/silo_function_policy_hand/abort0.cpp').read_text()
@@ -461,13 +461,37 @@ def test_stock_genome_and_same_attempt_baseline(tmp_path, monkeypatch):
     assert out['fitness_tps'] == 123
 
 
+def test_stock_result_requires_stock_source_in_selected_attempt(tmp_path, monkeypatch):
+    from orchestrator.campaign import source_digest
+    layout = CampaignLayout(str(tmp_path))
+    stock_genome = Genome('silo', {k: v for k, v in P.BASE.items() if k != P.axis.FLAG})
+    stock_variant = variant_id(stock_genome)
+    result = EvalResult(stock_genome, stock_variant, True, False,
+                        fitness_tps=123, build_attempt_id='selected')
+    summary = type('Summary', (), {'results': [result]})()
+    records = [
+        WalRecord(stock_variant, STAGE_BUILD_START, P.ENV_TAG, 0,
+                  {'build_attempt_id': 'other', 'src_token': source_digest.STOCK}),
+        WalRecord(stock_variant, STAGE_BUILD_START, P.ENV_TAG, 1,
+                  {'build_attempt_id': 'selected', 'src_token': 'DIFFERENT'}),
+        WalRecord(stock_variant, STAGE_BENCH_DONE, P.ENV_TAG, 2,
+                  {'build_attempt_id': 'selected',
+                   'leading_indicators': {'abort_rate': .12}}),
+    ]
+    monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)
+    assert P._stock_result(layout, summary)['outcome'] == 'non-stock-source'
+    records[1].payload['src_token'] = source_digest.STOCK
+    assert P._stock_result(layout, summary)['outcome'] == 'certified-stock'
+    result.variant = 'different-variant'
+    assert P._stock_result(layout, summary)['outcome'] == 'non-stock-source'
+
+
 def test_original_stock_source_is_classified_by_source_digest():
     from orchestrator.campaign import source_digest
-    import shutil
     sub = ROOT / 'external/ccbench'
-    compiler = shutil.which('g++-13')
+    compiler = find_compiler()
     if compiler is None or not (sub / '.git').exists():
-        pytest.skip('CCBench submodule or g++-13 unavailable')
+        pytest.skip('CCBench submodule or compiler unavailable')
     genome = Genome('silo', {k: v for k, v in P.BASE.items() if k != P.axis.FLAG})
     assert source_digest.resolve(genome, P.axis.PIN,
                                  ccbench_dir=str(sub), cxx=compiler) == source_digest.STOCK
@@ -477,6 +501,42 @@ def test_measurement_rejects_mismatched_site_before_campaign(monkeypatch):
     monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
     with pytest.raises(ValueError, match='environment differs'):
         P._measurement_contract('pegasus')
+
+
+def _prepare_stock_cli(tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness, p2_2
+    monkeypatch.setattr(P, 'ROOT', tmp_path)
+    monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
+    monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
+    monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
+    monkeypatch.setattr(P, 'exploration_campaign_layout',
+                        lambda *_a: CampaignLayout(str(tmp_path / 'campaign')))
+
+
+def test_stock_baseline_failure_returns_one_with_json(tmp_path, monkeypatch, capsys):
+    _prepare_stock_cli(tmp_path, monkeypatch)
+    monkeypatch.setattr(P, 'run_stock_control',
+                        lambda *_a, **_k: {'outcome': 'aborted'})
+    assert P.main(['--form', 'cpp', '--no-isolate-worktree', '--stock-baseline']) == 1
+    assert json.loads(capsys.readouterr().out) == {'outcome': 'aborted'}
+
+
+def test_stock_cli_preserves_environment_prefix_and_stderr_log(tmp_path, monkeypatch, capsys):
+    _prepare_stock_cli(tmp_path, monkeypatch)
+    monkeypatch.setenv('CMAKE_PREFIX_PATH', '/a:/b')
+    monkeypatch.setattr(P.ident, 'ensure_resumable_attempts', lambda *_a, **_k: None)
+    seen = []
+    def capture(*_a, **kwargs):
+        seen.append(kwargs)
+        kwargs['log']('measurement marker')
+        return type('Summary', (), {'results': []})()
+    monkeypatch.setattr(P, 'run_campaign', capture)
+    assert P.main(['--form', 'cpp', '--no-isolate-worktree', '--stock-baseline']) == 1
+    assert len(seen) == 1 and 'dependency_prefix' not in seen[0]
+    captured = capsys.readouterr()
+    assert captured.err == 'measurement marker\n'
+    assert json.loads(captured.out) == {'outcome': 'skipped', 'variant': None,
+        'fitness_tps': None, 'abort_rate_pct': None, 'verdict': None}
 
 
 def test_drive_exception_records_history(tmp_path, monkeypatch):
@@ -579,3 +639,36 @@ def test_pair_orders_candidate_then_stock_in_one_session(tmp_path, monkeypatch, 
             '--stock-control'])
     assert [item[0] for item in seen] == ['candidate', 'stock']
     assert seen[0][1] is seen[1][1]
+
+
+def test_pair_without_candidate_attempt_skips_stock(tmp_path, monkeypatch, capsys):
+    if find_compiler() is None:
+        pytest.skip('policy compiler unavailable')
+    _prepare_stock_cli(tmp_path, monkeypatch)
+    candidate = {'outcome': 'stopped-before', 'variant': None, 'ran': False}
+    monkeypatch.setattr(P, 'drive_iteration', lambda *_a, **_k: candidate)
+    def unexpected_stock(*_a, **_k):
+        pytest.fail('stock must not run without a candidate attempt')
+    monkeypatch.setattr(P, 'run_stock_control', unexpected_stock)
+    proposal = _proposal(tmp_path)
+    assert P.main(['--form', 'cpp', '--allow-coder-derived-build',
+        '--no-isolate-worktree', '--run-iteration', str(proposal),
+        '--stock-control']) == 1
+    assert json.loads(capsys.readouterr().out) == candidate
+
+
+def test_pair_stock_failure_returns_one_after_candidate(tmp_path, monkeypatch, capsys):
+    if find_compiler() is None:
+        pytest.skip('policy compiler unavailable')
+    _prepare_stock_cli(tmp_path, monkeypatch)
+    monkeypatch.setattr(P, 'drive_iteration',
+                        lambda *_a, **_k: {'outcome': 'rejected', 'ran': True})
+    monkeypatch.setattr(P, 'run_stock_control',
+                        lambda *_a, **_k: {'outcome': 'non-stock-source'})
+    proposal = _proposal(tmp_path)
+    assert P.main(['--form', 'cpp', '--allow-coder-derived-build',
+        '--no-isolate-worktree', '--run-iteration', str(proposal),
+        '--stock-control']) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        'candidate': {'outcome': 'rejected', 'ran': True},
+        'stock': {'outcome': 'non-stock-source'}}
