@@ -2323,8 +2323,10 @@ def test_diff_region_path_at_sign_survives_real_producer():
 
 
 @pytest.mark.parametrize("region", [
-    "include/backoff.hh", "cc/silo/transaction.cc",
-    "cc/mocc/transaction.cc", "mocc-temperature-predicate",
+    pytest.param("include/backoff.hh", id="backoff-hh"),
+    pytest.param("cc/silo/transaction.cc", id="silo-transaction"),
+    pytest.param("cc/mocc/transaction.cc", id="mocc-transaction"),
+    pytest.param("mocc-temperature-predicate", id="mocc-marker"),
 ])
 def test_diff_region_stage_four_constants_render_verbatim(region):
     rendered = render_rejections([], [], diff_rejections=[DiffQuarantineRejection(
@@ -2359,8 +2361,12 @@ def test_diff_region_forbidden_file_path_and_reason_are_sanitized():
 
 
 @pytest.mark.parametrize("region", [
-    "line\nfeed", "tab\there", "escape\x1bvalue", "bidi\u202evalue",
-    "left[bracket", 123,
+    pytest.param("line\nfeed", id="line-feed"),
+    pytest.param("tab\there", id="tab"),
+    pytest.param("escape\x1bvalue", id="escape"),
+    pytest.param("bidi\u202evalue", id="bidi-override"),
+    pytest.param("left[bracket", id="left-bracket"),
+    pytest.param(123, id="non-string"),
 ])
 def test_diff_region_direct_invalid_values_render_sentinel(region):
     rendered = render_rejections([], [], diff_rejections=[DiffQuarantineRejection(
@@ -2372,14 +2378,27 @@ def test_diff_region_direct_invalid_values_render_sentinel(region):
         assert region not in rendered
 
 
-@pytest.mark.parametrize("region", ["", None])
+@pytest.mark.parametrize("region", [
+    pytest.param("", id="empty"),
+    pytest.param(None, id="missing-in-wal"),
+])
 def test_diff_region_empty_or_missing_renders_question_mark(region):
-    rejection = DiffQuarantineRejection(
-        genome="g", flags={}, subtype="outside-region", reason="safe-reason",
-    )
-    if region is not None:
-        rejection.diff_region = region
-    rendered = render_rejections([], [], diff_rejections=[rejection])
+    if region is None:
+        digest = _producer_quarantine_digest(
+            "@@ -1,1 +1,0 @@\n-int outside = 0;", file_rel="cc/other.cc",
+        )
+        del digest["diff_region"]
+        lay = _tmp_layout()
+        _write_producer_quarantine_rejection(lay, digest)
+        rejections = load_diff_rejections(_view(lay))
+        assert len(rejections) == 1
+        assert rejections[0].diff_region == ""
+    else:
+        rejections = [DiffQuarantineRejection(
+            genome="g", flags={}, subtype="outside-region", reason="safe-reason",
+            diff_region=region,
+        )]
+    rendered = render_rejections([], [], diff_rejections=rejections)
     assert " / region=?" in rendered
 
 
