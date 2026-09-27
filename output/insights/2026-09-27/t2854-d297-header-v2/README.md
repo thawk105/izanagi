@@ -16,7 +16,7 @@ default_effect: no-state-change
 3. **負例対照:** C2' に `include/tpcc.hh` の `#line 56` を消す commit を足した入力は GCC 11.4 で rc=1、理由 = `header expanded 不一致: configure=stock entry=('<SOURCE>/cc/cicada/tpcc_cicada.cc', 'tpcc_cicada.exe')` (TPC-C consumer の完全展開の不一致、951 秒)。判定 script の欠陥 (§5.4) で job 内の末尾検査が走らなかったので、親が保存物に同じ 3 検査 (rc=1、「expanded 不一致」、TPC-C consumer の特定) を当てて全部成立を確認した。
 4. **pin は C のまま。** gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` は変えていない。branch `izanagi-tpcc-v3-silo-mocc` の push もしていない。C2' の pin 前進は D2255 項 4 の問い 2 としてユーザー裁定へ出す (§7 に波及の実測)。この pass は規則 v2 の保証 (選定 configure 集合の compile database に載る変更 header consumer entry における、TRACE=0 完全展開と include 活性の同一性) であり、trace 完全除去の証明ではない (D780 項 1)。TPC-C の certified も名乗らない。
 5. **変異:** 事前登録 V1・V3〜V11 と、fix 所見の回帰を守る追加 V13・V14 の 12 件すべて KILLED (期待 node と完全一致)。V2・V12 は単一理由の偽緑に届かない構造なので登録から外した (§6)。
-6. **実費:** 計算 job の Elapse 合計 2,137 秒 (生死確認 170、焦点走 13、判定 1 回目 10、判定 2 回目 1,944) に変異 2 走 742.7 秒 (harness の所要、queue 待ち込みの上限値) で **約 0.80 node 時間以下** (受入は本 insight の後に走るので含まない)。2 node 時間の確認線の下。Codex 子 13 本 (全子 gpt-6-sol / medium、段 7 の記録レビュー 1 本を含む) で model call 199、wall 3,638.8 秒。
+6. **実費:** 計算 job の Elapse 合計 2,137 秒 (生死確認 170、焦点走 13、判定 1 回目 10、判定 2 回目 1,944) に変異 2 走 742.7 秒 (harness の所要、queue 待ち込みの上限値) で **約 0.80 node 時間以下**。受入 1 回目 (赤 1、§5.3) の 3 shard 計 848 秒を足して約 1.04 node 時間 (受入 2 回目は本 insight の後に走るので含まない)。2 node 時間の確認線の下。Codex 子 13 本 (全子 gpt-6-sol / medium、段 7 の記録レビュー 1 本を含む) で model call 199、wall 3,638.8 秒。
 
 ## 1. 完了条件と状態
 
@@ -103,6 +103,7 @@ default_effect: no-state-change
 - **合成 fixture の代表性:** 段 5 の fixture は実 CCBench の consumer argv にある `-Werror` を持たず、`-U__DATE__` の probe が実構成で必ず失敗することを test が捉えなかった。親が login で実測して段 6 で直し、正例 fixture に `-Werror` と TRACE token の無い target を加えた (F7)。
 - **consumer test の AST 固定の見落とし:** 実装子は制約 meta-test の洗い出しを指示されていたが、`test_mocc_trace_job_contract.py` の AST 固定に当たる返り値の組み立て方の変更を持ち込んだ。焦点走で検出。
 - **fix 1 の依頼文:** 親が「親の事前所見 parent-findings-s6.md (同じ dir)」と書き、子は `out/` 配下と読んで存在しないため規定どおり即停止した (16 秒)。絶対 path に直して再投入。
+- **新 test file の自走入口・allowlist の欠落 (F42 再発):** 最終受入 1 回目 (tested main `19d3f2bae`、tip `1eaf4331`、27,954 collected) が `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件だけで赤 (27,879 passed / 74 skipped)。新 test は `tmp_path` fixture に依存するので `orchestrator/tests/README.md` の pytest 専用 allowlist に 1 行足した。親は DW-O26 (新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める) を読みながら焦点走に入れていなかった。受入 1 回目の Elapse は 3 shard 計 848 秒。
 - **判定 script の errexit:** `run_one` が関数内で `set -e` を戻してから `return 1` するため、`set +e` の中で呼んだ負例の起動が rc=1 を返した時点で script 全体が rc=1 で終わり、末尾の 3 検査が job 内で走らなかった。負例の判定自体は保存物で成立を確認した (§0 の 3)。script は job dir だけにあり repo には入っていない。
 
 ### 5.4 段 7 記録レビュー
