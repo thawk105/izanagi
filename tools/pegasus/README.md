@@ -482,11 +482,15 @@ qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HE
 (`{coder, auditor}` の proposal) が必須、stock では渡さない。方策 mode は T-2849・B-5・K2・
 `IZANAGI_S4_PROPOSAL_PATH`・fixture・`IZANAGI_S4_STOCK_CONTROL` と排他で、trace 保全の
 `IZANAGI_TRACE_ARCHIVE_ROOT` (絶対 path、repo の外) が必須。CCBench は `p3_s4_loop.PIN` ではなく
-`axis_silo_function_policy.PIN` と照合する。手順と各 mode の意味は `docs/phase3-silo-policy-runbook.md`。
-上の bash fence の proposal・K2・stock-control の env を外し、次を足す (例は pair):
+`axis_silo_function_policy.PIN` と照合する。したがって方策 mode の準備では、上の「PIN と異なれば checkout」の
+PIN を `python3 -c 'from orchestrator.campaign.axis_silo_function_policy import PIN; print(PIN)'` の値に読み替える
+(superproject の gitlink がこの pin を指すので、submodule 初期化直後の checkout ならそのまま一致する)。
+手順と各 mode の意味は `docs/phase3-silo-policy-runbook.md`。pair の投入は次の形で、上の bash fence の
+proposal・K2・stock-control の env は渡さない (stock は `IZANAGI_S4_POLICY_PROPOSAL_PATH` を省き mode を `stock` に、
+replay は mode を `replay` にする):
 
 ```text
-IZANAGI_S4_POLICY_MODE=pair,IZANAGI_S4_POLICY_FORM=cpp,IZANAGI_S4_POLICY_PROPOSAL_PATH=/absolute/path/to/prop.json,IZANAGI_TRACE_ARCHIVE_ROOT=/absolute/archive-outside-all-repositories
+qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_POLICY_MODE=pair,IZANAGI_S4_POLICY_FORM=cpp,IZANAGI_S4_POLICY_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_TRACE_ARCHIVE_ROOT="$ARCHIVE_ROOT" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
 ```
 
 B-5 試走の投入は上の fence を手で組まず launcher で行う (arm ごとの 4 checkout それぞれに準備 (1)〜(3) を行い、
