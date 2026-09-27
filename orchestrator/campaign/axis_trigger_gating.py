@@ -25,6 +25,63 @@ SOURCE_REL = "cc/silo/transaction.cc"
 TEMPLATE_PATCH = "silo-backoff-trigger-gating-variant.patch"
 PREDICATE_HOLE_INDENT = "  "
 FROZEN_TEMPLATE_HOLE_BYTES = b"  izanagi_gate_pass = true;"
+FROZEN_TEMPLATE_ABORT_HEAD_BYTES = (
+    b'void TxExecutor::abort() {\n'
+    b'  // remove inserted records\n'
+    b'  for (auto& we : write_set_) {\n'
+    b'    if (we.op_ == OpType::INSERT) {\n'
+    b'      Masstrees[get_storage(we.storage_)].remove_value_if_present(we.key_);\n'
+    b'      delete we.rcdptr_;\n'
+    b'    }\n'
+    b'  }\n'
+    b'\n'
+    b'  gc_records();\n'
+    b'\n'
+    b'  read_set_.clear();\n'
+    b'  write_set_.clear();\n'
+    b'  node_map_.clear();\n'
+    b'\n'
+    b'#if BACK_OFF\n'
+    b'#if ADD_ANALYSIS\n'
+    b'  std::uint64_t start(rdtscp());\n'
+    b'#endif\n'
+    b'\n'
+)
+FROZEN_TEMPLATE_ABORT_TALLY_BYTES = (
+    b'#if BACKOFF_TRIGGER_GATING && TRACE\n'
+    b'  // izanagi (Phase 3 stage 8a, D48/AUD-4): abort-reason tally -- verification-\n'
+    b'  // only instrumentation (characterization patch, NOT part of the axis\n'
+    b'  // skeleton). Emits one "A <reason>" line per abort so the coverage driver\n'
+    b'  // can cross-check recorded reasons against ADD_ANALYSIS counters and prove\n'
+    b'  // the misattribution mutation turns red. Lives in a separate patch layered\n'
+    b'  // over the skeleton for characterization runs only: baking it into the\n'
+    b"  // template patch would make the variant's TRACE=1/TRACE=0 preprocess diff\n"
+    b"  // diverge from pinned HEAD's and trip assert_trace_diff_matches_head\n"
+    b'  // (\xe8\xa6\x8f\xe5\xbe\x8b1 \xe4\xb8\x80\xe6\xac\xa1\xe9\x98\xb2\xe5\xa3\x81) on every loop evaluation. All 7 skeleton stores happen\n'
+    b'  // before abort() is entered (status_ is set at the abort decision point;\n'
+    b'  // the run loop then calls abort()), and nothing inside abort() writes the\n'
+    b'  // reason, so the value emitted here is exactly what the gate below reads.\n'
+    b'  {\n'
+    b'    static const char* const izanagi_abort_reason_names[] = {\n'
+    b'        "unset",           "lock-conflict", "update-absent", "readvali-tid",\n'
+    b'        "readvali-locked", "node-vali",     "insert-node",   "scan-node"};\n'
+    b'    izanagi_trace::stream(thid_)\n'
+    b'        << "A "\n'
+    b'        << izanagi_abort_reason_names[static_cast<unsigned>(\n'
+    b'               izanagi_abort_reason_)]\n'
+    b"        << '\\n';\n"
+    b'  }\n'
+    b'#endif\n'
+)
+FROZEN_TEMPLATE_PROLOGUE_BYTES = (
+    b'#if BACKOFF_TRIGGER_GATING\n'
+    b'  // izanagi skeleton (D48): gate scaffold. The predicate variable and the\n'
+    b'  // gated call below live OUTSIDE the EVOLVE-BLOCK markers = coder-\n'
+    b'  // untouchable (DiffQuarantine outside-region). Initial true = stock\n'
+    b'  // default (back off).\n'
+    b'  bool izanagi_gate_pass = true;\n'
+    b'#endif\n'
+)
 FROZEN_TEMPLATE_BLOCK_BYTES = (
     b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
     b"  // izanagi Phase 3 (D48/phase3.md): this conditional-compilation skeleton\n"

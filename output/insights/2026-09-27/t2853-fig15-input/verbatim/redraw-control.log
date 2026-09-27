@@ -1,0 +1,33 @@
+host pegasus02 start 2026-09-27 14:49:22 JST HEAD ad114fba03e83de65453f098246e8f0deea7bb64
+wrote /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-control/fig15_mocc_witlight_four_arm.png / .pdf / .provenance.json
+generator rc=0
+top-level keys: 15; keys with any leaf difference: ['generated_utc', 'generator', 'outputs', 'reproduction']
+leaf differences: 8
+  $.generated_utc
+    landed: "2026-09-21T12:38:06.982614+00:00"
+    redraw: "2026-09-27T05:49:24.656594+00:00"
+  $.generator.sha256
+    landed: "fba1c0afb3e72d9796fd6237c0d31dcb7d72febdd3e06366c9c99803fd3aac5a"
+    redraw: "5e46ef9ab403ddc17a05579a68ab0af417dd2f2cf87ee324185e83a7db9db942"
+  $.outputs[0].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.png"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-control/fig15_mocc_witlight_four_arm.png"
+  $.outputs[1].path
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-control/fig15_mocc_witlight_four_arm.pdf"
+  $.outputs[1].sha256
+    landed: "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018"
+    redraw: "92feb21cd750b80b3afa9523e99058472fd15bf0d3399cc863dddff856303926"
+  $.reproduction.argv[3]
+    landed: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures"
+    redraw: "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input"
+  $.reproduction.argv[6]
+    landed: "docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    redraw: "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-control/fig15_mocc_witlight_four_arm"
+  $.reproduction.command
+    landed: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W docs/paper-story/figures/fig15_mocc_witlight_four_arm"
+    redraw: "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W ../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-control/fig15_mocc_witlight_four_arm"
+.png: landed 11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966 redraw 11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966 equal=True
+.pdf: landed 4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018 redraw 92feb21cd750b80b3afa9523e99058472fd15bf0d3399cc863dddff856303926 equal=False
+compare rc=0
+end 2026-09-27 14:49:41 JST

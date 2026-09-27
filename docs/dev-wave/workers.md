@@ -3,31 +3,30 @@
 ## DW-S02 — 段 2 プラン起草
 
 brief と関連コードの所在を渡し、codex `reasoning=medium`、`sandbox=read-only` で
-file:line 粒度の plan を起草させる。
+file:line粒度のplanを起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
 codex `reasoning=medium`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
 正しさ境界・整合・実効性と過剰・削除（研究前進・実測欠陥への対応、削除・局所修正の可否）に分け、
-親 brief 自身も検査対象だと明記する。brief の file:line、前提、
+親brief自身も検査対象だと明記する。briefのfile:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
-gate・検査を新設する wave では成果物が実際に効く全層が scope に入るかを必ずレンズに入れ、
-scope 外の層を実装したふりにせず裁定パッケージ候補として返させる。
+gate・検査を新設するwaveでは成果物が実際に効く全層がscopeに入るかを必ずレンズに入れ、
+scope外の層を実装したふりにせず裁定パッケージ候補として返させる。
 
 ## DW-S05-A — 段 5 所有と投入
 
-所有path素集合の単位ごとに別worktree。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録してから起動、fixは同木でbranchを切り再登録。依存完了後、所有path限定patch
+所有path素集合の単位ごとに別worktree(`-b`必須)。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録してから起動、fixは同木でbranchを切り再登録。依存完了後、所有path限定patch
 （`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可）だけ展開し並列投入。
-worktreeは`-b`必須。
 投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
-gate実測NOTE≠0ならanchor再読。
+直後に段1のconsumer検索をlocal mainで再走し差を裁定へ(F1014)、gate実測NOTE≠0ならanchor再読。
 起動器はauthor/fixの全残差を終端commit、待ち手は`--commit-worktree <abs>`指定。記録のみ(D2044項16)。
 codex は `reasoning=medium`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
 
-権限は入口の凍結境界に従う。親・他単位の成果物の land まで意図的に赤になるテストを
-xfail 化せず、既存テストの期待値も変えない。赤の内訳を報告に明記する。
+権限は入口の凍結境界に従う。親・他単位の成果物のlandまで意図的に赤になるテストを
+xfail化せず、既存テストの期待値も変えない。赤の内訳を報告に明記する。
 
 ## DW-S05-C — 段 5 実装子の検査・報告
 
@@ -45,7 +44,7 @@ xfail 化せず、既存テストの期待値も変えない。赤の内訳を�
 ## DW-S06-A — 段 6 敵対レビュー
 
 実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。
-1 本は `DW-S03` の過剰・削除レンズに固定する。
+1本は`DW-S03`の過剰・削除レンズに固定する。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
 
 ## DW-S06-B — 段 6 fix の分割と継承
@@ -59,4 +58,4 @@ fixのpromptに**既存テストの期待値を変更しない**を明記する�
 ## DW-S06-C — 段 6 統合後の再検証
 
 並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。
-親が変異 matrix と受入を再走する。
+親が変異matrixと受入を再走する。

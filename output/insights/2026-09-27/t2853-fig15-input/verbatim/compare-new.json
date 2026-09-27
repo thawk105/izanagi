@@ -1,0 +1,84 @@
+{
+ "top_level_keys": [
+  "arms",
+  "artist_series",
+  "blocks",
+  "caption",
+  "comparisons",
+  "exposure_ratios",
+  "external_inputs",
+  "generated_utc",
+  "generator",
+  "measurement_conditions",
+  "outputs",
+  "reproduction",
+  "schema",
+  "source_inputs",
+  "tracked_inputs"
+ ],
+ "changed_top_level_keys": [
+  "generated_utc",
+  "generator",
+  "outputs",
+  "reproduction"
+ ],
+ "leaf_differences": [
+  {
+   "path": "$.generated_utc",
+   "landed": "2026-09-21T12:38:06.982614+00:00",
+   "redraw": "2026-09-27T05:56:40.036570+00:00"
+  },
+  {
+   "path": "$.generator.sha256",
+   "landed": "fba1c0afb3e72d9796fd6237c0d31dcb7d72febdd3e06366c9c99803fd3aac5a",
+   "redraw": "187bc7626ac1008b19190e149b3b6401cacb4434c7aa3b4c4861273000d1d2c6"
+  },
+  {
+   "path": "$.outputs[0].path",
+   "landed": "docs/paper-story/figures/fig15_mocc_witlight_four_arm.png",
+   "redraw": "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm.png"
+  },
+  {
+   "path": "$.outputs[1].path",
+   "landed": "docs/paper-story/figures/fig15_mocc_witlight_four_arm.pdf",
+   "redraw": "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm.pdf"
+  },
+  {
+   "path": "$.outputs[1].sha256",
+   "landed": "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018",
+   "redraw": "472061506973f8b05d3f76081ea8b84568eff54dc90ca803f4462028cb0dcca5"
+  },
+  {
+   "path": "$.reproduction.argv[3]",
+   "landed": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures",
+   "redraw": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input"
+  },
+  {
+   "path": "$.reproduction.argv[5]",
+   "landed": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W",
+   "redraw": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input/output/insights/2026-09-19/mocc-witlight-arm-run/verbatim"
+  },
+  {
+   "path": "$.reproduction.argv[6]",
+   "landed": "docs/paper-story/figures/fig15_mocc_witlight_four_arm",
+   "redraw": "../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm"
+  },
+  {
+   "path": "$.reproduction.command",
+   "landed": "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-paper-results-figures --evidence-root /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W docs/paper-story/figures/fig15_mocc_witlight_four_arm",
+   "redraw": "python3 tools/plotting/plot_mocc_witlight_four_arm.py --repo-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input --evidence-root /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2853-fig15-input/output/insights/2026-09-19/mocc-witlight-arm-run/verbatim ../../../../dev-wave-jobs/dev-wave-t2853-fig15-input/redraw-new/fig15_mocc_witlight_four_arm"
+  }
+ ],
+ "files": {
+  ".png": {
+   "landed": "11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966",
+   "redraw": "11f28201017df6fbefc2422a51d72bbd751560b97a427cdd8fde29004894e966",
+   "equal": true
+  },
+  ".pdf": {
+   "landed": "4af678483c544ecbbee63e12d1df32d3980f78a476672ea7d570d0377101d018",
+   "redraw": "472061506973f8b05d3f76081ea8b84568eff54dc90ca803f4462028cb0dcca5",
+   "equal": false
+  }
+ }
+}
