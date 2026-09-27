@@ -5692,14 +5692,38 @@ def test_qualification_stock_build_case_dependency_options(tmp_path, check):
         checkout = tmp_path / "external/ccbench"
         source = checkout / axis_trigger_gating.SOURCE_REL
         raw = source.read_bytes()
-        begin = raw.index(b"    // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n")
-        end_marker = b"    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
-        end = raw.index(end_marker, begin) + len(end_marker)
+        # The borrowed checkout has Transaction::abort(), not the pinned
+        # TxExecutor::abort(). Replace its whole declaration and function so
+        # the canonical prefix, block, and epilogue form one closed source.
+        old_class = b"class Transaction {\n"
+        assert raw.count(old_class) == 1
+        assert raw.endswith(b"};\n")
         source.write_bytes(
-            raw[:begin] + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
-            + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES + raw[end:]
+            raw[:raw.index(old_class)]
+            + b"class TxExecutor { public: void abort(); };\n"
+            + axis_trigger_gating.FROZEN_TEMPLATE_ABORT_HEAD_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_PROLOGUE_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES
+            + b"#endif\n}\n"
         )
-        subprocess.run(["git", "-C", str(checkout), "add", axis_trigger_gating.SOURCE_REL],
+        # The canonical head tests ADD_ANALYSIS. Supply the same TU macro as
+        # CCBench so source_digest can classify this private checkout.
+        options = checkout / "cmake" / "Options.cmake"
+        cmake = options.read_text(encoding="utf-8")
+        options.write_text(
+            cmake.replace(
+                "function(ccbench_universal_definitions out_var)\n",
+                "set(CCBENCH_ADD_ANALYSIS 0 CACHE STRING \"extra per-tx analysis counters\")\n"
+                "function(ccbench_universal_definitions out_var)\n",
+            ).replace(
+                "  set(${out_var}\n",
+                "  set(${out_var}\n    ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n",
+            ),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(checkout), "add",
+                        axis_trigger_gating.SOURCE_REL, "cmake/Options.cmake"],
                        capture_output=True, text=True, check=True)
         subprocess.run(["git", "-C", str(checkout), "commit", "-q", "-m",
                         "canonical qualification trigger material"],
