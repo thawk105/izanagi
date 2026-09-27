@@ -120,6 +120,16 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
 停止は予算 (iteration 数・walltime) だけ (planner が無いので収束判定と逆方向枯渇は使わない)。
 critic の出力は次の (a) で `critic_diagnosis` として渡す。
 
+critic は `Agent(subagent_type='critic')`。入力はメインセッションが同じ系列の campaign から抜き出して prompt に貼る
+3 つだけ: 同じ campaign の `silo_policy_loop_digest.txt` の本文、当該 iteration の候補実装
+(`policy_history.jsonl` の `implementation`。`justification` は除く)、当該 pair の同じ job の stock の値 (job stdout の
+JSON)。digest には候補の実装も同じ job の stock も載らないため、digest だけだと設計選択への帰属がほぼ書けない
+(段階 F の実物で確認)。他の file (insights・偵察・小比較・他の campaign) は読まないよう prompt で指示するが、
+critic は Read・Bash を持つので閲覧を機械的に防いだとは言えない。critic への入力は逐語で記録する。
+出力は `## attribution`・`## recommend`・`## avoid`・`## uncertainty` の H2 見出しを各 1 回ずつ持つ Markdown と
+prompt に明記する (`--critic-output` の変換 `extract_critic_sections` がこの 4 見出しを厳密に要求する)。
+出力を file に保存し、次の (a) に `--critic-output <file>` で渡す。
+
 ---
 
 ## 2. リーク制御チェックリスト (毎 iteration、メインセッションが自己監査)
@@ -138,6 +148,12 @@ critic の出力は次の (a) で `critic_diagnosis` として渡す。
 `L.check_stop` の予算 (`MAX_ITER` / `MAX_WALLTIME_S`) に委譲する。checkpoint は campaign dir の
 `loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。stock baseline (bootstrap campaign) と
 R2 (r2 campaign) は loop の checkpoint・履歴を動かさない。
+
+walltime 予算は campaign の `loop_state.json` の作成時刻から数えるので、止まった系列を後から続けることはできない。
+**骨格 patch (`patches/silo-function-policy-variant.patch`) を変えたら、新しい submit checkout で新しい系列として回す。**
+campaign identity は骨格 patch の bytes を含まないため、新旧の系列は別 checkout に同じ campaign ID の dir を持ちうる。
+結果には submit checkout の絶対 path・HEAD・骨格 patch の SHA-256・campaign dir を併記し、ID 単独で系列を結合しない。
+新しい系列の初回 baseline は §1(0) のとおりその checkout で stock を測り直す。
 
 ---
 
