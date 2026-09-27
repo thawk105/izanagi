@@ -85,6 +85,11 @@ driver が同じ gate を掛け直し、拒否なら WAL と履歴 (`policy_hist
 `designated_sources`・`abort_digest`)。`designated_sources` には `orchestrator/campaign/silo_function_policy_api.hh`
 と `orchestrator/campaign/silo_function_policy_coder_spec.md` を含める。返却 `diff_digest` は (c) の値の echo
 であり、caller が補正しない。本軸の違反型は 1〜26。
+spawn の prompt には、driver の auditor gate (`auditor_gate.parse_auditor_dict`) が受理する閉じた出力形を明記する:
+`violations` は `{type (整数), location, correctness_impact, verifier_blind_spot}` の配列、`nits` は `{"finding": 文字列}`
+か `{"note": 文字列}` の配列、`proposed_tests` はちょうど `{mutation, expected_gate, machine_judgment}` (文字列) の配列、
+`uncertainty` は文字列 1 つ。auditor role の出力節は型を定めておらず、明記しないと (e) の読込みで
+`AuditorGateFailure` になる (段階 F の初回で観測)。返却が gate に拒否されたら値を直さず、同じ入力で再審査させる。
 
 ### (e) proposal file を確定
 `{"coder": <(b) の proposal>, "auditor": <(d) の返却>}`。top key はこの 2 つだけ
