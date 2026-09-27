@@ -13,6 +13,8 @@ title: [T-2866] [T-2854] TPC-C の候補を campaign の評価単位 (buildcache
 - 親 brief の誤り 2 点を段 3 の相談 2 本が独立に反証した (実行器の `cell.flags` は int ではなく `_cell` が str 化済み、認定 gate は X/P の二面)。文字列化の差分は作らなかった。
 - 焦点走 1 回目の赤 12 件は本 wave に帰属: 新 test が見つけた実欠陥 1 件 (`_prepare_evaluation_core` の反復変数が引数 `workload` を上書きし、v3 通過後の TPC-C bench が落ちる) と、`_PreparedEvaluation` を直接作る既存 fixture の取り残し 11 件。fix 1 巡で閉じ、焦点走 2 回目 2,765 passed・5 skipped。
 - 変異 matrix (独立 clone、dispatch、HEAD `724088a08`): 事前登録の M1〜M14 が 14 件とも KILLED (期待 node と完全一致)、等価変異 M15 は SURVIVED (同 insight §2)。
+- 受入 attempt 1 の赤 1 件 (`test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys`、bench payload の条件付き key 数の pin) は本 wave に帰属。
+  焦点走の consumer 集合に private symbol の consumer を入れ損ねた親の漏れで、bench・commit payload への `workload` 追加を取り下げて閉じた (同 insight §1)。
 - 段 6 review の不採用: RB3 (不正 workload の拒否 test の重複削減) は受理集合・成果物に影響しないので見送り。
 - 実装子・fix 子の codex は sandbox が qstat を拒否するため pytest を実走できず、test は親の焦点走だけで確かめた。
 - 計算ノードの生死確認は使い捨て driver (repo 外、Codex author) で 3 回: 1 回目 (31859.nqsv、32 秒) は build の toolchain manifest 不一致、2 回目 (31867.nqsv、38 秒) は FetchContent の実効 source root 不一致で、どちらも driver が production の job body と違う形で引数を渡していたため。

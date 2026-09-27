@@ -9,7 +9,7 @@ authority: none / default_effect: no-state-change (記録。可変状態の正�
 | 面 | 変更 |
 |---|---|
 | build (`orchestrator/campaign/buildcache.py`) | `build()`・`build_v2()` ほかに `workload` (`ycsb` / `tpcc`、既定 `ycsb`)。target・binary path・compiler input の target を `<workload>_<protocol>.exe` の 1 箇所から作る。legacy key と v2 preimage は tpcc のときだけ workload を足し、ycsb の bytes は変えない |
-| 評価 (`orchestrator/campaign/pipeline.py`) | `evaluate(..., workload=)` を build と、保持した準備状態 (`_PreparedEvaluation`) 経由で通常・screening の bench へ通す。TPC-C の `perf.workload` に `tpcc_num_wh` を入れたら既存の `ycsb_tuple_num` 拒否と同形で拒否。tpcc のときだけ bench / commit payload に `workload` を載せる |
+| 評価 (`orchestrator/campaign/pipeline.py`) | `evaluate(..., workload=)` を build と、保持した準備状態 (`_PreparedEvaluation`) 経由で通常・screening の bench へ通す。TPC-C の `perf.workload` に `tpcc_num_wh` を入れたら既存の `ycsb_tuple_num` 拒否と同形で拒否。bench / commit payload に `workload` key は足さない (受入の赤を受けて取り下げ、§1) |
 | 測定 (`orchestrator/calibrator/runner.py`) | `measure_point` / `capture_measure_point` の `workload_name` で件数 flag を `-ycsb_tuple_num` / `-tpcc_num_wh` に切り替える (ycsb の argv は不変) |
 | critic (`orchestrator/critic/digest.py`) | `trace-witness-unsupported-workload` の説明文を TPC-C の v2 reject と 57:43 以外に合わせた (reason は不変) |
 | 転移実行器 (`orchestrator/campaign/t2851_transfer_runner.py`) | TPC-C は段 s1 の 57:43 cell だけ trace → witness → 実 verifier → v3 要求 (D2238 項 3 と同じ判定) へ通す。v2 は未確定 (anomaly・非直列化は失格が優先)、s2 と s1 の非 57:43 は「認定経路なし」のまま |
@@ -26,6 +26,10 @@ authority: none / default_effect: no-state-change (記録。可変状態の正�
 - 段 6: 焦点走 1 回目 12 赤 (2,753 passed)。1 件は新 test が見つけた実欠陥 — `_prepare_evaluation_core` の `for tag, workload, fullscale_isolated in passes:` が引数 `workload` を CorrectnessWorkload で上書きし、v3 を通った TPC-C 候補の bench が落ちる。11 件は `_PreparedEvaluation` を直接作る既存 fixture が新しい必須 field を渡していない取り残し。
   review 2 本は両 NO-GO (`verbatim/s6-review-a.md`、`verbatim/s6-review-b.md`)。裁定 1 (`verbatim/s6-ruling-1.md`) で fix 1 巡 (pipeline・fixture) と driver の fix。焦点走 2 回目 2,765 passed・5 skipped (HEAD `724088a08`)。焦点再レビュー (`verbatim/s6-focus1.md`) は F1・RA1・RA3 closed、driver 系は実機で確かめるまで partial、新規 FA1 (driver の evaluate が `numactl` を渡さず認可ゲートで必ず拒否) → driver fix 2。
 - 計算ノードの生死確認で driver が 2 回、production の build 入口検査に落ちた (§3)。driver を production の job body と同じ形に揃えて 3 回目で全項目が期待どおりになった。
+- 受入 attempt 1 (tested main `19d3f2bae`、tip `73197863c`) は 1 failed / 27,882 passed / 74 skipped。赤は `test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys`
+  (bench payload の条件付き key が 4 → 5)。本 wave に帰属: 統合 commit が bench payload に `workload` を足したが、親は private symbol `_BENCH_DONE_*_PAYLOAD_KEYS` の consumer である
+  この test を焦点走の集合に入れていなかった (DW-O26 の symbol grep の漏れ)。裁定 2 (`verbatim/s6-ruling-2.md`) で bench・commit payload への `workload` 追加を取り下げた
+  (既存の `run_cmd` と build 記録で識別でき、WAL の `workload` key は検証記録の `{"tag": ...}` と二義になる)。
 
 ## 2. 変異 matrix
 

@@ -15,7 +15,9 @@ seq: 1
    legacy の cache key と v2 の identity preimage は tpcc のときだけ workload を足す。ycsb の key・bdir 名・digest は変えない (既発行の cache・受領証の束縛を保つ)。
 2. **評価:** `pipeline.evaluate(..., workload=)` は build と、保持した準備状態経由で bench へ workload を通す。`measure_point` / `capture_measure_point` の `workload_name` は件数 flag を
    `-ycsb_tuple_num` / `-tpcc_num_wh` に切り替える (`PerfConfig.records` は TPC-C では倉庫数)。TPC-C の `perf.workload` に `tpcc_num_wh` があれば既存の `ycsb_tuple_num` 拒否と同形で拒否する。
-   TPC-C の correctness は caller が渡す。入口に新しい拒否は足さない (未指定なら YCSB の既定 flag になり、既存 `_run_trace` が tpcc binary を既存 reason で拒否する)。tpcc のときだけ bench / commit payload に `workload` を載せる。
+   TPC-C の correctness は caller が渡す。入口に新しい拒否は足さない (未指定なら YCSB の既定 flag になり、既存 `_run_trace` が tpcc binary を既存 reason で拒否する)。bench / commit payload に `workload` key は足さない
+   (bench は既存の `run_cmd` の binary 名と `-tpcc_num_wh`、commit は同じ variant の build 記録で識別できる。bench payload の key 集合は layer3 レポートの閉包 pin に束縛され、
+   WAL の `workload` key は検証記録で `{"tag": ...}` の意味に既に使われている)。
 3. **受理は変えない:** `_run_trace` の 57:43 文字列一致と verifier 後の v3 要求 (D2238 項 2・3) はそのまま。critic の `trace-witness-unsupported-workload` は説明文だけを TPC-C の v2 reject と 57:43 以外に合わせる。
 4. **転移実行器:** TPC-C は段 s1 で 4 比率 flag が 43/0/0/0 の cell だけを trace → witness → 実 verifier (凍結した source root) へ通し、verifier 後に v3 (`existence_violation_details` が list) を要求する。
    v2 は `verification_status(certified=False)` で未確定 (anomaly・非直列化は失格が優先)、reason は D2238 項 3 と同じ語。s2 と s1 の非 57:43 は「認定経路なし」の未確定のまま。
@@ -31,5 +33,7 @@ seq: 1
 - `PerfConfig` に workload field を足す — ycsb の値にも field が増え、同一性や記録の形に波及しうる。
 - TPC-C 用の測定関数を `run_once` で新設する — 反復・安定性・rc の扱いを作り直し、fitness の意味が変わりうる。
 - TPC-C で correctness 未指定を入口で拒否する — 既存 `_run_trace` の拒否で fail-closed が成立しており、新しい gate になる。
+- bench / commit payload に TPC-C のときだけ `workload` を載せる — 当初は実装したが、受入で layer3 レポートの payload key 閉包 pin が赤になり取り下げた。
+  既存の記録で識別でき、WAL の `workload` key の意味 (検証記録の `{"tag": ...}`) と二義になる。
 - search config へ workload を記録して campaign lock を分ける — `run_campaign` が evaluate へ渡さない現状では実行引数と結び付かない。探索設計の段で決める。
 - 57:43 以外の s1 cell (pay20 / pay70) や s2 を検証経路へ通す — D2238 の受理外で、受理を広げるのは認定の設計変更である。
