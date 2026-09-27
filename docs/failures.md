@@ -14177,6 +14177,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `ident.py`、`artifact_admission.py`、`orchestrator/verifier/*`、`s8c_preregistration*.py`、
   `s8c_generation_projection.py`、`campaign_lock.py`、`contract_loader_binding.py`、
   `enforcement_source_ratification.py` 等) のいずれかへ変異 matrix を登録する全 wave。
+- **supersede: 2026-09-27** — 根本原因の記述は古い: `ratified_enforcement_source` fixture は b4ff38f6b (2026-08-27) で no-op になり、現行の drift 源は `orchestrator/campaign/ident.py` → `contract_loader_binding.capture_contract_loader_binding` (現 HEAD の閉包 96 path の blob と disk bytes の一致) である。file-swap の変異は停止せず全件 drift で赤になり、値の層が見えない形に変わっていた。恒久対応は D2269 の `tools/mutation_harness.py --inject commit` (検査: `orchestrator/tests/test_mutation_harness.py` の commit 注入 test 群、実 dispatch の dogfood は `output/insights/2026-09-27/t1418-commit-injection/README.md`)。
 
 ### F425. read-only 調査 fork が継承した command 本文を自分の役割と誤認し無許可で実行段を起動した [権限逸脱]
 
