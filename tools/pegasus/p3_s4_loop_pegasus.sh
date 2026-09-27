@@ -224,6 +224,40 @@ if [[ "$stock_control" == true ]]; then
   pair_argv=(--stock-control)
 fi
 
+policy_mode=${IZANAGI_S4_POLICY_MODE-}
+if [[ -v IZANAGI_S4_POLICY_MODE ]]; then
+  case "$policy_mode" in
+    stock|pair|replay) ;;
+    *) refuse "invalid S4 policy mode" ;;
+  esac
+  case "${IZANAGI_S4_POLICY_FORM-}" in
+    cpp|ir) ;;
+    *) refuse "S4 policy form must be cpp or ir" ;;
+  esac
+  if [[ -v IZANAGI_S4_T2849_MODE || -v IZANAGI_S4_B5_MODE \
+     || -v IZANAGI_S4_PROPOSAL_PATH || -v IZANAGI_S4_FIXTURE_VALUE \
+     || -v IZANAGI_S4_STOCK_CONTROL || "$k2_requested" == true ]]; then
+    refuse "S4 policy mode excludes existing modes"
+  fi
+  for suffix in PROTOCOL "${harness_env_names[@]}"; do
+    name="IZANAGI_S4_T2849_$suffix"
+    [[ ! -v $name ]] || refuse "S4 policy mode excludes T-2849 environment"
+  done
+  for name in "${b5_env_names[@]}" IZANAGI_S4_B5_PURPOSE IZANAGI_S4_B5_STEP; do
+    [[ ! -v $name ]] || refuse "S4 policy mode excludes B-5 environment"
+  done
+  if [[ "$policy_mode" == stock ]]; then
+    [[ ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH ]] \
+      || refuse "S4 policy stock excludes proposal path"
+  else
+    [[ -n "${IZANAGI_S4_POLICY_PROPOSAL_PATH:-}" ]] \
+      || refuse "S4 policy proposal path is required"
+  fi
+else
+  [[ ! -v IZANAGI_S4_POLICY_FORM && ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH ]] \
+    || refuse "S4 policy environment requires mode"
+fi
+
 if [[ ! -d "$IZANAGI_S4_REPO_ROOT" || -L "$IZANAGI_S4_REPO_ROOT" ]]; then
   refuse "repository root is unavailable"
 fi
@@ -250,6 +284,17 @@ git_common_dir=$(git -C "$repo" rev-parse --path-format=absolute --git-common-di
   || refuse "cannot resolve git common directory"
 [[ "$git_common_dir" == /* ]] || refuse "git common directory is not absolute"
 git_common_repo=${git_common_dir%/.git}
+if [[ -n "$policy_mode" ]]; then
+  [[ "${IZANAGI_TRACE_ARCHIVE_ROOT:-}" == /* ]] \
+    || refuse "S4 policy trace archive root must be absolute"
+  policy_archive_root=$(realpath -m -- "$IZANAGI_TRACE_ARCHIVE_ROOT") \
+    || refuse "cannot resolve S4 policy trace archive root"
+  if [[ "$policy_archive_root" == "$repo" || "$policy_archive_root" == "$repo/"* \
+     || "$policy_archive_root" == "$git_common_repo" \
+     || "$policy_archive_root" == "$git_common_repo/"* ]]; then
+    refuse "S4 policy trace archive root resolves inside a repository"
+  fi
+fi
 if [[ -n "$harness_mode" ]]; then
   harness_cohort_root=$(realpath -m -- "$IZANAGI_S4_T2849_COHORT_ROOT") \
     || refuse "cannot resolve T-2849 cohort root"
@@ -310,7 +355,10 @@ resolve_python() {
       "$resolved" -B -c \
         'import sys; sys.version_info[:2] == (3, 10) or sys.exit(1); import orchestrator.campaign.p3_s4_loop' \
         >/dev/null 2>&1
-    ); then
+    ) && { [[ -z "$policy_mode" ]] || (
+      cd "$repo"
+      "$resolved" -B -c 'import orchestrator.campaign.p3_s4_loop_policy' >/dev/null 2>&1
+    ); }; then
       selected_realpath=$("$resolved" -I -B -c \
         'import os, sys; print(os.path.realpath(sys.executable))')
       if [[ "$selected_realpath" == /* && -x "$selected_realpath" ]]; then
@@ -374,14 +422,19 @@ if [[ ! -d "$ccbench_dir" || -L "$ccbench_dir" ]]; then
   refuse "CCBench source root is unavailable"
 fi
 campaign_pin=$(
-  if [[ -n "$harness_mode" && "${IZANAGI_S4_T2849_PROTOCOL-silo}" == mocc ]]; then
+  if [[ -n "$policy_mode" ]]; then
+    "$PY" -B -c 'from orchestrator.campaign.axis_silo_function_policy import PIN; print(PIN)'
+  elif [[ -n "$harness_mode" && "${IZANAGI_S4_T2849_PROTOCOL-silo}" == mocc ]]; then
     "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import campaign_pin_for_protocol; print(campaign_pin_for_protocol("mocc"))'
   else
     "$PY" -B -c 'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'
   fi
 )
-if [[ ! "$campaign_pin" =~ ^[0-9a-f]{40}$ ]]; then
+if [[ -z "$policy_mode" && ! "$campaign_pin" =~ ^[0-9a-f]{40}$ ]]; then
   refuse "P3 S4 campaign pin must be a full lowercase commit"
+fi
+if [[ -n "$policy_mode" && ! "$campaign_pin" =~ ^[0-9a-f]+$ ]]; then
+  refuse "S4 policy campaign pin is invalid"
 fi
 if ! ccbench_full_head=$(
   git -C "$ccbench_dir" rev-parse --verify 'HEAD^{commit}'
@@ -393,11 +446,19 @@ if ! resolved_campaign_pin=$(
 ); then
   refuse "P3 S4 campaign pin cannot be resolved"
 fi
-if [[ ! "$ccbench_full_head" =~ ^[0-9a-f]{40}$ \
-   || ! "$resolved_campaign_pin" =~ ^[0-9a-f]{40}$ \
-   || "$ccbench_full_head" != "$resolved_campaign_pin" \
-   || "$ccbench_full_head" != "$campaign_pin"* ]]; then
-  refuse "CCBench P3 S4 campaign pin mismatch"
+if [[ -n "$policy_mode" ]]; then
+  if [[ ! "$ccbench_full_head" =~ ^[0-9a-f]{40}$ \
+     || ! "$resolved_campaign_pin" =~ ^[0-9a-f]{40}$ \
+     || "$ccbench_full_head" != "$resolved_campaign_pin" ]]; then
+    refuse "CCBench S4 policy campaign pin mismatch"
+  fi
+else
+  if [[ ! "$ccbench_full_head" =~ ^[0-9a-f]{40}$ \
+     || ! "$resolved_campaign_pin" =~ ^[0-9a-f]{40}$ \
+     || "$ccbench_full_head" != "$resolved_campaign_pin" \
+     || "$ccbench_full_head" != "$campaign_pin"* ]]; then
+    refuse "CCBench P3 S4 campaign pin mismatch"
+  fi
 fi
 if ! ccbench_status=$(git -C "$ccbench_dir" status --porcelain \
   --untracked-files=no); then
@@ -724,6 +785,22 @@ with open(receipt_path, "x", encoding="utf-8") as stream:
 PY
 sync "$prebuild_receipt"
 sync "$evidence_root"
+
+if [[ -n "$policy_mode" ]]; then
+  policy_argv=(--form "$IZANAGI_S4_POLICY_FORM" --campaign-env pegasus
+    --fetchcontent-prebuild-receipt "$prebuild_receipt")
+  case "$policy_mode" in
+    stock) policy_argv+=(--stock-baseline) ;;
+    pair) policy_argv+=(--allow-coder-derived-build
+      --run-iteration "$IZANAGI_S4_POLICY_PROPOSAL_PATH" --stock-control) ;;
+    replay) policy_argv+=(--allow-coder-derived-build
+      --replay-proposal "$IZANAGI_S4_POLICY_PROPOSAL_PATH") ;;
+  esac
+  policy_rc=0
+  export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
+  "$PY" -B -m orchestrator.campaign.p3_s4_loop_policy "${policy_argv[@]}" || policy_rc=$?
+  exit "$policy_rc"
+fi
 
 if [[ -n "$harness_mode" ]]; then
   harness_argv=("run-$harness_mode"

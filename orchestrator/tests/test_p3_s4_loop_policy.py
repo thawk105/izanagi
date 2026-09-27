@@ -20,6 +20,7 @@ from orchestrator.campaign.silo_policy_compile import check_policy_body, find_co
 from orchestrator.campaign.auditor_gate import AuditorVerdict, compute_diff_digest
 from orchestrator.campaign.build_admission import BuildAdmissionError
 from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
+from orchestrator.campaign.model import STAGE_BENCH_DONE
 from orchestrator.campaign.pipeline import EvalResult
 from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
 
@@ -415,3 +416,166 @@ def test_record_reject_cli_uses_coder_only_input_without_build_opt_in(tmp_path):
     path = _proposal(tmp_path)
     with pytest.raises(ValueError, match='only coder'):
         P.load_proposal_file(path, form='cpp', preview=True)
+
+
+def test_campaign_environment_and_purpose_identity(monkeypatch):
+    from orchestrator.campaign import site_policy
+    baseline = P.default_cfg(form='cpp')
+    pegasus = P.default_cfg(form='cpp', campaign_env='pegasus')
+    bound = L._campaign_cfg_for_site(
+        replace(baseline, bound_environment_contract=None),
+        site_policy.PEGASUS_COMPUTE, _contract=P.env_contract.lookup('pegasus'))
+    assert P.ident.campaign_id(pegasus) == P.ident.campaign_id(bound)
+    assert len({str(P.ident.campaign_id(cfg)) for cfg in (
+        baseline, pegasus,
+        P.default_cfg(form='cpp', campaign_env='pegasus', evaluation_purpose='bootstrap'),
+        P.default_cfg(form='cpp', campaign_env='pegasus', evaluation_purpose='r2'))}) == 4
+    assert 'evaluation_purpose' not in baseline.search_config
+    with pytest.raises(ValueError):
+        P.default_cfg(form='cpp', evaluation_purpose='other')
+
+
+def test_stock_genome_and_same_attempt_baseline(tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path))
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    result = EvalResult(Genome('silo', {}), 'variant', False, True,
+                        fitness_tps=123, build_attempt_id='selected')
+    records = [WalRecord('variant', STAGE_BENCH_DONE, P.ENV_TAG, i,
+                {'build_attempt_id': attempt,
+                 'leading_indicators': {'abort_rate': rate}})
+               for i, (attempt, rate) in enumerate((('selected', .12), ('other', .89)))]
+    monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)
+    seen = []
+    monkeypatch.setattr(P.ident, 'ensure_resumable_attempts', lambda *_a, **_k: None)
+    def capture(_cfg, _perf, genome, _sub, **kwargs):
+        seen.append(genome)
+        assert kwargs['build_context'] is context
+        assert kwargs['stock'] is True
+        return type('Summary', (), {'results': [result]})()
+    monkeypatch.setattr(P, '_run_measurement', capture)
+    out = P.run_stock_control(P.default_cfg(form='cpp'), P.default_perf(),
+        str(tmp_path), layout=layout, build_context=context,
+        contract=P.env_contract.lookup(P.ENV_TAG))
+    assert seen[0].flags == {k: v for k, v in P.BASE.items() if k != P.axis.FLAG}
+    assert out['abort_rate_pct'] == 12
+    assert out['fitness_tps'] == 123
+
+
+def test_original_stock_source_is_classified_by_source_digest():
+    from orchestrator.campaign import source_digest
+    import shutil
+    sub = ROOT / 'external/ccbench'
+    compiler = shutil.which('g++-13')
+    if compiler is None or not (sub / '.git').exists():
+        pytest.skip('CCBench submodule or g++-13 unavailable')
+    genome = Genome('silo', {k: v for k, v in P.BASE.items() if k != P.axis.FLAG})
+    assert source_digest.resolve(genome, P.axis.PIN,
+                                 ccbench_dir=str(sub), cxx=compiler) == source_digest.STOCK
+
+
+def test_measurement_rejects_mismatched_site_before_campaign(monkeypatch):
+    monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
+    with pytest.raises(ValueError, match='environment differs'):
+        P._measurement_contract('pegasus')
+
+
+def test_drive_exception_records_history(tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path))
+    context = P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP)
+    def fail(*_a, **_k):
+        raise RuntimeError('evaluation failed')
+    monkeypatch.setattr(P, 'run_one_iteration', fail)
+    with pytest.raises(RuntimeError, match='evaluation failed'):
+        P.drive_iteration(P.default_cfg(form='cpp'), P.default_perf(),
+            P.Proposal(BODY, None, ''), None, str(tmp_path), True,
+            compiler='unused', scratch_dir=str(tmp_path), build_context=context,
+            layout=layout)
+    rows = [json.loads(line) for line in (tmp_path / P.HISTORY_NAME).read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]['outcome'] == 'eval-exception'
+    assert set(rows[0]) == {'iteration', 'variant_id', 'implementation', 'ir',
+                            'outcome', 'reject_subtype', 'reject_rule_id',
+                            'verifier_digest', 'justification'}
+
+
+def test_replay_uses_real_auditor_gate_without_loop_state(tmp_path, monkeypatch, capsys):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('policy compiler unavailable')
+    from orchestrator.campaign import patchharness, p2_2
+    source = _source(tmp_path / 'external/ccbench')
+    sub = tmp_path / 'external/ccbench'
+    preview, diff = P.policy_gate(str(sub), GOOD, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert preview.passed
+    monkeypatch.setattr(P, 'ROOT', tmp_path)
+    monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
+    monkeypatch.setattr(patchharness, 'applied',
+                        lambda *_a, **_k: contextlib.nullcontext())
+    monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
+    monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
+    layout = CampaignLayout(str(tmp_path / 'campaign'))
+    monkeypatch.setattr(P, 'exploration_campaign_layout', lambda *_a: layout)
+    calls = []
+    def capture(*_a, **_k):
+        calls.append(1)
+        return type('Summary', (), {'results': []})()
+    monkeypatch.setattr(P, 'run_campaign', capture)
+    bad = _proposal(tmp_path, change=lambda d: d['coder'].update(implementation=GOOD))
+    with pytest.raises(AuditorGateFailure):
+        P.main(['--form', 'cpp', '--allow-coder-derived-build',
+                '--no-isolate-worktree', '--replay-proposal', str(bad)])
+    assert calls == [] and not (tmp_path / 'campaign/loop_state.json').exists()
+    good = _proposal(tmp_path, change=lambda d: (
+        d['coder'].update(implementation=GOOD),
+        d['auditor'].update(diff_digest=compute_diff_digest(diff))))
+    assert P.main(['--form', 'cpp', '--allow-coder-derived-build',
+                   '--no-isolate-worktree', '--replay-proposal', str(good)]) == 0
+    assert len(calls) == 1
+    assert not (tmp_path / 'campaign/loop_state.json').exists()
+    assert not (tmp_path / 'campaign/policy_history.jsonl').exists()
+    assert json.loads(capsys.readouterr().out)['outcome'] == 'aborted'
+
+
+def test_pair_orders_candidate_then_stock_in_one_session(tmp_path, monkeypatch, capsys):
+    if find_compiler() is None:
+        pytest.skip('policy compiler unavailable')
+    from orchestrator.campaign import patchharness, p2_2
+    monkeypatch.setattr(P, 'ROOT', tmp_path)
+    monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
+    monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
+    monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
+    monkeypatch.setattr(P, 'exploration_campaign_layout',
+                        lambda *_a: CampaignLayout(str(tmp_path / 'campaign')))
+    seen = []
+    def candidate(*_a, **kwargs):
+        seen.append(('candidate', kwargs['authorization_session'],
+                     kwargs['build_context']))
+        return {'outcome': 'certified'}
+    def stock(*_a, **kwargs):
+        seen.append(('stock', kwargs['authorization_session'],
+                     kwargs['build_context']))
+        return {'outcome': 'certified-stock'}
+    monkeypatch.setattr(P, 'drive_iteration', candidate)
+    monkeypatch.setattr(P, 'run_stock_control', stock)
+    proposal = _proposal(tmp_path)
+    assert P.main(['--form', 'cpp', '--allow-coder-derived-build',
+        '--no-isolate-worktree', '--run-iteration', str(proposal),
+        '--stock-control']) == 0
+    assert [item[0] for item in seen] == ['candidate', 'stock']
+    assert seen[0][1] is seen[1][1]
+    assert seen[0][2]._coder_entrypoint_site == 'orchestrator.campaign.p3_s4_loop_policy.main'
+    assert seen[1][2]._coder_entrypoint_site is None
+    assert json.loads(capsys.readouterr().out) == {
+        'candidate': {'outcome': 'certified'}, 'stock': {'outcome': 'certified-stock'}}
+    seen.clear()
+    def failed_candidate(*_a, **kwargs):
+        seen.append(('candidate', kwargs['authorization_session'],
+                     kwargs['build_context']))
+        raise RuntimeError('candidate failed')
+    monkeypatch.setattr(P, 'drive_iteration', failed_candidate)
+    with pytest.raises(RuntimeError, match='candidate failed'):
+        P.main(['--form', 'cpp', '--allow-coder-derived-build',
+            '--no-isolate-worktree', '--run-iteration', str(proposal),
+            '--stock-control'])
+    assert [item[0] for item in seen] == ['candidate', 'stock']
+    assert seen[0][1] is seen[1][1]

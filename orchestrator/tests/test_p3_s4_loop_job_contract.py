@@ -544,7 +544,8 @@ def _assert_forbidden_job_constructs(source: str) -> None:
         raise AssertionError("forbidden-cmake-environment-injection")
 
     driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop'
-    driver_positions = [match.start() for match in re.finditer(re.escape(driver), body)]
+    driver_positions = [match.start() for match in re.finditer(
+        re.escape(driver) + r"(?=\s)", body)]
     prebuild_position = body.index('"$PY" - "$prebuild_receipt"')
     if len(driver_positions) != 2 or any(
         position <= body.index(allowed) or position <= prebuild_position
@@ -557,6 +558,12 @@ def _assert_forbidden_job_constructs(source: str) -> None:
         prebuild_position < body.index(b5_driver) < min(driver_positions)
     ):
         raise AssertionError("b5-driver-count-or-order")
+
+    policy_driver = '"$PY" -B -m orchestrator.campaign.p3_s4_loop_policy'
+    policy_positions = [match.start() for match in re.finditer(
+        re.escape(policy_driver) + r"(?=\s)", body)]
+    if len(policy_positions) != 1 or policy_positions[0] <= prebuild_position:
+        raise AssertionError("policy-driver-count-or-order")
 
     forbidden_assignment = re.search(
         r"(?m)^\s*(?:export\s+)?(?:CMAKE_PROJECT_INCLUDE"
@@ -1111,7 +1118,7 @@ def _k2_preflight_environment(
     )
     environment = dict(os.environ)
     for name in list(environment):
-        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
+        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_", "IZANAGI_S4_POLICY_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
             environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",
@@ -1120,6 +1127,7 @@ def _k2_preflight_environment(
         "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
         "IZANAGI_S4_PROPOSAL_PATH",
         "IZANAGI_S4_STOCK_CONTROL",
+        "IZANAGI_TRACE_ARCHIVE_ROOT",
     ):
         environment.pop(name, None)
     environment.update({
@@ -1224,6 +1232,8 @@ def _run_actual_job_body_through_driver(
     driver_rcs: tuple[int, int] = (0, 0),
     source_override: str | None = None,
     ccbench_head: str | None = None,
+    expect_driver: bool = True,
+    git_common_repo: Path | None = None,
 ) -> tuple[list[list[str]], int, dict]:
     # Scheduler/build/driver work is simulated; shell path conversion and the
     # Python driver's environment/path observation and file write are real.
@@ -1252,6 +1262,8 @@ def _run_actual_job_body_through_driver(
     glog_head = "c" * 40
     if ccbench_head is None:
         ccbench_head = ("68106660686232781bca3be792a750d3e19d7a8a"
+                        if k2_environment.get("IZANAGI_S4_POLICY_MODE")
+                        else "68106660686232781bca3be792a750d3e19d7a8a"
                         if k2_environment.get("IZANAGI_S4_T2849_MODE")
                         and k2_environment.get("IZANAGI_S4_T2849_PROTOCOL") == "mocc"
                         else "511c9538e4e8efa54b45cda62e72389ed3b706ec")
@@ -1275,7 +1287,7 @@ def _run_actual_job_body_through_driver(
         "args = sys.argv[1:]\n"
         "joined = ' '.join(args)\n"
         "if '--git-common-dir' in args:\n"
-        f"    print({str(repo_root / '.git')!r})\n"
+        f"    print({str((git_common_repo or repo_root) / '.git')!r})\n"
         "elif 'status' in args:\n"
         "    pass\n"
         "elif 'rev-parse' in args:\n"
@@ -1284,7 +1296,12 @@ def _run_actual_job_body_through_driver(
         f"    elif args[:2] == ['-C', {str(glog_source)!r}]:\n"
         f"        print({glog_head!r})\n"
         "    elif 'external/ccbench' in joined:\n"
-        f"        print({ccbench_head!r})\n"
+        "        if any('511c9538e4e8efa54b45cda62e72389ed3b706ec' in a for a in args):\n"
+        "            print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\n"
+        "        elif any('6810666' in a for a in args):\n"
+        "            print('68106660686232781bca3be792a750d3e19d7a8a')\n"
+        "        else:\n"
+        f"            print({ccbench_head!r})\n"
         "    elif 'thirdparty' in joined:\n"
         "        print('a' * 40)\n"
         "    else:\n"
@@ -1307,6 +1324,7 @@ def _run_actual_job_body_through_driver(
         "        stream.write(json.dumps({\n"
         "            'TMPDIR': os.environ.get('TMPDIR'),\n"
         "            'IZANAGI_BENCH_LOCK': os.environ.get('IZANAGI_BENCH_LOCK'),\n"
+        "            'IZANAGI_TRACE_ARCHIVE_ROOT': os.environ.get('IZANAGI_TRACE_ARCHIVE_ROOT'),\n"
         "        }) + '\\n')\n"
         "    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\n"
         "    Path(root, 'driver-evidence.json').write_text(\n"
@@ -1323,6 +1341,8 @@ def _run_actual_job_body_through_driver(
         "        print('68106660686232781bca3be792a750d3e19d7a8a')\n"
         "    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\n"
         "        print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\n"
+        "    elif 'from orchestrator.campaign.axis_silo_function_policy import PIN' in code:\n"
+        "        print('6810666')\n"
         "elif args[:3] == ['-I', '-B', '-']:\n"
         "    print(os.environ['IZANAGI_TEST_GFLAGS_HEAD'])\n"
         "    print(os.environ['IZANAGI_TEST_GLOG_HEAD'])\n"
@@ -1365,7 +1385,7 @@ def _run_actual_job_body_through_driver(
 
     environment = dict(os.environ)
     for name in list(environment):
-        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
+        if name.startswith(("IZANAGI_S4_B5_", "IZANAGI_S4_T2849_", "IZANAGI_S4_POLICY_")) or name == "IZANAGI_S4_FIXTURE_VALUE":
             environment.pop(name)
     for name in (
         "IZANAGI_S4_KNOWLEDGE_MANIFEST",
@@ -1374,6 +1394,7 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_KNOWLEDGE_DE_NOVO_CLAIM",
         "IZANAGI_S4_PROPOSAL_PATH",
         "IZANAGI_S4_STOCK_CONTROL",
+        "IZANAGI_TRACE_ARCHIVE_ROOT",
     ):
         environment.pop(name, None)
     environment.update({
@@ -1402,15 +1423,19 @@ def _run_actual_job_body_through_driver(
         capture_output=True, text=True, check=False,
     )
     assert (evidence_root / "compute-result.json").is_file()
-    assert json.loads((expected_root / "driver-evidence.json").read_text(
-        encoding="utf-8",
-    )) == {
-        "root": str(expected_root),
-        "cwd": str(repo_root.resolve()),
-        "resolved_root": str(expected_root),
-    }
+    if expect_driver:
+        assert json.loads((expected_root / "driver-evidence.json").read_text(
+            encoding="utf-8",
+        )) == {
+            "root": str(expected_root),
+            "cwd": str(repo_root.resolve()),
+            "resolved_root": str(expected_root),
+        }
+    else:
+        assert not (expected_root / "driver-evidence.json").exists()
     return (
-        [json.loads(line) for line in driver_argv.read_text(encoding="utf-8").splitlines()],
+        [json.loads(line) for line in driver_argv.read_text(encoding="utf-8").splitlines()]
+        if driver_argv.exists() else [],
         completed.returncode,
         json.loads((evidence_root / "compute-result.json").read_text()),
     )
@@ -1421,6 +1446,123 @@ def _read_driver_environment(tmp_path: Path) -> list[dict[str, str | None]]:
         json.loads(line)
         for line in (tmp_path / "driver-env.jsonl").read_text(encoding="utf-8").splitlines()
     ]
+
+
+@pytest.mark.parametrize("mode,action", [
+    ("stock", ["--stock-baseline"]),
+    ("pair", ["--allow-coder-derived-build", "--run-iteration",
+              "/absolute/policy proposal.json", "--stock-control"]),
+    ("replay", ["--allow-coder-derived-build", "--replay-proposal",
+                "/absolute/policy proposal.json"]),
+])
+def test_policy_actual_job_argv_archive_and_lock(tmp_path, mode, action):
+    archive = tmp_path / "archive"
+    env = {
+        "IZANAGI_S4_POLICY_MODE": mode,
+        "IZANAGI_S4_POLICY_FORM": "cpp",
+        "IZANAGI_TRACE_ARCHIVE_ROOT": str(archive),
+    }
+    if mode != "stock":
+        env["IZANAGI_S4_POLICY_PROPOSAL_PATH"] = "/absolute/policy proposal.json"
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    receipt = str(tmp_path / "evidence/masstree-prebuild-receipt.json")
+    assert history == [[
+        "-B", "-m", "orchestrator.campaign.p3_s4_loop_policy",
+        "--form", "cpp", "--campaign-env", "pegasus",
+        "--fetchcontent-prebuild-receipt", receipt, *action,
+    ]]
+    assert Path(receipt).is_file()
+    assert rc == result["driver_rc"] == 0
+    assert _read_driver_environment(tmp_path) == [{
+        "TMPDIR": str(tmp_path / "scratch-base/0_945411.nqsv"),
+        "IZANAGI_BENCH_LOCK": str(tmp_path / "scratch-base/0_945411.nqsv/bench.lock"),
+        "IZANAGI_TRACE_ARCHIVE_ROOT": str(archive),
+    }]
+
+
+def test_policy_actual_job_uses_policy_pin(tmp_path):
+    env = {
+        "IZANAGI_S4_POLICY_MODE": "stock",
+        "IZANAGI_S4_POLICY_FORM": "ir",
+        "IZANAGI_TRACE_ARCHIVE_ROOT": str(tmp_path / "archive"),
+    }
+    history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
+    assert len(history) == 1 and rc == result["driver_rc"] == 0
+
+
+@pytest.mark.parametrize("archive", [None, "relative/archive", "repo/archive", "repo/../repo/archive"])
+def test_policy_archive_root_is_required_outside_repository(tmp_path, archive):
+    env = {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp"}
+    if archive is not None:
+        env["IZANAGI_TRACE_ARCHIVE_ROOT"] = (
+            str(tmp_path / archive) if archive.startswith("repo/") else archive)
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path, env, expect_driver=False)
+    assert history == [] and rc == result["driver_rc"] == 2
+
+
+def test_policy_archive_root_excludes_git_common_repository(tmp_path):
+    common_repo = tmp_path / "shared-repository"
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path,
+        {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp",
+         "IZANAGI_TRACE_ARCHIVE_ROOT": str(common_repo / "archive")},
+        git_common_repo=common_repo, expect_driver=False,
+    )
+    assert history == [] and rc == result["driver_rc"] == 2
+
+
+@pytest.mark.parametrize("extra", [
+    {"IZANAGI_S4_T2849_MODE": "series", "IZANAGI_S4_T2849_COHORT": "x",
+     "IZANAGI_S4_T2849_COHORT_ROOT": "/tmp/cohort", "IZANAGI_S4_T2849_WORKLOAD": "write-heavy",
+     "IZANAGI_S4_T2849_BLOCK": "1", "IZANAGI_S4_T2849_N_EVAL": "1",
+     "IZANAGI_S4_T2849_ARM": "x", "IZANAGI_S4_T2849_SERIES": "1",
+     "IZANAGI_S4_T2849_A_LIMIT": "1", "IZANAGI_S4_T2849_B_LIMIT": "1"},
+    {"IZANAGI_S4_B5_MODE": "block-stock", "IZANAGI_S4_B5_ARM": "stock",
+     "IZANAGI_S4_B5_WORKLOAD": "write-heavy", "IZANAGI_S4_B5_SERIES": "1",
+     "IZANAGI_S4_B5_BLOCK": "1", "IZANAGI_S4_B5_LEDGER_ROOT": "/tmp/ledger"},
+    {"IZANAGI_S4_KNOWLEDGE_MANIFEST": "/tmp/manifest",
+     "IZANAGI_S4_CODER_ROLE": "coder-v4-autonomous-k2",
+     "IZANAGI_S4_PROPOSAL_PATH": "/tmp/old-proposal"},
+    {"IZANAGI_S4_PROPOSAL_PATH": "/tmp/old-proposal"},
+    {"IZANAGI_S4_FIXTURE_VALUE": "20"},
+    {"IZANAGI_S4_STOCK_CONTROL": "0"},
+])
+def test_policy_excludes_existing_mode_environment_before_repository(tmp_path, extra):
+    env = {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp", **extra}
+    completed, evidence, sentinels = _run_actual_job_to_k2_preflight(tmp_path, env)
+    assert completed.returncode == 2
+    assert not any(path.exists() for path in sentinels)
+    assert not (evidence / "compute-result.json").exists()
+
+
+@pytest.mark.parametrize("env", [
+    {"IZANAGI_S4_POLICY_FORM": "cpp"},
+    {"IZANAGI_S4_POLICY_PROPOSAL_PATH": "/tmp/proposal"},
+    {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp",
+     "IZANAGI_S4_POLICY_PROPOSAL_PATH": ""},
+    {"IZANAGI_S4_POLICY_MODE": "pair", "IZANAGI_S4_POLICY_FORM": "cpp"},
+    {"IZANAGI_S4_POLICY_MODE": "replay", "IZANAGI_S4_POLICY_FORM": "ir",
+     "IZANAGI_S4_POLICY_PROPOSAL_PATH": ""},
+    {"IZANAGI_S4_POLICY_MODE": "invalid", "IZANAGI_S4_POLICY_FORM": "cpp"},
+    {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "invalid"},
+])
+def test_policy_mode_and_proposal_shape_refused_before_repository(tmp_path, env):
+    completed, evidence, sentinels = _run_actual_job_to_k2_preflight(tmp_path, env)
+    assert completed.returncode == 2
+    assert not any(path.exists() for path in sentinels)
+    assert not (evidence / "compute-result.json").exists()
+
+
+@pytest.mark.parametrize("driver_rc", [0, 7])
+def test_policy_driver_status_is_job_status(tmp_path, driver_rc):
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path,
+        {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp",
+         "IZANAGI_TRACE_ARCHIVE_ROOT": str(tmp_path / "archive")},
+        driver_rcs=(driver_rc, 99),
+    )
+    assert len(history) == 1 and rc == result["driver_rc"] == driver_rc
 
 
 @pytest.mark.parametrize("relative_evidence", [True, False], ids=["relative", "absolute"])

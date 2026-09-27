@@ -1,10 +1,11 @@
-"""Policy campaign driver; see D2214 and docs/phase3-silo-policy-runbook.md."""
+"""Policy campaign driver; see D2214, D2256, and the phase 3 policy runbook."""
 from __future__ import annotations
 
 import argparse
 import contextlib
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -15,7 +16,7 @@ if __package__ in {None, ""}:
     __package__ = "orchestrator.campaign"
 
 from . import axis_silo_function_policy as axis
-from . import env_contract, ident, p3_s4_loop as L
+from . import env_contract, ident, p3_s4_loop as L, site_policy
 from . import wal
 from .artifact_admission import CampaignReadPurpose, require_admitted_campaign
 from .auditor_gate import (AuditorGateFailure, apply_mandatory_deny_only_veto,
@@ -26,7 +27,7 @@ from .build_admission import (BuildAdmissionError, GeneratorId,
 from .diff_quarantine import DiffQuarantineResult, DiffRejectSubtype
 from .layout import exploration_campaign_layout
 from .loop import run_campaign
-from .model import CampaignConfig, Genome, STAGE_ABORT
+from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BENCH_DONE
 from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, PerfConfig
 from .projection_guard import assert_closed_proposal_schema
 from .silo_policy_compile import check_policy_body, find_compiler
@@ -118,20 +119,29 @@ def load_proposal_file(path, *, form, preview=False):
     return Proposal(implementation, ir, coder.get('justification', '')), auditor
 
 
-def default_cfg(*, form, reflux=True):
+def default_cfg(*, form, reflux=True, campaign_env=ENV_TAG, evaluation_purpose=None):
     if form not in ('cpp', 'ir'):
         raise ValueError('unknown form')
+    if campaign_env not in (ENV_TAG, 'pegasus'):
+        raise ValueError('unknown campaign environment')
+    if evaluation_purpose not in (None, 'bootstrap', 'r2'):
+        raise ValueError('unknown evaluation purpose')
     cfg = CampaignConfig(
         spec_slug='p3-silo-policy-loop', search_tag='silo-policy-autonomous',
         spec_content='Silo function policy; D2214.', ccbench_commit=axis.PIN,
         search_config={'scale': 'silo', 'axis': axis.MARKER_ID, 'form': form,
                        'reflux': 'on' if reflux else 'off',
                        'perf': _perf_identity(default_perf()),
-                       SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE},
+                       SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
+                       **({'evaluation_purpose': evaluation_purpose}
+                          if evaluation_purpose is not None else {})},
         trial='p3-silo-policy-loop')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    return ident.bind_environment_contract(
-        ident.bind_admission_policy(cfg, context.policy), env_contract.lookup(ENV_TAG))
+    cfg = ident.bind_admission_policy(cfg, context.policy)
+    if campaign_env == 'pegasus':
+        return L._campaign_cfg_for_site(cfg, site_policy.PEGASUS_COMPUTE,
+                                        _contract=env_contract.lookup('pegasus'))
+    return ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
 
 
 def default_perf():
@@ -296,14 +306,90 @@ def make_policy_coder_input(layout, *, baseline, critic_diagnosis=None):
     return payload
 
 
+def _measurement_contract(campaign_env):
+    contract = L._admit_env_contract(L._current_site())
+    if contract.env_tag != campaign_env:
+        raise ValueError('campaign environment differs from measurement site')
+    return contract
+
+
+def _cfg_contract(cfg):
+    return env_contract.lookup(cfg.search_config.get(L._CAMPAIGN_ENV_KEY, ENV_TAG))
+
+
+def _run_measurement(cfg, perf, genome, sub, *, layout, cache_root,
+                     build_context, contract, dependency_prefix='',
+                     fetchcontent_options=None, authorization_session=None,
+                     stock=False, log=print):
+    options = {}
+    if authorization_session is not None:
+        options['authorization_session'] = authorization_session
+    if contract.env_tag == 'pegasus':
+        options['env_contract'] = contract
+        if dependency_prefix:
+            options['dependency_prefix'] = dependency_prefix
+    if fetchcontent_options:
+        options.update(fetchcontent_options)
+        options['env_contract'] = contract
+    if stock:
+        options['capability_resolver'] = L._stock_capability_resolver(build_context)
+    return run_campaign(cfg, [genome], perf, contract.env_tag,
+        contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+        ccbench_dir=sub, cache_root=cache_root,
+        authorization_contract=env_contract.authorize(contract.env_tag),
+        build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+        **options)
+
+
+def _stock_result(layout, summary):
+    result = summary.results[0] if summary.results else None
+    abort_rate = None
+    if result is not None:
+        records = [record for record in wal.read_records(layout)
+                   if record.variant == result.variant
+                   and record.stage == STAGE_BENCH_DONE
+                   and record.payload.get('build_attempt_id') == result.build_attempt_id]
+        if records:
+            leading = records[-1].payload.get('leading_indicators')
+            if type(leading) is dict and type(leading.get('abort_rate')) in (int, float):
+                abort_rate = leading['abort_rate'] * 100
+    return {'outcome': ('certified-stock' if result.certified and not result.aborted
+                        else 'aborted') if result else 'skipped',
+            'variant': result.variant if result else None,
+            'fitness_tps': result.fitness_tps if result else None,
+            'abort_rate_pct': abort_rate,
+            'verdict': result.verdict if result else None}
+
+
+def run_stock_control(cfg, perf, sub, *, layout, cache_root='',
+                      build_context, contract, dependency_prefix='',
+                      fetchcontent_options=None, authorization_session=None,
+                      log=print):
+    """Evaluate the original stock source; see D2256 and the runbook."""
+    genome = Genome('silo', {key: value for key, value in BASE.items()
+                             if key != axis.FLAG})
+    layout.ensure()
+    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+    summary = _run_measurement(cfg, perf, genome, sub, layout=layout,
+        cache_root=cache_root, build_context=build_context, contract=contract,
+        dependency_prefix=dependency_prefix,
+        fetchcontent_options=fetchcontent_options,
+        authorization_session=authorization_session, stock=True, log=log)
+    return _stock_result(layout, summary)
+
+
 def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                       layout, compiler, scratch_dir, build_context,
-                      cache_root='', log=print):
+                      cache_root='', contract=None, dependency_prefix='',
+                      fetchcontent_options=None, authorization_session=None,
+                      log=print):
     _require_perf_identity(cfg, perf)
     if cfg.search_config.get('form') != ('ir' if proposal.ir is not None else 'cpp'):
         raise ValueError('policy form mismatch')
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    if contract is None:
+        contract = _cfg_contract(cfg)
+    cfg = ident.bind_environment_contract(cfg, contract)
     genome = Genome('silo', dict(BASE))
     layout.ensure()
     if do_build:
@@ -316,15 +402,15 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
             if not do_build:
                 return {'outcome': 'rejected', 'variant': None, 'digest': result.digest}
             variant = L.record_diff_reject(layout, genome, proposal.implementation,
-                                           result, env_tag=ENV_TAG)
+                                           result, env_tag=contract.env_tag)
             return {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
         if not do_build:
             return {'outcome': 'dry-pass', 'variant': None}
-        summary = run_campaign(cfg, [genome], perf, ENV_TAG, 1800,
-            numactl=['numactl', '--interleave=all'], log=log,
-            ccbench_dir=sub, cache_root=cache_root,
-            authorization_contract=env_contract.authorize(ENV_TAG),
-            build_context=build_context, declared_use_class=DECLARED_USE_CLASS)
+        summary = _run_measurement(cfg, perf, genome, sub, layout=layout,
+            cache_root=cache_root, build_context=build_context,
+            contract=contract, dependency_prefix=dependency_prefix,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log)
     result = summary.results[0] if summary.results else None
     outcome, verifier_digest = _result_history(layout, result)
     return {'outcome': outcome,
@@ -335,10 +421,12 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
 
 def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                     compiler, scratch_dir, build_context, layout=None,
-                    cache_root='', log=print):
+                    cache_root='', contract=None, dependency_prefix='',
+                    fetchcontent_options=None, authorization_session=None,
+                    log=print):
     _require_perf_identity(cfg, perf)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    cfg = ident.bind_environment_contract(cfg, contract or _cfg_contract(cfg))
     if layout is None:
         layout = _campaign_layout(cfg)
     layout.ensure()
@@ -354,7 +442,15 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     try:
         out = run_one_iteration(cfg, perf, proposal, auditor, sub, do_build,
             layout=layout, compiler=compiler, scratch_dir=scratch_dir,
-            cache_root=cache_root, build_context=build_context, log=log)
+            cache_root=cache_root, build_context=build_context,
+            contract=contract, dependency_prefix=dependency_prefix,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log)
+    except Exception:
+        if do_build:
+            _append_history(layout, state.iteration, proposal,
+                            {'outcome': 'eval-exception'})
+        raise
     finally:
         L.save_loop_state(layout, state)
     if do_build:
@@ -377,7 +473,7 @@ def drive_record_reject(cfg, perf, proposal, sub, *, compiler, scratch_dir,
     if cfg.search_config.get('form') != ('ir' if proposal.ir is not None else 'cpp'):
         raise ValueError('policy form mismatch')
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
-    cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    cfg = ident.bind_environment_contract(cfg, _cfg_contract(cfg))
     if layout is None:
         layout = _campaign_layout(cfg)
     state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
@@ -402,7 +498,8 @@ def _record_rejected_gate(cfg, proposal, result, layout, state, build_context):
     layout.ensure()
     ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
     variant = L.record_diff_reject(layout, Genome('silo', dict(BASE)),
-                                   proposal.implementation, result, env_tag=ENV_TAG)
+                                   proposal.implementation, result,
+                                   env_tag=_cfg_contract(cfg).env_tag)
     state.iteration += 1
     L.save_loop_state(layout, state)
     out = {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
@@ -418,6 +515,11 @@ def main(argv=None):
     parser.add_argument('--preview-diff', metavar='PROPOSAL.json')
     parser.add_argument('--record-reject', metavar='CODER.json')
     parser.add_argument('--run-iteration', metavar='PROPOSAL.json')
+    parser.add_argument('--replay-proposal', metavar='PROPOSAL.json')
+    parser.add_argument('--stock-baseline', action='store_true')
+    parser.add_argument('--stock-control', action='store_true')
+    parser.add_argument('--campaign-env', choices=(ENV_TAG, 'pegasus'), default=ENV_TAG)
+    parser.add_argument('--fetchcontent-prebuild-receipt', metavar='PATH')
     parser.add_argument('--emit-coder-input', action='store_true')
     parser.add_argument('--critic-output', metavar='CRITIC.txt')
     parser.add_argument('--baseline-throughput-tps', type=float)
@@ -428,11 +530,39 @@ def main(argv=None):
         parser, coder_entrypoint_site='orchestrator.campaign.p3_s4_loop_policy.main')
     args = parser.parse_args(argv)
     if sum(bool(x) for x in (args.preview_diff, args.record_reject,
-                             args.run_iteration, args.emit_coder_input)) != 1:
+                             args.run_iteration, args.replay_proposal,
+                             args.stock_baseline, args.emit_coder_input)) != 1:
         parser.error('select one action')
+    if args.stock_control and not args.run_iteration:
+        parser.error('--stock-control requires --run-iteration')
+    if args.stock_control and args.no_build:
+        parser.error('--stock-control requires a build')
     if args.critic_output and not args.emit_coder_input:
         parser.error('--critic-output requires --emit-coder-input')
-    cfg = default_cfg(form=args.form)
+    measuring = args.stock_baseline or args.replay_proposal or (args.run_iteration and not args.no_build)
+    if args.fetchcontent_prebuild_receipt and (not measuring or args.no_build):
+        parser.error('--fetchcontent-prebuild-receipt requires a measuring action')
+    if args.stock_baseline and args.no_build:
+        parser.error('--stock-baseline requires a build')
+    if args.replay_proposal and args.no_build:
+        parser.error('--replay-proposal requires a build')
+    if (args.run_iteration or args.replay_proposal) and not args.no_build and args.coder_build_authority is None:
+        raise BuildAdmissionError('明示 opt-in --allow-coder-derived-build is required')
+    contract = _measurement_contract(args.campaign_env) if measuring else None
+    fetchcontent_options = None
+    if args.fetchcontent_prebuild_receipt:
+        (fetchcontent_base_dir, masstree_source_dir, mimalloc_source_dir,
+         googletest_source_dir, fetchcontent_dependency_receipt) = (
+            L._load_masstree_prebuild_receipt(args.fetchcontent_prebuild_receipt))
+        fetchcontent_options = {
+            'fetchcontent_base_dir': fetchcontent_base_dir,
+            'masstree_source_dir': masstree_source_dir,
+            'mimalloc_source_dir': mimalloc_source_dir,
+            'googletest_source_dir': googletest_source_dir,
+            'fetchcontent_dependency_receipt': fetchcontent_dependency_receipt}
+    purpose = 'bootstrap' if args.stock_baseline else 'r2' if args.replay_proposal else None
+    cfg = default_cfg(form=args.form, campaign_env=args.campaign_env,
+                      evaluation_purpose=purpose)
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     if args.emit_coder_input:
         if args.baseline_throughput_tps is None or args.baseline_abort_rate_pct is None:
@@ -444,21 +574,23 @@ def main(argv=None):
             'abort_rate_pct': args.baseline_abort_rate_pct},
             critic_diagnosis=diagnosis), ensure_ascii=False))
         return 0
-    if args.run_iteration and not args.no_build and args.coder_build_authority is None:
-        raise BuildAdmissionError('明示 opt-in --allow-coder-derived-build is required')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP,
-        coder_authority=None if args.no_build or args.preview_diff or args.record_reject
-        else args.coder_build_authority)
-    proposal, auditor = load_proposal_file(
-        args.preview_diff or args.record_reject or args.run_iteration,
-        form=args.form, preview=bool(args.preview_diff or args.record_reject))
-    compiler = find_compiler()
-    if compiler is None:
+        coder_authority=(args.coder_build_authority
+                         if args.run_iteration or args.replay_proposal else None)
+                         if not args.no_build else None)
+    stock_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    proposal = auditor = None
+    if not args.stock_baseline:
+        proposal, auditor = load_proposal_file(
+            args.preview_diff or args.record_reject or args.run_iteration or args.replay_proposal,
+            form=args.form, preview=bool(args.preview_diff or args.record_reject))
+    compiler = find_compiler() if not args.stock_baseline else None
+    if not args.stock_baseline and compiler is None:
         raise RuntimeError('policy compiler unavailable')
     from . import patchharness
     fixed_sub = str(ROOT / 'external/ccbench')
     patchharness.assert_pinned_clean(fixed_sub, axis.PIN)
-    if args.run_iteration and not args.no_build:
+    if measuring:
         from .p2_2 import _assert_single_tenant
         _assert_single_tenant()
     isolated = not args.no_isolate_worktree
@@ -466,6 +598,15 @@ def main(argv=None):
                 else contextlib.nullcontext(fixed_sub))
     with checkout as sub:
         scratch = tempfile.gettempdir()
+        cache_root = str(Path(fixed_sub) / 'build-variants') if isolated else ''
+        dependency_prefix = os.environ.get('CMAKE_PREFIX_PATH', '')
+        if args.stock_baseline:
+            out = run_stock_control(cfg, default_perf(), sub, layout=layout,
+                cache_root=cache_root, build_context=stock_context,
+                contract=contract, dependency_prefix=dependency_prefix,
+                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
+            print(json.dumps(out, ensure_ascii=False))
+            return 0
         if args.preview_diff:
             from .patchharness import applied
             with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
@@ -483,10 +624,43 @@ def main(argv=None):
                 build_context=context)
             print(json.dumps(out, ensure_ascii=False))
             return 0
-        out = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
-            not args.no_build, compiler=compiler, scratch_dir=scratch,
-            layout=layout, cache_root=str(Path(fixed_sub) / 'build-variants') if isolated else '',
-            build_context=context)
+        if args.replay_proposal:
+            out = run_one_iteration(cfg, default_perf(), proposal, auditor, sub, True,
+                layout=layout, compiler=compiler, scratch_dir=scratch,
+                cache_root=cache_root, build_context=context, contract=contract,
+                dependency_prefix=dependency_prefix,
+                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
+        elif args.stock_control:
+            from . import loop
+            candidate_error = None
+            with loop.authorization_session() as session:
+                try:
+                    candidate = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
+                        True, compiler=compiler, scratch_dir=scratch, layout=layout,
+                        cache_root=cache_root, build_context=context, contract=contract,
+                        dependency_prefix=dependency_prefix,
+                        fetchcontent_options=fetchcontent_options,
+                        authorization_session=session, log=lambda *_: None)
+                except Exception as exc:
+                    candidate_error = exc
+                try:
+                    stock = run_stock_control(cfg, default_perf(), sub, layout=layout,
+                        cache_root=cache_root, build_context=stock_context,
+                        contract=contract, dependency_prefix=dependency_prefix,
+                        fetchcontent_options=fetchcontent_options,
+                        authorization_session=session, log=lambda *_: None)
+                except Exception:
+                    if candidate_error is None:
+                        raise
+            if candidate_error is not None:
+                raise candidate_error.with_traceback(candidate_error.__traceback__)
+            out = {'candidate': candidate, 'stock': stock}
+        else:
+            out = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
+                not args.no_build, compiler=compiler, scratch_dir=scratch,
+                layout=layout, cache_root=cache_root, build_context=context,
+                contract=contract, dependency_prefix=dependency_prefix,
+                fetchcontent_options=fetchcontent_options, log=lambda *_: None)
     print(json.dumps(out, ensure_ascii=False))
     return 0
 
