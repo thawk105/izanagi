@@ -669,7 +669,8 @@ def test_pair_without_candidate_attempt_skips_stock(tmp_path, monkeypatch, capsy
     assert P.main(['--form', 'cpp', '--allow-coder-derived-build',
         '--no-isolate-worktree', '--run-iteration', str(proposal),
         '--stock-control']) == 1
-    assert json.loads(capsys.readouterr().out) == candidate
+    assert json.loads(capsys.readouterr().out) == {
+        'outcome': 'stopped-before', 'variant': None, 'ran': False}
 
 
 def test_pair_stock_failure_returns_one_after_candidate(tmp_path, monkeypatch, capsys):
@@ -842,15 +843,23 @@ def test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal(
     _cfg, second_root = measurement(2)
     view = require_admitted_campaign(str(second_root),
         purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
-    expected = L.make_critic_digest(view, tag='p3-silo-policy', reflux=True,
+    completed_digest = L.make_critic_digest(view, tag='p3-silo-policy', reflux=True,
         identity_projection=L.make_critic_identity_projection(view))
     digest = (series_root / 'silo_policy_loop_digest.txt').read_text()
-    assert digest == expected
     second_records = wal.read_records(CampaignLayout(str(second_root)))
-    second_variant = json.loads(second.stdout)['candidate']['variant']
+    second_payload = json.loads(second.stdout)
+    second_variant = second_payload['candidate']['variant']
+    stock_variant = second_payload['stock']['variant']
     candidate_start = next(record for record in second_records
         if record.stage == STAGE_BUILD_START and record.variant == second_variant)
-    assert candidate_start.payload['genome'].split('|', 1)[1] in digest
+    stock_start = next(record for record in second_records
+        if record.stage == STAGE_BUILD_START and record.variant == stock_variant)
+    candidate_evidence = candidate_start.payload['genome'].split('|', 1)[1]
+    stock_evidence = stock_start.payload['genome'].split('|', 1)[1]
+    assert candidate_evidence != stock_evidence
+    assert candidate_evidence in digest
+    assert stock_evidence in completed_digest
+    assert stock_evidence not in digest
 
 
 def test_pair_pegasus_crash_consumes_iteration_before_measurement(

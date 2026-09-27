@@ -671,7 +671,6 @@ def main(argv=None):
                 except Exception as exc:
                     candidate_error = exc
                 if candidate_error is None and candidate.get('ran') is False:
-                    candidate['measurement_campaign_id'] = str(ident.campaign_id(measurement_cfg))
                     print(json.dumps(candidate, ensure_ascii=False))
                     return 1
                 try:
