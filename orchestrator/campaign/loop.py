@@ -33,7 +33,7 @@ from .layout import (campaign_layout, env_scope_dir,
                      exploration_campaign_layout,
                      resolve_campaign_output_root,
                      validate_campaign_id, write_capability_for_directory)
-from .lock import campaign_lock
+from .lock import HeldCampaignLock, campaign_lock
 from .model import (CampaignConfig, Genome, INCOMPLETE_ATTEMPT_RECOVERY_REASON,
                     STAGE_ABORT, STAGE_BUILD_START)
 from .pipeline import (AdmissionCapabilityResolver, EvalResult, LEGACY_TAG,
@@ -556,6 +556,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  result_evidence_context: Optional[
                      reflux_result_evidence.ResultEvidenceIssuanceContext
                  ] = None,
+                 held_campaign_lock: Optional[HeldCampaignLock] = None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -722,12 +723,19 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
         )
     layout = layout_constructor(cid, output_root).ensure()
     a1_non_certifying = ident.is_a1_non_certifying_config(cfg)
+    lock_path = campaign_lock_path(
+        layout, declared_use_class=declared_use_class, output_root=output_root,
+    )
     with ExitStack() as stack:
-        stack.enter_context(campaign_lock(campaign_lock_path(
-            layout,
-            declared_use_class=declared_use_class,
-            output_root=output_root,
-        )))
+        if held_campaign_lock is None:
+            stack.enter_context(campaign_lock(lock_path))
+        else:
+            if type(held_campaign_lock) is not HeldCampaignLock:
+                raise TypeError("held_campaign_lock must be an exact HeldCampaignLock")
+            if (not held_campaign_lock.held
+                    or held_campaign_lock.pid != os.getpid()
+                    or held_campaign_lock.path != lock_path):
+                raise ValueError("held_campaign_lock does not own this campaign path")
         if a1_non_certifying:
             stack.enter_context(wal.a1_non_certifying_io(layout))
 

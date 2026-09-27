@@ -18,6 +18,7 @@ import errno
 import fcntl
 import os
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Iterator, Optional
 
 
@@ -68,8 +69,15 @@ class CampaignBusy(Exception):
     """非ブロッキング取得で同一 campaign の実行中だった。"""
 
 
+@dataclass
+class HeldCampaignLock:
+    path: str
+    pid: int
+    held: bool = True
+
+
 @contextmanager
-def campaign_lock(path: str, blocking: bool = False) -> Iterator[None]:
+def campaign_lock(path: str, blocking: bool = False) -> Iterator[HeldCampaignLock]:
     """1 campaign の実行所有権を advisory flock で取得する。"""
     flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
     open_flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
@@ -81,7 +89,11 @@ def campaign_lock(path: str, blocking: bool = False) -> Iterator[None]:
             if not blocking and exc.errno in (errno.EAGAIN, errno.EACCES):
                 raise CampaignBusy(f"campaign lock が使用中: {path}")
             raise
-        yield
+        handle = HeldCampaignLock(path=path, pid=os.getpid())
+        try:
+            yield handle
+        finally:
+            handle.held = False
     finally:
         try:
             fcntl.flock(fd, fcntl.LOCK_UN)

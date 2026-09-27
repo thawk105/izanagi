@@ -37,6 +37,9 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
+from orchestrator.campaign import layout as campaign_layout_module               # noqa: E402
+from orchestrator.campaign import p3_b4_raw_record_producer as B4_PRODUCER        # noqa: E402
+from orchestrator.campaign.lock import CampaignBusy, campaign_lock               # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
     ident,
     knowledge_manifest as KM,
@@ -7178,6 +7181,188 @@ def _base_refs(records):
 def _base_reject_case(case):
     return {**case, "coder": L.CoderProposal(
         L.MARKER_ID, 20, "#define EVIL 1\ndouble now_backoff = 20;")}
+
+
+def _producer_lock_case(case, tmp_path, monkeypatch):
+    output = tmp_path / "output"
+    layout = CampaignLayout(str(output / "exploration" / "campaigns" / "case")).ensure()
+    Path(layout.lock_file).write_bytes(Path(case["layout"].lock_file).read_bytes())
+    monkeypatch.setattr(campaign_layout_module, "repo_output_root", lambda: str(output))
+    return {**case, "layout": layout}
+
+
+def _assert_producer_sees_busy(layout):
+    path = B4_PRODUCER._execution_lock_for_root(layout.root)
+    assert path == campaign_layout_module.campaign_lock_path(layout, L.DECLARED_USE_CLASS)
+    with pytest.raises(CampaignBusy):
+        with campaign_lock(path, blocking=False):
+            pass
+
+
+def _assert_producer_lock_released(layout):
+    path = B4_PRODUCER._execution_lock_for_root(layout.root)
+    with campaign_lock(path, blocking=False):
+        pass
+
+
+def test_base_flock_covers_real_backoff_preflight(base_provenance_case, tmp_path, monkeypatch):
+    case = _producer_lock_case(base_provenance_case, tmp_path, monkeypatch)
+    real = BHG.validate_backoff_preflight
+    hits = []
+    def observed(*args, **kwargs):
+        _assert_producer_sees_busy(case["layout"])
+        hits.append(True)
+        return real(*args, **kwargs)
+    monkeypatch.setattr(BHG, "validate_backoff_preflight", observed)
+    assert L.drive_iteration(**case)["ran"] is True
+    assert len(hits) == 1
+    _assert_producer_lock_released(case["layout"])
+
+
+@pytest.mark.parametrize("entry_stop", [False, True])
+def test_base_flock_covers_real_checkpoint(base_provenance_case, tmp_path,
+                                           monkeypatch, entry_stop):
+    case = _producer_lock_case(base_provenance_case, tmp_path, monkeypatch)
+    if entry_stop:
+        L.save_loop_state(case["layout"], L.LoopState(
+            start_wall=time.time(), reverse_recommendations=L.REVERSE_STREAK,
+        ))
+    real = L.save_loop_state
+    hits = []
+    def observed(layout, state):
+        _assert_producer_sees_busy(layout)
+        path = real(layout, state)
+        assert Path(path).is_file()
+        _assert_producer_sees_busy(layout)
+        hits.append(Path(path).read_bytes())
+        return path
+    monkeypatch.setattr(L, "save_loop_state", observed)
+    out = L.drive_iteration(**case)
+    assert out["ran"] is not entry_stop
+    assert len(hits) == 1
+    assert Path(L.loop_state_path(case["layout"])).read_bytes() == hits[0]
+    _assert_producer_lock_released(case["layout"])
+
+
+def _b4_flock_case(tmp_path, monkeypatch):
+    output = tmp_path / "output"
+    monkeypatch.setattr(campaign_layout_module, "repo_output_root", lambda: str(output))
+    cfg = L.default_cfg(
+        reflux=True, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    layout = CampaignLayout(str(output / "exploration" / "campaigns" / "case")).ensure()
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    planner, coder = _site_test_proposals()
+    return dict(
+        cfg=cfg, perf=L.default_perf(), planner=planner, coder=coder,
+        prior_critic_reverse=None, sub="unused", do_build=True, layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        _b4_launch_context=_b4_production_context(cfg),
+    )
+
+
+def test_base_flock_covers_real_b4_authorization(tmp_path, monkeypatch):
+    case = _b4_flock_case(tmp_path, monkeypatch)
+    real = L.require_b4_iteration_authorization
+    hits = []
+    class AuthorizationObserved(Exception):
+        pass
+    def observed(*args, **kwargs):
+        _assert_producer_sees_busy(case["layout"])
+        result = real(*args, **kwargs)
+        hits.append(result)
+        raise AuthorizationObserved
+    monkeypatch.setattr(L, "require_b4_iteration_authorization", observed)
+    with pytest.raises(AuthorizationObserved):
+        L.drive_iteration(**case)
+    assert len(hits) == 1 and hits[0].receipt is None
+    _assert_producer_lock_released(case["layout"])
+
+
+def test_base_flock_conflict_precedes_b4_consumption(tmp_path, monkeypatch):
+    case = _b4_flock_case(tmp_path, monkeypatch)
+    layout = case["layout"]
+    path = B4_PRODUCER._execution_lock_for_root(layout.root)
+    assert path == campaign_layout_module.campaign_lock_path(layout, L.DECLARED_USE_CLASS)
+    with campaign_lock(path, blocking=False):
+        with pytest.raises(CampaignBusy):
+            L.drive_iteration(**case)
+    assert list(Path(layout.root).glob("b4_closed_critic_consumption_*.json")) == []
+    _assert_producer_lock_released(layout)
+
+
+def _main_b4_flock_inputs(tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness, p2_2
+    output = tmp_path / "output"
+    monkeypatch.setattr(campaign_layout_module, "repo_output_root", lambda: str(output))
+    layout = CampaignLayout(str(output / "exploration" / "campaigns" / "case")).ensure()
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
+    document = _b4_proposal_document()
+    proposal = tmp_path / "proposal.json"
+    proposal.write_text(json.dumps(document), encoding="utf-8")
+    binding = issue_proposal_binding_fixture(
+        tmp_path / "binding", driver_kind="base", document=document,
+    )
+    args = [
+        "--run-iteration", str(proposal), "--b4-reflux-ablation",
+        "--allow-coder-derived-build",
+        "--b4-prerun-publication", str(binding.publication.publication_root),
+        "--b4-attempt-id", binding.attempt_id,
+    ]
+    return layout, args
+
+
+def test_main_b4_flock_covers_real_pre_authorization(tmp_path, monkeypatch):
+    layout, args = _main_b4_flock_inputs(tmp_path, monkeypatch)
+    real = L.require_b4_iteration_authorization
+    hits = []
+    class AuthorizationObserved(Exception):
+        pass
+    def observed(*a, **k):
+        _assert_producer_sees_busy(layout)
+        result = real(*a, **k)
+        hits.append(result)
+        raise AuthorizationObserved
+    monkeypatch.setattr(L, "require_b4_iteration_authorization", observed)
+    with pytest.raises(AuthorizationObserved):
+        L.main(args, _b4_launch_context=_B4_TEST_CONTEXT)
+    assert len(hits) == 1 and hits[0].receipt is None
+    _assert_producer_lock_released(layout)
+
+
+def test_main_b4_flock_covers_real_checkpoint(tmp_path, monkeypatch):
+    layout, args = _main_b4_flock_inputs(tmp_path, monkeypatch)
+    L.save_loop_state(layout, L.LoopState(
+        start_wall=time.time(), reverse_recommendations=L.REVERSE_STREAK,
+    ))
+    real_drive = L.drive_iteration
+    real_save = L.save_loop_state
+    drive_hits, save_hits = [], []
+    def observed_drive(cfg, *a, **k):
+        held = k.get("_held_campaign_lock")
+        if held is not None:
+            assert held.path == B4_PRODUCER._execution_lock_for_root(layout.root)
+        drive_hits.append(held)
+        wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+        k["_b4_launch_context"] = _b4_production_context(cfg)
+        return real_drive(cfg, *a, **k)
+    def observed_save(lay, state):
+        _assert_producer_sees_busy(lay)
+        path = real_save(lay, state)
+        _assert_producer_sees_busy(lay)
+        save_hits.append(Path(path).read_bytes())
+        return path
+    monkeypatch.setattr(L, "drive_iteration", observed_drive)
+    monkeypatch.setattr(L, "save_loop_state", observed_save)
+    assert L.main(args, _b4_launch_context=_B4_TEST_CONTEXT) == 0
+    assert len(drive_hits) == 1 and drive_hits[0] is not None
+    assert len(save_hits) == 1
+    assert Path(L.loop_state_path(layout)).read_bytes() == save_hits[0]
+    _assert_producer_lock_released(layout)
 
 
 @pytest.mark.parametrize("outcome", ["dry-pass", "rejected", "certified", "aborted",
