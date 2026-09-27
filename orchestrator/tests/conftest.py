@@ -2539,13 +2539,22 @@ def _finish_t080_visible_output_snapshot(config) -> None:
     job = getattr(config, _T080_VISIBLE_OUTPUT_JOB_ATTR, None)
     if job is None:
         return
+    join_error = cleanup_error = None
     try:
         job["thread"].join()
-    finally:
+    except BaseException as exc:
+        join_error = exc
+    try:
         if job["directory"].exists():
             shutil.rmtree(job["directory"])
+    except BaseException as exc:
+        cleanup_error = exc
     if job["error"] is not None:
         raise job["error"]
+    if join_error is not None:
+        raise join_error
+    if cleanup_error is not None:
+        raise cleanup_error
 
 
 def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:

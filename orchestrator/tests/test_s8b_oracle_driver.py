@@ -19,6 +19,7 @@ import json
 import multiprocessing
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1176,18 +1177,20 @@ def test_t080_visible_output_snapshot_starts_once_and_preserves_copy(tmp_path, m
 
     def signature(directory):
         return {
-            path.relative_to(directory).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
+            path.relative_to(directory).as_posix(): (
+                path.read_bytes(), path.stat().st_mtime_ns, stat.S_IMODE(path.stat().st_mode),
+            )
             for path in directory.rglob("*") if path.is_file()
         }
 
-    node = SimpleNamespace(config=config, workerinput={"testrunuid": run_id})
+    nodes = [SimpleNamespace(config=config, workerinput={"testrunuid": run_id}) for _ in range(2)]
     with mock.patch.object(conftest, "_start_early_memo_job"), mock.patch.object(
             module, "_copy_git_visible_output", wraps=module._copy_git_visible_output,
             ) as copy_visible:
         try:
             assert conftest._early_memo_selected(config)
-            conftest.pytest_configure_node(node)
-            conftest.pytest_configure_node(node)
+            for node in nodes:
+                conftest.pytest_configure_node(node)
             deadline = time.monotonic() + 10
             while not (snapshot / "result.json").exists() and time.monotonic() < deadline:
                 time.sleep(0.05)
