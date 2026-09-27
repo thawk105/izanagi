@@ -3486,21 +3486,51 @@ def test_commit_restores_after_runner_outcomes(
     assert _git(repo, "for-each-ref", "--format=%(refname):%(objectname)", "refs/heads").strip() == branch
 
 
+@pytest.mark.parametrize("damage", ["head", "bytes"])
+def test_commit_rejects_runner_drift_before_record(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, damage: str,
+) -> None:
+    case = _commit_case(repo)
+    head, originals, *_ = case
+
+    def drift(root: Path, *_a: object, **_k: object) -> dict[str, object]:
+        if damage == "head":
+            _git(root, "reset", "--hard", head)
+        else:
+            (root / "target.py").write_text("VALUE = 9\nTOKEN = \"x\"\nTOKEN_COPY = \"x\"\n", encoding="utf-8")
+        assert subprocess.run(
+            ["git", "-C", str(root), "symbolic-ref", "-q", "HEAD"], capture_output=True,
+        ).returncode == 1
+        return _fake_result()
+
+    monkeypatch.setattr(MH, "_run_tests", drift)
+    with pytest.raises(MH.HarnessError, match=(
+        "run 中に HEAD が変化" if damage == "head" else "working tree bytes が commit blob と不一致"
+    )):
+        _apply_case(repo, case)
+    _assert_restored_commit(repo, head, originals)
+
+
 def test_commit_restore_refuses_attached_head_without_moving_branch(
     repo: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = _commit_case(repo)
     branch = _git(repo, "for-each-ref", "--format=%(refname)", "refs/heads").strip()
     branch_head = _git(repo, "rev-parse", branch).strip()
+    mutation_heads: list[str] = []
 
     def attach(root: Path, *_a: object, **_k: object) -> dict[str, object]:
+        mutation_head = MH._repo_head(root)
+        mutation_heads.append(mutation_head)
+        _git(root, "update-ref", branch, mutation_head)
         _git(root, "symbolic-ref", "HEAD", branch)
-        return _fake_result()
+        raise RuntimeError("runner stopped before post-run check")
 
     monkeypatch.setattr(MH, "_run_tests", attach)
     with pytest.raises(MH.HarnessError, match="detached HEAD"):
         _apply_case(repo, case)
-    assert _git(repo, "rev-parse", branch).strip() == branch_head
+    assert mutation_heads and _git(repo, "rev-parse", branch).strip() == mutation_heads[0]
+    assert MH._repo_head(repo) == mutation_heads[0] != branch_head
 
 
 def test_commit_signal_during_runner_restores(
@@ -3579,6 +3609,31 @@ def test_commit_orphan_hold_preserves_m_then_manual_resume(
     monkeypatch.setattr(MH, "_run_tests", real_run)
     assert MH.main(_inject_argv(_argv(repo, spec, out, calls, mode, resume=True), "commit")) == 0
     _assert_restored_commit(repo, head, {"target.py": _git(repo, "show", f"{head}:target.py")})
+
+
+def test_commit_dispatch_orphan_hold_precedes_post_runner_blob_check(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _commit_case(repo)
+    head = case[0]
+    (repo / ".git" / "info" / "exclude").write_text("/output/\n", encoding="utf-8")
+    mutation_heads: list[str] = []
+
+    def orphan_with_drift(root: Path, *_a: object, **_k: object) -> dict[str, object]:
+        mutation_heads.append(MH._repo_head(root))
+        (root / "target.py").write_text("VALUE = 9\nTOKEN = \"x\"\nTOKEN_COPY = \"x\"\n", encoding="utf-8")
+        return {**_fake_result(), "job_may_remain": True}
+
+    monkeypatch.setattr(MH, "_run_tests", orphan_with_drift)
+    with pytest.raises(MH.OrphanHoldStop) as caught:
+        _apply_case(repo, case, runner_mode="dispatch")
+    hold = MH._dispatch_orphan_hold_path(repo)
+    assert hold.exists()
+    assert json.loads(hold.read_text(encoding="utf-8"))["reason"] == "dispatch-receipt-job-may-remain"
+    assert caught.value.verification_error_message is not None
+    assert "working tree bytes が commit blob と不一致" in caught.value.verification_error_message
+    assert mutation_heads and MH._repo_head(repo) == mutation_heads[0] != head
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 9\n")
 
 
 @pytest.mark.parametrize("first,second", [("file-swap", "commit"), ("commit", "file-swap")])

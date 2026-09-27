@@ -2397,11 +2397,6 @@ def _apply_mutation(
             attempt_phase="mutation" if attempt_recorder is not None else None,
             mutation_id=mutation.id if attempt_recorder is not None else None,
         )
-        if inject == "commit":
-            assert mutation_head is not None
-            _assert_detached_head(repo)
-            _assert_head(repo, mutation_head)
-            _assert_blob_bytes(repo, mutation_head, mutated)
         pending_stop = _dispatch_orphan_stop(
             repo,
             runner_mode=runner_mode,
@@ -2413,6 +2408,11 @@ def _apply_mutation(
         )
         if pending_stop is not None:
             raise pending_stop
+        if inject == "commit":
+            assert mutation_head is not None
+            _assert_detached_head(repo)
+            _assert_head(repo, mutation_head)
+            _assert_blob_bytes(repo, mutation_head, mutated)
         output = result.get("job_stdout", "")
         try:
             failed = _failed_nodes(output, repo)
