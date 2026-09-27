@@ -131,6 +131,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_backoff_consumers.py
 - test_bench_first_real_wal.py
 - test_branch_rescue_ledger.py
+- test_check_trace0_header_rule.py
 - test_check_worktree_occupancy.py
 - test_codex_role_runtime.py
 - test_dev_wave_wait.py

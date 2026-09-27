@@ -2575,6 +2575,9 @@
 - **再発: 2026-09-23** — [T-2849] で U-A の実装子が足した新規 test 2 本 (`orchestrator/tests/test_t2849_loop_entry.py`・`test_t2853_trace_preservation.py`) に自走 harness も allowlist 記載も無く、最終の受入全走 1 回目が `orchestrator/tests/test_plain_runner_coverage.py` の 1 件だけで赤になった (同じ wave の他の新規 5 本は自走 harness を持っていた)。子の sandbox は試験を実走できず、親は焦点走の file 集合に DW-O26 の「新規 test file を足す走は file 集合列挙のメタテストも含める」を適用しなかった。U-A の fix 子が 2 本へ同形の自走 harness を足して受入を取り直した。
 
 - **再発: 2026-09-26** — [T-2865] 段階 E の wave で、新設した `orchestrator/tests/test_p3_s4_loop_policy.py` (pytest の fixture に依存) を pytest 専用 allowlist に載せず、親の焦点走 4 回の file 集合にも `test_plain_runner_coverage.py` を入れていなかった。最終受入の赤 1 件として現れ、allowlist に 1 行足して閉じた (受入 1 回分の費用、実害なし)。恒久対応は既存どおり (新設 test file がある wave では焦点走の集合に `test_plain_runner_coverage.py` を必ず入れる、DW-O26)。
+
+- **再発: 2026-09-27** — [T-2854] (1) の段 5 実装子は DW-S05-C の「制約 meta-test を自ら洗い出して走らせる」を受けていたが、`check()` を `report = {...}; return report` に変え、`orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract` (辞書 literal の return がちょうど 1 つであることを AST で固定) を赤にした。親の焦点走 (計算ノード、31845.nqsv) で検出し、既存 test を変えず fix 3 で実装を戻した。型は 2026-07-27 (26) で広げた「変更が meta-test (横断検査) の契約を落とす」で、production の変更が既存の検査 test を破った 2026-08-28・2026-09-10 の再発と同じ位置にある。今回は焦点走の集合に consumer test を入れていたので受入の前に出た。
+- **再発: 2026-09-27 (同じ wave の 2 件目)** — 同じ wave で新設した `orchestrator/tests/test_check_trace0_header_rule.py` (pytest の `tmp_path` fixture に依存) が自走入口も pytest 専用 allowlist の記載も持たず、最終受入 1 回目 (27,954 collected、27,879 passed / 74 skipped) を `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件赤にした。親は `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」を段 9 前に読んでいたが、焦点走の集合に入れなかった (2026-09-07・09-20・09-26 と同じ位置)。`orchestrator/tests/README.md` の allowlist に 1 行足し、同メタテストの自走 3 件緑を確かめて閉じた。費用は受入 1 回分 (3 shard の Elapse 計 848 秒)。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -23501,6 +23504,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   正しい author worktree へ書いたため実害は出ず near miss で止まった。
   親が `DW-O02` の現行版 (「prompt の repo path は投入先 worktree のもの」) を読んだのは
   段 5 投入後だった。
+
+- **再発: 2026-09-27 (near miss)** — [T-2854] (1) の段 6 fix 1 の投げ文が「親の事前所見 parent-findings-s6.md (同じ dir)」と相対で書き、子は直前の行の `out/` 配下と解決して読めず、「読めなければ即停止」どおり 16 秒で止まった (fail-closed で実害は 1 往復)。全 path を絶対 path に直して再投入した。型 (親の投げ文の path 指定が子の解決先と食い違う) は同じで、F819 の初発では子が 0 byte のまま成功で戻った (fail-open) のに対し、今回は「読めなければ即停止」の定型で子が止まった (fail-closed)。DW-O02 の「絶対パスで読ませ」を親が 1 項目だけ守らなかった。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
@@ -25086,6 +25091,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は F899 の再発検知に既に書かれている「実機出力の逐語 fixture を同じ検査に入れる」で、
   本 wave では実 repo の tree を走査する registration 正例 test と、凍結文由来の独立 literal で
   書いた期待 AST test を置いた。
+
+- **再発: 2026-09-27** — [T-2854] (1) の合成 CMake fixture は、実 CCBench の consumer argv にある `-Werror` を持たなかった。検査器の volatile builtin probe (`-U__DATE__ -D__DATE__=...`) は実構成では `-Werror=builtin-macro-redefined` で必ず失敗するのに、新 test は緑だった。親が login で実測して段 6 で probe argv にだけ `-Wno-builtin-macro-redefined` を足し、正例 fixture に `-Werror` と TRACE token の無い target を加えた (変異 V13 で固定)。
 ### F900. 「負例を足した」という報告が、実際にはその述語を通らない負例だった [恒真ゲート]
 
 - 事象: 事前登録した 10 変異の probe 走で 5 件が生き残った。うち 3 件は
@@ -28540,3 +28547,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: role の出力節は field 名と意味だけを書き、gate が受理する型を書いていない。gate の型契約は fixture と test で固定されているが、LLM 子に渡る文面へ届いていなかった。段階 E までは auditor 出力を fixture で与えていたので表面化しなかった。
 - 恒久対応: `docs/phase3-silo-policy-runbook.md` §1(d) に「spawn の prompt に gate の閉じた出力形を明記し、拒否されたら値を直さず同じ入力で再審査させる」手順を足した (本 wave の 2 回目の auditor はこの形で gate を通った)。role 本文の改訂はユーザー承認事項なので [T-2870] に起票した。
 - 再発検知: driver の `load_proposal_file` が auditor 出力を gate に通す時点の `AuditorGateFailure` (fails-closed。値の補正で迂回しない)。
+
+### F1055. 段 4 裁定が「生死確認で問題なし」として、生死確認が観測していない性質 (source tree の gitlink) の扱いを決め、実 CCBench の判定 job が止まった [未実測] [手順漏れ]
+
+- 事象: [T-2854] (1) の段 4 裁定 S8 に「symlink・gitlink は拒否 (CCBench では生死確認で問題なし)」と書いた。実装どおりの検査器で走らせた判定 job 1 回目 (31898.nqsv、Elapse 10 秒) は、C・C2' の tree にある gitlink `third_party/shirakami` を「source tree に regular file 以外」として GCC 2 版とも拒否し、比較に入れなかった。計算 job 1 本と fix 1 巡 (実機 blocker) を失った。
+- 根本原因: 生死確認の使い捨て driver は `git archive` で source を取り出すだけで tree 照合をしておらず、gitlink の有無を観測していなかった (単位 11 の probe は gitlink を照合から除外して記録していた)。親は「生死確認の全段が成立した」ことを、その driver が測っていない性質にまで広げて裁定の根拠に書いた。
+- 恒久対応: 裁定・brief に「実測で問題なし」と書く前に、その実測が当の性質を観測したかを確かめる (観測していなければ「未実測」と書き、既存 probe の扱いを引く)。memory `ruling-cites-only-observed-properties`。検査器側は D2275 項 5 で gitlink を照合から除外し旧新一致を確かめる形に改めた。記録 = `output/insights/2026-09-27/t2854-d297-header-v2/README.md` §5.3。
+- 再発検知: 実構成の判定 job が source 照合で止まる (fail-closed)。裁定の「問題なし」は根拠の実測 ID と観測項目を併記させる。

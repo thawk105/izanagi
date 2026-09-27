@@ -9,15 +9,20 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+from collections import Counter
 from pathlib import Path, PurePosixPath
-from typing import Any, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -50,6 +55,12 @@ _SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx"})
 _HEADER_SUFFIXES = frozenset({
     ".h", ".h++", ".hh", ".hp", ".hpp", ".hxx", ".inl", ".ipp", ".tcc",
 })
+HEADER_GUARANTEE = (
+    "選定 configure 集合の compile database に載る変更 header consumer entry における、"
+    "TRACE=0 完全展開と include 活性の同一性"
+)
+HEADER_SCOPE = "この検査は D297 の保証を証明するものであり、計測ビルドからの trace 完全除去に対しては必要条件の一つである"
+_GENERATED_TARGETS = ("masstree_build",)
 _MARKER_PREFIX = "IZANAGI_TRACE0_INCLUDE_MARKER_"
 _MOCC_TRANSACTION_PATH = "cc/mocc/transaction.cc"
 _MOCC_TRACE_INCLUDE_LINE = '#include "../../include/trace.hh"'
@@ -177,7 +188,7 @@ def _raw_diff(repo: Path, old_oid: str, new_oid: str) -> list[dict[str, object]]
     return entries
 
 
-def _validate_diff(entries: list[dict[str, object]]) -> None:
+def _validate_diff(entries: list[dict[str, object]], *, header_enabled: bool = False) -> None:
     if not entries:
         raise CheckError("差分が空で対象 0 件")
     for entry in entries:
@@ -193,10 +204,12 @@ def _validate_diff(entries: list[dict[str, object]]) -> None:
             raise CheckError(f"regular file でない C/C++ path は未対応: {path!r} mode={old_mode}")
         suffix = PurePosixPath(path).suffix.lower() if isinstance(path, str) else ""
         if suffix in _HEADER_SUFFIXES:
-            raise CheckError(
-                "header の変更は consumer TU での解析が必要であり、この checker の保証範囲外なので "
-                f"fail-closed で拒否する: {path!r}"
-            )
+            if not header_enabled:
+                raise CheckError(
+                    "header の変更は consumer TU での解析が必要であり、この checker の保証範囲外なので "
+                    f"fail-closed で拒否する: {path!r}"
+                )
+            continue
         if not isinstance(path, str) or suffix not in _SOURCE_SUFFIXES:
             raise CheckError(f"C/C++ regular source/header 以外の変更は未対応: {path!r}")
 
@@ -648,12 +661,411 @@ def _compare_file(
     }
 
 
+def _h_run(argv: Sequence[str], cwd: Path | None = None, timeout: int = 120) -> bytes:
+    try:
+        result = subprocess.run(list(map(os.fspath, argv)), cwd=cwd, capture_output=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise CheckError(f"header command を完了できない: {exc}") from exc
+    if result.returncode:
+        raise CheckError(f"header command 失敗 rc={result.returncode}: {result.stderr[-400:]!r}")
+    return result.stdout
+
+
+def _h_sources(repo: Path, old: str, new: str, root: Path) -> tuple[dict[str, Path], list[dict[str, str]]]:
+    bare = root / "objects.git"
+    _h_run(["git", "clone", "--bare", "--no-local", repo, bare], timeout=300)
+    (bare / "info" / "attributes").write_text("* -export-ignore\n* -export-subst\n")
+    sources = {}
+    gitlinks = {}
+    for side, oid in (("old", old), ("new", new)):
+        src = root / f"src-{side}"
+        src.mkdir()
+        expected = {}
+        side_gitlinks = {}
+        for row in _h_run(["git", "-C", bare, "ls-tree", "-r", "-z", oid]).split(b"\0"):
+            if not row:
+                continue
+            meta, name = row.split(b"\t", 1)
+            mode, kind, blob = meta.decode().split()
+            if mode == "160000" and kind == "commit":
+                side_gitlinks[_decode_path(name)] = blob
+                continue
+            if mode not in ("100644", "100755") or kind != "blob":
+                raise CheckError(f"source tree に regular file 以外: {name!r}")
+            expected[_decode_path(name)] = blob
+        archive = root / f"{side}.tar"
+        _h_run(["git", "-C", bare, "archive", "--format=tar", "-o", archive, oid], timeout=300)
+        with tarfile.open(archive) as stream:
+            for member in stream:
+                dest = (src / member.name).resolve()
+                if not dest.is_relative_to(src) or not (member.isdir() or member.isfile()):
+                    raise CheckError(f"source archive member が未対応: {member.name}")
+                if member.isdir():
+                    dest.mkdir(parents=True, exist_ok=True)
+                else:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    with stream.extractfile(member) as reader, dest.open("wb") as writer:
+                        shutil.copyfileobj(reader, writer)
+                    dest.chmod(member.mode & 0o777)
+        archive.unlink()
+        actual = {p.relative_to(src).as_posix() for p in src.rglob("*") if p.is_file() and not p.is_symlink()}
+        if actual != set(expected):
+            raise CheckError(f"source tree file 集合が不一致: missing={sorted(set(expected)-actual)!r} extra={sorted(actual-set(expected))!r}")
+        for name, blob in expected.items():
+            data = (src / name).read_bytes()
+            if hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest() != blob:
+                raise CheckError(f"source tree blob が不一致: {name}")
+        sources[side] = src
+        gitlinks[side] = side_gitlinks
+    if gitlinks["old"] != gitlinks["new"]:
+        raise CheckError("source tree gitlink の path/commit OID 集合が不一致")
+    return sources, [{"path": path, "commit_oid": oid} for path, oid in sorted(gitlinks["old"].items())]
+
+
+def _h_supply(genome: Any, src: Path, build: Path, toolchain: Mapping[str, Mapping[str, str]],
+              prefix: Path, third: Mapping[str, Path]) -> tuple[list[str], list[str], str]:
+    from orchestrator.campaign.buildcache import _v2_commands
+    configure, build_argv = _v2_commands(
+        genome, False, os.fspath(src), os.fspath(build), dict(toolchain), jobs=1,
+        dependency_prefix=os.fspath(prefix), fetchcontent_base_dir=os.fspath(build / "_deps"),
+        masstree_source_dir=third["masstree"], mimalloc_source_dir=third["mimalloc"],
+        googletest_source_dir=third["googletest"],
+    )
+    if build_argv.count("--target") != 1:
+        raise CheckError("production build argv の --target が不正")
+    target = build_argv[build_argv.index("--target") + 1]
+    return [*configure, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCCBENCH_CCACHE=OFF"], list(_GENERATED_TARGETS), target
+
+
+def _h_roots(src: Path, build: Path, generated: Path, third: Mapping[str, Path]) -> list[tuple[bytes, bytes]]:
+    roots = [(os.fsencode(src), b"<SOURCE>"), (os.fsencode(build), b"<BUILD>"),
+             (os.fsencode(generated), b"<GENERATED>")]
+    roots += [(os.fsencode(path), f"<THIRD:{name}>".encode()) for name, path in third.items()]
+    return sorted(dict(roots).items(), key=lambda item: -len(item[0]))
+
+
+def _h_norm(value: bytes, roots: Sequence[tuple[bytes, bytes]]) -> bytes:
+    for root, token in roots:
+        value = value.replace(root, token)
+    return value
+
+
+def _h_entry(entry: dict[str, Any], roots: Sequence[tuple[bytes, bytes]]) -> tuple[tuple[str, str], list[str], tuple[str, str, tuple[str, ...]]]:
+    argv = entry.get("arguments")
+    if argv is None:
+        argv = shlex.split(entry["command"])
+    if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
+        raise CheckError("compile database argv が未対応形")
+    file = Path(entry["file"])
+    file = (file if file.is_absolute() else Path(entry["directory"]) / file).resolve()
+    output = entry.get("output") or next((argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "-o"), "")
+    if not output:
+        output = next((a[2:] for a in argv if a.startswith("-o") and len(a) > 2), "")
+    match = re.search(r"(?:^|/)CMakeFiles/([^/]+)\.dir(?:/|$)", output)
+    if not match:
+        raise CheckError(f"compile database target を特定できない: {output!r}")
+    key = (_h_norm(os.fsencode(file), roots).decode(), match.group(1))
+    signature = (key[0], key[1], tuple(_h_norm(os.fsencode(a), roots).decode() for a in argv))
+    return key, argv, signature
+
+
+def _h_args(argv: list[str], trace: int) -> list[str]:
+    kept = []
+    found = 0
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "-MG" or arg.startswith("@") or arg.startswith("-Wp,"):
+            raise CheckError(f"opaque compiler argv: {arg!r}")
+        if arg in ("-o", "-MF", "-MT", "-MQ"):
+            if i + 1 == len(argv):
+                raise CheckError(f"compiler argv の {arg} が欠落")
+            i += 2
+            continue
+        if arg in ("-c", "-MD", "-MMD", "-MP") or any(arg.startswith(p) and arg != p for p in ("-o", "-MF", "-MT", "-MQ")):
+            i += 1
+            continue
+        if arg.startswith("-DTRACE="):
+            found += 1
+            if arg != "-DTRACE=0":
+                raise CheckError(f"TRACE argv が 0 でない: {arg!r}")
+            arg = f"-DTRACE={trace}"
+        kept.append(arg)
+        i += 1
+    if found > 1:
+        raise CheckError("TRACE argv token が重複")
+    if not found:
+        kept.append(f"-DTRACE={trace}")
+    return kept
+
+
+def _h_dep(entry: dict[str, Any], argv: list[str], trace: int, depfile: Path) -> set[Path]:
+    macros = _h_run([*_h_args(argv, trace), "-E", "-dM", "-MD", "-MF", depfile], Path(entry["directory"]))
+    if not re.search(rb"(?m)^#define TRACE " + str(trace).encode() + rb"$", macros):
+        raise CheckError(f"TRACE={trace} の実効値を確認できない: {entry['file']}")
+    if not depfile.is_file():
+        raise CheckError(f"dependency file が無い: {entry['file']}")
+    raw = depfile.read_text().replace("\\\n", "")
+    if ":" not in raw:
+        raise CheckError("dependency file が未対応形")
+    files = {(Path(entry["directory"]) / word).resolve() for word in shlex.split(raw.split(":", 1)[1])}
+    if any(not path.is_file() for path in files):
+        raise CheckError(f"dependency closure に存在しない file: {entry['file']}")
+    return files
+
+
+def _h_transitions(raw: bytes) -> bytes:
+    lines = []
+    for line in raw.splitlines(keepends=True):
+        match = re.match(rb'^# [0-9]+ "([^"]+)"((?: [1-4])+)[\r]?\n$', line)
+        if match:
+            flags = [flag for flag in match[2].split() if flag in (b"1", b"2")]
+            if flags:
+                lines.append(b" ".join(flags) + b' "' + match[1] + b'"\n')
+    return b"".join(lines)
+
+
+def _h_compare(pair: dict[str, Any], key: tuple[str, str], label: str) -> dict[str, object]:
+    modes = {}
+    for side in ("old", "new"):
+        row = pair[side]
+        entry = row["entries"][key]
+        # Compare two fixed expansions so live uses of volatile builtins cannot
+        # accidentally compare equal just because both commands ran in one second.
+        probes = []
+        for marker in ("A", "B"):
+            override = []
+            for builtin in ("__DATE__", "__TIME__", "__TIMESTAMP__"):
+                override.extend((f"-U{builtin}", f'-D{builtin}="IZANAGI_VOLATILE_{marker}"'))
+            probes.append(_h_run(
+                [*_h_args(entry["argv"], 0), *override, "-Wno-builtin-macro-redefined", "-E", "-P"],
+                Path(entry["raw"]["directory"]),
+            ))
+        if probes[0] != probes[1]:
+            raise CheckError(f"volatile builtin が完全展開に存在: {label} {key}")
+    for mode, flags in (("expanded", ("-E", "-P", "-dD")), ("include_activity", ("-E",))):
+        values = []
+        for side in ("old", "new"):
+            row = pair[side]
+            entry = row["entries"][key]
+            raw = _h_run([*_h_args(entry["argv"], 0), *flags], Path(entry["raw"]["directory"]))
+            value = _h_transitions(raw) if mode == "include_activity" else raw
+            values.append(_h_norm(value, row["roots"]))
+        evidence = _comparison_evidence(*values)
+        if not evidence["identical"]:
+            raise CheckError(f"header {mode} 不一致: configure={label} entry={key}")
+        modes[mode] = evidence
+    return {"file": key[0], "target": key[1], "modes": modes}
+
+
+def _h_check(
+    repo: Path, old: str, new: str, headers: list[str], cc: str, cxx: str,
+    cache: Path, prefix: Path, scratch_root: Path,
+    supply: Callable[..., tuple[list[str], list[str], str]] | None,
+    spaces: Mapping[str, Any] | None,
+) -> dict[str, object]:
+    from orchestrator.campaign.genome import SPACES
+    from orchestrator.campaign.model import Genome
+    space_map = SPACES if spaces is None else spaces
+    if not space_map:
+        raise CheckError("genome 空間が空")
+    cc_path, cc_version = _compiler_identity(cc)
+    cxx_path, cxx_version = _compiler_identity(cxx)
+    cmake_path = shutil.which("cmake")
+    if cmake_path is None:
+        raise CheckError("cmake が存在しない")
+    if not cache.is_dir() or not prefix.is_dir() or not scratch_root.is_dir():
+        raise CheckError("header 用 cache/prefix/scratch root が directory でない")
+    toolchain = {"cmake": {"realpath": os.path.realpath(cmake_path)},
+                 "cc": {"realpath": cc_path}, "cxx": {"realpath": cxx_path}}
+    provider = supply or _h_supply
+    with tempfile.TemporaryDirectory(prefix="trace0-header-", dir=scratch_root) as temporary:
+        root = Path(temporary)
+        source, gitlinks = _h_sources(repo, old, new, root)
+        if supply is None:
+            payload = json.loads(_h_run([
+                sys.executable, "-B", REPO_ROOT / "tools/pegasus/fetch_third_party.py",
+                "hydrate", "--repo-root", REPO_ROOT, "--cache-root", cache,
+                "--staging-root", root / "thirdparty-src",
+            ], timeout=600))
+            third = {name: Path(payload["source_root"]) / name for name in ("masstree", "mimalloc", "googletest")}
+        else:
+            third = {}
+        changed = {side: {p: (source[side] / p).resolve() for p in headers} for side in ("old", "new")}
+        counter = 0
+
+        def provided(genome: Any, src: Path, build: Path, local_third: Mapping[str, Path]) -> tuple[list[str], list[str], str]:
+            argv, targets, production = provider(genome, src, build, toolchain, prefix, local_third)
+            if not isinstance(production, str) or not re.fullmatch(r"ycsb_[A-Za-z0-9_]+\.exe", production):
+                raise CheckError(f"production target が未対応形: {production}")
+            return argv, targets, production
+
+        def configure(genome: Any, label: str, *, discovery: bool = False) -> dict[str, Any]:
+            nonlocal counter
+            pair: dict[str, Any] = {}
+            for side in ("old", "new"):
+                src = source[side]
+                build = root / f"b{counter:04d}-{side}"
+                counter += 1
+                generated = root / f"g{counter:04d}-{side}"
+                local_third = dict(third)
+                if supply is None:
+                    if discovery:
+                        generated = stock[side]["generated"]
+                    else:
+                        shutil.copytree(third["masstree"], generated)
+                    local_third["masstree"] = generated
+                elif discovery:
+                    local_third["generated"] = stock[side]["build"] / "generated"
+                argv, targets, production = provided(genome, src, build, local_third)
+                _h_run(argv, timeout=300)
+                if not discovery:
+                    for target in targets:
+                        _h_run([toolchain["cmake"]["realpath"], "--build", build, "--target", target], timeout=600)
+                    if supply is None and not (generated / "config.h").is_file():
+                        raise CheckError(f"masstree config.h が無い: {label} {side}")
+                database = json.loads((build / "compile_commands.json").read_text())
+                if not isinstance(database, list) or not database:
+                    raise CheckError(f"compile database が空: {label} {side}")
+                roots = _h_roots(src, build, generated, local_third)
+                entries = {}
+                signatures = []
+                for item in database:
+                    key, command, signature = _h_entry(item, roots)
+                    if key in entries:
+                        raise CheckError(f"compile database 重複 entry: {key}")
+                    entries[key] = {"raw": item, "argv": command}
+                    signatures.append(signature)
+                pair[side] = {"src": src, "build": build, "generated": generated,
+                              "roots": roots, "entries": entries, "signatures": Counter(signatures),
+                              "production": production}
+            if pair["old"]["signatures"] != pair["new"]["signatures"]:
+                raise CheckError(f"旧新 compile database が不一致: {label}")
+            if pair["old"]["production"] != pair["new"]["production"]:
+                raise CheckError(f"旧新 production target が不一致: {label}")
+            return pair
+
+        def dependencies(pair: dict[str, Any], label: str, target: str | None = None) -> tuple[dict[str, Any], set[tuple[str, str]]]:
+            work = []
+            for side in ("old", "new"):
+                row = pair[side]
+                for index, (key, entry) in enumerate(sorted(row["entries"].items())):
+                    if target is not None and key[1] != target:
+                        continue
+                    for trace in (0, 1):
+                        work.append((side, key, trace, entry, root / f"dep-{label}-{side}-{index}-{trace}.d"))
+            def one(job: tuple[Any, ...]) -> tuple[str, tuple[str, str], int, set[Path]]:
+                side, key, trace, entry, depfile = job
+                return side, key, trace, _h_dep(entry["raw"], entry["argv"], trace, depfile)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+                results = list(pool.map(one, work))
+            deps: dict[str, Any] = {"old": {}, "new": {}}
+            consumers = set()
+            for side, key, trace, files in results:
+                deps[side].setdefault(key, {})[trace] = files
+                if any(path in files for path in changed[side].values()):
+                    consumers.add(key)
+            return deps, consumers
+
+        first_protocol = next(iter(sorted(space_map)))
+        stock = configure(Genome(first_protocol, {}), "stock")
+        selected = {"stock": (stock, *dependencies(stock, "stock"))}
+        skipped = {}
+        targets = {}
+        for protocol, space in sorted(space_map.items()):
+            # The production target comes from the same provider as configure argv.
+            sample = provided(Genome(protocol, {}), source["old"], root / f"target-{protocol}", third)
+            target = sample[2]
+            targets[protocol] = target
+            stock_consumers = selected["stock"][2]
+            choose = any(key[1] == target for key in stock_consumers)
+            genomes = tuple(space.enumerate())
+            if not genomes:
+                raise CheckError(f"genome 空間が空: {protocol}")
+            if not choose:
+                for index, genome in enumerate(genomes):
+                    label = f"discover-{protocol}-{index}"
+                    pair = configure(genome, label, discovery=True)
+                    _, consumers = dependencies(pair, label, target)
+                    if any(key[1] == target for key in consumers):
+                        choose = True
+                        break
+                if not choose:
+                    skipped[protocol] = len(genomes)
+            if choose:
+                for index, genome in enumerate(genomes):
+                    label = f"{protocol}-{index}"
+                    pair = configure(genome, label)
+                    selected[label] = (pair, *dependencies(pair, label))
+        planned = []
+        header_hits = {path: 0 for path in headers}
+        for label, (pair, deps, consumers) in selected.items():
+            for key in sorted(consumers):
+                planned.append((label, key))
+                for path in headers:
+                    if any(changed[side][path] in deps[side][key][trace]
+                           for side in ("old", "new") for trace in (0, 1)):
+                        header_hits[path] += 1
+        for path, count in header_hits.items():
+            if not count:
+                raise CheckError(f"変更 header の consumer が 0 件: {path}")
+        planned_set = set(planned)
+        aggregate = {}
+        unique_jobs = []
+        for label, key in planned:
+            pair, deps, _ = selected[label]
+            closure = []
+            for side in ("old", "new"):
+                row = pair[side]
+                closure.append(tuple(sorted(
+                    (_h_norm(os.fsencode(path), row["roots"]).decode(), _sha256(path.read_bytes()))
+                    for path in deps[side][key][0]
+                )))
+            signature = next(sig for sig in pair["old"]["signatures"] if sig[:2] == key)
+            aggregation_key = (key, signature, *closure)
+            if aggregation_key in aggregate:
+                aggregate[aggregation_key]["configures"].append(label)
+            else:
+                aggregate[aggregation_key] = {"configures": [label]}
+                unique_jobs.append((aggregation_key, pair, key, label))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+            evidence_rows = list(pool.map(
+                lambda job: _h_compare(job[1], job[2], job[3]), unique_jobs))
+        comparisons = []
+        done = set()
+        for job, evidence in zip(unique_jobs, evidence_rows):
+            evidence["configures"] = aggregate[job[0]]["configures"]
+            comparisons.append(evidence)
+            done.update((label, (evidence["file"], evidence["target"])) for label in evidence["configures"])
+        if done != planned_set:
+            raise CheckError("比較の予定集合と実行済み集合が不一致")
+        return {
+            "guarantee": HEADER_GUARANTEE, "scope": HEADER_SCOPE,
+            "compilers": {"cc": {"path": cc_path, "version": cc_version},
+                          "cxx": {"path": cxx_path, "version": cxx_version}},
+            "selected_configures": sorted(selected), "unselected_genomes_checked": skipped,
+            "production_targets": targets, "consumers": [
+                {"configure": label, "file": key[0], "target": key[1]} for label, key in planned],
+            "planned_count": len(planned), "executed_count": len(done),
+            "unique_comparison_count": len(comparisons), "comparisons": comparisons,
+            "gitlinks": gitlinks,
+            "production_argv_difference": ["-DCCBENCH_CCACHE=OFF"],
+        }
+
+
 def check(
     repo: Path,
     old: str,
     new: str,
     cxx: str,
     expect_paths: Sequence[str] | None = None,
+    *,
+    header_cc: str | None = None,
+    third_party_cache: Path | None = None,
+    dependency_prefix: Path | None = None,
+    scratch_root: Path | None = None,
+    configure_supply: Callable[..., tuple[list[str], list[str], str]] | None = None,
+    genome_spaces: Mapping[str, Any] | None = None,
 ) -> dict[str, object]:
     """選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性の evidence を返す。"""
     repo = Path(os.path.realpath(repo))
@@ -661,19 +1073,25 @@ def check(
         raise CheckError(f"--repo が directory でない: {repo}")
     old_oid = _resolve_commit(repo, old)
     new_oid = _resolve_commit(repo, new)
-    old_known_absent = _assert_proven_repo_absent_macros(
-        os.fspath(repo), commit=old_oid
-    )
-    new_known_absent = _assert_proven_repo_absent_macros(
-        os.fspath(repo), commit=new_oid
-    )
+    header_inputs = (header_cc, third_party_cache, dependency_prefix, scratch_root)
+    legacy_order = all(value is None for value in header_inputs)
+    if legacy_order:
+        old_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=old_oid)
+        new_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=new_oid)
     ancestor = _is_ancestor(repo, old_oid, new_oid)
     if not ancestor:
         raise CheckError(f"old commit は new commit の祖先でない: {old_oid} !<= {new_oid}")
     diff = _raw_diff(repo, old_oid, new_oid)
-    _validate_diff(diff)
+    header_paths = [entry["path"] for entry in diff if isinstance(entry["path"], str)
+                    and PurePosixPath(entry["path"]).suffix.lower() in _HEADER_SUFFIXES]
+    _validate_diff(diff, header_enabled=bool(header_paths) and all(value is not None for value in header_inputs))
+    if header_paths and any(value is None for value in header_inputs):
+        raise CheckError("header 用の 4 引数はすべて必要")
     validated_expect_paths = _validate_expected_paths(diff, expect_paths)
     compiler, compiler_version = _compiler_identity(cxx)
+    if not legacy_order:
+        old_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=old_oid) if len(header_paths) != len(diff) else frozenset()
+        new_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=new_oid) if len(header_paths) != len(diff) else frozenset()
 
     genomes = tuple(SILO_SPACE.enumerate())
     overlays = tuple(_context_overlays())
@@ -689,6 +1107,8 @@ def check(
         path = entry["path"]
         if not isinstance(path, str):
             raise CheckError("検証済み diff path が文字列でない未対応形")
+        if path in header_paths:
+            continue
         files.append(
             _compare_file(
                 repo,
@@ -703,8 +1123,16 @@ def check(
                 expected_context_count,
             )
         )
-    if not files:
+    if not files and not header_paths:
         raise CheckError("比較対象が 0 件")
+    if header_paths:
+        assert header_cc is not None and third_party_cache is not None
+        assert dependency_prefix is not None and scratch_root is not None
+        header_rule = _h_check(
+            repo, old_oid, new_oid, header_paths, header_cc, cxx,
+            Path(third_party_cache), Path(dependency_prefix), Path(scratch_root),
+            configure_supply, genome_spaces,
+        )
     return {
         "schema": SCHEMA,
         "guarantee": GUARANTEE,
@@ -722,6 +1150,7 @@ def check(
             "expected_context_count_per_file": expected_context_count,
         },
         "files": files,
+        **({"header_rule": header_rule} if header_paths else {}),
     }
 
 
@@ -731,6 +1160,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--old", required=True, type=_full_oid, help="旧 commit の 40 桁 lowercase hex OID")
     parser.add_argument("--new", required=True, type=_full_oid, help="新 commit の 40 桁 lowercase hex OID")
     parser.add_argument("--cxx", required=True, help="preprocess に使う compiler（既定値なし）")
+    parser.add_argument("--header-cc")
+    parser.add_argument("--third-party-cache", type=Path)
+    parser.add_argument("--dependency-prefix", type=Path)
+    parser.add_argument("--scratch-root", type=Path)
     parser.add_argument(
         "--expect-paths",
         nargs="+",
@@ -746,7 +1179,11 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        report = check(args.repo, args.old, args.new, args.cxx, args.expect_paths)
+        report = check(
+            args.repo, args.old, args.new, args.cxx, args.expect_paths,
+            header_cc=args.header_cc, third_party_cache=args.third_party_cache,
+            dependency_prefix=args.dependency_prefix, scratch_root=args.scratch_root,
+        )
     except Exception as exc:  # noqa: BLE001 - CLI boundary is deliberately fail-closed
         print(f"error: {GUARANTEE}を確認できない: {exc}", file=sys.stderr)
         return 1
