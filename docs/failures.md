@@ -23079,6 +23079,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 計装 arm と対照 arm の**赤 nodeid 集合の一致**を測定の受理条件に含める。
   一致しなければ、その計装値は測定対象を代表していない。
 
+
+- **再発: 2026-09-27** — [T-2853] fig15 入力 wave の焦点走 1 回目で、親が wave worktree に未 commit で置いていた docs 編集 (`docs/paper-story/figures/README.md`・`tools/plotting/README.md`) を `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` が検出して 1 件赤になった (142 passed / 1 failed、Elapse 42 s)。assertion の左辺の余剰が docs の 2 path だけだったので実装差分に帰属させず、docs を記録 commit に入れた後の受入で再確認した。原因は (a) と同じで、作業ツリー全体を走査する検査の存在を焦点走の投入前に確かめなかった。焦点走は親の docs 編集を commit してから (または作業ツリーが clean の間に) 投げる。記録 = `output/insights/2026-09-27/t2853-fig15-input/README.md` §4。
 ### F804. 受入の赤が当たった計算ノードの openssl 版で変わる [テスト代表性]
 
 - 事象: `test_mocc_trace_pair.py::test_anchor_v3_accepts_external_signed_pin_manifest` と
