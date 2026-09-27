@@ -15,5 +15,9 @@ title: 論文ストーリーの版を図とグラフ中心で書く規則を REA
 - 実測: 本文に埋め込まれた図は 2026-07-10 版 3 枚、2026-08-23 版〜2026-09-26 版は毎版 2 枚 (P2-5 と P2-4 の図)。
   2026-09-26 版は旧 `fig1_` を埋め込んでおり、後継図 `fig1b_` (`figures/README.md` に登録済み) に触れていない (版は凍結物なので直さない。次の版は後継図を使う)。
 - dev-wave 軽量版 (docs のみ、子なし)。開始 gate rc=0、`python3 tools/check_docs.py` rc=0。凍結済みの版・図は 1 byte も変えていない。
+- 受入 attempt final1-1 (16:15 投入、tip `8458aa071`、main `a0bf57976`) は赤 1 件で rc=70:
+  `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate`
+  (`Failed: first evaluation did not finish`、疑似時計 5000 tick 内に評価が終わらない時間依存の待ち、9.4 秒)。
+  差分は README と spool fragment だけでこの test の読む対象に届かない。同 file の単独再走は 65 passed (11 秒) で非再現 → 非帰属と判定し、受入を再走した (DW-O18)。
 
 ## 次の一手差分
