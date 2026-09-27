@@ -460,7 +460,7 @@ _DRIVER_CONTRACTS = {
         build_spy_argv_factory=_policy_argv,
         routing_argv_factory=_policy_argv,
         ast_layout_calls=2,
-        ast_run_campaign_calls=1,
+        ast_run_campaign_calls=2,
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,
     ),
