@@ -5509,3 +5509,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-27","base":"339d7c18831176d431e1f634621aa06d940ddd70","content_sha256":"28d4597db8e08dad1cd96472d8045267531aa152ffd18e51958f6ca54af3ed97","seq":1,"tested_tip":"6740c511ed36d868e65a893429648eacb97fd577","wave":"rulings-all-20260927b","wave_ref":"refs/heads/worktree-rulings-all-20260927b"}
 - {"allocations":{"D:rulings-full38-verdicts":"D2272"},"authored":"2026-09-27","base":"339d7c18831176d431e1f634621aa06d940ddd70","content_sha256":"fc6bd3f874159229191124ed35e66afd02aec5784073bf083be3cf132183fabf","seq":1,"tested_tip":"6740c511ed36d868e65a893429648eacb97fd577","wave":"rulings-all-20260927b","wave_ref":"refs/heads/worktree-rulings-all-20260927b"}
+
+- {"allocations":{},"authored":"2026-09-27","base":"bf5804dcd24aa56c2041823a36fe330233f7ed59","content_sha256":"0ed96b870d26316c1acf7768195b676f1d8884eda710b49fc01760003598eaf2","seq":1,"tested_tip":"7f8f6322b43f511f913700c98320509700280658","wave":"dev-wave-t2864-comsys-future-work","wave_ref":"refs/heads/dev-wave-t2864-comsys-future-work"}
