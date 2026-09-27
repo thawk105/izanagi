@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import sys
@@ -220,7 +220,8 @@ def _append_history(layout, iteration, proposal, out):
            'outcome': out['outcome'], 'reject_subtype': digest.get('subtype'),
            'reject_rule_id': digest.get('rule_id'),
            'verifier_digest': out.get('verifier_digest'),
-           'justification': proposal.justification}
+           'justification': proposal.justification,
+           'measurement_campaign_id': out.get('measurement_campaign_id')}
     with _history_path(layout).open('a', encoding='utf-8') as stream:
         stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
 
@@ -434,6 +435,7 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                     compiler, scratch_dir, build_context, layout=None,
                     cache_root='', contract=None, dependency_prefix='',
                     fetchcontent_options=None, authorization_session=None,
+                    state=None, measurement_cfg=None, measurement_layout=None,
                     log=print):
     _require_perf_identity(cfg, perf)
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
@@ -441,7 +443,8 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     if layout is None:
         layout = _campaign_layout(cfg)
     layout.ensure()
-    state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
+    if state is None:
+        state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
     state.whiteboard.clear()
     state.reverse_recommendations = 0
     stop = L.check_stop(state)
@@ -450,9 +453,14 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
         return {'outcome': 'stopped-before', 'variant': None,
                 'stop_reason': stop.reason, 'iteration': state.iteration, 'ran': False}
     state.iteration += 1
+    L.save_loop_state(layout, state)
+    evaluation_cfg = measurement_cfg if measurement_cfg is not None else cfg
+    evaluation_layout = measurement_layout if measurement_layout is not None else layout
+    measurement_campaign_id = (str(ident.campaign_id(evaluation_cfg))
+                               if measurement_cfg is not None else None)
     try:
-        out = run_one_iteration(cfg, perf, proposal, auditor, sub, do_build,
-            layout=layout, compiler=compiler, scratch_dir=scratch_dir,
+        out = run_one_iteration(evaluation_cfg, perf, proposal, auditor, sub, do_build,
+            layout=evaluation_layout, compiler=compiler, scratch_dir=scratch_dir,
             cache_root=cache_root, build_context=build_context,
             contract=contract, dependency_prefix=dependency_prefix,
             fetchcontent_options=fetchcontent_options,
@@ -460,13 +468,15 @@ def drive_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     except Exception:
         if do_build:
             _append_history(layout, state.iteration, proposal,
-                            {'outcome': 'eval-exception'})
+                            {'outcome': 'eval-exception',
+                             'measurement_campaign_id': measurement_campaign_id})
         raise
     finally:
         L.save_loop_state(layout, state)
     if do_build:
-        _append_history(layout, state.iteration, proposal, out)
-        view = require_admitted_campaign(layout.root,
+        _append_history(layout, state.iteration, proposal,
+                        {**out, 'measurement_campaign_id': measurement_campaign_id})
+        view = require_admitted_campaign(evaluation_layout.root,
             purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
         digest = L.make_critic_digest(view, tag='p3-silo-policy',
             reflux=cfg.search_config.get('reflux') == 'on',
@@ -642,21 +652,31 @@ def main(argv=None):
                 fetchcontent_options=fetchcontent_options, log=measurement_log)
         elif args.stock_control:
             from . import loop
+            state = L.load_loop_state(layout) or L.LoopState(start_wall=time.time())
+            iteration = state.iteration + 1
+            measurement_cfg = replace(cfg, search_config={
+                **cfg.search_config, 'policy_iteration': iteration})
+            measurement_layout = exploration_campaign_layout(
+                str(ident.campaign_id(measurement_cfg)))
             candidate_error = None
             with loop.authorization_session() as session:
                 try:
                     candidate = drive_iteration(cfg, default_perf(), proposal, auditor, sub,
                         True, compiler=compiler, scratch_dir=scratch, layout=layout,
+                        state=state, measurement_cfg=measurement_cfg,
+                        measurement_layout=measurement_layout,
                         cache_root=cache_root, build_context=context, contract=contract,
                         fetchcontent_options=fetchcontent_options,
                         authorization_session=session, log=measurement_log)
                 except Exception as exc:
                     candidate_error = exc
                 if candidate_error is None and candidate.get('ran') is False:
+                    candidate['measurement_campaign_id'] = str(ident.campaign_id(measurement_cfg))
                     print(json.dumps(candidate, ensure_ascii=False))
                     return 1
                 try:
-                    stock = run_stock_control(cfg, default_perf(), sub, layout=layout,
+                    stock = run_stock_control(measurement_cfg, default_perf(), sub,
+                        layout=measurement_layout,
                         cache_root=cache_root, build_context=stock_context,
                         contract=contract,
                         fetchcontent_options=fetchcontent_options,
@@ -666,6 +686,7 @@ def main(argv=None):
                         raise
             if candidate_error is not None:
                 raise candidate_error.with_traceback(candidate_error.__traceback__)
+            candidate['measurement_campaign_id'] = str(ident.campaign_id(measurement_cfg))
             out = {'candidate': candidate, 'stock': stock}
             result_code = 0 if stock['outcome'] == 'certified-stock' else 1
         else:

@@ -3,6 +3,8 @@ import json
 import contextlib
 from dataclasses import replace
 from pathlib import Path
+import os
+import subprocess
 import sys
 import time
 
@@ -554,7 +556,8 @@ def test_drive_exception_records_history(tmp_path, monkeypatch):
     assert len(rows) == 1 and rows[0]['outcome'] == 'eval-exception'
     assert set(rows[0]) == {'iteration', 'variant_id', 'implementation', 'ir',
                             'outcome', 'reject_subtype', 'reject_rule_id',
-                            'verifier_digest', 'justification'}
+                            'verifier_digest', 'justification',
+                            'measurement_campaign_id'}
 
 
 def test_replay_uses_real_auditor_gate_without_loop_state(tmp_path, monkeypatch, capsys):
@@ -605,15 +608,17 @@ def test_pair_orders_candidate_then_stock_in_one_session(tmp_path, monkeypatch, 
     monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
     monkeypatch.setattr(L, '_current_site', lambda: P.site_policy.OTHER)
     monkeypatch.setattr(P, 'exploration_campaign_layout',
-                        lambda *_a: CampaignLayout(str(tmp_path / 'campaign')))
+                        lambda campaign_id: CampaignLayout(str(tmp_path / campaign_id)))
     seen = []
     def candidate(*_a, **kwargs):
         seen.append(('candidate', kwargs['authorization_session'],
-                     kwargs['build_context']))
+                     kwargs['build_context'], kwargs['measurement_cfg'],
+                     kwargs['measurement_layout'], kwargs['layout'], kwargs['state']))
         return {'outcome': 'certified'}
     def stock(*_a, **kwargs):
         seen.append(('stock', kwargs['authorization_session'],
-                     kwargs['build_context']))
+                     kwargs['build_context'], _a[0], kwargs['layout'],
+                     None, None))
         return {'outcome': 'certified-stock'}
     monkeypatch.setattr(P, 'drive_iteration', candidate)
     monkeypatch.setattr(P, 'run_stock_control', stock)
@@ -623,10 +628,20 @@ def test_pair_orders_candidate_then_stock_in_one_session(tmp_path, monkeypatch, 
         '--stock-control']) == 0
     assert [item[0] for item in seen] == ['candidate', 'stock']
     assert seen[0][1] is seen[1][1]
+    series = P.default_cfg(form='cpp')
+    measurement = replace(series, search_config={
+        **series.search_config, 'policy_iteration': 1})
+    measurement_id = str(P.ident.campaign_id(measurement))
+    assert seen[0][3] == seen[1][3] == measurement
+    assert seen[0][4].root == seen[1][4].root == str(tmp_path / measurement_id)
+    assert seen[0][5].root == str(tmp_path / str(P.ident.campaign_id(series)))
+    assert seen[0][6] is not None and seen[0][6].iteration == 0
     assert seen[0][2]._coder_entrypoint_site == 'orchestrator.campaign.p3_s4_loop_policy.main'
     assert seen[1][2]._coder_entrypoint_site is None
     assert json.loads(capsys.readouterr().out) == {
-        'candidate': {'outcome': 'certified'}, 'stock': {'outcome': 'certified-stock'}}
+        'candidate': {'outcome': 'certified',
+                      'measurement_campaign_id': measurement_id},
+        'stock': {'outcome': 'certified-stock'}}
     seen.clear()
     def failed_candidate(*_a, **kwargs):
         seen.append(('candidate', kwargs['authorization_session'],
@@ -670,5 +685,217 @@ def test_pair_stock_failure_returns_one_after_candidate(tmp_path, monkeypatch, c
         '--no-isolate-worktree', '--run-iteration', str(proposal),
         '--stock-control']) == 1
     assert json.loads(capsys.readouterr().out) == {
-        'candidate': {'outcome': 'rejected', 'ran': True},
+        'candidate': {'outcome': 'rejected', 'ran': True,
+                      'measurement_campaign_id': str(P.ident.campaign_id(
+                          replace(P.default_cfg(form='cpp'), search_config={
+                              **P.default_cfg(form='cpp').search_config,
+                              'policy_iteration': 1})))},
         'stock': {'outcome': 'non-stock-source'}}
+
+
+def _policy_pair_child(base, proposal, crash=False):
+    """Run the real Pegasus authorization and WAL from a short lived process."""
+    import statistics
+    from types import SimpleNamespace
+    from orchestrator.campaign import (env_attestation as ea, execution_guard,
+        layout as layout_module, loop, p2_2, patchharness, pipeline,
+        site_policy, source_digest)
+    from orchestrator.tests import test_campaign as fixtures
+
+    base = Path(base)
+    roots = [base / 'candidate', base / 'stock']
+    for root in roots:
+        _source(root)
+        fixtures._install_complete_silo_proof_source(str(root))
+    patches = pytest.MonkeyPatch()
+    try:
+        patches.setenv('IZANAGI_EXPLORATION_OUTPUT_ROOT', str(base / 'output'))
+        patches.setattr(layout_module, 'default_durable_root_policy',
+            lambda: fixtures._single_process_test_policy(base / 'output'))
+        patches.setattr(site_policy, 'socket',
+            SimpleNamespace(gethostname=lambda: 'bnode001'))
+        patches.setattr(site_policy, '_has_nqsv', lambda: True)
+        contract = P.env_contract.lookup('pegasus')
+        verified = ea.load_verified_calibration(contract, loop._repo_root())
+        raw = ea.profile_to_dict(verified.attestation_profile)
+        del raw['effective_clock']['tolerance_pct']
+        samples = raw['effective_clock']['samples_mhz']
+        raw['effective_clock']['samples_mhz'] = [
+            float(statistics.median(samples))] * len(samples)
+        observed = ea.normalize_observed_profile(raw)
+        attest = execution_guard.attest_and_build_receipt
+        patches.setattr(execution_guard, 'attest_and_build_receipt',
+            lambda contract, calibration: attest(
+                contract, calibration, probe_fn=lambda: observed))
+        patches.setattr(P, 'ROOT', base)
+        patches.setattr(p2_2, '_assert_single_tenant', lambda: None)
+        patches.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
+        patches.setattr(patchharness, 'applied',
+            lambda *_a, **_k: contextlib.nullcontext())
+        patches.setattr(loop, '_perform_perf_preflight', lambda *_a, **_k: (None, True))
+        def evidence(genome, pin, *, ccbench_dir='', **_kwargs):
+            token = source_digest.STOCK if Path(ccbench_dir) == roots[1] else 'd' * 64
+            return fixtures._source_evidence(genome, pin, src_token=token,
+                                            source_root=ccbench_dir)
+        patches.setattr(loop.source_digest, 'resolve_evidence', evidence)
+
+        @contextlib.contextmanager
+        def checkout(pin, *, base_dir):
+            arm = checkout.arm
+            checkout.arm += 1
+            assert arm in (0, 1) and pin == P.axis.PIN
+            assert base_dir == str(base / 'external/ccbench')
+            with fixtures._mock_pipeline(
+                trace_content=(ROOT / 'orchestrator/tests/fixtures/g1_serial/trace_0.log').read_text(),
+                ncommit=2), patches.context() as local:
+                local.setattr(pipeline.source_digest, 'resolve_evidence', evidence)
+                build = pipeline.buildcache.build_v2
+                def observed_build(genome, *, build_context, **kwargs):
+                    assert (build_context._authority_nonce is None) == (arm == 1)
+                    assert kwargs['ccbench_dir'] == str(roots[arm])
+                    if crash and arm == 0:
+                        os._exit(37)
+                    local.setattr(fixtures, '_BUILD_CONTEXT', build_context)
+                    return build(genome, build_context=build_context, **kwargs)
+                local.setattr(pipeline.buildcache, 'build_v2', observed_build)
+                yield str(roots[arm])
+        checkout.arm = 0
+        patches.setattr(patchharness, 'checkout', checkout)
+        return P.main(['--form', 'cpp', '--campaign-env', 'pegasus',
+            '--allow-coder-derived-build', '--run-iteration', str(proposal),
+            '--stock-control'])
+    finally:
+        patches.undo()
+
+
+def _policy_pair_case(tmp_path, valid_reservation_environment):
+    output = tmp_path / 'output'
+    (output / 'env/pegasus/claims').mkdir(parents=True)
+    preview_root = tmp_path / 'preview'
+    _source(preview_root)
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('policy compiler unavailable')
+    gate, diff = P.policy_gate(str(preview_root), GOOD, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert gate.passed
+    proposal = _proposal(tmp_path, change=lambda d: (
+        d['coder'].update(implementation=GOOD),
+        d['auditor'].update(diff_digest=compute_diff_digest(diff))))
+    harness = tmp_path / 'pair_child.py'
+    harness.write_text(
+        'import sys\n'
+        'from orchestrator.tests.test_p3_s4_loop_policy import _policy_pair_child\n'
+        'sys.exit(_policy_pair_child(sys.argv[1], sys.argv[2], sys.argv[3] == "crash"))\n',
+        encoding='utf-8')
+    env = {**os.environ, **valid_reservation_environment}
+    env['PYTHONPATH'] = str(ROOT) + os.pathsep + env.get('PYTHONPATH', '')
+    def run(*, crash=False):
+        return subprocess.run([sys.executable, str(harness), str(tmp_path),
+            str(proposal), 'crash' if crash else 'run'], cwd=ROOT, env=env,
+            text=True, capture_output=True, timeout=30)
+    series = P.default_cfg(form='cpp', campaign_env='pegasus')
+    # The subprocess uses a disposable exploration root; derive paths from IDs.
+    series_root = output / 'exploration/campaigns' / str(P.ident.campaign_id(series))
+    def measurement(number):
+        cfg = replace(series, search_config={
+            **series.search_config, 'policy_iteration': number})
+        return cfg, output / 'exploration/campaigns' / str(P.ident.campaign_id(cfg))
+    return run, output, series_root, measurement
+
+
+def _pair_rows(path):
+    return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+
+
+def test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal(
+        tmp_path, valid_reservation_environment):
+    from orchestrator.campaign import wal
+    from orchestrator.campaign.artifact_admission import (
+        CampaignReadPurpose, require_admitted_campaign)
+    run, output, series_root, measurement = _policy_pair_case(
+        tmp_path, valid_reservation_environment)
+    first = run()
+    assert first.returncode == 0, first.stderr
+    assert json.loads(first.stdout)['stock']['outcome'] == 'certified-stock'
+    assert json.loads((series_root / 'loop_state.json').read_text())['iteration'] == 1
+    assert len(_pair_rows(series_root / P.HISTORY_NAME)) == 1
+    second = run()
+    assert second.returncode == 0, second.stderr
+    claims = list((output / 'env/pegasus/claims').glob('*.claim'))
+    assert len(claims) == 2 and len({claim.name for claim in claims}) == 2
+    assert {claim.stem for claim in claims} == {
+        str(P.ident.campaign_id(measurement(number)[0])) for number in (1, 2)}
+    rows = _pair_rows(series_root / P.HISTORY_NAME)
+    assert [row['iteration'] for row in rows] == [1, 2]
+    assert json.loads((series_root / 'loop_state.json').read_text())['iteration'] == 2
+    for number, process in ((1, first), (2, second)):
+        cfg, root = measurement(number)
+        payload = json.loads(process.stdout)
+        assert payload['stock']['outcome'] == 'certified-stock'
+        assert payload['candidate']['measurement_campaign_id'] == str(P.ident.campaign_id(cfg))
+        assert rows[number - 1]['measurement_campaign_id'] == str(P.ident.campaign_id(cfg))
+        records = wal.read_records(CampaignLayout(str(root)))
+        assert {payload['candidate']['variant'], payload['stock']['variant']} <= {
+            record.variant for record in records}
+        assert len({record.variant for record in records if record.stage == STAGE_BUILD_START}) == 2
+    _cfg, second_root = measurement(2)
+    view = require_admitted_campaign(str(second_root),
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
+    expected = L.make_critic_digest(view, tag='p3-silo-policy', reflux=True,
+        identity_projection=L.make_critic_identity_projection(view))
+    digest = (series_root / 'silo_policy_loop_digest.txt').read_text()
+    assert digest == expected
+    second_records = wal.read_records(CampaignLayout(str(second_root)))
+    second_variant = json.loads(second.stdout)['candidate']['variant']
+    candidate_start = next(record for record in second_records
+        if record.stage == STAGE_BUILD_START and record.variant == second_variant)
+    assert candidate_start.payload['genome'].split('|', 1)[1] in digest
+
+
+def test_pair_pegasus_crash_consumes_iteration_before_measurement(
+        tmp_path, valid_reservation_environment):
+    from orchestrator.campaign import wal
+    run, output, series_root, measurement = _policy_pair_case(
+        tmp_path, valid_reservation_environment)
+    crashed = run(crash=True)
+    assert crashed.returncode == 37
+    assert len(list((output / 'env/pegasus/claims').glob('*.claim'))) == 1
+    assert json.loads((series_root / 'loop_state.json').read_text())['iteration'] == 1
+    assert not (series_root / P.HISTORY_NAME).exists()
+    next_run = run()
+    assert next_run.returncode == 0, next_run.stderr
+    claims = list((output / 'env/pegasus/claims').glob('*.claim'))
+    assert len(claims) == 2
+    payload = json.loads(next_run.stdout)
+    assert payload['candidate']['outcome'] == 'certified'
+    assert payload['stock']['outcome'] == 'certified-stock'
+    cfg, root = measurement(2)
+    assert str(P.ident.campaign_id(cfg)) in {claim.stem for claim in claims}
+    assert payload['candidate']['measurement_campaign_id'] == str(P.ident.campaign_id(cfg))
+    assert len({record.variant for record in wal.read_records(CampaignLayout(str(root)))
+                if record.stage == STAGE_BUILD_START}) == 2
+    assert json.loads((series_root / 'loop_state.json').read_text())['iteration'] == 2
+    rows = _pair_rows(series_root / P.HISTORY_NAME)
+    assert len(rows) == 1 and rows[0]['iteration'] == 2
+
+
+def test_pair_pegasus_reused_identity_keeps_one_shot_claim(
+        tmp_path, valid_reservation_environment):
+    from orchestrator.campaign import wal
+    run, output, series_root, measurement = _policy_pair_case(
+        tmp_path, valid_reservation_environment)
+    first = run()
+    assert first.returncode == 0, first.stderr
+    cfg, root = measurement(1)
+    layout = CampaignLayout(str(root))
+    before = wal.read_records(layout)
+    state_path = series_root / 'loop_state.json'
+    state = json.loads(state_path.read_text())
+    state['iteration'] = 0
+    state_path.write_text(json.dumps(state), encoding='utf-8')
+    duplicate = run()
+    assert duplicate.returncode != 0 and 'ClaimError' in duplicate.stderr
+    assert wal.read_records(layout) == before
+    claims = list((output / 'env/pegasus/claims').glob('*.claim'))
+    assert len(claims) == 1 and claims[0].stem == str(P.ident.campaign_id(cfg))
