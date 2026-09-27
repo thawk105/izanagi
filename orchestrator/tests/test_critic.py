@@ -384,27 +384,31 @@ _QUARANTINE_MARKER = TemplateMarker(
 )
 
 
-def _producer_quarantine_digest(diff_body: str) -> dict:
+def _producer_quarantine_digest(
+    diff_body: str, *, file_rel: str = "include/backoff.hh",
+    head_text: str = _QUARANTINE_HEAD,
+) -> dict:
     diff_text = "\n".join((
-        "diff --git a/include/backoff.hh b/include/backoff.hh",
-        "--- a/include/backoff.hh",
-        "+++ b/include/backoff.hh",
+        f"diff --git a/{file_rel} b/{file_rel}",
+        f"--- a/{file_rel}",
+        f"+++ b/{file_rel}",
         diff_body,
     ))
     result = DiffQuarantine(
-        _QUARANTINE_MARKER, diff_text, head_text=_QUARANTINE_HEAD,
+        _QUARANTINE_MARKER, diff_text, head_text=head_text,
     ).validate()
     assert not result.passed
     assert result.digest is not None
     return result.digest
 
 
-def _write_producer_quarantine_rejection(lay: CampaignLayout, digest: dict) -> None:
+def _write_producer_quarantine_rejection(lay: CampaignLayout, digest: dict) -> str:
     attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="diff")
     _attempt_event(lay, attempt, STAGE_ABORT, {
         "reason": "diff-quarantine",
         "diff_quarantine": digest,
     })
+    return attempt[0]
 
 
 def _genome_value(canonical: str) -> Genome:
@@ -2244,6 +2248,158 @@ def test_all_middle_dot_reason_branches_survive_real_producer_path(
     rendered = render_rejections([], [], diff_rejections=loaded)
     assert expected_reason in rendered
     assert digest["evidence"] in rendered
+
+
+@pytest.mark.parametrize(("diff_body", "expected_region", "head_text", "file_rel"), [
+    pytest.param("", "template hole src 行 4",
+                 _QUARANTINE_HEAD.replace("int hole = 0;", "int hole = /* bad */;"),
+                 "include/backoff.hh", id="template-comment"),
+    pytest.param("", "template hole src 行 4",
+                 _QUARANTINE_HEAD.replace("int hole = 0;", "int hole = 0;\\"),
+                 "include/backoff.hh", id="template-splice"),
+    pytest.param("@@ -99,1 +99,1 @@\n-old\n+new", "src 行 99 (HEAD 行数 9)",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="head-range"),
+    pytest.param("@@ -4,1 +4,1 @@\n-wrong\n+new", "src 行 4",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="head-content"),
+    pytest.param("@@ --1,1 +1,1 @@\n-old\n+new", "diff 全体",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="malformed-header"),
+    pytest.param("@@ -4,2 +4,2 @@\n-int hole = 0;", "diff 全体",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="malformed-truncated"),
+    pytest.param("-bare body", "diff 全体",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="malformed-body"),
+    pytest.param("@@ -1,1 +1,0 @@\n-int outside = 0;", "cc/other.cc @@ -1 +1",
+                 _QUARANTINE_HEAD, "cc/other.cc", id="outside-file"),
+    pytest.param("@@ -1,1 +1,0 @@\n-int outside = 0;", "src 行 1",
+                 _QUARANTINE_HEAD, "include/backoff.hh", id="delete-outside"),
+    pytest.param("@@ -1,1 +1,2 @@\n+int added = 1;\n int outside = 0;",
+                 "anchor src 行 1", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="insert-outside"),
+    pytest.param("@@ -4,1 +4,2 @@\n int hole = 0;\n+#include <bad>",
+                 "anchor src 行 5", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="content-directive"),
+    pytest.param("@@ -4,1 +4,2 @@\n int hole = 0;\n+EVOLVE-BLOCK-BEGIN forged",
+                 "anchor src 行 5", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="content-marker"),
+    pytest.param("@@ -4,1 +4,2 @@\n int hole = 0;\n+int x; // bad",
+                 "anchor src 行 5", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="content-comment-line"),
+    pytest.param("@@ -4,1 +4,2 @@\n int hole = 0;\n+int x; /* bad */",
+                 "anchor src 行 5", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="content-comment-block"),
+    pytest.param("@@ -4,1 +4,2 @@\n int hole = 0;\n+int x;\\",
+                 "anchor src 行 5", _QUARANTINE_HEAD, "include/backoff.hh",
+                 id="content-line-splice"),
+])
+def test_diff_region_all_producer_forms_survive_loader_and_renderer(
+        diff_body, expected_region, head_text, file_rel):
+    digest = _producer_quarantine_digest(
+        diff_body, file_rel=file_rel, head_text=head_text,
+    )
+    assert digest["diff_region"] == expected_region
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, digest)
+    loaded = load_diff_rejections(_view(lay))
+    assert len(loaded) == 1
+    assert loaded[0].diff_region == expected_region
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert f" / region={expected_region}" in rendered
+
+
+def test_diff_region_path_at_sign_survives_real_producer():
+    path = "cc/at@path.cc"
+    expected_region = f"{path} @@ -1 +1"
+    digest = _producer_quarantine_digest(
+        "@@ -1,1 +1,0 @@\n-int outside = 0;", file_rel=path,
+    )
+    assert digest["diff_region"] == expected_region
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, digest)
+    loaded = load_diff_rejections(_view(lay))
+    assert len(loaded) == 1
+    assert loaded[0].diff_region == expected_region
+    assert f" / region={expected_region}" in render_rejections(
+        [], [], diff_rejections=loaded,
+    )
+
+
+@pytest.mark.parametrize("region", [
+    pytest.param("include/backoff.hh", id="backoff-hh"),
+    pytest.param("cc/silo/transaction.cc", id="silo-transaction"),
+    pytest.param("cc/mocc/transaction.cc", id="mocc-transaction"),
+    pytest.param("mocc-temperature-predicate", id="mocc-marker"),
+])
+def test_diff_region_stage_four_constants_render_verbatim(region):
+    rendered = render_rejections([], [], diff_rejections=[DiffQuarantineRejection(
+        genome="g", flags={}, subtype="outside-region", reason="safe-reason",
+        diff_region=region,
+    )])
+    assert f" / region={region}" in rendered
+
+
+def test_diff_region_forbidden_file_path_and_reason_are_sanitized():
+    path = "cc/[outside].cc"
+    digest = _producer_quarantine_digest(
+        "@@ -1,1 +1,0 @@\n-int outside = 0;", file_rel=path,
+    )
+    assert "[" in digest["diff_region"]
+    assert path in digest["diff_region"]
+    digest["reason"] = "unsafe\nreason"
+    lay = _tmp_layout()
+    variant = _write_producer_quarantine_rejection(lay, digest)
+    loaded = load_diff_rejections(_view(lay))
+    assert len(loaded) == 1
+    assert loaded[0].diff_region == digest["diff_region"]
+    assert loaded[0].reason == "diff-quarantine-reason-invalid"
+    assert loaded[0].subtype == digest["subtype"] == "outside-region"
+    assert loaded[0].variant == variant
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert path not in rendered
+    assert "unsafe\nreason" not in rendered
+    assert " / region=diff-quarantine-region-invalid" in rendered
+    assert "理由: diff-quarantine-reason-invalid" in rendered
+    assert rendered.count("[diff-quarantine:outside-region]") == 1
+
+
+@pytest.mark.parametrize("region", [
+    pytest.param("line\nfeed", id="line-feed"),
+    pytest.param("tab\there", id="tab"),
+    pytest.param("escape\x1bvalue", id="escape"),
+    pytest.param("bidi\u202evalue", id="bidi-override"),
+    pytest.param("left[bracket", id="left-bracket"),
+    pytest.param(123, id="non-string"),
+])
+def test_diff_region_direct_invalid_values_render_sentinel(region):
+    rendered = render_rejections([], [], diff_rejections=[DiffQuarantineRejection(
+        genome="g", flags={}, subtype="outside-region", reason="safe-reason",
+        diff_region=region,
+    )])
+    assert " / region=diff-quarantine-region-invalid" in rendered
+    if isinstance(region, str):
+        assert region not in rendered
+
+
+@pytest.mark.parametrize("region", [
+    pytest.param("", id="empty"),
+    pytest.param(None, id="missing-in-wal"),
+])
+def test_diff_region_empty_or_missing_renders_question_mark(region):
+    if region is None:
+        digest = _producer_quarantine_digest(
+            "@@ -1,1 +1,0 @@\n-int outside = 0;", file_rel="cc/other.cc",
+        )
+        del digest["diff_region"]
+        lay = _tmp_layout()
+        _write_producer_quarantine_rejection(lay, digest)
+        rejections = load_diff_rejections(_view(lay))
+        assert len(rejections) == 1
+        assert rejections[0].diff_region == ""
+    else:
+        rejections = [DiffQuarantineRejection(
+            genome="g", flags={}, subtype="outside-region", reason="safe-reason",
+            diff_region=region,
+        )]
+    rendered = render_rejections([], [], diff_rejections=rejections)
+    assert " / region=?" in rendered
 
 
 def test_attacker_controlled_hunk_header_is_nonverbatim_through_real_producer():
