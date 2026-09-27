@@ -1,0 +1,21 @@
+orchestrator/campaign/b10_backoff_shape_sweep.py 3648 buildcache {'deferred': 61}
+orchestrator/campaign/b10_backoff_shape_sweep.py 4474 campaign {'deferred': 61}
+orchestrator/campaign/b4_binary_record.py 118 buildcache {'deferred': 61}
+orchestrator/campaign/backoff_extended_sweep.py 348 buildcache {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/backoff_extended_sweep.py 1446 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/backoff_profile.py 857 buildcache {'failure-unresolved': 59, 'covered': 2}
+orchestrator/campaign/backoff_repro.py 172 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/backoff_sweep.py 484 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/p3_s4_loop.py 2604 buildcache {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/p3_s4_loop.py 2614 buildcache {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/p3_s4_loop.py 2639 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/p3_s4_loop.py 2387 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/paper_story_a1_paired.py 7295 campaign {'failure-unresolved': 60, 'covered': 1}
+orchestrator/campaign/paper_story_a2_certification.py 3803 campaign {'failure-unresolved': 59, 'covered': 2}
+orchestrator/campaign/s1_direct_comparison.py 1281 campaign {'failure-unresolved': 57, 'covered': 4}
+orchestrator/campaign/s8b_floor_campaign.py 4722 injected-build_fn {'deferred': 61}
+orchestrator/campaign/s8b_floor_campaign.py 8675 campaign {'deferred': 61}
+tools/pegasus/probes/t2187_adaptive_const_probe.py 3941 buildcache {'deferred': 61}
+tools/pegasus/probes/t2187_adaptive_const_probe.py 4334 buildcache {'deferred': 61}
+TOTAL {'deferred': 427, 'proven-unreachable': 2636, 'covered': 431, 'failure-unresolved': 715}
+failures 715 Counter({'unresolved': 715})

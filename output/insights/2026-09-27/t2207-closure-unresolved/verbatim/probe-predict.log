@@ -1,0 +1,71 @@
+baseline failures: 0
+orchestrator/campaign/b10_backoff_shape_sweep.py:3648  kind=buildcache dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'deferred': 1} flips={'deferred': 60}
+orchestrator/campaign/b10_backoff_shape_sweep.py:4474  kind=campaign dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'deferred': 1} flips={'deferred': 60}
+orchestrator/campaign/b10_backoff_static_tail_formal.py:761  kind=campaign dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/b4_binary_record.py:118  kind=buildcache dyn=True explicit=False inv=0 cls={'deferred': 61} flips={}
+orchestrator/campaign/backoff_extended_sweep.py:348  kind=buildcache dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/backoff_extended_sweep.py:1446  kind=campaign dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/backoff_overthrottle.py:450  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/backoff_profile.py:857  kind=buildcache dyn=True explicit=True inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={'failure-unresolved': 59}
+orchestrator/campaign/backoff_repro.py:172  kind=campaign dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/backoff_requested_us.py:1136  kind=buildcache dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/backoff_sweep.py:484  kind=campaign dyn=True explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/between_run_floor.py:336  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/demo.py:57  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/demo.py:67  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/p2_2.py:376  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/p3_kickoff.py:152  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/p3_kickoff.py:159  kind=campaign dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/p3_s4_loop.py:2604  kind=buildcache dyn=True explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/p3_s4_loop.py:2614  kind=buildcache dyn=True explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/p3_s4_loop.py:2639  kind=campaign dyn=True explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/p3_s4_loop.py:2387  kind=campaign dyn=True explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/p3_s4_loop_policy.py:323  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/p3_s4_loop_sort.py:413  kind=campaign dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/p3_s4_loop_trigger_gating.py:811  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/p3_s4_red.py:207  kind=campaign dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/p3_s4_red.py:217  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/paper_story_a1_paired.py:7295  kind=campaign dyn=True explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={'failure-unresolved': 60}
+orchestrator/campaign/paper_story_a1_paired.py:7545  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/paper_story_a2_certification.py:3803  kind=campaign dyn=True explicit=False inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={'failure-unresolved': 59}
+orchestrator/campaign/pegasus_floor_scoping.py:218  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/s1_direct_comparison.py:1208  kind=injected-prepare_cell_fn dyn=False explicit=False inv=4 cls={'covered': 61} flips={}
+orchestrator/campaign/s1_direct_comparison.py:1281  kind=campaign dyn=True explicit=False inv=4 cls={'proven-unreachable': 57, 'covered': 4} flips={'failure-unresolved': 57}
+orchestrator/campaign/s1_direct_comparison.py:1288  kind=injected-evaluate_fn dyn=False explicit=False inv=4 cls={'covered': 61} flips={}
+orchestrator/campaign/s1_verify_extime_calibration.py:390  kind=buildcache dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/s2_verify_calibration.py:324  kind=direct-cmake-target dyn=False explicit=False inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={}
+orchestrator/campaign/s2_verify_calibration.py:356  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/s2_verify_calibration.py:357  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/s3_lock_coverage.py:221  kind=direct-cmake-target dyn=False explicit=False inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={}
+orchestrator/campaign/s3_lock_coverage.py:258  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/s3_mocc_lock_coverage.py:333  kind=direct-cmake-target dyn=False explicit=False inv=3 cls={'proven-unreachable': 58, 'covered': 3} flips={}
+orchestrator/campaign/s3_mocc_mutation_proof.py:185  kind=direct-cmake-target dyn=False explicit=False inv=4 cls={'proven-unreachable': 57, 'covered': 4} flips={}
+orchestrator/campaign/s3_mocc_template_proof.py:100  kind=direct-cmake-target dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/s5_permutation_coverage.py:254  kind=direct-cmake-target dyn=False explicit=False inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={}
+orchestrator/campaign/s5_permutation_coverage.py:293  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/s6_sort_sweep.py:413  kind=campaign dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/s8a_trigger_coverage.py:252  kind=direct-cmake-target dyn=False explicit=False inv=2 cls={'proven-unreachable': 59, 'covered': 2} flips={}
+orchestrator/campaign/s8a_trigger_sweep.py:515  kind=campaign dyn=False explicit=True inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+orchestrator/campaign/s8b_floor_campaign.py:4722  kind=injected-build_fn dyn=False explicit=False inv=0 cls={'deferred': 61} flips={}
+orchestrator/campaign/s8b_floor_campaign.py:8675  kind=campaign dyn=True explicit=False inv=0 cls={'deferred': 61} flips={}
+orchestrator/campaign/s8b_oracle_driver.py:1781  kind=campaign dyn=True explicit=False inv=0 cls={'covered': 61} flips={}
+orchestrator/campaign/s8b_oracle_driver.py:1794  kind=injected-evaluate_fn dyn=False explicit=False inv=0 cls={'covered': 61} flips={}
+orchestrator/campaign/s8b_oracle_n_pilot.py:997  kind=injected-build_fn dyn=False explicit=False inv=0 cls={'covered': 61} flips={}
+orchestrator/campaign/sanity_silo.py:59  kind=campaign dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+orchestrator/campaign/screening_driver.py:662  kind=campaign dyn=True explicit=False inv=61 cls={'covered': 61} flips={}
+orchestrator/campaign/silo_ladder_rung1.py:2356  kind=direct-cmake-target dyn=False explicit=False inv=3 cls={'proven-unreachable': 58, 'covered': 3} flips={}
+orchestrator/campaign/silo_ladder_rung1.py:4047  kind=direct-cmake-target dyn=False explicit=False inv=3 cls={'proven-unreachable': 58, 'covered': 3} flips={}
+orchestrator/campaign/silo_policy_coverage.py:392  kind=direct-cmake-target dyn=False explicit=False inv=7 cls={'proven-unreachable': 54, 'covered': 7} flips={}
+orchestrator/campaign/t152_write_intent_coverage.py:475  kind=direct-cmake-target dyn=False explicit=False inv=4 cls={'proven-unreachable': 57, 'covered': 4} flips={}
+tools/pegasus/certify_calibration.sh:684  kind=shell-cmake-target dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+tools/pegasus/certify_calibration.sh:687  kind=shell-cmake-target dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+tools/pegasus/certify_calibration.sh:690  kind=shell-cmake-target dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+tools/pegasus/probes/t139_positive_control_probe.sh:441  kind=shell-cmake-target dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+tools/pegasus/probes/t139_r4_env_probe.sh:206  kind=shell-cmake-target dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+tools/pegasus/probes/t1683_rr5_cost_probe.py:248  kind=buildcache dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+tools/pegasus/probes/t2187_adaptive_const_probe.py:3941  kind=buildcache dyn=True explicit=False inv=14 cls={'deferred': 14, 'proven-unreachable': 47} flips={'deferred': 47}
+tools/pegasus/probes/t2187_adaptive_const_probe.py:4334  kind=buildcache dyn=True explicit=False inv=14 cls={'deferred': 14, 'proven-unreachable': 47} flips={'deferred': 47}
+tools/pegasus/probes/t316_sandbox_backend_probe.py:1958  kind=direct-cmake-target dyn=False explicit=False inv=1 cls={'proven-unreachable': 60, 'covered': 1} flips={}
+tools/pegasus/run_ss2pl_lock_study.py:2166  kind=direct-cmake-target dyn=False explicit=False inv=4 cls={'proven-unreachable': 57, 'covered': 4} flips={}
+tools/pegasus/t141_region_profile.sh:1191  kind=shell-cmake-target dyn=False explicit=False inv=0 cls={'proven-unreachable': 61} flips={}
+TOTAL flips: {'deferred': 214, 'failure-unresolved': 715} sum 929
