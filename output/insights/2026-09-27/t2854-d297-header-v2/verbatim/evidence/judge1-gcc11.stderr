@@ -1,0 +1,1 @@
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: source tree に regular file 以外: b'third_party/shirakami'
