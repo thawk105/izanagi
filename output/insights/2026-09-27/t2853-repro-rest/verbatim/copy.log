@@ -1,0 +1,24 @@
+start 2026-09-27T19:44:24+0900
+[t2865-stage-f-originals] 13 entries enumerated
+[t2865-stage-f-originals] copied=13 pre-existing=0 in 0s
+[t2865-stage-f-originals] verify ok=True mismatch=0 files=13 bytes=81266 verify=0s
+[t2849-mocc-conn-originals] 555 entries enumerated
+[t2849-mocc-conn-originals] copied=555 pre-existing=0 in 13s
+[t2849-mocc-conn-originals] verify ok=True mismatch=0 files=555 bytes=2473948 verify=0s
+[t2850-trial-v2-originals] 1728 entries enumerated
+[t2850-trial-v2-originals] copied=1728 pre-existing=0 in 48s
+[t2850-trial-v2-originals] verify ok=True mismatch=0 files=1728 bytes=7865228 verify=1s
+[t2850-trial-v2-followup-jobdir] 236 entries enumerated
+[t2850-trial-v2-followup-jobdir] copied=236 pre-existing=0 in 1s
+[t2850-trial-v2-followup-jobdir] verify ok=True mismatch=0 files=236 bytes=2286871 verify=0s
+[t2849-mocc-conn-jobdir] 1538 entries enumerated
+[t2849-mocc-conn-jobdir] copied=1538 pre-existing=0 in 16s
+[t2849-mocc-conn-jobdir] verify ok=True mismatch=0 files=1538 bytes=4640912 verify=2s
+[t2865-stage-f-jobdir] 654 entries enumerated
+[t2865-stage-f-jobdir] copied=654 pre-existing=0 in 5s
+[t2865-stage-f-jobdir] verify ok=True mismatch=0 files=654 bytes=14769651 verify=0s
+[t2850-trial-v2-rundir] 4317 entries enumerated
+[t2850-trial-v2-rundir] copied=4317 pre-existing=0 in 60s
+[t2850-trial-v2-rundir] verify ok=True mismatch=0 files=4317 bytes=15726034 verify=2s
+[all] walked=9041 listed=9041 extra=[] missing=[]
+end rc=0 2026-09-27T19:46:57+0900

@@ -122,7 +122,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
  #ifndef SILO_POLICY_VARIANT
  #error "SILO_POLICY_VARIANT must be supplied"
  #endif
-@@ -75,12 +189,30 @@
+@@ -84,12 +198,30 @@
  
  __attribute__((noipa)) uint32_t after_abort() noexcept {
    const ::izanagi_silo_api::AbortContext context{reason, next_random()};
@@ -155,7 +155,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
  }
  
  __attribute__((noipa)) void on_commit() noexcept {
-@@ -127,7 +259,13 @@
+@@ -136,7 +268,13 @@
  #endif
  
  #if SILO_POLICY_VARIANT
@@ -169,9 +169,10 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
    ::izanagi_silo_skel::wait_us(std::min(ret, 1000u));
  #else
    Backoff::backoff(FLAGS_clocks_per_us);
-@@ -143,6 +281,10 @@
+@@ -152,7 +290,11 @@
    status_ = TransactionStatus::inflight;
  #if SILO_POLICY_VARIANT
+   if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);
    ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;
 +#if IZANAGI_SILO_POLICY_PROBE
 +  ::izanagi_silo_probe::counts.site = 0;
@@ -180,7 +181,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
  #endif
    max_wset_.obj_ = 0;
    max_rset_.obj_ = 0;
-@@ -187,6 +329,9 @@
+@@ -197,6 +339,9 @@
          if (unlikely(it->second != insert_info.old_version)) {
            status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -190,7 +191,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
            ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::insert_node;
  #endif
            return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
-@@ -248,6 +393,9 @@
+@@ -258,6 +403,9 @@
    [[maybe_unused]] retry
        : for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if (itr->op_ == OpType::INSERT) continue;
@@ -200,7 +201,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
  #if SILO_POLICY_VARIANT
      uint32_t attempt = 0;
  #endif
-@@ -255,7 +403,15 @@
+@@ -265,7 +413,15 @@
      for (;;) {
  #if SILO_POLICY_VARIANT
        if (attempt >= 32u) {
@@ -216,7 +217,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
          ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
          if (itr != write_set_.begin()) unlockWriteSet(itr);
          return;
-@@ -264,13 +420,24 @@
+@@ -274,13 +430,24 @@
  #endif
        if (expected.lock) {
  #if SILO_POLICY_VARIANT
@@ -241,7 +242,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
          ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::lock_conflict;
          if (itr != write_set_.begin()) unlockWriteSet(itr);
          return;
-@@ -289,6 +456,9 @@
+@@ -299,6 +466,9 @@
          desired.lock = 1;
          if (compareExchange((*itr).rcdptr_->tidword_.obj_, expected.obj_,
                              desired.obj_)) {
@@ -251,7 +252,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
  #if TRACE
            // This worker now holds the lock on this tuple (D38). On the skeleton
            // CAS-success path (not the coder edit surface = the conflict response
-@@ -304,6 +474,9 @@
+@@ -314,6 +484,9 @@
        unlockWriteSet(itr);
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -261,7 +262,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::update_absent;
  #endif
        return;
-@@ -578,6 +751,9 @@
+@@ -588,6 +761,9 @@
  #endif
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -271,7 +272,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_tid;
  #endif
        unlockWriteSet();
-@@ -593,6 +769,9 @@
+@@ -603,6 +779,9 @@
  #endif
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -281,7 +282,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::read_locked;
  #endif
        unlockWriteSet();
-@@ -607,6 +786,9 @@
+@@ -617,6 +796,9 @@
      if (node->full_version_value() != it.second) {
        this->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT
@@ -291,7 +292,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
        ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::node_validation;
  #endif
        unlockWriteSet();
-@@ -837,6 +1019,9 @@
+@@ -847,6 +1029,9 @@
    if (validationPhase()) {
      writePhase();
  #if SILO_POLICY_VARIANT
@@ -301,7 +302,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
      ::izanagi_silo_skel::on_commit();
  #endif
      return true;
-@@ -871,6 +1056,9 @@
+@@ -881,6 +1066,9 @@
    } else if ((*it).second != version) {
      tx_->status_ = TransactionStatus::aborted;
  #if SILO_POLICY_VARIANT

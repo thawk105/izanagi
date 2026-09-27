@@ -1,0 +1,308 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d2299a73f6218f61f89ec1a8aa49f9f8/izdw-d2299a73f6.o31850",
+      "receipt_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d2299a73f6218f61f89ec1a8aa49f9f8/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........                                                                [100%]\n9 passed in 20.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "62aa167ab2ae3be3922e7462b4c3a7123bdb6ed22b95207c020e42f160c6ddfb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ee3d7e745956b0e2136d970254aae1b56b1d1f5024f73e2534f6d9d63f29df59",
+    "duration_s": 42.688,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e336b1ff41bab1e6d7740045f73e8380d113cfeb81727be353ec068c39095efa",
+    "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+    "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+    "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+    "status": "PASSED",
+    "test_output_sha256": "62aa167ab2ae3be3922e7462b4c3a7123bdb6ed22b95207c020e42f160c6ddfb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b"
+  },
+  "date": "2026-09-27T11:26:06.193846+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38c7166faef5fb3174d3fbb9cca18c50/izdw-38c7166fae.o31852",
+        "receipt_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38c7166faef5fb3174d3fbb9cca18c50/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________ test_worker_seed_uses_thid_once_and_keeps_random_sequence ___________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n        with _applied_template() as (checkout, _):\n            source = (checkout / axis.SOURCE_REL).read_text()\n            tls = source.split(\"namespace izanagi_silo_skel {\\n\", 1)[1].split(\n                \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n            tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n            assert \"thread_local bool random_seeded\" in tls\n            assert \"void seed_random(uint64_t thid) noexcept\" in tls\n            assert \"uint64_t next_random() noexcept\" in tls\n    \n            begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n                \"void TxExecutor::\", 1)[0]\n            branch = begin.split(\"#if SILO_POLICY_VARIANT\\n\", 1)[1].split(\"#endif\", 1)[0]\n            call = \"::izanagi_silo_skel::seed_random(thid_);\"\n            assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\n            begin_seed = branch.split(\"::izanagi_silo_skel::reason =\", 1)[0]\n            assert call in begin_seed\n    \n            compiler = find_compiler()\n            if compiler is None:\n                skip(\"C++ toolchain unavailable (g++-13/g++-12/g++); seed behavior unverified\")\n            unit = (\n                \"#include <cstdint>\\n\"\n                \"namespace izanagi_silo_skel {\\n\" + tls + \"}\\n\"\n                \"int main() {\\n\"\n                \"  using namespace izanagi_silo_skel;\\n\"\n                \"  auto begin_seed = [](uint64_t thid_) {\\n\" + begin_seed + \"  };\\n\"\n                \"  begin_seed(0); auto zero = next_random();\\n\"\n                \"  random_seeded = false; begin_seed(1); auto one = next_random();\\n\"\n                \"  if (zero == one) return 1;\\n\"\n                \"  random_seeded = false; begin_seed(0);\\n\"\n                \"  if (next_random() != zero) return 2;\\n\"\n                \"  begin_seed(0); auto continued = next_random();\\n\"\n                \"  if (continued == zero) return 3;\\n\"\n                \"  return 0;\\n\"\n                \"}\\n\"\n            )\n            with tempfile.TemporaryDirectory(prefix=\"silo-policy-seed-\") as tmp:\n                path = Path(tmp) / \"seed.cc\"\n                binary = Path(tmp) / \"seed\"\n                path.write_text(unit)\n                subprocess.run([compiler, \"-std=c++17\", str(path), \"-o\", str(binary)],\n                               check=True, capture_output=True, text=True)\n                result = subprocess.run([str(binary)], capture_output=True, text=True)\n                failures = {1: \"different thid\", 2: \"same thid\", 3: \"continued sequence\"}\n>               assert result.returncode == 0, failures.get(result.returncode, result)\nE               AssertionError: different thid\nE               assert 1 == 0\nE                +  where 1 = CompletedProcess(args=['/tmp/silo-policy-seed-dbsf3sr4/seed'], returncode=1, stdout='', stderr='').returncode\n\norchestrator/tests/test_silo_function_policy_template.py:141: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\n1 failed, 8 passed in 19.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=3019 retained_bytes=3019 omitted_bytes=0 rendered_excerpt_bytes=3180 sha256=3f49ca45a0353cfb15319c51cee6cc5307b2c6d10c68db2cbf0c6ec1d1caaf46\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n>         with _applied_template() as (checkout, _):\n>             source = (checkout / axis.SOURCE_REL).read_text()\n>             tls = source.split(\"namespace izanagi_silo_skel {\\x5cn\", 1)[1].split(\n>                 \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n>             tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n>             assert \"thread_local bool random_seeded\" in tls\n>             assert \"void seed_random(uint64_t thid) noexcept\" in tls\n>             assert \"uint64_t next_random() noexcept\" in tls\n>     \n>             begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n>                 \"void TxExecutor::\", 1)[0]\n>             branch = begin.split(\"#if SILO_POLICY_VARIANT\\x5cn\", 1)[1].split(\"#endif\", 1)[0]\n>             call = \"::izanagi_silo_skel::seed_random(thid_);\"\n>             assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\n>             begin_seed = branch.split(\"::izanagi_silo_skel::reason =\", 1)[0]\n>             assert call in begin_seed\n>     \n>             compiler = find_compiler()\n>             if compiler is None:\n>                 skip(\"C++ toolchain unavailable (g++-13/g++-12/g++); seed behavior unverified\")\n>             unit = (\n>                 \"#include <cstdint>\\x5cn\"\n>                 \"namespace izanagi_silo_skel {\\x5cn\" + tls + \"}\\x5cn\"\n>                 \"int main() {\\x5cn\"\n>                 \"  using namespace izanagi_silo_skel;\\x5cn\"\n>                 \"  auto begin_seed = [](uint64_t thid_) {\\x5cn\" + begin_seed + \"  };\\x5cn\"\n>                 \"  begin_seed(0); auto zero = next_random();\\x5cn\"\n>                 \"  random_seeded = false; begin_seed(1); auto one = next_random();\\x5cn\"\n>                 \"  if (zero == one) return 1;\\x5cn\"\n>                 \"  random_seeded = false; begin_seed(0);\\x5cn\"\n>                 \"  if (next_random() != zero) return 2;\\x5cn\"\n>                 \"  begin_seed(0); auto continued = next_random();\\x5cn\"\n>                 \"  if (continued == zero) return 3;\\x5cn\"\n>                 \"  return 0;\\x5cn\"\n>                 \"}\\x5cn\"\n>             )\n>             with tempfile.TemporaryDirectory(prefix=\"silo-policy-seed-\") as tmp:\n>                 path = Path(tmp) / \"seed.cc\"\n>                 binary = Path(tmp) / \"seed\"\n>                 path.write_text(unit)\n>                 subprocess.run([compiler, \"-std=c++17\", str(path), \"-o\", str(binary)],\n>                                check=True, capture_output=True, text=True)\n>                 result = subprocess.run([str(binary)], capture_output=True, text=True)\n>                 failures = {1: \"different thid\", 2: \"same thid\", 3: \"continued sequence\"}\n> >               assert result.returncode == 0, failures.get(result.returncode, result)\n> E               AssertionError: different thid\n> E               assert 1 == 0\n> E                +  where 1 = CompletedProcess(args=['/tmp/silo-policy-seed-dbsf3sr4/seed'], returncode=1, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_silo_function_policy_template.py:141: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3019 retained_bytes=3019 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3923 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8056020d5ad705de84fc473a8df351e5ae41877bc6672213291a1b37ec7634e3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee3d7e745956b0e2136d970254aae1b56b1d1f5024f73e2534f6d9d63f29df59",
+      "duration_s": 42.728,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "hang_risk": false,
+      "id": "m1-seed-ignores-thid",
+      "injection_diff_sha256": "08ed2ce454ab32cdfc3cc8aeef4162d50c869c5422d4cf46996d252609805fdd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d30c34951cd1114d34e98765571d988581d0e8fa2bf49d6317def9ce21ad1f93",
+      "replacements": [
+        {
+          "file": "patches/silo-function-policy-variant.patch",
+          "new": "+  uint64_t x = 0ul + 0x9e3779b97f4a7c15ul;\n",
+          "old": "+  uint64_t x = thid + 0x9e3779b97f4a7c15ul;\n"
+        }
+      ],
+      "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+      "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+      "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+      "status": "KILLED",
+      "test_output_sha256": "8056020d5ad705de84fc473a8df351e5ae41877bc6672213291a1b37ec7634e3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/98e6b9a7bece20ffe2c6d33a1d2be060/izdw-98e6b9a7be.o31853",
+        "receipt_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/98e6b9a7bece20ffe2c6d33a1d2be060/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________ test_worker_seed_uses_thid_once_and_keeps_random_sequence ___________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n        with _applied_template() as (checkout, _):\n            source = (checkout / axis.SOURCE_REL).read_text()\n            tls = source.split(\"namespace izanagi_silo_skel {\\n\", 1)[1].split(\n                \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n            tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n            assert \"thread_local bool random_seeded\" in tls\n            assert \"void seed_random(uint64_t thid) noexcept\" in tls\n            assert \"uint64_t next_random() noexcept\" in tls\n    \n            begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n                \"void TxExecutor::\", 1)[0]\n            branch = begin.split(\"#if SILO_POLICY_VARIANT\\n\", 1)[1].split(\"#endif\", 1)[0]\n            call = \"::izanagi_silo_skel::seed_random(thid_);\"\n            assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\n            begin_seed = branch.split(\"::izanagi_silo_skel::reason =\", 1)[0]\n            assert call in begin_seed\n    \n            compiler = find_compiler()\n            if compiler is None:\n                skip(\"C++ toolchain unavailable (g++-13/g++-12/g++); seed behavior unverified\")\n            unit = (\n                \"#include <cstdint>\\n\"\n                \"namespace izanagi_silo_skel {\\n\" + tls + \"}\\n\"\n                \"int main() {\\n\"\n                \"  using namespace izanagi_silo_skel;\\n\"\n                \"  auto begin_seed = [](uint64_t thid_) {\\n\" + begin_seed + \"  };\\n\"\n                \"  begin_seed(0); auto zero = next_random();\\n\"\n                \"  random_seeded = false; begin_seed(1); auto one = next_random();\\n\"\n                \"  if (zero == one) return 1;\\n\"\n                \"  random_seeded = false; begin_seed(0);\\n\"\n                \"  if (next_random() != zero) return 2;\\n\"\n                \"  begin_seed(0); auto continued = next_random();\\n\"\n                \"  if (continued == zero) return 3;\\n\"\n                \"  return 0;\\n\"\n                \"}\\n\"\n            )\n            with tempfile.TemporaryDirectory(prefix=\"silo-policy-seed-\") as tmp:\n                path = Path(tmp) / \"seed.cc\"\n                binary = Path(tmp) / \"seed\"\n                path.write_text(unit)\n                subprocess.run([compiler, \"-std=c++17\", str(path), \"-o\", str(binary)],\n                               check=True, capture_output=True, text=True)\n                result = subprocess.run([str(binary)], capture_output=True, text=True)\n                failures = {1: \"different thid\", 2: \"same thid\", 3: \"continued sequence\"}\n>               assert result.returncode == 0, failures.get(result.returncode, result)\nE               AssertionError: continued sequence\nE               assert 3 == 0\nE                +  where 3 = CompletedProcess(args=['/tmp/silo-policy-seed-lub0bsph/seed'], returncode=3, stdout='', stderr='').returncode\n\norchestrator/tests/test_silo_function_policy_template.py:141: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\n1 failed, 8 passed in 20.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=3023 retained_bytes=3023 omitted_bytes=0 rendered_excerpt_bytes=3184 sha256=0cb134cdd83934f1dd3555827ca8e1ecc6839e5f84a26cc168449f57ae5a77be\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n>         with _applied_template() as (checkout, _):\n>             source = (checkout / axis.SOURCE_REL).read_text()\n>             tls = source.split(\"namespace izanagi_silo_skel {\\x5cn\", 1)[1].split(\n>                 \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n>             tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n>             assert \"thread_local bool random_seeded\" in tls\n>             assert \"void seed_random(uint64_t thid) noexcept\" in tls\n>             assert \"uint64_t next_random() noexcept\" in tls\n>     \n>             begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n>                 \"void TxExecutor::\", 1)[0]\n>             branch = begin.split(\"#if SILO_POLICY_VARIANT\\x5cn\", 1)[1].split(\"#endif\", 1)[0]\n>             call = \"::izanagi_silo_skel::seed_random(thid_);\"\n>             assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\n>             begin_seed = branch.split(\"::izanagi_silo_skel::reason =\", 1)[0]\n>             assert call in begin_seed\n>     \n>             compiler = find_compiler()\n>             if compiler is None:\n>                 skip(\"C++ toolchain unavailable (g++-13/g++-12/g++); seed behavior unverified\")\n>             unit = (\n>                 \"#include <cstdint>\\x5cn\"\n>                 \"namespace izanagi_silo_skel {\\x5cn\" + tls + \"}\\x5cn\"\n>                 \"int main() {\\x5cn\"\n>                 \"  using namespace izanagi_silo_skel;\\x5cn\"\n>                 \"  auto begin_seed = [](uint64_t thid_) {\\x5cn\" + begin_seed + \"  };\\x5cn\"\n>                 \"  begin_seed(0); auto zero = next_random();\\x5cn\"\n>                 \"  random_seeded = false; begin_seed(1); auto one = next_random();\\x5cn\"\n>                 \"  if (zero == one) return 1;\\x5cn\"\n>                 \"  random_seeded = false; begin_seed(0);\\x5cn\"\n>                 \"  if (next_random() != zero) return 2;\\x5cn\"\n>                 \"  begin_seed(0); auto continued = next_random();\\x5cn\"\n>                 \"  if (continued == zero) return 3;\\x5cn\"\n>                 \"  return 0;\\x5cn\"\n>                 \"}\\x5cn\"\n>             )\n>             with tempfile.TemporaryDirectory(prefix=\"silo-policy-seed-\") as tmp:\n>                 path = Path(tmp) / \"seed.cc\"\n>                 binary = Path(tmp) / \"seed\"\n>                 path.write_text(unit)\n>                 subprocess.run([compiler, \"-std=c++17\", str(path), \"-o\", str(binary)],\n>                                check=True, capture_output=True, text=True)\n>                 result = subprocess.run([str(binary)], capture_output=True, text=True)\n>                 failures = {1: \"different thid\", 2: \"same thid\", 3: \"continued sequence\"}\n> >               assert result.returncode == 0, failures.get(result.returncode, result)\n> E               AssertionError: continued sequence\n> E               assert 3 == 0\n> E                +  where 3 = CompletedProcess(args=['/tmp/silo-policy-seed-lub0bsph/seed'], returncode=3, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_silo_function_policy_template.py:141: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3023 retained_bytes=3023 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3927 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ec240bd8c9d4b8693fce3e42ff983be36799de5a84a8dda26b47d7b5e4a4d3f2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee3d7e745956b0e2136d970254aae1b56b1d1f5024f73e2534f6d9d63f29df59",
+      "duration_s": 43.068,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "hang_risk": false,
+      "id": "m2-reseed-every-begin",
+      "injection_diff_sha256": "936de29f90e4e415fafbee9fa6ce0cd30c51b1423674c6ccff86b3c7265bfcd0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c64aa737487b98882466c5f7d28275cbbb6e643b7cef31d7de3d231e80c33e26",
+      "replacements": [
+        {
+          "file": "patches/silo-function-policy-variant.patch",
+          "new": "+  ::izanagi_silo_skel::seed_random(thid_);\n",
+          "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n"
+        }
+      ],
+      "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+      "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+      "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+      "status": "KILLED",
+      "test_output_sha256": "ec240bd8c9d4b8693fce3e42ff983be36799de5a84a8dda26b47d7b5e4a4d3f2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7af77194b508650fa2a78eaae4343ec/izdw-a7af77194b.o31854",
+        "receipt_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a7af77194b508650fa2a78eaae4343ec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F..                                                                [100%]\n=================================== FAILURES ===================================\n__________ test_worker_seed_uses_thid_once_and_keeps_random_sequence ___________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n        with _applied_template() as (checkout, _):\n            source = (checkout / axis.SOURCE_REL).read_text()\n            tls = source.split(\"namespace izanagi_silo_skel {\\n\", 1)[1].split(\n                \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n            tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n            assert \"thread_local bool random_seeded\" in tls\n            assert \"void seed_random(uint64_t thid) noexcept\" in tls\n            assert \"uint64_t next_random() noexcept\" in tls\n    \n            begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n                \"void TxExecutor::\", 1)[0]\n            branch = begin.split(\"#if SILO_POLICY_VARIANT\\n\", 1)[1].split(\"#endif\", 1)[0]\n            call = \"::izanagi_silo_skel::seed_random(thid_);\"\n>           assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\nE           AssertionError: begin must seed from its worker thid_\nE           assert 0 == 1\nE            +  where 0 = <built-in method count of str object at 0x147e43e4d6e0>('::izanagi_silo_skel::seed_random(thid_);')\nE            +    where <built-in method count of str object at 0x147e43e4d6e0> = '  (void)::izanagi_silo_skel::random_seeded;\\n  ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;\\n'.count\n\norchestrator/tests/test_silo_function_policy_template.py:110: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\n1 failed, 8 passed in 20.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1498 retained_bytes=1498 omitted_bytes=0 rendered_excerpt_bytes=1557 sha256=fbe88eb1a7322196856ec2ef6de78754a40ff88649092e2a38402076a62237d2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_seed_uses_thid_once_and_keeps_random_sequence():\n>         with _applied_template() as (checkout, _):\n>             source = (checkout / axis.SOURCE_REL).read_text()\n>             tls = source.split(\"namespace izanagi_silo_skel {\\x5cn\", 1)[1].split(\n>                 \"void wait_us(uint32_t delay) noexcept {\", 1)[0]\n>             tls = tls[tls.index(\"thread_local uint64_t random_state\"):]\n>             assert \"thread_local bool random_seeded\" in tls\n>             assert \"void seed_random(uint64_t thid) noexcept\" in tls\n>             assert \"uint64_t next_random() noexcept\" in tls\n>     \n>             begin = source.split(\"void TxExecutor::begin() {\", 1)[1].split(\n>                 \"void TxExecutor::\", 1)[0]\n>             branch = begin.split(\"#if SILO_POLICY_VARIANT\\x5cn\", 1)[1].split(\"#endif\", 1)[0]\n>             call = \"::izanagi_silo_skel::seed_random(thid_);\"\n> >           assert branch.count(call) == 1, \"begin must seed from its worker thid_\"\n> E           AssertionError: begin must seed from its worker thid_\n> E           assert 0 == 1\n> E            +  where 0 = <built-in method count of str object at 0x147e43e4d6e0>('::izanagi_silo_skel::seed_random(thid_);')\n> E            +    where <built-in method count of str object at 0x147e43e4d6e0> = '  (void)::izanagi_silo_skel::random_seeded;\\x5cn  ::izanagi_silo_skel::reason = ::izanagi_silo_api::AbortReason::unset;\\x5cn'.count\n> \n> orchestrator/tests/test_silo_function_policy_template.py:110: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1498 retained_bytes=1498 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2300 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "31e0c2b5a5db64d95e28d42bc873ffe987ca6a113f61e6212fcba574bacc2704"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee3d7e745956b0e2136d970254aae1b56b1d1f5024f73e2534f6d9d63f29df59",
+      "duration_s": 42.891,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+      ],
+      "hang_risk": false,
+      "id": "m3-begin-does-not-seed",
+      "injection_diff_sha256": "5625d2930c784697db81137b7d9493ac4c30e06458507c7d7c0db55ab25e48ad",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ffebc65ed4f72da31e7d637c788694b94a9a439794812110025a71f8b8aa1a55",
+      "replacements": [
+        {
+          "file": "patches/silo-function-policy-variant.patch",
+          "new": "+  (void)::izanagi_silo_skel::random_seeded;\n",
+          "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n"
+        }
+      ],
+      "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+      "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+      "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+      "status": "KILLED",
+      "test_output_sha256": "31e0c2b5a5db64d95e28d42bc873ffe987ca6a113f61e6212fcba574bacc2704",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/28c61690a698c0aaf609848f0dbd794b/izdw-28c61690a6.o31838",
+        "receipt_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/28c61690a698c0aaf609848f0dbd794b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_function_policy_template.py::test_patch_touch_set_marker_and_empty_stock\norchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence\norchestrator/tests/test_silo_function_policy_template.py::test_flag_errors_require_closed_values_and_explicit_prerequisites\norchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control\norchestrator/tests/test_silo_function_policy_template.py::test_default_body_and_quarantine_parser\norchestrator/tests/test_silo_function_policy_template.py::test_axis_reason_enum_order_and_hand_policy_contracts\norchestrator/tests/test_silo_function_policy_template.py::test_reason_sites_are_bound_to_transaction_operations\norchestrator/tests/test_silo_function_policy_template.py::test_lock_bounds_reload_prefix_unlock_and_hook_lifetime\norchestrator/tests/test_silo_function_policy_template.py::test_source_identity_off_inert_on_honest_includes_and_trace_diff\n\n9 tests collected in 0.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "22ce17073dd65cc8ff0df9d355d5b812358791b342e4024580124b4603d40963"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_function_policy_template.py::test_patch_touch_set_marker_and_empty_stock",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_flag_errors_require_closed_values_and_explicit_prerequisites",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_api_bytes_and_one_byte_negative_control",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_default_body_and_quarantine_parser",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_axis_reason_enum_order_and_hand_policy_contracts",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_reason_sites_are_bound_to_transaction_operations",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_lock_bounds_reload_prefix_unlock_and_hook_lifetime",
+        "orchestrator/tests/test_silo_function_policy_template.py::test_source_identity_off_inert_on_honest_includes_and_trace_diff"
+      ],
+      "duration_s": 483.019,
+      "rc": 0,
+      "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+      "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+      "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+      "status": "PASSED",
+      "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-seed-ignores-thid": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "08ed2ce454ab32cdfc3cc8aeef4162d50c869c5422d4cf46996d252609805fdd",
+        "replacements": [
+          {
+            "file": "patches/silo-function-policy-variant.patch",
+            "new": "+  uint64_t x = 0ul + 0x9e3779b97f4a7c15ul;\n",
+            "old": "+  uint64_t x = thid + 0x9e3779b97f4a7c15ul;\n"
+          }
+        ]
+      },
+      "m2-reseed-every-begin": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "936de29f90e4e415fafbee9fa6ce0cd30c51b1423674c6ccff86b3c7265bfcd0",
+        "replacements": [
+          {
+            "file": "patches/silo-function-policy-variant.patch",
+            "new": "+  ::izanagi_silo_skel::seed_random(thid_);\n",
+            "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n"
+          }
+        ]
+      },
+      "m3-begin-does-not-seed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_function_policy_template.py::test_worker_seed_uses_thid_once_and_keeps_random_sequence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5625d2930c784697db81137b7d9493ac4c30e06458507c7d7c0db55ab25e48ad",
+        "replacements": [
+          {
+            "file": "patches/silo-function-policy-variant.patch",
+            "new": "+  (void)::izanagi_silo_skel::random_seeded;\n",
+            "old": "+  if (!::izanagi_silo_skel::random_seeded) ::izanagi_silo_skel::seed_random(thid_);\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e336b1ff41bab1e6d7740045f73e8380d113cfeb81727be353ec068c39095efa",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_function_policy_template.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "3205dd93e34cb1e42da77f9fcd5bc4783046ff5b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_function_policy_template.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ad291510cb8ffb1dcf78d2cb3f37913d6e99a015",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0cbba5c59b63be8fca06a9c41d3cf30ab4e1206fb019061a4dfa9368957d973f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f7d9214645beba02c9541ae97757bd1611ceb012097b92ef258cc6987016e18b",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/dev-wave-t2865-iter2-20260927/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "887b20e69e778524756aabdbb485688f4a6ef46790866fd9ace6c45c5d23876b",
+  "updated_at": "2026-09-27T11:29:33.480119+00:00"
+}
