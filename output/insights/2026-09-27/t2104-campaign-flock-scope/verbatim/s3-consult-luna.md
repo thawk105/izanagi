@@ -1,0 +1,30 @@
+## 所見
+
+1. **should — 保持 handle の検査が過剰。** [plan:32](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/out/s2-plan-2.md:32)、[lock.py:72](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/lock.py:72)、[loop.py:725](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/loop.py:725)。必要なのは、driver が取得した保持を `run_campaign` に渡して二重取得を避け、再計算した lock path と照合すること。context 内だけ有効な token と path の照合で足りる。fd・現 inode の追加照合は、D1346 の区間保証にも既存の再入拒否契約にも必要と示されていない。**成果物影響:** この追加照合を削っても、協調する driver と producer 間で実行中の arm を欠測にする窓は増えない。**推奨: 縮小。** fd 再利用や lock file 差し替えへの防御を別要件にするなら、その保証差は明記する。
+
+2. **should — 受け渡しは通常取得の再入許可より小さくできる。** [test_campaign.py:3072](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/tests/test_campaign.py:3072)、[p3_s4_loop.py:2639](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_s4_loop.py:2639)。既存 test は同一 process の**別取得**に `CampaignBusy` を要求する。一般的な再入可能 lock は矛盾するが、取得済み context が yield する token を明示的に渡す形なら矛盾しない。`run_campaign` の任意 keyword は実取得を呼ぶ base 経路だけで渡せる。確認した既存 fake は `**kwargs` または `**_k` を受け、main の `drive_iteration` fake も `**kwargs` を受ける。**成果物影響:** 明示的受け渡しなら lock の競合・解放契約を維持して B-4 の誤判定窓を閉じられる。**推奨: 縮小。** 新しい例外型、互換層、全 driver 共通枠組みは不要。
+
+3. **should — test 計画の全同期点・変異表は受入条件より広い。** [plan:50](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/out/s2-plan-2.md:50)、[plan:72](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/out/s2-plan-2.md:72)、[producer.py:1607](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_raw_record_producer.py:1607)。認可前・preflight 中・checkpoint 中・main 事前認可中の probe は区間を直接示す。一方、個別変異の事前登録表、fd/inode 差し替え負例、追加の新 test file は今回の「誤判定再現と既存契約の緑」に必須ではない。**成果物影響:** これらを削っても、旧コードで lock を取得でき新コードで `CampaignBusy` になる負例を保てば、欠測封印の防止を検証できる。**推奨: 縮小。** producer の `_execution_lock_for_root` と実 `campaign_lock` を使う点は維持する。赤・緑は本相談では実走していない。
+
+4. **should — P2 の base 限定は今回の標本には妥当。ただし一般化は不可。** [事前登録:158](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/docs/phase3-b4-reflux-ablation-preregistration.md:158)、[launcher.py:140](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_launcher.py:140)、[producer.py:1976](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_raw_record_producer.py:1976)。launcher と producer は base・sort・trigger を扱うが、§5 の選定値は base。producer は manifest の driver と receipt の `driver_kind` も照合する。**成果物影響:** 今回の base 母集合の B-4 記録・block score・verdict には base の修正が効き、sort・trigger の同種窓を残しても今回の受理集合は変わらない。**推奨: P2 を維持。** 他 driver を対象に変更する場合の窓は裁定パッケージ候補とする。
+
+5. **must-fix — main の事前認可窓は本題に含まれる。** [p3_s4_loop.py:3864](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_s4_loop.py:3864)、[launcher.py:580](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_launcher.py:580)、[launcher.py:635](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_launcher.py:635)。base の B-4 launcher は `main()` を起動し、main は `drive_iteration` より先に state 読込と B-4 認可を行う。drive 側だけで取得すると、公式起動の authorization 窓が残る。**成果物影響:** この窓で終端 record が無ければ producer が lock を取得して `terminal-record-absent` を封印でき、欠測数・block score・verdict が変わりうる。**推奨: main の B-4 事前認可前から candidate の checkpoint 完了まで維持。** launcher 全体や stock 経路へ広げる必要は示されていない。
+
+6. **should — 親の 53/53 は path 一致の実測ではない。** [brief:24](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/brief.md:24)、[probe_colocation.py:24](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/probe_colocation.py:24)、[probe_colocation.log:56](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/probe_colocation.log:56)、[layout.py:62](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/layout.py:62)。probe が数えたのは `loop_state.json` と `runs/wal.jsonl` の同居 53/53 であり、driver・`run_campaign`・producer の **lock path の値**は比較していない。lock path には root の realpath に加え output base が入る。**成果物影響:** 異なる lock directory なら producer が実行中に取得でき、今回の欠測欠陥が残る。**推奨: plan の `run_campaign` 側 path 照合を維持し、53/53 をその証明として扱わない。** 追加の全環境走査は不要。
+
+7. **nit — pin 主張は機構と数値を分けて扱う。** [campaign_lock.py:49](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/campaign_lock.py:49)、[closed_critic.py:623](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_closed_critic.py:623)、[事前登録:158](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/docs/phase3-b4-reflux-ablation-preregistration.md:158)。contract-loader の現行一覧に loop・lock・base driver が入り、B-4 projection closure には base driver が入り loop・lock は入らない。§5 の projection hash 欄は未記入。一方、親の「現 sha256・blob の hit は歴史記録だけ」という走査結果は、今回の静的確認では再現できなかった。**成果物影響:** live bytes から計算する値は変更後に変わるが、未記入の凍結 hash 値を上書きする事態は確認できない。**推奨: 機構上の説明は維持し、hit 数の断定は親が走査条件を再確認する。**
+
+### 裁定パッケージ候補（今回の実装外）
+
+- sort・trigger も launcher が起動でき、producer が記録を作れるため、将来その driver を B-4 母集合に選べば同じ外側窓を検討する必要がある。[launcher.py:140](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_b4_launcher.py:140)
+- 公開 `run_one_iteration`、fixture 直呼び、stock は checkpoint を持つ今回の base driver 区間と異なる。そこへの一律拡張は本依頼から導けない。[p3_s4_loop.py:2671](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2104-flock-scope/orchestrator/campaign/p3_s4_loop.py:2671)
+
+## 総括
+
+- **P1:** 明示的受け渡しに賛成。fd・現 inode の照合は削除推奨。通常取得を一般に再入可能にする案は既存 test と矛盾する。
+- **P2:** base 限定に賛成。今回の事前登録と producer の driver 照合に合う。
+- **P3:** base の layout 解決後から checkpoint 完了、および main の B-4 事前認可前から candidate 完了までに賛成。main を省くと窓が残る。
+- **P4:** 非ブロッキング取得を維持。
+- **P5:** producer の変更は削除推奨。旧 campaign に関する非保証文は残る。
+- **削除・縮小推奨:** fd/inode 防御、追加例外型・互換層・共通枠組み、新 test file、個別変異の登録表。
+- **残る穴:** 53/53 は lock path 一致の証明ではない。sort・trigger と単独実行経路は今回の保証外。テストは実行していない。
