@@ -1234,6 +1234,7 @@ def _run_actual_job_body_through_driver(
     ccbench_head: str | None = None,
     expect_driver: bool = True,
     git_common_repo: Path | None = None,
+    expected_stderr: str | None = None,
 ) -> tuple[list[list[str]], int, dict]:
     # Scheduler/build/driver work is simulated; shell path conversion and the
     # Python driver's environment/path observation and file write are real.
@@ -1324,8 +1325,10 @@ def _run_actual_job_body_through_driver(
         "        stream.write(json.dumps({\n"
         "            'TMPDIR': os.environ.get('TMPDIR'),\n"
         "            'IZANAGI_BENCH_LOCK': os.environ.get('IZANAGI_BENCH_LOCK'),\n"
-        "            'IZANAGI_TRACE_ARCHIVE_ROOT': os.environ.get('IZANAGI_TRACE_ARCHIVE_ROOT'),\n"
         "        }) + '\\n')\n"
+        "    if args[args.index('-m') + 1] == 'orchestrator.campaign.p3_s4_loop_policy':\n"
+        "        with Path(os.environ['IZANAGI_TEST_POLICY_ARCHIVE']).open('a') as stream:\n"
+        "            stream.write(json.dumps(os.environ.get('IZANAGI_TRACE_ARCHIVE_ROOT')) + '\\n')\n"
         "    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\n"
         "    Path(root, 'driver-evidence.json').write_text(\n"
         "        json.dumps({'root': root, 'cwd': str(Path.cwd()),\n"
@@ -1409,6 +1412,7 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
         "IZANAGI_TEST_DRIVER_ARGV": str(driver_argv),
         "IZANAGI_TEST_DRIVER_ENV": str(tmp_path / "driver-env.jsonl"),
+        "IZANAGI_TEST_POLICY_ARCHIVE": str(tmp_path / "policy-archive.jsonl"),
         "IZANAGI_TEST_DRIVER_RCS": json.dumps(driver_rcs),
         "IZANAGI_TEST_GFLAGS_HEAD": gflags_head,
         "IZANAGI_TEST_GLOG_HEAD": glog_head,
@@ -1422,7 +1426,12 @@ def _run_actual_job_body_through_driver(
         [str(job)], cwd=tmp_path, env=environment,
         capture_output=True, text=True, check=False,
     )
-    assert (evidence_root / "compute-result.json").is_file()
+    result_path = evidence_root / "compute-result.json"
+    if expected_stderr is None:
+        assert result_path.is_file()
+    else:
+        assert completed.stderr == expected_stderr
+        assert not result_path.exists()
     if expect_driver:
         assert json.loads((expected_root / "driver-evidence.json").read_text(
             encoding="utf-8",
@@ -1437,7 +1446,7 @@ def _run_actual_job_body_through_driver(
         [json.loads(line) for line in driver_argv.read_text(encoding="utf-8").splitlines()]
         if driver_argv.exists() else [],
         completed.returncode,
-        json.loads((evidence_root / "compute-result.json").read_text()),
+        json.loads(result_path.read_text()) if expected_stderr is None else {},
     )
 
 
@@ -1445,6 +1454,13 @@ def _read_driver_environment(tmp_path: Path) -> list[dict[str, str | None]]:
     return [
         json.loads(line)
         for line in (tmp_path / "driver-env.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+
+
+def _read_policy_archive(tmp_path: Path) -> list[str | None]:
+    return [
+        json.loads(line)
+        for line in (tmp_path / "policy-archive.jsonl").read_text(encoding="utf-8").splitlines()
     ]
 
 
@@ -1476,8 +1492,8 @@ def test_policy_actual_job_argv_archive_and_lock(tmp_path, mode, action):
     assert _read_driver_environment(tmp_path) == [{
         "TMPDIR": str(tmp_path / "scratch-base/0_945411.nqsv"),
         "IZANAGI_BENCH_LOCK": str(tmp_path / "scratch-base/0_945411.nqsv/bench.lock"),
-        "IZANAGI_TRACE_ARCHIVE_ROOT": str(archive),
     }]
+    assert _read_policy_archive(tmp_path) == [str(archive)]
 
 
 def test_policy_actual_job_uses_policy_pin(tmp_path):
@@ -1497,8 +1513,14 @@ def test_policy_archive_root_is_required_outside_repository(tmp_path, archive):
         env["IZANAGI_TRACE_ARCHIVE_ROOT"] = (
             str(tmp_path / archive) if archive.startswith("repo/") else archive)
     history, rc, result = _run_actual_job_body_through_driver(
-        tmp_path, env, expect_driver=False)
-    assert history == [] and rc == result["driver_rc"] == 2
+        tmp_path, env, expect_driver=False,
+        expected_stderr=(
+            "p3 S4 loop job refused: S4 policy trace archive root must be absolute\n"
+            if archive is None or not archive.startswith("repo/") else
+            "p3 S4 loop job refused: S4 policy trace archive root resolves inside a repository\n"
+        ),
+    )
+    assert history == [] and rc == 2 and result == {}
 
 
 def test_policy_archive_root_excludes_git_common_repository(tmp_path):
@@ -1508,8 +1530,9 @@ def test_policy_archive_root_excludes_git_common_repository(tmp_path):
         {"IZANAGI_S4_POLICY_MODE": "stock", "IZANAGI_S4_POLICY_FORM": "cpp",
          "IZANAGI_TRACE_ARCHIVE_ROOT": str(common_repo / "archive")},
         git_common_repo=common_repo, expect_driver=False,
+        expected_stderr="p3 S4 loop job refused: S4 policy trace archive root resolves inside a repository\n",
     )
-    assert history == [] and rc == result["driver_rc"] == 2
+    assert history == [] and rc == 2 and result == {}
 
 
 @pytest.mark.parametrize("extra", [

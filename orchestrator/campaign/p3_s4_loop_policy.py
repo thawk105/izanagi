@@ -316,10 +316,9 @@ def _cfg_contract(cfg):
     return env_contract.lookup(cfg.search_config.get(L._CAMPAIGN_ENV_KEY, ENV_TAG))
 
 
-def _run_measurement(cfg, perf, genome, sub, *, layout, cache_root,
-                     build_context, contract, dependency_prefix='',
-                     fetchcontent_options=None, authorization_session=None,
-                     stock=False, log=print):
+def _measurement_options(*, build_context, contract, dependency_prefix='',
+                         fetchcontent_options=None, authorization_session=None,
+                         stock=False):
     options = {}
     if authorization_session is not None:
         options['authorization_session'] = authorization_session
@@ -332,12 +331,7 @@ def _run_measurement(cfg, perf, genome, sub, *, layout, cache_root,
         options['env_contract'] = contract
     if stock:
         options['capability_resolver'] = L._stock_capability_resolver(build_context)
-    return run_campaign(cfg, [genome], perf, contract.env_tag,
-        contract.clocks_per_us, numactl=list(contract.numactl), log=log,
-        ccbench_dir=sub, cache_root=cache_root,
-        authorization_contract=env_contract.authorize(contract.env_tag),
-        build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
-        **options)
+    return options
 
 
 def _stock_result(layout, summary):
@@ -377,11 +371,16 @@ def run_stock_control(cfg, perf, sub, *, layout, cache_root='',
                              if key != axis.FLAG})
     layout.ensure()
     ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
-    summary = _run_measurement(cfg, perf, genome, sub, layout=layout,
-        cache_root=cache_root, build_context=build_context, contract=contract,
+    options = _measurement_options(build_context=build_context, contract=contract,
         dependency_prefix=dependency_prefix,
         fetchcontent_options=fetchcontent_options,
-        authorization_session=authorization_session, stock=True, log=log)
+        authorization_session=authorization_session, stock=True)
+    summary = run_campaign(cfg, [genome], perf, contract.env_tag,
+        contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+        ccbench_dir=sub, cache_root=cache_root,
+        authorization_contract=env_contract.authorize(contract.env_tag),
+        build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+        **options)
     return _stock_result(layout, summary)
 
 
@@ -413,11 +412,16 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
             return {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
         if not do_build:
             return {'outcome': 'dry-pass', 'variant': None}
-        summary = _run_measurement(cfg, perf, genome, sub, layout=layout,
-            cache_root=cache_root, build_context=build_context,
+        options = _measurement_options(build_context=build_context,
             contract=contract, dependency_prefix=dependency_prefix,
             fetchcontent_options=fetchcontent_options,
-            authorization_session=authorization_session, log=log)
+            authorization_session=authorization_session)
+        summary = run_campaign(cfg, [genome], perf, contract.env_tag,
+            contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+            ccbench_dir=sub, cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+            **options)
     result = summary.results[0] if summary.results else None
     outcome, verifier_digest = _result_history(layout, result)
     return {'outcome': outcome,

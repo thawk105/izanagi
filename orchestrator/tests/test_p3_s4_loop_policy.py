@@ -447,12 +447,12 @@ def test_stock_genome_and_same_attempt_baseline(tmp_path, monkeypatch):
     monkeypatch.setattr(P.wal, 'read_records', lambda _layout: records)
     seen = []
     monkeypatch.setattr(P.ident, 'ensure_resumable_attempts', lambda *_a, **_k: None)
-    def capture(_cfg, _perf, genome, _sub, **kwargs):
-        seen.append(genome)
+    def capture(_cfg, genomes, _perf, _env_tag, _clocks, **kwargs):
+        seen.extend(genomes)
         assert kwargs['build_context'] is context
-        assert kwargs['stock'] is True
+        assert 'capability_resolver' in kwargs
         return type('Summary', (), {'results': [result]})()
-    monkeypatch.setattr(P, '_run_measurement', capture)
+    monkeypatch.setattr(P, 'run_campaign', capture)
     out = P.run_stock_control(P.default_cfg(form='cpp'), P.default_perf(),
         str(tmp_path), layout=layout, build_context=context,
         contract=P.env_contract.lookup(P.ENV_TAG))

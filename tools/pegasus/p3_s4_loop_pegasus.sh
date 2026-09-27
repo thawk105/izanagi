@@ -355,7 +355,7 @@ resolve_python() {
       "$resolved" -B -c \
         'import sys; sys.version_info[:2] == (3, 10) or sys.exit(1); import orchestrator.campaign.p3_s4_loop' \
         >/dev/null 2>&1
-    ) && { [[ -z "$policy_mode" ]] || (
+    ) && { [[ -z "${policy_mode:-}" ]] || (
       cd "$repo"
       "$resolved" -B -c 'import orchestrator.campaign.p3_s4_loop_policy' >/dev/null 2>&1
     ); }; then
