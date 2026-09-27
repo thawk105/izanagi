@@ -1,0 +1,410 @@
+[
+  {
+    "label": "stock-block1-slot2",
+    "archive_name": "izanagi_eval_trace_performance_2i_xj89p",
+    "commits": 5597962,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 4741112,
+        "thid": 2,
+        "commit": [
+          63,
+          3054
+        ]
+      },
+      {
+        "txid": 4741103,
+        "thid": 37,
+        "commit": [
+          63,
+          3053
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 4741103,
+        "to": 4741112,
+        "key": "0000000000000008",
+        "read": [
+          63,
+          3028
+        ],
+        "read_producer_txid": 4740749,
+        "next_write_version": [
+          63,
+          3054
+        ],
+        "next_write_txid": 4741112,
+        "holds": true
+      },
+      {
+        "from": 4741112,
+        "to": 4741103,
+        "key": "0000000000000000",
+        "read": [
+          63,
+          3043
+        ],
+        "read_producer_txid": 4740959,
+        "next_write_version": [
+          63,
+          3053
+        ],
+        "next_write_txid": 4741103,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "stock-block2-slot4",
+    "archive_name": "izanagi_eval_trace_performance_vomuxrdt",
+    "commits": 5640790,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 2031996,
+        "thid": 1,
+        "commit": [
+          27,
+          3129
+        ]
+      },
+      {
+        "txid": 2032003,
+        "thid": 9,
+        "commit": [
+          27,
+          3131
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 2031996,
+        "to": 2032003,
+        "key": "0000000000000003",
+        "read": [
+          27,
+          3116
+        ],
+        "read_producer_txid": 2031683,
+        "next_write_version": [
+          27,
+          3131
+        ],
+        "next_write_txid": 2032003,
+        "holds": true
+      },
+      {
+        "from": 2032003,
+        "to": 2031996,
+        "key": "0000000000000000",
+        "read": [
+          27,
+          3127
+        ],
+        "read_producer_txid": 2031932,
+        "next_write_version": [
+          27,
+          3129
+        ],
+        "next_write_txid": 2031996,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "stock-block4-slot1",
+    "archive_name": "izanagi_eval_trace_performance_d118d7r1",
+    "commits": 5525130,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 3517226,
+        "thid": 18,
+        "commit": [
+          48,
+          1162
+        ]
+      },
+      {
+        "txid": 3517220,
+        "thid": 31,
+        "commit": [
+          48,
+          1160
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 3517220,
+        "to": 3517226,
+        "key": "0000000000000005",
+        "read": [
+          48,
+          1155
+        ],
+        "read_producer_txid": 3517162,
+        "next_write_version": [
+          48,
+          1162
+        ],
+        "next_write_txid": 3517226,
+        "holds": true
+      },
+      {
+        "from": 3517226,
+        "to": 3517220,
+        "key": "0000000000000000",
+        "read": [
+          48,
+          1158
+        ],
+        "read_producer_txid": 3517192,
+        "next_write_version": [
+          48,
+          1160
+        ],
+        "next_write_txid": 3517220,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "rerun-bo-5us-initial",
+    "archive_name": "izanagi_eval_trace_performance__lxnjdt6",
+    "commits": 6896260,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 5765402,
+        "thid": 37,
+        "commit": [
+          63,
+          593
+        ]
+      },
+      {
+        "txid": 5765376,
+        "thid": 42,
+        "commit": [
+          63,
+          592
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 5765376,
+        "to": 5765402,
+        "key": "0000000000000002",
+        "read": [
+          63,
+          591
+        ],
+        "read_producer_txid": 5765361,
+        "next_write_version": [
+          63,
+          593
+        ],
+        "next_write_txid": 5765402,
+        "holds": true
+      },
+      {
+        "from": 5765402,
+        "to": 5765376,
+        "key": "0000000000000000",
+        "read": [
+          63,
+          590
+        ],
+        "read_producer_txid": 5765322,
+        "next_write_version": [
+          63,
+          592
+        ],
+        "next_write_txid": 5765376,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "rerun-random-651us-search",
+    "archive_name": "izanagi_eval_trace_performance_zpjkgz3a",
+    "commits": 5132965,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 4826870,
+        "thid": 0,
+        "commit": [
+          71,
+          918
+        ]
+      },
+      {
+        "txid": 4826866,
+        "thid": 22,
+        "commit": [
+          71,
+          917
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 4826866,
+        "to": 4826870,
+        "key": "0000000000000061",
+        "read": [
+          71,
+          685
+        ],
+        "read_producer_txid": 4824310,
+        "next_write_version": [
+          71,
+          918
+        ],
+        "next_write_txid": 4826870,
+        "holds": true
+      },
+      {
+        "from": 4826870,
+        "to": 4826866,
+        "key": "0000000000000000",
+        "read": [
+          71,
+          915
+        ],
+        "read_producer_txid": 4826851,
+        "next_write_version": [
+          71,
+          917
+        ],
+        "next_write_txid": 4826866,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "rerun-sweep-20us-endpoint",
+    "archive_name": "izanagi_eval_trace_performance_3ad6bb3s",
+    "commits": 6953353,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "xip_counts": {},
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "frames": [
+      {
+        "txid": 9487,
+        "thid": 20,
+        "commit": [
+          1,
+          329
+        ]
+      },
+      {
+        "txid": 9480,
+        "thid": 38,
+        "commit": [
+          1,
+          328
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": 9480,
+        "to": 9487,
+        "key": "0000000000000000",
+        "read": [
+          1,
+          325
+        ],
+        "read_producer_txid": 9355,
+        "next_write_version": [
+          1,
+          329
+        ],
+        "next_write_txid": 9487,
+        "holds": true
+      },
+      {
+        "from": 9487,
+        "to": 9480,
+        "key": "0000000000000001",
+        "read": [
+          1,
+          324
+        ],
+        "read_producer_txid": 9329,
+        "next_write_version": [
+          1,
+          328
+        ],
+        "next_write_txid": 9480,
+        "holds": true
+      }
+    ]
+  }
+]

@@ -1,0 +1,8 @@
+# 段 2 後に親が実測した事実 (段 3 の攻撃対象に含める)
+
+1. 分母 (t2849 job dir の各 read-heavy campaign `runs/wal.jsonl` の `verify_done`、集計表 `/work/1/SFC/tanab/tmp/t2868-mocc-g2-20260927/rh-verify-lines.tsv`): 1 slot = legacy 1 回 (4 thread・200 record・1 秒) + 性能構成 4 反復。digest の「rep 5」は legacy を 1 回目と数えた番号で、bo 初期点の anomaly は性能構成 4 反復目 (commits 6,896,260 = inventory の `--expected-commits 6896260` = 保全 dir `izanagi_eval_trace_performance__lxnjdt6`)。性能構成の反復: 候補 6/119、stock (BACKOFF_FIXED=-1) 0/30。WAL の ts 差から性能構成 1 反復 (走行 + trace + verify) ≈ 177〜187 s。
+2. trace 有効走の commit 数 (性能構成、genome 別 min〜max): stock 5,467,902〜5,659,102 (30 反復)。literal 3〜135 µs は 6,724,859〜7,201,174。503 µs 5,615,569〜5,722,922 (0/10)。651 µs 5,101,302〜5,176,880 (1/3、anomaly は 5,132,965)。800 µs 約 4.73M、1000 µs 約 4.30M (各 0/5)。anomaly 6 件の commit 数 = 6,896,260・6,950,679 (5 µs)、6,831,437 (10)、6,953,353 (20)、6,981,597 (135)、5,132,965 (651)。**651 µs の anomaly は stock より低い commit 数域で出た。**
+3. 保全 patch (bo 初期点の `patch/ccbench.diff.zst`) を親が読んだ: 変更 file は `cmake/Options.cmake` と `include/backoff.hh` の 2 つだけ、候補の hole の中身は `double now_backoff = 5;` の 1 行。`cc/mocc/transaction.cc` への差分なし。他 5 件は未読。
+4. witness 6 件 (digest): 全件 G2 長さ 2・両辺 rw。commit 版の組 = (63,592/593)、(56,759/760)、(71,917/918)、(66,3535/3538)、(50,4070/4071)、(1,328/329)。key は 0〜3 と 0x61。
+5. digest の「verify run の abort 統計」(insight §4 の abort 率列 19.70% 等) は legacy workload の値だった。性能構成の abort 率は約 6.5%。
+6. 親の暫定の見直し: (P2) の BACK_OFF=0 を主対照とする根拠は弱まった。stock 適応 (BACKOFF_FIXED=-1、template 適用後も preprocess 後 source は原本と同一 = literal 非実行) を N 反復追加するのが「literal が必要か」への直接の対照ではないか。stock が候補と同じ 5% なら 30 反復で 0 件の確率は約 21%、N=60 追加 (計 90) で 1 件以上の確率は約 99%。単価 180 s × 60 = 3.0 node 時間 (ユーザー確認が要る)。

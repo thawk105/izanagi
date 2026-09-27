@@ -1,0 +1,470 @@
+[
+  {
+    "label": "bo-5us-initial",
+    "archive_name": "izanagi_eval_trace_performance__lxnjdt6",
+    "commits": 6896260,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 168.3606291480828,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 5;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 5765402,
+        "thid": 37,
+        "commit": [
+          63,
+          593
+        ],
+        "declared_reads": 7,
+        "declared_writes": 2
+      },
+      {
+        "txid": 5765376,
+        "thid": 42,
+        "commit": [
+          63,
+          592
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      }
+    ],
+    "edges": [
+      {
+        "from": 5765376,
+        "to": 5765402,
+        "key": "0000000000000002",
+        "read": [
+          63,
+          591
+        ],
+        "read_producer_txid": 5765361,
+        "next_write_version": [
+          63,
+          593
+        ],
+        "next_write_txid": 5765402,
+        "holds": true
+      },
+      {
+        "from": 5765402,
+        "to": 5765376,
+        "key": "0000000000000000",
+        "read": [
+          63,
+          590
+        ],
+        "read_producer_txid": 5765322,
+        "next_write_version": [
+          63,
+          592
+        ],
+        "next_write_txid": 5765376,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "bo-135us-endpoint",
+    "archive_name": "izanagi_eval_trace_performance_6xdft5np",
+    "commits": 6981597,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 165.3916944930097,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 135;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 5165697,
+        "thid": 44,
+        "commit": [
+          56,
+          760
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      },
+      {
+        "txid": 5165685,
+        "thid": 46,
+        "commit": [
+          56,
+          759
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      }
+    ],
+    "edges": [
+      {
+        "from": 5165685,
+        "to": 5165697,
+        "key": "0000000000000000",
+        "read": [
+          56,
+          757
+        ],
+        "read_producer_txid": 5165634,
+        "next_write_version": [
+          56,
+          760
+        ],
+        "next_write_txid": 5165697,
+        "holds": true
+      },
+      {
+        "from": 5165697,
+        "to": 5165685,
+        "key": "0000000000000003",
+        "read": [
+          56,
+          756
+        ],
+        "read_producer_txid": 5165631,
+        "next_write_version": [
+          56,
+          759
+        ],
+        "next_write_txid": 5165685,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "random-10us-initial",
+    "archive_name": "izanagi_eval_trace_performance_61cpczdc",
+    "commits": 6831437,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 161.6285316729918,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 10;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 6007074,
+        "thid": 15,
+        "commit": [
+          66,
+          3535
+        ],
+        "declared_reads": 8,
+        "declared_writes": 2
+      },
+      {
+        "txid": 6007082,
+        "thid": 22,
+        "commit": [
+          66,
+          3538
+        ],
+        "declared_reads": 8,
+        "declared_writes": 2
+      }
+    ],
+    "edges": [
+      {
+        "from": 6007074,
+        "to": 6007082,
+        "key": "0000000000000000",
+        "read": [
+          66,
+          3531
+        ],
+        "read_producer_txid": 6007051,
+        "next_write_version": [
+          66,
+          3538
+        ],
+        "next_write_txid": 6007082,
+        "holds": true
+      },
+      {
+        "from": 6007082,
+        "to": 6007074,
+        "key": "0000000000000001",
+        "read": [
+          66,
+          3528
+        ],
+        "read_producer_txid": 6006918,
+        "next_write_version": [
+          66,
+          3535
+        ],
+        "next_write_txid": 6007074,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "random-651us-search",
+    "archive_name": "izanagi_eval_trace_performance_zpjkgz3a",
+    "commits": 5132965,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 116.95666735304985,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 651;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 4826870,
+        "thid": 0,
+        "commit": [
+          71,
+          918
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      },
+      {
+        "txid": 4826866,
+        "thid": 22,
+        "commit": [
+          71,
+          917
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      }
+    ],
+    "edges": [
+      {
+        "from": 4826866,
+        "to": 4826870,
+        "key": "0000000000000061",
+        "read": [
+          71,
+          685
+        ],
+        "read_producer_txid": 4824310,
+        "next_write_version": [
+          71,
+          918
+        ],
+        "next_write_txid": 4826870,
+        "holds": true
+      },
+      {
+        "from": 4826870,
+        "to": 4826866,
+        "key": "0000000000000000",
+        "read": [
+          71,
+          915
+        ],
+        "read_producer_txid": 4826851,
+        "next_write_version": [
+          71,
+          917
+        ],
+        "next_write_txid": 4826866,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "sweep-5us-initial",
+    "archive_name": "izanagi_eval_trace_performance_yd20yjdp",
+    "commits": 6950679,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 163.80333369306754,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 5;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 4654200,
+        "thid": 27,
+        "commit": [
+          50,
+          4071
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      },
+      {
+        "txid": 4654192,
+        "thid": 42,
+        "commit": [
+          50,
+          4070
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      }
+    ],
+    "edges": [
+      {
+        "from": 4654192,
+        "to": 4654200,
+        "key": "0000000000000001",
+        "read": [
+          50,
+          4066
+        ],
+        "read_producer_txid": 4654119,
+        "next_write_version": [
+          50,
+          4071
+        ],
+        "next_write_txid": 4654200,
+        "holds": true
+      },
+      {
+        "from": 4654200,
+        "to": 4654192,
+        "key": "0000000000000002",
+        "read": [
+          50,
+          4066
+        ],
+        "read_producer_txid": 4654145,
+        "next_write_version": [
+          50,
+          4070
+        ],
+        "next_write_txid": 4654192,
+        "holds": true
+      }
+    ]
+  },
+  {
+    "label": "sweep-20us-endpoint",
+    "archive_name": "izanagi_eval_trace_performance_3ad6bb3s",
+    "commits": 6953353,
+    "complete": true,
+    "verifier_same_version": true,
+    "verifier_rc": 1,
+    "verifier_wall_s": 165.57892669492867,
+    "witness_match": true,
+    "raw_edges_hold": true,
+    "frame_issues": 0,
+    "duplicate_versions": 0,
+    "xip_counts": {},
+    "version_order_assumption": "lexicographic (epoch,tid); shared with verifier",
+    "literal": "+    double now_backoff = 20;",
+    "patch_changed_files": [
+      "cmake/Options.cmake",
+      "include/backoff.hh"
+    ],
+    "patch_outside_differences": 0,
+    "patch_only_template_plus_literal": true,
+    "frames": [
+      {
+        "txid": 9487,
+        "thid": 20,
+        "commit": [
+          1,
+          329
+        ],
+        "declared_reads": 8,
+        "declared_writes": 2
+      },
+      {
+        "txid": 9480,
+        "thid": 38,
+        "commit": [
+          1,
+          328
+        ],
+        "declared_reads": 9,
+        "declared_writes": 1
+      }
+    ],
+    "edges": [
+      {
+        "from": 9480,
+        "to": 9487,
+        "key": "0000000000000000",
+        "read": [
+          1,
+          325
+        ],
+        "read_producer_txid": 9355,
+        "next_write_version": [
+          1,
+          329
+        ],
+        "next_write_txid": 9487,
+        "holds": true
+      },
+      {
+        "from": 9487,
+        "to": 9480,
+        "key": "0000000000000001",
+        "read": [
+          1,
+          324
+        ],
+        "read_producer_txid": 9329,
+        "next_write_version": [
+          1,
+          328
+        ],
+        "next_write_txid": 9480,
+        "holds": true
+      }
+    ]
+  }
+]

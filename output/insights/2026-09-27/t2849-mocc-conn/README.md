@@ -142,3 +142,13 @@ balanced の 4 slot (evolution の初期点 10 と探索 2、random の探索 24
 - read-heavy の anomaly の原因の切り分け (§4) は新しい課題として起票する。論文の「正しさゲートが探索の候補を実際に reject する」例になりうるが、MOCC 本体の欠陥か差し込みの影響かが決まるまで主張に使わない。
 - K0 の planner の axis 名の揺れ (§5) は、silo・MOCC 共通で提案機会の約半分を失わせる実測欠陥として起票する。候補の直し方 (planner の入力に axis 名を載せる等) は択一がある。
 - harness mode の直接 qsub の walltime は「最後の slot の開始までの時間 + 1,800 s」以上にする (§8)。
+
+## 10. 追記 (2026-09-27、[T-2868]) — §4 の切り分けの結果と記述の訂正
+
+本節は追記であり、§0〜§9 の記述と判定は変えない (規律 7)。詳細は `output/insights/2026-09-27/t2868-mocc-g2-cause/README.md`。
+
+- §4 の 6 件は、保全 trace で同じ版の verifier を再実行して同じ witness が出た。verifier を使わない生の行の照合でも 2 辺が成立した。保全 patch は template + `now_backoff` の 1 行だけだった。
+- 同じ構成の stock (literal なし) を 16 slot 追加で走らせると、性能構成 74 反復中 3 件に同じ形の G2 が出た。候補 6/119 対 stock 3/109 (本節の 0/35 を含む) で率の差は検出されない (両側 Fisher p = 0.50)。原因は MOCC 側 (本体の実装か trace の記録) に絞られ、literal の差し込みは必要条件ではない。
+- 訂正 1: §4 の「検査走行の abort 率」列は digest の legacy workload (4 thread・200 record・1 秒) の値だった。性能構成の anomaly 反復では bo 初期点で 6.8%。
+- 訂正 2: 1 slot は legacy 1 回 + 性能構成最大 5 反復 (anomaly で打ち切り) で、「stock slot 7 件は 0」は性能構成の反復で 0/35。
+- read-heavy の block 対照の stock も同じ性質の実装なので、§3 の read-heavy の stock 比と certified の終点は「基準が約 3〜5% の反復で性能構成の検査に落ちる cell」での値である。扱いは新しい課題で決める。
