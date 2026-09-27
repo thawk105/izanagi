@@ -726,8 +726,6 @@ def _h_supply(genome: Any, src: Path, build: Path, toolchain: Mapping[str, Mappi
     if build_argv.count("--target") != 1:
         raise CheckError("production build argv の --target が不正")
     target = build_argv[build_argv.index("--target") + 1]
-    if not re.fullmatch(r"ycsb_[A-Za-z0-9_]+\.exe", target):
-        raise CheckError(f"production target が未対応形: {target}")
     return [*configure, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCCBENCH_CCACHE=OFF"], list(_GENERATED_TARGETS), target
 
 
@@ -735,7 +733,7 @@ def _h_roots(src: Path, build: Path, generated: Path, third: Mapping[str, Path])
     roots = [(os.fsencode(src), b"<SOURCE>"), (os.fsencode(build), b"<BUILD>"),
              (os.fsencode(generated), b"<GENERATED>")]
     roots += [(os.fsencode(path), f"<THIRD:{name}>".encode()) for name, path in third.items()]
-    return sorted(roots, key=lambda item: -len(item[0]))
+    return sorted(dict(roots).items(), key=lambda item: -len(item[0]))
 
 
 def _h_norm(value: bytes, roots: Sequence[tuple[bytes, bytes]]) -> bytes:
@@ -832,7 +830,7 @@ def _h_compare(pair: dict[str, Any], key: tuple[str, str], label: str) -> dict[s
             for builtin in ("__DATE__", "__TIME__", "__TIMESTAMP__"):
                 override.extend((f"-U{builtin}", f'-D{builtin}="IZANAGI_VOLATILE_{marker}"'))
             probes.append(_h_run(
-                [*_h_args(entry["argv"], 0), *override, "-E", "-P"],
+                [*_h_args(entry["argv"], 0), *override, "-Wno-builtin-macro-redefined", "-E", "-P"],
                 Path(entry["raw"]["directory"]),
             ))
         if probes[0] != probes[1]:
@@ -888,6 +886,12 @@ def _h_check(
         changed = {side: {p: (source[side] / p).resolve() for p in headers} for side in ("old", "new")}
         counter = 0
 
+        def provided(genome: Any, src: Path, build: Path, local_third: Mapping[str, Path]) -> tuple[list[str], list[str], str]:
+            argv, targets, production = provider(genome, src, build, toolchain, prefix, local_third)
+            if not isinstance(production, str) or not re.fullmatch(r"ycsb_[A-Za-z0-9_]+\.exe", production):
+                raise CheckError(f"production target が未対応形: {production}")
+            return argv, targets, production
+
         def configure(genome: Any, label: str, *, discovery: bool = False) -> dict[str, Any]:
             nonlocal counter
             pair: dict[str, Any] = {}
@@ -905,9 +909,7 @@ def _h_check(
                     local_third["masstree"] = generated
                 elif discovery:
                     local_third["generated"] = stock[side]["build"] / "generated"
-                argv, targets, production = provider(genome, src, build, toolchain, prefix, local_third)
-                if not re.fullmatch(r"ycsb_[A-Za-z0-9_]+\.exe", production):
-                    raise CheckError(f"production target が未対応形: {production}")
+                argv, targets, production = provided(genome, src, build, local_third)
                 _h_run(argv, timeout=300)
                 if not discovery:
                     for target in targets:
@@ -935,11 +937,13 @@ def _h_check(
                 raise CheckError(f"旧新 production target が不一致: {label}")
             return pair
 
-        def dependencies(pair: dict[str, Any], label: str) -> tuple[dict[str, Any], set[tuple[str, str]]]:
+        def dependencies(pair: dict[str, Any], label: str, target: str | None = None) -> tuple[dict[str, Any], set[tuple[str, str]]]:
             work = []
             for side in ("old", "new"):
                 row = pair[side]
                 for index, (key, entry) in enumerate(sorted(row["entries"].items())):
+                    if target is not None and key[1] != target:
+                        continue
                     for trace in (0, 1):
                         work.append((side, key, trace, entry, root / f"dep-{label}-{side}-{index}-{trace}.d"))
             def one(job: tuple[Any, ...]) -> tuple[str, tuple[str, str], int, set[Path]]:
@@ -962,26 +966,22 @@ def _h_check(
         targets = {}
         for protocol, space in sorted(space_map.items()):
             # The production target comes from the same provider as configure argv.
-            sample = provider(Genome(protocol, {}), source["old"], root / f"target-{protocol}",
-                              toolchain, prefix, third)
+            sample = provided(Genome(protocol, {}), source["old"], root / f"target-{protocol}", third)
             target = sample[2]
-            if not re.fullmatch(r"ycsb_[A-Za-z0-9_]+\.exe", target):
-                raise CheckError(f"production target が未対応形: {target}")
             targets[protocol] = target
             stock_consumers = selected["stock"][2]
             choose = any(key[1] == target for key in stock_consumers)
             genomes = tuple(space.enumerate())
             if not genomes:
                 raise CheckError(f"genome 空間が空: {protocol}")
-            discovered = []
             if not choose:
                 for index, genome in enumerate(genomes):
                     label = f"discover-{protocol}-{index}"
                     pair = configure(genome, label, discovery=True)
-                    deps, consumers = dependencies(pair, label)
-                    discovered.append((pair, deps, consumers))
+                    _, consumers = dependencies(pair, label, target)
                     if any(key[1] == target for key in consumers):
                         choose = True
+                        break
                 if not choose:
                     skipped[protocol] = len(genomes)
             if choose:
@@ -1001,7 +1001,7 @@ def _h_check(
         for path, count in header_hits.items():
             if not count:
                 raise CheckError(f"変更 header の consumer が 0 件: {path}")
-        done = set()
+        planned_set = set(planned)
         aggregate = {}
         unique_jobs = []
         for label, key in planned:
@@ -1020,16 +1020,17 @@ def _h_check(
             else:
                 aggregate[aggregation_key] = {"configures": [label]}
                 unique_jobs.append((aggregation_key, pair, key, label))
-            done.add((label, key))
-        if done != set(planned):
-            raise CheckError("比較の予定集合と実行済み集合が不一致")
         with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
             evidence_rows = list(pool.map(
                 lambda job: _h_compare(job[1], job[2], job[3]), unique_jobs))
         comparisons = []
+        done = set()
         for job, evidence in zip(unique_jobs, evidence_rows):
             evidence["configures"] = aggregate[job[0]]["configures"]
             comparisons.append(evidence)
+            done.update((label, (evidence["file"], evidence["target"])) for label in evidence["configures"])
+        if done != planned_set:
+            raise CheckError("比較の予定集合と実行済み集合が不一致")
         return {
             "guarantee": HEADER_GUARANTEE, "scope": HEADER_SCOPE,
             "compilers": {"cc": {"path": cc_path, "version": cc_version},
@@ -1063,11 +1064,15 @@ def check(
         raise CheckError(f"--repo が directory でない: {repo}")
     old_oid = _resolve_commit(repo, old)
     new_oid = _resolve_commit(repo, new)
+    header_inputs = (header_cc, third_party_cache, dependency_prefix, scratch_root)
+    legacy_order = all(value is None for value in header_inputs)
+    if legacy_order:
+        old_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=old_oid)
+        new_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=new_oid)
     ancestor = _is_ancestor(repo, old_oid, new_oid)
     if not ancestor:
         raise CheckError(f"old commit は new commit の祖先でない: {old_oid} !<= {new_oid}")
     diff = _raw_diff(repo, old_oid, new_oid)
-    header_inputs = (header_cc, third_party_cache, dependency_prefix, scratch_root)
     header_paths = [entry["path"] for entry in diff if isinstance(entry["path"], str)
                     and PurePosixPath(entry["path"]).suffix.lower() in _HEADER_SUFFIXES]
     _validate_diff(diff, header_enabled=bool(header_paths) and all(value is not None for value in header_inputs))
@@ -1075,8 +1080,9 @@ def check(
         raise CheckError("header 用の 4 引数はすべて必要")
     validated_expect_paths = _validate_expected_paths(diff, expect_paths)
     compiler, compiler_version = _compiler_identity(cxx)
-    old_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=old_oid) if len(header_paths) != len(diff) else frozenset()
-    new_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=new_oid) if len(header_paths) != len(diff) else frozenset()
+    if not legacy_order:
+        old_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=old_oid) if len(header_paths) != len(diff) else frozenset()
+        new_known_absent = _assert_proven_repo_absent_macros(os.fspath(repo), commit=new_oid) if len(header_paths) != len(diff) else frozenset()
 
     genomes = tuple(SILO_SPACE.enumerate())
     overlays = tuple(_context_overlays())

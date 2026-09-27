@@ -67,16 +67,20 @@ add_custom_command(OUTPUT "${GENERATED_DIR}/gen.hh"
 add_custom_target(generated_header DEPENDS "${GENERATED_DIR}/gen.hh")
 add_executable(ycsb_alpha.exe alpha.cc)
 add_executable(ycsb_beta.exe beta.cc)
+add_executable(ycsb_gamma.exe gamma.cc)
 foreach(t ycsb_alpha.exe ycsb_beta.exe)
   target_include_directories(${t} PRIVATE "${CMAKE_SOURCE_DIR}" "${GENERATED_DIR}")
+  target_compile_options(${t} PRIVATE -Werror)
   target_compile_definitions(${t} PRIVATE TRACE=0
 """ + ("    GENOME_FLAG=${GENOME_FLAG}\n" if include_genome_define else "") + """
   )
 endforeach()
+target_compile_options(ycsb_gamma.exe PRIVATE -Werror)
 """ + extra_cmake
     _put(repo, "CMakeLists.txt", cmake)
     _put(repo, "alpha.cc", alpha)
     _put(repo, "beta.cc", beta)
+    _put(repo, "gamma.cc", "int gamma() { return 0; }\n")
     _put(repo, "wrapper.hh", wrapper)
     _put(repo, "gen.in", generated)
     for name, body in (extra_files or {}).items():
@@ -121,6 +125,29 @@ def test_v3_v4_v9_generated_header_and_trace_one_consumer(tmp_path: Path) -> Non
     assert rule["planned_count"] == rule["executed_count"]
     assert {(row["file"], row["target"]) for row in rule["consumers"] if row["configure"] == "stock"} == {
         ("<SOURCE>/alpha.cc", "ycsb_alpha.exe"), ("<SOURCE>/beta.cc", "ycsb_beta.exe")}
+    assert not any(row["target"] == "ycsb_gamma.exe" for row in rule["consumers"])
+
+
+def test_discovery_only_checks_production_target(tmp_path: Path) -> None:
+    pair = _pair(tmp_path, old_header="#define VALUE 1\n",
+                 new_header="#define VALUE 1 /* changed */\n")
+    spaces = {"alpha": GenomeSpace("alpha", {"X": [0]}),
+              "beta": GenomeSpace("beta", {"X": [0, 1]})}
+    original = checker._h_dep
+    discovery_calls = []
+
+    def counted(entry, argv, trace, depfile):
+        if depfile.name.startswith("dep-discover-beta-"):
+            discovery_calls.append(depfile.name)
+        return original(entry, argv, trace, depfile)
+
+    checker._h_dep = counted
+    try:
+        report = _check(pair, tmp_path, spaces=spaces)
+    finally:
+        checker._h_dep = original
+    assert report["header_rule"]["unselected_genomes_checked"]["beta"] == 2
+    assert len(discovery_calls) == 8  # two genomes, old/new, TRACE=0/1, beta only
 
 
 def test_v1_indirect_consumer_value_change(tmp_path: Path) -> None:
