@@ -48,7 +48,7 @@
 job body の `IZANAGI_S4_POLICY_MODE=stock` を 1 job 投げる (driver は `--stock-baseline`)。stock は
 CCBench 原型 source (方策 patch なし) と方策 flag を除いた genome で、性能動作点・verify 構成は loop と同じ。
 結果は loop とは別の campaign (`evaluation_purpose=bootstrap`) に入る — 同じ campaign に入れると、pair で
-測る同じ stock variant が terminal skip になるため。job stdout の JSON の `fitness_tps` と `abort_rate_pct`
+測る同じ stock variant が terminal skip になるため (pair の stock も同じ理由で iteration ごとの計測 campaign に入る、§1(f))。job stdout の JSON の `fitness_tps` と `abort_rate_pct`
 (同じ attempt の bench の abort 率 × 100) を (a) の 2 scalar にする。2 回目以降の iteration は直前の
 pair の stock の値を使う。
 
@@ -105,7 +105,15 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
 ```
 - 候補を評価した後、同じ authorization session で stock を 1 評価する (同じ job・同じ動作点の対照)。
   候補が例外で終わっても stock は試み、最後に候補の例外で rc≠0 になる (履歴には `eval-exception` の行が残る)。
-  pair の成立は job rc ではなく、両 attempt の WAL で確かめる。
+- **系列 dir と計測 dir は別である。** 系列 dir (loop campaign の dir) には `loop_state.json`・`policy_history.jsonl`・
+  `silo_policy_loop_digest.txt` だけが置かれる。pair の候補と stock は、系列の identity に `policy_iteration`
+  (その pair が消費する系列の iteration 番号) を足した**計測 campaign** に入り、claim・`campaign.lock`・WAL はそちらに
+  できる。番号は driver が系列の `loop_state.json` から決める (argv では渡さない)。同じ submit checkout で pair job を
+  **直列に** 投入すれば、各 job は別の claim を取り、前の job の stock も skip されない。系列履歴の pair の行と stdout JSON の
+  `candidate` には `measurement_campaign_id` が載る。
+- pair の成立は job rc (`compute-result.json` の `driver_rc`) ではなく、計測 dir の候補・stock 両 attempt の WAL、
+  stdout の stock `certified-stock`、系列の `loop_state.json` の iteration と履歴行を突き合わせて確かめる。
+  certified 判定は計測 dir で読み、系列 dir を certified campaign として読まない。
 - **投入前に walltime を確かめる。** loop の walltime 予算 (`MAX_WALLTIME_S`) は `loop_state.json` の作成時刻から
   数える。login の record-reject が先に loop_state を作った系列では、queue 待ちも予算に入る。残りが足りなければ
   投入せず、予算停止として記録する。
@@ -121,7 +129,8 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
 critic の出力は次の (a) で `critic_diagnosis` として渡す。
 
 critic は `Agent(subagent_type='critic')`。入力はメインセッションが同じ系列の campaign から抜き出して prompt に貼る
-3 つだけ: 同じ campaign の `silo_policy_loop_digest.txt` の本文、当該 pair の iteration 番号に一致する
+3 つだけ: 系列 dir の `silo_policy_loop_digest.txt` の本文 (driver が当該 pair の計測 campaign の WAL から、候補の評価後・
+stock の評価前に作る。過去の iteration と login の record-reject は含まない。系列全体は coder が `self_history` で見る)、当該 pair の iteration 番号に一致する
 `policy_history.jsonl` の行の `implementation` (`justification` は除く)、同じ pair job の stdout JSON の
 stock の `fitness_tps` と `abort_rate_pct`。digest には候補の実装も同じ job の stock も載らないため、digest だけだと設計選択への帰属がほぼ書けない
 (段階 F の実物で確認)。他の file (insights・偵察・小比較・他の campaign) は読まないよう prompt で指示するが、
@@ -150,11 +159,16 @@ critic は Read・Bash を持つので閲覧を機械的に防いだとは言え
 `loop_state.json`、自系列の本文と結果は `policy_history.jsonl`。stock baseline (bootstrap campaign) と
 R2 (r2 campaign) は loop の checkpoint・履歴を動かさない。
 
-**Pegasus 契約では 1 つの loop campaign を測れる pair job は 1 本だけである。** campaign claim は identity ごとに
-一度きり (release も stale 判定も無い、D464・D553) で、同じ job の候補→stock は 1 process の認可 session で共有する
-(D2205) が、次の job へは持ち越さない。2 本目の pair job は build 前に `ClaimError` で止まり、履歴に `eval-exception` が
-残る (2026-09-27 に実測、`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4)。claim を手で退避して
-続けない。§1(g) の critic → 次の (a) は、この制約が driver 設計で解けるまで Pegasus では 2 本目の評価に進めない。
+**Pegasus 契約の campaign claim は計測 identity ごとに一度きりで、それは系列の iteration ごとに 1 本である。** claim は
+identity ごとに 1 file・release も stale 判定も無い (D464・D553)。同じ job の候補→stock は 1 process の認可 session で
+共有する (D2205)。以前は loop campaign 自身で測っていたため 2 本目の pair job が build 前に `ClaimError` で止まった
+(2026-09-27 に実測、`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4) が、pair は iteration ごとの
+計測 campaign (§1(f)) で測るので、同じ checkout で直列に投入する限り 2 本目以降も通る。同じ計測 identity の再使用
+(系列 state を巻き戻すなど) は従来どおり `ClaimError` で止まる。claim を手で退避して続けない。
+
+driver は counter を進めた直後、計測より前に系列の `loop_state.json` を保存する。pair job が claim 取得後に強制終了
+(walltime 超過など) した場合、その番号は**欠番**になる — 系列履歴にその番号の行は無く、計測 dir と claim file だけが残る。
+次の job は次の番号で進む。欠番の計測 dir は評価結果として読まない。並行投入 (同じ系列へ 2 本同時) は番号を予約しないので行わない。
 
 walltime 予算は campaign の `loop_state.json` の作成時刻から数えるので、止まった系列を後から続けることはできない。
 **骨格 patch (`patches/silo-function-policy-variant.patch`) を変えたら、その変更 commit を含む HEAD から新しい submit
