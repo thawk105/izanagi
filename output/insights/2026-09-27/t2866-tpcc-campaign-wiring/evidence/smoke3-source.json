@@ -1,0 +1,8 @@
+{
+  "head": "68106660686232781bca3be792a750d3e19d7a8a",
+  "pin": "6810666",
+  "reacquire": "git -C <CCBench repository> worktree add --detach <fresh source root> 68106660686232781bca3be792a750d3e19d7a8a",
+  "status_porcelain": "",
+  "transient_root": "/tmp/izanagi_wt_qrhes4zw/wt",
+  "verification_note": "run verify while the reacquired checkout exists"
+}

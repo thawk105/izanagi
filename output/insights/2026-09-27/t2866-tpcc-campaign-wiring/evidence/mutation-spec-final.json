@@ -1,0 +1,251 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-bench-workload-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "workload_name=prepared.workload,",
+          "new": "workload_name=\"ycsb\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v3_reaches_bench_with_workload"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-build-v2-workload-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload, **common)",
+          "new": "return buildcache.build_v2(genome, trace=trace, workload=\"ycsb\", **common)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v2_aborts_before_bench_and_builds_tpcc[v2-build]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-tpcc-emits-ycsb-records-flag",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        return \"tpcc_num_wh\"",
+          "new": "        return \"ycsb_tuple_num\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[direct]",
+        "orchestrator/tests/test_campaign.py::test_tpcc_evaluate_v3_reaches_bench_with_workload"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-ycsb-records-flag-form-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "return \"ycsb_tuple_num\"",
+          "new": "return \"ycsb_tuple_num_\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_workload_record_flags_preserve_ycsb_argv[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-v2-preimage-ignores-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    if workload == \"tpcc\":\n        preimage[\"workload\"] = \"tpcc\"",
+          "new": "    if False:\n        preimage[\"workload\"] = \"tpcc\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_tpcc_fresh_hit_compiler_target_and_cross_workload_misses",
+        "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-legacy-key-ignores-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    if workload == \"tpcc\":\n        raw += \"|workload=tpcc\"",
+          "new": "    if False:\n        raw += \"|workload=tpcc\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_legacy_tpcc_target_and_cross_workload_misses",
+        "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-hit-compiler-target-ycsb",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "target if source_snapshot_sha256 is not None else None",
+          "new": "f\"ycsb_{genome.protocol}.exe\" if source_snapshot_sha256 is not None else None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_tpcc_fresh_hit_compiler_target_and_cross_workload_misses"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-ycsb-preimage-gets-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    if workload == \"tpcc\":\n        preimage[\"workload\"] = \"tpcc\"",
+          "new": "    if True:\n        preimage[\"workload\"] = workload"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_workload_identity_preserves_ycsb_golden_and_separates_tpcc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-runner-v2-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2851_transfer_runner.py",
+          "old": "certified=False if unsupported_v2 else vr.certified",
+          "new": "certified=vr.certified"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-runner-tpcc-no-source-root",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2851_transfer_runner.py",
+          "old": "protocol=protocol, ccbench_root=result[\"trace_ccbench_root\"])",
+          "new": "protocol=protocol, ccbench_root=(None if cell.workload == \"tpcc\" else result[\"trace_ccbench_root\"]))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-runner-mix-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2851_transfer_runner.py",
+          "old": "cell.workload == \"tpcc\" and (cell.stage != \"s1\" or any(",
+          "new": "cell.workload == \"tpcc\" and (cell.stage != \"s1\" or False and any("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_anchor_is_indeterminate[s1-s1-H-pay20]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-runner-early-return-restored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2851_transfer_runner.py",
+          "old": "cell.workload == \"tpcc\" and (cell.stage != \"s1\" or any(",
+          "new": "cell.workload == \"tpcc\" and (True or any("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-runner-v2-anomaly-indeterminate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t2851_transfer_runner.py",
+          "old": "completed=True, serializable=vr.serializable,\n                    anomalies=anomalies, witness_ok=witness_ok,",
+          "new": "completed=True, serializable=None if unsupported_v2 else vr.serializable,\n                    anomalies=None if unsupported_v2 else anomalies, witness_ok=witness_ok,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2851_transfer_runner.py::test_verify_tpcc_s1_real_verifier_v3_v2_and_witness"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-duplicate-warehouse-flag-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "if workload_name == \"tpcc\" and \"tpcc_num_wh\" in perf.workload:",
+          "new": "if False and \"tpcc_num_wh\" in perf.workload:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_tpcc_bench_rejects_duplicate_warehouse_flag"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-equivalent-target-format",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "return f\"{workload}_{genome.protocol}.exe\"",
+          "new": "return \"%s_%s.exe\" % (workload, genome.protocol)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

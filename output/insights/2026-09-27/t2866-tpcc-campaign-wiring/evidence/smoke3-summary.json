@@ -1,0 +1,9 @@
+{
+  "evaluate_reasons": [
+    "trace-witness-unsupported-workload"
+  ],
+  "mismatches": [],
+  "passed": true,
+  "verify_reason": "trace-witness-unsupported-workload",
+  "verify_status": "indeterminate"
+}
