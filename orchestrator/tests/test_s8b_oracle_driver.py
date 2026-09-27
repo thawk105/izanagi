@@ -990,6 +990,35 @@ def _t080_join_shared_bases():
 # fixture setup では遅い: まだ consumer が割り当てられていない worker も
 # collection barrier より前に参加させ、先に終わる worker に削除させない。
 _T080_SHARED_BASES = _t080_join_shared_bases()
+_T080_VISIBLE_OUTPUT_WAIT_S = 180
+
+
+def _t080_copy_visible_output(destination: Path) -> None:
+    """Copy the configure_node snapshot for this session when it exists.
+
+    The snapshot represents one point at configure_node: changes to output/
+    during the session do not reach the fixture. Enumeration, exclusions, and
+    completeness checks still use the real functions against the real repo.
+    """
+    run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID")
+    if run_id:
+        identity = hashlib.sha256(
+            json.dumps([str(ROOT), run_id]).encode("utf-8")
+        ).hexdigest()
+        directory = Path(tempfile.gettempdir()) / f"izanagi-t080-visible-output-{identity}"
+        if directory.exists():
+            result_path = directory / "result.json"
+            deadline = time.monotonic() + _T080_VISIBLE_OUTPUT_WAIT_S
+            while not result_path.exists():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"T080 visible output snapshot timed out: {directory}")
+                time.sleep(0.05)
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            if not result["ok"]:
+                raise RuntimeError(f"T080 visible output snapshot failed: {result['error']}")
+            shutil.copytree(directory / "output", destination)
+            return
+    _copy_git_visible_output(ROOT, destination)
 
 
 def _t080_stub_free_e2e_repo(
@@ -1085,18 +1114,96 @@ def test_t080_shared_base_builds_real_builder_once_across_processes(
         with mock.patch.object(
                 sys.modules[__name__], "_build_t080_stub_free_e2e_repo",
                 wraps=_build_t080_stub_free_e2e_repo,
-                ) as builder:
+                ) as builder, mock.patch.object(
+                sys.modules[__name__], "_t080_copy_visible_output",
+                wraps=_t080_copy_visible_output,
+                ) as visible_output:
             root, _receipt, _document = repo(destination, issue_receipt=False)
             assert (root / "orchestrator/campaign/s8b_oracle_driver.py").is_file()
             base, _ = _bases.get(("AI-Agent: none", False, False, False))
             for repository in (base, root):
                 for git_root in (repository, repository / migration.CCBENCH_REL):
                     assert _run_git(git_root, "config", "--int", "--get", "gc.auto") == "0"
+            assert visible_output.call_count == builder.call_count
             return builder.call_count
 
     first = _t080_cache_fork_call(lambda: call(tmp_path / "first"))
     second = _t080_cache_fork_call(lambda: call(tmp_path / "second"))
     assert (first, second) == (1, 0)
+
+
+def test_t080_visible_output_snapshot_starts_once_and_preserves_copy(tmp_path, monkeypatch):
+    module = importlib.import_module("orchestrator.tests.test_s8b_oracle_driver")
+    repo = tmp_path / "repo"
+    suite = repo / "orchestrator" / "tests"
+    suite.mkdir(parents=True)
+    shutil.copy2(ROOT / "orchestrator/tests/conftest.py", suite / "conftest.py")
+    output = repo / "output"
+    output.mkdir()
+    _run_git(repo, "init", "-q")
+    (repo / ".gitignore").write_text("output/ignored.txt\n", encoding="utf-8")
+    tracked = output / "tracked.txt"
+    tracked.write_bytes(b"before tracked\n")
+    (output / "untracked.txt").write_bytes(b"untracked\n")
+    (output / "ignored.txt").write_bytes(b"ignored\n")
+    receipt = repo / migration.RECEIPT_REL
+    receipt.parent.mkdir(parents=True)
+    receipt.write_bytes(b"excluded receipt\n")
+    _run_git(repo, "add", ".gitignore", "output/tracked.txt", migration.RECEIPT_REL)
+    tracked.write_bytes(b"modified tracked\n")
+    for path in (tracked, output / "untracked.txt"):
+        os.utime(path, ns=(1_600_000_000_000_000_000, 1_600_000_000_000_000_000))
+
+    spec = importlib.util.spec_from_file_location("izanagi_t080_snapshot_conftest", suite / "conftest.py")
+    assert spec and spec.loader
+    conftest = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(conftest)
+    config = SimpleNamespace(
+        option=SimpleNamespace(collectonly=False), args=[str(suite)],
+        invocation_params=SimpleNamespace(args=(str(suite),)),
+        _izanagi_acceptance_shard_spec=object(),
+    )
+    setattr(config, conftest._RECEIPT_MEMO_SESSION_ID_ATTR, "receipt-session")
+    setattr(config, conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, "oracle-session")
+    run_id = "t080-snapshot-test"
+    identity = hashlib.sha256(json.dumps([str(repo), run_id]).encode("utf-8")).hexdigest()
+    snapshot = tmp_path / f"izanagi-t080-visible-output-{identity}"
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(module, "ROOT", repo)
+    monkeypatch.setenv("PYTEST_XDIST_TESTRUNUID", run_id)
+    expected = tmp_path / "expected"
+    module._copy_git_visible_output(repo, expected)
+
+    def signature(directory):
+        return {
+            path.relative_to(directory).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in directory.rglob("*") if path.is_file()
+        }
+
+    node = SimpleNamespace(config=config, workerinput={"testrunuid": run_id})
+    with mock.patch.object(conftest, "_start_early_memo_job"), mock.patch.object(
+            module, "_copy_git_visible_output", wraps=module._copy_git_visible_output,
+            ) as copy_visible:
+        try:
+            assert conftest._early_memo_selected(config)
+            conftest.pytest_configure_node(node)
+            conftest.pytest_configure_node(node)
+            deadline = time.monotonic() + 10
+            while not (snapshot / "result.json").exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            assert json.loads((snapshot / "result.json").read_text())["ok"] is True
+            copy_visible.assert_called_once_with(repo, snapshot / "output")
+            first = tmp_path / "first"
+            module._t080_copy_visible_output(first)
+            tracked.write_bytes(b"changed after configure\n")
+            second = tmp_path / "second"
+            module._t080_copy_visible_output(second)
+            assert signature(first) == signature(expected)
+            assert signature(second) == signature(expected)
+            assert set(signature(first)) == {"tracked.txt", "untracked.txt"}
+        finally:
+            conftest._finish_t080_visible_output_snapshot(config)
+    assert not snapshot.exists()
 
 
 @pytest.fixture
@@ -1455,7 +1562,7 @@ def _build_t080_stub_free_e2e_repo(
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
 
-    _copy_git_visible_output(ROOT, root / "output")
+    _t080_copy_visible_output(root / "output")
     if active_v2_base:
         # The selector role is outside orchestrator/ and the T-080 source closure.
         # Capture it once per shared base, before basis/R, not in each emitter copy.

@@ -6450,6 +6450,7 @@ def _early_memo_cache_probe():
         stack.enter_context(mock.patch.object(suite, "_receipt_memo_module", return_value=receipt))
         stack.enter_context(mock.patch.object(suite, "_oracle_environment_memo_module", return_value=oracle))
         stack.enter_context(mock.patch.object(suite, "_real_repo_locks", lambda access: contextlib.nullcontext()))
+        stack.enter_context(mock.patch.object(suite, "_start_t080_visible_output_snapshot"))
         stack.enter_context(mock.patch.dict(os.environ, {
             receipt._RUN_ID_ENV: "early-run",
             receipt._SESSION_NONCE_ENV: "session-test",

@@ -31,6 +31,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import importlib
 import json
 import math
 import os
@@ -38,6 +39,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -2358,6 +2360,7 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 _EARLY_MEMO_JOB_ATTR = "_izanagi_early_memo_job"
+_T080_VISIBLE_OUTPUT_JOB_ATTR = "_izanagi_t080_visible_output_job"
 _EARLY_MEMO_INPUT_KEY = "izanagi_early_memo_paths"
 _EARLY_MEMO_NARROWING_OPTIONS = (
     "keyword", "markexpr", "deselect", "lf", "failedfirst", "stepwise",
@@ -2495,6 +2498,56 @@ def _finish_early_memo_job(config) -> None:
         raise job["error"]
 
 
+def _start_t080_visible_output_snapshot(node) -> None:
+    config = node.config
+    if getattr(config, _T080_VISIBLE_OUTPUT_JOB_ATTR, None) is not None:
+        return
+    run_id = node.workerinput["testrunuid"]
+    repo_root = Path(__file__).resolve().parents[2]
+    identity = hashlib.sha256(
+        json.dumps([str(repo_root), run_id]).encode("utf-8")
+    ).hexdigest()
+    directory = Path(tempfile.gettempdir()) / f"izanagi-t080-visible-output-{identity}"
+    directory.mkdir(exist_ok=False)
+    job = {"thread": None, "error": None, "directory": directory}
+    setattr(config, _T080_VISIBLE_OUTPUT_JOB_ATTR, job)
+
+    def produce():
+        result = {"ok": True}
+        try:
+            module = importlib.import_module("orchestrator.tests.test_s8b_oracle_driver")
+            if module.ROOT != repo_root:
+                raise RuntimeError("T080 visible output ROOT mismatch")
+            module._copy_git_visible_output(module.ROOT, directory / "output")
+        except BaseException as exc:
+            job["error"] = exc
+            result = {"ok": False, "error": repr(exc)}
+        try:
+            pending = directory / "result.json.pending"
+            pending.write_text(json.dumps(result), encoding="utf-8")
+            pending.replace(directory / "result.json")
+        except BaseException as exc:
+            if job["error"] is None:
+                job["error"] = exc
+
+    thread = threading.Thread(target=produce, daemon=False)
+    job["thread"] = thread
+    thread.start()
+
+
+def _finish_t080_visible_output_snapshot(config) -> None:
+    job = getattr(config, _T080_VISIBLE_OUTPUT_JOB_ATTR, None)
+    if job is None:
+        return
+    try:
+        job["thread"].join()
+    finally:
+        if job["directory"].exists():
+            shutil.rmtree(job["directory"])
+    if job["error"] is not None:
+        raise job["error"]
+
+
 def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:
     """Join both non-daemon jobs before returning or propagating either failure."""
     durations = [None, None]
@@ -2612,6 +2665,7 @@ def pytest_configure_node(node) -> None:
         workerinput[_ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR] = oracle_session_id
     if _early_memo_selected(node.config):
         _start_early_memo_job(node)
+        _start_t080_visible_output_snapshot(node)
 
 
 @pytest.hookimpl(optionalhook=True)
@@ -2962,10 +3016,11 @@ def _finish_oracle_environment_memo_session(config) -> None:
 
 
 def _finish_memo_sessions(config, *, suppress_errors: bool) -> None:
-    """Finish receipt and oracle sessions independently, preserving first error."""
+    """Finish background jobs and memo sessions, preserving the first error."""
     first_error: BaseException | None = None
     first_traceback = None
-    for finish in (_finish_early_memo_job, _finish_receipt_memo_session, _finish_oracle_environment_memo_session):
+    for finish in (_finish_early_memo_job, _finish_t080_visible_output_snapshot,
+                   _finish_receipt_memo_session, _finish_oracle_environment_memo_session):
         try:
             finish(config)
         except BaseException as exc:
