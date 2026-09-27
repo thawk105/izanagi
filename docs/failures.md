@@ -28047,6 +28047,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異 harness は固定 HEAD へ bytes を注入するため、この 2 file を変異させると「変異の内容と無関係に」lock を作る test が `contract-loader-drift` で落ちる。
   等価変異 (comment 1 行) の probe で該当 node を実測し (114 node: `test_p3_s4_loop.py` 81 / `test_campaign.py` 33)、変異走行ではこれを `--deselect` して帰属を保った。
   同 file 群を変異させる後続 wave は、同じ手順 (等価変異で drift 集合を実測 → 除外) を取るか、commit 済み状態で走らせる probe に切り替える必要がある。
+
+- **再発: 2026-09-27** — silo-function-policy 軸の段階 F (D2270) は Pegasus で pair job を 1 本だけ実走し、記録 (`output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md` §7) に「2 iteration 目以降は runbook §1(g) の手順がそのまま使える」と書いた。次の wave で同じ loop campaign の 2 本目の pair job (`31899.nqsv`) を投入すると、build 前に `ClaimError: campaign claim は既に 3235201 が所有している` で止まった。Pegasus 契約の campaign claim は identity ごとに一度きりで、同じ job 内の候補→stock は D2205 の認可 session で解いたが、job をまたぐ 2 本目は通らない (D2187 と同型の、one-shot claim と複数 process 設計の不整合)。反復手順を 2 本目まで実走で確かめないまま「使える」と記録した。恒久対応: runbook `docs/phase3-silo-policy-runbook.md` §3 に「Pegasus では 1 loop campaign あたり pair job 1 本まで、claim を手で退避して続けない」を書き、修復は [T-2871] (実 `_authorize_measurement`・実 `acquire_claim` を 2 process で通す結合検査を含める)。一次資料 `output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4、判断は D2274。
 ### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
 
 - 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と

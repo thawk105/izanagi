@@ -73242,3 +73242,26 @@ D2186 以降の「送信は人間手番 (継続)」はこれで終わる。返�
 **却下した選択肢:**
 - 本比較の発効前だから修正を自由に入れる — 追補 3 §5 が固定 commit を本比較の固定値にしており、未発効は変更の自由を意味しない。
 - K2 / B-5 の 15 / 15 一致を根拠に「原因は K0 prompt の明示不足だけ」と書く — 構成・入力・prompt が違い、帰属の根拠にならない。
+
+## D2274. silo-function-policy 軸の骨格の乱数 seed をスレッドごとに直して新系列 B で回し、job をまたぐ 2 本目の pair が one-shot claim で止まったので claim を退避せず系列を止める (2026-09-27)
+
+**決定:** D2270 (段階 F) の続きとして次のとおりにした。記録は `output/insights/2026-09-27/t2865-silo-policy-iter2/README.md`。
+
+1. **骨格の乱数 seed を直す。** 骨格 patch `patches/silo-function-policy-variant.patch` の方策用乱数 (`izanagi_silo_skel::random_state`) は全スレッドで同じ初期値だった。`TxExecutor::begin()` の既存の `SILO_POLICY_VARIANT` 分岐で、初回だけ worker の `thid_` から splitmix64 で混合した値 (`| 1` で非 0) を seed し、以後は再 seed しない。hole・API header・hook 呼出し点・待機上限・patch の touch set・`SILO_POLICY_VARIANT` の外 (stock 側) は変えない。保証の範囲は現行 worker (1 thread に 1 executor) の寿命。骨格の上に重ねる計器 patch は hunk 位置と文脈 1 行だけ追随させた。
+2. **骨格を変えたら新しい submit checkout で新系列として回す。** campaign identity は骨格 patch の bytes を含まないので、条件の区別は checkout の絶対 path・HEAD・骨格 patch の SHA-256・campaign dir の記録で行い、identity に digest を足さない。新系列の初回 baseline はその checkout で stock を測り直す (runbook §1(0))。旧系列 A (段階 F) は walltime 予算で閉じており、A と B の値を合算しない。
+3. **critic の入力は、同じ系列の digest 本文・当該 iteration の候補実装 (justification を除く)・同じ pair job の stock の値だけ**をメインセッションが抜き出して貼る。digest には候補の実装も同じ job の stock も載らないため、digest だけでは設計選択への帰属が書けない。critic は Read・Bash を持つので閲覧を機械的に防いだとは言わず、入力を逐語で記録する。出力は 4 つの H2 見出しだけにさせる。
+4. **Pegasus 契約では 1 つの loop campaign を測れる pair job は 1 本だけとして扱い、2 本目が `ClaimError` で止まっても claim を手で退避して続けない。** 系列 B は評価済み 1 iteration (iteration 2) と、critic 診断を受けた未評価の iteration 3 proposal で確定する。修復は driver 設計の別 task ([T-2871]) で、claim leaf と one-shot 性は変えない。
+
+**理由:**
+- 骨格の乱数がスレッド間でそろうと、`ctx.rand` で待ちを散らす方策の効果が弱まり、系列の性能値と critic の診断が骨格側の相関で歪む。旧系列はどのみち予算で閉じていたので、直す追加費用は Codex author 1 本と検査だけだった。修正前後で stock の variant ID が同じ (`db4764543546`) ことで stock build の同一性を直接確かめた。
+- `begin()` の初回 seed は patch が既に触る 2 file に収まる。構築子で seed すると header が touch set に加わり、thread_local の address や thread id の hash は実行ごとに系列が変わる (段 2 plan、段 3 相談 A・B)。
+- job をまたぐ claim: D464 の生存判定は同じ protocol の別 path だけを扱い、同じ identity path の既存 file は持ち主の生死を見ずに `O_EXCL` で拒否する。D2205 の認可 session は 1 process の中だけで、次の job へ持ち越さない。codex の 2 レンズ相談で、決定側は止める、攻撃側は「手で退避する案は明文の禁止とまでは言えないが、2 本目以降の常用手順にすると D2187・D2205 が守った one-shot の拒否を運用で繰り返し解除し、未修復の driver 設計を事実上置き換える」とした。
+- 段階 F は pair を 1 本しか実走しておらず、runbook §1(g) の反復が Pegasus で通るかを確かめていなかった (F1019 の型)。
+
+**却下した選択肢:**
+- 骨格を直さず旧骨格のまま新系列を回す — 系列 B の評価が骨格の相関の影響を受ける。
+- campaign identity に骨格 patch の digest を足す — checkout を分けるだけで条件は分かれ、identity の変更は全 campaign へ波及する一般化になる。
+- 段階 F の bootstrap 値を系列 B の初回 baseline に再使用する — 手順 (runbook §1(0)・D2270 項 3) と食い違う。再測の費用は 309 秒。
+- claim を repo 外へ退避して iteration 3 を再投入する — 上の理由。攻撃側が挙げた「採るなら最低限の条件」(host・boot_id・pid・starttime の照合、元 bytes と SHA-256 の保存、iteration 3 の eval-exception を残す、一般化しない) は insight に記録した。
+- iteration 3 の proposal を R2 (別 campaign) で測る — 同じ job の stock 対照が付かず loop も進まない。
+- `MAX_WALLTIME_S` や loop_state を変えて旧系列 A を続ける — 停止条件は D2256 項 3 の予算で、段階 F の裁定もコードで直さないとした。
