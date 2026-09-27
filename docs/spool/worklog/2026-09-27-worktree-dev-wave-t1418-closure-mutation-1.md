@@ -18,6 +18,8 @@ title: [T-1418] 変異 harness に commit 注入モード (--inject commit) を�
 - 焦点走 (計算ノード): 変更 test file 単独 (M1) 170 passed (実装後) → 173 passed (fix 後)。consumer 10 本 + DW-O26 の inventory 4 群 + `test_ccbench_spawn_sites.py` で 1804 passed・8 skipped (実装後)。
 - 変異 (final、commit 54d472756、harness 直当て): harness 自身の M1〜M9 は 9/9 KILLED で期待と完全一致、probe では 9 件とも狙いの test 以外の赤 0。dogfood (loop.py): commit モードで等価 SURVIVED・値変異 KILLED (owner 1 node)、file-swap で両方 KILLED (drift)。
 - 全史 provenance 監査 (実装 commit 後) は 12970 件で新規違反なし。三軸語走査は rc=1 だが hit は既存の `output/env/pegasus/calibration/` の file (rr80 で 3 件) だけで、本 wave の file は 0 件。
+- 段 8: 候補は「閉包 member の変異は `--inject commit` で drift 層を外す」を dev-wave の変異手順へ 1 文足すこと。main 取り込み後の版で DW-M03 に足すと L1.5 が 9777 > 9696 bytes、DW-M01 に足すと L1 が 10684 > 10625 bytes で、同節の空白削減 (約 19 bytes) でも収まらない。段 8 契約 (予算の変更は実装しない) と D730 に従い docs は変えず、参照点は F424 の supersede と {{D:mutation-commit-injection}} に置いた。
+- 前進 merge: 段 8 の編集を main の現行版へ当てるため、local main `09ffaed18` を merge した (両親の変更 path に重なり無し、自動 merge)。
 - 受入全走は本記録の commit 後に最終 tip で 1 回だけ投入するため、この fragment には結果を書かない。
 - scope 外: T-458・T-626 (D2172 項 10 の「次に同 file を触る wave で相乗り」) は、ユーザー指示「本題の実装だけ」により相乗りしていない。
 - セッションの出来事: 段 5 の unit worktree 作成時に checkout で `.gitattributes` 1 件へのアクセスが「システムコール割り込み」の警告を出したが、作成後の作業木は clean だった。起動器の終端 commit 後、待ち手が `worktree-commit: clean` を出す (commit の後の状態を見ている) ので、起動器 log の `committed <sha>` で commit を確かめた。
