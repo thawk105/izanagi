@@ -1,0 +1,38 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "dogfood-e-loop-comment",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                source_options = {}\n",
+          "new": "                source_options = {}  # mutation T1418-E (equivalent comment)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "dogfood-v-loop-sort-forward",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if sort_oracle_contract_id is not None:\n                    source_options[\"sort_oracle_contract_id\"] = (\n",
+          "new": "                if False:  # mutation T1418-V\n                    source_options[\"sort_oracle_contract_id\"] = (\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
