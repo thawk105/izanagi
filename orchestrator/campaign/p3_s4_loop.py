@@ -90,7 +90,8 @@ from .diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
 from .layout import (CampaignLayout,                       # noqa: E402
-                             exploration_campaign_layout)
+                             campaign_lock_path, exploration_campaign_layout)
+from .lock import HeldCampaignLock, campaign_lock            # noqa: E402
 from .loop import run_campaign                             # noqa: E402
 from .model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
@@ -2435,6 +2436,7 @@ def _run_one_iteration_resolved(
         _b4_launch_context=None, *,
         b5_sidecar_dir=None, capability_resolver=None, b5_mode=False,
         authorization_session=None,
+        _held_campaign_lock: HeldCampaignLock | None = None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。
 
@@ -2561,6 +2563,8 @@ def _run_one_iteration_resolved(
         # working-tree にあり source_digest.resolve が preprocess 後 digest で src_token を
         # 非 stock に上げる。genome の BACKOFF_FIXED と hole literal を coder.value で揃える。
         campaign_options = {}
+        if _held_campaign_lock is not None:
+            campaign_options["held_campaign_lock"] = _held_campaign_lock
         if authorization_session is not None:
             campaign_options["authorization_session"] = authorization_session
         if resolved_site == site_policy.PEGASUS_COMPUTE:
@@ -3098,7 +3102,8 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     _resolved_site: Optional[str] = None,
                     _contract: Optional[
                         env_contract.ExecutionEnvironmentContract
-                    ] = None) -> Dict:
+                    ] = None,
+                    _held_campaign_lock: HeldCampaignLock | None = None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -3135,108 +3140,118 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    _load_provenance(layout)
-    if initial_proposal_sha256 is not None and (
-            type(initial_proposal_sha256) is not str
-            or re.fullmatch(r"[0-9a-f]{64}", initial_proposal_sha256) is None):
-        raise ValueError("initial_proposal_sha256 must be lowercase SHA-256 or None")
-    b4_mode = b4_reflux_ablation_mode(cfg)
-    if b4_mode:
-        from .p3_b4_launcher import require_b4_production_context
-        require_b4_production_context(
-            _b4_launch_context,
-            expected_driver_kind=b4_driver_kind_from_identity(
-                search_tag=cfg.search_tag,
-                trial=cfg.trial,
-                axis=cfg.search_config.get("axis"),
-            ),
-            expected_campaign_id=str(ident.campaign_id(cfg)),
-            expected_arm=cfg.search_config.get("reflux"),
-            boundary="base drive_iteration",
-        )
-        state = load_loop_state(layout)
-        if state is None:
-            state = LoopState(start_wall=time.time())
-        require_b4_bootstrap_history_empty(layout, state)
-        authorization = require_b4_iteration_authorization(
-            cfg,
-            layout,
-            state,
-            do_build=do_build,
-            terminal_receipt_path=b4_closed_critic_receipt,
-        )
-        assert authorization is not None
-        if prior_critic_reverse is not None:
-            raise B4ProtocolError(
-                "B-4 driver rejects self-reported prior_critic_reverse"
-            )
-        if authorization.terminal_receipt_sha256 != b4_proposal_receipt_sha256:
-            raise B4ProtocolError(
-                "B-4 proposal is not bound to the verified terminal receipt"
-            )
-        if authorization.receipt is not None:
-            prior_critic_reverse = (
-                authorization.receipt.decision_reverse_recommended
-            )
-        consume_b4_iteration_authorization(authorization)
+    lock_path = campaign_lock_path(layout, DECLARED_USE_CLASS)
+    if _held_campaign_lock is None:
+        lock_cm = campaign_lock(lock_path, blocking=False)
     else:
-        if (
-            b4_closed_critic_receipt is not None
-            or b4_proposal_receipt_sha256 is not None
-        ):
-            raise B4ProtocolError("B-4 receipt inputs require the exact protocol marker")
-        state = None
-    layout.ensure()
-    if b5_sidecar_dir is not None:
-        genome = backoff_genome(cfg.search_config.get("protocol", "silo"), int(coder.value))
-        _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
-                          _b5_sidecar_payload(cfg, genome, layout))
-    ident.ensure_resumable_attempts(
-        cfg, layout, admission_policy=build_context.policy,
-    )
-    if state is None:
-        state = load_loop_state(layout)
+        if (type(_held_campaign_lock) is not HeldCampaignLock
+                or _held_campaign_lock.path != lock_path):
+            raise ValueError("driver campaign lock path does not match")
+        lock_cm = contextlib.nullcontext(_held_campaign_lock)
+    with lock_cm as held_campaign_lock:
+        _load_provenance(layout)
+        if initial_proposal_sha256 is not None and (
+                type(initial_proposal_sha256) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", initial_proposal_sha256) is None):
+            raise ValueError("initial_proposal_sha256 must be lowercase SHA-256 or None")
+        b4_mode = b4_reflux_ablation_mode(cfg)
+        if b4_mode:
+            from .p3_b4_launcher import require_b4_production_context
+            require_b4_production_context(
+                _b4_launch_context,
+                expected_driver_kind=b4_driver_kind_from_identity(
+                    search_tag=cfg.search_tag,
+                    trial=cfg.trial,
+                    axis=cfg.search_config.get("axis"),
+                ),
+                expected_campaign_id=str(ident.campaign_id(cfg)),
+                expected_arm=cfg.search_config.get("reflux"),
+                boundary="base drive_iteration",
+            )
+            state = load_loop_state(layout)
+            if state is None:
+                state = LoopState(start_wall=time.time())
+            require_b4_bootstrap_history_empty(layout, state)
+            authorization = require_b4_iteration_authorization(
+                cfg,
+                layout,
+                state,
+                do_build=do_build,
+                terminal_receipt_path=b4_closed_critic_receipt,
+            )
+            assert authorization is not None
+            if prior_critic_reverse is not None:
+                raise B4ProtocolError(
+                    "B-4 driver rejects self-reported prior_critic_reverse"
+                )
+            if authorization.terminal_receipt_sha256 != b4_proposal_receipt_sha256:
+                raise B4ProtocolError(
+                    "B-4 proposal is not bound to the verified terminal receipt"
+                )
+            if authorization.receipt is not None:
+                prior_critic_reverse = (
+                    authorization.receipt.decision_reverse_recommended
+                )
+            consume_b4_iteration_authorization(authorization)
+        else:
+            if (
+                b4_closed_critic_receipt is not None
+                or b4_proposal_receipt_sha256 is not None
+            ):
+                raise B4ProtocolError("B-4 receipt inputs require the exact protocol marker")
+            state = None
+        layout.ensure()
+        if b5_sidecar_dir is not None:
+            genome = backoff_genome(cfg.search_config.get("protocol", "silo"), int(coder.value))
+            _write_b5_sidecar(b5_sidecar_dir, "slot-start.json",
+                              _b5_sidecar_payload(cfg, genome, layout))
+        ident.ensure_resumable_attempts(
+            cfg, layout, admission_policy=build_context.policy,
+        )
         if state is None:
-            state = LoopState(start_wall=time.time())
-    _fold_critic_reverse(state, prior_critic_reverse)
+            state = load_loop_state(layout)
+            if state is None:
+                state = LoopState(start_wall=time.time())
+        _fold_critic_reverse(state, prior_critic_reverse)
 
-    pre = check_stop(state)
-    if pre.stop:
+        pre = check_stop(state)
+        if pre.stop:
+            save_loop_state(layout, state)
+            log(f"  入口停止 (iteration 消費せず): {pre.reason}")
+            return {"outcome": "stopped-before", "variant": None,
+                    "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
+
+        if agent_record is not None:
+            _append_live_agent_outputs(layout, cfg, agent_record)
+
+        state.iteration += 1
+        # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
+        # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
+        out = _run_one_iteration_resolved(
+            cfg, perf, planner, coder, state, sub, do_build,
+            layout, contract, resolved_site, log=log, cache_root=cache_root,
+            dependency_prefix=dependency_prefix,
+            fetchcontent_base_dir=fetchcontent_base_dir,
+            masstree_source_dir=masstree_source_dir,
+            mimalloc_source_dir=mimalloc_source_dir,
+            googletest_source_dir=googletest_source_dir,
+            fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
+            build_context=build_context,
+            _b4_launch_context=(_b4_launch_context if b4_mode else None),
+            _held_campaign_lock=held_campaign_lock,
+            **({"authorization_session": authorization_session}
+               if authorization_session is not None else {}),
+            **({"b5_sidecar_dir": b5_sidecar_dir, "b5_mode": b5_mode,
+                "capability_resolver": capability_resolver}
+               if b5_mode or b5_sidecar_dir is not None or capability_resolver is not None else {}),
+        )
+        _append_provenance_entry(layout, state.iteration, {
+            "iteration": state.iteration,
+            "initial_proposal_sha256": initial_proposal_sha256,
+            "outcome": out["outcome"],
+            **_wal_attempt_provenance(layout, out),
+        })
         save_loop_state(layout, state)
-        log(f"  入口停止 (iteration 消費せず): {pre.reason}")
-        return {"outcome": "stopped-before", "variant": None,
-                "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
-
-    if agent_record is not None:
-        _append_live_agent_outputs(layout, cfg, agent_record)
-
-    state.iteration += 1
-    # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
-    # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
-    out = _run_one_iteration_resolved(
-        cfg, perf, planner, coder, state, sub, do_build,
-        layout, contract, resolved_site, log=log, cache_root=cache_root,
-        dependency_prefix=dependency_prefix,
-        fetchcontent_base_dir=fetchcontent_base_dir,
-        masstree_source_dir=masstree_source_dir,
-        mimalloc_source_dir=mimalloc_source_dir,
-        googletest_source_dir=googletest_source_dir,
-        fetchcontent_dependency_receipt=fetchcontent_dependency_receipt,
-        build_context=build_context,
-        _b4_launch_context=(_b4_launch_context if b4_mode else None),
-        **({"authorization_session": authorization_session}
-           if authorization_session is not None else {}),
-        **({"b5_sidecar_dir": b5_sidecar_dir, "b5_mode": b5_mode,
-            "capability_resolver": capability_resolver}
-           if b5_mode or b5_sidecar_dir is not None or capability_resolver is not None else {}),
-    )
-    _append_provenance_entry(layout, state.iteration, {
-        "iteration": state.iteration,
-        "initial_proposal_sha256": initial_proposal_sha256,
-        "outcome": out["outcome"],
-        **_wal_attempt_provenance(layout, out),
-    })
-    save_loop_state(layout, state)
 
     if b5_mode and out["outcome"] in {"duplicate-skip", "rejected-preprocess", "rejected-tier0"}:
         post = check_stop(state)
@@ -3860,91 +3875,100 @@ def main(
         session_cm = loop.authorization_session() if pair_mode else contextlib.nullcontext()
         with session_cm as session:
             try:
-                proposal_receipt_sha256 = None
+                candidate_lock_cm = contextlib.nullcontext(None)
                 if a.b4_reflux_ablation:
                     preflight_layout = exploration_campaign_layout(
                         str(ident.campaign_id(cfg))
                     )
-                    preflight_state = load_loop_state(preflight_layout)
-                    if preflight_state is None:
-                        preflight_state = LoopState(start_wall=time.time())
-                    preflight_authorization = require_b4_iteration_authorization(
-                        cfg,
-                        preflight_layout,
-                        preflight_state,
-                        do_build=not a.no_build,
-                        terminal_receipt_path=a.b4_closed_critic_receipt,
+                    candidate_lock_cm = campaign_lock(
+                        campaign_lock_path(preflight_layout, DECLARED_USE_CLASS),
+                        blocking=False,
                     )
-                    assert preflight_authorization is not None
-                    proposal_receipt_sha256 = (
-                        preflight_authorization.terminal_receipt_sha256
-                    )
-                agent_record = None
-                if a.agent_inputs is not None:
-                    input_bytes = a.agent_inputs.read_bytes()
-                    inputs = _agent_json(input_bytes)
-                    if set(inputs) != {"planner", "coder"} or any(
-                            not isinstance(value, dict) for value in inputs.values()):
-                        raise ValueError("--agent-inputs requires exact planner/coder input objects")
-                    agent_record = {
-                        "proposal_path": a.run_iteration,
-                        "input_path": a.agent_inputs, "input_bytes": input_bytes,
-                        "planner_input": inputs["planner"], "coder_input": inputs["coder"],
-                    }
-                    if a.agent_prompts is not None:
-                        prompts = _agent_json(a.agent_prompts.read_bytes())
-                        if set(prompts) != {"planner", "coder"} or any(
-                                not isinstance(value, str) for value in prompts.values()):
-                            raise ValueError("--agent-prompts requires exact planner/coder paths")
-                        agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
-                proposal_capture = agent_record if agent_record is not None else {}
-                try:
-                    planner, coder, prior_rev = load_proposal_file(
-                        a.run_iteration,
-                        b4_reflux_ablation=a.b4_reflux_ablation,
-                        b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
-                        b4_prerun_publication=a.b4_prerun_publication,
-                        b4_attempt_id=a.b4_attempt_id,
-                        knowledge_input=(
-                            knowledge_input if a.coder_role is not None else None
-                        ),
-                        coder_role=a.coder_role,
-                        capture=proposal_capture,
-                    )
-                except (ValueError, KeyError, TypeError) as exc:
-                    if a.b5_slot is None:
-                        raise
-                    _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
-                    return 3
-                try:
-                    initial_proposal_sha256 = canonical_b4_proposal_sha256(
-                        proposal_capture["proposal_document"]
-                    )
-                except B4ProtocolError:
-                    # canonical 化できない proposal は hash=null。
-                    initial_proposal_sha256 = None
-                print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
-                      f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
-                      f"isolate_worktree={a.isolate_worktree}) ===")
-                wt_cm = (patchharness.checkout(campaign_pin_for_protocol(a.protocol), base_dir=fixed_sub)
-                         if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
-                with wt_cm as sub:
-                    out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
-                                          do_build=not a.no_build, cache_root=cache_root,
-                                          build_context=build_context,
-                                          b4_closed_critic_receipt=(
-                                              a.b4_closed_critic_receipt
-                                          ),
-                                          b4_proposal_receipt_sha256=(
-                                              proposal_receipt_sha256
-                                          ),
-                                          initial_proposal_sha256=initial_proposal_sha256,
-                                          _b4_launch_context=_b4_launch_context,
-                                          _resolved_site=resolved_site,
-                                          _contract=contract,
-                                          **({"agent_record": agent_record} if agent_record is not None else {}),
-                                          **({"authorization_session": session} if session is not None else {}),
-                                          **b5_options, **fetchcontent_options)
+                with candidate_lock_cm as held_campaign_lock:
+                    proposal_receipt_sha256 = None
+                    if a.b4_reflux_ablation:
+                        preflight_state = load_loop_state(preflight_layout)
+                        if preflight_state is None:
+                            preflight_state = LoopState(start_wall=time.time())
+                        preflight_authorization = require_b4_iteration_authorization(
+                            cfg,
+                            preflight_layout,
+                            preflight_state,
+                            do_build=not a.no_build,
+                            terminal_receipt_path=a.b4_closed_critic_receipt,
+                        )
+                        assert preflight_authorization is not None
+                        proposal_receipt_sha256 = (
+                            preflight_authorization.terminal_receipt_sha256
+                        )
+                    agent_record = None
+                    if a.agent_inputs is not None:
+                        input_bytes = a.agent_inputs.read_bytes()
+                        inputs = _agent_json(input_bytes)
+                        if set(inputs) != {"planner", "coder"} or any(
+                                not isinstance(value, dict) for value in inputs.values()):
+                            raise ValueError("--agent-inputs requires exact planner/coder input objects")
+                        agent_record = {
+                            "proposal_path": a.run_iteration,
+                            "input_path": a.agent_inputs, "input_bytes": input_bytes,
+                            "planner_input": inputs["planner"], "coder_input": inputs["coder"],
+                        }
+                        if a.agent_prompts is not None:
+                            prompts = _agent_json(a.agent_prompts.read_bytes())
+                            if set(prompts) != {"planner", "coder"} or any(
+                                    not isinstance(value, str) for value in prompts.values()):
+                                raise ValueError("--agent-prompts requires exact planner/coder paths")
+                            agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
+                    proposal_capture = agent_record if agent_record is not None else {}
+                    try:
+                        planner, coder, prior_rev = load_proposal_file(
+                            a.run_iteration,
+                            b4_reflux_ablation=a.b4_reflux_ablation,
+                            b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+                            b4_prerun_publication=a.b4_prerun_publication,
+                            b4_attempt_id=a.b4_attempt_id,
+                            knowledge_input=(
+                                knowledge_input if a.coder_role is not None else None
+                            ),
+                            coder_role=a.coder_role,
+                            capture=proposal_capture,
+                        )
+                    except (ValueError, KeyError, TypeError) as exc:
+                        if a.b5_slot is None:
+                            raise
+                        _b5_proposal_rejected(a.b5_sidecar_dir, a.b5_slot, exc)
+                        return 3
+                    try:
+                        initial_proposal_sha256 = canonical_b4_proposal_sha256(
+                            proposal_capture["proposal_document"]
+                        )
+                    except B4ProtocolError:
+                        # canonical 化できない proposal は hash=null。
+                        initial_proposal_sha256 = None
+                    print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
+                          f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
+                          f"isolate_worktree={a.isolate_worktree}) ===")
+                    wt_cm = (patchharness.checkout(campaign_pin_for_protocol(a.protocol), base_dir=fixed_sub)
+                             if a.isolate_worktree else contextlib.nullcontext(fixed_sub))
+                    with wt_cm as sub:
+                        out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
+                                              do_build=not a.no_build, cache_root=cache_root,
+                                              build_context=build_context,
+                                              b4_closed_critic_receipt=(
+                                                  a.b4_closed_critic_receipt
+                                              ),
+                                              b4_proposal_receipt_sha256=(
+                                                  proposal_receipt_sha256
+                                              ),
+                                              initial_proposal_sha256=initial_proposal_sha256,
+                                              _b4_launch_context=_b4_launch_context,
+                                              _resolved_site=resolved_site,
+                                              _contract=contract,
+                                              **({"_held_campaign_lock": held_campaign_lock}
+                                                 if held_campaign_lock is not None else {}),
+                                              **({"agent_record": agent_record} if agent_record is not None else {}),
+                                              **({"authorization_session": session} if session is not None else {}),
+                                              **b5_options, **fetchcontent_options)
                 if a.b5_slot is not None and out["outcome"] in {"rejected-preprocess", "rejected-tier0"}:
                     return 3
                 layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))

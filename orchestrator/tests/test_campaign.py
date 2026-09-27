@@ -3145,6 +3145,87 @@ def test_campaign_lock_released_can_be_reacquired():
         pass
 
 
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_accepts_matching_held_lock_without_reentry(tmp_path):
+    from orchestrator.campaign import loop as L
+
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="held-lock", ccbench_commit="deadbeef")
+    out_root = str(tmp_path / "output")
+    layout = exploration_campaign_layout(
+        str(ident.campaign_id(_bound(cfg))), out_root,
+    )
+    path = campaign_lock_path(layout, "exploration", out_root)
+    options = dict(
+        numactl=list(_AUTH_CONTRACT.numactl),
+        authorization_contract=_AUTHORIZATION,
+        do_bench=False, output_root=out_root, log=lambda *_args: None,
+        build_context=_BUILD_CONTEXT, declared_use_class="exploration",
+    )
+    def run(**extra):
+        return L.run_campaign(
+            cfg, [], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            **options, **extra,
+        )
+
+    with campaign_flock(path) as held:
+        assert held.path == path and held.pid == os.getpid() and held.held
+        assert run(held_campaign_lock=held).layout_root == layout.root
+        with pytest.raises(CampaignBusy):
+            run()
+    assert not held.held
+    with campaign_flock(path):
+        pass
+    assert run().layout_root == layout.root
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_run_campaign_rejects_invalid_held_lock_before_wal(tmp_path, monkeypatch):
+    from orchestrator.campaign import loop as L
+
+    cfg = CampaignConfig(spec_slug="t", search_tag="enum",
+                         spec_content="invalid-held-lock", ccbench_commit="deadbeef")
+    out_root = str(tmp_path / "output")
+    layout = exploration_campaign_layout(
+        str(ident.campaign_id(_bound(cfg))), out_root,
+    )
+    path = campaign_lock_path(layout, "exploration", out_root)
+    other = campaign_lock_path(CampaignLayout(str(tmp_path / "other")),
+                               "exploration", out_root)
+    calls = []
+    real_repair = L.ident.ensure_resumable_wal
+    def observed_repair(*args, **kwargs):
+        calls.append(True)
+        return real_repair(*args, **kwargs)
+    monkeypatch.setattr(L.ident, "ensure_resumable_wal", observed_repair)
+    def run(held):
+        return L.run_campaign(
+            cfg, [], PerfConfig(records=1, threads=1),
+            _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+            numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTHORIZATION,
+            do_bench=False, output_root=out_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT, declared_use_class="exploration",
+            held_campaign_lock=held,
+        )
+    with campaign_flock(other) as wrong:
+        with pytest.raises(ValueError):
+            run(wrong)
+    with campaign_flock(path) as released:
+        pass
+    with pytest.raises(ValueError):
+        run(released)
+    with campaign_flock(path) as foreign_pid:
+        foreign_pid.pid = os.getpid() + 1
+        with pytest.raises(ValueError):
+            run(foreign_pid)
+    with pytest.raises(TypeError):
+        run(object())
+    assert calls == []
+    assert not os.path.exists(layout.wal_file)
+
+
 def test_campaign_lock_path_is_outside_campaign_root():
     layout = _layout()
     output_root = _tmpdir("izanagi_campaign_lock_outside_output_")
@@ -6244,7 +6325,9 @@ def _write_materialized_trigger_source(
     from orchestrator.campaign.diff_quarantine import parse_template_file
 
     base_text = (
-        axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
+        axis_trigger_gating.FROZEN_TEMPLATE_ABORT_HEAD_BYTES
+        + axis_trigger_gating.FROZEN_TEMPLATE_PROLOGUE_BYTES
+        + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
         + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES
     ).decode("utf-8")
     with open(source_path, "w", encoding="utf-8") as stream:
