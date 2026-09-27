@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from skiputil import Skip, skip
 from orchestrator.campaign import axis_silo_function_policy as axis
 from orchestrator.campaign import diff_quarantine, source_digest
+from orchestrator.campaign.silo_policy_compile import find_compiler
 from orchestrator.campaign.model import Genome
 
 PATCH = ROOT / "patches" / axis.TEMPLATE_PATCH
@@ -90,6 +91,54 @@ def test_patch_touch_set_marker_and_empty_stock():
         options = (checkout / "cmake/Options.cmake").read_text()
         assert 'set(CCBENCH_SILO_POLICY_VARIANT 0 CACHE STRING "izanagi: 0=stock, 1=function policy (EVOLVE-BLOCK, silo only)")' in options
         assert "    SILO_POLICY_VARIANT=${CCBENCH_SILO_POLICY_VARIANT}\n" in options
+
+
+def test_worker_seed_uses_thid_once_and_keeps_random_sequence():
+    with _applied_template() as (checkout, _):
+        source = (checkout / axis.SOURCE_REL).read_text()
+        tls = source.split("namespace izanagi_silo_skel {\n", 1)[1].split(
+            "void wait_us(uint32_t delay) noexcept {", 1)[0]
+        tls = tls[tls.index("thread_local uint64_t random_state"):]
+        assert "thread_local bool random_seeded" in tls
+        assert "void seed_random(uint64_t thid) noexcept" in tls
+        assert "uint64_t next_random() noexcept" in tls
+
+        begin = source.split("void TxExecutor::begin() {", 1)[1].split(
+            "void TxExecutor::", 1)[0]
+        branch = begin.split("#if SILO_POLICY_VARIANT\n", 1)[1].split("#endif", 1)[0]
+        call = "::izanagi_silo_skel::seed_random(thid_);"
+        assert branch.count(call) == 1, "begin must seed from its worker thid_"
+        begin_seed = branch.split("::izanagi_silo_skel::reason =", 1)[0]
+        assert call in begin_seed
+
+        compiler = find_compiler()
+        if compiler is None:
+            skip("C++ toolchain unavailable (g++-13/g++-12/g++); seed behavior unverified")
+        unit = (
+            "#include <cstdint>\n"
+            "namespace izanagi_silo_skel {\n" + tls + "}\n"
+            "int main() {\n"
+            "  using namespace izanagi_silo_skel;\n"
+            "  auto begin_seed = [](uint64_t thid_) {\n" + begin_seed + "  };\n"
+            "  begin_seed(0); auto zero = next_random();\n"
+            "  random_seeded = false; begin_seed(1); auto one = next_random();\n"
+            "  if (zero == one) return 1;\n"
+            "  random_seeded = false; begin_seed(0);\n"
+            "  if (next_random() != zero) return 2;\n"
+            "  begin_seed(0); auto continued = next_random();\n"
+            "  if (continued == zero) return 3;\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        with tempfile.TemporaryDirectory(prefix="silo-policy-seed-") as tmp:
+            path = Path(tmp) / "seed.cc"
+            binary = Path(tmp) / "seed"
+            path.write_text(unit)
+            subprocess.run([compiler, "-std=c++17", str(path), "-o", str(binary)],
+                           check=True, capture_output=True, text=True)
+            result = subprocess.run([str(binary)], capture_output=True, text=True)
+            failures = {1: "different thid", 2: "same thid", 3: "continued sequence"}
+            assert result.returncode == 0, failures.get(result.returncode, result)
 
 
 def test_flag_errors_require_closed_values_and_explicit_prerequisites():
