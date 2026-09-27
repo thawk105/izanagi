@@ -30,7 +30,7 @@ from typing import Mapping, Sequence
 
 from orchestrator.calibrator import runner as calibrator
 from orchestrator.campaign import pipeline
-from orchestrator.verifier.core import verify_trace_dir
+from orchestrator.verifier.core import result_to_dict_v3, verify_trace_dir
 from orchestrator.verifier.report import result_to_dict
 
 
@@ -504,7 +504,11 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
             result["reason"] = "reverification-not-admitted"
             result["end_utc"] = _utc()
             return result
-    if cell.workload == "tpcc":
+    if cell.workload == "tpcc" and (cell.stage != "s1" or any(
+        cell.flags.get(key) != value for key, value in (
+            ("tpcc_perc_payment", "43"), ("tpcc_perc_order_status", "0"),
+            ("tpcc_perc_delivery", "0"), ("tpcc_perc_stock_level", "0"))
+    )):
         result["reason"] = "認定経路なし"
         result["end_utc"] = _utc()
         return result
@@ -525,11 +529,15 @@ def verify_candidate(spec: Mapping, *, trace_runner=pipeline._run_trace,
                 vr = verifier(trace_dir, expected_commits=tr.commit_count_witness,
                               protocol=protocol, ccbench_root=result["trace_ccbench_root"])
                 anomalies = max(len(vr.anomalies), vr.total_cycles)
+                unsupported_v2 = (cell.workload == "tpcc" and
+                                  vr.integrity.existence_violation_details is None)
                 result.update(status=verification_status(
                     completed=True, serializable=vr.serializable,
                     anomalies=anomalies, witness_ok=witness_ok,
-                    certified=vr.certified), anomalies=anomalies,
-                    verifier=result_to_dict(vr), reason=vr.verdict)
+                    certified=False if unsupported_v2 else vr.certified),
+                    anomalies=anomalies,
+                    verifier=result_to_dict_v3(vr) if cell.workload == "tpcc" else result_to_dict(vr),
+                    reason="trace-witness-unsupported-workload" if unsupported_v2 else vr.verdict)
     except Exception as exc:
         result["reason"] = type(exc).__name__ + ": " + str(exc).splitlines()[0]
     result["end_utc"] = _utc()

@@ -1,0 +1,703 @@
+{
+  "attempt": 1,
+  "blocks": [
+    {
+      "block": 1,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192460.0,
+          "transaction_counts": null,
+          "walltime": 3.4475894749630243
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270616.0,
+          "transaction_counts": null,
+          "walltime": 3.4664009159896523
+        }
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 195121.0,
+          "transaction_counts": null,
+          "walltime": 3.4278869600966573
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271669.0,
+          "transaction_counts": null,
+          "walltime": 3.4614260972011834
+        }
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 191476.0,
+          "transaction_counts": null,
+          "walltime": 3.443158556940034
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271709.0,
+          "transaction_counts": null,
+          "walltime": 3.4663336370140314
+        }
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193585.0,
+          "transaction_counts": null,
+          "walltime": 3.4203333330806345
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271396.0,
+          "transaction_counts": null,
+          "walltime": 3.4561623111367226
+        }
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 194406.0,
+          "transaction_counts": null,
+          "walltime": 3.441254493081942
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270841.0,
+          "transaction_counts": null,
+          "walltime": 3.461645872797817
+        }
+      }
+    },
+    {
+      "block": 6,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192464.0,
+          "transaction_counts": null,
+          "walltime": 3.427495839074254
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271150.0,
+          "transaction_counts": null,
+          "walltime": 3.4676951691508293
+        }
+      }
+    },
+    {
+      "block": 7,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192935.0,
+          "transaction_counts": null,
+          "walltime": 3.4409938319586217
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270757.0,
+          "transaction_counts": null,
+          "walltime": 3.4608400750439614
+        }
+      }
+    },
+    {
+      "block": 8,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190332.0,
+          "transaction_counts": null,
+          "walltime": 3.4338442569132894
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 269073.0,
+          "transaction_counts": null,
+          "walltime": 3.46335231885314
+        }
+      }
+    },
+    {
+      "block": 9,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193822.0,
+          "transaction_counts": null,
+          "walltime": 3.424113909015432
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270063.0,
+          "transaction_counts": null,
+          "walltime": 3.462435414083302
+        }
+      }
+    },
+    {
+      "block": 10,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190264.0,
+          "transaction_counts": null,
+          "walltime": 3.416983140865341
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271762.0,
+          "transaction_counts": null,
+          "walltime": 3.460935164010152
+        }
+      }
+    },
+    {
+      "block": 11,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193889.0,
+          "transaction_counts": null,
+          "walltime": 3.4217758160084486
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271758.0,
+          "transaction_counts": null,
+          "walltime": 3.461925882147625
+        }
+      }
+    },
+    {
+      "block": 12,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193181.0,
+          "transaction_counts": null,
+          "walltime": 3.4356192708946764
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271467.0,
+          "transaction_counts": null,
+          "walltime": 3.4675773540511727
+        }
+      }
+    },
+    {
+      "block": 13,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 195224.0,
+          "transaction_counts": null,
+          "walltime": 3.4342113728635013
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271813.0,
+          "transaction_counts": null,
+          "walltime": 3.4666399438865483
+        }
+      }
+    },
+    {
+      "block": 14,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193522.0,
+          "transaction_counts": null,
+          "walltime": 3.4373492191080004
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270920.0,
+          "transaction_counts": null,
+          "walltime": 3.459681887878105
+        }
+      }
+    },
+    {
+      "block": 15,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 194910.0,
+          "transaction_counts": null,
+          "walltime": 3.439034024020657
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270384.0,
+          "transaction_counts": null,
+          "walltime": 3.466874932870269
+        }
+      }
+    },
+    {
+      "block": 16,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 191294.0,
+          "transaction_counts": null,
+          "walltime": 3.436601591994986
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271019.0,
+          "transaction_counts": null,
+          "walltime": 3.4439682089723647
+        }
+      }
+    },
+    {
+      "block": 17,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 187347.0,
+          "transaction_counts": null,
+          "walltime": 3.425951734185219
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271960.0,
+          "transaction_counts": null,
+          "walltime": 3.4698633579537272
+        }
+      }
+    },
+    {
+      "block": 18,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 191885.0,
+          "transaction_counts": null,
+          "walltime": 3.43248743400909
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270212.0,
+          "transaction_counts": null,
+          "walltime": 3.4651763369329274
+        }
+      }
+    },
+    {
+      "block": 19,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190275.0,
+          "transaction_counts": null,
+          "walltime": 3.420674189925194
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270364.0,
+          "transaction_counts": null,
+          "walltime": 3.4628493981435895
+        }
+      }
+    },
+    {
+      "block": 20,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190222.0,
+          "transaction_counts": null,
+          "walltime": 3.4311066418886185
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270775.0,
+          "transaction_counts": null,
+          "walltime": 3.470122906845063
+        }
+      }
+    },
+    {
+      "block": 21,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 196282.0,
+          "transaction_counts": null,
+          "walltime": 3.4212227119132876
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270052.0,
+          "transaction_counts": null,
+          "walltime": 3.4636762279551476
+        }
+      }
+    },
+    {
+      "block": 22,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190735.0,
+          "transaction_counts": null,
+          "walltime": 3.4414915170054883
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270317.0,
+          "transaction_counts": null,
+          "walltime": 3.464435355970636
+        }
+      }
+    },
+    {
+      "block": 23,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192875.0,
+          "transaction_counts": null,
+          "walltime": 3.44754255306907
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270850.0,
+          "transaction_counts": null,
+          "walltime": 3.460914061870426
+        }
+      }
+    },
+    {
+      "block": 24,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192081.0,
+          "transaction_counts": null,
+          "walltime": 3.4280933090485632
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271201.0,
+          "transaction_counts": null,
+          "walltime": 3.4573314778972417
+        }
+      }
+    },
+    {
+      "block": 25,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 193466.0,
+          "transaction_counts": null,
+          "walltime": 3.4274158731568605
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271340.0,
+          "transaction_counts": null,
+          "walltime": 3.4657289241440594
+        }
+      }
+    },
+    {
+      "block": 26,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 190319.0,
+          "transaction_counts": null,
+          "walltime": 3.425474948948249
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 272033.0,
+          "transaction_counts": null,
+          "walltime": 3.459366478957236
+        }
+      }
+    },
+    {
+      "block": 27,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 195115.0,
+          "transaction_counts": null,
+          "walltime": 3.418435740051791
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270512.0,
+          "transaction_counts": null,
+          "walltime": 3.4646608671173453
+        }
+      }
+    },
+    {
+      "block": 28,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192831.0,
+          "transaction_counts": null,
+          "walltime": 3.4422994540072978
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270266.0,
+          "transaction_counts": null,
+          "walltime": 3.4567999460268766
+        }
+      }
+    },
+    {
+      "block": 29,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 195178.0,
+          "transaction_counts": null,
+          "walltime": 3.4310708038974553
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 270466.0,
+          "transaction_counts": null,
+          "walltime": 3.453608461888507
+        }
+      }
+    },
+    {
+      "block": 30,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192150.0,
+          "transaction_counts": null,
+          "walltime": 3.429106165189296
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271865.0,
+          "transaction_counts": null,
+          "walltime": 3.4561304228845984
+        }
+      }
+    },
+    {
+      "block": 31,
+      "order": [
+        "R0",
+        "R1"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 191880.0,
+          "transaction_counts": null,
+          "walltime": 3.436361151980236
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 269564.0,
+          "transaction_counts": null,
+          "walltime": 3.473620736040175
+        }
+      }
+    },
+    {
+      "block": 32,
+      "order": [
+        "R1",
+        "R0"
+      ],
+      "runs": {
+        "R0": {
+          "rc": 0,
+          "tps": 192161.0,
+          "transaction_counts": null,
+          "walltime": 3.4179825810715556
+        },
+        "R1": {
+          "rc": 0,
+          "tps": 271150.0,
+          "transaction_counts": null,
+          "walltime": 3.480047850171104
+        }
+      }
+    }
+  ],
+  "cell": "s1-H-base",
+  "cohort": 1,
+  "completed_blocks": 32,
+  "end_utc": "2026-09-27T12:00:08.073411+00:00",
+  "environment": {
+    "clocks_per_us": 2100,
+    "env_tag": "pegasus",
+    "numactl": []
+  },
+  "freeze_sha256": "0509a4bdf80b23b757703d039c331c229c23883d2484c174114882a22f39d7b0",
+  "hostname": "bnode018",
+  "isolation_end": true,
+  "isolation_start": true,
+  "next_action": "none",
+  "protocol": "silo",
+  "separate_allocation": true,
+  "stage": "s1",
+  "start_utc": "2026-09-27T11:55:55.972424+00:00",
+  "warmup": {
+    "rc": 0,
+    "tps": 194114.0,
+    "transaction_counts": null,
+    "walltime": 3.4333488810807467
+  },
+  "within_retry_limit": true,
+  "workload": "tpcc"
+}

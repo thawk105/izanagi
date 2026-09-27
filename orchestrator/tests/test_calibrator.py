@@ -613,6 +613,40 @@ def test_run_once_without_perf_executes_binary_and_keeps_counters_missing():
     assert counters.cycles is None
 
 
+@pytest.mark.parametrize("api", ["direct", "deferred"])
+def test_measure_point_workload_record_flags_preserve_ycsb_argv(api):
+    from orchestrator.calibrator import runner
+    seen = []
+    original = runner.run_once
+
+    def fake_run_once(binary, flags, **kwargs):
+        seen.append((binary, list(flags)))
+        return ({"throughput[tps]": "1000", "maxrss": "100 kB"},
+                PerfCounters(), 0.5)
+
+    runner.run_once = fake_run_once
+    try:
+        for workload_name, expected in (
+            ("ycsb", ["-thread_num=4", "-ycsb_tuple_num=1000",
+                      "-extime=3", "-clocks_per_us=1800", "-ycsb_rratio=50"]),
+            ("tpcc", ["-thread_num=4", "-tpcc_num_wh=1000",
+                      "-extime=3", "-clocks_per_us=1800", "-ycsb_rratio=50"]),
+        ):
+            kwargs = dict(records=1000, threads=4, clocks_per_us=1800,
+                          reps=1, workload={"ycsb_rratio": "50"},
+                          workload_name=workload_name, use_perf=False)
+            if api == "direct":
+                runner.measure_point("/bench", **kwargs)
+            else:
+                runner.capture_measure_point("/bench", **kwargs).open()
+            assert seen[-1] == ("/bench", expected)
+        with pytest.raises(ValueError, match="unsupported workload_name"):
+            runner.measure_point("/bench", records=1, threads=1,
+                                 clocks_per_us=1800, workload_name="other")
+    finally:
+        runner.run_once = original
+
+
 def test_measure_point_without_perf_records_matching_direct_repro_command():
     from orchestrator.calibrator import runner
     seen = []

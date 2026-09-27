@@ -1,0 +1,65 @@
+{
+  "anomalies": 0,
+  "attempt": 1,
+  "cell": "s1-H-base",
+  "end_utc": "2026-09-27T12:00:21.163467+00:00",
+  "environment": {
+    "clocks_per_us": 2100,
+    "env_tag": "pegasus",
+    "numactl": []
+  },
+  "freeze_sha256": "0509a4bdf80b23b757703d039c331c229c23883d2484c174114882a22f39d7b0",
+  "hostname": "bnode018",
+  "identity": "R1",
+  "protocol": "silo",
+  "reason": "trace-witness-unsupported-workload",
+  "stage": "s1",
+  "start_utc": "2026-09-27T12:00:08.076163+00:00",
+  "status": "indeterminate",
+  "trace_ccbench_root": "/tmp/izanagi_wt_qrhes4zw/wt",
+  "verifier": {
+    "anomalies": [],
+    "anomaly_count": 0,
+    "certified": false,
+    "integrity": {
+      "clean": false,
+      "dup_txids": 0,
+      "framing_violation_details": [],
+      "framing_violations": 0,
+      "genesis_commits": 0,
+      "lock_coverage_violations": 0,
+      "malformed_keys": 0,
+      "missing_txids": 0,
+      "notes": [
+        "commit witness mismatch: expected=500446 observed=500447 delta=1"
+      ],
+      "orphan_reads": 0,
+      "permutation_violation_details": {
+        "counts": {
+          "rcdptr-set-changed": 0,
+          "size-changed": 0,
+          "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+      },
+      "permutation_violations": 0,
+      "version_dups": 0,
+      "write_intent_violations": 0,
+      "write_version_mismatch": 0
+    },
+    "serializable": true,
+    "stats": {
+      "abort_reasons": {},
+      "edges": 1429071,
+      "keys": 527859,
+      "reads": 1504537,
+      "txns": 500447,
+      "writes": 2004984
+    },
+    "total_cycles": 0,
+    "trace_dir": "/tmp/t2851_trace_2uk748hh",
+    "verdict": "indeterminate"
+  },
+  "workload": "tpcc"
+}

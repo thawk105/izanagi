@@ -1,0 +1,23 @@
+{
+  "abort_reasons": [
+    "trace-witness-unsupported-workload"
+  ],
+  "bench_done": false,
+  "committed": false,
+  "layout": "/work/1/SFC/tanab/tmp/dev-wave-t2866-2026-09-27/smoke-out-3/evaluate-layout",
+  "measure_point_calls": [],
+  "result": {
+    "aborted": true,
+    "certified": false,
+    "notes": [
+      "v3 trace でない TPC-C workload (legacy) → reject"
+    ],
+    "variant": "5185ee5e6094"
+  },
+  "stages": [
+    "build_start",
+    "build_done",
+    "abort"
+  ],
+  "wal_file": "/work/1/SFC/tanab/tmp/dev-wave-t2866-2026-09-27/smoke-out-3/evaluate-layout/runs/wal.jsonl"
+}
