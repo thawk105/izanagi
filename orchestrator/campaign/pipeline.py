@@ -1334,7 +1334,7 @@ _BENCH_DONE_REQUIRED_PAYLOAD_KEYS = frozenset({
     "rep_notes", "run_cmd",
 })
 _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
-    "perf_observation", "screening", "rep_returncodes", "reps", "workload",
+    "perf_observation", "screening", "rep_returncodes", "reps",
 })
 _BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
 # 本番順序の実測 67・77 秒の最大値に約 1.5 倍の余裕を持たせる。
@@ -1563,8 +1563,6 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         "rep_notes": getattr(pt, "notes", []),
         "run_cmd": pt.run_cmd,                    # この測定点を再現する実行コマンド
     }
-    if workload_name == "tpcc":
-        bench_payload["workload"] = "tpcc"
     perf_observation = _perf_preflight.build_perf_observation(
         perf_preflight_receipt,
         run_cmd=pt.run_cmd,
@@ -2918,9 +2916,6 @@ def _commit_prepared(
         }
         if prepared.active_screening is not None:
             commit_payload["screened"] = True
-
-    if prepared.workload == "tpcc":
-        commit_payload["workload"] = "tpcc"
 
     _require_measurement_site("campaign COMMIT 記録")
     if prepared.qualification_policy is None:

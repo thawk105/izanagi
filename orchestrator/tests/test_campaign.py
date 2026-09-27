@@ -7645,8 +7645,13 @@ def test_tpcc_evaluate_v3_reaches_bench_with_workload():
     bench_records = [record for record in wal.read_records(layout)
                      if record.stage == STAGE_BENCH_DONE]
     assert len(bench_records) == 1
-    assert bench_records[0].payload["workload"] == "tpcc"
-    assert wal.replay(layout)[result.variant].last_terminal.payload["workload"] == "tpcc"
+    bench_payload = bench_records[0].payload
+    run_cmd = bench_payload["run_cmd"]
+    assert re.search(r"(?:^|[\s/])tpcc_[^/\s]+\.exe(?:\s|$)", run_cmd)
+    assert "-tpcc_num_wh=" in run_cmd
+    assert "-ycsb_tuple_num=" not in run_cmd
+    assert "workload" not in bench_payload
+    assert "workload" not in wal.replay(layout)[result.variant].last_terminal.payload
 
 
 def test_tpcc_bench_rejects_duplicate_warehouse_flag():
