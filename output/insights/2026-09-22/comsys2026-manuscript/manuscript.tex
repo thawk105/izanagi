@@ -352,8 +352,9 @@ abort の要因ごとに backoff の発火可否を切り替える trigger-gatin
 % 出所: results-discussion.md §10 冒頭・表 15・直後の段落・「言えること / 言えないこと」、docs/paper-story/results/2026-09-20-mocc-witlight-four-arm.md §2、docs/paper-story/figures/README.md fig15 節「何を示す図か」「既存図との関係」。
 % 冒頭 1 文の「本稿の評価の時点で」「本稿の評価に…含まれない」([T-2864] 改訂 4、段 6 レビューの must-fix): MOCC の探索の疎通 (D2261、stock 比の観測) の後も真であるよう時点を限った。
 
-ロック被覆の観測点 (X/P 計装) を持たない素の固定版 (pin) の MOCC のトレースは，判定器が indeterminate とする (SI は証明面を持たない)．その後，X/P 計装を固定版の直接の子となる候補 commit として載せ，その上で正例・負例の検証走 1 本が 14 項目の検査をすべて満たした．ただしこの候補は固定版にまだ取り込まれておらず，MOCC の certified な系列も探索も開いていない．
+ロック被覆の観測点 (X/P 計装) を持たない素の固定版 (pin) の MOCC のトレースは，判定器が indeterminate とする (SI は証明面を持たない)．その後，X/P 計装を固定版の直接の子となる候補 commit として載せ，その上で正例・負例の検証走 1 本が 14 項目の検査をすべて満たした．ただし本稿の評価の時点では，この候補は固定版にまだ取り込まれておらず，MOCC の certified な系列も探索も開いていなかった (その後の探索の疎通は \ref{sec:limits} 節)．
 % 出所: checklist L29 / 項 41・102 (素の pin の mocc は verifier で indeterminate、si は証明面を持たない)、docs/worklog.md の「## 2026-09-22 (1818)」、output/insights/2026-09-21/t2844-mocc-xp-hook-branch/README.md §0 (結論 1・3・5)・§4・§9、D2218。
+% 「本稿の評価の時点では…開いていなかった」([T-2864] 改訂 4、焦点再レビューの must-fix): その後 D2227 項 1 で固定版は X/P 計装の commit へ進み (現 gitlink 68106660)、MOCC の探索の疎通 (D2261) も行ったので、時点を限って過去形にした。
 
 \begin{figure*}[tb]
 \centering
@@ -405,7 +406,7 @@ abort 率とスループットの同時変化は，競合の抑制と待機の�
 % B-5 の認可 ([T-2864] 改訂 3 で反映): D2227 項 2、[T-2797] の次の一手 (entry 1845)。7 節 (c) と同じ事実。
 % B-5 の閉鎖と見送り・関数方策の軸 ([T-2864] 改訂 4、2026-09-27): docs/b5-generator-contrast-preregistration.md §15 (v1 は block 1 stage 1 だけで 6 比較すべて判定不能 (欠測))、D2249 項 1 (v2 へ登録し直し)、D2259 (v2 は発効せず見送り、対照は関数単位の空間で取り直す)、D2263・worklog entry 1886 (その事前登録は草稿・未発効)。LLM の方策 1 候補: D2270、output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md §0 項 6・§3.2。7 節 (b)(c) と同じ事実。
 
-\textbf{スコープ．}評価節で探索・合成が回ったのは Silo 1 protocol の backoff / sort / trigger-gating の 3 軸だけで，負荷は YCSB の 3 種 (読み比率 5 / 50 / 95\%)，48 スレッドに限った (\ref{sec:eval-loop} 節の合成ループの評価だけは 4 スレッド・100,000 レコードの小構成)．その後の関数単位の方策の軸の評価 (\ref{sec:conclusion} 節 (b)) と MOCC での探索の疎通は，どちらも反復の無い観測で，性能の主張に使わない．TPC-C では合成・性能を評価していない．合成の対象を Silo に限る方針は解除したが，第 2 の対象 (MOCC) を加えた後も狙う主張は「指定した二つの CC 実装で合成・評価手順を実証した」に限る．MOCC では backoff の値の探索を 5 手法・3 負荷で各 1 系列だけ通して同じ負荷の stock との比を記録したが，既知最良との比較は無く，非 Silo の性能による選定は 0 件である．TicToc は較正の記録 2 件だけ，Cicada は測定 0 件，Snapshot Isolation は証明面を持たない．
+\textbf{スコープ．}評価節で探索・合成が回ったのは Silo 1 protocol の backoff / sort / trigger-gating の 3 軸だけで，負荷は YCSB の 3 種 (読み比率 5 / 50 / 95\%)，48 スレッドに限った (\ref{sec:eval-loop} 節の合成ループの評価だけは 4 スレッド・100,000 レコードの小構成)．その後の関数単位の方策の軸の評価 (\ref{sec:conclusion} 節 (b)) と MOCC での探索の疎通は，どちらも対照との比較を反復していない観測で，性能の主張に使わない．TPC-C では合成・性能を評価していない．合成の対象を Silo に限る方針は解除したが，第 2 の対象 (MOCC) を加えた後も狙う主張は「指定した二つの CC 実装で合成・評価手順を実証した」に限る．MOCC では backoff の値の探索を 5 手法・3 負荷で各 1 系列だけ通して同じ負荷の stock との比を記録したが，既知最良との比較は無く，非 Silo の性能による選定は 0 件である．TicToc は較正の記録 2 件だけ，Cicada は測定 0 件，Snapshot Isolation は証明面を持たない．
 % 出所: 限界稿 §6 第 1 段落、gap-analysis.md §1 (YCSB だけ、読み比率 5/50/95、48 スレッド固定、TPC-C 0 件)、チェックリスト R4 / L23 / L24。
 % 合成ループの構成: output/insights/2026-09-19/k2-loop-round3/README.md (silo / 4 threads / 100,000 records)、output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md §0。
 % 評価節の後の 2 件 ([T-2864] 改訂 4、2026-09-27): 関数方策の軸 = D2270 (LLM の C++ 方策 1 候補、1 iteration)。MOCC の疎通 = D2261 項 1・5、output/insights/2026-09-27/t2849-mocc-conn/README.md §0 (5 手法 × 3 workload を各 1 系列、stock 比のみ、既知最良の参照なし、優劣・性能の主張に使わない)。

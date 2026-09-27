@@ -19,7 +19,9 @@ title: [T-2864] ComSys 原稿の改訂 4 — 7 節と限界節を一次資料と
 - `EnterWorktree(name)` が「Could not read the repository git config to neutralize filter drivers」で失敗したので、`git worktree add -b … main` を手で行い `EnterWorktree(path)` で入った (既知の回避策)。
 - 段 6 の read-only レビュー (codex 1 本): NO-GO、must-fix 3・should 1 をすべて real と裁定して直した — 「1 候補・1 回」が別 job の再評価 (R2) と字面で矛盾、3.1・4.9・5 節の現在形
   (「現在扱う軸」「非 Silo の性能比較は 0 件」「現行の合成空間」) が改訂後の限界節と食い違う、MOCC の「1 回の観測」の単位。3.1・4.9・5 節は依頼の範囲外だが、時点・範囲を限る語句だけを直した。
-  (P1) (偵察の 3 点を足さない) はレビューが refuted とした。焦点再レビューの結果は README §12.5。
+  (P1) (偵察の 3 点を足さない) はレビューが refuted とした。焦点再レビュー 1 回目は NO-GO で、「どちらも反復の無い観測」が R2 を否定して読める点と、4.9 節末尾の
+  「MOCC の…探索も開いていない」(D2227 項 1 の pin 前進で改訂 3 の時点から古かった) を real と裁定し、「対照との比較を反復していない観測」と本稿の評価の時点に限った過去形へ直した。
+  以後の巡は README §12.5。
 
 ## 次の一手差分
 
