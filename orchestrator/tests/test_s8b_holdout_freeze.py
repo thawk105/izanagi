@@ -1023,6 +1023,27 @@ def test_common_literal_memo_is_keyed_by_literal_and_rel():
     )
 
 
+def test_common_literal_memo_rechecks_replaced_proxy_text():
+    rel = "case.txt"
+    backing = {rel: "unrelated"}
+    texts = MappingProxyType(backing)
+    memo = M._ScanMemo(texts)
+    first_expressions = {"axis": "(?:ab=z)"}
+    second_expressions = {"axis": "(?:ab=v)"}
+
+    assert M._derive_required_literal(first_expressions) == "ab"
+    assert M._derive_required_literal(second_expressions) == "ab"
+    first = M._scan_one(texts, "first", first_expressions, memo=memo)
+    assert first["conjunction_hits"] == []
+
+    backing[rel] = "ab=v"
+    second = M._scan_one(texts, "second", second_expressions, memo=memo)
+    reference = _reference_scan_one(texts, "second", second_expressions)
+
+    assert second["conjunction_hits"] == [rel]
+    assert _report_bytes(second) == _report_bytes(reference)
+
+
 def test_common_literal_is_checked_once_per_text_per_search(tmp_path, monkeypatch):
     positive = tmp_path / "positive.txt"
     irrelevant = tmp_path / "irrelevant.txt"

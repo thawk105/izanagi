@@ -501,7 +501,7 @@ class _ScanMemo:
 
     texts: Mapping[str, str]
     hits_by_expression: Dict[str, frozenset[str]] = field(default_factory=dict)
-    contains_by_literal_rel: Dict[Tuple[str, str], bool] = field(default_factory=dict)
+    contains_by_literal_rel: Dict[Tuple[str, str], Tuple[str, bool]] = field(default_factory=dict)
     _mutable_texts_snapshot: Optional[Dict[str, str]] = field(
         init=False, repr=False, compare=False,
     )
@@ -570,7 +570,7 @@ def _scan_one(
         if axis_literals[axis] is not None
     }
     memo_hits = None
-    contains_cache: Dict[Tuple[str, str], bool] = {}
+    contains_cache: Dict[Tuple[str, str], Tuple[str, bool]] = {}
     if memo is not None and memo.texts is texts:
         if (memo._mutable_texts_snapshot is not None
                 and dict(texts.items()) != memo._mutable_texts_snapshot):
@@ -589,9 +589,11 @@ def _scan_one(
             for rel, text in texts.items():
                 if required_literal is not None:
                     cache_key = (required_literal, rel)
-                    if cache_key not in contains_cache:
-                        contains_cache[cache_key] = _text_contains(text, required_literal)
-                    if not contains_cache[cache_key]:
+                    cached = contains_cache.get(cache_key)
+                    if cached is None or cached[0] is not text:
+                        cached = (text, _text_contains(text, required_literal))
+                        contains_cache[cache_key] = cached
+                    if not cached[1]:
                         continue
                 axis_literal = axis_literals[axis]
                 if axis_literal is not None:
