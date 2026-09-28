@@ -1,3 +1,5 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index efcf02d75..215324107 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -6,6 +6,13 @@
@@ -14,7 +16,7 @@
  #include "include/common.hh"
  #include "include/scan_callback.hh"
  #include "include/transaction.hh"
-@@ -26,12 +33,98 @@
+@@ -26,12 +33,106 @@ using namespace std;
  
  #define MSK_TID 0b11111111
  
@@ -35,6 +37,8 @@
 +#endif
 +};
 +ForwardSlot forward_slots[256];
++uint64_t forward_k = 0;
++bool forward_f = false;
 +
 +#if CICADA_FWD_COUNT
 +struct ForwardReport {
@@ -101,19 +105,25 @@
   */
  void TxExecutor::begin() {
 +#if CICADA_FWD_ENABLE
++  static const bool configured = [] {
++    if (FLAGS_cicada_fwd_k == 0 || FLAGS_cicada_fwd_k > 256 ||
++        (FLAGS_cicada_fwd_policy != "c" && FLAGS_cicada_fwd_policy != "f") ||
++        TotalThreadNum > 256) {
++      std::cerr << "Invalid Cicada forwarding flags" << std::endl;
++      std::exit(2);
++    }
++    forward_k = FLAGS_cicada_fwd_k;
++    forward_f = FLAGS_cicada_fwd_policy == "f";
++    return true;
++  }();
++  (void) configured;
 +  auto& slot = forward_slots[thid_];
 +  slot.forwarded = slot.scanning = slot.special = false;
-+  if (FLAGS_cicada_fwd_k == 0 || FLAGS_cicada_fwd_k > 256 ||
-+      (FLAGS_cicada_fwd_policy != "c" && FLAGS_cicada_fwd_policy != "f") ||
-+      TotalThreadNum > 256) {
-+    std::cerr << "Invalid Cicada forwarding flags" << std::endl;
-+    std::exit(2);
-+  }
 +#endif
    /**
     * Allocate timestamp in read phase.
     */
-@@ -100,6 +193,132 @@
+@@ -100,6 +201,132 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
     * Scan to the area to be viewed
     */
    ver = tuple->ldAcqLatest();
@@ -133,17 +143,17 @@
 +      visible = visible->ldAcqNext();
 +      ++physical_pos;
 +    }
-+    if (visible && physical_pos > FLAGS_cicada_fwd_k) {
++    if (visible && physical_pos > forward_k) {
 +      auto& slot = forward_slots[thid_];
 +      FWD_COUNT(slot, triggers);
-+      if (FLAGS_cicada_fwd_policy == "f") {
++      if (forward_f) {
 +        FWD_COUNT(slot, f_aborts);
 +        status_ = TransactionStatus::aborted;
 +        return nullptr;
 +      }
 +      Version* hot = ver;
 +      Version* oldest = nullptr;
-+      for (uint64_t i = 0; hot && i < FLAGS_cicada_fwd_k; ++i) {
++      for (uint64_t i = 0; hot && i < forward_k; ++i) {
 +        if (hot->ldAcqStatus() == VersionStatus::committed) oldest = hot;
 +        hot = hot->ldAcqNext();
 +      }
@@ -246,7 +256,7 @@
    while (ver->ldAcqWts() > trts) {
      later_ver = ver;
      ver = ver->ldAcqNext();
-@@ -175,6 +394,10 @@
+@@ -175,6 +402,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
  
    ver = read_internal(s, key, tuple);
@@ -257,7 +267,7 @@
    if (ver == nullptr) return Status::WARN_NOT_FOUND;
  
    /**
-@@ -298,6 +521,15 @@
+@@ -298,6 +529,15 @@ FINISH_WRITE:
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -273,7 +283,7 @@
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +578,15 @@
+@@ -346,6 +586,15 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -289,7 +299,7 @@
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +658,16 @@
+@@ -417,6 +666,16 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -306,7 +316,7 @@
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -457,6 +708,9 @@
+@@ -457,6 +716,9 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
      }
    }
  
@@ -316,7 +326,7 @@
    return Status::OK;
  }
  
-@@ -743,6 +997,11 @@
+@@ -743,6 +1005,11 @@ void TxExecutor::gcpv() {
   * @return void
   */
  void TxExecutor::abort() {
@@ -328,7 +338,7 @@
    // remove inserted records
    for (auto& we : write_set_) {
      if (we.op_ == OpType::INSERT) {
-@@ -893,6 +1152,11 @@
+@@ -893,6 +1160,11 @@ void TxExecutor::mainte() {
  }
  
  void TxExecutor::writePhase() {
@@ -340,6 +350,8 @@
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+index 6c5184886..89852d8b8 100644
 --- a/cc/cicada/ycsb_cicada.cc
 +++ b/cc/cicada/ycsb_cicada.cc
 @@ -18,11 +18,140 @@
@@ -483,7 +495,7 @@
    chkArg();
    YcsbWorkload::displayWorkloadParameter();
    TupleInitParam* param = new TupleInitParam();
-@@ -37,7 +166,11 @@
+@@ -37,7 +166,11 @@ int main(int argc, char* argv[]) try {
    opts.max_ope = FLAGS_max_ope;
    opts.batch_max_ope = FLAGS_batch_max_ope;
  

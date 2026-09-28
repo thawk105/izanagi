@@ -94,20 +94,19 @@ def _condition_gate(source: Path, macro: str, args: list[str], cxx: str) -> dict
 
 
 def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
-                   toolchain: dict, receipts: list[dict] | None = None) -> tuple[Path, list[dict], float]:
+                   toolchain: dict) -> tuple[Path, list[dict], float]:
     """Single Cicada build sink; one call for each of stock, fwd, count."""
     start = time.monotonic()
     args = build_args(dependencies, toolchain, kind)
-    if receipts is None:
-        receipts = [_condition_gate(source, macro, args, toolchain["cxx_path"])
-                    for macro in MACROS[kind]]
+    receipts = [_condition_gate(source, macro, args, toolchain["cxx_path"])
+                for macro in MACROS[kind]]
     if len(receipts) != len(MACROS[kind]) or any(
             r["admission"]["admitted"] is not True for r in receipts):
         raise RuntimeError("condition gate rejected before build")
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
     checked(configure, timeout=600)
-    checked(["cmake", "--build", str(build), "--target", "ycsb_cicada.exe", "-j", "8"],
+    checked(["cmake", "--build", str(build), "--target", "ycsb_cicada.exe", "-j", "48"],
             timeout=900)
     binary = build / "cc/cicada/ycsb_cicada.exe"
     if not binary.is_file():
@@ -381,13 +380,6 @@ def main(argv: list[str] | None = None) -> int:
             deps = compute._prepare_dependencies(ROOT, policy, args.third_party_cache, scratch, toolchain)
             with patchharness.checkout(pin.CURRENT_PIN) as worktree:
                 source = Path(worktree)
-                preflight = {}
-                with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
-                    for kind in ("stock", "fwd", "count"):
-                        config = build_args(deps, toolchain, kind)
-                        preflight[kind] = [_condition_gate(source, macro, config,
-                                               toolchain["cxx_path"]) for macro in MACROS[kind]]
-                job["gate_receipts"] = preflight
                 if args.command == "smoke":
                     tick = time.monotonic()
                     inert_args = [a for a in build_args(deps, toolchain, "stock")
@@ -397,10 +389,12 @@ def main(argv: list[str] | None = None) -> int:
                     job["inert_receipt"]["seconds"] = time.monotonic() - tick
                 with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
                     binaries = {}
+                    job["gate_receipts"] = {}
                     for kind in ("stock", "fwd", "count"):
                         binary, gates, seconds = _build_variant(source, scratch / ("build-" + kind),
-                                                               kind, deps, toolchain, preflight[kind])
+                                                               kind, deps, toolchain)
                         binaries[kind] = (binary, gates)
+                        job["gate_receipts"][kind] = gates
                         job["builds"][kind] = {"seconds": seconds, "binary_sha256": sha_file(binary),
                                                "gate_receipts": gates}
                     common = {"git_head": job["git_head"], "ccbench_pin": pin.CURRENT_PIN,
