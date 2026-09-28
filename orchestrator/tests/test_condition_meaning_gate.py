@@ -103,10 +103,10 @@ _REQUESTED_US_CONTRAST = 0
 # Independent patch expectations: source, exact directive, site count, contrast.
 _NEW_BRANCH_EXPECTATIONS = {
     "IZANAGI_CICADA_VLIFE": (
-        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE", 31, 0,
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE", 33, 0,
     ),
     "IZANAGI_CICADA_LONGTX": (
-        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX", 1, 0,
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX", 3, 0,
     ),
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT", 15, 0,

@@ -323,9 +323,11 @@ def _smoke_records(path: Path) -> int:
         ("normalized_objdump_equal", "normalized_rodata_equal")
     ) or any(
         not isinstance(witness.get(side), dict) or
-        any(witness[side].get(tool) is not True for tool in ("nm", "strings"))
+        witness[side].get("nm") is not True or
+        not isinstance(witness[side].get("strings"), list) or
+        any(type(item) is not str for item in witness[side]["strings"])
         for side in ("stock_absence", "default_absence")
-    ):
+    ) or witness["stock_absence"]["strings"] != witness["default_absence"]["strings"]:
         raise ValueError("smoke binary witness failed")
     short = raw.get("short_run")
     if not isinstance(short, dict) or type(short.get("rc")) is not int or short["rc"] != 0 or not isinstance(short.get("parsed"), dict):
@@ -355,8 +357,11 @@ def _absence(binary: Path) -> dict:
     outputs = {tool: _checked([tool, "-C", str(binary)] if tool == "nm"
                               else [tool, "-a", str(binary)]).stdout
                for tool in ("nm", "strings")}
-    return {tool: not re.search(r"izanagi|IZANAGI_", value)
-            for tool, value in outputs.items()}
+    return {
+        "nm": not re.search(r"izanagi|IZANAGI_", outputs["nm"]),
+        "strings": sorted(set(re.findall(r"(?m)^.*(?:izanagi|IZANAGI_).*$",
+                                         outputs["strings"]))),
+    }
 
 
 def _delay_compile(source: Path, build: Path) -> dict:
@@ -479,7 +484,10 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
         build("stock", ())
         if "stock" in binaries:
             stage("delay_compile", lambda: _delay_compile(source, scratch / "stock-build"),
-                  valid=lambda value: value["rc"] == 0)
+                  valid=lambda value: isinstance(value, dict)
+                  and type(value.get("rc")) is int
+                  and type(value.get("stdout")) is str
+                  and type(value.get("stderr")) is str)
         else:
             skipped("delay_compile", "stock build failed")
         try:
@@ -509,8 +517,10 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
     if "stock" in binaries and "default" in binaries:
         stage("witness", witness, valid=lambda value:
               value["normalized_objdump_equal"] and value["normalized_rodata_equal"]
-              and all(value["stock_absence"].values())
-              and all(value["default_absence"].values()))
+              and value["stock_absence"]["nm"]
+              and value["default_absence"]["nm"]
+              and value["stock_absence"]["strings"] ==
+                  value["default_absence"]["strings"])
     else:
         skipped("witness", "stock or default build failed")
     if "stock" in binaries:

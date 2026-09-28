@@ -18,8 +18,6 @@ ROOT = Path(__file__).resolve().parents[2]
 TOUCHED = (
     "cc/cicada/include/transaction.hh",
     "cc/cicada/transaction.cc",
-    "cc/cicada/util.cc",
-    "cc/cicada/ycsb_cicada.cc",
 )
 
 
@@ -175,8 +173,8 @@ def test_smoke_identity_binds_records():
                "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
                "witness": {"normalized_objdump_equal": True,
                            "normalized_rodata_equal": True,
-                           "stock_absence": {"nm": True, "strings": True},
-                           "default_absence": {"nm": True, "strings": True}},
+                           "stock_absence": {"nm": True, "strings": ["izanagi stock"]},
+                           "default_absence": {"nm": True, "strings": ["izanagi stock"]}},
                "short_run": {"rc": 0, "parsed": _payload()},
                "calibration": {"l3_bytes": 1000000,
                                "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
@@ -203,8 +201,8 @@ def test_smoke_recomputes_calibration_and_requires_success():
                "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
                "witness": {"normalized_objdump_equal": True,
                            "normalized_rodata_equal": True,
-                           "stock_absence": {"nm": True, "strings": True},
-                           "default_absence": {"nm": True, "strings": True}},
+                           "stock_absence": {"nm": True, "strings": ["izanagi stock"]},
+                           "default_absence": {"nm": True, "strings": ["izanagi stock"]}},
                "short_run": {"rc": 0, "parsed": _payload()},
                "calibration": {"l3_bytes": 1000000,
                                "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
@@ -226,6 +224,9 @@ def test_smoke_recomputes_calibration_and_requires_success():
         raw["witness"]["normalized_rodata_equal"] = False
         rejected()
         raw["witness"]["normalized_rodata_equal"] = True
+        raw["witness"]["default_absence"]["strings"].append("IZANAGI_NEW")
+        rejected()
+        raw["witness"]["default_absence"]["strings"].pop()
         raw["short_run"]["rc"] = 1
         rejected()
         raw["short_run"]["rc"] = 0
@@ -301,7 +302,7 @@ def test_smoke_delay_failure_preserves_other_stages_and_rejects_measure():
               patch.object(V, "_delay_compile", side_effect=RuntimeError("delay broke")),
               patch.object(V, "_normalized_disassembly", return_value="text"),
               patch.object(V, "_normalized_rodata", return_value="rodata"),
-              patch.object(V, "_absence", return_value={"nm": True, "strings": True}),
+              patch.object(V, "_absence", return_value={"nm": True, "strings": []}),
               patch.object(V, "_calibrate", return_value=calibration),
               patch.object(V, "_run", return_value={"rc": 0, "parsed": _payload()})):
             assert V.main(["smoke", "--third-party-cache", td, "--policy", str(root),
@@ -328,6 +329,53 @@ def test_smoke_delay_failure_preserves_other_stages_and_rejects_measure():
         assert "failed smoke JSON" in json.loads(measure.read_text())["error"]
 
 
+def test_smoke_records_failed_delay_compile_without_failing():
+    with tempfile.TemporaryDirectory(prefix="cvl-stock-delay-") as td:
+        root = Path(td)
+        binaries = {name: root / name for name in ("stock", "default", "enabled")}
+        def build(_source, location, _toolchain, _dependencies, _macros):
+            name = location.name.removesuffix("-build")
+            return binaries[name], {"sha256": name}
+        calibration = {"l3_bytes": 1000000,
+                       "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
+                                  for n, rss in ((1000000, 1000), (2000000, 5000),
+                                                 (4000000, 8000))},
+                       "selected_records": 2000000}
+        with (patch.object(V, "checkout", return_value=nullcontext(str(root))),
+              patch.object(V, "applied", return_value=nullcontext()),
+              patch.object(V, "_build_variant", side_effect=build),
+              patch.object(V, "_delay_compile", return_value={"rc": 1, "stdout": "", "stderr": "stock defect"}),
+              patch.object(V, "_normalized_disassembly", return_value="text"),
+              patch.object(V, "_normalized_rodata", return_value="rodata"),
+              patch.object(V, "_absence", return_value={"nm": True, "strings": ["izanagi stock"]}),
+              patch.object(V, "_calibrate", return_value=calibration),
+              patch.object(V, "_run", return_value={"rc": 0, "parsed": _payload()})):
+            raw = V._smoke(root, {}, {})
+        assert raw["delay_compile"] == {"rc": 1, "stdout": "", "stderr": "stock defect"}
+        assert V._smoke_success(raw)
+        path = root / "smoke.json"
+        raw.update(schema_version=1, command="smoke", ccbench_commit=V.PIN,
+                   patch_sha256=hashlib.sha256(V.PATCH.read_bytes()).hexdigest())
+        path.write_text(json.dumps(raw))
+        assert V._smoke_records(path) == 2000000
+
+
+def test_batch_extension_stays_in_begin_and_retries_same_procedure():
+    patch_text = V.PATCH.read_text()
+    begin = patch_text.split("+#if IZANAGI_CICADA_LONGTX\n+  if (thid_", 1)[1].split(
+        "+#if IZANAGI_CICADA_VLIFE\n+  vlife_start_", 1)[0]
+    assert " >= FLAGS_thread_num)" in begin
+    assert "if (pro_set_.size() < FLAGS_batch_max_ope)" in begin
+    assert "while (pro_set_.size() < FLAGS_batch_max_ope)" in begin
+    for flag in ("FLAGS_ycsb_zipf_skew", "FLAGS_ycsb_tuple_num",
+                 "FLAGS_ycsb_rratio", "FLAGS_ycsb_rmw"):
+        assert flag in patch_text
+    assert "pro_set_.front().ronly_ = ronly;" in begin
+    assert "pro_set_.front().wonly_ = wonly;" in begin
+    run = (ROOT / "external/ccbench/include/ycsb.hh").read_text()
+    assert run.index("tx.begin();") < run.index("SimpleKey<8> key[tx.pro_set_.size()]")
+
+
 def test_patch_default_preprocess_matches_stock():
     stock = ROOT / "external/ccbench"
     patch = ROOT / "patches/instr-cicada-version-lifetime.patch"
@@ -351,7 +399,9 @@ def _run():
              test_smoke_identity_binds_records,
              test_smoke_recomputes_calibration_and_requires_success,
              test_delay_compile_selects_unique_ycsb_target,
-             test_smoke_delay_failure_preserves_other_stages_and_rejects_measure)
+             test_smoke_delay_failure_preserves_other_stages_and_rejects_measure,
+             test_smoke_records_failed_delay_compile_without_failing,
+             test_batch_extension_stays_in_begin_and_retries_same_procedure)
     failed = 0
     for test in tests:
         try:
