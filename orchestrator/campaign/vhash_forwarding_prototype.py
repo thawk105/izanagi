@@ -136,6 +136,28 @@ def _compile_entry(build: Path, filename: str) -> dict:
     return found[0]
 
 
+def _inert_entry(entry: dict) -> tuple[dict, list[str]]:
+    """Remove forwarding defines from a stock target command, preserving other flags."""
+    argv = list(entry.get("arguments") or shlex.split(entry["command"]))
+    names = ("CICADA_FWD_ENABLE", "CICADA_FWD_COUNT", "CICADA_LONGTX")
+    clean, removed = [], []
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "-D" and index + 1 < len(argv) and any(
+                argv[index + 1].split("=", 1)[0] == name for name in names):
+            removed.extend(argv[index:index + 2])
+            index += 2
+        elif arg.startswith("-D") and any(
+                arg[2:].split("=", 1)[0] == name for name in names):
+            removed.append(arg)
+            index += 1
+        else:
+            clean.append(arg)
+            index += 1
+    return {**entry, "arguments": clean}, removed
+
+
 def _preprocess(entry: dict) -> str:
     argv = list(entry.get("arguments") or shlex.split(entry["command"]))
     clean = []
@@ -153,17 +175,18 @@ def _preprocess(entry: dict) -> str:
                      if line.strip() and not line.lstrip().startswith(b"#")))
 
 
-def _inert_receipt(source: Path, scratch: Path, args: list[str], cxx: str) -> dict:
+def _inert_receipt(source: Path, stock_build: Path) -> dict:
     """Pin and patched source use the same compiler argv and build directory."""
-    build = scratch / "inert-build"
-    checked(["cmake", "-S", str(source), "-B", str(build),
-             "-DCMAKE_CXX_COMPILER=" + cxx, *args], timeout=600)
-    entries = {name: _compile_entry(build, name) for name in
-               ("transaction.cc", "ycsb_cicada.cc")}
+    selected = {name: _compile_entry(stock_build, name) for name in
+                ("transaction.cc", "ycsb_cicada.cc")}
+    sanitized = {name: _inert_entry(entry) for name, entry in selected.items()}
+    entries = {name: pair[0] for name, pair in sanitized.items()}
+    removed = {name: pair[1] for name, pair in sanitized.items()}
     before = {name: _preprocess(entry) for name, entry in entries.items()}
     with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
         after = {name: _preprocess(entry) for name, entry in entries.items()}
     receipt = {"gate": False, "normalization": "remove lines beginning with # after leading whitespace and whitespace-only lines",
+               "removed_macro_args": removed,
                "pin_sha256": before, "patched_sha256": after,
                "matched": before == after}
     if not receipt["matched"]:
@@ -489,13 +512,6 @@ def main(argv: list[str] | None = None) -> int:
             deps = compute._prepare_dependencies(ROOT, policy, args.third_party_cache, scratch, toolchain)
             with patchharness.checkout(pin.CURRENT_PIN) as worktree:
                 source = Path(worktree)
-                if args.command == "smoke":
-                    tick = time.monotonic()
-                    inert_args = [a for a in build_args(deps, toolchain, "stock")
-                                  if not a.startswith("-DCMAKE_CXX_FLAGS=")]
-                    job["inert_receipt"] = _inert_receipt(source, scratch,
-                                               inert_args, toolchain["cxx_path"])
-                    job["inert_receipt"]["seconds"] = time.monotonic() - tick
                 with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
                     binaries = {}
                     job["gate_receipts"] = {}
@@ -506,45 +522,49 @@ def main(argv: list[str] | None = None) -> int:
                         job["gate_receipts"][kind] = gates
                         job["builds"][kind] = {"seconds": seconds, "binary_sha256": sha_file(binary),
                                                "gate_receipts": gates}
-                    common = {"git_head": job["git_head"], "ccbench_pin": pin.CURRENT_PIN,
-                              "patch_sha256": job["patch_sha256"],
-                              "inert_receipt": job["inert_receipt"], "job_id": job["job_id"]}
-                    for spec in plan_runs(args.command, args.workload, args.k_sweep):
-                        if args.command == "smoke" and spec["build_kind"] != "count" and \
-                                not job.get("smoke_count_checked"):
-                            many = [r for r in job["records"] if r["workload"] == "many_ops"
-                                    and r["build_kind"] == "count"]
-                            status = smoke_count_status(many)
-                            job["smoke_fallback"] = [{"k": 3, "skew": 0.9,
-                                 "condition": "C attempts > 0 and F f_aborts > 0", "result": status}]
-                            for k, skew in ((1, 0.9), (1, 0.99)):
-                                if status["accepted"]:
-                                    break
-                                for index, policy in enumerate(("c", "f")):
-                                    extra = dict(workload="many_ops", gc_inter_us=100,
-                                                 k=k, skew=skew, build_kind="count",
-                                                 policy=policy, rep=0, order_index=index,
-                                                 extime=1)
-                                    binary, gates = binaries["count"]
-                                    result = _run_binary(binary, extra, common, gates)
-                                    job["records"].append(result)
-                                    _write(output, job)
-                                    if not result["valid"]:
-                                        raise RuntimeError("invalid smoke fallback")
-                                status = smoke_count_status(job["records"])
-                                job["smoke_fallback"].append({"k": k, "skew": skew,
-                                     "condition": "C attempts > 0 and F f_aborts > 0", "result": status})
+                if args.command == "smoke":
+                    tick = time.monotonic()
+                    job["inert_receipt"] = _inert_receipt(source, scratch / "build-stock")
+                    job["inert_receipt"]["seconds"] = time.monotonic() - tick
+                common = {"git_head": job["git_head"], "ccbench_pin": pin.CURRENT_PIN,
+                          "patch_sha256": job["patch_sha256"],
+                          "inert_receipt": job["inert_receipt"], "job_id": job["job_id"]}
+                for spec in plan_runs(args.command, args.workload, args.k_sweep):
+                    if args.command == "smoke" and spec["build_kind"] != "count" and \
+                            not job.get("smoke_count_checked"):
+                        many = [r for r in job["records"] if r["workload"] == "many_ops"
+                                and r["build_kind"] == "count"]
+                        status = smoke_count_status(many)
+                        job["smoke_fallback"] = [{"k": 3, "skew": 0.9,
+                             "condition": "C attempts > 0 and F f_aborts > 0", "result": status}]
+                        for k, skew in ((1, 0.9), (1, 0.99)):
+                            if status["accepted"]:
+                                break
+                            for index, policy in enumerate(("c", "f")):
+                                extra = dict(workload="many_ops", gc_inter_us=100,
+                                             k=k, skew=skew, build_kind="count",
+                                             policy=policy, rep=0, order_index=index,
+                                             extime=1)
+                                binary, gates = binaries["count"]
+                                result = _run_binary(binary, extra, common, gates)
+                                job["records"].append(result)
                                 _write(output, job)
-                            job["smoke_count_checked"] = True
-                            if not status["accepted"]:
-                                raise RuntimeError("many_ops C attempts or F f_aborts remain zero after smoke fallback")
-                        binary, gates = binaries[spec["build_kind"]]
-                        record = _run_binary(binary, spec, common, gates)
-                        job["records"].append(record)
-                        _write(output, job)
-                        if not record["valid"]:
-                            raise RuntimeError("invalid run: " + record.get("invalid_reason", "unknown"))
-                    job["all_pass"] = True
+                                if not result["valid"]:
+                                    raise RuntimeError("invalid smoke fallback")
+                            status = smoke_count_status(job["records"])
+                            job["smoke_fallback"].append({"k": k, "skew": skew,
+                                 "condition": "C attempts > 0 and F f_aborts > 0", "result": status})
+                            _write(output, job)
+                        job["smoke_count_checked"] = True
+                        if not status["accepted"]:
+                            raise RuntimeError("many_ops C attempts or F f_aborts remain zero after smoke fallback")
+                    binary, gates = binaries[spec["build_kind"]]
+                    record = _run_binary(binary, spec, common, gates)
+                    job["records"].append(record)
+                    _write(output, job)
+                    if not record["valid"]:
+                        raise RuntimeError("invalid run: " + record.get("invalid_reason", "unknown"))
+                job["all_pass"] = True
     except Exception as exc:
         job["error"] = type(exc).__name__ + ": " + str(exc)
         for attr in ("condition_gate_evidence", "inert_receipt"):

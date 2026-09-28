@@ -197,6 +197,23 @@ def test_compile_entry_selects_ycsb_target_among_four(tmp_path, marker, surface)
     with pytest.raises(RuntimeError, match="found 2"):
         driver._compile_entry(tmp_path, "transaction.cc")
 
+def test_inert_uses_stock_target_commands_without_forwarding_macros(tmp_path, monkeypatch):
+    entries = []
+    for name in ("transaction.cc", "ycsb_cicada.cc"):
+        source = f"/src/cc/cicada/{name}"
+        entries.append({"file": source, "directory": str(tmp_path), "arguments":
+            ["c++", "-DCICADA_FWD_ENABLE=0", "-DCICADA_FWD_COUNT=0", "-D", "CICADA_LONGTX=1",
+             "-DKEEP=1", "-c", source, "-o", f"CMakeFiles/ycsb_cicada.exe.dir/{name}.o"]})
+    (tmp_path / "compile_commands.json").write_text(json.dumps(entries)); calls = []
+    def fake_checked(argv, **kwargs):
+        calls.append(argv); return SimpleNamespace(stdout=b"# marker\n token\n")
+    monkeypatch.setattr(driver, "checked", fake_checked); monkeypatch.setattr(driver.patchharness, "applied", lambda *a: nullcontext())
+    receipt = driver._inert_receipt(tmp_path, tmp_path)
+    assert receipt["matched"] and len(calls) == 4 and calls[:2] == calls[2:]
+    assert all("-DKEEP=1" in argv and "CICADA_LONGTX=1" not in argv and not any(
+        arg.startswith("-DCICADA_FWD_") for arg in argv) for argv in calls)
+    assert all(removed == ["-DCICADA_FWD_ENABLE=0", "-DCICADA_FWD_COUNT=0", "-D", "CICADA_LONGTX=1"]
+               for removed in receipt["removed_macro_args"].values())
 
 def test_aggregate_jobs_excludes_smoke_and_rejects_duplicate_rep():
     def record(spec):
