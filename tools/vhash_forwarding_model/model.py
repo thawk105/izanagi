@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field, replace
 from inspect import signature
-from time import perf_counter
+from time import monotonic
 
 
 @dataclass(frozen=True, slots=True)
@@ -412,7 +412,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     """
     from .judge import judge
     faults = frozenset((fault,)) if fault else frozenset()
-    began = perf_counter()
+    began = monotonic()
     witness_uses_trace = witness is not None and len(signature(witness).parameters) == 4
     danger_uses_trace = danger is not None and len(signature(danger).parameters) == 4
     queue = deque([initial])
@@ -432,7 +432,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             steps.append(step)
         return list(reversed(steps))
     while queue:
-        if max_seconds is not None and perf_counter() - began >= max_seconds:
+        if max_seconds is not None and monotonic() - began >= max_seconds:
             timed_out = True
             break
         s = queue.popleft()
@@ -479,7 +479,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                 queue.clear()
                 break
     return {"statistics": {"visited": len(parent), "terminal": terminals, "deadlock": deadlocks,
-                           "seconds": perf_counter() - began,
+                           "seconds": monotonic() - began,
                            "complete": not timed_out and (not bool(max_states) or len(parent) < max_states)},
             "verdicts": verdicts, "counterexample": counterexample,
             "violation_kinds": {k: sorted(v) for k, v in violation_kinds.items()},

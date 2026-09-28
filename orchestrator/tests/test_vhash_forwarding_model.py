@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
@@ -287,3 +288,18 @@ def test_s10_write_skew_search_results():
         if o1 and fault:
             assert result["counterexample"]["judge"] == "J1"
             assert fault_changes_forward_check(initial, result["counterexample"]["steps"], fault, o1)
+
+
+if __name__ == "__main__":
+    failures = 0
+    for name in sorted(name for name, value in globals().items()
+                       if name.startswith("test_") and callable(value)):
+        try:
+            globals()[name]()
+        except Exception:
+            failures += 1
+            print(f"FAIL {name}", flush=True)
+            traceback.print_exc()
+        else:
+            print(f"PASS {name}", flush=True)
+    sys.exit(1 if failures else 0)
