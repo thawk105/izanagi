@@ -22200,6 +22200,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-11** — A-1実装waveのcampaign関連走で46件が/tmp/.gitにより出力先をrepo内と判定して赤になった。directoryは他者所有で非接触とし、Git祖先のない専用TMPDIRとrun_tests.pyの実行場所判定で再実行した。request991839の子は414passed/3skipped。親の取消要求はPRRで見送られinfra終了したため、子の終端・request hash・source cleanを確認してversioned/旧形式の両holdを解除した。記録はoutput/insights/2026-09-11/t2397-a1-attempt4/README.md。
+
+- **再発: 2026-09-29** — [T-2871] の変異 probe を login の実 pytest (`tools/run_tests.py` の自動判定) で走らせたところ、`/tmp` の空の `.git` のために `/tmp` 下の tmp_path が「repository 内」と判定され、結合検査 3 本が `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外でなければならない` で偽赤になった (同じ test は同日 04 時台の wave worktree からの login 走では緑、偽赤は 05 時台の変異用 clone からの走行)。`--basetemp` を job dir 下に置いて解いた (`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §4)。
 ### F764. 閉包 member を未 commit のまま検査すると全域が drift で赤になる [手順漏れ]
 
 - 事象: [T-2061] wave で `orchestrator/campaign/artifact_admission.py` を編集した直後の焦点走が
@@ -28587,3 +28589,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 帰属を「判定器の witness と診断事象の突き合わせ」で設計したのに、判定器が witness を上限つきで選ぶことと、診断の標本窓がどこに落ちるかを突き合わせなかった。段 4 の事前登録で出力量を抑える上限 (200 件) を先に決め、上限と witness 選択の位置関係を検査しなかった。
 - 恒久対応: memory `attribution-diagnostics-must-cover-verifier-witness-window` (帰属の診断は全件出すか、判定器の witness の txn から逆に引ける形にし、標本を打ち切るなら打ち切り窓が witness を含むことを事前に確かめる)。判定器の witness 上限は `orchestrator/verifier/` の既定で、変えていない。
 - 再発検知: 帰属解析の自己検査に「witness の txn が事象列の後半にあるケース」を置く (今回の起動器の fix で足した、旧実装なら帰属 0・新実装なら 1 以上)。
+
+### F1059. 結合検査の代役を兄弟 driver の fixture から写し、対象 driver の production の流れ (checkout 回数・評価回数・patch の巻き戻し) と食い違ったまま焦点走 3 巡で 1 つずつ露見した [テスト代表性] [手順漏れ]
+
+- 事象: [T-2871] の結合検査 (方策 loop driver `main` を別 process で 2 回、実 claim・reservation・admission・auditor gate を通す) で、実装子が backoff 軸の pair fixture (`orchestrator/tests/test_p3_s4_loop.py` の 2 checkout・arm ごとの bench 台本) を写した。方策 driver は 1 checkout で候補 → stock を評価し、production の `patchharness.checkout` は process ごとに新しい隔離 worktree を作り、`applied` は抜けるときに source を戻す。代役がこれらを省いたため、焦点走 4・5 回目で実 admission (stock に非 STOCK の evidence)・模擬 bench 台本の枯渇・実 auditor gate (強制終了した候補の書込み残りで digest 不一致) が 1 巡に 1 つずつ正しく拒否し、fix が 3 巡 (fix-2〜4) かかった。偽緑ではなく赤で露見した。
+- 根本原因: 実装子への prompt が対象 driver の production の流れ (checkout の回数と寿命、1 checkout あたりの評価回数、patch 適用の巻き戻し) を明示せず、「手本」として兄弟 driver の fixture を指した。兄弟 driver は同じ機構を検査していても流れが違う。
+- 恒久対応: memory `test-double-must-follow-target-driver-flow` (結合検査を頼む prompt に対象 driver の production の流れを file:line で書き、兄弟 fixture を写すなら差分を列挙させる。代役の反復は login の `tools/run_tests.py <file> -k <pattern>` で回し、`--basetemp` を `/tmp` の外に置く)。記録 `output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §3。
+- 再発検知: 焦点走の赤が admission・auditor gate・模擬 pipeline の前提違いで出たら、まず代役と production の流れの差を列挙する。
