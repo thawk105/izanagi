@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 61 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-three
+Claim boundary: the supply domain contains the 64 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-six
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -77,6 +77,8 @@ _SILO_OWNER = ("cc/silo/transaction.cc",)
 _SS2PL_OWNER = ("cc/ss2pl/transaction.cc",)
 _MOCC_OWNER = ("cc/mocc/transaction.cc",)
 _SI_OWNER = ("cc/si/transaction.cc",)
+_CICADA_OWNER = ("cc/cicada/transaction.cc",)
+_CICADA_YCSB_OWNER = ("cc/cicada/ycsb_cicada.cc",)
 _DEFINE_SPECS = {
     "SILO_POLICY_VARIANT": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
@@ -247,6 +249,19 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _SI_OWNER, "ycsb_si.exe",
         "patches/broken-si-read-uncommitted-version.patch",
     ),
+    "CICADA_FWD_ENABLE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-variant.patch",
+    ),
+    "CICADA_FWD_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-variant.patch",
+        companion_defines=(("CICADA_FWD_ENABLE", "1"),),
+    ),
+    "CICADA_LONGTX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-variant.patch",
+    ),
     "IZANAGI_BREAK_NOREAD_VALIDATION": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-norw-validation.patch",
@@ -402,6 +417,15 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
         "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
     ),
+    "CICADA_FWD_ENABLE": (
+        "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE",
+    ),
+    "CICADA_FWD_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_FWD_COUNT",
+    ),
+    "CICADA_LONGTX": (
+        "cc/cicada/ycsb_cicada.cc", "#if CICADA_LONGTX",
+    ),
     "IZANAGI_BREAK_WRITE_INTENT_ERASE": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_ERASE",
     ),
@@ -509,6 +533,9 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": 9,
     "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS": 7,
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": 5,
+    "CICADA_FWD_ENABLE": 11,
+    "CICADA_FWD_COUNT": 4,
+    "CICADA_LONGTX": 4,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
@@ -1117,14 +1144,14 @@ def make_define_request(
     stock_comparison: bool = False,
     protocol: str = "silo",
 ) -> DefineRequest:
-    """Construct a request from the independently declared 61-macro supply domain."""
+    """Construct a request from the independently declared 64-macro supply domain."""
     try:
         if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
             raise KeyError(protocol)
         spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", f"macro is outside the 22-macro domain: {macro!r}",
+            "request-contract-invalid", f"macro is outside the 64-macro domain: {macro!r}",
         ) from exc
     if len(spec.owner_tus) != 1:
         raise ConditionMeaningGateError(
@@ -1194,7 +1221,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
         spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", "macro is outside the 22-macro domain",
+            "request-contract-invalid", "macro is outside the 64-macro domain",
         ) from exc
     if request.route != spec.route:
         raise ConditionMeaningGateError(
