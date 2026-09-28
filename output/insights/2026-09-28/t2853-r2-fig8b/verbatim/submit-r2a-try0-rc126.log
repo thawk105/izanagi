@@ -1,0 +1,4 @@
+submit_start 2026-09-28 08:10:52 JST
+/work/1/SFC/tanab/tmp/t2853-r2-fig8b-20260928/submit-group.sh: 行 11: tools/pegasus/submit_b10_backoff_grid.sh: 許可がありません
+submit_rc=126
+submit_end 2026-09-28 08:10:52 JST
