@@ -376,6 +376,25 @@ def test_batch_extension_stays_in_begin_and_retries_same_procedure():
     assert run.index("tx.begin();") < run.index("SimpleKey<8> key[tx.pro_set_.size()]")
 
 
+def test_leader_publication_counts_same_value_store():
+    patch_text = V.PATCH.read_text()
+    leader = patch_text.split(" void TxExecutor::leaderWork() {", 1)[1]
+    before, after = leader.split("   cicadaLeaderWork();", 1)
+    flag = "__atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE)"
+    assert "+  const bool leader_ready =\n+      " + flag + " == 1;" in before
+    assert "+  if (leader_ready &&\n+      " + flag + " == 0) {" in after
+    assert "+    const uint64_t published = MinRts.load(memory_order_acquire);" in after
+    assert "if (published != previous)" not in leader
+
+
+def test_worker_limit_checked_at_construction():
+    patch_text = V.PATCH.read_text()
+    constructor = patch_text.split("         backoff_(backoff), thid_(thid) {", 1)[1].split(
+        "     // wait to initialize MinWts", 1)[0]
+    assert "+    if (TotalThreadNum > sizeof(vlife_stats_) / sizeof(vlife_stats_[0])) {" in constructor
+    assert "+      exit(1);" in constructor
+
+
 def test_patch_default_preprocess_matches_stock():
     stock = ROOT / "external/ccbench"
     patch = ROOT / "patches/instr-cicada-version-lifetime.patch"
@@ -401,7 +420,9 @@ def _run():
              test_delay_compile_selects_unique_ycsb_target,
              test_smoke_delay_failure_preserves_other_stages_and_rejects_measure,
              test_smoke_records_failed_delay_compile_without_failing,
-             test_batch_extension_stays_in_begin_and_retries_same_procedure)
+             test_batch_extension_stays_in_begin_and_retries_same_procedure,
+             test_leader_publication_counts_same_value_store,
+             test_worker_limit_checked_at_construction)
     failed = 0
     for test in tests:
         try:

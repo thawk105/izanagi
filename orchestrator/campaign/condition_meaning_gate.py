@@ -529,7 +529,7 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "IZANAGI_CICADA_VLIFE": (
-        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 8),
+        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
     ),
     "IZANAGI_CICADA_LONGTX": (),
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),

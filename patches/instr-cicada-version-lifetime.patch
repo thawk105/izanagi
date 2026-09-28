@@ -61,7 +61,21 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
    uint8_t thid_ = 0;
    uint64_t rts_;
    uint64_t start_, stop_;               // for one-sided synchronization
-@@ -174,6 +220,17 @@
+@@ -65,6 +111,13 @@
+       : result_(res), quit_(quit), callback_(TxScanCallback(this)),
+         backoff_(backoff), thid_(thid) {
+ 
++#if IZANAGI_CICADA_VLIFE
++    if (TotalThreadNum > sizeof(vlife_stats_) / sizeof(vlife_stats_[0])) {
++      fprintf(stderr, "IZANAGI_CICADA_VLIFE: TotalThreadNum exceeds 256 workers\n");
++      exit(1);
++    }
++#endif
++#line 68
+     // wait to initialize MinWts
+     while (MinWts.load(memory_order_acquire) == 0)
+       ;
+@@ -174,6 +227,17 @@
      while (delTarget != nullptr) {
        // escape next pointer
        Version* tmp = delTarget->next_.load(std::memory_order_acquire);
@@ -79,7 +93,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
  
  #if INLINE_VERSION_OPT
        if (delTarget == &(tuple->inline_ver_)) {
-@@ -192,6 +249,7 @@
+@@ -192,6 +256,7 @@
  #if ADD_ANALYSIS
            ++result_->local_gc_version_counts_;
  #endif
@@ -87,7 +101,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
        delTarget = tmp;
      }
    }
-@@ -262,12 +320,20 @@
+@@ -262,12 +327,20 @@
       */
      for (auto itr = write_set_.begin();
           itr != write_set_.begin() + (write_set_.size() / 2); ++itr) {
@@ -108,7 +122,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
            if (ver->ldAcqWts() > this->wts_.ts_ ||
                ver->ldAcqRts() > this->wts_.ts_)
              return false;
-@@ -279,11 +345,23 @@
+@@ -279,11 +352,23 @@
            while (ver->ldAcqWts() > this->wts_.ts_) {
              (*itr).later_ver_ = ver;
              ver = ver->ldAcqNext();
@@ -654,18 +668,22 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      return true;
    }
  }
-@@ -960,7 +1279,24 @@
+@@ -960,7 +1279,28 @@
  bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
 +#if IZANAGI_CICADA_VLIFE
-+  const uint64_t previous = MinRts.load(memory_order_acquire);
++  const bool leader_ready =
++      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 1;
 +#endif
 +#line 963
    cicadaLeaderWork();
 +#if IZANAGI_CICADA_VLIFE
-+  const uint64_t published = MinRts.load(memory_order_acquire);
-+  if (published != previous) {
++  // The flag falls only after MinRts is published, including same-value stores.
++  // rdtscp below samples after cicadaLeaderWork returns and all flags are reset.
++  if (leader_ready &&
++      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {
++    const uint64_t published = MinRts.load(memory_order_acquire);
 +    auto& vs = vlife_stats_[0];
 +    uint64_t now = rdtscp(), boundary = published >> 8;
 +    if (now < boundary) ++vs.gc_negative;
