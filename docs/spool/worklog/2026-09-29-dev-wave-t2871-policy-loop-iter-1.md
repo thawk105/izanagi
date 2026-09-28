@@ -16,8 +16,8 @@ title: [T-2871] 方策 loop を Pegasus で job をまたいで複数 iteration 
 - **段 6:** 焦点走 3〜5 回目の赤はすべて本 wave の結合検査の代役・配線 (子 process の import 経路、namespace inventory の pin、backoff の 2 checkout fixture を写した代役) で、実 admission・実 auditor gate は正しく拒否していた。fix-2〜4 で直し 6 回目 393 passed。失敗の型は {{F:test-double-copied-sibling-driver-flow}}。変異 M1〜M5 は 5 / 5 KILLED (dispatch final)。期待 node の収集は dispatch probe が混雑で 2 回中止したので login の実 pytest で行った (手順の逸脱、insight §4)。login の `/tmp/.git` 偽赤は F763 の再発。
 - **生死確認 (本番入口の job body、liveness 専用系列):** 新しい submit checkout (`d7161a2a1`) で t2865 の proposal 2 本を `33730.nqsv` → `33800.nqsv` (`qsub --after`) の直列で流し、2 本とも候補 certified・同じ job の stock `certified-stock`・別の claim・系列 iteration 1 → 2・履歴 2 行を現物で確かめた。値は 1 回ずつの観測 (prop-3 = critic の推奨 A は同じ job の比 1.41、abort 55%)。
 - 計算: 受入を除き約 2,080 秒 (約 0.58 node 時間、焦点走 169 秒・変異 final 379 秒・pair 793 + 741 秒)。2 node 時間の線の下なのでユーザー確認なしで投入した。
-- 受入: 記録時点では未実施。
-- 工数: Codex 子 = plan 2、consult 2、author 1、review 2、fix 4、焦点再レビュー 1、生死確認の相談 2 の計 14 本。Claude 子 = Explore 1 (先例の実測)。
+- 受入 1 回目 (tip `71f249116` + post-claim merge `8a54cbd27`): `1 failed, 27899 passed, 74 skipped`。赤 `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` は本 wave に帰属 (結合検査の子 Python process に `-B` が無く、repo 全体の bytecode guard 検査器が検出。login で同じ指摘を再現)。fix-5 (`9c6e34c80`) で直し、検査器 rc=0・焦点 2 file 40 passed を確かめた。受入 2 回目は記録時点では未実施。
+- 工数: Codex 子 = plan 2、consult 2、author 1、review 2、fix 5、焦点再レビュー 1、生死確認の相談 2 の計 15 本。Claude 子 = Explore 1 (先例の実測)。
 
 ## 次の一手差分
 

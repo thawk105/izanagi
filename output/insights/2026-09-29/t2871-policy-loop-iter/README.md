@@ -2,7 +2,7 @@
 
 - 位置づけ: [T-2865] (`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md` §3.4、D2274) で、Pegasus の one-shot claim のために方策 loop の 2 本目の pair job が build 前に `ClaimError` で止まった問題を、claim leaf と one-shot 性を変えずに driver 側で解いた記録。手順の正本は `docs/phase3-silo-policy-runbook.md`、設計判断は同じ wave の decisions fragment。可変状態の正本 (worklog 末尾) にはしない。
 - wave: branch `worktree-dev-wave-t2871-policy-loop-iter`、起点 local main `51f896352` (開始 gate rc=0、2026-09-28 07:58 JST)。Pegasus の保守 (9/28 09:00〜21:00) で段 6 の途中から中断し、9/29 02:27 JST に再開した (resume gate rc=0)。
-- 逐語 (`verbatim/`): 依頼 `request.md`、段 1 brief `s1-brief.md`、段 2 plan `codex-plan-a.md`・`codex-plan-b.md`、段 3 相談 `codex-consult-a.md`・`codex-consult-b.md`、段 4 裁定 `s4-ruling.md`、段 5 実装子 `codex-author.md`、段 6 のレビュー `codex-review-a.md`・`codex-review-b.md`・焦点再レビュー `codex-rereview.md`、段 6 裁定 `s6-ruling-1.md`〜`s6-ruling-5.md`、fix 子 `codex-fix1.md`〜`codex-fix4.md`、生死確認の形の相談 `liveness-decision-context.md`・`codex-decide-a.md`・`codex-decide-b.md`・裁定 `liveness-decision.md`。変異の spec と結果は `mutation/`。codex の prompt と受領証は wave の job dir (repo 外、`/work/SFC/tanab/tmp/t2871-policy-loop-iter-20260928/`)、生死確認の script と evidence は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2871-policy-loop-iter/`。
+- 逐語 (`verbatim/`): 依頼 `request.md`、段 1 brief `s1-brief.md`、段 2 plan `codex-plan-a.md`・`codex-plan-b.md`、段 3 相談 `codex-consult-a.md`・`codex-consult-b.md`、段 4 裁定 `s4-ruling.md`、段 5 実装子 `codex-author.md`、段 6 のレビュー `codex-review-a.md`・`codex-review-b.md`・焦点再レビュー `codex-rereview.md`、段 6 裁定 `s6-ruling-1.md`〜`s6-ruling-6.md`、fix 子 `codex-fix1.md`〜`codex-fix5.md`、生死確認の形の相談 `liveness-decision-context.md`・`codex-decide-a.md`・`codex-decide-b.md`・裁定 `liveness-decision.md`。変異の spec と結果は `mutation/`。codex の prompt と受領証は wave の job dir (repo 外、`/work/SFC/tanab/tmp/t2871-policy-loop-iter-20260928/`)、生死確認の script と evidence は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2871-policy-loop-iter/`。
 
 ## 0. 要約
 
@@ -30,6 +30,7 @@
 | `40b3d09fd` | fix-2: 結合検査の子 process に `orchestrator/tests` を通す、layout 作成箇所を既存 helper に寄せる (namespace inventory の pin は不変) | Codex fix |
 | `13d0e0913` | fix-3: 結合検査の代役を方策 driver の 1 checkout の流れに合わせる | Codex fix |
 | `d7161a2a1` | fix-4: 代役を評価ごとの模擬 pipeline・process ごとの新 checkout・patch の巻き戻しに合わせる | Codex fix |
+| `9c6e34c80` | fix-5: 結合検査の子 Python process を `-B` で起動する (受入 1 回目の赤) | Codex fix |
 
 run_campaign の呼出しは 2 本のまま (test_campaign.py の棚卸し pin)。loop.py・campaign_claim.py・p3_s4_loop.py・job body は不変 (前 3 つは contract loader 閉包の member)。
 
@@ -89,7 +90,8 @@ run_campaign の呼出しは 2 本のまま (test_campaign.py の棚卸し pin)�
 
 ## 7. 受入
 
-記録時点では未実施。
+- 1 回目 (tip `71f249116`、post-claim merge `8a54cbd27` で local main `f6772df03` を取り込み): `1 failed, 27899 passed, 74 skipped`。赤は `orchestrator/tests/test_check_subprocess_bytecode_guard.py::test_real_repo_clean` の 1 件で、repo 全体の bytecode guard 検査器 (`tools/check_subprocess_bytecode_guard.py`) が本 wave の結合検査の子 process 起動 (`test_p3_s4_loop_policy.py:822`、`-B` も env の guard も無い) を検出した。**本 wave に帰属** (login で検査器を直接走らせて同じ指摘 1 件を再現)。fix-5 (`9c6e34c80`) で `-B` を付け、検査器 rc=0、焦点 2 file 40 passed を login で確かめた (`verbatim/s6-ruling-6.md`)。変異の置換対象は production file だけなので、final の KILLED はこの変更の影響を受けない。
+- 2 回目: 記録時点では未実施 (fix-5 と本記録を含む tip で投入する)。
 
 ## 8. scope 外と次の一手
 
