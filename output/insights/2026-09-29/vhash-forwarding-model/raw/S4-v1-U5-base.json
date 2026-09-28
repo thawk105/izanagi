@@ -1,0 +1,207 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S4",
+  "protocol": "v1",
+  "faults": [
+    "U5"
+  ],
+  "o1": false,
+  "bounds": {
+    "keys": 2,
+    "transactions": 2,
+    "operations_per_transaction": {
+      "T": 1,
+      "W": 1
+    },
+    "versions_per_key": {
+      "B": 2,
+      "A": 1
+    },
+    "K": 2,
+    "timestamps": [
+      10,
+      40,
+      43,
+      45,
+      60
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B40",
+        "key": "B",
+        "wts": 40,
+        "rts": 40,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B60",
+        "key": "B",
+        "wts": 60,
+        "rts": 60,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 45,
+        "ops": [
+          [
+            "R",
+            "B"
+          ]
+        ],
+        "cand_ts": 45,
+        "gc_floor": 45,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "W",
+        "start": 43,
+        "ops": [
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 43,
+        "gc_floor": 43,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 961,
+    "terminal": 5,
+    "deadlock": 0,
+    "seconds": 0.038293122001050506,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": null
+  },
+  "counterexample": null,
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": []
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:B",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "installed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "write_rts_check",
+        "version": "B40",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "writes_checked",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "decide_committed",
+        "version": "",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": null
+}
