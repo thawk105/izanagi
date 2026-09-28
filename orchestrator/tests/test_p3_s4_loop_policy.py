@@ -696,7 +696,9 @@ def test_pair_stock_failure_returns_one_after_candidate(tmp_path, monkeypatch, c
 
 def _policy_pair_child(base, proposal, crash=False):
     """Run the real Pegasus authorization and WAL from a short lived process."""
+    import shutil
     import statistics
+    import tempfile
     from types import SimpleNamespace
     from orchestrator.campaign import (env_attestation as ea, execution_guard,
         layout as layout_module, loop, p2_2, patchharness, pipeline,
@@ -704,7 +706,7 @@ def _policy_pair_child(base, proposal, crash=False):
     from orchestrator.tests import test_campaign as fixtures
 
     base = Path(base)
-    root = base / 'candidate'
+    pristine = base / 'candidate'
     patches = pytest.MonkeyPatch()
     try:
         patches.setenv('IZANAGI_EXPLORATION_OUTPUT_ROOT', str(base / 'output'))
@@ -728,8 +730,15 @@ def _policy_pair_child(base, proposal, crash=False):
         patches.setattr(P, 'ROOT', base)
         patches.setattr(p2_2, '_assert_single_tenant', lambda: None)
         patches.setattr(patchharness, 'assert_pinned_clean', lambda *_a: None)
-        patches.setattr(patchharness, 'applied',
-            lambda *_a, **_k: contextlib.nullcontext())
+        @contextlib.contextmanager
+        def applied(_patch_path, _pin, ccbench_dir):
+            source = Path(ccbench_dir) / P.axis.SOURCE_REL
+            original = source.read_bytes()
+            try:
+                yield
+            finally:
+                source.write_bytes(original)
+        patches.setattr(patchharness, 'applied', applied)
         patches.setattr(loop, '_perform_perf_preflight', lambda *_a, **_k: (None, True))
         def evidence(genome, pin, *, ccbench_dir='', **_kwargs):
             token = ('d' * 64 if P.axis.FLAG in genome.flags
@@ -738,11 +747,10 @@ def _policy_pair_child(base, proposal, crash=False):
                                             source_root=ccbench_dir)
         patches.setattr(loop.source_digest, 'resolve_evidence', evidence)
 
-        @contextlib.contextmanager
-        def checkout(pin, *, base_dir):
-            assert checkout.calls == 0 and pin == P.axis.PIN
-            checkout.calls += 1
-            assert base_dir == str(base / 'external/ccbench')
+        active_checkout = {'path': None}
+        real_run_campaign = loop.run_campaign
+        def run_campaign(*args, **kwargs):
+            assert kwargs['ccbench_dir'] == str(active_checkout['path'])
             with fixtures._mock_pipeline(
                 trace_content=(ROOT / 'orchestrator/tests/fixtures/g1_serial/trace_0.log').read_text(),
                 ncommit=2), patches.context() as local:
@@ -751,13 +759,29 @@ def _policy_pair_child(base, proposal, crash=False):
                 def observed_build(genome, *, build_context, **kwargs):
                     candidate = P.axis.FLAG in genome.flags
                     assert (build_context._authority_nonce is not None) == candidate
-                    assert kwargs['ccbench_dir'] == str(root)
+                    assert kwargs['ccbench_dir'] == str(active_checkout['path'])
                     if crash and candidate:
                         os._exit(37)
                     local.setattr(fixtures, '_BUILD_CONTEXT', build_context)
                     return build(genome, build_context=build_context, **kwargs)
                 local.setattr(pipeline.buildcache, 'build_v2', observed_build)
-                yield str(root)
+                return real_run_campaign(*args, **kwargs)
+        patches.setattr(P, 'run_campaign', run_campaign)
+        patches.setattr(L, 'run_campaign', run_campaign)
+
+        @contextlib.contextmanager
+        def checkout(pin, *, base_dir):
+            assert checkout.calls == 0 and pin == P.axis.PIN
+            checkout.calls += 1
+            assert base_dir == str(base / 'external/ccbench')
+            with tempfile.TemporaryDirectory(prefix='pair_checkout_', dir=base) as checkout_parent:
+                worktree = Path(checkout_parent) / 'ccbench'
+                shutil.copytree(pristine, worktree)
+                active_checkout['path'] = worktree
+                try:
+                    yield str(worktree)
+                finally:
+                    active_checkout['path'] = None
         checkout.calls = 0
         patches.setattr(patchharness, 'checkout', checkout)
         return P.main(['--form', 'cpp', '--campaign-env', 'pegasus',
