@@ -1,0 +1,497 @@
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -6,6 +6,13 @@
+ #include <string>
+ #include <vector>
+ 
++#if CICADA_FWD_ENABLE
++#include <algorithm>
++#include <cstdlib>
++#include <limits>
++#include "gflags/gflags.h"
++#endif
++
+ #include "include/common.hh"
+ #include "include/scan_callback.hh"
+ #include "include/transaction.hh"
+@@ -26,12 +33,98 @@
+ 
+ #define MSK_TID 0b11111111
+ 
++#if CICADA_FWD_ENABLE
++DEFINE_string(cicada_fwd_policy, "c", "Forwarding policy: c or f.");
++DEFINE_uint64(cicada_fwd_k, 3, "Number of physical hot versions.");
++
++namespace {
++struct alignas(CACHE_LINE_SIZE) ForwardSlot {
++  bool forwarded = false;
++  bool scanning = false;
++  bool special = false;
++#if CICADA_FWD_COUNT
++  uint64_t triggers = 0, attempts = 0, success = 0;
++  uint64_t read_mismatch = 0, write_constraint = 0, conflict = 0;
++  uint64_t ineligible = 0, special_after_forward = 0, f_aborts = 0;
++  uint64_t advance_clock_sum = 0, pos_before_sum = 0, pos_after_sum = 0;
++#endif
++};
++ForwardSlot forward_slots[256];
++
++#if CICADA_FWD_COUNT
++struct ForwardReport {
++  ~ForwardReport() {
++    std::cout << "CICADA_FWD_V1 {\"schema\":1,\"policy\":\""
++              << FLAGS_cicada_fwd_policy << "\",\"k\":" << FLAGS_cicada_fwd_k
++              << ",\"threads\":[";
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& c = forward_slots[i];
++      if (i) std::cout << ',';
++      std::cout << "{\"thid\":" << i << ",\"triggers\":" << c.triggers
++                << ",\"attempts\":" << c.attempts
++                << ",\"success\":" << c.success
++                << ",\"read_mismatch\":" << c.read_mismatch
++                << ",\"write_constraint\":" << c.write_constraint
++                << ",\"conflict\":" << c.conflict
++                << ",\"ineligible\":" << c.ineligible
++                << ",\"special_after_forward\":" << c.special_after_forward
++                << ",\"f_aborts\":" << c.f_aborts
++                << ",\"advance_clock_sum\":" << c.advance_clock_sum
++                << ",\"pos_before_sum\":" << c.pos_before_sum
++                << ",\"pos_after_sum\":" << c.pos_after_sum << '}';
++    }
++    std::cout << "]}" << std::endl;
++  }
++};
++ForwardReport forward_report;
++#define FWD_COUNT(slot, field) ++(slot).field
++#else
++#define FWD_COUNT(slot, field) ((void) 0)
++#endif
++
++enum class ForwardCheck {
++  ok,
++  read_mismatch,
++  write_constraint,
++  conflict,
++  ineligible
++};
++
++Version* forward_visible(Tuple* tuple, uint64_t ts, bool& conflict) {
++  Version* ver = tuple->ldAcqLatest();
++  while (ver && ver->ldAcqWts() > ts) ver = ver->ldAcqNext();
++  while (ver) {
++    auto status = ver->ldAcqStatus();
++    if (status == VersionStatus::pending && ver->ldAcqWts() < ts) {
++      conflict = true;
++      return nullptr;
++    }
++    if (status == VersionStatus::committed || status == VersionStatus::deleted)
++      return ver;
++    ver = ver->ldAcqNext();
++  }
++  conflict = true;
++  return nullptr;
++}
++} // namespace
++#endif
++
+ /**
+  * @brief Initialize function of transaction.
+  * Allocate timestamp.
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if CICADA_FWD_ENABLE
++  auto& slot = forward_slots[thid_];
++  slot.forwarded = slot.scanning = slot.special = false;
++  if (FLAGS_cicada_fwd_k == 0 || FLAGS_cicada_fwd_k > 256 ||
++      (FLAGS_cicada_fwd_policy != "c" && FLAGS_cicada_fwd_policy != "f") ||
++      TotalThreadNum > 256) {
++    std::cerr << "Invalid Cicada forwarding flags" << std::endl;
++    std::exit(2);
++  }
++#endif
+   /**
+    * Allocate timestamp in read phase.
+    */
+@@ -100,6 +193,132 @@
+    * Scan to the area to be viewed
+    */
+   ver = tuple->ldAcqLatest();
++#if CICADA_FWD_ENABLE
++  uint64_t physical_pos = 1;
++  if (!this->is_ronly_ && status_ != TransactionStatus::aborted &&
++      !forward_slots[thid_].scanning && !forward_slots[thid_].special) {
++    Version* visible = ver;
++    while (visible) {
++      if (visible->ldAcqWts() <= trts) {
++        while (visible->ldAcqStatus() == VersionStatus::pending) {}
++        auto status = visible->ldAcqStatus();
++        if (status == VersionStatus::committed ||
++            status == VersionStatus::deleted)
++          break;
++      }
++      visible = visible->ldAcqNext();
++      ++physical_pos;
++    }
++    if (visible && physical_pos > FLAGS_cicada_fwd_k) {
++      auto& slot = forward_slots[thid_];
++      FWD_COUNT(slot, triggers);
++      if (FLAGS_cicada_fwd_policy == "f") {
++        FWD_COUNT(slot, f_aborts);
++        status_ = TransactionStatus::aborted;
++        return nullptr;
++      }
++      Version* hot = ver;
++      Version* oldest = nullptr;
++      for (uint64_t i = 0; hot && i < FLAGS_cicada_fwd_k; ++i) {
++        if (hot->ldAcqStatus() == VersionStatus::committed) oldest = hot;
++        hot = hot->ldAcqNext();
++      }
++      if (!oldest) {
++        FWD_COUNT(slot, ineligible);
++      } else {
++        uint64_t clock = oldest->ldAcqWts() >> 8;
++        uint64_t bump = thid_ <= (oldest->ldAcqWts() & 255);
++        if (clock >= (std::numeric_limits<uint64_t>::max() >> 8) - bump) {
++          FWD_COUNT(slot, ineligible);
++        } else {
++          uint64_t target = ((clock + bump) << 8) | thid_;
++          FWD_COUNT(slot, attempts);
++          ForwardCheck check = ForwardCheck::ok;
++          for (auto& r : read_set_) {
++            bool conflict = false;
++            Version* candidate = forward_visible(r.rcdptr_, target, conflict);
++            if (conflict) {
++              check = ForwardCheck::conflict;
++              break;
++            }
++            if (candidate != r.ver_) {
++              check = ForwardCheck::read_mismatch;
++              break;
++            }
++          }
++          if (check == ForwardCheck::ok) {
++            for (auto& w : write_set_) {
++              if (w.op_ == OpType::INSERT || w.op_ == OpType::DELETE) {
++                check = ForwardCheck::ineligible;
++                break;
++              }
++              Version* latest = w.rcdptr_->ldAcqLatest();
++              if (w.op_ == OpType::RMW) {
++                if (latest->ldAcqStatus() == VersionStatus::pending)
++                  check = ForwardCheck::conflict;
++                else if (latest->ldAcqWts() >= target)
++                  check = ForwardCheck::write_constraint;
++              } else {
++                bool conflict = false;
++                Version* candidate =
++                    forward_visible(w.rcdptr_, target, conflict);
++                if (conflict)
++                  check = ForwardCheck::conflict;
++                else if (candidate->ldAcqRts() > target ||
++                         candidate->ldAcqStatus() == VersionStatus::deleted)
++                  check = ForwardCheck::write_constraint;
++              }
++              if (check != ForwardCheck::ok) break;
++            }
++          }
++          if (check == ForwardCheck::ok && target <= trts)
++            check = ForwardCheck::ineligible;
++          if (check == ForwardCheck::ok) {
++            wts_.ts_ = target;
++            wts_.localClock_ = std::max(wts_.localClock_, (target >> 8) + 1);
++            for (auto& w : write_set_) {
++              w.new_ver_->wts_.store(target, memory_order_release);
++              w.later_ver_ = nullptr;
++            }
++            for (auto& r : read_set_) r.later_ver_ = nullptr;
++            slot.forwarded = true;
++#if CICADA_FWD_COUNT
++            ++slot.success;
++            slot.advance_clock_sum += (target - trts) >> 8;
++            slot.pos_before_sum += physical_pos;
++#endif
++            trts = target;
++            ver = tuple->ldAcqLatest();
++#if CICADA_FWD_COUNT
++            uint64_t after = 1;
++            for (Version* cursor = ver; cursor && cursor->ldAcqWts() > trts;
++                 cursor = cursor->ldAcqNext())
++              ++after;
++            slot.pos_after_sum += after;
++#endif
++          } else {
++            switch (check) {
++              case ForwardCheck::read_mismatch:
++                FWD_COUNT(slot, read_mismatch);
++                break;
++              case ForwardCheck::write_constraint:
++                FWD_COUNT(slot, write_constraint);
++                break;
++              case ForwardCheck::conflict:
++                FWD_COUNT(slot, conflict);
++                break;
++              case ForwardCheck::ineligible:
++                FWD_COUNT(slot, ineligible);
++                break;
++              case ForwardCheck::ok:
++                break;
++            }
++          }
++        }
++      }
++    }
++  }
++#endif
+   while (ver->ldAcqWts() > trts) {
+     later_ver = ver;
+     ver = ver->ldAcqNext();
+@@ -175,6 +394,10 @@
+   if (tuple == nullptr) return Status::WARN_NOT_FOUND;
+ 
+   ver = read_internal(s, key, tuple);
++#if CICADA_FWD_ENABLE
++  if (status_ == TransactionStatus::aborted)
++    return Status::ERROR_PREEMPTIVE_ABORT;
++#endif
+   if (ver == nullptr) return Status::WARN_NOT_FOUND;
+ 
+   /**
+@@ -298,6 +521,15 @@
+ }
+ 
+ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
++#if CICADA_FWD_ENABLE
++  auto& slot = forward_slots[thid_];
++  if (slot.forwarded) {
++    FWD_COUNT(slot, special_after_forward);
++    status_ = TransactionStatus::aborted;
++    return Status::ERROR_PREEMPTIVE_ABORT;
++  }
++  slot.special = true;
++#endif
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif // if ADD_ANALYSIS
+@@ -346,6 +578,15 @@
+ }
+ 
+ Status TxExecutor::delete_record(Storage s, std::string_view key) {
++#if CICADA_FWD_ENABLE
++  auto& slot = forward_slots[thid_];
++  if (slot.forwarded) {
++    FWD_COUNT(slot, special_after_forward);
++    status_ = TransactionStatus::aborted;
++    return Status::ERROR_PREEMPTIVE_ABORT;
++  }
++  slot.special = true;
++#endif
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif // if ADD_ANALYSIS
+@@ -417,6 +658,16 @@
+                         bool l_exclusive, std::string_view right_key,
+                         bool r_exclusive, std::vector<TupleBody*>& result,
+                         int64_t limit) {
++#if CICADA_FWD_ENABLE
++  auto& slot = forward_slots[thid_];
++  if (slot.forwarded) {
++    FWD_COUNT(slot, special_after_forward);
++    status_ = TransactionStatus::aborted;
++    return Status::ERROR_PREEMPTIVE_ABORT;
++  }
++  slot.special = true;
++  slot.scanning = true;
++#endif
+   result.clear();
+   auto rset_init_size = read_set_.size();
+ 
+@@ -457,6 +708,9 @@
+     }
+   }
+ 
++#if CICADA_FWD_ENABLE
++  slot.scanning = false;
++#endif
+   return Status::OK;
+ }
+ 
+@@ -743,6 +997,11 @@
+  * @return void
+  */
+ void TxExecutor::abort() {
++#if CICADA_FWD_ENABLE
++  forward_slots[thid_].forwarded = false;
++  forward_slots[thid_].scanning = false;
++  forward_slots[thid_].special = false;
++#endif
+   // remove inserted records
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {
+@@ -893,6 +1152,11 @@
+ }
+ 
+ void TxExecutor::writePhase() {
++#if CICADA_FWD_ENABLE
++  forward_slots[thid_].forwarded = false;
++  forward_slots[thid_].scanning = false;
++  forward_slots[thid_].special = false;
++#endif
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -18,11 +18,140 @@
+ 
+ #include "../../common/runner.hh"
+ 
++#if CICADA_LONGTX
++#include <chrono>
++#include <cstdlib>
++#include <thread>
++#endif
++
+ using namespace std;
+ 
++#if CICADA_LONGTX
++DEFINE_uint64(cicada_long_threads, 0, "Number of long worker threads.");
++DEFINE_string(cicada_long_kind, "many_ops", "many_ops or wait_after_reads.");
++DEFINE_uint64(cicada_long_ops, 1000, "Operations per long transaction.");
++DEFINE_uint64(cicada_long_rratio, 90, "Long transaction read percentage.");
++DEFINE_uint64(cicada_long_wait_us, 1000, "Wait after reads, in microseconds.");
++DEFINE_uint64(cicada_wait_reads, 10, "Reads before a waiting write.");
++
++namespace {
++struct alignas(CACHE_LINE_SIZE) LongSlot {
++  bool is_long = false;
++  uint64_t commits = 0;
++  uint64_t aborts = 0;
++};
++LongSlot long_slots[256];
++
++struct LongReport {
++  ~LongReport() {
++    cout << "CICADA_LONGTX_V1 {\"schema\":1,\"threads\":[";
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      if (i) cout << ',';
++      const auto& slot = long_slots[i];
++      cout << "{\"thid\":" << i
++           << ",\"long\":" << (slot.is_long ? "true" : "false")
++           << ",\"commits\":" << slot.commits << ",\"aborts\":" << slot.aborts
++           << '}';
++    }
++    cout << "]}" << endl;
++  }
++};
++LongReport long_report;
++
++class CicadaLongWorkload : public YcsbWorkload {
++public:
++  template <typename Tx, typename TransactionStatus>
++  void run(Tx& tx) {
++    auto& slot = long_slots[tx.thid_];
++    bool is_long = tx.thid_ != 0 && FLAGS_cicada_long_threads != 0 &&
++                   tx.thid_ >= TotalThreadNum - FLAGS_cicada_long_threads;
++    slot.is_long = is_long;
++    uint64_t old_commits = tx.result_->local_commit_counts_;
++    uint64_t old_aborts = tx.result_->local_abort_counts_;
++    if (!is_long) {
++      YcsbWorkload::run<Tx, TransactionStatus>(tx);
++      slot.commits += tx.result_->local_commit_counts_ - old_commits;
++      slot.aborts += tx.result_->local_abort_counts_ - old_aborts;
++      return;
++    }
++
++    tx.pro_set_.clear();
++    if (FLAGS_cicada_long_kind == "many_ops") {
++      for (uint64_t i = 0; i < FLAGS_cicada_long_ops; ++i) {
++        uint64_t key = zipf_() % FLAGS_ycsb_tuple_num;
++        bool read = i + 1 != FLAGS_cicada_long_ops &&
++                    (i == 0 || rnd_.next() % 100 < FLAGS_cicada_long_rratio);
++        tx.pro_set_.emplace_back(read ? Ope::READ : Ope::WRITE, key);
++      }
++    } else {
++      for (uint64_t i = 0; i < FLAGS_cicada_wait_reads; ++i)
++        tx.pro_set_.emplace_back(Ope::READ, zipf_() % FLAGS_ycsb_tuple_num);
++      tx.pro_set_.emplace_back(Ope::WRITE, zipf_() % FLAGS_ycsb_tuple_num);
++    }
++    tx.pro_set_.front().ronly_ = false;
++    tx.pro_set_.front().wonly_ = false;
++    tx.is_ronly_ = false;
++
++  RETRY:
++    if (tx.isLeader()) tx.leaderWork();
++    if (loadAcquire(tx.quit_)) {
++      slot.commits += tx.result_->local_commit_counts_ - old_commits;
++      slot.aborts += tx.result_->local_abort_counts_ - old_aborts;
++      return;
++    }
++    tx.begin();
++    for (auto& pro : tx.pro_set_) {
++      SimpleKey<8> key;
++      YCSB::CreateKey(pro.key_, key.ptr());
++      if (pro.ope_ == Ope::READ) {
++        TupleBody* body = nullptr;
++        tx.read(Storage::YCSB, key.view(), &body);
++        if (tx.status_ != TransactionStatus::aborted && body) {
++          [[maybe_unused]] YCSB& value = body->get_value().cast_to<YCSB>();
++        }
++      } else {
++        HeapObject obj;
++        obj.template allocate<YCSB>();
++        [[maybe_unused]] YCSB& value = obj.ref();
++        tx.update(Storage::YCSB, key.view(),
++                  TupleBody(key.view(), std::move(obj)));
++      }
++      if (tx.status_ == TransactionStatus::aborted) {
++        tx.abort();
++        ++tx.result_->local_abort_counts_;
++        goto RETRY;
++      }
++    }
++    if (FLAGS_cicada_long_kind == "wait_after_reads")
++      std::this_thread::sleep_for(
++          std::chrono::microseconds(FLAGS_cicada_long_wait_us));
++    if (!tx.commit()) {
++      tx.abort();
++      ++tx.result_->local_abort_counts_;
++      goto RETRY;
++    }
++    storeRelease(tx.result_->local_commit_counts_,
++                 loadAcquire(tx.result_->local_commit_counts_) + 1);
++    slot.commits += tx.result_->local_commit_counts_ - old_commits;
++    slot.aborts += tx.result_->local_abort_counts_ - old_aborts;
++  }
++};
++} // namespace
++#endif
++
+ int main(int argc, char* argv[]) try {
+   gflags::SetUsageMessage("YCSB Cicada benchmark.");
+   gflags::ParseCommandLineFlags(&argc, &argv, true);
++#if CICADA_LONGTX
++  if (FLAGS_cicada_long_threads >= FLAGS_thread_num + FLAGS_batch_th_num ||
++      FLAGS_thread_num + FLAGS_batch_th_num > 256 ||
++      FLAGS_cicada_long_ops == 0 || FLAGS_cicada_long_rratio > 100 ||
++      (FLAGS_cicada_long_kind != "many_ops" &&
++       FLAGS_cicada_long_kind != "wait_after_reads")) {
++    cerr << "Invalid Cicada long transaction flags" << endl;
++    return 2;
++  }
++#endif
+   chkArg();
+   YcsbWorkload::displayWorkloadParameter();
+   TupleInitParam* param = new TupleInitParam();
+@@ -37,7 +166,11 @@
+   opts.max_ope = FLAGS_max_ope;
+   opts.batch_max_ope = FLAGS_batch_max_ope;
+ 
++#if CICADA_LONGTX
++  ccbench::run<TxExecutor, TransactionStatus, CicadaLongWorkload>(
++#else
+   ccbench::run<TxExecutor, TransactionStatus, YcsbWorkload>(
++#endif
+       TotalThreadNum, opts,
+       [](size_t thid, const bool& quit, Backoff& backoff) {
+         return TxExecutor(thid, backoff, &CCBenchResults[thid], quit);
