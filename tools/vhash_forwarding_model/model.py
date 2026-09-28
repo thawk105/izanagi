@@ -7,6 +7,8 @@ Rule / counterexample:
 One step observes one key's version sequence, writes one version field, or
 changes local transaction state with at most one shared write. A status
 decision atomically changes all versions of one transaction.
+GC rereads the protection floor before reclaiming. Floors only increase because
+all transactions are registered initially; using an older floor is conservative.
 """
 from __future__ import annotations
 
@@ -44,6 +46,7 @@ class Txn:
     failed: bool = False
     pending: tuple[str, ...] = ()
     observed_end: tuple[tuple[str, int], ...] = ()
+    observed_rts: tuple[tuple[str, int], ...] = ()
 
     def __post_init__(self):
         if not self.cand_ts:
@@ -58,8 +61,6 @@ class State:
     txns: tuple[Txn, ...]
     k: int = 1
     gc_seen: int | None = None
-    gc_round: int = 0
-    last_gc: str = ""
 
     def __post_init__(self):
         initial = [v.wts for v in self.versions if v.owner == "initial"]
@@ -75,6 +76,34 @@ class Step:
     operation: str
     version: str = ""
     fault: str = ""
+
+
+class TimestampCollisionError(RuntimeError):
+    """Two distinct timestamp owners occupy the same time in a reachable state."""
+
+
+def check_timestamp_uniqueness(s: State) -> None:
+    """Check initial versions and each txn's candidate, target, and installed versions.
+
+    A txn may repeat its own timestamp across these fields. Initial versions
+    each own a distinct timestamp, even though their owner field is shared.
+    """
+    owners: dict[int, str] = {}
+
+    def claim(ts: int, owner: str) -> None:
+        previous = owners.setdefault(ts, owner)
+        if previous != owner:
+            raise TimestampCollisionError(f"timestamp {ts}: {previous} and {owner}")
+
+    for v in s.versions:
+        if v.owner == "initial":
+            claim(v.wts, f"initial:{v.id}")
+        else:
+            claim(v.wts, v.owner)
+    for t in s.txns:
+        claim(t.cand_ts, t.id)
+        if t.target:
+            claim(t.target, t.id)
 
 
 def _put_txn(s: State, t: Txn) -> State:
@@ -119,12 +148,9 @@ def _writes(t: Txn) -> tuple[str, ...]:
     return tuple(dict.fromkeys(k for op, k in t.ops if op == "W"))
 
 
-def _reads(t: Txn) -> tuple[str, ...]:
-    return tuple(k for op, k in t.ops if op == "R")
-
-
 def _next_free(s: State, minimum: int) -> int:
-    used = {v.wts for v in s.versions} | {t.start for t in s.txns} | {t.cand_ts for t in s.txns}
+    used = ({v.wts for v in s.versions} | {t.start for t in s.txns}
+            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target})
     while minimum in used:
         minimum += 1
     return minimum
@@ -134,9 +160,10 @@ def _forward_target(s: State, t: Txn, key: str) -> int:
     h = [v for v in _ordered(s, key)[:s.k] if v.status == "COMMITTED" and v.wts > t.cand_ts]
     if not h:
         return 0
-    target = _next_free(s, min(h, key=lambda v: v.wts).wts + 1)
+    chosen = min(h, key=lambda v: v.wts)
+    target = _next_free(s, chosen.wts + 1)
     v = visible(s, key, target)
-    return target if v and v.status == "COMMITTED" and _hot(s, v) else 0
+    return target if v and v.id == chosen.id else 0
 
 
 def _read(s: State, t: Txn, key: str, *, cold: bool = False,
@@ -145,19 +172,21 @@ def _read(s: State, t: Txn, key: str, *, cold: bool = False,
     if v is None or v.status != "COMMITTED":
         return None
     if v.reclaimed:
-        return s, Step(t.id, "read_reclaimed", v.id)
+        return s, Step(t.id, "touch_reclaimed", v.id)
     nt = replace(t, pc=t.pc + 1, phase="drop_refs" if "U3b" in faults else "ops",
                  read_log=t.read_log + ((key, v.id),),
                  refs=t.refs + (v.id,))
+    ordinary = visible(s, key, t.cand_ts)
+    changed_u5 = "U5" in faults and ordinary is not None and ordinary.id != v.id
     return _put_txn(s, nt), Step(t.id, "cold_read" if cold else "read", v.id,
-                                "U5" if "U5" in faults else "")
+                                "U5" if changed_u5 else "")
 
 
 def _abort_or_next(t: Txn, success: bool) -> Txn:
     return replace(t, failed=t.failed or not success, index=t.index + 1)
 
 
-def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[State, Step] | None:
+def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool = False) -> tuple[State, Step] | None:
     if t.phase == "done":
         return None
     if t.phase == "ops":
@@ -170,7 +199,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[S
         if v is None or v.status == "PENDING":
             return None
         if v.reclaimed:
-            return s, Step(t.id, "read_reclaimed", v.id)
+            return s, Step(t.id, "touch_reclaimed", v.id)
         if _hot(s, v):
             return _read(s, t, key, faults=faults)
         target = _forward_target(s, t, key) if not t.pending and not t.fixed else 0
@@ -179,8 +208,10 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[S
             nt = replace(t, phase="f_rts", target=target, index=0, observed_end=ends)
             if "U3a" in faults:
                 nt = replace(nt, gc_floor=target)
+            ordinary = visible(s, key, t.cand_ts)
+            changed_u5 = "U5" in faults and ordinary is not None and ordinary.id != v.id
             return _put_txn(s, nt), Step(t.id, "forward_candidate", v.id,
-                                        "U3a" if "U3a" in faults else "")
+                                        "U3a" if "U3a" in faults else "U5" if changed_u5 else "")
         return _read(s, t, key, cold=True, faults=faults)
     if t.phase == "drop_refs":
         return _put_txn(s, replace(t, phase="ops", refs=())), Step(t.id, "early_release_refs", fault="U3b")
@@ -193,11 +224,10 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[S
             return _put_txn(s, replace(t, phase=next_phase, index=0)), Step(t.id, "forward_pass")
         vid = ids[t.index]
         v = _version(s, vid)
+        if v.reclaimed:
+            return s, Step(t.id, "touch_reclaimed", vid)
         if checking:
-            if "U2" in faults and v.rts >= t.target:
-                ok = True
-                fault = "U2"
-            elif "U6" in faults:
+            if "U6" in faults:
                 ok = v.wts <= t.target < dict(t.observed_end).get(vid, 10**9)
                 fault = "U6"
             else:
@@ -234,19 +264,24 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[S
     if t.phase in ("v_rts", "v_check"):
         ids = tuple(vid for _, vid in t.read_log)
         checking = (t.phase == "v_check") != ("U1v" in faults)
+        if o1:
+            ids = tuple(vid for vid in ids if (vid, t.cand_ts) not in t.confirmed)
         if t.index == len(ids):
             return _put_txn(s, replace(t, phase="v_check" if t.phase == "v_rts" else "w_check", index=0)), Step(t.id, "validation_pass")
         vid = ids[t.index]
         v = _version(s, vid)
+        if v.reclaimed:
+            return s, Step(t.id, "touch_reclaimed", vid)
         if checking:
-            if "U2" in faults and v.rts >= t.cand_ts:
+            if "U2" in faults and dict(t.observed_rts).get(vid, -1) >= t.cand_ts:
                 ok, fault = True, "U2"
             else:
                 vis = _validation_visible(s, v.key, t.cand_ts, t.id)
                 ok, fault = bool(vis and vis.id == vid and not v.reclaimed), "U1v" if "U1v" in faults else ""
             return _put_txn(s, _abort_or_next(t, ok)), Step(t.id, "validate_read", vid, fault)
         ns = _put_version(s, replace(v, rts=max(v.rts, t.cand_ts)))
-        return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, "validation_rts", vid,
+        nt = replace(t, index=t.index + 1, observed_rts=t.observed_rts + ((vid, v.rts),))
+        return _put_txn(ns, nt), Step(t.id, "validation_rts", vid,
                                                                      "U1v" if "U1v" in faults else "")
     if t.phase == "w_check":
         keys = _writes(t)
@@ -262,7 +297,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str]) -> tuple[S
         ok = all(v.rts <= t.cand_ts for v in checked)
         nt = _abort_or_next(t, ok)
         return _put_txn(s, nt), Step(t.id, "write_rts_check", checked[-1].id if checked else "",
-                                           "" if protocol == "v0" else "R9prime")
+                                           "")
     if t.phase == "decision":
         status = "ABORTED" if t.failed else "COMMITTED"
         ns = replace(s, versions=tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions))
@@ -276,7 +311,7 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
     active = [t for t in s.txns if t.phase != "done"]
     b = min((t.gc_floor for t in active), default=max((v.wts for v in s.versions), default=0) + 1)
     if s.gc_seen != b:
-        return [(replace(s, gc_seen=b, gc_round=s.gc_round + 1), Step("GC", "read_floor"))]
+        return [(replace(s, gc_seen=b), Step("GC", "read_floor"))]
     out = []
     refs = {vid for t in s.txns for vid in t.refs}
     for v in s.versions:
@@ -289,15 +324,15 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
             legal = v.wts < b
         if legal:
             ns = _put_version(s, replace(v, reclaimed=True))
-            out.append((replace(ns, last_gc=v.id), Step("GC", "reclaim", v.id, "U4" if "U4" in faults else "")))
+            out.append((ns, Step("GC", "reclaim", v.id, "U4" if "U4" in faults else "")))
     return out
 
 
-def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = frozenset()):
+def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = frozenset(), o1: bool = False):
     assert protocol in ("v0", "v1")
     assert len(faults) <= 1
     for t in s.txns:
-        result = txn_step(s, t, protocol, faults)
+        result = txn_step(s, t, protocol, faults, o1)
         if result is not None:
             yield result
     yield from gc_steps(s, faults)
@@ -307,26 +342,37 @@ def changed_step_in_trace(trace: list[Step], fault: str) -> bool:
     return any(step.fault == fault for step in trace)
 
 
-def replay(initial: State, trace: list[Step], protocol="v1", fault="") -> State:
+def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False) -> State:
     s = initial
     for step in trace:
-        matches = [(n, x) for n, x in enabled_steps(s, protocol, frozenset((fault,)) if fault else frozenset())
+        matches = [(n, x) for n, x in enabled_steps(s, protocol, frozenset((fault,)) if fault else frozenset(), o1)
                    if x == step]
         assert len(matches) == 1, step
         s = matches[0][0]
     return s
 
 
-def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None):
+def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None,
+            o1=False, max_seconds=None, all_transitions=False):
+    """Explore every enabled edge, including edges to states already visited.
+
+    J1 and J2 depend only on committed transactions and committed versions, so
+    only decide_* edges can change them. J3 concerns reclaim and attempted
+    access to a reclaimed version, so only those edges need its judgment.
+    all_transitions is a reference mode for checking this restriction.
+    """
     from .judge import judge
     faults = frozenset((fault,)) if fault else frozenset()
     began = perf_counter()
     queue = deque([initial])
     parent = {initial: None}
+    check_timestamp_uniqueness(initial)
     verdicts = {"J1": None, "J2": None, "J3": None}
+    violation_kinds = {"J1": set(), "J2": set(), "J3": set()}
     counterexample = None
     witness_trace = None
     terminals = deadlocks = 0
+    timed_out = False
     def trace(s):
         steps = []
         while parent[s] is not None:
@@ -334,29 +380,74 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             steps.append(step)
         return list(reversed(steps))
     while queue:
+        if max_seconds is not None and perf_counter() - began >= max_seconds:
+            timed_out = True
+            break
         s = queue.popleft()
-        steps = list(enabled_steps(s, protocol, faults))
+        steps = list(enabled_steps(s, protocol, faults, o1))
         if not steps:
             terminals += 1
             if any(t.phase != "done" for t in s.txns):
                 deadlocks += 1
         for ns, step in steps:
+            check_timestamp_uniqueness(ns)
+            relevant = (all_transitions or step.operation.startswith("decide_")
+                        or step.operation in ("reclaim", "touch_reclaimed"))
+            if not relevant and not witness:
+                found = {}
+            elif relevant:
+                found = judge(s, ns, step, all_transitions=all_transitions)
+            else:
+                found = {}
+            candidate_trace = None
+            for name, reason in found.items():
+                if reason:
+                    violation_kinds[name].add(reason.get("reason", "violation"))
+                if reason and verdicts[name] is None:
+                    verdicts[name] = reason
+                    candidate_trace = candidate_trace or trace(s) + [step]
+                    if name in ("J1", "J3") and counterexample is None:
+                        counterexample = {"judge": name, "reason": reason, "steps": candidate_trace}
+            if witness and witness(s, ns, step) and witness_trace is None:
+                witness_trace = trace(s) + [step]
             if ns in parent:
                 continue
             parent[ns] = (s, step)
-            found = judge(s, ns, step)
-            for name, reason in found.items():
-                if reason and verdicts[name] is None:
-                    verdicts[name] = reason
-                    if name in ("J1", "J3") and counterexample is None:
-                        counterexample = {"judge": name, "reason": reason, "steps": trace(ns)}
-            if witness and witness(s, ns, step) and witness_trace is None:
-                witness_trace = trace(ns)
             queue.append(ns)
             if max_states and len(parent) >= max_states:
                 queue.clear()
                 break
     return {"statistics": {"visited": len(parent), "terminal": terminals, "deadlock": deadlocks,
-                           "seconds": perf_counter() - began, "complete": not bool(max_states) or len(parent) < max_states},
+                           "seconds": perf_counter() - began,
+                           "complete": not timed_out and (not bool(max_states) or len(parent) < max_states)},
             "verdicts": verdicts, "counterexample": counterexample,
+            "violation_kinds": {k: sorted(v) for k, v in violation_kinds.items()},
             "witness": {"reached": witness_trace is not None, "steps": witness_trace or []}}
+
+
+def aborted_after_fault(initial: State, fault: str, o1: bool = False) -> list[Step] | None:
+    """Find a fault step followed by that transaction's failed commit validation."""
+    queue = deque([(initial, "", False, [])])
+    seen = {(initial, "", False)}
+    while queue:
+        state, actor, failed_validation, trace = queue.popleft()
+        for next_state, step in enabled_steps(state, "v1", frozenset((fault,)), o1):
+            changed = step.fault == fault
+            if changed and fault == "U5":
+                txn = next(t for t in state.txns if t.id == step.thread)
+                key = txn.ops[txn.pc][1]
+                ordinary = visible(state, key, txn.cand_ts)
+                changed = ordinary is not None and ordinary.id != step.version
+            next_actor = actor or (step.thread if changed else "")
+            next_failed = failed_validation or bool(
+                next_actor and step.thread == next_actor and step.operation == "validate_read"
+                and next(t for t in next_state.txns if t.id == next_actor).failed)
+            next_trace = trace + [step]
+            if (next_actor and next_failed and step.thread == next_actor
+                    and step.operation == "decide_aborted"):
+                return next_trace
+            key = (next_state, next_actor, next_failed)
+            if key not in seen:
+                seen.add(key)
+                queue.append((next_state, next_actor, next_failed, next_trace))
+    return None

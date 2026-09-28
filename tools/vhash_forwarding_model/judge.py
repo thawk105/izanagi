@@ -17,7 +17,7 @@ def _needed_future(before, t, v):
         return False
     successors = [x for x in before.versions if x.key == v.key and x.status == "COMMITTED"
                   and x.wts > v.wts and x.wts <= t.cand_ts]
-    return v.status == "COMMITTED" and v.wts <= t.cand_ts and not successors
+    return v.status == "COMMITTED" and not successors
 
 
 def j1(state):
@@ -75,7 +75,7 @@ def j2(state):
 
 
 def j3(before, after, step):
-    if step.operation in ("read_reclaimed",):
+    if step.operation == "touch_reclaimed":
         return {"version": step.version, "txn": step.thread, "reason": "use_after_free"}
     if step.operation != "reclaim":
         return None
@@ -93,5 +93,9 @@ def j3(before, after, step):
     return None
 
 
-def judge(before, after, step):
-    return {"J1": j1(after), "J2": j2(after), "J3": j3(before, after, step)}
+def judge(before, after, step, *, all_transitions=False):
+    decision = all_transitions or step.operation.startswith("decide_")
+    gc = all_transitions or step.operation in ("reclaim", "touch_reclaimed")
+    return {"J1": j1(after) if decision else None,
+            "J2": j2(after) if decision else None,
+            "J3": j3(before, after, step) if gc else None}

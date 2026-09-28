@@ -1,10 +1,10 @@
-"""Small fixed histories and reachability predicates for S1--S8."""
+"""Small fixed histories and reachability predicates for S1--S10."""
 from __future__ import annotations
 
 from dataclasses import replace
-from .model import State, Txn, Version
+from .model import State, Txn, Version, enabled_steps
 
-NAMES = tuple(f"S{i}" for i in range(1, 9))
+NAMES = tuple(f"S{i}" for i in range(1, 11))
 
 
 def _v(key, ts, rts=None):
@@ -20,12 +20,16 @@ def scenario(name):
         state = State((_v("A", 10), _v("B", 11)),
                       (_t("T", 70, ("R", "A"), ("W", "B")),
                        _t("W", 50, ("R", "B"), ("W", "A"))), 1)
-        predicate = lambda b, a, x: x.operation == "write_rts_check" and x.thread == "W"
+        predicate = lambda b, a, x: x.operation == "install" and x.version == "W:A" and any(
+            t.id == "T" and t.phase in ("v_check", "w_check", "decision", "release", "done")
+            and ("A", "A10") in t.read_log for t in b.txns)
     elif name == "S2":
         state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "A"), ("R", "B")),
                        _t("W", 70, ("W", "B"))), 1)
-        predicate = lambda b, a, x: x.operation == "forward_check"
+        predicate = lambda b, a, x: x.thread == "T" and x.operation in ("read", "cold_read") and any(
+            t.id == "T" and t.cand_ts > t.start for t in b.txns) and any(
+            v.id == "W:B" for v in b.versions)
     elif name == "S3":
         state = State((_v("A", 10), _v("A", 20), _v("A", 55),
                        _v("B", 40), _v("B", 60)),
@@ -42,28 +46,46 @@ def scenario(name):
         state = State((_v("A", 100), _v("B", 101)),
                       (_t("T", 130, ("R", "A"), ("W", "B")),
                        _t("W", 120, ("R", "B"), ("W", "A"))), 1)
-        predicate = lambda b, a, x: x.operation == "validate_read"
+        predicate = lambda b, a, x: x.operation == "install" and x.version == "W:A" and any(
+            t.id == "T" and t.phase == "v_rts" and t.index == 1 and ("A", "A100") in t.read_log
+            for t in b.txns)
     elif name == "S6":
         state = State((_v("A", 10), _v("B", 11), _v("B", 25)),
                       (_t("T", 15, ("R", "A"), ("R", "B")),
                        _t("W", 20, ("W", "A"))), 1)
-        predicate = lambda b, a, x: x.operation == "forward_check"
+        predicate = lambda b, a, x: x.operation == "install" and x.version == "W:A" and any(
+            t.id == "T" and t.phase in ("f_rts", "f_check") and t.target > 0 for t in b.txns)
     elif name == "S7":
-        state = State((_v("A", 20), _v("A", 65), _v("B", 40), _v("B", 60)),
-                      (_t("T", 45, ("R", "A"), ("R", "B")),), 1)
-        predicate = lambda b, a, x: x.operation == "publish_floor"
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
+                      (_t("T", 45, ("R", "A"), ("R", "B")),
+                       _t("W", 65, ("W", "A"))), 1)
+        predicate = lambda b, a, x: x.operation == "read_floor" and any(
+            t.gc_floor > t.start and ("A", "A20") in t.read_log and
+            any(v.id == "W:A" and v.wts > t.cand_ts for v in a.versions) and
+            not any(v.key == "A" and v.status == "COMMITTED" and 20 < v.wts <= t.cand_ts
+                    for v in a.versions) for t in a.txns)
     elif name == "S8":
-        t = replace(_t("T", 70, ("R", "A"), ("W", "B")),
-                    pc=2, phase="w_check", fixed=True, pending=("T:B",),
-                    read_log=(("A", "A10"),), refs=("A10",))
-        w = replace(_t("W", 50, ("R", "B"), ("W", "A")),
-                    pc=2, phase="install", fixed=True,
-                    read_log=(("B", "B11"),), refs=("B11",))
-        p = replace(_t("P", 40, ("W", "A")), pc=1, phase="install", fixed=True)
-        state = State((_v("A", 10, 70), _v("B", 11),
-                       Version("T:B", "B", 70, 70, "PENDING", "T")),
-                      (t, w, p), 1)
+        state = State((_v("A", 10), _v("B", 11)),
+                      (_t("T", 70, ("R", "A"), ("W", "B")),
+                       _t("W", 50, ("R", "B"), ("W", "A")),
+                       _t("P", 40, ("W", "A"))), 1)
         predicate = lambda b, a, x: x.operation == "write_rts_check" and x.thread == "W"
+    elif name == "S9":
+        state = State((_v("A", 10), _v("B", 11)),
+                      (_t("T", 60, ("R", "A"), ("W", "B")),
+                       _t("W", 50, ("R", "B"), ("W", "A")),
+                       _t("U", 80, ("R", "A"), ("W", "A"))), 1)
+        predicate = lambda b, a, x: x.thread == "T" and x.operation == "validate_read" and x.fault == "U2" and any(
+            t.id == "U" and t.phase in ("release", "done") and t.failed for t in b.txns)
+    elif name == "S10":
+        state = State((_v("A", 10), _v("B", 11), _v("B", 25)),
+                      (_t("T", 15, ("R", "A"), ("R", "B"), ("W", "B")),
+                       _t("W", 20, ("R", "B"), ("W", "A"))), 1)
+        predicate = lambda b, a, x: x.operation == "install" and x.version == "W:A" and any(
+            t.id == "T" and t.phase in ("f_rts", "f_check") and t.target > 0
+            and ("A", "A10") in t.read_log
+            and 10 < next(v.wts for v in a.versions if v.id == "W:A") < t.target
+            for t in b.txns)
     else:
         raise KeyError(name)
     return state, predicate
@@ -83,6 +105,25 @@ def handmade_j3(unsafe=True):
     versions = (_v("A", 20), _v("A", 65))
     t = _t("T", 61, ("R", "A")) if unsafe else _t("T", 70, ("R", "A"))
     before = State(versions, (t,), gc_seen=61)
-    after = replace(before, versions=(replace(versions[0], reclaimed=True), versions[1]),
-                    last_gc="A20")
+    after = replace(before, versions=(replace(versions[0], reclaimed=True), versions[1]))
     return before, after
+
+
+def handmade_future_forward():
+    versions = (_v("A", 30), _v("A", 65), _v("B", 40), _v("B", 60))
+    before = State(versions, (_t("T", 20, ("R", "B"), ("R", "A")),), gc_seen=20)
+    after = replace(before, versions=(replace(versions[0], reclaimed=True),) + versions[1:])
+    return before, after
+
+
+def s8_prefix():
+    state, _ = scenario("S8")
+    trace = []
+    for thread in ("T", "W", "P", "P", "P", "W", "W", "W", "T", "T", "T",
+                   "T", "T", "T", "T", "T", "T", "T"):
+        choices = [(n, step) for n, step in enabled_steps(state, "v0") if step.thread == thread]
+        assert len(choices) == 1
+        state, step = choices[0]
+        trace.append(step)
+    assert next(t for t in state.txns if t.id == "T").phase == "w_check"
+    return trace, state
