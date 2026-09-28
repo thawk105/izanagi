@@ -2,7 +2,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 index efcf02d75..acb0987fb 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -6,6 +6,13 @@
+@@ -6,6 +6,14 @@
  #include <string>
  #include <vector>
  
@@ -13,10 +13,11 @@ index efcf02d75..acb0987fb 100644
 +#include "gflags/gflags.h"
 +#endif
 +
++#line 9
  #include "include/common.hh"
  #include "include/scan_callback.hh"
  #include "include/transaction.hh"
-@@ -26,12 +33,108 @@ using namespace std;
+@@ -26,12 +34,110 @@ using namespace std;
  
  #define MSK_TID 0b11111111
  
@@ -100,6 +101,7 @@ index efcf02d75..acb0987fb 100644
 +} // namespace
 +#endif
 +
++#line 29
  /**
   * @brief Initialize function of transaction.
   * Allocate timestamp.
@@ -122,10 +124,11 @@ index efcf02d75..acb0987fb 100644
 +  auto& slot = forward_slots[thid_];
 +  slot.forwarded = slot.scanning = slot.special = false;
 +#endif
++#line 35
    /**
     * Allocate timestamp in read phase.
     */
-@@ -100,6 +203,132 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -100,6 +206,133 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
     * Scan to the area to be viewed
     */
    ver = tuple->ldAcqLatest();
@@ -255,10 +258,11 @@ index efcf02d75..acb0987fb 100644
 +    }
 +  }
 +#endif
++#line 103
    while (ver->ldAcqWts() > trts) {
      later_ver = ver;
      ver = ver->ldAcqNext();
-@@ -175,6 +404,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -175,6 +408,11 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
  
    ver = read_internal(s, key, tuple);
@@ -266,10 +270,11 @@ index efcf02d75..acb0987fb 100644
 +  if (status_ == TransactionStatus::aborted)
 +    return Status::ERROR_PREEMPTIVE_ABORT;
 +#endif
++#line 178
    if (ver == nullptr) return Status::WARN_NOT_FOUND;
  
    /**
-@@ -298,6 +531,15 @@ FINISH_WRITE:
+@@ -298,6 +536,16 @@ FINISH_WRITE:
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -282,10 +287,11 @@ index efcf02d75..acb0987fb 100644
 +  }
 +  slot.special = true;
 +#endif
++#line 301
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +588,15 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -346,6 +594,16 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -298,10 +304,11 @@ index efcf02d75..acb0987fb 100644
 +  }
 +  slot.special = true;
 +#endif
++#line 349
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +668,16 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -417,6 +675,17 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -315,20 +322,22 @@ index efcf02d75..acb0987fb 100644
 +  slot.special = true;
 +  slot.scanning = true;
 +#endif
++#line 420
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -457,6 +718,9 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -457,6 +726,10 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
      }
    }
  
 +#if CICADA_FWD_ENABLE
 +  slot.scanning = false;
 +#endif
++#line 460
    return Status::OK;
  }
  
-@@ -743,6 +1007,11 @@ void TxExecutor::gcpv() {
+@@ -743,6 +1016,12 @@ void TxExecutor::gcpv() {
   * @return void
   */
  void TxExecutor::abort() {
@@ -337,10 +346,11 @@ index efcf02d75..acb0987fb 100644
 +  forward_slots[thid_].scanning = false;
 +  forward_slots[thid_].special = false;
 +#endif
++#line 746
    // remove inserted records
    for (auto& we : write_set_) {
      if (we.op_ == OpType::INSERT) {
-@@ -893,6 +1162,11 @@ void TxExecutor::mainte() {
+@@ -893,6 +1172,12 @@ void TxExecutor::mainte() {
  }
  
  void TxExecutor::writePhase() {
@@ -349,6 +359,7 @@ index efcf02d75..acb0987fb 100644
 +  forward_slots[thid_].scanning = false;
 +  forward_slots[thid_].special = false;
 +#endif
++#line 896
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif
@@ -356,7 +367,7 @@ diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
 index 6c5184886..89852d8b8 100644
 --- a/cc/cicada/ycsb_cicada.cc
 +++ b/cc/cicada/ycsb_cicada.cc
-@@ -18,11 +18,140 @@
+@@ -18,11 +18,143 @@
  
  #include "../../common/runner.hh"
  
@@ -366,6 +377,7 @@ index 6c5184886..89852d8b8 100644
 +#include <thread>
 +#endif
 +
++#line 21
  using namespace std;
  
 +#if CICADA_LONGTX
@@ -481,6 +493,7 @@ index 6c5184886..89852d8b8 100644
 +} // namespace
 +#endif
 +
++#line 23
  int main(int argc, char* argv[]) try {
    gflags::SetUsageMessage("YCSB Cicada benchmark.");
    gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -494,18 +507,21 @@ index 6c5184886..89852d8b8 100644
 +    return 2;
 +  }
 +#endif
++#line 26
    chkArg();
    YcsbWorkload::displayWorkloadParameter();
    TupleInitParam* param = new TupleInitParam();
-@@ -37,7 +166,11 @@ int main(int argc, char* argv[]) try {
+@@ -37,7 +169,13 @@ int main(int argc, char* argv[]) try {
    opts.max_ope = FLAGS_max_ope;
    opts.batch_max_ope = FLAGS_batch_max_ope;
  
 +#if CICADA_LONGTX
 +  ccbench::run<TxExecutor, TransactionStatus, CicadaLongWorkload>(
 +#else
++#line 40
    ccbench::run<TxExecutor, TransactionStatus, YcsbWorkload>(
 +#endif
++#line 41
        TotalThreadNum, opts,
        [](size_t thid, const bool& quit, Backoff& backoff) {
          return TxExecutor(thid, backoff, &CCBenchResults[thid], quit);
