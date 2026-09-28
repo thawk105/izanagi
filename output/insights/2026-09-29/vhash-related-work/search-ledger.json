@@ -1,0 +1,1171 @@
+{
+ "index": "OpenAlex works API",
+ "filter_field": "title.search",
+ "per_page": 200,
+ "note": "生の応答本文は repo 外に保存し、ここには SHA-256 だけを置く (output/README.md)",
+ "queries": [
+  {
+   "id": "O01",
+   "query": "timestamp forwarding",
+   "meta_count": 0,
+   "pages": [
+    {
+     "page": "O01_p0.json",
+     "time_utc": "2026-09-28T18:35:25Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Atimestamp%20forwarding&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "f7993eae317ab404896e3558684e442ecb7ccb709b970b308452a20942cb6f5d",
+     "n_results": 0
+    }
+   ],
+   "n_results": 0,
+   "n_distinct": 0,
+   "complete": true,
+   "tally": {},
+   "hits": []
+  },
+  {
+   "id": "O02",
+   "query": "timestamp garbage collection",
+   "meta_count": 3,
+   "pages": [
+    {
+     "page": "O02_p0.json",
+     "time_utc": "2026-09-28T18:35:30Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Atimestamp%20garbage%20collection&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "e76eff701bc72cb707c03d7d6c3bc37ccd5e97f97259c36efd652f575a715af3",
+     "n_results": 3
+    }
+   ],
+   "n_results": 3,
+   "n_distinct": 3,
+   "complete": true,
+   "tally": {
+    "除外": 3
+   },
+   "hits": [
+    {
+     "work_id": "W3161353204",
+     "year": 1989,
+     "title": "Incremental distribution of timestamp packets: a new approach to distributed garbage collection",
+     "source": "ACM SIGPLAN Notices",
+     "judgement": "除外",
+     "reason_code": "X-PLGC",
+     "note": "分散 GC (プログラムのメモリ回収)"
+    },
+    {
+     "work_id": "W2012098586",
+     "year": 1989,
+     "title": "Incremental distribution of timestamp packets: a new approach to distributed garbage collection",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-PLGC",
+     "note": "同上の別 record"
+    },
+    {
+     "work_id": "W2369847330",
+     "year": 2010,
+     "title": "Hybrid Garbage Collection of Reference Counting and Timestamp",
+     "source": "Dianzi Ke-ji Daxue xuebao",
+     "judgement": "除外",
+     "reason_code": "X-PLGC",
+     "note": "参照カウントと timestamp のメモリ GC"
+    }
+   ]
+  },
+  {
+   "id": "O03",
+   "query": "long running transactions garbage collection",
+   "meta_count": 0,
+   "pages": [
+    {
+     "page": "O03_p0.json",
+     "time_utc": "2026-09-28T18:35:33Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Along%20running%20transactions%20garbage%20collection&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "cd017ef6de7508a546f32cfb567a480e24827746428ad0c17a811f6c4982c620",
+     "n_results": 0
+    }
+   ],
+   "n_results": 0,
+   "n_distinct": 0,
+   "complete": true,
+   "tally": {},
+   "hits": []
+  },
+  {
+   "id": "O04",
+   "query": "multiversion garbage collection",
+   "meta_count": 3,
+   "pages": [
+    {
+     "page": "O04_p0.json",
+     "time_utc": "2026-09-28T18:35:37Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Amultiversion%20garbage%20collection&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "16cdfe8055c9fdea46942b57ad3d76441fe93a0cafdfa1d2aabfddd3694669ea",
+     "n_results": 3
+    }
+   ],
+   "n_results": 3,
+   "n_distinct": 3,
+   "complete": true,
+   "tally": {
+    "近傍": 2,
+    "除外": 1
+   },
+   "hits": [
+    {
+     "work_id": "W3191976396",
+     "year": 2021,
+     "title": "Space and Time Bounded Multiversion Garbage Collection",
+     "source": "arXiv (Cornell University)",
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "要旨: version list の旧版を range-tracking で精密に回収 (DISC 2021)。tx の timestamp は動かさない"
+    },
+    {
+     "work_id": "W2156774110",
+     "year": 2014,
+     "title": "Garbage Collection for Multiversion Index in Flash-Based Embedded Databases",
+     "source": "ACM Transactions on Design Automation of Electronic Systems",
+     "judgement": "除外",
+     "reason_code": "X-FLASH",
+     "note": ""
+    },
+    {
+     "work_id": "W2949215527",
+     "year": 2019,
+     "title": "Multiversion Concurrency with Bounded Delay and Precise Garbage Collection",
+     "source": null,
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "要旨: 最後の tx が版を手放した時点で回収する precise GC (SPAA 2019)。tx の timestamp は動かさない"
+    }
+   ]
+  },
+  {
+   "id": "O05",
+   "query": "multi-version garbage collection",
+   "meta_count": 4,
+   "pages": [
+    {
+     "page": "O05_p0.json",
+     "time_utc": "2026-09-28T18:35:40Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Amulti-version%20garbage%20collection&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "da42e1f549662ab33cd48d20cc0ac5ad4eab51772c254c8b6d7027870e4ba111",
+     "n_results": 4
+    }
+   ],
+   "n_results": 4,
+   "n_distinct": 4,
+   "complete": true,
+   "tally": {
+    "近傍": 1,
+    "除外": 3
+   },
+   "hits": [
+    {
+     "work_id": "W2441046553",
+     "year": 2016,
+     "title": "Hybrid Garbage Collection for Multi-Version Concurrency Control in SAP HANA",
+     "source": null,
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "陽性対照。SAP HANA の hybrid GC (子 C1 が本文照合)"
+    },
+    {
+     "work_id": "W4248334423",
+     "year": 2014,
+     "title": "Garbage collection for multi-version index on flash memory",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FLASH",
+     "note": ""
+    },
+    {
+     "work_id": "W2011948425",
+     "year": 2014,
+     "title": "Garbage collection of multi-version indexed data on flash memory",
+     "source": "Journal of Systems Architecture",
+     "judgement": "除外",
+     "reason_code": "X-FLASH",
+     "note": ""
+    },
+    {
+     "work_id": "W4210431493",
+     "year": 2014,
+     "title": "Garbage collection for multi-version index on flash memory",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FLASH",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "O06",
+   "query": "MVCC garbage collection",
+   "meta_count": 3,
+   "pages": [
+    {
+     "page": "O06_p0.json",
+     "time_utc": "2026-09-28T18:35:44Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3AMVCC%20garbage%20collection&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "38b928db4e053c68cbbd8634510e50fd451824e9c23d52cd075560e305f4a5a9",
+     "n_results": 3
+    }
+   ],
+   "n_results": 3,
+   "n_distinct": 3,
+   "complete": true,
+   "tally": {
+    "近傍": 3
+   },
+   "hits": [
+    {
+     "work_id": "W2982402713",
+     "year": 2019,
+     "title": "Scalable garbage collection for in-memory MVCC systems",
+     "source": "Proceedings of the VLDB Endowment",
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "陽性対照。Steam (子 C1 が本文照合)"
+    },
+    {
+     "work_id": "W7140861658",
+     "year": 2026,
+     "title": "Branch-Aware MVCC Garbage Collection with Hierarchical Visibility and LSM Compaction Integration",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "要旨: branch 階層つき MVCC の GC 境界 (Zenodo、査読なし)。tx の timestamp は動かさない"
+    },
+    {
+     "work_id": "W7140664505",
+     "year": 2026,
+     "title": "Branch-Aware MVCC Garbage Collection with Hierarchical Visibility and LSM Compaction Integration",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "W7140861658 と同題の別 record"
+    }
+   ]
+  },
+  {
+   "id": "O07",
+   "query": "version chain concurrency",
+   "meta_count": 1,
+   "pages": [
+    {
+     "page": "O07_p0.json",
+     "time_utc": "2026-09-28T18:35:47Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Aversion%20chain%20concurrency&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "8337efa34085f3c1efd41ce6534d0a6c98d75bc115e8dc84def5196fb5127e7f",
+     "n_results": 1
+    }
+   ],
+   "n_results": 1,
+   "n_distinct": 1,
+   "complete": true,
+   "tally": {
+    "除外": 1
+   },
+   "hits": [
+    {
+     "work_id": "W7166523784",
+     "year": 2026,
+     "title": "MVCX: An Efficient Multi-Version-Based Concurrency Control Scheme for Cross-Chain Smart Contract Transactions",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-CHAIN",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "O08",
+   "query": "dynamic timestamp allocation",
+   "meta_count": 2,
+   "pages": [
+    {
+     "page": "O08_p0.json",
+     "time_utc": "2026-09-28T18:35:51Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Adynamic%20timestamp%20allocation&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "4a2af5034b78c58629eda46ffddd02836cd2abf8d30d580ca231f042ac1013e5",
+     "n_results": 2
+    }
+   ],
+   "n_results": 2,
+   "n_distinct": 2,
+   "complete": true,
+   "tally": {
+    "近傍": 2
+   },
+   "hits": [
+    {
+     "work_id": "W65972224",
+     "year": 1982,
+     "title": "Dynamic Timestamp Allocation for Transactions in Database Systems.",
+     "source": null,
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "陽性対照。Bayer ほか 1982 (子 D が照合)"
+    },
+    {
+     "work_id": "W2889707287",
+     "year": 2018,
+     "title": "Dynamic Timestamp Allocation for Reducing Transaction Aborts",
+     "source": null,
+     "judgement": "近傍",
+     "reason_code": "",
+     "note": "要旨: CockroachDB の MVTO に衝突に基づく動的 timestamp 割当て (IEEE CLOUD 2018)。配置・GC は入力にしない"
+    }
+   ]
+  },
+  {
+   "id": "O09",
+   "query": "timestamp adjustment concurrency control",
+   "meta_count": 1,
+   "pages": [
+    {
+     "page": "O09_p0.json",
+     "time_utc": "2026-09-28T18:35:55Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Atimestamp%20adjustment%20concurrency%20control&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "01dcf3f20136277c52414353b80272f7bb86a02c5797b1ca16105aa01cf000a0",
+     "n_results": 1
+    }
+   ],
+   "n_results": 1,
+   "n_distinct": 1,
+   "complete": true,
+   "tally": {
+    "要裁定": 1
+   },
+   "hits": [
+    {
+     "work_id": "W2069413900",
+     "year": 1997,
+     "title": "Updating timestamp interval for dynamic adjustment of serialization order in Optimistic Concurrency Control-Time Interval (OCCTI) protocol",
+     "source": "Information Processing Letters",
+     "judgement": "要裁定",
+     "reason_code": "",
+     "note": "OCC-TI の時間区間の更新 (IPL 1997)。要旨は OpenAlex・Semantic Scholar・Crossref のいずれでも取得できず、本文は非公開"
+    }
+   ]
+  },
+  {
+   "id": "O10",
+   "query": "version storage concurrency control",
+   "meta_count": 0,
+   "pages": [
+    {
+     "page": "O10_p0.json",
+     "time_utc": "2026-09-28T18:35:59Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Aversion%20storage%20concurrency%20control&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "175ccc04099e616db3ef87e0a30d5aa022d440ca7a4a1b5629aa0beea117172a",
+     "n_results": 0
+    }
+   ],
+   "n_results": 0,
+   "n_distinct": 0,
+   "complete": true,
+   "tally": {},
+   "hits": []
+  },
+  {
+   "id": "O11",
+   "query": "MVCC long transactions",
+   "meta_count": 0,
+   "pages": [
+    {
+     "page": "O11_p0.json",
+     "time_utc": "2026-09-28T18:36:02Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3AMVCC%20long%20transactions&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "8be577e76f3dd2886143e1174aadb165ebb48f3c968cefd8882d5e0d2e3399fe",
+     "n_results": 0
+    }
+   ],
+   "n_results": 0,
+   "n_distinct": 0,
+   "complete": true,
+   "tally": {},
+   "hits": []
+  },
+  {
+   "id": "O12",
+   "query": "hot versions",
+   "meta_count": 84,
+   "pages": [
+    {
+     "page": "O12_p0.json",
+     "time_utc": "2026-09-28T18:36:05Z",
+     "url": "https://api.openalex.org/works?filter=title.search%3Ahot%20versions&per-page=200&cursor=%2A&select=id,display_name,publication_year,primary_location,type",
+     "sha256": "50731ded8ca4d3d2bec05b708d0da207b038a2c54341f76a5a1dd73daddf54cc",
+     "n_results": 84
+    }
+   ],
+   "n_results": 84,
+   "n_distinct": 84,
+   "complete": true,
+   "tally": {
+    "除外": 84
+   },
+   "hits": [
+    {
+     "work_id": "W2943882227",
+     "year": 2019,
+     "title": "Event‐related potentials in response to feedback following risk‐taking in the hot version of the Columbia Card Task",
+     "source": "Psychophysiology",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2243514421",
+     "year": 2006,
+     "title": "Development of a New Revised Version of the Witczak E* Predictive Model for Hot Mix Asphalt Mixtures (With Discussion)",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2058834317",
+     "year": 2003,
+     "title": "The hot IVGTT two-compartment minimal model: an improved version",
+     "source": "American Journal of Physiology-Endocrinology and Metabolism",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2994443635",
+     "year": 2001,
+     "title": "Hot Potatoes, Version 5",
+     "source": "Language learning & technology",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1973152071",
+     "year": 1996,
+     "title": "Comparative study of properties of a-Si:H films produced by hot-filament CVD, glow discharge CVD and their hybrid version",
+     "source": "Thin Solid Films",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2126718337",
+     "year": 2015,
+     "title": "The Effects of Heat Stress on Selective Attention and Reaction Time among Workers of a Hot Industry: Application of Computerized Version of Stroop Test",
+     "source": "DOAJ (DOAJ: Directory of Open Access Journals)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W778406677",
+     "year": 1973,
+     "title": "Hot and cold atmospheres for Vandenberg AFB, California (1973 version)",
+     "source": "NASA Technical Reports Server (NASA)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2630795839",
+     "year": 2017,
+     "title": "The Hot Flash Related Daily Interference Scale: cutoffs, minimally important differences, and a revised short version",
+     "source": "Menopause The Journal of The North American Menopause Society",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2129765844",
+     "year": 2015,
+     "title": "Validity and Reliability of the Hot Flush Beliefs Scale’s Turkish Version",
+     "source": "Archives of Health Science and Research",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3195125745",
+     "year": 2021,
+     "title": "Alloy UNS N08827: a New and Advanced Version of Alloy UNS N08825 with Better Corrosion and Hot Cracking Resistance",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4387432841",
+     "year": 2023,
+     "title": "[National expert consensus on clinical diagnosis and treatment of hot crush injury wound (2023 version)].",
+     "source": "PubMed",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2795461296",
+     "year": 2018,
+     "title": "A new technical version of wiping of the steel wire surface after \"Hot Dip\" zinc coating",
+     "source": "Procedia Manufacturing",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1679695535",
+     "year": 1975,
+     "title": "Hot, cold, and annual reference atmospheres for Edwards Air Force Base, California (1975 version)",
+     "source": "NASA STI Repository (National Aeronautics and Space Administration)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2741575566",
+     "year": 2008,
+     "title": "On Application of the \"Hot-run\" Version of the ENSEMBLE System to the ECURIE Level 3 Exercise",
+     "source": "Joint Research Centre (European Commission)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2945976151",
+     "year": 1998,
+     "title": "Development of niobium nitride hot electron bolometric mixer for terahertz frequencies: The phonon-cooled version",
+     "source": "ScholarWorks@UMassAmherst (University of Massachusetts Amherst)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1995876323",
+     "year": 2012,
+     "title": "The Portuguese Version of the Perceived Control over Hot Flushes Index: Evaluation of its Psychometric Properties",
+     "source": "Psychology Community & Health",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7139951686",
+     "year": 2026,
+     "title": "[Expert consensus on hot issues in enhanced recovery after surgery perioperative management for gastric cancer patients undergoing neoadjuvant therapy (2026 version)].",
+     "source": "PubMed",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1971623373",
+     "year": 2002,
+     "title": "Simulation/Game review: Hots: The Service Business Simulation (Version 3.0). The Orange Simulation Company Ltd. (2001). C/O: Training Technology International (3609 Two Oaks Drive, Greensboro Nc 27410, Usa).",
+     "source": "Simulation & Gaming",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W563450944",
+     "year": 1984,
+     "title": "THE BELGIAN VERSION OF THE BRITISH \"HOT ROLLED ASPHALT\"",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3200623351",
+     "year": 2021,
+     "title": "Multiple Hot Deck Imputation [R package hot.deck version 1.2]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2982487252",
+     "year": 2016,
+     "title": "Exploring Hot Exoplanet Atmospheres with JWST/NIRSpec and a Hybrid Version of NEMESIS",
+     "source": "American Astronomical Society Meeting Abstracts #227",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2087555791",
+     "year": 2007,
+     "title": "Architectural hot-swap in NURBS surfaces: versioning of case studies, work in progress",
+     "source": "WIT transactions on modelling and simulation",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2966993152",
+     "year": 2019,
+     "title": "Venetian blinds as a version of sun-shelves to be used in hot and sunny climate conditions",
+     "source": "E3S Web of Conferences",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1776566651",
+     "year": 2011,
+     "title": "Showing skin (or not) on the hot Tunisian sand: An impossible version of Sea, Sex and Sun ?",
+     "source": "Cahiers d'études et de recherches francophones / Santé",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3145033197",
+     "year": 2021,
+     "title": "Spatiotemporal Clustering of Satellite Hot Spot Data [R package spotoroo version 0.1.1]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2121864217",
+     "year": 1997,
+     "title": "NbN Hot Electron Bolometric Mixer for 2. 5 THz: The Phonon Cooled Version",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W1486507381",
+     "year": 1986,
+     "title": "Viscous flow computations for elliptical two-duct version of the SSME hot gas manifold",
+     "source": "NASA STI Repository (National Aeronautics and Space Administration)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3014447595",
+     "year": 2015,
+     "title": "Constraining the Structure of Hot Jupiter Atmospheres Using a Hybrid Version of the NEMESIS Retrieval Algorithm",
+     "source": "AAS/Division for Planetary Sciences Meeting Abstracts #47",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4417153243",
+     "year": 2025,
+     "title": "[Hot issues after the release of the guideline for HER2 testing in breast cancer (2024 version)].",
+     "source": "PubMed",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W806152383",
+     "year": 2008,
+     "title": "Chosen economic aspects of the technology of finishing of wood surface with PUR lacquers in the hot coating version",
+     "source": "Intercathedra",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3092450306",
+     "year": 2020,
+     "title": "Fractional Hot Deck and Fully Efficient Fractional Imputation [R package FHDI version 1.4.1]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3015258685",
+     "year": 2019,
+     "title": "Hot Clube de Portugal after the April revolution: the importance of the archives to an inclusive version of the history",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3095373714",
+     "year": 2020,
+     "title": "Log-Linear Poisson Graphical Model with Hot-Deck Multiple Imputation [R package RNAseqNet version 0.1.4]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4239896785",
+     "year": 2015,
+     "title": "A simple protocol for the production of commercial-grade Taq DNA polymerase and its “hot start” version at laboratory scale",
+     "source": "TAP CHI SINH HOC",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416614132",
+     "year": 2015,
+     "title": "Peer Review Report For: Hot topics in biodiversity and climate change research [version 1; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416657063",
+     "year": 2015,
+     "title": "Peer Review Report For: Hot topics in biodiversity and climate change research [version 1; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7171570585",
+     "year": 2026,
+     "title": "Translation, cross-cultural adaptation, and validation of the Thai version of the Hot Flash–related Daily Interference Scale (Thai HFRDIS)",
+     "source": "Menopause The Journal of The North American Menopause Society",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2917286536",
+     "year": 2006,
+     "title": "Pave-IR Operator's Manual, Version 1.2: A Thermal Imaging System for Evaluating Hot-Mix Asphalt Paving Operations",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4379034161",
+     "year": 2023,
+     "title": "Applicability Analysis of the Sttc and an Improved Version for Calculating the Outdoor Land Surface Temperatures of Urban Rail Transit Hubs in Hot and Humid Areas",
+     "source": "SSRN Electronic Journal",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416631287",
+     "year": 2024,
+     "title": "Peer Review Report For: Assessing the severity of thermal discomfort in a building in the course of hot and humid climate [version 2; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416619181",
+     "year": 2014,
+     "title": "Peer Review Report For: Hot topics at the intersection of aging and energetics: Diabetes/insulin resistance, Sirtuins, and the Microbiome [version 1; peer review: 3 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416613713",
+     "year": 2014,
+     "title": "Peer Review Report For: Hot topics at the intersection of aging and energetics: Diabetes/insulin resistance, Sirtuins, and the Microbiome [version 1; peer review: 3 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416619109",
+     "year": 2014,
+     "title": "Peer Review Report For: Hot topics at the intersection of aging and energetics: Diabetes/insulin resistance, Sirtuins, and the Microbiome [version 1; peer review: 3 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416616869",
+     "year": 2018,
+     "title": "Peer Review Report For: Rapid coral mortality following unusually calm and hot conditions on Iriomote, Japan [version 2; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416500857",
+     "year": 2024,
+     "title": "Peer Review Report For: Threshold studies for a hot beam superradiant laser including an atomic guiding potential [version 1; peer review: 4 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4389987073",
+     "year": 2002,
+     "title": "El Ahorro de Energia: Sugerencias para ahorrar energia y dinero en el hogar (Energy Savers Hot Winter Tips, Spanish Version)",
+     "source": "University of North Texas Digital Library (University of North Texas)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416500856",
+     "year": 2024,
+     "title": "Peer Review Report For: Threshold studies for a hot beam superradiant laser including an atomic guiding potential [version 1; peer review: 4 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7212032382",
+     "year": 2026,
+     "title": "V22: The Theory of Induced‑Wind Universe: Dual‑Architecture of Hot‑Traction‑Wind and Cold‑Coupling‑Wind — The Origin of Cosmic Operation|Sharp Collector's Final Version",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416489375",
+     "year": 2024,
+     "title": "Peer Review Report For: Threshold studies for a hot beam superradiant laser including an atomic guiding potential [version 1; peer review: 4 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820222",
+     "year": 2024,
+     "title": "Peer Review Report For: Threshold studies for a hot beam superradiant laser including an atomic guiding potential [version 1; peer review: 4 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416612062",
+     "year": 2024,
+     "title": "Peer Review Report For: Assessing the severity of thermal discomfort in a building in the course of hot and humid climate [version 1; peer review: 1 approved, 1 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3032368372",
+     "year": 2015,
+     "title": "Some hot issues in the treatment of bone metastasis of breast cancer: interpretation of Expert Consensus on the Diagnosis and Treatment of Bone Metastasis and Skeletal Related Diseases in Breast Cancer (2014 version)",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7214323056",
+     "year": 2026,
+     "title": "Peer Review Report For: Hot take on a cool topic: is there really a need for a systemic master mediator of metabolic suppression in mouse daily torpor? [version 1; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7213283173",
+     "year": 2026,
+     "title": "Peer Review Report For: Hot take on a cool topic: is there really a need for a systemic master mediator of metabolic suppression in mouse daily torpor? [version 1; peer review: 1 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416503617",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 2; peer review: 4 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416819805",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 2; peer review: 4 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W3217742238",
+     "year": 2000,
+     "title": "GK64X Mechanical Keyboard Kit GK64 Upgrade Version Hot swappable RGB Light Compatible Cherry MX Gateron Box Switches 3Pin 5Pin Support Split Spacebar (Walnut) : Electronics",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416603658",
+     "year": 2022,
+     "title": "Peer Review Report For: Comparison of accidental pediatric scald burns in a tertiary care center: hot cauldron burns versus accidental spill burns [version 2; peer review: 2 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416500192",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 2; peer review: 4 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416503380",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 2; peer review: 4 approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820371",
+     "year": 2024,
+     "title": "Peer Review Report For: Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 1; peer review: 1 not approved]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416603642",
+     "year": 2025,
+     "title": "Peer Review Report For: Prioritizing Citrullus colocynthis accessions and fruit parts with promising antibacterial activity and adaption to the hot climate of the UAE for the future pharmaceutical industry [version 1; peer review: 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4414606749",
+     "year": 2025,
+     "title": "REVISED Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4414606750",
+     "year": 2025,
+     "title": "REVISED Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4414606912",
+     "year": 2025,
+     "title": "REVISED Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4414606832",
+     "year": 2025,
+     "title": "REVISED Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416659560",
+     "year": 2025,
+     "title": "Peer Review Report For: Prioritizing Citrullus colocynthis accessions and fruit parts with promising antibacterial activity and adaption to the hot climate of the UAE for the future pharmaceutical industry [version 1; peer review: 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416618134",
+     "year": 2025,
+     "title": "Peer Review Report For: Prioritizing Citrullus colocynthis accessions and fruit parts with promising antibacterial activity and adaption to the hot climate of the UAE for the future pharmaceutical industry [version 1; peer review: 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416819823",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 1; peer review: 1 approved, 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416656525",
+     "year": 2021,
+     "title": "Peer Review Report For: Comparison of accidental pediatric scald burns in a tertiary care center: hot cauldron burns versus accidental spill burns [version 1; peer review: 1 approved, 1 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416497997",
+     "year": 2025,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 1; peer review: 1 approved, 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416499108",
+     "year": 2024,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 1; peer review: 1 approved, 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416646611",
+     "year": 2021,
+     "title": "Peer Review Report For: Comparison of accidental pediatric scald burns in a tertiary care center: hot cauldron burns versus accidental spill burns [version 1; peer review: 1 approved, 1 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416489331",
+     "year": 2024,
+     "title": "Peer Review Report For: Atacama Large Aperture Submillimeter Telescope (AtLAST) science: Resolving the hot and ionized Universe through the Sunyaev-Zeldovich effect [version 1; peer review: 1 approved, 3 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820339",
+     "year": 2025,
+     "title": "Peer Review Report For: Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820360",
+     "year": 2025,
+     "title": "Peer Review Report For: Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820338",
+     "year": 2025,
+     "title": "Peer Review Report For: Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4416820361",
+     "year": 2025,
+     "title": "Peer Review Report For: Application of digital twin for industrial process control: A case study of gauge-looper-tension optimized control in strip hot rolling [version 2; peer review: 2 approved, 2 approved with reservations]",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7164687521",
+     "year": 2026,
+     "title": "Against Consciousness Tests Without a Structural Definition — Revised Version — From the Turing Test to P300 Neural Markers — An Engineering Convergence Point from Ten Minimal Terms, Using AI as an Engineering Calculator and Its Challenge to GWT, IIT, RPT, HOT, Predictive Processing, and NCC Research",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7164189422",
+     "year": 2026,
+     "title": "Against Consciousness Tests Without a Structural Definition — Revised Version — From the Turing Test to P300 Neural Markers — An Engineering Convergence Point from Ten Minimal Terms, Using AI as an Engineering Calculator and Its Challenge to GWT, IIT, RPT, HOT, Predictive Processing, and NCC Research",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7164526887",
+     "year": 2026,
+     "title": "Against Consciousness Tests Without a Structural Definition — Revised Version — From the Turing Test to P300 Neural Markers — An Engineering Convergence Point from Ten Minimal Terms, Using AI as an Engineering Calculator and Its Challenge to GWT, IIT, RPT, HOT, Predictive Processing, and NCC Research",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W7164344439",
+     "year": 2026,
+     "title": "Against Consciousness Tests Without a Structural Definition — Revised Version — From the Turing Test to P300 Neural Markers — An Engineering Convergence Point from Ten Minimal Terms, Using AI as an Engineering Calculator and Its Challenge to GWT, IIT, RPT, HOT, Predictive Processing, and NCC Research",
+     "source": "Zenodo (CERN European Organization for Nuclear Research)",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W2207467541",
+     "year": 2000,
+     "title": "Evaluation and control of hot working environments: Part I – Guidelines for the practitioner * *The recommendations provided in this guide are based on numerous published and unpublished scientific studies and are intended to enhance worker safety and productivity. These recommendations are neither intended to replace existing standards, if any, nor should be treated as standards. Furthermore, this document should not be construed to represent institutional policy.The following individuals participated in the discussion of the earlier version of this guide. Their suggestions (written or verbal) were incorporated by the authors in this version: Arne Aaras, Norway; Fred Aghazadeh, USA; Roland Andersson, Sweden; Jan Dul, The Netherlands; Jeffrey Fernandez, USA; Ingvar Holmér, Sweden; Matthias Jäger, Germany; Åsa Kilbom, Sweden; Anders Kjellberg, Sweden; Olli Korhonen, Finland; Helmut Krueger, Switzerland; Shrawan Kumar, Canada; Ulf Landström, Sweden; Tom Leamon, USA; Anil Mital, USA; Ruth Nielsen, Denmark, Murray Sinclair, UK; Rolf Westgaard, Norway; Ann Williamson, Australia; Jørgen Winkel, Sweden; Pia Zätterström, Sweden. The guide was also reviewed in depth by several anonymous reviewers.",
+     "source": "Elsevier ergonomics book series",
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    },
+    {
+     "work_id": "W4256548044",
+     "year": 2002,
+     "title": "to less prosaic representations. That five of the commentaries are positive in their evaluation of Neighbours, two neutral, and only one negative suggests the broad potential acceptability of the program to the US market (only one publication, the Wall Street Journal, has the kind of highbrow readership which might encourage its television critics to sneer at popular material such as soaps). The two textual features of Neighbours which do draw comment – the everyday, and the domestic and suburban – point to a crucial first feature of the US “mediascape,” in particular its “soapscape,” namely the preference for the exceptional, the non-domestic, the non-suburban. In US soaps, it is well known, the pole of melodrama exercises greater attraction than the pole of realism (cf. Geraghty 1991: 25–38) – in contrast to Australian and British soaps. These two textual aspects of Neighbours are a central theme of the US commentaries, combining under the rubric of the non-exceptional, the “realistic.” All the commentaries bar the sole negative one (Kitman 1991: 23) refer positively to Neighbours’ “realism,” often in contradistinction to the perceived artificiality of US soaps. Peter Pinne, the program’s executive producer, is twice quoted to just this effect (Goodspeed 1991: 22; Mann 1991: 28), while USA Today (Roush 1991: 15) applauds “how close the residents of Ramsey Street seem to our own suburban counterparts,” and notes that “its casual gossip and unexceptional lifestyle [are] closer to the early days of Knots Landing than to any current soap.” The redoubtable Wall Street Journal does not sneer, but praises a television version of middle- and lower-class life that is at ease with itself and singularly lacking in . . . the self-consciousness and discomfort that attends American television’s efforts to portray uneducated white working-class types . . . . [Its] characters . . . ought to be more recognisable to Americans than the peculiar beings that inhabit the worlds of our home-grown TV dramas . . . . [They] actually converse with one another in the way that people do – without declaiming or the rat-a-tat of one-liners, or recitals of a position on the latest hot social theme. If the beat of their daily lives is unhysterical – quiet, in fact – it is also eventful. (Rabinowitz 1991: 17) The Wall Street Journal takes a refreshing distance from the infamous “Greed is good” dictum voiced in Oliver Stone’s film, Wall Street! Given Neighbours’s atypicality in the realm of US soaps, its American reference points are either Knots Landing – which one British journalist described as “the nearest the Americans can bear to get to a soap about ordinary people” (Kingsley 1989: 226) – or US sitcoms (Kelleher 1991: 36; Rabinowitz 1991: 17). Buyer and seller agreed that its non-exceptional “realism” was one reason for Neighbours’s failure in the US “soapscape.” KCOP described it as “less raunchy than US soap operas, too wholesome” (Moran 1992). Its seller, Bob Cristal, added that",
+     "source": null,
+     "judgement": "除外",
+     "reason_code": "X-FIELD",
+     "note": ""
+    }
+   ]
+  }
+ ]
+}

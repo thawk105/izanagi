@@ -28568,3 +28568,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: CCBench への変更の検査を izanagi 側の検査 (TRACE=0 の前処理・逆アセンブルの一致、D297、計算ノードでの build・trace の確認) に限り、上流の CI の 2 本 (build・format) を通すことを手順に入れていなかった。format は CI でしか落ちないので、push 後の失敗が誰にも読まれず pin まで進んだ。
 - 恒久対応: D2277 項 1・2 (pin を進める先は CCBench の CI が緑の tip に限る、CCBench の変更は build と format を CI と同じ手順で通す)。memory `ccbench-changes-must-pass-upstream-ci`。
 - 再発検知: pin 前進 wave が GitHub の CI の結果 (build・format) を gitlink 更新の前に確かめる (D2277 項 1 (3))。
+
+### F1057. DBLP 検索 API が bot 判定の HTML を HTTP 200 で返し、0 件の検索に見えかけた [手順漏れ]
+
+- 事象: 2026-09-29、Pegasus login node から DBLP publ search API (`https://dblp.org/search/publ/api?...&format=json`) へ送った
+  事前登録済みの 12 本が、全て HTTP 200・`content-type: text/html` の bot 判定ページ (7,441 bytes、題 "Making sure you're not a bot!") を返した。
+  JSON として読めずに気づき、結果を 1 件も判定せず走行無効とした。子エージェントの WebFetch でも dblp.org・dblp.dagstuhl.de が同じページを返した。
+  記録は `output/insights/2026-09-29/vhash-related-work/README.md` §10.1。
+- 根本原因: DBLP 側が自動取得に challenge を返すようになった。HTTP の状態コードだけでは取得の成否を判定できない。
+  `docs/related-work/README.md` 7.7.4 は登録母集合検索 (RW3) の最小索引に DBLP を含めるため、この状態が続く限り RW3 は DBLP 枝で完走できない。
+- 恒久対応: memory `dblp-api-bot-challenge-http200` (取得の成否は content-type と JSON の構造で判定し、状態コードで判定しない。
+  DBLP 枝が取れないときは使えなかった索引として記録し、黙って母集合から外さない)。
+- 再発検知: 応答本文を JSON として読む段で失敗する (content-type が `text/html`)。件数 0 を「未検出」と読む前に `result.hits.@total` の実在を確かめる。
