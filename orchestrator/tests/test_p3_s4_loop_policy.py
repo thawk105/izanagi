@@ -704,10 +704,7 @@ def _policy_pair_child(base, proposal, crash=False):
     from orchestrator.tests import test_campaign as fixtures
 
     base = Path(base)
-    roots = [base / 'candidate', base / 'stock']
-    for root in roots:
-        _source(root)
-        fixtures._install_complete_silo_proof_source(str(root))
+    root = base / 'candidate'
     patches = pytest.MonkeyPatch()
     try:
         patches.setenv('IZANAGI_EXPLORATION_OUTPUT_ROOT', str(base / 'output'))
@@ -735,16 +732,16 @@ def _policy_pair_child(base, proposal, crash=False):
             lambda *_a, **_k: contextlib.nullcontext())
         patches.setattr(loop, '_perform_perf_preflight', lambda *_a, **_k: (None, True))
         def evidence(genome, pin, *, ccbench_dir='', **_kwargs):
-            token = source_digest.STOCK if Path(ccbench_dir) == roots[1] else 'd' * 64
+            token = ('d' * 64 if P.axis.FLAG in genome.flags
+                     else source_digest.STOCK)
             return fixtures._source_evidence(genome, pin, src_token=token,
                                             source_root=ccbench_dir)
         patches.setattr(loop.source_digest, 'resolve_evidence', evidence)
 
         @contextlib.contextmanager
         def checkout(pin, *, base_dir):
-            arm = checkout.arm
-            checkout.arm += 1
-            assert arm in (0, 1) and pin == P.axis.PIN
+            assert checkout.calls == 0 and pin == P.axis.PIN
+            checkout.calls += 1
             assert base_dir == str(base / 'external/ccbench')
             with fixtures._mock_pipeline(
                 trace_content=(ROOT / 'orchestrator/tests/fixtures/g1_serial/trace_0.log').read_text(),
@@ -752,15 +749,16 @@ def _policy_pair_child(base, proposal, crash=False):
                 local.setattr(pipeline.source_digest, 'resolve_evidence', evidence)
                 build = pipeline.buildcache.build_v2
                 def observed_build(genome, *, build_context, **kwargs):
-                    assert (build_context._authority_nonce is None) == (arm == 1)
-                    assert kwargs['ccbench_dir'] == str(roots[arm])
-                    if crash and arm == 0:
+                    candidate = P.axis.FLAG in genome.flags
+                    assert (build_context._authority_nonce is not None) == candidate
+                    assert kwargs['ccbench_dir'] == str(root)
+                    if crash and candidate:
                         os._exit(37)
                     local.setattr(fixtures, '_BUILD_CONTEXT', build_context)
                     return build(genome, build_context=build_context, **kwargs)
                 local.setattr(pipeline.buildcache, 'build_v2', observed_build)
-                yield str(roots[arm])
-        checkout.arm = 0
+                yield str(root)
+        checkout.calls = 0
         patches.setattr(patchharness, 'checkout', checkout)
         return P.main(['--form', 'cpp', '--campaign-env', 'pegasus',
             '--allow-coder-derived-build', '--run-iteration', str(proposal),
@@ -783,6 +781,10 @@ def _policy_pair_case(tmp_path, valid_reservation_environment):
     proposal = _proposal(tmp_path, change=lambda d: (
         d['coder'].update(implementation=GOOD),
         d['auditor'].update(diff_digest=compute_diff_digest(diff))))
+    root = tmp_path / 'candidate'
+    _source(root)
+    from orchestrator.tests import test_campaign as fixtures
+    fixtures._install_complete_silo_proof_source(str(root))
     harness = tmp_path / 'pair_child.py'
     harness.write_text(
         'import sys\n'
