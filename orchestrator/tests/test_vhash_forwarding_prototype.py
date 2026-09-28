@@ -169,6 +169,35 @@ def test_inert_normalization_ignores_markers_and_blank_lines(monkeypatch):
     assert driver._preprocess(entry) != driver._preprocess(entry)
 
 
+@pytest.mark.parametrize("marker", ("ycsb_cicada.exe", "ycsb_cicada"))
+@pytest.mark.parametrize("surface", ("arguments", "command", "output"))
+def test_compile_entry_selects_ycsb_target_among_four(tmp_path, marker, surface):
+    source = "/src/cc/cicada/transaction.cc"
+    entries = []
+    for target in ("ycsb", "tpcc", "bomb", "sbomb"):
+        name = marker if target == "ycsb" else f"{target}_cicada.exe"
+        object_path = f"CMakeFiles/{name}.dir/transaction.cc.o"
+        entry = {"file": source, "directory": str(tmp_path)}
+        entry["arguments"] = ["c++", "-c", source]
+        if surface == "arguments" or target != "ycsb":
+            entry["arguments"] += ["-o", object_path]
+        elif surface == "command":
+            entry.pop("arguments")
+            entry["command"] = f"c++ -c {source} -o {object_path}"
+        else:
+            entry["output"] = object_path
+        entries.append(entry)
+    commands = tmp_path / "compile_commands.json"
+    commands.write_text(json.dumps(entries))
+    assert driver._compile_entry(tmp_path, "transaction.cc") == entries[0]
+    commands.write_text(json.dumps(entries[1:]))
+    with pytest.raises(RuntimeError, match="found 0"):
+        driver._compile_entry(tmp_path, "transaction.cc")
+    commands.write_text(json.dumps([*entries, entries[0]]))
+    with pytest.raises(RuntimeError, match="found 2"):
+        driver._compile_entry(tmp_path, "transaction.cc")
+
+
 def test_aggregate_jobs_excludes_smoke_and_rejects_duplicate_rep():
     def record(spec):
         special = spec["gc_inter_us"] == 100 and spec["policy"] == "c" and \

@@ -120,8 +120,17 @@ def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
 
 def _compile_entry(build: Path, filename: str) -> dict:
     entries = json.loads((build / "compile_commands.json").read_text())
-    found = [e for e in entries if Path(e["file"]).name == filename and
-             "/cc/cicada/" in Path(e["file"]).as_posix()]
+    markers = ("CMakeFiles/ycsb_cicada.exe.dir/", "CMakeFiles/ycsb_cicada.dir/")
+    found = []
+    for entry in entries:
+        if (Path(entry["file"]).name != filename or
+                "/cc/cicada/" not in Path(entry["file"]).as_posix()):
+            continue
+        argv = entry.get("arguments") or shlex.split(entry["command"])
+        output = entry.get("output")
+        surface = " ".join((*argv, output if type(output) is str else ""))
+        if any(marker in surface for marker in markers):
+            found.append(entry)
     if len(found) != 1:
         raise RuntimeError(f"expected one compile command for {filename}, found {len(found)}")
     return found[0]
