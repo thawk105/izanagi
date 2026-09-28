@@ -408,10 +408,17 @@ def main(argv=None):
                 cell_started = time.monotonic()
                 arms = (("linked_scattered", "contig_scalar") if args.shard == "pilot" else
                         (READ_ARMS if c["side"] == "read" else WRITE_ARMS))
-                result = invoke_cell(binary, c, arms, 8)
+                bench_cell = dict(c, memory_limit_bytes=raw["env"]["mem_available_bytes"] // 2)
+                result = invoke_cell(binary, bench_cell, arms, 8)
                 c["ops"] = result["ops"]
                 c["expected_checksum"] = result["expected_checksum"]
+                c["shared_value_pool_bytes"] = result["shared_value_pool_bytes"]
                 c["arms"] = result["arms"]
+                expected_shared = (c["n_keys"] * max(c["K"] + 4, (c["depth"] or 0) + 2)
+                                   * c["value_bytes"] if c["side"] == "read" and
+                                   c["value_mode"] == "external" else 0)
+                if c["shared_value_pool_bytes"] != expected_shared:
+                    raise RuntimeError("shared value pool mismatch: " + c["cell_id"])
                 for arm_result in c["arms"]:
                     arm = arm_result["arm"]
                     expected_size = footprint_per_key(binary, c, arm)

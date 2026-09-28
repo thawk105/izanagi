@@ -28,12 +28,12 @@ def fixture_document():
         names = plot.WRITE_ARMS if group == "write" else (("linked_scattered", "contig_scalar") if group == "pilot" else plot.READ_ARMS)
         arms = []
         for index, name in enumerate(names):
-            reps = [{"rep": rep, "order_pos": (rep + index) % len(names), "elapsed_ns": 1000 * (100 + k + rep + index), "ns_per_op": 100 + k + rep + index, "checksum": 42} for rep in range(8)]
+            reps = [{"rep": rep, "order_pos": (rep + index) % len(names), "elapsed_ns": 800 * (100 + k + rep + index), "ns_per_op": 100 + k + rep + index, "checksum": 42} for rep in range(8)]
             events = {event: {"count": 16000 + index, "run_time_ns": 100000, "running_pct": 100.0} for event in plot.PERF_EVENTS}
             events["cache-references:u"]["count"] = 400
             events["cache-misses:u"]["count"] = 100
-            arms.append({"arm": name, "footprint_bytes": 4096 + index * 128, "footprint_per_key_bytes": 32 + index, "reps": reps, "perf": {"ops": 800, "events": events, "raw_stderr_paths": ["fixture-perf-a.txt", "fixture-perf-b.txt"]}})
-        cells.append({"cell_id": f"cell-{len(cells)}", "group": group, "side": "write" if group == "write" else "read", "K": k, "depth": depth, "keyset": keyset, "n_keys": 128 if keyset == "in" else 32768, "capped": False, "value_mode": value_mode, "value_bytes": value_bytes, "state_pattern": state_pattern, "ops": 1000, "wall_s": 1.0, "expected_checksum": 42, "pilot_multiple": None, "arms": arms})
+            arms.append({"arm": name, "footprint_bytes": (128 if keyset == "in" else 32768) * (32 + index), "footprint_per_key_bytes": 32 + index, "reps": reps, "perf": {"ops": 800, "events": events, "raw_stderr_paths": ["fixture-perf-a.txt", "fixture-perf-b.txt"]}})
+        cells.append({"cell_id": f"cell-{len(cells)}", "group": group, "side": "write" if group == "write" else "read", "K": k, "depth": depth, "keyset": keyset, "n_keys": 128 if keyset == "in" else 32768, "capped": False, "value_mode": value_mode, "value_bytes": value_bytes, "state_pattern": state_pattern, "ops": 800, "wall_s": 1.0, "expected_checksum": 42, "shared_value_pool_bytes": (128 if keyset == "in" else 32768) * max(k + 4, (depth or 0) + 2) * value_bytes if value_mode == "external" else 0, "pilot_multiple": None, "arms": arms})
     for k in plot.K_VALUES:
         for depth in (0, k + 2):
             for keyset in plot.KEYSETS: add("k", k, depth, keyset)
@@ -170,6 +170,11 @@ def test_pilot_raw_run_id_mismatch(tmp_path):
     assert_empty(prefix)
 def test_checksum_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"][0].update(checksum=43), "checksum mismatch")
 def test_paranoid_string_rejected(tmp_path): reject(tmp_path, lambda d: d["env"].update(perf_event_paranoid="0"), "perf_event_paranoid")
+def test_perf_ops_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["perf"].update(ops=801), "perf.ops mismatch")
+def test_ns_per_op_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"][0].update(ns_per_op=999), "ns_per_op mismatch")
+def test_footprint_product_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0].update(footprint_bytes=1), "footprint mismatch")
+def test_shared_value_pool_type_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0].update(shared_value_pool_bytes=-1), "shared_value_pool_bytes")
+def test_shared_value_pool_bool_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0].update(shared_value_pool_bytes=True), "shared_value_pool_bytes")
 
 def test_output_replace_failure_removes_this_runs_products(tmp_path, monkeypatch):
     plot = plot_module()

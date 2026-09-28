@@ -85,7 +85,7 @@ def grid_key(cell):
     return (group, cell["cell_id"])
 
 def validate_cell(cell):
-    required = ("cell_id", "group", "side", "K", "depth", "keyset", "n_keys", "capped", "value_mode", "value_bytes", "state_pattern", "ops", "wall_s", "expected_checksum", "pilot_multiple", "arms")
+    required = ("cell_id", "group", "side", "K", "depth", "keyset", "n_keys", "capped", "value_mode", "value_bytes", "state_pattern", "ops", "wall_s", "expected_checksum", "shared_value_pool_bytes", "pilot_multiple", "arms")
     for name in required:
         if name not in cell: fail(f"schema mismatch: cell.{name}")
     if not isinstance(cell["cell_id"], str) or not cell["cell_id"]: fail("schema mismatch: cell_id")
@@ -101,6 +101,9 @@ def validate_cell(cell):
     integer(cell["value_bytes"], "value_bytes")
     if cell["state_pattern"] is not None and not isinstance(cell["state_pattern"], str): fail("schema mismatch: state_pattern")
     integer(cell["ops"], "ops", 1)
+    if type(cell["shared_value_pool_bytes"]) is not int:
+        fail("invalid integer at shared_value_pool_bytes")
+    integer(cell["shared_value_pool_bytes"], "shared_value_pool_bytes")
     finite_number(cell["wall_s"], "cell.wall_s", True)
     integer(cell["expected_checksum"], "expected_checksum")
     if group == "pilot": finite_number(cell["pilot_multiple"], "pilot_multiple", True)
@@ -112,21 +115,26 @@ def validate_cell(cell):
     if len(names) != len(set(names)) or set(names) != expected: fail(f"missing or duplicate arm: {cell['cell_id']}")
     rep_sets = []
     for arm in arms:
-        integer(field(arm, "footprint_bytes", int, "arm"), "footprint_bytes", 1)
-        integer(field(arm, "footprint_per_key_bytes", int, "arm"), "footprint_per_key_bytes", 1)
+        footprint_bytes = integer(field(arm, "footprint_bytes", int, "arm"), "footprint_bytes", 1)
+        per_key = integer(field(arm, "footprint_per_key_bytes", int, "arm"), "footprint_per_key_bytes", 1)
+        if footprint_bytes != cell["n_keys"] * per_key: fail(f"footprint mismatch: {cell['cell_id']} {arm['arm']}")
         reps = field(arm, "reps", list, "arm")
         ids = []
         for rep in reps:
             ids.append(integer(field(rep, "rep", int, "rep"), "rep"))
             integer(field(rep, "order_pos", int, "rep"), "order_pos")
-            finite_number(field(rep, "elapsed_ns", (int, float), "rep"), "elapsed_ns", True)
-            finite_number(field(rep, "ns_per_op", (int, float), "rep"), "ns_per_op", True)
+            elapsed = finite_number(field(rep, "elapsed_ns", (int, float), "rep"), "elapsed_ns", True)
+            ns_per_op = finite_number(field(rep, "ns_per_op", (int, float), "rep"), "ns_per_op", True)
+            expected_ns = elapsed / cell["ops"]
+            if abs(ns_per_op - expected_ns) / expected_ns > 1e-9:
+                fail(f"ns_per_op mismatch: {cell['cell_id']} {arm['arm']}")
             finite_number(field(rep, "checksum", (int, float), "rep"), "checksum")
             if rep["checksum"] != cell["expected_checksum"]: fail(f"checksum mismatch: {cell['cell_id']} {arm['arm']}")
         if len(ids) != 8 or len(set(ids)) != 8: fail(f"missing or duplicate rep: {cell['cell_id']} {arm['arm']}")
         rep_sets.append(set(ids))
         perf = field(arm, "perf", dict, "arm")
-        integer(field(perf, "ops", int, "perf"), "perf.ops", 1)
+        perf_ops = integer(field(perf, "ops", int, "perf"), "perf.ops", 1)
+        if perf_ops != cell["ops"]: fail(f"perf.ops mismatch: {cell['cell_id']} {arm['arm']}")
         events = field(perf, "events", dict, "perf")
         if set(events) != set(PERF_EVENTS): fail(f"missing or unexpected perf event: {cell['cell_id']} {arm['arm']}")
         for name, event in events.items():

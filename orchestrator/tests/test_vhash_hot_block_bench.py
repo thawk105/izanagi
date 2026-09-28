@@ -85,6 +85,7 @@ def test_cell_contract_and_footprint(tmp_path):
     assert build.returncode == 0, build.stderr
     for side, arms, mode, bytes_ in (
         ("read", bench.READ_ARMS, "inline", 16),
+        ("read", bench.READ_ARMS, "external", 16),
         ("write", bench.WRITE_ARMS, "external", 64),
         ("write", bench.WRITE_ARMS, "inline", 16),
     ):
@@ -97,9 +98,10 @@ def test_cell_contract_and_footprint(tmp_path):
         assert result.returncode == 0, result.stderr
         payload = json.loads(result.stdout)
         assert payload["ops"] == 100
+        assert payload["shared_value_pool_bytes"] == (64 * 7 * bytes_ if side == "read" and mode == "external" else 0)
         assert len(payload["arms"]) == len(arms)
         for arm in payload["arms"]:
-            size = subprocess.run([str(binary), "--footprint", json.dumps(cell),
+            size = subprocess.run([str(binary), "--footprint", json.dumps(dict(cell, ops=100)),
                                    "--arm", arm["arm"]], capture_output=True, text=True)
             assert size.returncode == 0, size.stderr
             per_key = json.loads(size.stdout)["footprint_per_key_bytes"]
@@ -109,6 +111,33 @@ def test_cell_contract_and_footprint(tmp_path):
             assert {rep["checksum"] for rep in arm["reps"]} == {payload["expected_checksum"]}
             assert sorted(rep["order_pos"] for rep in arm["reps"]) == (
                 [0, 0, 1, 1, 2, 2, 3, 3] if len(arms) == 4 else [0, 0, 0, 0, 1, 1, 1, 1])
+
+
+def test_skewed_write_capacity_precedes_timing(tmp_path):
+    compiler = shutil.which("g++-12")
+    assert compiler, "g++-12 required for the acceptance bench"
+    binary = tmp_path / "hot_block_bench"
+    build = subprocess.run([compiler, *bench.FLAGS, str(SOURCE), "-o", str(binary)],
+                           capture_output=True, text=True)
+    assert build.returncode == 0, build.stderr
+    small = dict(K=3, n_keys=3, side="write", value_mode="external", value_bytes=1, ops=10)
+    small_run = subprocess.run([str(binary), "--cell", json.dumps(small), "--arms", "block",
+                                "--reps", "1", "--ops", "10"], capture_output=True, text=True)
+    assert small_run.returncode == 0, small_run.stderr
+    small_size = subprocess.run([str(binary), "--footprint", json.dumps(small), "--arm", "block"],
+                                capture_output=True, text=True)
+    assert small_size.returncode == 0, small_size.stderr
+    assert json.loads(small_run.stdout)["arms"][0]["footprint_per_key_bytes"] == json.loads(small_size.stdout)["footprint_per_key_bytes"]
+    cell = dict(K=3, n_keys=1, side="write", value_mode="external", value_bytes=1)
+    argv = [str(binary), "--cell", json.dumps(cell), "--arms", "block", "--reps", "1", "--ops", "32769"]
+    result = subprocess.run(argv, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["ops"] == 32769
+    rejected = subprocess.run([str(binary), "--cell", json.dumps(dict(cell, memory_limit_bytes=4096)),
+                               "--arms", "block", "--reps", "1", "--ops", "32769"],
+                              capture_output=True, text=True)
+    assert rejected.returncode != 0
+    assert "write capacity exceeds memory limit" in rejected.stderr
 
 
 def test_node_stride_and_hot_cold_slot(tmp_path):
@@ -153,9 +182,10 @@ def _run():
         test_manifest_counts_and_duplicates()
         test_objdump_scalar_vector_rejection()
         test_cell_contract_and_footprint(tmp_path)
+        test_skewed_write_capacity_precedes_timing(tmp_path)
         test_perf_csv_requires_complete_unmultiplexed_events()
         test_node_stride_and_hot_cold_slot(tmp_path)
-    print("6 tests passed")
+    print("7 tests passed")
     return 0
 
 

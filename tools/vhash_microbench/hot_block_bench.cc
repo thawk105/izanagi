@@ -193,19 +193,19 @@ struct WriteSet {
   uint8_t* hot_payload=nullptr;
 };
 static constexpr size_t WRITE_SLOTS=32768;
-static size_t write_arena_capacity(size_t k,size_t bytes,bool inlined,const std::string& arm) {
+static size_t write_arena_capacity(size_t k,size_t bytes,bool inlined,const std::string& arm,size_t slots=WRITE_SLOTS) {
   const size_t count=k+3;
   const bool linked=arm=="linked_prepend";
   const size_t initial=(linked?0:k*sizeof(Version)+7+(inlined?k*bytes:0))+
                        (inlined?0:count*bytes);
   const size_t per_insert=(arm=="block"?k*sizeof(Version)+7+(inlined?k*bytes:0):0)+
       (inlined?0:bytes);
-  return round_up(std::max<size_t>(64,initial+WRITE_SLOTS*per_insert),64);
+  return round_up(std::max<size_t>(64,initial+slots*per_insert),64);
 }
-static size_t write_capacity(size_t k,size_t bytes,bool inlined,const std::string& arm) {
+static size_t write_capacity(size_t k,size_t bytes,bool inlined,const std::string& arm,size_t slots=WRITE_SLOTS) {
   const size_t initial_nodes=arm=="linked_prepend"?k+3:3;
-  return write_arena_capacity(k,bytes,inlined,arm)+
-         (WRITE_SLOTS+initial_nodes)*node_stride(bytes,inlined);
+  return write_arena_capacity(k,bytes,inlined,arm,slots)+
+         (slots+initial_nodes)*node_stride(bytes,inlined);
 }
 static void prepend_node(WriteSet& a, Node*& head, Version v) {
   if (a.node_slot>=a.node_capacity) throw std::runtime_error("write node pool exhausted");
@@ -289,14 +289,14 @@ static std::vector<std::pair<uint64_t,std::vector<uint8_t>>> values(const WriteS
   return out;
 }
 static WriteSet write_initial(size_t k, size_t bytes = 0, bool inline_value = false,
-                              const std::string& arm = "block") {
+                              const std::string& arm = "block",size_t slots=WRITE_SLOTS) {
   WriteSet a;
   a.k=k;
   a.value_bytes = bytes;
   a.inline_value = inline_value;
-  a.arena=std::make_unique<WriteSet::Arena>(write_arena_capacity(k,bytes,inline_value,arm));
+  a.arena=std::make_unique<WriteSet::Arena>(write_arena_capacity(k,bytes,inline_value,arm,slots));
   const size_t initial_nodes=arm=="linked_prepend"?k+3:3;
-  a.node_capacity=WRITE_SLOTS+initial_nodes;
+  a.node_capacity=slots+initial_nodes;
   a.node_pool.reset(static_cast<uint8_t*>(std::aligned_alloc(
       64,a.node_capacity*node_stride(bytes,inline_value))));
   if (!a.node_pool) throw std::bad_alloc();
@@ -394,7 +394,7 @@ static size_t stride_bytes(size_t k,size_t bytes,bool inlined) {
   return round_up(ids+k*8+k*8+8+(inlined?k*bytes:0),64);
 }
 static size_t footprint(size_t k,size_t depth,size_t bytes,const std::string& mode,
-                        const std::string& side,const std::string& arm) {
+                        const std::string& side,const std::string& arm,size_t slots=WRITE_SLOTS) {
   const size_t count=version_count(k,depth);
   if (side=="read") {
     const size_t payload=mode=="external"?count*bytes:0;
@@ -403,7 +403,7 @@ static size_t footprint(size_t k,size_t depth,size_t bytes,const std::string& mo
       return stride_bytes(k,bytes,mode=="inline")+(count-k)*node_stride(bytes,mode=="inline")+payload;
   } else {
     if (arm=="linked_prepend" || arm=="block" || arm=="shift" || arm=="ring")
-      return write_capacity(k,bytes,mode=="inline",arm)+sizeof(WriteSet);
+      return write_capacity(k,bytes,mode=="inline",arm,slots)+sizeof(WriteSet);
   }
   throw std::runtime_error("unknown arm for footprint");
 }
@@ -414,8 +414,10 @@ struct ReadBatch {
   AlignedBytes nodes{nullptr,&std::free};
   std::unique_ptr<uint8_t,decltype(&std::free)> arena{nullptr,&std::free};
   const uint8_t* values;
+  const std::vector<size_t>* value_slots;
   ReadBatch(size_t k_,size_t depth,size_t n,size_t b,const std::string& m,
-            const std::string& p,const std::string& a,const uint8_t* shared);
+            const std::string& p,const std::string& a,const uint8_t* shared,
+            const std::vector<size_t>* slots=nullptr);
   State state_at(size_t i) const {
     if (pattern=="candidate_pending" && i==1) return PENDING;
     if (pattern=="pending_newer_than_ts" && i==0) return PENDING;
@@ -426,7 +428,7 @@ struct ReadBatch {
   const uint8_t* value_at(size_t key,size_t i,uint8_t* storage) const {
     if (mode=="none") return nullptr;
     const uint8_t content=static_cast<uint8_t>((key*31+i*17+11)&255);
-    if (mode=="external") return values+(key*count+i)*bytes;
+    if (mode=="external") return values+(*value_slots)[key*count+i]*bytes;
     std::memset(storage,content,bytes);
     return storage;
   }
@@ -442,9 +444,10 @@ struct ReadBatch {
   }
 };
 ReadBatch::ReadBatch(size_t k_,size_t depth,size_t n,size_t b,const std::string& m,
-                     const std::string& p,const std::string& a,const uint8_t* shared)
+                     const std::string& p,const std::string& a,const uint8_t* shared,
+                     const std::vector<size_t>* slots)
     :k(k_),count(version_count(k_,depth)),nkeys(n),bytes(b),arm(a),mode(m),pattern(p),
-     values(shared) {
+     values(shared),value_slots(slots) {
   const bool linked=arm=="linked_scattered" || arm=="linked_local";
   const size_t hot=linked?0:k;
   const size_t per_key=count-hot;
@@ -658,9 +661,10 @@ struct ArmData {
   size_t footprint_per_key;
   std::vector<RepData> reps;
 };
-static void print_cell(uint64_t ops,uint64_t expected,size_t nkeys,
+static void print_cell(uint64_t ops,uint64_t expected,size_t nkeys,size_t shared_value_pool_bytes,
                        const std::vector<ArmData>& measured) {
-  std::cout << "{\"ops\":" << ops << ",\"expected_checksum\":" << expected << ",\"arms\":[";
+  std::cout << "{\"ops\":" << ops << ",\"expected_checksum\":" << expected
+            << ",\"shared_value_pool_bytes\":" << shared_value_pool_bytes << ",\"arms\":[";
   for (size_t a=0;a<measured.size();++a) {
     if (a) std::cout << ",";
     const auto& arm=measured[a];
@@ -710,6 +714,15 @@ static uint64_t write_batch(std::vector<WriteSet>& keys,const std::string& arm,
   }
   return checksum;
 }
+static size_t maximum_write_inserts(size_t nkeys,uint64_t ops) {
+  std::vector<size_t> counts(nkeys,0);
+  size_t maximum=0,idx=0;
+  for (uint64_t i=0;i<ops;++i) {
+    maximum=std::max(maximum,++counts[idx]);
+    idx=(idx*1664525ULL+(200000+i)+1013904223ULL)%nkeys;
+  }
+  return maximum;
+}
 static std::vector<std::deque<std::pair<uint64_t,uint8_t>>>
 reference_write_model(size_t nkeys,size_t k,uint64_t ops) {
   std::vector<std::deque<std::pair<uint64_t,uint8_t>>> model(nkeys);
@@ -725,18 +738,28 @@ reference_write_model(size_t nkeys,size_t k,uint64_t ops) {
 }
 static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode,
                       const std::vector<std::string>& arms,unsigned reps,uint64_t requested_ops,
-                      const std::string& control,const std::string& ack) {
+                      const std::string& control,const std::string& ack,size_t memory_limit) {
   if (bytes>256) throw std::runtime_error("value bytes exceed inline capacity");
+  auto check_capacity=[&](size_t slots) {
+    for (const auto& arm:arms) {
+      const size_t per_key=footprint(k,0,bytes,mode,"write",arm,slots);
+      if (memory_limit && (per_key>memory_limit/nkeys ||
+          (slots>memory_limit/nkeys)))
+        throw std::runtime_error("write capacity exceeds memory limit");
+    }
+  };
   std::vector<uint8_t> source(256*bytes);
   for (size_t value=0;value<256;++value)
     std::memset(source.data()+value*bytes,static_cast<int>(value),bytes);
   uint64_t ops=requested_ops;
   if (!ops) {
     const uint64_t trial=200;
+    const size_t trial_slots=maximum_write_inserts(nkeys,trial);
+    check_capacity(trial_slots);
     double fastest=1e100;
     for (const auto& arm:arms) {
       std::vector<WriteSet> keys;
-      for (size_t key=0;key<nkeys;++key) keys.push_back(write_initial(k,bytes,mode=="inline",arm));
+      for (size_t key=0;key<nkeys;++key) keys.push_back(write_initial(k,bytes,mode=="inline",arm,trial_slots));
       const uint64_t begin=now_ns();
       volatile uint64_t check=write_batch(keys,arm,insert_function(arm),trial,bytes,source);
       (void)check;
@@ -745,11 +768,13 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
     ops=std::max<uint64_t>(trial,static_cast<uint64_t>(100000000.0/std::max(1.0,fastest))+1);
     for (unsigned attempt=0;attempt<3;++attempt) {
       uint64_t shortest=UINT64_MAX;
+      const size_t slots=maximum_write_inserts(nkeys,ops);
+      check_capacity(slots);
       for (const auto& arm:arms) {
         std::vector<WriteSet> keys;
         keys.reserve(nkeys);
         for (size_t key=0;key<nkeys;++key)
-          keys.push_back(write_initial(k,bytes,mode=="inline",arm));
+          keys.push_back(write_initial(k,bytes,mode=="inline",arm,slots));
         const uint64_t begin=now_ns();
         volatile uint64_t check=write_batch(keys,arm,insert_function(arm),ops,bytes,source);
         (void)check;
@@ -759,12 +784,13 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
       if (attempt==2) throw std::runtime_error("write batch below 0.1 s");
       ops=static_cast<uint64_t>(static_cast<double>(ops)*105000000.0/
                                 std::max<uint64_t>(1,shortest))+1;
-      if (ops>WRITE_SLOTS*nkeys) throw std::runtime_error("write batch exceeds arena capacity");
     }
   }
+  const size_t slots=maximum_write_inserts(nkeys,ops);
+  check_capacity(slots);
   std::vector<ArmData> measured;
   for (const auto& arm:arms)
-    measured.push_back({arm,footprint(k,0,bytes,mode,"write",arm),{}});
+    measured.push_back({arm,footprint(k,0,bytes,mode,"write",arm,slots),{}});
   uint64_t expected=0;
   for (uint64_t i=0;i<ops;++i)
     expected+=200000+i+static_cast<uint8_t>((i*7+17)&255);
@@ -772,7 +798,7 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
     const size_t a=(rep+pos)%arms.size();
     std::vector<WriteSet> keys;
     keys.reserve(nkeys);
-    for (size_t key=0;key<nkeys;++key) keys.push_back(write_initial(k,bytes,mode=="inline",arms[a]));
+    for (size_t key=0;key<nkeys;++key) keys.push_back(write_initial(k,bytes,mode=="inline",arms[a],slots));
     perf_command(control,ack,"enable");
     const uint64_t begin=now_ns();
     const uint64_t checksum=write_batch(keys,arms[a],insert_function(arms[a]),ops,bytes,source);
@@ -791,7 +817,7 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
     }
     measured[a].reps.push_back({elapsed,checksum,static_cast<unsigned>(pos)});
   }
-  print_cell(ops,expected,nkeys,measured);
+  print_cell(ops,expected,nkeys,0,measured);
   return 0;
 }
 static int cell(const std::string& json,const std::vector<std::string>& arms,unsigned reps,
@@ -802,14 +828,19 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
   const std::string pattern=strfield(json,"state_pattern","");
   if (!k || !nkeys || arms.empty() || !reps || (control.empty()!=ack.empty()))
     throw std::runtime_error("invalid cell parameters");
-  if (side=="write") return write_cell(k,nkeys,bytes,mode,arms,reps,requested_ops,control,ack);
+  if (side=="write") return write_cell(k,nkeys,bytes,mode,arms,reps,requested_ops,control,ack,
+                                        field(json,"memory_limit_bytes",0));
   if (side!="read") throw std::runtime_error("unknown cell side");
   std::vector<uint8_t> shared;
+  std::vector<size_t> value_slots;
   const size_t count=version_count(k,depth);
   if (mode=="external") {
     shared.resize(nkeys*count*bytes);
+    value_slots.resize(nkeys*count);
+    for (size_t i=0;i<value_slots.size();++i) value_slots[i]=i;
+    std::shuffle(value_slots.begin(),value_slots.end(),std::mt19937_64(0x5eeda11ULL));
     for (size_t key=0;key<nkeys;++key) for (size_t i=0;i<count;++i)
-      std::memset(shared.data()+(key*count+i)*bytes,
+      std::memset(shared.data()+value_slots[key*count+i]*bytes,
                   static_cast<int>((key*31+i*17+11)&255),bytes);
   }
   std::vector<std::unique_ptr<ReadBatch>> owners;
@@ -821,12 +852,14 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
       for (const auto& owned:owners)
         if (owned->arm=="contig_scalar" || owned->arm=="contig_simd") shared_contig=owned.get();
     if (!shared_contig) {
-      owners.emplace_back(std::make_unique<ReadBatch>(k,depth,nkeys,bytes,mode,pattern,arm,shared.data()));
+      owners.emplace_back(std::make_unique<ReadBatch>(k,depth,nkeys,bytes,mode,pattern,arm,
+                                                      shared.data(),&value_slots));
       shared_contig=owners.back().get();
     }
     batches.push_back(shared_contig);
     measured.push_back({arm,footprint(k,depth,bytes,mode,side,arm),{}});
   }
+  std::vector<size_t>().swap(value_slots);
   const uint64_t ts=100000-depth;
   auto run_read=[&](size_t arm_index,uint64_t ops)->uint64_t {
     const auto& batch=*batches[arm_index];
@@ -876,7 +909,7 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
       measured[a].reps.push_back({elapsed,checksum,static_cast<unsigned>(pos)});
     }
   }
-  print_cell(ops,expected,nkeys,measured);
+  print_cell(ops,expected,nkeys,shared.size(),measured);
   return 0;
 }
 int main(int argc,char** argv) {
@@ -900,8 +933,11 @@ int main(int argc,char** argv) {
       const size_t bytes=field(footprint_json,"value_bytes",0);
       const auto mode=strfield(footprint_json,"value_mode","none");
       const auto side=strfield(footprint_json,"side","read");
+      const size_t nkeys=field(footprint_json,"n_keys",64);
+      const uint64_t query_ops=field(footprint_json,"ops",0);
+      const size_t slots=side=="write" && query_ops?maximum_write_inserts(nkeys,query_ops):WRITE_SLOTS;
       std::cout << "{\"footprint_per_key_bytes\":"
-                << footprint(k,depth,bytes,mode,side,arms_text) << "}\n";
+                << footprint(k,depth,bytes,mode,side,arms_text,slots) << "}\n";
       return 0;
     }
     if (json.empty() || arms_text.empty()) throw std::runtime_error("--cell and --arms required");
