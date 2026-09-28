@@ -31,7 +31,10 @@ def fixture_document():
         names = plot.WRITE_ARMS if group == "write" else (("linked_scattered", "contig_scalar") if group == "pilot" else plot.READ_ARMS)
         arms = []
         for index, name in enumerate(names):
-            reps = [{"rep": rep, "order_pos": (rep + index) % len(names), "elapsed_ns": 800 * (100 + k + rep + index), "ns_per_op": 100 + k + rep + index, "checksum": 42} for rep in range(8)]
+            scale = (1 if keyset == "in" else 12) * (1 + (depth or 0) / 5)
+            if group == "write": scale = (1 if keyset == "in" else 15) * (1 + k / 4)
+            baseline = round((10 + 3 * k + 5 * index) * scale)
+            reps = [{"rep": rep, "order_pos": (rep + index) % len(names), "elapsed_ns": 800 * (baseline + rep), "ns_per_op": baseline + rep, "checksum": 42} for rep in range(8)]
             events = {event: {"count": 16000 + index, "run_time_ns": 100000, "running_pct": 100.0} for event in EXPECTED_EVENTS}
             events["cache-references:u"]["count"] = 400
             events["cache-misses:u"]["count"] = 100
@@ -119,14 +122,43 @@ def test_real_figure_passes_layout(tmp_path):
     summary = plot.summarise(cells)
     for mode in ("k", "depth", "write"):
         fig, axes, _, _ = plot.make_figure(mode, summary, env[0], env[1])
-        try: plot.check_figure_layout(fig, axes)
+        try:
+            assert all(ax.get_yscale() == "log" for ax in axes)
+            plot.check_figure_layout(fig, axes)
+            assert all("$" not in label.get_text() for ax in axes for label in ax.get_yticklabels())
         finally: plot.plt.close(fig)
+
+def test_nonpositive_interval_lower_bound_rejected(tmp_path):
+    plot = plot_module()
+    sources = [write(tmp_path / f"raw-{i}.json", doc) for i, doc in enumerate(fixture_document())]
+    cells, _, env = plot.load_raw(sources)
+    summary = plot.summarise(cells)
+    next(cell for cell in summary if cell["group"] == "k" and cell["K"] == 1 and cell["depth"] == 0 and cell["keyset"] == "in")["arms"][0]["ci95_ns_per_op"][0] = 0
+    with pytest.raises(plot.InputError, match="nonpositive interval lower bound"):
+        plot.make_figure("k", summary, env[0], env[1])
+
+def test_write_headings_show_actual_key_counts(tmp_path):
+    plot = plot_module()
+    docs = fixture_document()
+    varied = next(cell for cell in docs[-1]["cells"] if cell["value_mode"] == "external" and cell["value_bytes"] == 64 and cell["keyset"] == "out" and cell["K"] == 1)
+    varied["n_keys"] *= 2
+    for arm in varied["arms"]:
+        arm["footprint_bytes"] = varied["n_keys"] * arm["footprint_per_key_bytes"]
+    sources = [write(tmp_path / f"raw-{i}.json", doc) for i, doc in enumerate(docs)]
+    cells, _, env = plot.load_raw(sources)
+    fig, axes, _, _ = plot.make_figure("write", plot.summarise(cells), env[0], env[1])
+    try:
+        assert axes[0].get_title() == "External 64 B; 128 keys"
+        assert axes[1].get_title() == "External 64 B; 32768–65536 keys"
+    finally: plot.plt.close(fig)
 
 def test_schema_rejected(tmp_path): reject(tmp_path, lambda d: d.update(schema="wrong"), "schema mismatch")
 def test_duplicate_cell_id_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][1].update(cell_id=d["cells"][0]["cell_id"]), "duplicate cell_id")
 def test_missing_arm_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"].pop(), "missing or duplicate arm")
 def test_missing_rep_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"].pop(), "missing or duplicate rep")
 def test_nonfinite_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"][0].update(ns_per_op=float("nan")), "non-finite")
+def test_zero_raw_interval_rejected(tmp_path):
+    reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"][0].update(ns_per_op=0, elapsed_ns=0), "nonpositive")
 def test_selfcheck_rejected(tmp_path): reject(tmp_path, lambda d: d["selfcheck"].update(passed=False), "selfcheck.passed")
 def test_objdump_rejected(tmp_path): reject(tmp_path, lambda d: d["build"]["objdump_check"].update(passed=False), "build.objdump_check.passed")
 @pytest.mark.parametrize("section,key", (("env", "cpu_model"), ("build", "compiler_version"), ("build", "binary_sha256")))

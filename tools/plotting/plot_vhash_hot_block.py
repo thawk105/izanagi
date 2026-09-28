@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.text import Text
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 
 plt.rcParams["font.family"] = ["Droid Sans Fallback", "DejaVu Sans"]
@@ -256,9 +257,16 @@ def check_figure_layout(fig, axes):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     all_axes = list(fig.axes)
+    hidden_ticks = set()
+    for ax in all_axes:
+        for axis in (ax.xaxis, ax.yaxis):
+            low, high = sorted(axis.get_view_interval())
+            for tick in (*axis.get_major_ticks(), *axis.get_minor_ticks()):
+                if not low <= tick.get_loc() <= high:
+                    hidden_ticks.update((tick.label1, tick.label2))
     text_boxes = []
     for label in fig.findobj(Text):
-        if not label.get_visible() or not label.get_text().strip(): continue
+        if label in hidden_ticks or not label.get_visible() or not label.get_text().strip(): continue
         box = label.get_window_extent(renderer)
         if box.width <= 0 or box.height <= 0: continue
         if not _contains(fig.bbox, box): raise FigureLayoutError(f"text leaves figure: {label.get_text()!r}")
@@ -307,12 +315,20 @@ def make_figure(mode, summary, cpu_model, compiler_version):
                 value, size = VALUE_ROWS[row]
                 keys = [("write", k, value, size, keyset) for k in K_VALUES]
                 xs = K_VALUES
-                heading = f"{value.capitalize()} {size} B; {'L2 resident' if keyset == 'in' else 'Beyond LLC'}"
             cell_rows = [lookup[k] for k in keys]
+            if mode == "write":
+                counts = [cell["n_keys"] for cell in cell_rows]
+                span = str(min(counts)) if min(counts) == max(counts) else f"{min(counts)}–{max(counts)}"
+                heading = f"{value.capitalize()} {size} B; {span} keys"
             arms = WRITE_ARMS if mode == "write" else READ_ARMS
+            ax.set_yscale("log")
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _position: f"{value:g}"))
             for arm_name in arms:
                 arm_rows = [next(a for a in cell["arms"] if a["arm"] == arm_name) for cell in cell_rows]
                 y = [a["median_ns_per_op"] for a in arm_rows]
+                for arm in arm_rows:
+                    if arm["median_ns_per_op"] <= 0 or arm["ci95_ns_per_op"][0] <= 0 or arm["ci95_ns_per_op"][1] <= 0:
+                        fail(f"nonpositive interval lower bound: {arm_name}")
                 lower = [max(0, v - a["ci95_ns_per_op"][0]) for v, a in zip(y, arm_rows)]
                 upper = [max(0, a["ci95_ns_per_op"][1] - v) for v, a in zip(y, arm_rows)]
                 ax.errorbar(xs, y, yerr=[lower, upper], marker="o", capsize=2, linewidth=1.5, linestyle="--" if arm_name == "linked_prepend" else "-", label=labels[arm_name])
@@ -321,7 +337,7 @@ def make_figure(mode, summary, cpu_model, compiler_version):
             ax.set_title(heading)
             ax.set_xticks(xs)
             ax.set_xlabel("Version capacity K" if mode != "depth" else "Version depth")
-            ax.set_ylabel("ns/insert" if mode == "write" else "依存連鎖下の ns/selection")
+            ax.set_ylabel("ns/insert (対数軸)" if mode == "write" else "依存連鎖下の ns/selection (対数軸)")
             ax.grid(alpha=.20)
             ax.legend(loc="upper left", fontsize=8, frameon=False)
             ax.text(.98, .02, f"n_keys: {min(c['n_keys'] for c in cell_rows)}–{max(c['n_keys'] for c in cell_rows)}", transform=ax.transAxes, ha="right", va="bottom", fontsize=8)
