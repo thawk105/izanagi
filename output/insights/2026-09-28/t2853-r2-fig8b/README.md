@@ -6,6 +6,17 @@
 - 前段: `output/insights/2026-09-27/t2853-repro-rest/README.md` §3.3 (投入単位 = 図 1 本、fig8b は 1.40 node 時間で確認不要と確定)、
   `output/insights/2026-09-23/t2853-figure-rerun-plan/README.md` (図ごとの経路)。
 
+## 結論
+
+1. **fig8b の測定 (fig8 を含む、B-10 静的右 tail の 2 cohort × 各 3 job) を、元の driver `tools/pegasus/submit_b10_backoff_grid.sh --run-kind t2500-tail-formal` で Pegasus の 6 ノードに同時に投げて測り直した。**
+   原 cohort が記録した source commit から投げた (R2-a = cohort 1 の `0600887d9`、R2-b = cohort 2 の `8737cacb4`、CCBench は両方 `511c9538`)。6 job とも完走し、測定は **1.40 node 時間** (見積りどおり)。
+   依頼が名指しした `submit_b10_backoff_shape.sh` は fig13 の driver で、fig8b の元の driver ではない (§1.1)。
+2. **R2-a・R2-b とも集団 verdict は `not-observed-in-any-workload`** で、各 group 18 区間すべて `declining`、正しさ 120 記録すべて certified・anomaly 0 (§3)。原 cohort 1・2 と同じ verdict だが、4 group は合成しない (§0)。
+3. **原 cohort と R2 の値を並べた表**を、原図と同じ生成器の読み込み関数 (全検査つき) で作った (§4)。点ごとの平均は 4 group で近いが、再現精度としては評価しない。
+4. **図は、fig8 形 (group ごとに 1 枚) の 2 枚を同じ生成器で描いた。fig8b 形 (2 group を 1 枚に縦に詰める形) の図は生成していない** — 生成器のレイアウト検査が R2 の値で目盛の文字枠の重なりを検出して出力を拒否し、検査は外さなかったため (§5)。
+   fig8b 形の R2 図を得るには生成器のレイアウトの変更 (repo の実装変更) が要り、本 wave の範囲外として残す。
+5. trace 保全口 (D2233) は、この driver が環境変数を job へ渡す口を持たず両 source commit も D2233 以前なので使っていない (§1.3)。driver の変更は要らなかった。
+
 ## 0. R2 attempt の地位 — 結果より前に固定する (投入前に commit)
 
 **この節は R2 の job を投入する前に書き、commit してから投入する。** D2050 は、完走済み cohort のある事前登録に
@@ -214,16 +225,22 @@
   出力後に生成器の既存検査 `validate_external_sources` と `validate_repo_closure` を通した。
   - `figures/fig8_r2a_b10_static_tail.png` (sha256 `06384988…`) — R2-a (cohort 1 の測り直し)
   - `figures/fig8_r2b_b10_static_tail.png` (sha256 `4b43456f…`) — R2-b (cohort 2 の測り直し)
-  - 原本 (PNG・PDF・provenance) は repo 外 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/figure/` にある。PDF は R2-a `4adc5f68…`・R2-b `22056c42…`、
-    provenance は R2-a `d57b7875…`・R2-b `25777e07…`。この insight に写したのは閲覧用の PNG 2 枚だけで、bytes は原本と一致する。
+  - provenance は `figures/fig8_r2a_b10_static_tail.provenance.json` (sha256 `b8f00334…`)・`figures/fig8_r2b_b10_static_tail.provenance.json` (`f5342a43…`)。
+    入力 3 file の sha256、group・job・区間・正しさ、描いた点列 (`artist_series`)、caption、再現コマンド (`reproduction`) を持つ。
+  - 原本 (PNG・PDF・provenance) は repo 外 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/figure/` にある。PDF は R2-a `f6bd629d…`・R2-b `70bff3b2…`。
+    insight に写した PNG 2 枚と provenance 2 本は原本と bytes 一致。
+  - 再現コマンド (R2-a。R2-b は `--group b10-backoff-grid-20260927T231120Z-3259762 --report-dir group-report-r2-b --label R2-b --remeasures 2` と出力名だけ違う):
+    `python3.10 /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/tools/t2853_r2_fig8b_plot.py --generator <repo>/tools/plotting/plot_b10_static_tail_formal.py r2-single --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928 --group b10-backoff-grid-20260927T231112Z-3258589 --report-dir group-report-r2-a --label R2-a --remeasures 1 --completed-jst 2026-09-28 --results-document output/insights/2026-09-28/t2853-r2-fig8b/README.md --out-prefix <出力 dir>/fig8_r2a_b10_static_tail`。
+    `<repo>` は生成器の sha256 が `96f8f5de…` の checkout (provenance の記録は本 wave の worktree の path)。wrapper は生成器の sha256 が違えば描かずに止まる。
 - 原 fig8 / fig8b (`docs/paper-story/figures/`) は変えていない。R2 の図は論文図ではなく、再現パッケージの記録である。
 - 図の見た目: 3 workload とも throughput と abort rate は 1250→9999 µs で単調に下がり、各 panel に「6/6 intervals declining」と min L (R2-a 0.303 / 0.261 / 0.271、R2-b 0.302 / 0.299 / 0.272) が出る。
   R2-a の balanced 1768 µs だけ throughput の 95% CI が他の点より広い (±0.008 M tps、§4.2)。統計 gate (変動係数) はこの cell も通っている。
 
 ### 5.2 wrapper (repo 外の使い捨て)
 
-生成器の bytes を変えずに R2 の group を描くため、repo 外の wrapper `/work/1/SFC/tanab/tmp/t2853-r2-fig8b-20260928/wrapper/t2853_r2_fig8b_plot.py`
-(最終 sha256 `2e1feab709e5c2e746fe8f570377e74154adfd1b2f12b86d1e00a17c80d743b5`) を Codex の実装子 (段 5) と fix 子 (段 6) が書いた。repo には入れていない。
+生成器の bytes を変えずに R2 の group を描くため、repo 外の wrapper を Codex の実装子 (段 5) と fix 子 2 回 (段 6) が書いた。repo には入れていない。
+保管先は R2 の出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/tools/t2853_r2_fig8b_plot.py` (測定データと同じ場所、最終 sha256 `c6aa81179999b7f5f8c89fd3de146b7e5c7dccfddf39106697a41ef940296d27`)。
+fix 1 回目は fig8 形 (v1) の `r2-single` を足し、2 回目は provenance の再現コマンドを実際の wrapper 呼び出しにした (段 6 レビュー A F1、§9)。
 
 - 差し替えたもの: 生成器の cohort 定数 (`COHORTS` の group id・日付・report dir・入力 sha256・結果稿、v1 用の `GROUP_ID`・`REPORT_JSON`・`REPORT_DAT`・`COMPLETE_JSON`・`PINNED_SHA256`)、
   それに合わせた `CLAIM_BOUNDARY_V2`、caption と図中見出しの**役割語だけ** (「formal cohort of 2026-09-15」「primary result」などを「R2 attempt R2-a, a re-measurement of original cohort 1, separate from and not pooled with the original cohorts」などへ。
@@ -231,13 +248,15 @@
 - 差し替えていないもの: 測定値の受理条件 (verdict・`gate_passed`・`failures`・`repo_stock_pin == "511c953"`・sha256・DAT の全行照合・正しさの certified と anomaly 0) とレイアウト検査。provenance 検査が固定要求する役割枠 (1 = primary、2 = reproduction) も変えていない
   (段 4 裁定 s3-a F1。v2 の provenance の役割枠は schema 上の欄で、R2 の地位ではない)。
 - 陽性対照 (wrapper が値を変えないこと): 原 metadata のまま wrapper で描いた図の `artist_series` が、既存 fig8b の provenance と完全一致 (`control`)、既存 fig8 の provenance とも完全一致 (v1)。
-  負例: 存在しない report dir で rc=3・図なし、sha256 の違う生成器で rc=2・図なし。実行と結果は `verbatim/s5-author-report.md`・`verbatim/s6-fix1-report.md`、R2 実データでの描画は親が実行した (§5.1)。
+  負例: 存在しない report dir で rc=3・図なし、sha256 の違う生成器で rc=2・図なし。provenance の再現コマンドをそのまま再実行して同じ `artist_series` が得られることも fix 子が確かめた。
+  実行と結果は `verbatim/s5-author-report.md`・`verbatim/s6-fix1-report.md`・`verbatim/s6-fix2-report.md`、R2 実データでの最終描画は親が実行した (§5.1)。
 - 対照表 (§4) も同じ wrapper の `table` が、4 group を生成器の `load_measurements` (全検査つき) で読んで書いた。原 cohort 1 write-heavy の 1000・1250・9999 µs の平均と CI は、Codex の子が report JSON の反復値から独立に計算して表と一致を確かめた。
 
 ## 6. 費用
 
 - 測定: 6 job の Elapse 合計 5,030 s = **1.40 node 時間** ((a) Elapse、`verbatim/elapse.log`)。見積り 1.40 と一致し、再投入は無かった。
-- 開発の検査: 受入全走 1 回 (見込み約 0.25 node 時間、D2219 項 1 と同じ線で数える)。合計は約 1.65 node 時間で、D2212 項 4 の線 (2 node 時間) を下回る。
+- 開発の検査: 受入全走 1 回。所要は**見積り**で約 0.25 node 時間 (D2219 項 1 と同じ線で数える)。受入の実測は worklog に書く。
+- 測定の実測 1.40 と受入の見積り 0.25 の和は約 1.65 node 時間 (見積りを含む) で、D2212 項 4 の線 (2 node 時間) を下回る見込みである。
 - 集団報告・描画・表は login で数秒ずつ (計算ノードは使っていない)。
 
 ## 7. 言わないこと
@@ -257,8 +276,9 @@
 - `verbatim/precheck-*.log`・`verbatim/freeze-digest.log` — 投入前の login 検査 (submit-tree-a は A′ 採用で未使用)。
 - `verbatim/submit-r2a-try0-rc126.log`・`verbatim/submit-r2a.log`・`verbatim/submit-r2b.log` — 投入。`verbatim/elapse.log` — 6 job の NQSV 会計。
 - `verbatim/report-r2a.log`・`verbatim/report-r2b.log` — 集団報告。`verbatim/draw-r2.log` — v2 描画の拒否。
-- `verbatim/s5-author-report.md`・`verbatim/s6-fix1-report.md` — wrapper の実装子・fix 子の報告。
-- repo 外: 出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/` (receipt 2 本、job root 6 本、集団報告 2 組、図と表)、submit-tree と wrapper は `/work/1/SFC/tanab/tmp/t2853-r2-fig8b-20260928/`。
+- `verbatim/s5-author-report.md`・`verbatim/s6-fix1-report.md`・`verbatim/s6-fix2-report.md` — wrapper の実装子・fix 子 2 回の報告。
+- `verbatim/s6-review-a.md`・`verbatim/s6-review-b.md` — 段 6 の敵対レビュー 2 本 (Codex、read-only)。
+- repo 外: 出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/` (receipt 2 本、job root 6 本、集団報告 2 組、図と表、`tools/` に wrapper)。submit-tree は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig8b-20260928/` (wave の終わりに撤去)。
 
 ### 8.1 逐語の可逆最小正規化
 
@@ -269,3 +289,20 @@ Codex の出力 2 本は markdown の行末 2 空白 (改行指示) を含み `g
 |---|---|---|---|---|
 | `verbatim/s3-consult-a.md` | `c966bd5284414636fdacd026c9210ce449ed669239246654220e64bce9383164` | 4,214 | 4,196 | 3, 4, 5, 8, 9, 10, 13, 14, 15 (9 行 × 2 bytes) |
 | `verbatim/s3-consult-b.md` | `685828f7a8aec60aa003d84c86a729e158a2f65e9c7de9a6ef8b99d50b410296` | 5,736 | 5,712 | 3, 4, 5, 8, 9, 10, 13, 14, 15, 18, 19, 20 (12 行 × 2 bytes) |
+
+## 9. 段 6 レビュー
+
+commit `09ec7f54f` を対象に、Codex の read-only レビューを 2 本並列で行った (`verbatim/s6-review-a.md`・`verbatim/s6-review-b.md`、どちらも受理検査 rc=0)。
+
+- **A (一次資料との照合・正しさ境界): NO-GO (should-fix 1)。** 数値と判定の食い違いは 0 件。レビュー子は R2 の 6 job の ID・host・Elapse・sweep、集団報告 6 file の sha256、4 group の verdict・failures・gate・区間・正しさ・事前登録の束縛を一次資料と照合し、
+  さらに反復値から全 96 点の平均と 95% CI、全 72 区間の状態と 36 組の L・throughput 比を再計算して README との差 0 を確かめた。wrapper が測定値の検査とレイアウト検査を緩めていないこと、
+  v2 拒否後に v1 で描いたことが §0 項 7 に反しないこと、合成・「飽和しない」への読み替えが無いことも確かめた。
+- **B (過剰・削除): NO-GO (must-fix 1・should-fix 2・nit 1)。**
+
+| ID | 所見 | 判定 | 処置 |
+|---|---|---|---|
+| A-F1 | 図の provenance の再現コマンドが生成器の直接起動で、そのままでは R2 図を再生成できない | real | fix 子 2 回目が再現コマンドを実際の wrapper 呼び出しにし、記録どおりの再実行で同じ `artist_series` を確かめた。親が wrapper を R2 の出力親へ置いて描き直した (PNG は bytes 不変) |
+| B-F1 | fig8b 形の図が成果物に無いのに、fig8b を同じ生成器で描いたと読める | real | 冒頭に「結論」を置き、fig8b 形の図は生成していないこと・理由・得るには生成器の変更が要ることを明記した |
+| B-F2 | 最終描画の argv と provenance が repo 内で閉じない。wrapper の保管先が一時置き場 | real | provenance 2 本を `figures/` に置き、§5.1 に再現コマンド、§5.2 に永続の保管先を書いた |
+| B-F3 | 費用の合計に受入の見積りが混ざり、実績のように読める | real | §6 で測定の実測と受入の見積りを分けた |
+| B-F4 | 周辺資料が本題を埋もれさせる | real (nit) | 冒頭の「結論」で主要結果に直接たどれるようにした。逐語と投入前検査のログは出所として残す (削らない) |
