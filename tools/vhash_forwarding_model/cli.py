@@ -11,11 +11,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from vhash_forwarding_model import SCHEMA
     from vhash_forwarding_model.model import explore
-    from vhash_forwarding_model.scenarios import NAMES, scenario
+    from vhash_forwarding_model.scenarios import NAMES, danger_witness, scenario
 else:
     from . import SCHEMA
     from .model import explore
-    from .scenarios import NAMES, scenario
+    from .scenarios import NAMES, danger_witness, scenario
 
 
 def main(argv=None):
@@ -29,8 +29,11 @@ def main(argv=None):
     p.add_argument("--max-seconds", type=float, default=120.0)
     a = p.parse_args(argv)
     initial, witness = scenario(a.scenario)
+    danger = danger_witness(a.scenario) if a.scenario in ("S3", "S8") else None
     result = explore(initial, a.protocol, a.fault, witness, o1=a.o1,
-                     max_seconds=a.max_seconds)
+                     max_seconds=a.max_seconds, danger=danger)
+    if danger is None:
+        result["danger"] = None
     counts = {key: sum(v.key == key for v in initial.versions) for key in {v.key for v in initial.versions}}
     bounds = {"keys": len(counts),
               "transactions": len(initial.txns),
