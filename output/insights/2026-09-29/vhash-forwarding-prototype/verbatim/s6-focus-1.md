@@ -1,0 +1,26 @@
+## 対応表
+
+| 段 6 所見 | 判定 | fix 後の根拠 |
+|---|---|---|
+| A1・B2：smoke の C/F 発火確認 | closed | C の `attempts>0` と F の `f_aborts>0` を別々に要求し、K=1、skew=0.99 までの結果を記録する。C の成功数は停止条件にしていない。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:400)、[fallback](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:485) |
+| A2：inert 前処理比較 | closed | 行 marker と空白だけの行を除いて比較し、規則を receipt に残す。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:130) |
+| A3：`inert_values` | refuted | 親の裁定どおり修正対象外。登録値は空集合のまま。[gate](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/condition_meaning_gate.py:251) |
+| A4：欠けた counter field のゼロ扱い | **partial** | 必須 field の過不足と非負整数を検査するが、patch が出す `long` は JSON の真偽値で、parser は整数だけを受理する。[parser](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:216)、[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:394) |
+| B1：smoke 混入・重複・必要セル | **partial** | 明示 `--raw`、完走した run の限定、重複拒否は実装済み。必要な workload・GC・arm・rep の充足検査はなく、空の run job も受理する。[aggregate](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:375)、[CLI](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:434)、[test](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/tests/test_vhash_forwarding_prototype.py:179) |
+| B3：長い thread の F abort・完了率 | **partial** | thread ID で長短を分け、完了率の分母ゼロは欠測にする。ただし上記の `long` 型不一致で実出力が invalid になる。[aggregate](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:304)、[figure](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:146) |
+| B4：失敗理由の分母 | closed | `no_target` は `attempts` 加算前だけ、`ineligible` は加算後だけ。加算後の各経路は成功か、`ForwardCheck` の四理由のいずれか一つに到達する。したがって **`attempts = success + read_mismatch + write_constraint + conflict + ineligible`**。[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:162)、[結果分岐](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:210) |
+| B5：図の条件・provenance・軸 | closed | 条件を入力から取得し、job ID・node・pin・patch hash を記録。長短の F abort を別系列にし、軸色を系列に合わせた。[figure](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:81)、[provenance](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:184) |
+| B6：2 node 時間の再積算 | **partial** | gate・build・run 秒は記録するが、3 本の本走を投入する前の再積算と予算判定はコードにない。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:475) |
+| B7：aggregate の cache 引数 | closed | cache は smoke・run だけ必須。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:426) |
+
+## 新しい所見
+
+1. **must-fix — fix が実出力を全件 invalid にする。** `CICADA_LONGTX_V1` の `long` は `true`/`false` だが、追加した schema 検査は `type(v) is int` を全 field に適用する。[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:394)、[parser](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:221)。**放置時の成果物：smoke の全 run が invalid で停止し、本走・図が作れない。** `long` だけ真偽値として検査する必要がある。
+
+2. **must-fix — 本走の必要セルが揃わなくても集計できる。** `aggregate_jobs` は run job の完走フラグと重複だけを確認し、空 records も受理する。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:375)、[test](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/tests/test_vhash_forwarding_prototype.py:179)。**放置時の成果物：3 job や必要な arm・rep が欠けても、欠測を含む主図と provenance が作れる。**
+
+gate は build ごとに各 macro を通し、起動箇所は `checked` と `_run_binary` の各 1 箇所。[driver](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:100)、[起動](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/vhash_forwarding_prototype.py:259)。新規 `#if` は ENABLE 11、COUNT 4、LONGTX 4 で登録値と一致する。[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:9)、[gate 登録](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/orchestrator/campaign/condition_meaning_gate.py:533)。段 3 の `later_ver_` 破棄、`new_ver_` の wts 書換え、前進後の特殊操作 abort も残っている。[patch](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:212)、[特殊操作](/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-fwd-integ/patches/cicada-forwarding-variant.patch:275)。
+
+## 総括
+
+**受入前に `long` の型検査と主図の必要セル検査を修正すべきです。** これは HEAD `9dafec9be` の静的レビューであり、テスト・build・計測の実測結果は含みません。

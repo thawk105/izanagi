@@ -1,0 +1,30 @@
+## 所見
+
+1. **must-fix — smoke と本走が集計で混ざる。** [driver:348](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:348) は既定で全 `raw-*.json` を結合し、[driver:295](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:295) は job・skew・smoke を区別せず同じセルへ入れる。[作図:63](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:63) は重複 `rep` を辞書で後勝ちにする。**放置時:** throughput 比、成功率、失敗理由が異なる測定条件を混ぜた図になる。**修正案:** 主図の入力を完走した本走 3 job に明示限定し、job・条件・rep の一意性と必要セルの充足を検査する。smoke は別集計にする。
+
+2. **must-fix — F の発火確認が smoke の停止条件に入っていない。** [driver:406](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:406) は many_ops の C/F の `attempts` を合算するが、F は設計上 attempt せず `f_aborts` を数える。[patch:149](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/patches/cicada-forwarding-variant.patch:149)。**放置時:** C だけ発火して F がゼロでも本走へ進み、F 対照の図が空のまま成立する。**修正案:** C は `attempts`、F は `triggers` と `f_aborts` を別々に必須確認する。fallback の条件と結果も job に記録する。
+
+3. **must-fix — 図の「F abort」は長い thread に限定されていない。** [driver:305](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:305) は F 計数を全 thread で合計し、[作図:133](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:133) は長い thread の commit と同じパネルに置く。完了率もない。**放置時:** 短い thread の abort を長い取引の進捗喪失として読ませる。**修正案:** thread ID と L=4 で F abort を長い thread に限定し、commit・abort から完了率も示す。全 thread 値を残すなら明確に別系列とする。
+
+4. **should — 失敗理由の分母が揃っていない。** [patch:160](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/patches/cicada-forwarding-variant.patch:160) は attempt 前の不適格も `ineligible` に加算する一方、[作図:90](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:90) の成功率は attempts 分母で、[作図:110](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:110) は `ineligible` を他の失敗と積む。**放置時:** 失敗内訳の合計が試行数を超え、C の失敗率を誤読する。**修正案:** 試行前の不適格を別表示にするか、計数を分ける。
+
+5. **should — 図の測定条件と provenance が実入力を十分に表さない。** [作図:81](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:81) は skew 0.9 を固定表示し、[作図:162](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:162) の provenance には campaign/job ID・各 hostname・環境がない。二軸の色も系列と対応していない。[図規約:46](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/tools/plotting/FIGURE_CONVENTIONS.md:46)、[図規約:65](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/tools/plotting/FIGURE_CONVENTIONS.md:65)。**放置時:** 図の条件と入力 job を追跡できず、F abort の軸も誤読しやすい。**修正案:** 入力 job の ID・node・条件を検証して provenance と図に反映し、二軸の色を揃える。
+
+6. **should — 2 node 時間の予算内とまだ言えない。** [driver:6](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:6) の例は smoke 30 分＋本走 40 分×3＝上限 150 分。計画は smoke 15 run、本走 33 run×3 で、各 job が 3 build と 6 macro gate を繰り返す。[driver:393](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:393)。run 180 秒、build 900 秒という個別 timeout も総予算を保証しない。**放置時:** job が途中で切れ、欠測を含む一次資料になる。**修正案:** smoke で gate・build・初期化込み run の実時間を採り、3 job の投入前に総時間を再積算する。timeout はその観測値に合わせる。
+
+7. **nit — 集計だけでも cache 引数を要求する。** [driver:336](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:336) は `aggregate` にも未使用の絶対 cache path を要求する。**放置時:** 作図準備で無関係な引数が必要になる。**修正案:** `smoke` と `run` のときだけ要求する。
+
+## 削れる部品
+
+- 初回の主図に使わない K sweep は後送できる。[driver:184](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:184)。`advance_clock_sum` と位置合計も現行図では使わないため、一次資料で分析予定がなければ削れる。[patch:61](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/patches/cicada-forwarding-variant.patch:61)。
+- `aggregate` の全 raw 自動探索は削り、明示した本走入力だけを受ける方が実装も証拠集合も小さい。作図側の再集計照合は、その入力集合検査が入れば維持する価値がある。[driver:348](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:348)、[作図:154](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:154)。
+- 規模上限は超えていない。patch 509、driver 448、test 106、作図 171 行。M1〜M4 は各指定テストで単一の主要理由により殺せる形、M5 は inventory 登録欠落を検出する妥当な変異である。[test:21](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/tests/test_vhash_forwarding_prototype.py:21)。追加変異より、上記の実データ集合混入を先に直すべきである。
+
+## 削ってはいけない部品
+
+- C/F/stock の同一 workload 内の順序回転、count build の throughput 除外、計数行の一意性検査、gate 拒否時の build 停止。[driver:162](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/campaign/vhash_forwarding_prototype.py:162)、[test:32](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/orchestrator/tests/test_vhash_forwarding_prototype.py:32)。
+- 長い取引の二型、thread 別計数、生出力と patch・binary の hash、実寸の保存前レイアウト検査。これらを削ると発火、進捗、図の由来を確認できない。[patch:401](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/patches/cicada-forwarding-variant.patch:401)、[作図:24](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-forwarding/output/insights/2026-09-29/vhash-forwarding-prototype/make_figures.py:24)。
+
+## 総括
+
+静的レビューでは、最大の阻害要因は**測定集合の混入**と**F 発火を確認しない smoke**である。両方を直してから計算ノードで時間を較正すれば、図が埋まるかと 2 node 時間に収まるかを判断できる。指定差分の commit にはいずれも `AI-Agent ... role=author` があり、欠落ハンクは見つからなかった。テスト・計測は実行していない。

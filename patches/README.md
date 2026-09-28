@@ -391,6 +391,31 @@ coder (LLM) の EVOLVE-BLOCK 編集を orchestrator が diff 監査のうえ pat
 
 ---
 
+## cicada-forwarding-variant.patch — Cicada の選択的 forwarding (合成 variant, D18 第 4 類, VHash 論文 md_6)
+
+VHash 論文 (`docs/paper-story-vhash/`) の「cold 境界 (論理的な K 版) で発火する選択的 forwarding」の試作。
+物理的な hot 配置は作らず、「先頭から K 版より奥を辿る必要がある」read で transaction の timestamp を前進させる (構成 C)、
+または同じ条件で abort して新しい timestamp で再実行する (構成 F)。GC の保護 (ThreadWtsArray / ThreadRtsArray / MinRts / MinWts) は変えない。
+**正しさ検査 (Cicada の検査器) を通していない。この patch を使った値はすべて「未検証の診断値」であり、serializable とは書かない。**
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` の `cc/cicada/transaction.cc` と `cc/cicada/ycsb_cicada.cc`。
+  `include/*.hh`・`include/ycsb.hh`・`common/runner.hh` は変えない。
+- **macro (未定義 = 0 = stock と同じ前処理結果):**
+  - `CICADA_FWD_ENABLE` (owner `cc/cicada/transaction.cc`): forwarding の本体。実行時 flag `--cicada_fwd_policy=c|f` (既定 c)、`--cicada_fwd_k` (既定 3、1〜256)。
+  - `CICADA_FWD_COUNT` (同 owner、ENABLE=1 のときだけ意味を持つ): 計数。正常終了時に `CICADA_FWD_V1 {json}` を 1 行出す
+    (thread 別: triggers, attempts, success, read_mismatch, write_constraint, conflict, ineligible, no_target, special_after_forward, f_aborts,
+    advance_clock_sum, pos_before_sum, pos_after_sum)。**計数入り build の throughput は性能値に使わない。**
+  - `CICADA_LONGTX` (owner `cc/cicada/ycsb_cicada.cc`): 長い transaction の 2 型を作る Cicada 専用 workload。実行時 flag
+    `--cicada_long_threads` (既定 0 = YcsbWorkload と同じ)、`--cicada_long_kind=many_ops|wait_after_reads`、`--cicada_long_ops` (1000)、
+    `--cicada_long_rratio` (90)、`--cicada_long_wait_us` (1000)、`--cicada_wait_reads` (10)。正常終了時に `CICADA_LONGTX_V1 {json}` を 1 行出す。
+- **登録:** 3 macro とも `orchestrator/campaign/condition_meaning_gate.py` の許可ドメイン (DEFINE_SPECS・witness・site 数 11 / 4 / 4) に登録済み。
+  **`patches/ledger.json` には登録しない** — 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する
+  (`orchestrator/campaign/silo_ladder_rung1_contract.py` の ledger 検査)。依頼文 (md_6) の「ledger の entry」とはこの点で食い違い、契約を優先した。
+  macro 名に `IZANAGI_` 接頭辞を使わないのは合成 variant の命名慣行 (`BACKOFF_FIXED`、`MOCC_TEMP_PREDICATE`) に合わせたもので、登録の代わりではない。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` (`smoke` / `run --workload normal|many_ops|wait_after_reads` / `aggregate --raw ...`)。
+  build ごとに条件 gate の supply / meaning を通してから build する。stock 腕は `CICADA_LONGTX=1` だけの build (forwarding のコードは前処理で消える)。
+- **一次資料:** `output/insights/2026-09-29/vhash-forwarding-prototype/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の

@@ -1,0 +1,3270 @@
+{
+  "schema_version": "vhash-forwarding-aggregate/v1",
+  "verification_status": "未検証の診断値",
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "zipf": 0.9,
+    "rratio": 50,
+    "max_ope": 10,
+    "clocks_per_us": 2100
+  },
+  "cells": {
+    "normal/gc=10/k=3": {
+      "workload": "normal",
+      "gc_inter_us": 10,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 755741.0
+          },
+          {
+            "rep": 1,
+            "value": 747312.0
+          },
+          {
+            "rep": 2,
+            "value": 778082.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 774630.0
+          },
+          {
+            "rep": 1,
+            "value": 770675.0
+          },
+          {
+            "rep": 2,
+            "value": 777491.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 771492.0
+          },
+          {
+            "rep": 1,
+            "value": 761829.0
+          },
+          {
+            "rep": 2,
+            "value": 772112.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 3489,
+          "attempts": 1131,
+          "success": 831,
+          "read_mismatch": 206,
+          "write_constraint": 84,
+          "conflict": 7,
+          "ineligible": 3,
+          "no_target": 2358,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 52598933,
+          "pos_before_sum": 5541,
+          "pos_after_sum": 2070
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 15638,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 15638,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1131,
+              "success": 831,
+              "read_mismatch": 206,
+              "write_constraint": 84,
+              "conflict": 7,
+              "ineligible": 3,
+              "no_target": 2358,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 15638
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode071-2026-09-28T23:15:38.321991+00:00",
+          "hostname": "bnode071",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 3489,
+        "attempts": 1131,
+        "success": 831,
+        "read_mismatch": 206,
+        "write_constraint": 84,
+        "conflict": 7,
+        "ineligible": 3,
+        "no_target": 2358,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 52598933,
+        "pos_before_sum": 5541,
+        "pos_after_sum": 2070
+      },
+      "f_summary": {
+        "triggers": 15638,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 15638,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1131,
+            "success": 831,
+            "read_mismatch": 206,
+            "write_constraint": 84,
+            "conflict": 7,
+            "ineligible": 3,
+            "no_target": 2358,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 15638
+          }
+        }
+      }
+    },
+    "normal/gc=100/k=3": {
+      "workload": "normal",
+      "gc_inter_us": 100,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 769712.0
+          },
+          {
+            "rep": 1,
+            "value": 776469.0
+          },
+          {
+            "rep": 2,
+            "value": 767859.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 777435.0
+          },
+          {
+            "rep": 1,
+            "value": 756734.0
+          },
+          {
+            "rep": 2,
+            "value": 749692.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 764050.0
+          },
+          {
+            "rep": 1,
+            "value": 755366.0
+          },
+          {
+            "rep": 2,
+            "value": 756515.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 5295,
+          "attempts": 1686,
+          "success": 1262,
+          "read_mismatch": 269,
+          "write_constraint": 121,
+          "conflict": 15,
+          "ineligible": 19,
+          "no_target": 3609,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 42409265,
+          "pos_before_sum": 8298,
+          "pos_after_sum": 3174
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 20241,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 20241,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1686,
+              "success": 1262,
+              "read_mismatch": 269,
+              "write_constraint": 121,
+              "conflict": 15,
+              "ineligible": 19,
+              "no_target": 3609,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 20241
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode071-2026-09-28T23:15:38.321991+00:00",
+          "hostname": "bnode071",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 5295,
+        "attempts": 1686,
+        "success": 1262,
+        "read_mismatch": 269,
+        "write_constraint": 121,
+        "conflict": 15,
+        "ineligible": 19,
+        "no_target": 3609,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 42409265,
+        "pos_before_sum": 8298,
+        "pos_after_sum": 3174
+      },
+      "f_summary": {
+        "triggers": 20241,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 20241,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1686,
+            "success": 1262,
+            "read_mismatch": 269,
+            "write_constraint": 121,
+            "conflict": 15,
+            "ineligible": 19,
+            "no_target": 3609,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 20241
+          }
+        }
+      }
+    },
+    "normal/gc=1000/k=3": {
+      "workload": "normal",
+      "gc_inter_us": 1000,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 807848.0
+          },
+          {
+            "rep": 1,
+            "value": 783532.0
+          },
+          {
+            "rep": 2,
+            "value": 786492.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 784315.0
+          },
+          {
+            "rep": 1,
+            "value": 811755.0
+          },
+          {
+            "rep": 2,
+            "value": 824876.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 781688.0
+          },
+          {
+            "rep": 1,
+            "value": 778018.0
+          },
+          {
+            "rep": 2,
+            "value": 775960.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 6167,
+          "attempts": 2069,
+          "success": 1547,
+          "read_mismatch": 307,
+          "write_constraint": 181,
+          "conflict": 14,
+          "ineligible": 20,
+          "no_target": 4098,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 55633627,
+          "pos_before_sum": 10373,
+          "pos_after_sum": 3994
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 36561,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 36561,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 0,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 1,
+            "completion_rate": null
+          },
+          {
+            "commits": 0,
+            "aborts": 0,
+            "rep": 2,
+            "completion_rate": null
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 2069,
+              "success": 1547,
+              "read_mismatch": 307,
+              "write_constraint": 181,
+              "conflict": 14,
+              "ineligible": 20,
+              "no_target": 4098,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 36561
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode071-2026-09-28T23:15:38.321991+00:00",
+          "hostname": "bnode071",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 6167,
+        "attempts": 2069,
+        "success": 1547,
+        "read_mismatch": 307,
+        "write_constraint": 181,
+        "conflict": 14,
+        "ineligible": 20,
+        "no_target": 4098,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 55633627,
+        "pos_before_sum": 10373,
+        "pos_after_sum": 3994
+      },
+      "f_summary": {
+        "triggers": 36561,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 36561,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 0,
+          "completion_rate": null
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 2069,
+            "success": 1547,
+            "read_mismatch": 307,
+            "write_constraint": 181,
+            "conflict": 14,
+            "ineligible": 20,
+            "no_target": 4098,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 36561
+          }
+        }
+      }
+    },
+    "many_ops/gc=10/k=3": {
+      "workload": "many_ops",
+      "gc_inter_us": 10,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 747911.0
+          },
+          {
+            "rep": 1,
+            "value": 752050.0
+          },
+          {
+            "rep": 2,
+            "value": 736067.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 720407.0
+          },
+          {
+            "rep": 1,
+            "value": 738935.0
+          },
+          {
+            "rep": 2,
+            "value": 736724.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 709140.0
+          },
+          {
+            "rep": 1,
+            "value": 737477.0
+          },
+          {
+            "rep": 2,
+            "value": 712267.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 7901,
+          "attempts": 4990,
+          "success": 933,
+          "read_mismatch": 3904,
+          "write_constraint": 133,
+          "conflict": 15,
+          "ineligible": 5,
+          "no_target": 2911,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 56252965,
+          "pos_before_sum": 6311,
+          "pos_after_sum": 2429
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 17019,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 17019,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 28202,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 27947,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 26471,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 25875,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 30975,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 31651,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 35946,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 35259,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 36153,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 3900,
+              "success": 129,
+              "read_mismatch": 3709,
+              "write_constraint": 53,
+              "conflict": 9,
+              "ineligible": 0,
+              "no_target": 523,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1090,
+              "success": 804,
+              "read_mismatch": 195,
+              "write_constraint": 80,
+              "conflict": 6,
+              "ineligible": 5,
+              "no_target": 2388,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 4062
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 12957
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+          "hostname": "bnode089",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 7901,
+        "attempts": 4990,
+        "success": 933,
+        "read_mismatch": 3904,
+        "write_constraint": 133,
+        "conflict": 15,
+        "ineligible": 5,
+        "no_target": 2911,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 56252965,
+        "pos_before_sum": 6311,
+        "pos_after_sum": 2429
+      },
+      "f_summary": {
+        "triggers": 17019,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 17019,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 82620,
+          "completion_rate": 0.0
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 88501,
+          "completion_rate": 0.0
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 107358,
+          "completion_rate": 0.0
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 3900,
+            "success": 129,
+            "read_mismatch": 3709,
+            "write_constraint": 53,
+            "conflict": 9,
+            "ineligible": 0,
+            "no_target": 523,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1090,
+            "success": 804,
+            "read_mismatch": 195,
+            "write_constraint": 80,
+            "conflict": 6,
+            "ineligible": 5,
+            "no_target": 2388,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 4062
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 12957
+          }
+        }
+      }
+    },
+    "many_ops/gc=100/k=3": {
+      "workload": "many_ops",
+      "gc_inter_us": 100,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 703101.0
+          },
+          {
+            "rep": 1,
+            "value": 720228.0
+          },
+          {
+            "rep": 2,
+            "value": 737509.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 740107.0
+          },
+          {
+            "rep": 1,
+            "value": 727637.0
+          },
+          {
+            "rep": 2,
+            "value": 723212.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 717368.0
+          },
+          {
+            "rep": 1,
+            "value": 712881.0
+          },
+          {
+            "rep": 2,
+            "value": 732710.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 8967,
+          "attempts": 6232,
+          "success": 1094,
+          "read_mismatch": 4949,
+          "write_constraint": 161,
+          "conflict": 20,
+          "ineligible": 8,
+          "no_target": 2735,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 56827576,
+          "pos_before_sum": 7370,
+          "pos_after_sum": 2816
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 18354,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 18354,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 23789,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 25038,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 28355,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 29470,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 28470,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 24949,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 36316,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 34200,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 34116,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 5103,
+              "success": 247,
+              "read_mismatch": 4766,
+              "write_constraint": 75,
+              "conflict": 15,
+              "ineligible": 0,
+              "no_target": 519,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1129,
+              "success": 847,
+              "read_mismatch": 183,
+              "write_constraint": 86,
+              "conflict": 5,
+              "ineligible": 8,
+              "no_target": 2216,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 5198
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 13156
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+          "hostname": "bnode089",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 8967,
+        "attempts": 6232,
+        "success": 1094,
+        "read_mismatch": 4949,
+        "write_constraint": 161,
+        "conflict": 20,
+        "ineligible": 8,
+        "no_target": 2735,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 56827576,
+        "pos_before_sum": 7370,
+        "pos_after_sum": 2816
+      },
+      "f_summary": {
+        "triggers": 18354,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 18354,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 77182,
+          "completion_rate": 0.0
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 82889,
+          "completion_rate": 0.0
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 104632,
+          "completion_rate": 0.0
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 5103,
+            "success": 247,
+            "read_mismatch": 4766,
+            "write_constraint": 75,
+            "conflict": 15,
+            "ineligible": 0,
+            "no_target": 519,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1129,
+            "success": 847,
+            "read_mismatch": 183,
+            "write_constraint": 86,
+            "conflict": 5,
+            "ineligible": 8,
+            "no_target": 2216,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 5198
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 13156
+          }
+        }
+      }
+    },
+    "many_ops/gc=1000/k=3": {
+      "workload": "many_ops",
+      "gc_inter_us": 1000,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 765341.0
+          },
+          {
+            "rep": 1,
+            "value": 771210.0
+          },
+          {
+            "rep": 2,
+            "value": 758086.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 772642.0
+          },
+          {
+            "rep": 1,
+            "value": 795359.0
+          },
+          {
+            "rep": 2,
+            "value": 729823.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 763247.0
+          },
+          {
+            "rep": 1,
+            "value": 742796.0
+          },
+          {
+            "rep": 2,
+            "value": 762247.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 9330,
+          "attempts": 6240,
+          "success": 1148,
+          "read_mismatch": 4876,
+          "write_constraint": 191,
+          "conflict": 19,
+          "ineligible": 6,
+          "no_target": 3090,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 44392411,
+          "pos_before_sum": 6779,
+          "pos_after_sum": 2879
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 20340,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 20340,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 30197,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 30591,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 31054,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 35476,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 34231,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 28744,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 43383,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 36710,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 40581,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 4916,
+              "success": 153,
+              "read_mismatch": 4667,
+              "write_constraint": 87,
+              "conflict": 9,
+              "ineligible": 0,
+              "no_target": 539,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1324,
+              "success": 995,
+              "read_mismatch": 209,
+              "write_constraint": 104,
+              "conflict": 10,
+              "ineligible": 6,
+              "no_target": 2551,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 5695
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 14645
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+          "hostname": "bnode089",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 9330,
+        "attempts": 6240,
+        "success": 1148,
+        "read_mismatch": 4876,
+        "write_constraint": 191,
+        "conflict": 19,
+        "ineligible": 6,
+        "no_target": 3090,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 44392411,
+        "pos_before_sum": 6779,
+        "pos_after_sum": 2879
+      },
+      "f_summary": {
+        "triggers": 20340,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 20340,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 91842,
+          "completion_rate": 0.0
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 98451,
+          "completion_rate": 0.0
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 120674,
+          "completion_rate": 0.0
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 4916,
+            "success": 153,
+            "read_mismatch": 4667,
+            "write_constraint": 87,
+            "conflict": 9,
+            "ineligible": 0,
+            "no_target": 539,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1324,
+            "success": 995,
+            "read_mismatch": 209,
+            "write_constraint": 104,
+            "conflict": 10,
+            "ineligible": 6,
+            "no_target": 2551,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 5695
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 14645
+          }
+        }
+      }
+    },
+    "many_ops/gc=100/k=1": {
+      "workload": "many_ops",
+      "gc_inter_us": 100,
+      "k": 1,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 735421.0
+          },
+          {
+            "rep": 1,
+            "value": 751604.0
+          },
+          {
+            "rep": 2,
+            "value": 751576.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 715491.0
+          },
+          {
+            "rep": 1,
+            "value": 728470.0
+          },
+          {
+            "rep": 2,
+            "value": 711006.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 525260.0
+          },
+          {
+            "rep": 1,
+            "value": 117342.0
+          },
+          {
+            "rep": 2,
+            "value": 496982.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 162948,
+          "attempts": 42682,
+          "success": 6317,
+          "read_mismatch": 35969,
+          "write_constraint": 302,
+          "conflict": 94,
+          "ineligible": 0,
+          "no_target": 120266,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 76796420,
+          "pos_before_sum": 16574,
+          "pos_after_sum": 6735
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 516623,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 516623,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 27761,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 31071,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 30312,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 26462,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 25255,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 28332,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 141975,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 37084,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 119720,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 36434,
+              "success": 982,
+              "read_mismatch": 35281,
+              "write_constraint": 127,
+              "conflict": 44,
+              "ineligible": 0,
+              "no_target": 19802,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 6248,
+              "success": 5335,
+              "read_mismatch": 688,
+              "write_constraint": 175,
+              "conflict": 50,
+              "ineligible": 0,
+              "no_target": 100464,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 54320
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 462303
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+          "hostname": "bnode089",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 162948,
+        "attempts": 42682,
+        "success": 6317,
+        "read_mismatch": 35969,
+        "write_constraint": 302,
+        "conflict": 94,
+        "ineligible": 0,
+        "no_target": 120266,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 76796420,
+        "pos_before_sum": 16574,
+        "pos_after_sum": 6735
+      },
+      "f_summary": {
+        "triggers": 516623,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 516623,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 89144,
+          "completion_rate": 0.0
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 80049,
+          "completion_rate": 0.0
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 298779,
+          "completion_rate": 0.0
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 36434,
+            "success": 982,
+            "read_mismatch": 35281,
+            "write_constraint": 127,
+            "conflict": 44,
+            "ineligible": 0,
+            "no_target": 19802,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 6248,
+            "success": 5335,
+            "read_mismatch": 688,
+            "write_constraint": 175,
+            "conflict": 50,
+            "ineligible": 0,
+            "no_target": 100464,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 54320
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 462303
+          }
+        }
+      }
+    },
+    "many_ops/gc=100/k=8": {
+      "workload": "many_ops",
+      "gc_inter_us": 100,
+      "k": 8,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 727371.0
+          },
+          {
+            "rep": 1,
+            "value": 735737.0
+          },
+          {
+            "rep": 2,
+            "value": 720408.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 717842.0
+          },
+          {
+            "rep": 1,
+            "value": 709084.0
+          },
+          {
+            "rep": 2,
+            "value": 713888.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 741282.0
+          },
+          {
+            "rep": 1,
+            "value": 724589.0
+          },
+          {
+            "rep": 2,
+            "value": 747890.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 456,
+          "attempts": 397,
+          "success": 86,
+          "read_mismatch": 292,
+          "write_constraint": 19,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 59,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 28090090,
+          "pos_before_sum": 2526,
+          "pos_after_sum": 697
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 1132,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 1132,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 0,
+            "aborts": 24802,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 29238,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 26764,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "c": [
+          {
+            "commits": 0,
+            "aborts": 27256,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 25683,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 27189,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ],
+        "f": [
+          {
+            "commits": 0,
+            "aborts": 32925,
+            "rep": 0,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 26264,
+            "rep": 1,
+            "completion_rate": 0.0
+          },
+          {
+            "commits": 0,
+            "aborts": 31707,
+            "rep": 2,
+            "completion_rate": 0.0
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 253,
+              "success": 3,
+              "read_mismatch": 250,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 12,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 144,
+              "success": 83,
+              "read_mismatch": 42,
+              "write_constraint": 19,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 47,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 641
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 491
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+          "hostname": "bnode089",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 456,
+        "attempts": 397,
+        "success": 86,
+        "read_mismatch": 292,
+        "write_constraint": 19,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 59,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 28090090,
+        "pos_before_sum": 2526,
+        "pos_after_sum": 697
+      },
+      "f_summary": {
+        "triggers": 1132,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 1132,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 0,
+          "aborts": 80804,
+          "completion_rate": 0.0
+        },
+        "c": {
+          "commits": 0,
+          "aborts": 80128,
+          "completion_rate": 0.0
+        },
+        "f": {
+          "commits": 0,
+          "aborts": 90896,
+          "completion_rate": 0.0
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 253,
+            "success": 3,
+            "read_mismatch": 250,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 12,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 144,
+            "success": 83,
+            "read_mismatch": 42,
+            "write_constraint": 19,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 47,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 641
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 491
+          }
+        }
+      }
+    },
+    "wait_after_reads/gc=10/k=3": {
+      "workload": "wait_after_reads",
+      "gc_inter_us": 10,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 764264.0
+          },
+          {
+            "rep": 1,
+            "value": 771632.0
+          },
+          {
+            "rep": 2,
+            "value": 777047.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 737366.0
+          },
+          {
+            "rep": 1,
+            "value": 772973.0
+          },
+          {
+            "rep": 2,
+            "value": 755872.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 733465.0
+          },
+          {
+            "rep": 1,
+            "value": 749208.0
+          },
+          {
+            "rep": 2,
+            "value": 745119.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 3990,
+          "attempts": 1239,
+          "success": 921,
+          "read_mismatch": 198,
+          "write_constraint": 98,
+          "conflict": 6,
+          "ineligible": 16,
+          "no_target": 2751,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 35499709,
+          "pos_before_sum": 5225,
+          "pos_after_sum": 2255
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 34887,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 34887,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 292,
+            "aborts": 7240,
+            "rep": 0,
+            "completion_rate": 0.038767923526287836
+          },
+          {
+            "commits": 224,
+            "aborts": 7427,
+            "rep": 1,
+            "completion_rate": 0.0292772186642269
+          },
+          {
+            "commits": 261,
+            "aborts": 7460,
+            "rep": 2,
+            "completion_rate": 0.033803911410439064
+          }
+        ],
+        "c": [
+          {
+            "commits": 281,
+            "aborts": 7249,
+            "rep": 0,
+            "completion_rate": 0.03731739707835326
+          },
+          {
+            "commits": 520,
+            "aborts": 7302,
+            "rep": 1,
+            "completion_rate": 0.06647916133981079
+          },
+          {
+            "commits": 127,
+            "aborts": 7466,
+            "rep": 2,
+            "completion_rate": 0.01672593177927038
+          }
+        ],
+        "f": [
+          {
+            "commits": 120,
+            "aborts": 7824,
+            "rep": 0,
+            "completion_rate": 0.015105740181268883
+          },
+          {
+            "commits": 217,
+            "aborts": 7736,
+            "rep": 1,
+            "completion_rate": 0.027285301144222306
+          },
+          {
+            "commits": 161,
+            "aborts": 8276,
+            "rep": 2,
+            "completion_rate": 0.019082612302951284
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 3,
+              "success": 2,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 1,
+              "no_target": 17,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1236,
+              "success": 919,
+              "read_mismatch": 198,
+              "write_constraint": 98,
+              "conflict": 6,
+              "ineligible": 15,
+              "no_target": 2734,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 149
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 34738
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode043-2026-09-28T23:37:10.202067+00:00",
+          "hostname": "bnode043",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 3990,
+        "attempts": 1239,
+        "success": 921,
+        "read_mismatch": 198,
+        "write_constraint": 98,
+        "conflict": 6,
+        "ineligible": 16,
+        "no_target": 2751,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 35499709,
+        "pos_before_sum": 5225,
+        "pos_after_sum": 2255
+      },
+      "f_summary": {
+        "triggers": 34887,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 34887,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 777,
+          "aborts": 22127,
+          "completion_rate": 0.0339242053789731
+        },
+        "c": {
+          "commits": 928,
+          "aborts": 22017,
+          "completion_rate": 0.04044454129439965
+        },
+        "f": {
+          "commits": 498,
+          "aborts": 23836,
+          "completion_rate": 0.020465192734445633
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 3,
+            "success": 2,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 1,
+            "no_target": 17,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1236,
+            "success": 919,
+            "read_mismatch": 198,
+            "write_constraint": 98,
+            "conflict": 6,
+            "ineligible": 15,
+            "no_target": 2734,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 149
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 34738
+          }
+        }
+      }
+    },
+    "wait_after_reads/gc=100/k=3": {
+      "workload": "wait_after_reads",
+      "gc_inter_us": 100,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 736672.0
+          },
+          {
+            "rep": 1,
+            "value": 763010.0
+          },
+          {
+            "rep": 2,
+            "value": 764888.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 764496.0
+          },
+          {
+            "rep": 1,
+            "value": 764812.0
+          },
+          {
+            "rep": 2,
+            "value": 738573.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 752610.0
+          },
+          {
+            "rep": 1,
+            "value": 733355.0
+          },
+          {
+            "rep": 2,
+            "value": 771599.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 4819,
+          "attempts": 1550,
+          "success": 1158,
+          "read_mismatch": 265,
+          "write_constraint": 109,
+          "conflict": 9,
+          "ineligible": 9,
+          "no_target": 3269,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 40397784,
+          "pos_before_sum": 7167,
+          "pos_after_sum": 2794
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 16631,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 16631,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 115,
+            "aborts": 7365,
+            "rep": 0,
+            "completion_rate": 0.01537433155080214
+          },
+          {
+            "commits": 111,
+            "aborts": 7472,
+            "rep": 1,
+            "completion_rate": 0.014638006066200712
+          },
+          {
+            "commits": 181,
+            "aborts": 7483,
+            "rep": 2,
+            "completion_rate": 0.023616910229645093
+          }
+        ],
+        "c": [
+          {
+            "commits": 107,
+            "aborts": 7493,
+            "rep": 0,
+            "completion_rate": 0.014078947368421052
+          },
+          {
+            "commits": 323,
+            "aborts": 7362,
+            "rep": 1,
+            "completion_rate": 0.04202992843201041
+          },
+          {
+            "commits": 110,
+            "aborts": 7384,
+            "rep": 2,
+            "completion_rate": 0.014678409394182012
+          }
+        ],
+        "f": [
+          {
+            "commits": 113,
+            "aborts": 8151,
+            "rep": 0,
+            "completion_rate": 0.01367376573088093
+          },
+          {
+            "commits": 269,
+            "aborts": 7696,
+            "rep": 1,
+            "completion_rate": 0.03377275580665411
+          },
+          {
+            "commits": 298,
+            "aborts": 8353,
+            "rep": 2,
+            "completion_rate": 0.03444688475320772
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 3,
+              "success": 1,
+              "read_mismatch": 2,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 12,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1547,
+              "success": 1157,
+              "read_mismatch": 263,
+              "write_constraint": 109,
+              "conflict": 9,
+              "ineligible": 9,
+              "no_target": 3257,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 189
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 16442
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode043-2026-09-28T23:37:10.202067+00:00",
+          "hostname": "bnode043",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 4819,
+        "attempts": 1550,
+        "success": 1158,
+        "read_mismatch": 265,
+        "write_constraint": 109,
+        "conflict": 9,
+        "ineligible": 9,
+        "no_target": 3269,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 40397784,
+        "pos_before_sum": 7167,
+        "pos_after_sum": 2794
+      },
+      "f_summary": {
+        "triggers": 16631,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 16631,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 407,
+          "aborts": 22320,
+          "completion_rate": 0.017908214898578783
+        },
+        "c": {
+          "commits": 540,
+          "aborts": 22239,
+          "completion_rate": 0.023706045041485577
+        },
+        "f": {
+          "commits": 680,
+          "aborts": 24200,
+          "completion_rate": 0.027331189710610933
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 3,
+            "success": 1,
+            "read_mismatch": 2,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 12,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1547,
+            "success": 1157,
+            "read_mismatch": 263,
+            "write_constraint": 109,
+            "conflict": 9,
+            "ineligible": 9,
+            "no_target": 3257,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 189
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 16442
+          }
+        }
+      }
+    },
+    "wait_after_reads/gc=1000/k=3": {
+      "workload": "wait_after_reads",
+      "gc_inter_us": 1000,
+      "k": 3,
+      "throughput": {
+        "stock": [
+          {
+            "rep": 0,
+            "value": 745571.0
+          },
+          {
+            "rep": 1,
+            "value": 762073.0
+          },
+          {
+            "rep": 2,
+            "value": 772204.0
+          }
+        ],
+        "c": [
+          {
+            "rep": 0,
+            "value": 753003.0
+          },
+          {
+            "rep": 1,
+            "value": 740260.0
+          },
+          {
+            "rep": 2,
+            "value": 744631.0
+          }
+        ],
+        "f": [
+          {
+            "rep": 0,
+            "value": 760692.0
+          },
+          {
+            "rep": 1,
+            "value": 744242.0
+          },
+          {
+            "rep": 2,
+            "value": 771449.0
+          }
+        ]
+      },
+      "c_counters": [
+        {
+          "triggers": 4288,
+          "attempts": 1482,
+          "success": 1127,
+          "read_mismatch": 233,
+          "write_constraint": 103,
+          "conflict": 12,
+          "ineligible": 7,
+          "no_target": 2806,
+          "special_after_forward": 0,
+          "f_aborts": 0,
+          "advance_clock_sum": 41712942,
+          "pos_before_sum": 6362,
+          "pos_after_sum": 2751
+        }
+      ],
+      "f_counters": [
+        {
+          "triggers": 22697,
+          "attempts": 0,
+          "success": 0,
+          "read_mismatch": 0,
+          "write_constraint": 0,
+          "conflict": 0,
+          "ineligible": 0,
+          "no_target": 0,
+          "special_after_forward": 0,
+          "f_aborts": 22697,
+          "advance_clock_sum": 0,
+          "pos_before_sum": 0,
+          "pos_after_sum": 0
+        }
+      ],
+      "longtx": {
+        "stock": [
+          {
+            "commits": 218,
+            "aborts": 7345,
+            "rep": 0,
+            "completion_rate": 0.0288245405262462
+          },
+          {
+            "commits": 258,
+            "aborts": 7379,
+            "rep": 1,
+            "completion_rate": 0.033782899044127276
+          },
+          {
+            "commits": 273,
+            "aborts": 7391,
+            "rep": 2,
+            "completion_rate": 0.03562108559498956
+          }
+        ],
+        "c": [
+          {
+            "commits": 173,
+            "aborts": 7506,
+            "rep": 0,
+            "completion_rate": 0.022528975126969657
+          },
+          {
+            "commits": 336,
+            "aborts": 7271,
+            "rep": 1,
+            "completion_rate": 0.044169843565137375
+          },
+          {
+            "commits": 249,
+            "aborts": 7325,
+            "rep": 2,
+            "completion_rate": 0.03287562714549776
+          }
+        ],
+        "f": [
+          {
+            "commits": 153,
+            "aborts": 7911,
+            "rep": 0,
+            "completion_rate": 0.018973214285714284
+          },
+          {
+            "commits": 259,
+            "aborts": 7731,
+            "rep": 1,
+            "completion_rate": 0.03241551939924906
+          },
+          {
+            "commits": 239,
+            "aborts": 8101,
+            "rep": 2,
+            "completion_rate": 0.02865707434052758
+          }
+        ]
+      },
+      "counter_by_thread": {
+        "c": [
+          {
+            "long": {
+              "attempts": 1,
+              "success": 0,
+              "read_mismatch": 1,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 23,
+              "f_aborts": 0
+            },
+            "normal": {
+              "attempts": 1481,
+              "success": 1127,
+              "read_mismatch": 232,
+              "write_constraint": 103,
+              "conflict": 12,
+              "ineligible": 7,
+              "no_target": 2783,
+              "f_aborts": 0
+            }
+          }
+        ],
+        "f": [
+          {
+            "long": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 278
+            },
+            "normal": {
+              "attempts": 0,
+              "success": 0,
+              "read_mismatch": 0,
+              "write_constraint": 0,
+              "conflict": 0,
+              "ineligible": 0,
+              "no_target": 0,
+              "f_aborts": 22419
+            }
+          }
+        ]
+      },
+      "input_jobs": [
+        {
+          "job_id": "bnode043-2026-09-28T23:37:10.202067+00:00",
+          "hostname": "bnode043",
+          "skew": 0.9
+        }
+      ],
+      "skew": 0.9,
+      "c_summary": {
+        "triggers": 4288,
+        "attempts": 1482,
+        "success": 1127,
+        "read_mismatch": 233,
+        "write_constraint": 103,
+        "conflict": 12,
+        "ineligible": 7,
+        "no_target": 2806,
+        "special_after_forward": 0,
+        "f_aborts": 0,
+        "advance_clock_sum": 41712942,
+        "pos_before_sum": 6362,
+        "pos_after_sum": 2751
+      },
+      "f_summary": {
+        "triggers": 22697,
+        "attempts": 0,
+        "success": 0,
+        "read_mismatch": 0,
+        "write_constraint": 0,
+        "conflict": 0,
+        "ineligible": 0,
+        "no_target": 0,
+        "special_after_forward": 0,
+        "f_aborts": 22697,
+        "advance_clock_sum": 0,
+        "pos_before_sum": 0,
+        "pos_after_sum": 0
+      },
+      "longtx_summary": {
+        "stock": {
+          "commits": 749,
+          "aborts": 22115,
+          "completion_rate": 0.03275892232330301
+        },
+        "c": {
+          "commits": 758,
+          "aborts": 22102,
+          "completion_rate": 0.0331583552055993
+        },
+        "f": {
+          "commits": 651,
+          "aborts": 23743,
+          "completion_rate": 0.026686890218906287
+        }
+      },
+      "thread_summary": {
+        "c": {
+          "long": {
+            "attempts": 1,
+            "success": 0,
+            "read_mismatch": 1,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 23,
+            "f_aborts": 0
+          },
+          "normal": {
+            "attempts": 1481,
+            "success": 1127,
+            "read_mismatch": 232,
+            "write_constraint": 103,
+            "conflict": 12,
+            "ineligible": 7,
+            "no_target": 2783,
+            "f_aborts": 0
+          }
+        },
+        "f": {
+          "long": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 278
+          },
+          "normal": {
+            "attempts": 0,
+            "success": 0,
+            "read_mismatch": 0,
+            "write_constraint": 0,
+            "conflict": 0,
+            "ineligible": 0,
+            "no_target": 0,
+            "f_aborts": 22419
+          }
+        }
+      }
+    }
+  }
+}
