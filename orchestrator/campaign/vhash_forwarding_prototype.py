@@ -394,10 +394,10 @@ def aggregate_jobs(jobs: list[dict]) -> dict:
             conditions = job.get("conditions", {})
         elif conditions != job.get("conditions", {}):
             raise ValueError("inconsistent job conditions")
+        if not job["records"]:
+            raise ValueError(f"run job {job.get('job_id')} has no records")
         workloads = ({job["workload"]} if job.get("workload") else
                      {record["workload"] for record in job["records"]})
-        if not workloads:
-            raise ValueError(f"run job {job.get('job_id')} has no records")
         expected = {tuple(spec[name] for name in ("workload", "gc_inter_us", "k",
                     "policy", "build_kind", "rep"))
                     for workload in workloads
