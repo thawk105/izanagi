@@ -819,7 +819,7 @@ def _policy_pair_case(tmp_path, valid_reservation_environment):
     env['PYTHONPATH'] = os.pathsep.join((
         str(ROOT), str(ROOT / 'orchestrator/tests'), env.get('PYTHONPATH', '')))
     def run(*, crash=False):
-        return subprocess.run([sys.executable, str(harness), str(tmp_path),
+        return subprocess.run([sys.executable, '-B', str(harness), str(tmp_path),
             str(proposal), 'crash' if crash else 'run'], cwd=ROOT, env=env,
             text=True, capture_output=True, timeout=30)
     series = P.default_cfg(form='cpp', campaign_env='pegasus')
