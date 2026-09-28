@@ -22,7 +22,7 @@ READ_ARMS = ("linked_scattered", "linked_local", "contig_scalar", "contig_simd")
 WRITE_ARMS = ("shift", "ring", "block", "linked_prepend")
 KS = (1, 2, 3, 4, 8, 16)
 DEPTHS = tuple(range(8)) + (8, 10, 12)
-EVENTS = "cycles:u,instructions:u,cache-references:u,cache-misses:u,L1-dcache-load-misses:u,dTLB-load-misses:u,branch-misses:u"
+EVENTS = "cycles:u,instructions:u,cache-references:u,cache-misses:u,branch-misses:u"
 FLAGS = ("-O3", "-DNDEBUG", "-std=c++20", "-Wall", "-Wextra", "-Werror",
          "-fno-tree-vectorize", "-mavx2", "-mbmi", "-mbmi2", "-mpopcnt")
 

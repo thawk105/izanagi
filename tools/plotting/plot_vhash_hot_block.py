@@ -18,7 +18,7 @@ import numpy as np
 plt.rcParams["font.family"] = ["Droid Sans Fallback", "DejaVu Sans"]
 
 SCHEMA = "izanagi-vhash-hot-block-microbench/v2"
-PERF_EVENTS = ("cycles:u", "instructions:u", "cache-references:u", "cache-misses:u", "L1-dcache-load-misses:u", "dTLB-load-misses:u", "branch-misses:u")
+PERF_EVENTS = ("cycles:u", "instructions:u", "cache-references:u", "cache-misses:u", "branch-misses:u")
 K_VALUES = (1, 2, 3, 4, 8, 16)
 DEPTH_VALUES = tuple(range(8)) + (8, 10, 12)
 KEYSETS = ("in", "out")

@@ -11,6 +11,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "tools/vhash_microbench/hot_block_bench.cc"
 DRIVER = ROOT / "tools/vhash_microbench/run_hot_block.py"
+EXPECTED_EVENTS = ("cycles:u", "instructions:u", "cache-references:u",
+                   "cache-misses:u", "branch-misses:u")
 spec = importlib.util.spec_from_file_location("run_hot_block", DRIVER)
 bench = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bench)
@@ -163,16 +165,17 @@ def test_node_stride_and_hot_cold_slot(tmp_path):
 
 
 def test_perf_csv_requires_complete_unmultiplexed_events():
-    names = bench.EVENTS.split(",")[:4]
-    lines = ["1,,%s,100000,100.00" % name for name in names]
-    parsed = bench.parse_perf_csv("\n".join(lines), names)
-    assert set(parsed) == set(names)
-    assert parsed[names[0]]["run_time_ns"] == 100000
-    assert parsed[names[0]]["running_pct"] == 100.0
-    with pytest.raises(RuntimeError, match="missing"):
-        bench.parse_perf_csv("\n".join(lines[:-1]), names)
-    with pytest.raises(RuntimeError, match="multiplexed"):
-        bench.parse_perf_csv("\n".join(lines).replace("100.00", "99.00", 1), names)
+    assert tuple(bench.EVENTS.split(",")) == EXPECTED_EVENTS
+    for names in (EXPECTED_EVENTS[:4], EXPECTED_EVENTS[4:]):
+        lines = ["1,,%s,100000,100.00" % name for name in names]
+        parsed = bench.parse_perf_csv("\n".join(lines), names)
+        assert set(parsed) == set(names)
+        assert parsed[names[0]]["run_time_ns"] == 100000
+        assert parsed[names[0]]["running_pct"] == 100.0
+        with pytest.raises(RuntimeError, match="missing"):
+            bench.parse_perf_csv("\n".join(lines[:-1]), names)
+        with pytest.raises(RuntimeError, match="multiplexed"):
+            bench.parse_perf_csv("\n".join(lines).replace("100.00", "99.00", 1), names)
 
 
 def _run():

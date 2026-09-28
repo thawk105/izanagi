@@ -15,6 +15,8 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "tools/plotting/plot_vhash_hot_block.py"
+EXPECTED_EVENTS = ("cycles:u", "instructions:u", "cache-references:u",
+                   "cache-misses:u", "branch-misses:u")
 
 def plot_module():
     spec = importlib.util.spec_from_file_location("vhash_hot_block_plot", SCRIPT)
@@ -30,7 +32,7 @@ def fixture_document():
         arms = []
         for index, name in enumerate(names):
             reps = [{"rep": rep, "order_pos": (rep + index) % len(names), "elapsed_ns": 800 * (100 + k + rep + index), "ns_per_op": 100 + k + rep + index, "checksum": 42} for rep in range(8)]
-            events = {event: {"count": 16000 + index, "run_time_ns": 100000, "running_pct": 100.0} for event in plot.PERF_EVENTS}
+            events = {event: {"count": 16000 + index, "run_time_ns": 100000, "running_pct": 100.0} for event in EXPECTED_EVENTS}
             events["cache-references:u"]["count"] = 400
             events["cache-misses:u"]["count"] = 100
             arms.append({"arm": name, "footprint_bytes": (128 if keyset == "in" else 32768) * (32 + index), "footprint_per_key_bytes": 32 + index, "reps": reps, "perf": {"ops": 800, "events": events, "raw_stderr_paths": ["fixture-perf-a.txt", "fixture-perf-b.txt"]}})
@@ -91,6 +93,7 @@ def reject(tmp_path, modify, reason, second=None):
     assert_empty(prefix)
 
 def test_modes_real_size_and_summary(tmp_path):
+    assert plot_module().PERF_EVENTS == EXPECTED_EVENTS
     doc = fixture_document()
     for mode in ("k", "depth", "write"):
         folder = tmp_path / mode
@@ -105,6 +108,7 @@ def test_modes_real_size_and_summary(tmp_path):
         assert {c["group"] for c in summary["cells"]} == {"k", "depth", "state", "value", "write", "pilot"}
         assert len(provenance["points"]) == {"k": 96, "depth": 88, "write": 144}[mode]
         assert summary["cells"][0]["arms"][0]["perf_per_op"]["cycles:u"] == 20
+        assert set(summary["cells"][0]["arms"][0]["perf_per_op"]) == set(EXPECTED_EVENTS)
         assert summary["cells"][0]["arms"][0]["cache_miss_rate"] == .25
         assert summary["cells"][0]["arms"][0]["perf_events"]["cycles:u"] == {"run_time_ns": 100000, "running_pct": 100.0}
 
@@ -156,6 +160,14 @@ def test_v1_schema_rejected(tmp_path):
     assert result.returncode != 0 and "schema mismatch" in result.stderr
     assert_empty(prefix)
 def test_missing_perf_event_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["perf"]["events"].pop("branch-misses:u"), "missing or unexpected perf event")
+@pytest.mark.parametrize("event", EXPECTED_EVENTS)
+def test_each_required_perf_event_rejected_when_missing(event):
+    plot = plot_module()
+    cell = fixture_document()[1]["cells"][0]
+    for arm in cell["arms"]:
+        arm["perf"]["events"].pop(event)
+    with pytest.raises(plot.InputError, match="missing or unexpected perf event"):
+        plot.validate_cell(cell)
 def test_low_running_pct_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["perf"]["events"]["cycles:u"].update(running_pct=99.4), "running_pct")
 def test_pilot_ref_disagrees_between_shards(tmp_path):
     docs = fixture_document()[1:]
