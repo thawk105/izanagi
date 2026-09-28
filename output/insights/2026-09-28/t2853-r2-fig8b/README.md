@@ -306,3 +306,7 @@ commit `09ec7f54f` を対象に、Codex の read-only レビューを 2 本並�
 | B-F2 | 最終描画の argv と provenance が repo 内で閉じない。wrapper の保管先が一時置き場 | real | provenance 2 本を `figures/` に置き、§5.1 に再現コマンド、§5.2 に永続の保管先を書いた |
 | B-F3 | 費用の合計に受入の見積りが混ざり、実績のように読める | real | §6 で測定の実測と受入の見積りを分けた |
 | B-F4 | 周辺資料が本題を埋もれさせる | real (nit) | 冒頭の「結論」で主要結果に直接たどれるようにした。逐語と投入前検査のログは出所として残す (削らない) |
+
+焦点再レビュー (Codex、read-only、commit `7b26bb89a` が対象、受理検査 rc=0、`verbatim/s6-focus.md`) は **GO**。A-F1・B-F2・B-F3 は closed、B-F1 と B-F4 は partial、新規所見と回帰は無し。
+レビュー子は Elapse 合計 5,030 s (= 1.3972、表示 1.40)、両 group の verdict と 18/18 declining、wrapper の sha256、図の PNG・provenance・PDF の sha256 と insight 側の bytes 一致、再現コマンドが R2 の出力親の wrapper と R2 の入力を指すことを確かめた。
+B-F1 の partial は「fig8b 形の図そのものは未生成」という点で、これは §0 項 7 で結果前に定めた帰結である。得るには生成器のレイアウト変更 (repo の実装変更) が要り、本 wave の範囲外として T-2853 の残りに記録した。B-F4 (nit) はこのまま受け入れる。
