@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from matplotlib.lines import Line2D
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,6 +21,9 @@ from orchestrator.campaign import vhash_cicada_vlife as V
 
 T95 = {2: 12.706204736, 3: 4.30265273, 4: 3.1824463,
        5: 2.7764451, 6: 2.5705818}
+BUCKET_LABELS = [str(x) for x in range(9)] + [str(2**x) for x in range(4, 12)] + [">2048"]
+GC_COLORS = {10: "tab:blue", 1000: "tab:orange", 100000: "tab:green"}
+LONG_STYLES = {"none": "-", "wait1ms": "--", "wait10ms": ":", "ops1000": "-."}
 
 
 def _ci(values):
@@ -50,10 +54,12 @@ def _condition_caption(raw):
     workloads = sorted({(x["ycsb_rratio"], x["ycsb_zipf_skew"]) for x in rows})
     longtx = sorted({cid.split("-")[1] for cid in raw["conditions"]})
     gc = sorted({x["gc_inter_us"] for x in rows})
-    return (f"YCSB 10 ops, payload 4 B; read ratio/skew {workloads}; "
+    return (f"Instrumented build; throughput is not a performance result. "
+            f"YCSB 10 ops, payload 4 B; read ratio/skew {workloads}; "
             f"long tx {longtx}; gc_inter_us {gc}; N={raw['records']:,}; "
             f"3 s, {len(next(iter(raw['runs'].values())))} repetitions; "
-            "read positions start at latest; validation positions start at scan start")
+            "timestamp space includes clock boost; read position starts at latest, "
+            "validation position at scan start")
 
 
 def _validate(raw):
@@ -61,9 +67,15 @@ def _validate(raw):
         raise ValueError("measure raw JSON required")
     if set(raw.get("conditions", {})) != set(raw.get("runs", {})):
         raise ValueError("condition/run mismatch")
+    if not raw["runs"] or type(raw.get("records")) is not int or raw["records"] <= 0:
+        raise ValueError("missing conditions or invalid records")
+    if not isinstance(raw.get("ccbench_commit"), str) or not isinstance(raw.get("patch_sha256"), str):
+        raise ValueError("missing build identity")
     for cid, runs in raw["runs"].items():
         if cid not in V.CONDITIONS or len(runs) != 3:
             raise ValueError("unknown condition or repetition count")
+        if raw["conditions"][cid] != V.CONDITIONS[cid]:
+            raise ValueError("condition definition mismatch")
         for run in runs:
             if run.get("rc") != 0:
                 raise ValueError("failed run")
@@ -77,6 +89,29 @@ def _validate(raw):
             if parsed != run.get("parsed"):
                 raise ValueError("parsed/raw mismatch")
     return raw
+
+
+def _load_raw(paths):
+    if not paths:
+        raise ValueError("at least one raw file required")
+    merged = None
+    inputs = []
+    for path in paths:
+        data = path.read_bytes()
+        raw = _validate(json.loads(data))
+        inputs.append({"path": str(path.resolve()), "sha256": hashlib.sha256(data).hexdigest()})
+        if merged is None:
+            merged = {**raw, "conditions": dict(raw["conditions"]), "runs": dict(raw["runs"])}
+            continue
+        for key in ("ccbench_commit", "patch_sha256", "records"):
+            if raw[key] != merged[key]:
+                raise ValueError(f"{key} mismatch across raw files")
+        duplicate = set(raw["conditions"]) & set(merged["conditions"])
+        if duplicate:
+            raise ValueError("duplicate condition ID: " + ", ".join(sorted(duplicate)))
+        merged["conditions"].update(raw["conditions"])
+        merged["runs"].update(raw["runs"])
+    return merged, inputs
 
 
 def _layout(fig):
@@ -100,8 +135,8 @@ def _layout(fig):
 
 
 def _save(fig, out, stem, provenance):
-    fig.text(0.01, 0.01, provenance["condition_caption"], fontsize=8, wrap=True)
-    fig.tight_layout(rect=(0, 0.06, 1, 1), pad=2)
+    fig.text(0.01, 0.01, provenance["figure_caption"], fontsize=8, wrap=True)
+    fig.tight_layout(rect=(0, 0.09, 1, 1), pad=2)
     _layout(fig)
     for extension in (".png", ".pdf"):
         fig.savefig(out / (stem + extension), dpi=180)
@@ -110,14 +145,48 @@ def _save(fig, out, stem, provenance):
     plt.close(fig)
 
 
-def render(raw_path: Path, out: Path):
-    raw_bytes = raw_path.read_bytes()
-    raw = _validate(json.loads(raw_bytes))
+def _series_style(cid):
+    workload, longtx, gc = cid.split("-")
+    return GC_COLORS[int(gc[2:])], LONG_STYLES[longtx], "o" if workload == "A" else "s"
+
+
+def _legend(ax, raw, *, workload_marker=False):
+    ids = raw["conditions"]
+    gc_values = sorted({raw["conditions"][cid]["gc_inter_us"] for cid in ids})
+    long_values = [x for x in LONG_STYLES if any(cid.split("-")[1] == x for cid in ids)]
+    handles = [Line2D([], [], color=GC_COLORS[gc], label=f"GC {gc:,} µs") for gc in gc_values]
+    handles += [Line2D([], [], color="black", linestyle=LONG_STYLES[x], label=x) for x in long_values]
+    if workload_marker:
+        handles += [Line2D([], [], color="black", marker="o" if w == "A" else "s",
+                           linestyle="None", label=f"workload {w}")
+                    for w in sorted({cid[0] for cid in ids})]
+    ax.legend(handles=handles, fontsize=7, ncol=4, loc="upper right")
+
+
+def _nonnegative_error(values):
+    center, half = _ci(values)
+    return center, (min(center, half), half)
+
+
+def _fraction_error(values):
+    center, half = _ci(values)
+    return center, (min(center, half), min(1 - center, half))
+
+
+def _range(values):
+    values = np.asarray(values, dtype=float)
+    if not np.all(np.isfinite(values)) or np.any(values < 0):
+        raise ValueError("quantile range requires finite nonnegative values")
+    center = float(values.mean())
+    return center, (center - float(values.min()), float(values.max()) - center)
+
+
+def render(raw_paths, out: Path):
+    raw, inputs = _load_raw(raw_paths)
     out.mkdir(parents=True, exist_ok=True)
     provenance = {
         "campaign_id": "vhash-cicada-version-measure",
-        "input_path": str(raw_path.resolve()),
-        "input_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+        "inputs": inputs,
         "records": raw["records"], "conditions": raw["conditions"],
         "n_reps": 3, "throughput_interpretation": "diagnostic, not performance",
         "condition_caption": _condition_caption(raw),
@@ -127,41 +196,92 @@ def render(raw_path: Path, out: Path):
         },
     }
     conditions = sorted(raw["runs"])
-    # Figure 1: representative read, write, and validation sites.
-    fig, axes = plt.subplots(3, 2, figsize=(14, 13))
-    for ax, (field, site) in zip(axes.flat,
-                                 (("hops", 0), ("hops", 1), ("hops", 2),
-                                  ("hops", 6), ("position", 0), ("position", 1))):
-        for cid in conditions:
+    # Figure 1: one workload per column; color is GC and line style is long tx.
+    sites = (("hops", 0), ("hops", 1), ("hops", 2),
+             ("hops", 6), ("position", 0), ("position", 1))
+    workloads = sorted({cid[0] for cid in conditions})
+    fig, axes = plt.subplots(6, len(workloads), figsize=(7 * len(workloads), 18),
+                             squeeze=False)
+    for row, (field, site) in enumerate(sites):
+      for col, workload in enumerate(workloads):
+        ax = axes[row, col]
+        for cid in (x for x in conditions if x[0] == workload):
             shares = []
             for run in raw["runs"][cid]:
                 h = _hist(run, field, site)
                 shares.append(h / h.sum() if h.sum() else np.zeros_like(h, dtype=float))
-            means, errors = zip(*(_ci([row[i] for row in shares]) for i in range(18)))
-            ax.errorbar(range(18), means, yerr=errors, label=cid,
-                        alpha=0.7, linewidth=1)
-        ax.set(xlabel=f"{field} bucket (0–8 exact; final overflow)",
-               ylabel="Site share", title=f"{V.SITES[site]} {field}")
-    axes[0, 0].legend(fontsize=5, ncol=4)
+            means, errors = zip(*(_fraction_error([share[i] for share in shares])
+                                  for i in range(18)))
+            color, style, _ = _series_style(cid)
+            ax.errorbar(range(18), means, yerr=np.array(errors).T, color=color,
+                        linestyle=style, alpha=0.8, linewidth=1)
+        ax.set(xlabel="Bucket upper bound", ylabel="Site share",
+               title=f"{workload}: {V.SITES[site]} {field}")
+        ax.set_yscale("symlog", linthresh=1e-6)
+        ax.set_xticks(range(18), BUCKET_LABELS, rotation=55, fontsize=7)
+    _legend(axes[0, 0], raw)
+    provenance["figure_caption"] = "Shares: repetition means with 95% t confidence intervals; zero retained by symlog. " + provenance["condition_caption"]
     _save(fig, out, "search_length", provenance)
 
-    # Figure 2: each K has deep share and optimistic forwarding candidate rate.
-    fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
+    # Figure 2: update and read-only depth, then conditional candidate rate.
+    fig, axes = plt.subplots(3, 1, figsize=(14, 13), sharex=True)
+    denominators = {}
     for cid in conditions:
-        deep_rows, candidate_rows = [], []
+        deep_rows, readonly_rows, candidate_rows, count_rows = [], [], [], []
         for run in raw["runs"][cid]:
-            total = _hist(run, "hops", 0).sum()
+            total = int(_hist(run, "hops", 0).sum())
+            readonly_total = int(_hist(run, "hops", 1).sum())
             deep = _hist(run, "deep")
+            readonly = _hist(run, "readonly_deep")
             candidate = _hist(run, "candidate")
             deep_rows.append(deep / total if total else np.zeros(5))
-            candidate_rows.append(np.divide(candidate, deep, out=np.zeros(5, dtype=float),
-                                            where=deep != 0))
-        for ax, rows in zip(axes, (deep_rows, candidate_rows)):
-            values, errors = zip(*(_ci([r[i] for r in rows]) for i in range(5)))
-            ax.errorbar(V.K, values, yerr=errors, marker="o", label=cid, alpha=0.7)
-    axes[0].set(ylabel="Deep read share", title="K depth and observed optimistic candidates")
-    axes[1].set(xlabel="K", ylabel="Candidate / deep update reads")
-    axes[0].legend(fontsize=6, ncol=4)
+            readonly_rows.append(readonly / readonly_total if readonly_total else np.zeros(5))
+            candidate_rows.append(np.divide(candidate, deep,
+                out=np.full(5, np.nan), where=deep != 0))
+            count_rows.append(deep)
+        color, style, marker = _series_style(cid)
+        for ax, rows in zip(axes[:2], (deep_rows, readonly_rows)):
+            values, errors = zip(*(_fraction_error([r[i] for r in rows]) for i in range(5)))
+            ax.errorbar(V.K, values, yerr=np.array(errors).T, marker=marker,
+                        color=color, linestyle=style, alpha=0.75, markersize=4)
+        candidate_values, candidate_errors, counts = [], [], []
+        for i in range(5):
+            valid = [r[i] for r in candidate_rows if np.isfinite(r[i])]
+            count = int(sum(r[i] for r in count_rows))
+            counts.append(count)
+            if len(valid) >= 2:
+                mean, err = _fraction_error(valid)
+                candidate_values.append(mean)
+                candidate_errors.append(err)
+            elif valid:
+                candidate_values.append(float(valid[0]))
+                candidate_errors.append((0, 0))
+            else:
+                candidate_values.append(np.nan)
+                candidate_errors.append((0, 0))
+        denominators[cid] = dict(zip(map(str, V.K), counts))
+        axes[2].errorbar(V.K, candidate_values, yerr=np.array(candidate_errors).T,
+                         marker=marker, color=color, linestyle=style, alpha=0.7,
+                         markersize=4)
+        for k, value, count in zip(V.K, candidate_values, counts):
+            if np.isfinite(value):
+                axes[2].annotate(str(count), (k, value), xytext=(2, 3),
+                                 textcoords="offset points", fontsize=5, color=color)
+            if count < 30 and np.isfinite(value):
+                axes[2].plot(k, value, marker=marker, markerfacecolor="white",
+                             markeredgecolor=color, linestyle="None", markersize=6)
+    axes[0].set(ylabel="Update reads ≥ K / all update reads", title="Depth and forwarding candidates")
+    axes[1].set(ylabel="Read-only reads ≥ K / all read-only reads",
+                title="Read-only: fixed snapshot, outside forwarding")
+    axes[2].set(xlabel="K", ylabel="Candidates / deep update reads",
+                title="Observed optimistic candidates (labels: deep-read count; open: <30)")
+    for ax in axes[:2]:
+        ax.set_yscale("symlog", linthresh=1e-7)
+    axes[2].set_ylim(bottom=0)
+    _legend(axes[0], raw, workload_marker=True)
+    provenance["candidate_denominators"] = denominators
+    provenance["denominator_annotations"] = len(axes[2].texts)
+    provenance["figure_caption"] = "Means with 95% t confidence intervals; undefined candidate rates omitted. Labels give summed deep-update-read denominators across repetitions. " + provenance["condition_caption"]
     _save(fig, out, "k_candidates", provenance)
 
     # Figure 3: time bucket upper bounds and connected logical versions.
@@ -173,9 +293,9 @@ def render(raw_path: Path, out: Path):
         prefix, gc = cid.rsplit("-gc", 1)
         groups.setdefault(prefix, []).append((int(gc), cid))
     for ax, metric, ylabel in zip(axes, metrics,
-        ("Boundary age (ts space), µs", "Publish interval (rdtscp), µs",
-         "Reclaim age from creation (ts space), µs",
-         "Reclaim age from overwrite (ts space), µs",
+        ("Boundary age, µs", "Publish interval, µs",
+         "Reclaim age: creation, µs",
+         "Reclaim age: overwrite, µs",
          "Connected logical versions")):
         for group, rows in sorted(groups.items()):
             rows.sort()
@@ -186,18 +306,23 @@ def render(raw_path: Path, out: Path):
                         return float(raw["records"] + sum(
                             w["install"]-w["detach"] for w in run["parsed"]["workers"]))
                     return _bucket_quantile(_hist(run, metric), V.TIME_BOUNDS, quantile)
-                values, errors = zip(*(_ci([value(r) for r in raw["runs"][cid]])
-                                       for _, cid in rows))
-                ax.errorbar([gc for gc, _ in rows], values, yerr=errors,
-                            marker="o", label=f"{group} p{int(quantile*100)}" if quantile else group)
+                values, errors = zip(*((_nonnegative_error if quantile is None else _range)(
+                    [value(r) for r in raw["runs"][cid]]) for _, cid in rows))
+                workload, longtx = group.split("-")
+                color = f"C{list(LONG_STYLES).index(longtx)}"
+                ax.errorbar([gc for gc, _ in rows], values, yerr=np.array(errors).T,
+                            color=color, linestyle="-" if quantile != 0.9 else "--",
+                            marker="o" if workload == "A" else "s",
+                            label=f"{group} p{int(quantile*100)}" if quantile else group)
         ax.set_ylabel(ylabel)
         if metric != "logical_versions":
             ax.set_yscale("symlog", linthresh=1)
     axes[0].set_title("Cicada GC and logical version lifetime")
-    axes[0].legend(fontsize=6, ncol=4)
+    axes[0].legend(fontsize=7, ncol=4)
     axes[-1].set_xscale("log")
     axes[-1].set_xticks((10, 1000, 100000), ("10", "1,000", "100,000"))
     axes[-1].set_xlabel("gc_inter_us")
+    provenance["figure_caption"] = "Time-bucket quantiles: repetition mean with min–max range (no t interval); logical versions: mean with 95% t confidence interval. Color denotes long tx; p50 solid, p90 dashed. " + provenance["condition_caption"]
     _save(fig, out, "gc_lifetime", provenance)
 
 
@@ -222,20 +347,46 @@ def selftest():
             rows.append({"rc": 0, "stdout": line, "vlife_json_line": line, "parsed": p})
         runs[cid] = rows
     with tempfile.TemporaryDirectory(prefix="cvl-plot-test-") as td:
-        path = Path(td) / "raw.json"
-        path.write_text(json.dumps({"schema_version": 1, "command": "measure",
-                                    "records": 1000000, "conditions": conditions,
-                                    "runs": runs}))
+        paths = []
+        for i, ids in enumerate((list(conditions)[:12], list(conditions)[12:])):
+            path = Path(td) / f"raw-{i}.json"
+            path.write_text(json.dumps({"schema_version": 1, "command": "measure",
+                "ccbench_commit": "fixture-commit", "patch_sha256": "fixture-patch",
+                "records": 1000000, "conditions": {cid: conditions[cid] for cid in ids},
+                "runs": {cid: runs[cid] for cid in ids}}))
+            paths.append(path)
+        merged, inputs = _load_raw(paths)
+        assert len(merged["conditions"]) == len(conditions) and len(inputs) == 2
+        for mutation, expected in ((lambda x: x["conditions"].update(
+            {list(conditions)[0]: conditions[list(conditions)[0]]}), "duplicate condition ID"),
+            (lambda x: x.update(patch_sha256="wrong"), "patch_sha256 mismatch")):
+            bad = json.loads(paths[1].read_text())
+            mutation(bad)
+            if expected == "duplicate condition ID":
+                bad["runs"][list(conditions)[0]] = runs[list(conditions)[0]]
+            bad_path = Path(td) / "bad.json"
+            bad_path.write_text(json.dumps(bad))
+            try:
+                _load_raw((paths[0], bad_path))
+            except ValueError as exc:
+                assert expected in str(exc), str(exc)
+            else:
+                raise AssertionError(f"failed to reject {expected}")
+        assert _range([0, 1, 10])[0] - _range([0, 1, 10])[1][0] == 0
         out = Path(td) / "figures"
-        render(path, out)
+        render(paths, out)
         assert len(list(out.glob("*.png"))) == 3
         assert len(list(out.glob("*.pdf"))) == 3
         assert len(list(out.glob("*.provenance.json"))) == 3
+        provenance = json.loads((out / "k_candidates.provenance.json").read_text())
+        assert set(provenance["candidate_denominators"]) == set(conditions)
+        assert all(set(row) == set(map(str, V.K)) for row in provenance["candidate_denominators"].values())
+        assert provenance["denominator_annotations"] > 0
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("raw", type=Path, nargs="?")
+    parser.add_argument("raw", type=Path, nargs="*")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--selftest", action="store_true")
     args = parser.parse_args()
