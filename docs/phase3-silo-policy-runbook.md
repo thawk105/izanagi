@@ -116,7 +116,9 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
   certified 判定は計測 dir で読み、系列 dir を certified campaign として読まない。
 - **投入前に walltime を確かめる。** loop の walltime 予算 (`MAX_WALLTIME_S`) は `loop_state.json` の作成時刻から
   数える。login の record-reject が先に loop_state を作った系列では、queue 待ちも予算に入る。残りが足りなければ
-  投入せず、予算停止として記録する。
+  投入せず、予算停止として記録する。2 本目以降の pair は、前の pair の request ID を `qsub --after <request>` に
+  渡して先に待ち行列へ入れると、直列を scheduler に保たせたまま待ちを前の job と重ねられる (2026-09-29 に 2 本連続で
+  実測、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §5)。
 - `--allow-coder-derived-build` が無ければ build は拒否される。配線確認だけなら login で `--no-build`
   (検査を通れば `dry-pass` を返すが、WAL・履歴・critic digest には載らない)。
 - driver は検疫 → 構文検査 → 単独 TU → auditor digest 照合 → 書込 → digest 再照合 → build → legacy verify →

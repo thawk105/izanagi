@@ -1,0 +1,21 @@
+# [T-2871] 段 1 brief (親) — 2026-09-28 08:08 JST (file mtime)、起点 local main 51f896352
+
+- 研究前進: 方策 loop (LLM×C++ coder → auditor → 計算ノード pair → critic → 次の coder) を Pegasus で 2 iteration 以上回せるようにし、段階 F・系列 B で 1 本しか測れなかった「critic 診断を受けた次候補」の同じ job の stock 対照つき評価を可能にする。完了判定 = 同じ submit checkout・同じ系列で、連続する 2 本の pair job がどちらも候補 certified (または正当な reject/anomaly) かつ同じ job の stock が `certified-stock` になり、系列の loop_state.iteration と policy_history が 2 本分進むこと。
+- scope: `orchestrator/campaign/p3_s4_loop_policy.py` (driver) とその焦点 test、手順書 `docs/phase3-silo-policy-runbook.md` §1(f)(g)・§3 (親が docs)。loop.py・campaign_claim.py・p3_s4_loop.py・job body (`tools/pegasus/p3_s4_loop_pegasus.sh`) は変えない (前 3 つは 96 path の contract loader 閉包の member)。
+- 確定裁定 (依頼・D2187・D2205・D2274): claim leaf と one-shot 性は不変。claim の手動退避を運用にしない。driver 側で解く。正しさゲート (検疫・構文・単独 TU・auditor digest 照合・verify・stock の `src_token == STOCK`) は緩めない。実装は Codex author。
+- 段 1 実測 (一次資料):
+  - 方策 loop の campaign identity は iteration・proposal に依らず固定 (`default_cfg` p3_s4_loop_policy.py:121-143)。claim path = `<out_root>/env/pegasus/claims/<campaign_id>.claim` (loop.py:365-409)。
+  - **新事実 (依頼文に無い):** 同じ campaign の WAL で終端済みの variant は skip される (loop.py:763-799)。stock の variant ID は毎回同じ (`db4764543546`) なので、claim を解いても 2 本目の pair の stock は同じ loop campaign では skip され対照が付かない (`_stock_result` → `skipped`、pair rc=1)。runbook §1(0) が bootstrap を別 campaign にした理由と同じ。
+  - 先例 (Explore 子の実測を親が裏取り): K2 backoff pair (T-2795) は job ごとに新しい空の submit checkout (= 別 out_root) で同じ identity を通した (`dev-wave-t2795-k2-pair-resubmit/setup-submit-trees.sh:5`「out_root を分けるのは同 identity の one-shot claim と同 campaign の stock skip を避けるため」)。各 tree の loop_state は iteration=1 のままで、**loop の状態・履歴を job をまたいで継続した Pegasus の先例は無い。** B-5・T-2850・T-2849 は search_config の slot key (`b5_slot`、p3_s4_loop.py:3774) で「1 identity = 1 測定点」にしている。方策 driver 自身も `evaluation_purpose` (bootstrap / r2) で identity を分けている。
+  - pin 閉包 (DW-O09): 変更前 sha256 driver `f4afe080…`・runbook `ace753ad…` は repo 内 hit 0。構造 pin は run_campaign 呼出し 2 本の棚卸し (test_campaign.py:5520・5603) と perf 閉包 list の所属 (test_official_perf_closure.py:62) だけ。凍結 bytes なし → DW-O10 非成立。
+- (P1) 親の provisional 裁定・攻撃対象: **系列 (loop) の campaign dir と、pair job の計測 campaign を分ける。** loop_state・policy_history・critic digest の置き場は現行の loop campaign dir のまま (claim を取らない login 側操作と共有)。pair job の計測 (候補 + stock) は、系列の identity に iteration 番号の key を足した別 identity の campaign に入れる。claim は iteration ごとに 1 本で one-shot のまま、同じ iteration を 2 度測れば従来どおり ClaimError。stock skip も同時に解ける。
+- (P2) 対案 (K2 型: job ごとに新しい out_root を作り、系列状態を前の tree から持ち込む) は、系列状態の出所が tree をまたぎ provenance が割れるので provisional に不採用。段 2 の片方の plan で比較させる。
+- (P3) iteration 番号は系列の loop_state から driver が決め (login の record-reject と同じ counter)、operator の argv では渡さない。
+- (P4) critic digest と `_result_history` の材料が系列 campaign と計測 campaign のどちらの WAL か、を plan で明示させる。critic への入力 (runbook §1(g)) の意味を変えない範囲で最小にする。
+- (P5) 新しい gate・照合・台帳は足さない。既存の identity 束縛 (campaign.lock・claim record) だけで足りるかを段 3 で点検させる。
+- 不変条件: run_campaign の呼出しは 2 本のまま。bootstrap / r2 / record-reject / emit-coder-input の identity と挙動は不変 (login の coder 入力は既存系列の履歴を読める)。既存の系列 A・B の dir を読み替えない。firewall (coder 入力 5 key、critic 入力 3 点) 不変。
+- 結合検査: 実 `_authorize_measurement`・実 `acquire_claim`・実 `check_reservation` を通し、driver `main` を別 process で 2 回 (iteration 1 → 2) 同じ out_root で走らせ、2 本とも候補・stock が評価され claim が 2 file、loop_state.iteration=2・履歴 2 行になること。負例: iteration key を外した変異で 2 本目が ClaimError、stock skip。build・bench・trace は既存 fixture で差し替えてよい。
+- 計算ノードの生死確認: 実装 commit を含む tip から新しい submit checkout を作り、t2865 の auditor 通過済み proposal (`output/insights/2026-09-27/t2865-silo-policy-iter2/verbatim/llm/prop-2.json` → `prop-3.json`) で pair job を 2 本連続投入する (LLM を呼ばない liveness 専用系列。研究系列ではない)。bootstrap は省く。
+- 見積り (job Elapse 実測単価): pair 786 s × 2 = 1,572 s、焦点走 ≈ 50 s × 4、変異 harness ≈ 750 s、受入 ≈ 1,200 s → 合計 ≈ 3,700 s ≈ 1.0 node 時間 < 2 → ユーザー確認なしで進める。超えそうになったら止めて確認。
+- 分割: 段 2 は read-only codex 2 本 (plan-A = P1 を file:line で具体化、plan-B = P2 含む対案を自由に比較して推奨)。段 3 は 2 レンズ (正しさ境界・受理集合 / 実効性と過剰・削除)。段 5 は実装子 1 本 (driver + 焦点 test、同じ file を分けない)。
+- 受入・実測環境: Pegasus (login pegasus02 で起動、計算ノードで焦点走・受入・pair)。worklog の所在どおり。
